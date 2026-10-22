@@ -9,6 +9,8 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+# An endpoint's client authorities, read from PEM as the proxy reads them, and written back.
+base64 = "0.22"
 buffa = { version = "=0.9.2", features = ["json"] }
 buffa-types = { version = "=0.9.2", features = ["json"] }
 buffa-descriptor = { version = "=0.9.2", features = ["reflect"] }
@@ -17,11 +19,14 @@ korpis-core = { workspace = true, features = ["authz"] }
 korpis-proto = { workspace = true }
 # The stream format's records, as the API sends them.
 korpis-stream = { workspace = true }
+rustls-pki-types = "1"
+rustls-webpki = { version = "0.103", default-features = false, features = ["alloc"] }
 serde_json = "1"
 thiserror = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 uuid = { workspace = true }
 
 [lints]

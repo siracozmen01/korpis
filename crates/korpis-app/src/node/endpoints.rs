@@ -53,7 +53,7 @@ pub(super) async fn placed<T: Tx>(
             node,
             port,
             domains: if ingress { declared.domains.clone() } else { Vec::new() },
-            tls: ingress.then(|| declared.tls.clone().unwrap_or(TlsSpec::Acme)),
+            tls: ingress.then(|| declared.tls.clone().unwrap_or(TlsSpec::Acme { clients: None })),
             certificate: served.iter().find(|(e, _)| *e == declared.name).map(|(_, c)| *c),
         };
         if before != Some(&endpoint) {

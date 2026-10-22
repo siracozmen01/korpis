@@ -595,6 +595,17 @@ Primary:
   (Misdirected Request) status code" ([RFC 9113](https://www.rfc-editor.org/rfc/rfc9113.html),
   read 2026-10-22). Why the ingress refuses a request whose route asks for another client
   certificate than its connection's (Finding 137 of `../23-walkthroughs.md`).
+- **[V]** RFC 9113 §6.5.2, `SETTINGS_MAX_CONCURRENT_STREAMS`: "It is recommended that this value be
+  no smaller than 100, so as to not unnecessarily limit parallelism"; and §5.1.2, a stream beyond
+  the limit is "a stream error of type PROTOCOL_ERROR or REFUSED_STREAM"
+  ([RFC 9113](https://www.rfc-editor.org/rfc/rfc9113.html), read 2026-10-22). The ingress's bound
+  on the streams one HTTP/2 connection carries (Finding 138 of `../23-walkthroughs.md`).
+- **[V]** RFC 9440 §2, §2.1 to §2.3: `Client-Cert` holds "the end-entity certificate used by the
+  client in the TLS handshake", and `Client-Cert-Chain` "the certificate chain used for
+  validation of the end-entity certificate", which "does not itself include the end-entity
+  certificate" and may omit the root; each certificate a Byte Sequence of its DER (§3.3.5 of RFC
+  8941, `:base64:`) ([RFC 9440](https://www.rfc-editor.org/rfc/rfc9440.html), read 2026-10-22).
+  How the ingress writes them (§3.2 of `../07-networking.md`).
 - **[V]** RUSTSEC-2023-0071 (CVE-2023-49092), the Marvin attack on the `rsa` crate: "information
   about the private key is leaked through timing information which is observable over the
   network", with no patched version as of 2026-09-12; the advisory's workaround is to avoid the

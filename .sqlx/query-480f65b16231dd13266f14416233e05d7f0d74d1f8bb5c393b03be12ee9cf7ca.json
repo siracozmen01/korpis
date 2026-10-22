@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO endpoint (id, workload_id, name, protocol, container_port, exposure,\n                                   node_id, port, created_at, domains, tls, tls_secret,\n                                   proxy_protocol, client_certificates, client_ca,\n                                   certificate_id, certificate_revision)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,\n                     $17)\n             ON CONFLICT (workload_id, name) DO UPDATE\n                SET protocol = EXCLUDED.protocol, container_port = EXCLUDED.container_port,\n                    exposure = EXCLUDED.exposure, node_id = EXCLUDED.node_id,\n                    port = EXCLUDED.port, domains = EXCLUDED.domains, tls = EXCLUDED.tls,\n                    tls_secret = EXCLUDED.tls_secret, proxy_protocol = EXCLUDED.proxy_protocol,\n                    client_certificates = EXCLUDED.client_certificates,\n                    client_ca = EXCLUDED.client_ca,\n                    certificate_id = EXCLUDED.certificate_id,\n                    certificate_revision = EXCLUDED.certificate_revision",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Uuid",
+        "Int4",
+        "Timestamptz",
+        "TextArray",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "ByteaArray",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "480f65b16231dd13266f14416233e05d7f0d74d1f8bb5c393b03be12ee9cf7ca"
+}

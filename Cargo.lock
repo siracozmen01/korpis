@@ -3168,8 +3168,14 @@ dependencies = [
 name = "korpis-e2e"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "buffa",
+ "bytes",
  "connectrpc",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "ipnet",
  "korpis-agent",
  "korpis-backup",
@@ -3186,6 +3192,7 @@ dependencies = [
  "korpis-stream",
  "korpis-target-s3",
  "korpis-wire",
+ "ppp",
  "rcgen",
  "reqwest",
  "rustls",
@@ -3195,6 +3202,7 @@ dependencies = [
  "tar",
  "tempfile",
  "tokio",
+ "tokio-rustls",
  "tracing-subscriber",
  "url",
  "uuid",
@@ -3554,6 +3562,7 @@ dependencies = [
 name = "korpis-wire"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "buffa",
  "buffa-descriptor",
  "buffa-types",
@@ -3561,6 +3570,9 @@ dependencies = [
  "korpis-core",
  "korpis-proto",
  "korpis-stream",
+ "rcgen",
+ "rustls-pki-types",
+ "rustls-webpki",
  "serde_json",
  "thiserror 2.0.21",
  "uuid",

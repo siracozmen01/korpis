@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,\n                    domains, tls, tls_secret, proxy_protocol, certificate_id, certificate_revision\n               FROM endpoint WHERE workload_id = $1 ORDER BY name",
+  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,\n                    domains, tls, tls_secret, proxy_protocol, client_certificates, client_ca,\n                    certificate_id, certificate_revision\n               FROM endpoint WHERE workload_id = $1 ORDER BY name",
   "describe": {
     "columns": [
       {
@@ -137,6 +137,28 @@
       },
       {
         "ordinal": 12,
+        "name": "client_certificates",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "client_certificates"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "client_ca",
+        "type_info": "ByteaArray",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "client_ca"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
         "name": "certificate_id",
         "type_info": "Uuid",
         "origin": {
@@ -147,7 +169,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 15,
         "name": "certificate_revision",
         "type_info": "Int8",
         "origin": {
@@ -177,8 +199,10 @@
       false,
       false,
       true,
+      false,
+      true,
       true
     ]
   },
-  "hash": "b3aa3d11b8f4fd6df873db44985d0e1ba2f556f5842a1116f87246dcfa2aa515"
+  "hash": "5ec4627d4e736e6047f3e4f529205d79bd1e64ae81de46755e6d15e26332f10d"
 }

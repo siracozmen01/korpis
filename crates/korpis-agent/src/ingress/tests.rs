@@ -32,12 +32,16 @@ fn each_ingress_endpoint_of_a_workload_with_an_address_is_a_route() {
         pb::TlsSpec { source: pb::TlsSource::TLS_SOURCE_PASSTHROUGH.into(), ..Default::default() }
             .into();
     tls.client_address = pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL.into();
+    let mut web = endpoint("web", http, pb::Exposure::EXPOSURE_INGRESS);
+    web.tls = pb::TlsSpec {
+        source: pb::TlsSource::TLS_SOURCE_ACME.into(),
+        client_certificates: pb::ClientCertificates::CLIENT_CERTIFICATES_REQUIRED.into(),
+        client_ca: "-----BEGIN CERTIFICATE-----\n".into(),
+        ..Default::default()
+    }
+    .into();
     let w1 = agent::Assignment {
-        endpoints: vec![
-            endpoint("web", http, pb::Exposure::EXPOSURE_INGRESS),
-            endpoint("game", tcp, pb::Exposure::EXPOSURE_NODE_BOUND),
-            tls,
-        ],
+        endpoints: vec![web, endpoint("game", tcp, pb::Exposure::EXPOSURE_NODE_BOUND), tls],
         ..Default::default()
     };
     let unaddressed = agent::Assignment {
@@ -63,6 +67,11 @@ fn each_ingress_endpoint_of_a_workload_with_an_address_is_a_route() {
     );
     let told: Vec<bool> = c.routes.iter().map(|r| r.proxy_protocol).collect();
     assert_eq!(told, [false, true], "a PROXY header where the endpoint declared one");
+    let asked: Vec<_> =
+        c.routes.iter().map(|r| (r.client_certificates.as_known(), r.client_ca.len())).collect();
+    let required = Some(ingress::ClientCertificates::CLIENT_CERTIFICATES_REQUIRED);
+    let none = Some(ingress::ClientCertificates::CLIENT_CERTIFICATES_UNSPECIFIED);
+    assert_eq!(asked, [(required, 28), (none, 0)], "the authorities as the endpoint holds them");
 }
 
 #[test]

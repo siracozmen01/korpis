@@ -14,7 +14,9 @@ workspace = true
 [dependencies]
 
 [dev-dependencies]
+base64 = "0.22"
 buffa = { version = "=0.9.2" }
+bytes = "1"
 connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "client-tls"] }
 korpis-agent = { path = "../korpis-agent" }
 korpis-backup = { path = "../korpis-backup", features = ["testing"] }
@@ -24,6 +26,11 @@ korpis-driver-oci = { path = "../korpis-driver-oci" }
 korpis-extension = { path = "../korpis-extension" }
 korpis-helper = { path = "../korpis-helper" }
 korpis-idp-oidc = { path = "../korpis-idp-oidc" }
+http = "1"
+http-body-util = "0.1"
+# The ingress's features driven as a browser drives them: HTTP/2, and a WebSocket opened on it.
+hyper = { version = "1", features = ["client", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 ipnet = "2"
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-recipe = { workspace = true }
@@ -32,6 +39,8 @@ korpis-store = { workspace = true, features = ["testing"] }
 korpis-stream = { workspace = true }
 korpis-target-s3 = { path = "../korpis-target-s3" }
 korpis-wire = { workspace = true }
+# The PROXY header a passthrough workload is sent, read by a parser that is not Korpis's.
+ppp = "2.3"
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 sha2 = "0.10"
@@ -42,5 +51,6 @@ tempfile = "3"
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio = { workspace = true }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
 url = "2"
 uuid = { workspace = true }

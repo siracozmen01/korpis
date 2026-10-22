@@ -29,7 +29,7 @@ fn an_ingress_endpoint_is_placed_only_where_the_node_serves_the_ingress() {
         container_port: 8080,
         exposure: Exposure::Ingress,
         domains: vec!["shop.example.com".into()],
-        tls: Some(TlsSpec::Acme),
+        tls: Some(TlsSpec::Acme { clients: None }),
         policy: NetworkPolicy::default(),
         accounting: false,
         shaping: ShapingSpec::default(),

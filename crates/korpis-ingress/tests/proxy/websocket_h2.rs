@@ -4,11 +4,14 @@
 //! the proxy announces it, forwards the stream to the workload as the HTTP/1.1 upgrade the
 //! workload understands, answers the client 200 once the workload switches protocols, and joins
 //! the two byte for byte; a request on the same connection still reaches the workload as any does.
+//! Each such WebSocket holds a connection to its workload, so it counts against the proxy's bound
+//! on connections while it is open (Finding 138 of docs/23-walkthroughs.md).
 
 use crate::support::{Pki, Proxy, connect, get, route, workload};
 use bytes::Bytes;
 use http::{Method, Request, StatusCode};
 use http_body_util::Empty;
+use hyper::client::conn::http2::SendRequest;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use korpis_proto::korpis::ingress::v1 as pb;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
@@ -47,4 +50,60 @@ async fn a_websocket_opens_on_an_http2_connection_and_is_joined_to_its_workload(
     let mut echoed = [0u8; 4];
     stream.read_exact(&mut echoed).await.unwrap();
     assert_eq!(&echoed, b"ping", "joined byte for byte");
+}
+
+/// A WebSocket asked for by extended CONNECT on `send`; the status it was answered with, and the
+/// stream once it is open.
+async fn open_websocket(
+    send: &mut SendRequest<Empty<Bytes>>,
+) -> (StatusCode, Option<TokioIo<hyper::upgrade::Upgraded>>) {
+    let mut open = Request::builder()
+        .method(Method::CONNECT)
+        .uri("https://ws.example.test/chat")
+        .header("sec-websocket-version", "13")
+        .body(Empty::<Bytes>::new())
+        .unwrap();
+    open.extensions_mut().insert(hyper::ext::Protocol::from_static("websocket"));
+    let mut opened = send.send_request(open).await.unwrap();
+    let status = opened.status();
+    let stream = if status == StatusCode::OK {
+        Some(TokioIo::new(hyper::upgrade::on(&mut opened).await.unwrap()))
+    } else {
+        None
+    };
+    (status, stream)
+}
+
+#[tokio::test]
+async fn a_websocket_on_a_stream_counts_as_a_connection_while_it_is_open() {
+    let pki = Pki::new();
+    let echo = workload("echo", None).await;
+    let config = pb::IngressConfig {
+        routes: vec![route(&["ws.example.test"], echo, pb::RouteMode::ROUTE_MODE_HTTP, "crt")],
+        certificates: vec![pki.certificate("crt", &["ws.example.test"])],
+        limits: pb::Limits { max_connections: 2, ..Default::default() }.into(),
+        ..Default::default()
+    };
+    let proxy = Proxy::start(&config);
+    let tls = connect(&pki, proxy.https, "ws.example.test", &[b"h2"]).await.unwrap();
+    let (mut send, conn) =
+        hyper::client::conn::http2::handshake(TokioExecutor::new(), TokioIo::new(tls))
+            .await
+            .unwrap();
+    tokio::spawn(conn);
+    let first = send.send_request(get("/", "ws.example.test")).await.unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+
+    let (status, held) = open_websocket(&mut send).await;
+    assert_eq!(status, StatusCode::OK, "the connection and one WebSocket: two");
+    let (status, _) = open_websocket(&mut send).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "a third is beyond the bound");
+    drop(held);
+    for _ in 0..50 {
+        if open_websocket(&mut send).await.0 == StatusCode::OK {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    panic!("a WebSocket closed gives its place back");
 }

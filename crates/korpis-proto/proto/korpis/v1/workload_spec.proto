@@ -218,6 +218,22 @@ message TlsSpec {
   TlsSource source = 1;
   // For TLS_SOURCE_PROVIDED: the secret holding the certificate and key.
   string secret = 2;
+  // For TLS the proxy terminates, ACME's or provided: whether clients are asked for a certificate
+  // (§3.2 of docs/07-networking.md); unspecified asks for none. Refused with passthrough, whose
+  // workload asks for certificates itself.
+  ClientCertificates client_certificates = 3;
+  // With client_certificates: the certificates, in PEM, of the authorities a client's certificate
+  // is verified against, 1 to 16 of them and at most 64 KiB, and nothing else; they are public.
+  string client_ca = 4;
+}
+
+// Whether a client must present a certificate.
+enum ClientCertificates {
+  CLIENT_CERTIFICATES_UNSPECIFIED = 0;
+  // No handshake completes without a certificate the authorities issued.
+  CLIENT_CERTIFICATES_REQUIRED = 1;
+  // A handshake completes without one, and the workload is told none was given.
+  CLIENT_CERTIFICATES_OPTIONAL = 2;
 }
 
 enum TlsSource {

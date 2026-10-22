@@ -8,6 +8,7 @@ pub mod endpoints;
 pub mod health;
 pub mod resources;
 pub mod runs;
+mod tls;
 
 use crate::recipe::{ref_from_pb, ref_to_pb};
 use crate::value::{map_from_pb, map_to_pb};

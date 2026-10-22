@@ -45,6 +45,9 @@ pub struct Route {
     /// The certificate it is served with; none while it has none, and it is then served on port
     /// 80 alone.
     pub certificate: Option<Arc<CertifiedKey>>,
+    /// The configuration its connections are accepted with, where it asks clients for a
+    /// certificate; none where it asks for none, and they are accepted with the shared one.
+    pub tls: Option<Arc<rustls::ServerConfig>>,
     /// The workload and endpoint, for logs.
     pub label: String,
 }
@@ -137,6 +140,28 @@ fn mode(r: &pb::Route) -> Option<Mode> {
     }
 }
 
+/// The configuration `r`'s connections are accepted with where it asks clients for a
+/// certificate, which only a route the proxy terminates may.
+fn asking(
+    r: &pb::Route,
+    mode: Mode,
+    certificate: Option<Arc<CertifiedKey>>,
+) -> Result<Option<Arc<rustls::ServerConfig>>, String> {
+    let required = match r.client_certificates.as_known() {
+        Some(pb::ClientCertificates::CLIENT_CERTIFICATES_UNSPECIFIED) if r.client_ca.is_empty() => {
+            return Ok(None);
+        }
+        Some(pb::ClientCertificates::CLIENT_CERTIFICATES_REQUIRED) => true,
+        Some(pb::ClientCertificates::CLIENT_CERTIFICATES_OPTIONAL) => false,
+        _ => return Err("client certificates are required or optional, with authorities".into()),
+    };
+    if matches!(mode, Mode::Passthrough { .. }) {
+        return Err("a passthrough workload asks for client certificates itself".into());
+    }
+    let clients = crate::tls::clients(&r.client_ca, required)?;
+    crate::tls::asking_clients(certificate, clients).map(Some).map_err(|e| e.to_string())
+}
+
 impl Table {
     /// The table `c` describes, or why it is refused.
     pub fn from_pb(c: &pb::IngressConfig) -> Result<Self, ConfigError> {
@@ -156,12 +181,14 @@ impl Table {
                     certificates.get(id).ok_or_else(|| bad("no such certificate"))?,
                 )),
             };
+            let tls = asking(r, mode, certificate.clone()).map_err(|e| bad(&e))?;
             let names: Vec<String> = r.names.iter().map(|n| n.to_ascii_lowercase()).collect();
             let route = Arc::new(Route {
                 names: names.clone(),
                 backend,
                 mode,
                 certificate,
+                tls,
                 label: label.clone(),
             });
             if let Some(twice) =

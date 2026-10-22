@@ -6,7 +6,7 @@
 //! connections are joined byte for byte; one opened on HTTP/2 by extended CONNECT (RFC 8441) is
 //! forwarded as the same HTTP/1.1 upgrade, and its stream joined to the workload's connection.
 
-use crate::headers::{set_forwarded, strip_hop_by_hop};
+use crate::headers::{set_client_cert, set_forwarded, strip_hop_by_hop};
 use crate::table::{Mode, Route};
 use bytes::Bytes;
 use http::header::{self, HeaderValue};
@@ -18,6 +18,7 @@ use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::{TokioExecutor, TokioIo};
+use rustls::pki_types::CertificateDer;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -49,6 +50,9 @@ pub struct Origin {
     pub route: Arc<Route>,
     /// The name it asked for, without a port.
     pub host: String,
+    /// The certificate chain the client presented and the handshake verified, end-entity first;
+    /// none where it presented none.
+    pub presented: Option<Arc<[CertificateDer<'static>]>>,
 }
 
 /// The client connections to workloads are made with: pooled, HTTP/1.1, over TLS that verifies
@@ -131,11 +135,13 @@ impl Backends {
     /// Forwards a WebSocket opened on HTTP/2 by extended CONNECT (RFC 8441) as the HTTP/1.1
     /// upgrade the workload understands, with a key the proxy makes, since an HTTP/2 client sends
     /// none; once the workload switches protocols the client is answered 200, HTTP/2 having no
-    /// 101, and the stream is joined to the workload's connection. Any other answer is returned.
-    pub async fn websocket_h2(
+    /// 101, and the stream is joined to the workload's connection, `counted` held until the two
+    /// part. Any other answer is returned.
+    pub async fn websocket_h2<C: Send + 'static>(
         &self,
         origin: &Origin,
         mut req: Request<Incoming>,
+        counted: C,
     ) -> Response<Body> {
         let from_client = hyper::upgrade::on(&mut req);
         let (mut parts, _) = req.into_parts();
@@ -166,7 +172,10 @@ impl Backends {
             return Response::from_parts(parts, body.boxed());
         }
         let from_workload = hyper::upgrade::on(&mut response);
-        tokio::spawn(join(from_client, from_workload));
+        tokio::spawn(async move {
+            join(from_client, from_workload).await;
+            drop(counted);
+        });
         let mut opened = Response::new(empty());
         for name in [header::SEC_WEBSOCKET_PROTOCOL, header::SEC_WEBSOCKET_EXTENSIONS] {
             if let Some(v) = response.headers().get(&name) {
@@ -238,6 +247,7 @@ fn websocket_key() -> Option<HeaderValue> {
 fn prepare(h: &mut http::HeaderMap, origin: &Origin, upgrading: bool) {
     strip_hop_by_hop(h, upgrading);
     set_forwarded(h, origin.client, &origin.host, "https");
+    set_client_cert(h, origin.presented.as_deref());
     if let Ok(host) = HeaderValue::from_str(&origin.host) {
         h.insert(header::HOST, host);
     }

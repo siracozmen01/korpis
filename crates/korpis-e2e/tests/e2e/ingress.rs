@@ -55,7 +55,7 @@ async fn answered(at: SocketAddr, name: &str, path: &str, wanted: fn(&str) -> bo
 }
 
 /// A TLS `ClientHello` naming `name`, as any client's first bytes.
-fn client_hello(name: &str) -> Vec<u8> {
+pub(crate) fn client_hello(name: &str) -> Vec<u8> {
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let config = rustls::ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
@@ -105,13 +105,13 @@ fn issued(name: &str) -> (rustls::pki_types::CertificateDer<'static>, String, St
 
 /// Uploads a certificate for `name` to the root organization; its identifier, and the authority
 /// a client trusts it by.
-async fn uploaded(
+pub(crate) async fn uploaded(
     cp: &ControlPlane,
     name: &str,
 ) -> (String, rustls::pki_types::CertificateDer<'static>) {
     let (authority, chain, key) = issued(name);
     let req = pb::CreateCertificateRequest {
-        mutation: mutation("certificate").into(),
+        mutation: mutation(&format!("certificate-{name}")).into(),
         organization: cp.root_org.clone(),
         chain,
         key,
@@ -191,7 +191,7 @@ async fn directory() -> Option<(Pebble, ChallengeDns)> {
 }
 
 /// Attests `domain` to the root organization, as the operator.
-async fn attest(cp: &ControlPlane, domain: &str) {
+pub(crate) async fn attest(cp: &ControlPlane, domain: &str) {
     let attest = pb::CreateDomainRequest {
         mutation: mutation(domain).into(),
         organization: cp.root_org.clone(),
@@ -248,7 +248,7 @@ fn endpoints(certificate: &str) -> Vec<pb::EndpointSpec> {
 }
 
 /// Waits until the control plane holds the node as serving the ingress.
-async fn serving(cp: &ControlPlane) {
+pub(crate) async fn serving(cp: &ControlPlane) {
     for _ in 0..100 {
         if cp.scalar::<bool>("SELECT coalesce(bool_and(ingress), false) FROM node").await {
             return;

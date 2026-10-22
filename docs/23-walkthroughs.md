@@ -1383,6 +1383,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 135 | A terminal could not register an SSH key ten minutes after signing in | §50 | `08-identity.md` §9.9, `13-surface-cli.md` §8 |
 | 136 | Anyone could register another person's public key, and their SFTP client then signed in as the squatter | §50 | `08-identity.md` §9.9, `13-surface-cli.md` §8 |
 | 137 | The design let a browser reach an endpoint that requires a client certificate over a connection that never presented one | §51 | `07-networking.md` §3.2 |
+| 138 | One HTTP/2 connection could hold as many WebSockets to its workload as it opened streams, past the proxy's bound on connections | §51 | `07-networking.md` §3.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4395,13 +4396,13 @@ proxy once a connection was open.
 | 1 | Ledgerline declares `api` with `tls.client_certificates: required` and its authority in `tls.client_ca`; the control plane checks the authority is certificates, sixteen at most, and declares it | `07-networking.md` §3.2; `01-model.md` Endpoint |
 | 2 | The agent on `api`'s node builds the route with the authority, from the endpoint its assignment declares; the proxy, reading the name in the client's first message, chooses that route's TLS configuration, which asks for a certificate | `07-networking.md` §3.2 |
 | 3 | A device presents its certificate; the proxy verifies it against Ledgerline's authority, removes any `Client-Cert` the device sent, and passes the verified one in `Client-Cert` | `07-networking.md` §3.2; RFC 9440 |
-| 4 | A browser loads `app.ledgerline.example` over HTTP/2 and opens a WebSocket on the same connection by extended CONNECT; the proxy forwards it to `app` as an HTTP/1.1 upgrade and joins the two | `07-networking.md` §3.2; RFC 8441 |
+| 4 | A browser loads `app.ledgerline.example` over HTTP/2 and opens a WebSocket on the same connection by extended CONNECT; the proxy forwards it to `app` as an HTTP/1.1 upgrade and joins the two § | `07-networking.md` §3.2; RFC 8441 |
 | 5 | A page of `app` calls `api.ledgerline.example`. The wildcard certificate serves both names, so the browser sends the call on the connection it already holds to `app`, which presented no client certificate ‡ | `07-networking.md` §3.2; RFC 9113 §9.1.1 |
 | 6 | Ledgerline declares `client_address: proxy_protocol` on `app` by mistake, and is refused: `app`'s TLS is the proxy's, and `Forwarded` tells it already. On `relay`, a `passthrough` endpoint, it is declared, and the proxy writes a PROXY header before the first byte it splices | `07-networking.md` §3.2, §3.4 |
 | 7 | `relay` bans an address it read from the header; the ban holds, since only the proxy reaches the port through the ingress | `07-networking.md` §3.4 |
 | 8 | A device is stolen and its certificate revoked by Ledgerline's authority. The proxy checks no revocation, so `api` accepts it until it expires; Ledgerline's certificates last a day, which bounds it | `17-security.md` §6 |
 
-**One finding, at step 5** (‡).
+**Two findings, at step 5 (‡) and at step 4 (§).**
 
 **FINDING 137: The design let a browser reach an endpoint that requires a client certificate
 over a connection that never presented one. `CONFIRMED`, in the document; the proxy as built
@@ -4426,3 +4427,40 @@ request.
 
 What it costs. A page that calls a certificate-protected name from one that is not opens a second
 connection, as it would to an unrelated name.
+
+**FINDING 138: One HTTP/2 connection could hold as many WebSockets to its workload as it opened
+streams, past the proxy's bound on connections. `CONFIRMED`, in the code as built at step 4 (§)**
+
+Found 2026-10-22 by an automated security review of the commit that built step 4, and recorded
+here because the trace's own question would have found it: what evaluates the proxy's bound on
+connections, and with what? The proxy counts each connection it accepts, and §3.2 of
+`07-networking.md` says it bounds connections in all. A WebSocket opened by extended CONNECT is a
+stream of a connection already counted, yet the proxy opens a connection to the workload for it
+and holds it for as long as the WebSocket lasts. With hyper's default of 200 concurrent streams,
+one admitted connection could hold two hundred connections to a workload, and a client opening
+connections up to the bound could hold the bound times two hundred; a WebSocket on its own
+HTTP/1.1 connection, by contrast, is the connection counted.
+
+**Resolution.** A WebSocket on a stream is counted as a connection when it is opened and until
+its two halves part, and one beyond the bound is answered 503 on its stream; and an HTTP/2
+connection carries at most 100 streams at once, the floor RFC 9113 §6.5.2 recommends. → corrected
+in §3.2 of `07-networking.md` and built in `crates/korpis-ingress` with the client certificates
+(P2.12d), with a test that the bound holds and that a WebSocket closed gives its place back.
+
+What it costs. A node whose bound is reached refuses a browser's next WebSocket even on a
+connection it already holds, which the browser sees as a failed WebSocket rather than a slow
+page; the bound is the operator's to size.
+
+> Built 2026-10-22, every step but 7, which is `relay`'s own, and 8, which is a stated negative.
+> On a real node, through the proxy the helper starts and the agent feeds: a device presenting a
+> certificate its customer's authority issued reaches `api`, which is told that certificate in
+> `Client-Cert` and not the one the device claimed in a header of its own, and a client
+> presenting none gets no session (steps 1 to 3); a browser's HTTP/2 connection to `app` loads a
+> page and then opens a WebSocket on a stream, which `app`, speaking HTTP/1.1, accepts, and bytes
+> sent on it come back unchanged (step 4); and `relay`, its TLS passed through, is sent a PROXY
+> header that a parser other than Korpis's reads as naming the client's own address and port and
+> the node's port 443, and then the client's first bytes as it sent them (step 6). The refusal at
+> step 6 is proven where a declaration is read, from a whole body and from a recipe's; the
+> coalesced request of step 5, refused 421 over HTTP/1.1 and HTTP/2, against the proxy on
+> loopback, as are a client of another authority refused and an `optional` endpoint serving a
+> client with no certificate.

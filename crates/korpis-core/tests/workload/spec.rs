@@ -3,7 +3,9 @@
 //! A declaration's own consistency.
 
 use crate::support::body;
-use korpis_core::workload::spec::endpoints::{Exposure, Protocol, TlsSpec};
+use korpis_core::workload::spec::endpoints::{
+    ClientAuth, ClientCertificates, Exposure, Protocol, TlsSpec,
+};
 use korpis_core::workload::spec::health::{Probe, ProbeKind};
 use korpis_core::workload::spec::{ConsoleMode, Lifecycle};
 
@@ -35,7 +37,10 @@ fn an_ingress_endpoint_routes_exact_names_over_http_or_tls_it_passes_through() {
     };
     let shop = &["shop.example.com"][..];
     assert!(valid(Box::new(ingress(Protocol::Http, None, shop))).is_ok(), "ACME by default");
-    assert!(valid(Box::new(ingress(Protocol::Https, Some(TlsSpec::Acme), shop))).is_ok());
+    assert!(
+        valid(Box::new(ingress(Protocol::Https, Some(TlsSpec::Acme { clients: None }), shop)))
+            .is_ok()
+    );
     for proxy_protocol in [false, true] {
         let passthrough = Some(TlsSpec::Passthrough { proxy_protocol });
         assert!(valid(Box::new(ingress(Protocol::Tcp, passthrough.clone(), shop))).is_ok());
@@ -43,7 +48,18 @@ fn an_ingress_endpoint_routes_exact_names_over_http_or_tls_it_passes_through() {
     }
     assert_eq!(refused(ingress(Protocol::Tcp, None, shop)), "endpoints[0].tls");
     assert_eq!(refused(ingress(Protocol::Udp, None, shop)), "endpoints[0].protocol");
-    let provided = Some(TlsSpec::Provided { secret: String::new() });
+    let clients = |authorities: Vec<Vec<u8>>| ClientAuth {
+        certificates: ClientCertificates::Required,
+        authorities,
+    };
+    let asked = Some(TlsSpec::Acme { clients: Some(clients(vec![vec![0x30; 600]])) });
+    assert!(valid(Box::new(ingress(Protocol::Https, asked, shop))).is_ok());
+    let trusting_none = Some(TlsSpec::Acme { clients: Some(clients(Vec::new())) });
+    assert_eq!(
+        refused(ingress(Protocol::Https, trusting_none, shop)),
+        "endpoints[0].tls.client_ca"
+    );
+    let provided = Some(TlsSpec::Provided { secret: String::new(), clients: None });
     assert_eq!(refused(ingress(Protocol::Http, provided, shop)), "endpoints[0].tls.secret");
     assert_eq!(refused(ingress(Protocol::Http, None, &[])), "endpoints[0].domains");
     assert_eq!(refused(ingress(Protocol::Http, None, &["*.example.com"])), "endpoints[0].domains");
@@ -84,7 +100,10 @@ fn the_example_is_valid_and_each_rule_names_its_field() {
         refused(|b| b.endpoints[0].domains = vec!["mc.example.org".into()]),
         "endpoints[0].domains"
     );
-    assert_eq!(refused(|b| b.endpoints[0].tls = Some(TlsSpec::Acme)), "endpoints[0].tls");
+    assert_eq!(
+        refused(|b| b.endpoints[0].tls = Some(TlsSpec::Acme { clients: None })),
+        "endpoints[0].tls"
+    );
     let probe = |endpoint: &str| Probe {
         kind: ProbeKind::Tcp { endpoint: endpoint.into() },
         period: None,
@@ -98,7 +117,7 @@ fn the_example_is_valid_and_each_rule_names_its_field() {
     ok.endpoints[0].exposure = Exposure::Ingress;
     ok.endpoints[0].protocol = Protocol::Https;
     ok.endpoints[0].domains = vec!["mc.example.org".into(), "map.example.org".into()];
-    ok.endpoints[0].tls = Some(TlsSpec::Provided { secret: "crt_x".into() });
+    ok.endpoints[0].tls = Some(TlsSpec::Provided { secret: "crt_x".into(), clients: None });
     ok.lifecycle = Lifecycle::Scheduled;
     ok.schedule = Some("0 4 * * *".into());
     ok.validate().unwrap();

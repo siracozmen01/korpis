@@ -29,6 +29,23 @@ fn mode(e: &pb::Endpoint) -> ingress::RouteMode {
     }
 }
 
+/// The client certificates `e` asks for, as its route says it, and the authorities it trusts.
+fn clients(e: &pb::Endpoint) -> (ingress::ClientCertificates, String) {
+    let Some(tls) = e.tls.as_option() else {
+        return (ingress::ClientCertificates::CLIENT_CERTIFICATES_UNSPECIFIED, String::new());
+    };
+    let asked = match tls.client_certificates.as_known() {
+        Some(pb::ClientCertificates::CLIENT_CERTIFICATES_REQUIRED) => {
+            ingress::ClientCertificates::CLIENT_CERTIFICATES_REQUIRED
+        }
+        Some(pb::ClientCertificates::CLIENT_CERTIFICATES_OPTIONAL) => {
+            ingress::ClientCertificates::CLIENT_CERTIFICATES_OPTIONAL
+        }
+        _ => ingress::ClientCertificates::CLIENT_CERTIFICATES_UNSPECIFIED,
+    };
+    (asked, tls.client_ca.clone())
+}
+
 /// The certificates the ingress endpoints of `held` serve with, each at the revision their
 /// assignment names: what the node must hold.
 #[must_use]
@@ -79,16 +96,21 @@ pub fn config(
         let ingress = a.endpoints.iter().filter(|e| {
             e.exposure.as_known() == Some(pb::Exposure::EXPOSURE_INGRESS) && !e.domains.is_empty()
         });
-        routes.extend(ingress.map(|e| ingress::Route {
-            names: e.domains.clone(),
-            backend: format!("{}:{}", assigned.ipv4, e.container_port),
-            mode: mode(e).into(),
-            workload: workload.clone(),
-            endpoint: e.name.clone(),
-            certificate: e.certificate.clone(),
-            proxy_protocol: e.client_address.as_known()
-                == Some(pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL),
-            ..Default::default()
+        routes.extend(ingress.map(|e| {
+            let (client_certificates, client_ca) = clients(e);
+            ingress::Route {
+                names: e.domains.clone(),
+                backend: format!("{}:{}", assigned.ipv4, e.container_port),
+                mode: mode(e).into(),
+                workload: workload.clone(),
+                endpoint: e.name.clone(),
+                certificate: e.certificate.clone(),
+                proxy_protocol: e.client_address.as_known()
+                    == Some(pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL),
+                client_certificates: client_certificates.into(),
+                client_ca,
+                ..Default::default()
+            }
         }));
     }
     ingress::IngressConfig { routes, certificates, ..Default::default() }

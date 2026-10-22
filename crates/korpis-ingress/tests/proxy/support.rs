@@ -20,6 +20,9 @@ use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 
+/// What a client presents: its certificate chain, end-entity first, and its key.
+pub type Identity = (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>);
+
 /// A certificate authority the test clients trust.
 pub struct Pki {
     ca: rcgen::CertifiedIssuer<'static, rcgen::KeyPair>,
@@ -45,6 +48,22 @@ impl Pki {
     pub fn certificate(&self, id: &str, names: &[&str]) -> pb::Certificate {
         let (chain, key) = self.leaf(names);
         pb::Certificate { id: id.into(), chain, key, ..Default::default() }
+    }
+
+    /// The authority's own certificate, in PEM, as an endpoint trusting it declares it.
+    pub fn authority(&self) -> String {
+        self.ca.pem()
+    }
+
+    /// A client's certificate for `name`, its chain, end-entity first, and its key.
+    pub fn client(&self, name: &str) -> Identity {
+        let key = rcgen::KeyPair::generate().unwrap();
+        let mut params = rcgen::CertificateParams::new(Vec::<String>::new()).unwrap();
+        params.distinguished_name.push(rcgen::DnType::CommonName, name);
+        params.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::ClientAuth];
+        let cert = params.signed_by(&key, &self.ca).unwrap();
+        let key = PrivateKeyDer::from_pem_slice(key.serialize_pem().as_bytes()).unwrap();
+        (vec![cert.der().clone()], key)
     }
 
     fn roots(&self) -> rustls::RootCertStore {
@@ -79,13 +98,15 @@ fn said(req: &Request<Incoming>, workload: &str) -> String {
         all.join(",")
     };
     format!(
-        "workload={workload}\npath={}\nhost={}\nforwarded={}\nx-forwarded-for={}\nx-forwarded-proto={}\nversion={:?}\n",
+        "workload={workload}\npath={}\nhost={}\nforwarded={}\nx-forwarded-for={}\nx-forwarded-proto={}\nversion={:?}\nclient-cert={}\nclient-cert-chain={}\n",
         req.uri(),
         get("host"),
         get("forwarded"),
         get("x-forwarded-for"),
         get("x-forwarded-proto"),
-        req.version()
+        req.version(),
+        get("client-cert"),
+        get("client-cert-chain")
     )
 }
 
@@ -193,11 +214,25 @@ pub async fn tls_over(
     name: &str,
     alpn: &[&[u8]],
 ) -> std::io::Result<tokio_rustls::client::TlsStream<TcpStream>> {
-    let mut config = rustls::ClientConfig::builder_with_provider(provider())
+    tls_as(pki, tcp, (name, alpn), None).await
+}
+
+/// TLS over `tcp`, asking for `name` and offering `alpn`, presenting `identity` if asked for a
+/// certificate and given one.
+pub async fn tls_as(
+    pki: &Pki,
+    tcp: TcpStream,
+    (name, alpn): (&str, &[&[u8]]),
+    identity: Option<Identity>,
+) -> std::io::Result<tokio_rustls::client::TlsStream<TcpStream>> {
+    let builder = rustls::ClientConfig::builder_with_provider(provider())
         .with_safe_default_protocol_versions()
         .unwrap()
-        .with_root_certificates(pki.roots())
-        .with_no_client_auth();
+        .with_root_certificates(pki.roots());
+    let mut config = match identity {
+        Some((chain, key)) => builder.with_client_auth_cert(chain, key).unwrap(),
+        None => builder.with_no_client_auth(),
+    };
     config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
     let name = ServerName::try_from(name.to_owned()).unwrap();
     tokio_rustls::TlsConnector::from(Arc::new(config)).connect(name, tcp).await

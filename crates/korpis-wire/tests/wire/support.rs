@@ -67,7 +67,7 @@ pub fn egress() -> korpis_core::workload::spec::EgressPolicy {
 fn web() -> EndpointSpec {
     EndpointSpec {
         domains: vec!["map.example.com".into()],
-        tls: Some(TlsSpec::Acme),
+        tls: Some(TlsSpec::Acme { clients: None }),
         policy: NetworkPolicy {
             ingress: vec![NetworkRule {
                 action: NetworkAction::Deny,

@@ -9,11 +9,12 @@ use korpis_app::ports::{EndpointRead, EndpointWrite, StoreError, StoreResult};
 use korpis_core::dns::published::EndpointRecord;
 use korpis_core::node::advertised::PortRange;
 use korpis_core::workload::endpoint::{Endpoint, Served};
-use korpis_core::workload::spec::endpoints::{Exposure, Protocol, TlsSpec};
+use korpis_core::workload::spec::endpoints::{Exposure, Protocol};
 use std::time::SystemTime;
 use uuid::Uuid;
 
 mod record;
+mod tls;
 
 const PROTOCOLS: [(Protocol, &str); 5] = [
     (Protocol::Tcp, "tcp"),
@@ -45,27 +46,6 @@ pub(crate) fn parsed<T: Copy>(table: &[(T, &'static str)], what: &str, s: &str) 
         .ok_or_else(|| StoreError::Corrupt(format!("endpoint {what} {s:?}")))
 }
 
-/// The stored form of where an endpoint's certificate comes from, its certificate, and whether
-/// its workload is sent a PROXY header.
-fn tls_columns(t: Option<&TlsSpec>) -> (Option<&'static str>, &str, bool) {
-    match t {
-        None => (None, "", false),
-        Some(TlsSpec::Acme) => (Some("acme"), "", false),
-        Some(TlsSpec::Provided { secret }) => (Some("provided"), secret, false),
-        Some(TlsSpec::Passthrough { proxy_protocol }) => (Some("passthrough"), "", *proxy_protocol),
-    }
-}
-
-fn tls(source: Option<&str>, secret: String, proxy_protocol: bool) -> StoreResult<Option<TlsSpec>> {
-    Ok(match source {
-        None => None,
-        Some("acme") => Some(TlsSpec::Acme),
-        Some("provided") => Some(TlsSpec::Provided { secret }),
-        Some("passthrough") => Some(TlsSpec::Passthrough { proxy_protocol }),
-        Some(other) => return Err(StoreError::Corrupt(format!("endpoint tls {other:?}"))),
-    })
-}
-
 fn port(what: &str, n: i32) -> StoreResult<u16> {
     u16::try_from(n).map_err(|_| StoreError::Corrupt(format!("endpoint {what} {n}")))
 }
@@ -83,6 +63,8 @@ struct EndpointRow {
     tls: Option<String>,
     tls_secret: String,
     proxy_protocol: bool,
+    client_certificates: Option<String>,
+    client_ca: Vec<Vec<u8>>,
     certificate_id: Option<Uuid>,
     certificate_revision: Option<i64>,
 }
@@ -99,7 +81,13 @@ impl EndpointRow {
             node: self.node_id,
             port: self.port.map(|p| port("port", p)).transpose()?,
             domains: self.domains,
-            tls: tls(self.tls.as_deref(), self.tls_secret, self.proxy_protocol)?,
+            tls: tls::tls(tls::Stored {
+                source: self.tls,
+                secret: self.tls_secret,
+                proxy_protocol: self.proxy_protocol,
+                client_certificates: self.client_certificates,
+                client_ca: self.client_ca,
+            })?,
             certificate: self
                 .certificate_id
                 .zip(self.certificate_revision)
@@ -117,7 +105,8 @@ impl EndpointRead for PgStore {
         let rows = sqlx::query_as!(
             EndpointRow,
             "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
-                    domains, tls, tls_secret, proxy_protocol, certificate_id, certificate_revision
+                    domains, tls, tls_secret, proxy_protocol, client_certificates, client_ca,
+                    certificate_id, certificate_revision
                FROM endpoint WHERE workload_id = $1 ORDER BY name",
             workload
         )
@@ -135,7 +124,8 @@ impl EndpointRead for PgStore {
         let rows = sqlx::query_as!(
             EndpointRow,
             "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
-                    domains, tls, tls_secret, proxy_protocol, certificate_id, certificate_revision
+                    domains, tls, tls_secret, proxy_protocol, client_certificates, client_ca,
+                    certificate_id, certificate_revision
                FROM endpoint WHERE id = $1",
             id
         )
@@ -218,7 +208,8 @@ impl EndpointWrite for PgTx {
         let rows = sqlx::query_as!(
             EndpointRow,
             "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
-                    domains, tls, tls_secret, proxy_protocol, certificate_id, certificate_revision
+                    domains, tls, tls_secret, proxy_protocol, client_certificates, client_ca,
+                    certificate_id, certificate_revision
                FROM endpoint WHERE workload_id = $1 ORDER BY name",
             workload
         )
@@ -246,17 +237,21 @@ impl EndpointWrite for PgTx {
     }
 
     async fn put_endpoint(&mut self, e: &Endpoint, at: SystemTime) -> StoreResult<()> {
-        let (tls, tls_secret, proxy_protocol) = tls_columns(e.tls.as_ref());
+        let tls = tls::columns(e.tls.as_ref());
         sqlx::query!(
             "INSERT INTO endpoint (id, workload_id, name, protocol, container_port, exposure,
                                    node_id, port, created_at, domains, tls, tls_secret,
-                                   proxy_protocol, certificate_id, certificate_revision)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                                   proxy_protocol, client_certificates, client_ca,
+                                   certificate_id, certificate_revision)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+                     $17)
              ON CONFLICT (workload_id, name) DO UPDATE
                 SET protocol = EXCLUDED.protocol, container_port = EXCLUDED.container_port,
                     exposure = EXCLUDED.exposure, node_id = EXCLUDED.node_id,
                     port = EXCLUDED.port, domains = EXCLUDED.domains, tls = EXCLUDED.tls,
                     tls_secret = EXCLUDED.tls_secret, proxy_protocol = EXCLUDED.proxy_protocol,
+                    client_certificates = EXCLUDED.client_certificates,
+                    client_ca = EXCLUDED.client_ca,
                     certificate_id = EXCLUDED.certificate_id,
                     certificate_revision = EXCLUDED.certificate_revision",
             e.id,
@@ -269,9 +264,11 @@ impl EndpointWrite for PgTx {
             e.port.map(i32::from),
             from_time(at),
             &e.domains,
-            tls,
-            tls_secret,
-            proxy_protocol,
+            tls.source,
+            tls.secret,
+            tls.proxy_protocol,
+            tls.client_certificates,
+            &tls.client_ca,
             e.certificate.map(|c| c.id),
             e.certificate.map(|c| c.revision)
         )

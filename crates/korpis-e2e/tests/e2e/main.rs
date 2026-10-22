@@ -20,6 +20,7 @@ mod files;
 mod fs_target;
 mod image;
 mod ingress;
+mod ingress_features;
 mod install;
 mod network;
 mod nightly;

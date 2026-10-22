@@ -3,11 +3,21 @@
 //! The headers a request is forwarded with (§3.2 and §3.4 of docs/07-networking.md). Whatever a
 //! client said about where it came from is removed, `Forwarded` (RFC 7239) and every
 //! `X-Forwarded-*`, and the proxy sets its own, so the workload learns its client's address from
-//! headers only the proxy writes. Hop-by-hop headers (RFC 9110 §7.6.1) describe one connection
-//! and are not forwarded, save the upgrade a WebSocket asks for.
+//! headers only the proxy writes. So it is with the certificate a client presented (RFC 9440):
+//! `Client-Cert` and `Client-Cert-Chain` are removed from every request, and set only from the
+//! certificate the connection's handshake verified. Hop-by-hop headers (RFC 9110 §7.6.1) describe
+//! one connection and are not forwarded, save the upgrade a WebSocket asks for.
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use http::header::{self, HeaderMap, HeaderName, HeaderValue};
+use rustls::pki_types::CertificateDer;
 use std::net::{IpAddr, SocketAddr};
+
+/// The end-entity certificate a client presented (RFC 9440 §2.2).
+const CLIENT_CERT: HeaderName = HeaderName::from_static("client-cert");
+/// The rest of the chain it presented, without the end-entity certificate (RFC 9440 §2.3).
+const CLIENT_CERT_CHAIN: HeaderName = HeaderName::from_static("client-cert-chain");
 
 /// Hop-by-hop headers, which describe the connection they arrived on.
 const HOP_BY_HOP: [HeaderName; 7] = [
@@ -67,6 +77,25 @@ pub fn set_forwarded(h: &mut HeaderMap, client: SocketAddr, host: &str, scheme: 
     set(h, HeaderName::from_static("x-forwarded-proto"), scheme.to_owned());
 }
 
+/// Replaces whatever `h` says of a client certificate with `presented`, the chain the
+/// connection's handshake verified, end-entity first: each certificate a structured field Byte
+/// Sequence of its DER, the chain's a List of them; neither where none was presented.
+pub fn set_client_cert(h: &mut HeaderMap, presented: Option<&[CertificateDer<'static>]>) {
+    h.remove(CLIENT_CERT);
+    h.remove(CLIENT_CERT_CHAIN);
+    let Some((end_entity, chain)) = presented.and_then(<[_]>::split_first) else { return };
+    let item = |c: &CertificateDer<'_>| format!(":{}:", STANDARD.encode(c.as_ref()));
+    if let Ok(v) = HeaderValue::from_str(&item(end_entity)) {
+        h.insert(CLIENT_CERT, v);
+    }
+    let listed: Vec<String> = chain.iter().map(item).collect();
+    if !listed.is_empty()
+        && let Ok(v) = HeaderValue::from_str(&listed.join(", "))
+    {
+        h.insert(CLIENT_CERT_CHAIN, v);
+    }
+}
+
 /// Whether `h` asks to upgrade its HTTP/1.1 connection to a WebSocket.
 #[must_use]
 pub fn wants_websocket(h: &HeaderMap) -> bool {
@@ -107,6 +136,24 @@ mod tests {
         assert_eq!(h.get("x-forwarded-for").unwrap(), "2001:db8::7");
         assert!(h.get("x-forwarded-port").is_none());
         assert!(h.get("x-real-ip").is_some());
+    }
+
+    #[test]
+    fn a_client_certificate_is_said_only_as_the_handshake_verified_it() {
+        let mut h = HeaderMap::new();
+        h.insert(CLIENT_CERT, HeaderValue::from_static(":Zm9yZ2Vk:"));
+        h.insert(CLIENT_CERT_CHAIN, HeaderValue::from_static(":Zm9yZ2Vk:"));
+        set_client_cert(&mut h, None);
+        assert!(h.is_empty(), "a client's own say is removed: {h:?}");
+        let chain = [CertificateDer::from(vec![1, 2, 3]), CertificateDer::from(vec![4])];
+        set_client_cert(&mut h, Some(&chain[..1]));
+        assert_eq!(h.get(CLIENT_CERT).unwrap(), ":AQID:");
+        assert!(h.get(CLIENT_CERT_CHAIN).is_none(), "no chain beyond the end entity");
+        set_client_cert(&mut h, Some(&chain));
+        assert_eq!(h.get(CLIENT_CERT_CHAIN).unwrap(), ":BA==:");
+        let chain = [chain[0].clone(), chain[1].clone(), CertificateDer::from(vec![5])];
+        set_client_cert(&mut h, Some(&chain));
+        assert_eq!(h.get(CLIENT_CERT_CHAIN).unwrap(), ":BA==:, :BQ==:");
     }
 
     #[test]

@@ -11,11 +11,12 @@ use crate::forward::{Backends, Body, Origin, answer};
 use crate::headers::{wants_websocket, wants_websocket_h2};
 use crate::sni::read_hello;
 use crate::stream::{Idle, Replay};
-use crate::table::{Limits, Mode, Route, Table, normal};
+use crate::table::{Limits, Mode, Table, normal};
 use http::{Request, Response, StatusCode, Version, header};
 use hyper::body::Incoming;
 use hyper::service::service_fn;
 use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
+use rustls::pki_types::CertificateDer;
 use std::convert::Infallible;
 use std::io;
 use std::net::SocketAddr;
@@ -35,6 +36,10 @@ pub struct Listeners {
     /// TLS, port 443 of each address.
     pub https: Vec<std::net::TcpListener>,
 }
+
+/// The streams one HTTP/2 connection carries at once: the floor RFC 9113 §6.5.2 recommends, so
+/// a client gets the concurrency it expects, and one connection does not stand for hundreds.
+const MAX_STREAMS: u32 = 100;
 
 /// What every connection shares.
 #[derive(Debug)]
@@ -189,9 +194,16 @@ async fn secure_connection(shared: &Arc<Shared>, stream: TcpStream, client: Sock
         }
         return passthrough(io, read, route.backend).await;
     }
-    let acceptor = tokio_rustls::TlsAcceptor::from(Arc::clone(&shared.tls));
+    // The route's own configuration where it asks clients for a certificate (crate::tls).
+    let config = route.tls.clone().unwrap_or_else(|| Arc::clone(&shared.tls));
+    let acceptor = tokio_rustls::TlsAcceptor::from(config);
     let accepted = timeout(limits.header_timeout, acceptor.accept(Replay::new(hello.read, io)));
     let Ok(Ok(tls)) = accepted.await else { return };
+    let presented: Option<Arc<[CertificateDer<'static>]>> = tls
+        .get_ref()
+        .1
+        .peer_certificates()
+        .map(|c| c.iter().map(|c| c.clone().into_owned()).collect());
     let mut builder = hyper_util::server::conn::auto::Builder::new(TokioExecutor::new());
     builder
         .http1()
@@ -205,37 +217,44 @@ async fn secure_connection(shared: &Arc<Shared>, stream: TcpStream, client: Sock
         .http2()
         .timer(TokioTimer::new())
         .max_header_list_size(header_bytes)
+        .max_concurrent_streams(MAX_STREAMS)
         .enable_connect_protocol();
     let shared = Arc::clone(shared);
     let service = service_fn(move |req| {
         let (shared, route) = (Arc::clone(&shared), Arc::clone(&route));
-        async move { Ok::<_, Infallible>(request(&shared, route, client, req).await) }
+        let origin = Origin { client, route, host: String::new(), presented: presented.clone() };
+        async move { Ok::<_, Infallible>(request(&shared, origin, req).await) }
     });
     let _ = builder.serve_connection_with_upgrades(TokioIo::new(tls), service).await;
 }
 
-/// One request on a terminated connection: routed when it names one of the names the
-/// connection's route serves, and refused 421 otherwise, since the connection was made for
-/// another name.
+/// One request on a terminated connection, from `connection`, whose host is not yet read:
+/// routed when it names one of the names the connection's route serves, and refused 421
+/// otherwise, since the connection was made for another name, its handshake in that name's
+/// configuration and against that name's authorities.
 async fn request(
-    shared: &Shared,
-    route: Arc<Route>,
-    client: SocketAddr,
+    shared: &Arc<Shared>,
+    connection: Origin,
     req: Request<Incoming>,
 ) -> Response<Body> {
     let named = req.uri().authority().map(|a| a.as_str().to_owned()).or_else(|| {
         req.headers().get(header::HOST).and_then(|h| h.to_str().ok()).map(str::to_owned)
     });
-    let host = named.map(|h| normal(&h)).filter(|h| route.names.contains(h));
+    let host = named.map(|h| normal(&h)).filter(|h| connection.route.names.contains(h));
     let Some(host) = host else {
         return answer(StatusCode::MISDIRECTED_REQUEST, "this connection serves other names\n");
     };
-    let origin = Origin { client, route, host };
+    let origin = Origin { host, ..connection };
     if req.version() == Version::HTTP_11 && wants_websocket(req.headers()) {
         return shared.backends.websocket(&origin, req).await;
     }
     if req.version() == Version::HTTP_2 && wants_websocket_h2(&req) {
-        return shared.backends.websocket_h2(&origin, req).await;
+        // A WebSocket on a stream holds a connection to its workload of its own for as long as
+        // it is open, so it is counted as one, as a WebSocket on its own connection is.
+        let Some(counted) = shared.admit() else {
+            return answer(StatusCode::SERVICE_UNAVAILABLE, "too many connections\n");
+        };
+        return shared.backends.websocket_h2(&origin, req, counted).await;
     }
     shared.backends.forward(&origin, req).await
 }

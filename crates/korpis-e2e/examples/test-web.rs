@@ -2,8 +2,9 @@
 
 //! A web program for the end-to-end tests, built static and run in a container. On port 8080 it
 //! answers every HTTP request with `served` and the request's head as it arrived, so a test sees
-//! what a proxy added on the way; on port 8443 it sends back every byte it is sent, so a test
-//! sees that what it sent arrived unchanged, as a TLS stream passed through by name does.
+//! what a proxy added on the way, save a WebSocket upgrade, which it accepts and then sends back
+//! every byte; on port 8443 it sends back every byte it is sent, so a test sees that what it sent
+//! arrived unchanged, as a TLS stream passed through by name does.
 
 use std::io::{BufRead as _, BufReader, Read, Write as _};
 use std::net::{TcpListener, TcpStream};
@@ -25,10 +26,17 @@ fn head(stream: &TcpStream) -> std::io::Result<String> {
     }
 }
 
-/// Answers one request with what it was.
+/// Answers one request with what it was, or a WebSocket upgrade by switching and echoing.
 fn answer(stream: TcpStream) -> std::io::Result<()> {
     let mut stream = stream;
-    let body = format!("served\n{}", head(&stream)?);
+    let head = head(&stream)?;
+    if head.to_ascii_lowercase().contains("\nupgrade: websocket") {
+        stream.write_all(
+            b"HTTP/1.1 101 Switching Protocols\r\nupgrade: websocket\r\nconnection: upgrade\r\n\r\n",
+        )?;
+        return echo(stream);
+    }
+    let body = format!("served\n{head}");
     let length = body.len();
     write!(
         stream,

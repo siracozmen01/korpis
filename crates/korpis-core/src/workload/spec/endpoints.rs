@@ -7,6 +7,12 @@ use crate::labels::LabelSelector;
 use ipnet::IpNet;
 use std::collections::BTreeSet;
 
+mod clients;
+
+pub use clients::{
+    ClientAuth, ClientCertificates, MAX_CLIENT_AUTHORITIES, MAX_CLIENT_AUTHORITY_BYTES,
+};
+
 /// The protocol an endpoint speaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Protocol {
@@ -55,15 +61,21 @@ impl Exposure {
     }
 }
 
-/// Where a certificate comes from.
+/// Where a certificate comes from, and for TLS the proxy terminates, the certificates it asks
+/// clients for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TlsSpec {
     /// Issued by ACME.
-    Acme,
+    Acme {
+        /// The client certificates asked for; none are asked for when none.
+        clients: Option<ClientAuth>,
+    },
     /// Provided by its organization: a certificate it uploaded.
     Provided {
         /// The certificate, by its identifier (`crt_…`).
         secret: String,
+        /// The client certificates asked for; none are asked for when none.
+        clients: Option<ClientAuth>,
     },
     /// Not terminated: the workload handles TLS itself.
     Passthrough {
@@ -237,13 +249,17 @@ pub const MAX_INGRESS_NAMES: usize = 100;
 /// and passes through unread; at least one exact name, and at most [`MAX_INGRESS_NAMES`].
 fn check_ingress(at: &dyn Fn(&str) -> String, e: &EndpointSpec) -> Result<(), SpecError> {
     match (e.protocol, &e.tls) {
-        (Protocol::Http | Protocol::Https, None | Some(TlsSpec::Acme))
+        (Protocol::Http | Protocol::Https, None)
         | (Protocol::Tcp, Some(TlsSpec::Passthrough { .. })) => {}
-        (Protocol::Http | Protocol::Https, Some(TlsSpec::Provided { secret })) => {
+        (Protocol::Http | Protocol::Https, Some(TlsSpec::Acme { clients })) => {
+            clients.as_ref().map_or(Ok(()), |c| c.check(&at("tls.client_ca")))?;
+        }
+        (Protocol::Http | Protocol::Https, Some(TlsSpec::Provided { secret, clients })) => {
             if secret.is_empty() {
                 let why = "a provided certificate is named by its identifier";
                 return Err(SpecError::new(&at("tls.secret"), why));
             }
+            clients.as_ref().map_or(Ok(()), |c| c.check(&at("tls.client_ca")))?;
         }
         (Protocol::Tcp, _) | (_, Some(TlsSpec::Passthrough { .. })) => {
             let why = "TLS the proxy does not terminate is tcp with tls passthrough, routed by SNI";

@@ -19,7 +19,7 @@ use uuid::Uuid;
 /// The certificate `e` names, if it names one; `at` is the endpoint's place in the body.
 pub(crate) fn named(at: &str, e: &EndpointSpec) -> Result<Option<Uuid>, AppError> {
     match &e.tls {
-        Some(TlsSpec::Provided { secret }) => {
+        Some(TlsSpec::Provided { secret, .. }) => {
             Id::parse(IdKind::Certificate, secret).map(|id| Some(id.uuid())).map_err(|_| {
                 AppError::invalid(format!("{at}.tls.secret"), "a certificate identifier, crt_…")
             })

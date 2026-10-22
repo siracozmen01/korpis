@@ -44,6 +44,18 @@ message Route {
   // PROXY header, version 2, naming its client and the address the client reached, before the
   // first byte spliced to it (§3.2 of docs/07-networking.md).
   bool proxy_protocol = 7;
+  // For ROUTE_MODE_HTTP and ROUTE_MODE_HTTPS: whether clients are asked for a certificate, and
+  // the authorities, in PEM, it is verified against; refused with passthrough (§3.2 of
+  // docs/07-networking.md).
+  ClientCertificates client_certificates = 8;
+  string client_ca = 9;
+}
+
+// Whether a client must present a certificate.
+enum ClientCertificates {
+  CLIENT_CERTIFICATES_UNSPECIFIED = 0;
+  CLIENT_CERTIFICATES_REQUIRED = 1;
+  CLIENT_CERTIFICATES_OPTIONAL = 2;
 }
 
 enum RouteMode {

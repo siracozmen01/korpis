@@ -64,10 +64,10 @@ fn what_a_node_enforces_is_accepted() {
 fn what_no_node_of_this_release_enforces_is_refused_with_where_it_is_built() {
     assert_eq!(refused(|e| e.exposure = Exposure::DedicatedIp), "dedicated addresses in phase 3");
     let mut ingress = declared();
-    (ingress.exposure, ingress.tls) = (Exposure::Ingress, Some(TlsSpec::Acme));
+    (ingress.exposure, ingress.tls) = (Exposure::Ingress, Some(TlsSpec::Acme { clients: None }));
     ingress.domains = vec!["shop.example.com".into()];
     assert!(super::endpoint("e", &ingress).is_ok(), "the ingress is built");
-    ingress.tls = Some(TlsSpec::Provided { secret: "crt_x".into() });
+    ingress.tls = Some(TlsSpec::Provided { secret: "crt_x".into(), clients: None });
     assert!(super::endpoint("e", &ingress).is_ok(), "so are provided certificates");
     let mut shaped = declared();
     (shaped.shaping.egress_bits_per_sec, shaped.accounting) = (1_000_000, true);

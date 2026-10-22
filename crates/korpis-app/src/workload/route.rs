@@ -45,7 +45,9 @@ fn routes_in(
 fn acme_names(body: &IntentBody) -> Vec<(String, Vec<String>)> {
     body.endpoints
         .iter()
-        .filter(|e| e.exposure == Exposure::Ingress && matches!(e.tls, None | Some(TlsSpec::Acme)))
+        .filter(|e| {
+            e.exposure == Exposure::Ingress && matches!(e.tls, None | Some(TlsSpec::Acme { .. }))
+        })
         .map(|e| {
             let mut names = e.domains.clone();
             names.sort();

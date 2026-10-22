@@ -202,7 +202,7 @@ the OCI driver does not, and a merged runtime would grant both to both.
   why it is a process of its own, holding nothing else: a bug in it reaches those keys and the
   traffic through it, and not the agent's session, the helper, or any workload's data.
 
-- **A client certificate the ingress accepts is not checked for revocation** (designed
+- **A client certificate the ingress accepts is not checked for revocation** (built
   2026-10-22, §3.2 of `07-networking.md`). The proxy verifies it against the authorities the
   endpoint names and passes it on, but consults no CRL and no OCSP responder, so a certificate its
   authority revoked is accepted until it expires. An endpoint that must refuse one sooner issues
