@@ -80,8 +80,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The organization a sign-in to `account` with its password and `second` reaches beneath,
-    /// from where the two were set: the narrower, when both were set beneath organizations one
-    /// of which lies beneath the other, and none otherwise, no one holder having seen both.
+    /// from where the two were set: none when either was set by a session that was not
+    /// confined, no portal's holder having seen it; the narrower when both were set beneath
+    /// organizations one of which lies beneath the other; and refused when neither does, since
+    /// one party may hold both organizations and no organization bounds what that party could
+    /// reach, their common ancestor being as wide as the root.
     pub(super) async fn seen_by(
         &self,
         account: Uuid,
@@ -89,7 +92,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Option<Uuid>, AppError> {
         let set = self.store.secrets_set_within(account).await?;
         match set.of_sign_in(second) {
-            Some((password, other)) => self.narrower(password, other).await,
+            Some((password, other)) => {
+                self.narrower(password, other).await?.map(Some).ok_or_else(confined)
+            }
             None => Ok(None),
         }
     }

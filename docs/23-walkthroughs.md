@@ -4195,7 +4195,8 @@ at the change, and what it protected against arrived afterwards.
 **Resolution.** Each shared secret records the organization beneath which the session that set it
 was confined, the password where it was set, the TOTP secret where it was enrolled, the recovery
 codes where they were shown; a sign-in with two secrets whose records name nested organizations reaches
-beneath the narrower, wherever it is begun, and the session records its reach. A session registers
+beneath the narrower, wherever it is begun, and one whose records name disjoint organizations is
+refused, since one party may hold both; the session records its reach. A session registers
 passkeys only where it is confined exactly as its address is, so a seen password cannot buy a
 passkey that reaches further. → corrected in place in `08-identity.md` §9.8.
 
@@ -4203,3 +4204,13 @@ What the trace costs, and what it does not do. It was written before the code, s
 every step has an owner and that each owner holds what it needs; whether the listener, the issuer,
 and the gateway do what the steps say is for the code's own tests and the browser tests that will
 follow Ada through steps 3 to 7.
+
+> Built 2026-10-22 (P2.9a to P2.9e2 of the build plan). The API tests `portal_serving`,
+> `portal_sessions`, `portal_sign_in`, `portal_secrets`, and `portal_deletion` follow steps 1 to
+> 10 over the portal's own TLS connection, and the browser test `web/e2e/portal.spec.ts` follows
+> Ada through steps 3 to 7 in Chromium, at `panel.pinecone.localhost` with a provided
+> certificate: she redeems there with a passkey for the portal's relying party, the panel wears
+> Pinecone's theme though her grant lies above Pinecone, her profile holds what was begun there
+> alone, and the password she tries to set there is refused `session.portal_confined`. Building
+> it found Finding 133, and a review of it found that two secrets set at unrelated portals had
+> signed in unconfined, which is now refused (§9.8 of `08-identity.md`).

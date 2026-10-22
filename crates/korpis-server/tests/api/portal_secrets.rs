@@ -117,3 +117,74 @@ async fn secrets_set_at_a_portal_reach_beneath_its_organization_wherever_they_ar
     let begin = theirs.begin_add_passkey(pb::BeginAddPasskeyRequest::default()).await;
     assert_eq!(reason(&begin.unwrap_err()), "session.portal_confined");
 }
+
+/// Signs `name` in at `portal` with `PASSWORD` and `second`; an access token the session gives.
+async fn password_at(portal: &Portal, second: Second) -> String {
+    let sign_in = pb::SignInWithPasswordRequest {
+        name: "ada".into(),
+        password: PASSWORD.into(),
+        second: Some(second),
+        ..Default::default()
+    };
+    let done = portal.call("korpis.v1.AccountService/SignInWithPassword", &sign_in, None).await;
+    let (_, headers): (pb::SignInResponse, _) = done.unwrap();
+    let cookie = refresh_cookie(&headers).unwrap();
+    let exchange = pb::ExchangeRequest::default();
+    let exchanged = portal.call("korpis.v1.SessionService/Exchange", &exchange, Some(&cookie));
+    let (exchanged, _): (pb::ExchangeResponse, _) = exchanged.await.unwrap();
+    exchanged.access_token
+}
+
+#[tokio::test]
+async fn secrets_set_at_two_unrelated_portals_sign_in_nowhere_together() {
+    let h = Harness::new().await;
+    let (pinecone, northwind) = (child(&h, "pinecone").await, child(&h, "northwind").await);
+    let at_p = portal_of(&h, ("p", &pinecone), ("pinecone.example", "panel.pinecone.example"));
+    let at_n = portal_of(&h, ("n", &northwind), ("northwind.example", "panel.northwind.example"));
+    let (at_p, at_n) = (at_p.await, at_n.await);
+
+    // Ada redeems at the installation's own address, and then holds no grant at all.
+    let issued = granted(&h, "invite", &h.root_org(), None).await;
+    let accounts = accounts(&h);
+    let offer = pb::OfferTotpRequest { name: "ada".into(), ..Default::default() };
+    let first = accounts.offer_totp(offer).await.unwrap().into_owned().secret;
+    let redeem = pb::RedeemWithPasswordRequest {
+        invitation: issued.invitation,
+        name: "ada".into(),
+        password: PASSWORD.into(),
+        totp_secret: first.clone(),
+        totp_code: code(&first, 0),
+        ..Default::default()
+    };
+    let redeemed = accounts.redeem_with_password(redeem).await.unwrap().into_owned();
+    let grant = issued.grant.into_option().unwrap().id;
+    let revoke =
+        pb::RevokeGrantRequest { mutation: mutation("revoke").into(), grant, ..Default::default() };
+    h.grants(h.root()).revoke_grant(revoke).await.unwrap();
+
+    // With nothing held anywhere, Northwind's portal sees her enrol a new TOTP secret, and
+    // Pinecone's sees her set her password: each change is allowed, and each is recorded.
+    let at_northwind = password_at(&at_n, Second::TotpCode(code(&first, 1))).await;
+    let second = TotpSecret::generate().unwrap();
+    let enrol = pb::EnrolTotpRequest {
+        secret: second.bytes().to_vec(),
+        code: code(second.bytes(), 0),
+        ..Default::default()
+    };
+    profile(&h, &at_northwind).enrol_totp(enrol).await.unwrap();
+    let recovery = Second::RecoveryCode(redeemed.recovery_codes[0].clone());
+    let at_pinecone = password_at(&at_p, recovery).await;
+    profile(&h, &at_pinecone).set_password(new_password(PASSWORD)).await.unwrap();
+
+    // Granted something later, she signs in with the two nowhere: one party may hold both
+    // organizations, and nothing bounds what it would reach.
+    granted(&h, "later", &h.root_org(), Some(&redeemed.account)).await;
+    let sign_in = pb::SignInWithPasswordRequest {
+        name: "ada".into(),
+        password: PASSWORD.into(),
+        second: Some(Second::TotpCode(code(second.bytes(), 1))),
+        ..Default::default()
+    };
+    let refused = accounts.sign_in_with_password(sign_in).await.unwrap_err();
+    assert_eq!(reason(&refused), "session.portal_confined");
+}

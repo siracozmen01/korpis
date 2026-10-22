@@ -2119,8 +2119,11 @@ alone.
 > says; what it records is what it was itself given or showed. A sign-in with a password and a second factor
 > whose records both name an organization reaches only beneath the narrower of the two, where one
 > lies beneath the other, wherever the sign-in is begun, since one holder may know both; where
-> either records none, or the two name organizations neither of which lies beneath the other, no
-> one holder knows both, and the records confine nothing. A session begun at a portal reaches beneath the narrower of
+> either records none, no portal's holder saw it, and the records confine nothing. Where the two
+> name organizations neither of which lies beneath the other, the sign-in is refused
+> `session.portal_confined`: one party may hold both organizations, and their common ancestor,
+> which could be the root, bounds nothing that party could not then reach. (Corrected
+> 2026-10-22, from a review of P2.9d2b, which had let such a sign-in reach unconfined.) A session begun at a portal reaches beneath the narrower of
 > that and the portal's organization, and where they are disjoint the sign-in is refused
 > `session.portal_confined`, since it would reach nothing. The session records its reach when it
 > begins, every access token names it, and a `korpis login` it approves is given it. A session

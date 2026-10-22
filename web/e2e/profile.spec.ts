@@ -33,10 +33,12 @@ test("a keeper themes the organization, adds a passkey, and loads the panel offl
     .fill("#5a189a");
   await theme.getByRole("button", { name: "Save" }).click();
   await expect(theme.getByText("Saved.")).toBeVisible();
-  // The organization's audit trail records it as the keeper's, read under their org.read.
+  // The organization's audit trail records it as the keeper's, read under their org.read; the
+  // trail is its whole subtree's, so the operator's theme for a reseller beneath it is there too.
   await visit(page, page.url());
   const audit = page.getByRole("region", { name: "Audit" });
-  await expect(audit.getByText("org.theme.set")).toBeVisible();
+  const themed = audit.getByRole("listitem").filter({ hasText: "org.theme.set" });
+  await expect(themed.filter({ hasText: "by user " })).toBeVisible();
   await visit(page, "/");
   await expect(page).toHaveTitle("Acme Games");
   const accent = await page.evaluate(() =>

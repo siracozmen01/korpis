@@ -27,6 +27,7 @@ mod image;
 #[path = "../e2e/node.rs"]
 mod node;
 mod person;
+mod portal;
 #[path = "../e2e/recipes.rs"]
 mod recipes;
 #[path = "../e2e/support.rs"]
@@ -222,6 +223,34 @@ impl ControlPlane {
     }
 }
 
+/// The invitations the browser tests redeem at the installation's own address.
+struct Invited {
+    friend: String,
+    operator: String,
+    keeper: String,
+    runner: String,
+}
+
+impl Invited {
+    async fn of(cp: &ControlPlane) -> Self {
+        let read = ["workload.read", "workload.console.read"];
+        Self {
+            friend: cp.invite("Friend", FRIEND, &[]).await,
+            operator: cp.invite("Operator", OPERATOR, &read).await,
+            keeper: cp.invite("Keeper", &["org.read", "org.write"], &[]).await,
+            runner: cp.invite("Runner", RUNNER, &[]).await,
+        }
+    }
+
+    fn env(&self, playwright: &mut tokio::process::Command) {
+        playwright
+            .env("KORPIS_E2E_INVITATION", &self.friend)
+            .env("KORPIS_E2E_OPERATOR_INVITATION", &self.operator)
+            .env("KORPIS_E2E_KEEPER_INVITATION", &self.keeper)
+            .env("KORPIS_E2E_RUNNER_INVITATION", &self.runner);
+    }
+}
+
 #[tokio::test]
 async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     logs();
@@ -236,27 +265,20 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     // lease's term loses its runs, as it should (§4.2 of docs/05-scheduling.md).
     let cli = tokio::task::spawn_blocking(korpis).await.unwrap();
     let cp = Arc::new(ControlPlane::start_panel(dist).await);
-    let invitation = cp.invite("Friend", FRIEND, &[]).await;
-    let operator =
-        cp.invite("Operator", OPERATOR, &["workload.read", "workload.console.read"]).await;
-    let keeper = cp.invite("Keeper", &["org.read", "org.write"], &[]).await;
-    let runner = cp.invite("Runner", RUNNER, &[]).await;
+    let invited = Invited::of(&cp).await;
     let project = cp.project().await;
     let talking = talking(&cp, &project).await;
     let (waiter, printer) = tasks(&cp, &project, talking.as_ref().map(|(n, _, _)| n)).await;
     let config = tempfile::tempdir().unwrap();
     let node = talking.as_ref().map(|(n, _, _)| n);
     let dana = person::dana(&cp, &project, node, &cli, &config.path().join("dana")).await;
+    let pinecone = portal::pinecone(&cp).await;
     quiet_network().await;
     let login = logging_in(&cp, &cli, &config.path().join("friend")).await;
     let mut playwright = playwright();
     playwright
         .env("KORPIS_E2E_URL", &cp.url)
-        .env("KORPIS_E2E_INVITATION", invitation)
-        .env("KORPIS_E2E_OPERATOR_INVITATION", operator)
         .env("KORPIS_E2E_DEVICE_URL", &login.at)
-        .env("KORPIS_E2E_KEEPER_INVITATION", keeper)
-        .env("KORPIS_E2E_RUNNER_INVITATION", runner)
         .env("KORPIS_E2E_WAITER", waiter)
         .env("KORPIS_E2E_AGE", config.path().join("age"))
         .env("KORPIS_E2E_AGE_PERSON", config.path().join("age-person"));
@@ -269,6 +291,8 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     if let Some(dana) = &dana {
         dana.env(&mut playwright);
     }
+    invited.env(&mut playwright);
+    pinecone.env(&mut playwright);
     let ageing = tokio::spawn(ager(Arc::clone(&cp), config.path().to_owned()));
     let ran = playwright.status().await.unwrap();
     ageing.abort();
