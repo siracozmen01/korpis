@@ -25,6 +25,7 @@ mod install;
 mod network;
 mod nightly;
 mod node;
+mod nodes;
 mod oci;
 mod programs;
 mod recipes;

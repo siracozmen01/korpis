@@ -48,9 +48,9 @@ begin() {
     trap leave EXIT
 }
 
-# Leaves the machine as it was: the processes stopped, then whatever the node made that it did
-# not remove itself, the containers of the workloads in $WORKLOADS and every network under the
-# node's netns root (the helper's own release, as for a machine whose node is gone, §3 of
+# Leaves the machine as it was: the processes stopped, then whatever the nodes made that they did
+# not remove themselves, the containers of the workloads in $WORKLOADS and every network under
+# each node's netns root (the helper's own release, as for a machine whose node is gone, §3 of
 # docs/18-operations.md), then the volumes' filesystem if one was mounted, the job cgroups, the
 # database, and the files.
 leave() {
@@ -67,9 +67,11 @@ leave() {
             ctr -n korpis snapshots rm "$id" >/dev/null 2>&1
         done
     done
-    if [ -d "${NODE:-}/netns" ]; then
-        "$BIN/korpis-helper" release-networks --netns-root "$NODE/netns" >&2
-    fi
+    for node in "${NODES[@]}"; do
+        if [ -d "$node/netns" ]; then
+            "$BIN/korpis-helper" release-networks --netns-root "$node/netns" >&2
+        fi
+    done
     if [ -n "${MOUNTED:-}" ]; then umount -l "$MOUNTED"; fi
     if [ -n "${CGROUPS:-}" ]; then
         for _ in $(seq 1 20); do
@@ -119,23 +121,37 @@ control_plane() {
 korpis() { "$BIN/korpis" --plain-http "$REGISTRY" "$@"; }
 
 # Enrolls this machine as node $1 and starts its helper and driver, as their units would: their
-# volumes under $VOLUMES ($NODE/volumes unless set), their workloads' networks bound under
-# $NODE/netns, and the helper's jobs in a cgroup of this run's own. The agent is the script's to
-# start, since what it is told differs.
+# volumes under $2 ($NODE/volumes unless given), which is $VOLUMES after it, their workloads'
+# networks bound under $NODE/netns, and the helper's jobs in a cgroup of the node's own beneath
+# $CGROUPS, this run's, which delegates the controllers a job is limited by. Called once per node, it enrolls this one machine as several, each in a directory of its own, $NODE for the
+# one enrolled last, and each given ports and an IPv4 pool no other node of the run uses, $PORTS
+# and $POOL, for its agent's --ports and --workload-ipv4. The agent is the script's to start,
+# since what it is told differs; at most one node's agent may serve the ingress, as ports 80 and
+# 443 on this machine's address are one pair, so each helper is started without the proxy.
+NODES=()
 enroll() {
-    NODE="$WORK/node"
-    VOLUMES=${VOLUMES:-$NODE/volumes}
+    local index=${#NODES[@]}
+    [ "$index" -lt 8 ] || fail "at most eight nodes on one machine"
+    NODE="$WORK/nodes/$1"
+    NODES+=("$NODE")
+    VOLUMES=${2:-$NODE/volumes}
     CGROUPS=/sys/fs/cgroup/korpis-e2e-$$
+    mkdir -p "$CGROUPS"
+    for controller in +cpu +io +memory +pids; do
+        echo "$controller" >"$CGROUPS/cgroup.subtree_control" 2>/dev/null || true
+    done
+    PORTS="$((36000 + $$ % 25 * 160 + index * 20))-$((36000 + $$ % 25 * 160 + index * 20 + 19))"
+    POOL="10.$((190 + index)).0.0/16"
     mkdir -p "$NODE"
     local join
     join=$(korpis --json node token create "$1")
     "$BIN/korpis-agent" --state-dir "$NODE/agent" join --server "$KORPIS_SERVER" \
         --token "$(jq -r .token <<<"$join")" --ca-fingerprint "$(jq -r .caFingerprint <<<"$join")" \
         --hostname "$1" >/dev/null
-    start helper "$BIN/korpis-helper" --socket "$NODE/helper.sock" --volume-root "$VOLUMES" \
+    start "$1-helper" "$BIN/korpis-helper" --socket "$NODE/helper.sock" --volume-root "$VOLUMES" \
         --state "$NODE/helper" --content "$NODE/agent/content" --netns-root "$NODE/netns" \
-        --job-cgroups "$CGROUPS" --ingress-binary none
-    start driver "$BIN/korpis-driver-oci" --socket "$NODE/driver.sock" \
+        --job-cgroups "$CGROUPS/$1" --ingress-binary none
+    start "$1-driver" "$BIN/korpis-driver-oci" --socket "$NODE/driver.sock" \
         --content "$NODE/agent/content" --volume-root "$VOLUMES" \
         --identity-root "$NODE/agent/identity" --netns-root "$NODE/netns" \
         --state-dir "$NODE/driver"

@@ -117,10 +117,9 @@ mkfs.btrfs -q "$WORK/volumes.img"
 mount -o loop "$WORK/volumes.img" "$MOUNTED"
 btrfs quota enable "$MOUNTED"
 btrfs quota rescan -w "$MOUNTED" >/dev/null
-VOLUMES="$MOUNTED/volumes"
 
-log "enrolling this machine as a node"
-enroll "e2e-$$"
+log "enrolling this machine as a node, its volumes on that btrfs"
+enroll "e2e-$$" "$MOUNTED/volumes"
 # Its endpoints reached at this machine's own address, on ports and a pool of this run's own.
 HOST=$(ip -4 -o route get 1.1.1.1 | sed -n 's/.* src \([0-9.]*\).*/\1/p')
 [ -n "$HOST" ] || fail "this machine has no address towards the internet to publish ports on"

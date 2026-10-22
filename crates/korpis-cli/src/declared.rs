@@ -81,6 +81,7 @@ pub struct Declared {
     /// Labels, for a new workload.
     #[serde(default)]
     pub labels: BTreeMap<String, String>,
+    placement: Option<placement::Placement>,
 }
 
 /// A declared file, with where it came from and what it says.
@@ -200,6 +201,7 @@ impl Declared {
             "resources": resources(self.resources.as_ref())?,
             "volumes": self.volumes.iter().map(volume).collect::<Result<Vec<_>, _>>()?,
             "endpoints": self.endpoints.iter().map(endpoint).collect::<Vec<_>>(),
+            "placement": self.placement.as_ref().map(placement::placement),
         });
         if let Some(o) = json.as_object_mut() {
             o.retain(|_, v| !v.is_null());
@@ -259,6 +261,8 @@ pub fn read_all(paths: &[PathBuf]) -> Result<Vec<File>, CliError> {
     }
     Ok(files)
 }
+
+mod placement;
 
 #[cfg(test)]
 mod tests;

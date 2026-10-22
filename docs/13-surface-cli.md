@@ -157,15 +157,17 @@ What the file leaves out (the runtime, the probes, the volume's mount path above
 the recipe's preset, on the control plane, at declaration (§3.1 of `09-recipes.md`), and the plan
 shows the completed body.
 
-The keys are the ones above and a few more: `power` (`running` or `stopped`) and `labels` for a
-new workload; `pids` among the resources; `path`, `mode`, `existing`, and `from_backup` on a
-volume; `protocol`
-and `domains` on an endpoint. Quantities are written as `4Gi` or `500m`, and enum values as the
-API names them, lower-case and without their prefix (`node_port`, `overlay_only`). The recipe is
-a repository with `@sha256:…` or `:tag`; the project is a name, looked up among the projects the
-caller may read and required to be unique there, or a `prj_` identifier. `-f` takes a file or a
-directory, whose `.yaml` and `.yml` files are read in name order. A key the format does not know is
-refused, never ignored.
+The keys are the ones above and a few more: `power` (`running` or `stopped`) and `labels` for a new
+workload; `pids` among the resources; `path`, `mode`, `existing`, and `from_backup` on a volume;
+`protocol` and `domains` on an endpoint; and `placement`, the body's placement (§2 of
+`05-scheduling.md`): `node_selector`, `tolerations` (each a `key` and a `value`), `affinity` (each
+rule `anti`, `required`, `topology_key`, and `workloads`), and `preferred_region`, where a selector
+is `match_labels` and `match_expressions`, each expression a `key`, an `operator`, and `values`.
+Quantities are written as `4Gi` or `500m`, and enum values as the API names them, lower-case and
+without their prefix (`node_port`, `overlay_only`). The recipe is a repository with `@sha256:…` or
+`:tag`; the project is a name, looked up among the projects the caller may read and required to be
+unique there, or a `prj_` identifier. `-f` takes a file or a directory, whose `.yaml` and `.yml`
+files are read in name order. A key the format does not know is refused, never ignored.
 
 The check before sending is the control plane's own code run locally: the recipe is fetched by
 digest, the declaration completed from it, and the configuration resolved against its schema, so

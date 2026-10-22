@@ -63,3 +63,44 @@ fn a_key_is_found_on_its_line() {
     assert_eq!(line_of(SURVIVAL, None, "workload"), Some(1));
     assert_eq!(line_of(SURVIVAL, Some("config"), "absent"), None);
 }
+
+const APART: &str = r"workload: left
+project: games
+recipe: reg/waiter:1
+labels: {app: pair}
+placement:
+  node_selector:
+    match_labels: {region: fra}
+    match_expressions:
+      - {key: disk, operator: in, values: [ssd, nvme]}
+  tolerations:
+    - {key: gpu, value: 'true'}
+  affinity:
+    - {anti: true, required: true, topology_key: host, workloads: {match_labels: {app: pair}}}
+  preferred_region: fra
+";
+
+#[test]
+fn a_placement_is_the_body_s_with_its_operators_unprefixed() {
+    let d: Declared = serde_saphyr::from_str(APART).unwrap();
+    let p = d.body().unwrap().placement.into_option().unwrap();
+    let nodes = p.node_selector.as_option().unwrap();
+    assert_eq!(nodes.match_labels.get("region").map(String::as_str), Some("fra"));
+    let e = &nodes.match_expressions[0];
+    assert_eq!(e.operator.as_known(), Some(pb::LabelOperator::LABEL_OPERATOR_IN));
+    assert_eq!(e.values, ["ssd", "nvme"]);
+    assert_eq!((p.tolerations[0].key.as_str(), p.tolerations[0].value.as_str()), ("gpu", "true"));
+    let rule = &p.affinity[0];
+    assert!(rule.anti && rule.required && rule.topology_key == "host");
+    let pair = rule.workloads.as_option().unwrap().match_labels.get("app");
+    assert_eq!(pair.map(String::as_str), Some("pair"));
+    assert_eq!(p.preferred_region, "fra");
+
+    let none: Declared = serde_saphyr::from_str("workload: a\nproject: p\nrecipe: x:1\n").unwrap();
+    assert!(!none.body().unwrap().placement.is_set(), "no placement unless one is declared");
+    let typo = "workload: a\nproject: p\nrecipe: x:1\nplacement: {affinty: []}\n";
+    assert!(serde_saphyr::from_str::<Declared>(typo).unwrap_err().to_string().contains("affinty"));
+    let unknown = APART.replace("operator: in", "operator: within");
+    let unknown: Declared = serde_saphyr::from_str(&unknown).unwrap();
+    assert!(unknown.body().is_err(), "an operator the API does not have");
+}

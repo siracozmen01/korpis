@@ -82,11 +82,13 @@ async fn the_placed_node_holds_the_lease_and_another_is_told_who_does() {
     let keep = pb::OnLeaseExpiry::ON_LEASE_EXPIRY_KEEP_RUNNING;
     assert_eq!(first.on_expiry.as_known(), Some(keep), "resolved, never unspecified");
     until(&mut sa, epoch_set(first.epoch)).await;
+    // The other node is enrolled before the renewal, so the lease it is told of is a moment old
+    // rather than one term: enrolling a node can take longer than the harness's two seconds.
+    let b = TestAgent::enroll(&h, "fra-4", 2).await;
+    let mut sb = connect(&h, &b, 1).await;
     send(&mut sa, request(&workload, 2)).await;
     assert_eq!(until(&mut sa, grant).await.epoch, first.epoch, "a renewal keeps the epoch");
 
-    let b = TestAgent::enroll(&h, "fra-4", 2).await;
-    let mut sb = connect(&h, &b, 1).await;
     send(&mut sb, request(&workload, 3)).await;
     let refused = until(&mut sb, refusal).await;
     let superseded = agent::LeaseRefusalReason::LEASE_REFUSAL_REASON_SUPERSEDED;

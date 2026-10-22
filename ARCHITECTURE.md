@@ -95,7 +95,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-idp-oidc` | first-party extension | AGPL-3.0 | the OpenID Connect identity provider: signs people in with PKCE, validates their ID tokens, and re-verifies their groups with refresh tokens kept in its own volume (§5.3 and §9.7 of `08-identity.md`) |
 | `korpis-kms-openbao` | first-party extension | AGPL-3.0 | the key management provider for tenant custody: a tenant's data keys made and opened by its own OpenBao or Vault Transit engine, bound to their context (§5.5 of `06-storage.md`) |
 | `korpis-cli` | driving adapter | AGPL-3.0 | the `korpis` command |
-| `korpis-e2e` | tests only | AGPL-3.0 | a real node end to end: control plane, agent, driver, helper |
+| `korpis-e2e` | tests only | AGPL-3.0 | real nodes end to end, one or several on one machine: control plane, agent, driver, helper |
 
 The agent and the helper are separate programs with their own use cases; they share the domain
 crate and the wire contract and nothing else. The helper does not link the authority module of the

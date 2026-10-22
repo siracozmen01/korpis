@@ -115,7 +115,9 @@ scripts/e2e-phase2.sh     the Phase 2 done-when (§4 of docs/20-roadmap.md) the 
                           issuer of conformance/oidc acting on one project through their group,
                           with no account made, until the group drops them; needs root,
                           containerd, Node.js, and the issuer's packages, and leaves nothing
-                          behind. check.sh runs none of the three; they share scripts/e2e-lib.sh
+                          behind. check.sh runs none of the three; they share scripts/e2e-lib.sh,
+                          which enrolls this one machine as one node or as several, each with
+                          its own ports, address pool, network namespaces, volumes, and cgroups
 scripts/test-install-package.sh
                           `korpis-server install --postgres package` in systemd containers of
                           Debian, Ubuntu, and Fedora, units started (§2 of
