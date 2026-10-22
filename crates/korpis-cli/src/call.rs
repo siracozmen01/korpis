@@ -111,6 +111,8 @@ table! {
     "korpis.v1.OrganizationService/GetLayout" => OrganizationServiceClient::get_layout(GetLayoutRequest);
     "korpis.v1.OrganizationService/GetLandingLayout" =>
         OrganizationServiceClient::get_landing_layout(GetLandingLayoutRequest);
+    "korpis.v1.OrganizationService/GetLandingTheme" =>
+        OrganizationServiceClient::get_landing_theme(GetLandingThemeRequest);
     "korpis.v1.OrganizationService/SetLayout" => OrganizationServiceClient::set_layout(SetLayoutRequest);
     "korpis.v1.ProjectService/CreateProject" => ProjectServiceClient::create_project(CreateProjectRequest);
     "korpis.v1.ProjectService/GetProject" => ProjectServiceClient::get_project(GetProjectRequest);

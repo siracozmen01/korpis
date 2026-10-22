@@ -5,6 +5,7 @@
 //! layout (question 2 of §10 of docs/11-surface-web.md).
 
 mod ceiling;
+mod landing;
 mod layout;
 mod organizations;
 mod projects;

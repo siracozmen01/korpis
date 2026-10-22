@@ -27,11 +27,11 @@ import { forgetFragment, takeFragment } from "./views/fragment";
 import { INVITATION_PREFIX, Invitation } from "./views/Invitation";
 import { LINK_BASE, LINK_PREFIX, LinkShell } from "./views/LinkShell";
 import { Place, placeAt } from "./views/place";
-import { Home } from "./views/Places";
 import { SignIn } from "./views/SignIn";
 import { Callback } from "./views/Callback";
 import { ProviderSignIn, Providers, providerAt } from "./views/ProviderSignIn";
 import { Profile } from "./profile/Profile";
+import { Landing } from "./layout/Landing";
 import { Brand, type Source, Themed } from "./theme/useTheme";
 import { t } from "./i18n/intl";
 import { Unreachable } from "./offline/Unreachable";
@@ -43,7 +43,7 @@ const signedInReach = { clients: signedInClients, base: "", metered: false, rela
 const signInTheme: Source = { kind: "sign-in", info: serverInfo };
 
 /** The theme a signed-in viewer wears on every page: their provider's, not the place's. */
-const viewerTheme: Source = { kind: "viewer", clients: signedInClients, info: serverInfo };
+const viewerTheme: Source = { kind: "viewer", clients: signedInClients };
 
 /** What the profile screens call. */
 const profileServices = { profiles, sessions, accounts, assert, create };
@@ -204,7 +204,7 @@ function Routes({ session }: { readonly session: Session }) {
             <h1>
               <Brand />
             </h1>
-            <Home />
+            <Landing />
           </main>
         ) : (
           <main>

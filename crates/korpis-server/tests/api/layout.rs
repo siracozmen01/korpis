@@ -2,16 +2,21 @@
 
 //! Organizations' layouts (question 2 of §10 of docs/11-surface-web.md): set by `org.write`,
 //! inherited from the nearest organization that set one, checked item by item, read under the
-//! read action of whatever the panel shows, and, for a landing no organization of the viewer's
-//! names, the layout of the address: the root organization's, or at a portal its own.
+//! read action of whatever the panel shows, and, at a landing, the layout and theme of the
+//! organization the caller lands at: at a portal its own, else the nearest above everything the
+//! caller's grants reach, which they may not read (Finding 134 of docs/23-walkthroughs.md), else
+//! the root's.
 
 use crate::domains::child;
 use crate::links::in_an_hour;
 use crate::portal_client::portal_of;
+use crate::recipes::project;
 use crate::support::{Harness, detail, mutation, org_scope, reason};
 use connectrpc::ErrorCode;
+use korpis_core::principal::Principal;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::layout_item::Kind as K;
+use korpis_server::api::wire::principal;
 
 fn set(key: &str, org: &str, layout: Option<pb::Layout>, expected: u64) -> pb::SetLayoutRequest {
     pb::SetLayoutRequest {
@@ -164,4 +169,56 @@ async fn at_a_portal_the_landing_is_its_organizations() {
     assert_eq!((named(there), there.set_on.as_deref()), ("Pinecone", Some(pinecone.as_str())));
     let refused = portal.call_bearing::<pb::GetLandingLayoutResponse>(procedure, &asked, "nothing");
     assert_eq!(refused.await.unwrap_err(), reqwest::StatusCode::UNAUTHORIZED, "signed in only");
+}
+
+/// Blockhaven, a customer beneath Northwind, beneath the root; its project's identifier.
+async fn blockhaven(h: &Harness, northwind: &str) -> String {
+    let made = pb::CreateOrganizationRequest {
+        mutation: mutation("org-blockhaven").into(),
+        name: "blockhaven".into(),
+        parent: Some(northwind.to_owned()),
+        ..Default::default()
+    };
+    let made = h.orgs(h.root()).create_organization(made).await.unwrap().into_owned();
+    project(h, &made.organization.as_option().unwrap().id, "survival").await
+}
+
+#[tokio::test]
+async fn a_customer_holding_a_project_alone_lands_at_and_wears_their_providers() {
+    let h = Harness::new().await;
+    let orgs = h.orgs(h.root());
+    let northwind = child(&h, "northwind").await;
+    let survival = blockhaven(&h, &northwind).await;
+    orgs.set_layout(set("root", &h.root_org(), Some(acme("Acme")), 0)).await.unwrap();
+    orgs.set_layout(set("northwind", &northwind, Some(acme("Northwind")), 0)).await.unwrap();
+    let theme = pb::Theme { product_name: "Northwind Games".into(), ..Default::default() };
+    let themed = pb::SetThemeRequest {
+        mutation: mutation("theme").into(),
+        organization: northwind.clone(),
+        theme: Some(theme).into(),
+        ..Default::default()
+    };
+    orgs.set_theme(themed).await.unwrap();
+    let (token, secret) = h.bare_token().await;
+    let scope = pb::Scope { kind: Some(pb::scope::Kind::Project(survival)), ..Default::default() };
+    let granted = pb::IssueGrantRequest {
+        mutation: mutation("survival").into(),
+        parent: h.root_grant(),
+        subject: principal::to_pb(&Principal::Token(token)).into(),
+        actions: vec!["project.read".into()],
+        scope: scope.into(),
+        ..Default::default()
+    };
+    h.grants(h.root()).issue_grant(granted).await.unwrap();
+
+    let theirs = h.orgs(h.config(Some(secret.expose())));
+    let read = pb::GetOrganizationRequest { id: northwind.clone(), ..Default::default() };
+    assert!(theirs.get_organization(read).await.is_err(), "they read no organization");
+    let landing = theirs.get_landing_layout(pb::GetLandingLayoutRequest::default()).await;
+    let landing = landing.unwrap().into_owned();
+    assert_eq!(named(landing.governing.as_option().unwrap()), "Northwind", "their provider's");
+    let worn = theirs.get_landing_theme(pb::GetLandingThemeRequest::default()).await;
+    let worn = worn.unwrap().into_owned().governing.into_option().unwrap();
+    assert_eq!(worn.theme.as_option().unwrap().product_name, "Northwind Games");
+    assert_eq!(worn.set_on.as_deref(), Some(northwind.as_str()));
 }

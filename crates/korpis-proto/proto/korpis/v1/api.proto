@@ -135,10 +135,18 @@ service OrganizationService {
   rpc GetLayout(GetLayoutRequest) returns (GetLayoutResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // The layout of the address the caller reached the control plane at: at a portal its
-  // organization's, and elsewhere the installation's root organization's. Answered to any caller
-  // signed in, for a landing no one organization of the caller's names.
+  // The layout the caller's landing shows: that of the organization they land at, whoever
+  // provides their access (Finding 134 of docs/23-walkthroughs.md). At a portal it is the
+  // portal's organization; elsewhere the nearest organization above everything the caller's
+  // grants reach, beneath the one a confined session is confined to; with no grant, the
+  // installation's root. Answered to any caller signed in, though they may read none of those
+  // organizations; a share link's holder is refused as anyone not signed in is.
   rpc GetLandingLayout(GetLandingLayoutRequest) returns (GetLandingLayoutResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // The theme a signed-in caller wears: that of the organization they land at, as
+  // GetLandingLayout chooses it (§7 of docs/11-surface-web.md).
+  rpc GetLandingTheme(GetLandingThemeRequest) returns (GetLandingThemeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // org.write. Sets or removes the organization's own layout. mutation.expected_version is the
@@ -291,6 +299,12 @@ message GetLandingLayoutRequest {}
 
 message GetLandingLayoutResponse {
   GoverningLayout governing = 1;
+}
+
+message GetLandingThemeRequest {}
+
+message GetLandingThemeResponse {
+  GoverningTheme governing = 1;
 }
 
 message SetLayoutRequest {

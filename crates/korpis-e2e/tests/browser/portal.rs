@@ -4,8 +4,9 @@
 //! docs/23-walkthroughs.md). Pinecone, beneath the root organization, holds `pinecone.localhost`,
 //! which Chromium resolves to this machine as it does every name beneath `localhost`, and serves
 //! `panel.pinecone.localhost` with a certificate of its own, provided; its theme names the panel
-//! "Pinecone Panel"; and Ada is invited with a grant on the root organization, beyond Pinecone,
-//! so the session she begins at the portal is confined beneath what her grant reaches.
+//! "Pinecone Panel", and its landing screen welcomes those it serves; and Ada is invited with a
+//! grant on the root organization, beyond Pinecone, so the session she begins at the portal is
+//! confined beneath what her grant reaches.
 
 use crate::support::{ControlPlane, mutation};
 use korpis_proto::korpis::v1 as pb;
@@ -62,7 +63,35 @@ async fn reseller(cp: &ControlPlane) -> String {
         ..Default::default()
     };
     orgs.set_theme(themed).await.unwrap();
+    orgs.set_layout(landing(&id)).await.unwrap();
     id
+}
+
+/// Pinecone's landing screen: a welcome and a link to its support desk, above what is reached.
+fn landing(org: &str) -> pb::SetLayoutRequest {
+    use korpis_proto::korpis::v1::__buffa::oneof::layout_item::Kind as K;
+    let item = |kind| pb::LayoutItem { kind: Some(kind), ..Default::default() };
+    let welcome = pb::LayoutNotice {
+        heading: "Welcome to Pinecone".into(),
+        text: "Your servers are below.".into(),
+        ..Default::default()
+    };
+    let support = pb::LayoutLink {
+        label: "Pinecone support".into(),
+        url: "https://help.pinecone.localhost/".into(),
+        ..Default::default()
+    };
+    let items = vec![
+        item(K::Notice(Box::new(welcome))),
+        item(K::Places(Box::default())),
+        item(K::Link(Box::new(support))),
+    ];
+    pb::SetLayoutRequest {
+        mutation: mutation("pinecone-layout").into(),
+        organization: org.into(),
+        layout: pb::Layout { items, ..Default::default() }.into(),
+        ..Default::default()
+    }
 }
 
 /// Pinecone's portal, served with a provided certificate; the authority that issued it.

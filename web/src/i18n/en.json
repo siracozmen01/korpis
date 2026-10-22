@@ -102,6 +102,9 @@
     "defaultMessage": "({marks})",
     "description": "a step's marks"
   },
+  "1CuPMaoT": {
+    "defaultMessage": "Heading of the landing screen"
+  },
   "1G5SDr8l": {
     "defaultMessage": "(this one)",
     "description": "the session in use now"
@@ -149,15 +152,25 @@
     "defaultMessage": "awaiting approval",
     "description": "where a workload stands against what was declared"
   },
+  "2sxUZYvz": {
+    "defaultMessage": "Move down: {what}"
+  },
   "2tn23Y+t": {
     "defaultMessage": "cancelled",
     "description": "a run's status"
+  },
+  "34EHh/pZ": {
+    "defaultMessage": "The quota"
   },
   "3AVtR6Oy": {
     "defaultMessage": "Reading your profile…"
   },
   "3ELC9iPv": {
     "defaultMessage": "Asked every this many minutes"
+  },
+  "3H4xP3lY": {
+    "defaultMessage": "Up",
+    "description": "move an item up"
   },
   "3K8BEHus": {
     "defaultMessage": "stopping",
@@ -175,6 +188,9 @@
   "3jqpN1eS": {
     "defaultMessage": "End it",
     "description": "button: end a session"
+  },
+  "3oi5Zjgo": {
+    "defaultMessage": "Add a notice"
   },
   "3y9DGgur": {
     "defaultMessage": "Resume"
@@ -285,6 +301,9 @@
   "7sTuzfIq": {
     "defaultMessage": "The answer did not reach this browser, so your account may have been made. Sign in with {factor}; if that signs you in, renew your recovery codes from your profile, since these were never shown."
   },
+  "8/w/gS+c": {
+    "defaultMessage": "Notice heading"
+  },
   "88JBbyvf": {
     "defaultMessage": "Console",
     "description": "a run's console"
@@ -297,6 +316,9 @@
   },
   "8RMoim+k": {
     "defaultMessage": "Declared {declared}, {convergence}"
+  },
+  "8aIROWWx": {
+    "defaultMessage": "Reading your landing screen…"
   },
   "8d/q0B9s": {
     "defaultMessage": "Delete the portal"
@@ -311,6 +333,9 @@
   "9+4JL8Ec": {
     "defaultMessage": "not placed",
     "description": "where a workload stands against what was declared"
+  },
+  "9B2qDwoy": {
+    "defaultMessage": "Link address (https://…)"
   },
   "9G511qz9": {
     "defaultMessage": "nothing declared",
@@ -409,11 +434,17 @@
     "defaultMessage": "Console",
     "description": "a workload's console"
   },
+  "BPVlDpFa": {
+    "defaultMessage": "A link: {label} ({url})"
+  },
   "BZ0iK1XF": {
     "defaultMessage": "Too many attempts. Wait a little and try again."
   },
   "BeBCMfk4": {
     "defaultMessage": "Workloads"
+  },
+  "Bem7D1vo": {
+    "defaultMessage": "Add a link"
   },
   "BfEXcPXB": {
     "defaultMessage": "Its grants, organizations, projects, plans, nodes, and the status of its workloads stay readable. Every change, a console, and a file are refused until it is resumed."
@@ -440,6 +471,9 @@
   },
   "C1xXK205": {
     "defaultMessage": "Waiting for the node's next reading…"
+  },
+  "C20BOa/N": {
+    "defaultMessage": "Notice text"
   },
   "C3v4CI1c": {
     "defaultMessage": "End every other session"
@@ -479,6 +513,9 @@
   },
   "ConS74VK": {
     "defaultMessage": "interrupts service"
+  },
+  "CxqXCQvg": {
+    "defaultMessage": "Add the link"
   },
   "DDAS95WS": {
     "defaultMessage": "It is a directory."
@@ -521,6 +558,9 @@
   },
   "EOBZyeyd": {
     "defaultMessage": "an unknown time"
+  },
+  "EWcNOqcq": {
+    "defaultMessage": "A notice: {heading}"
   },
   "EYSPop3r": {
     "defaultMessage": "Nothing was recorded over the day."
@@ -682,6 +722,9 @@
   "IrnB9O3m": {
     "defaultMessage": "What this link allows"
   },
+  "IsMgH6JL": {
+    "defaultMessage": "Removed; the nearest landing screen above applies."
+  },
   "IyTtQLIW": {
     "defaultMessage": "Reading what you can reach…"
   },
@@ -784,6 +827,9 @@
   "LW9qzGlz": {
     "defaultMessage": "Configuration change"
   },
+  "Lcrvq8Xe": {
+    "defaultMessage": "Remove this organization's landing screen"
+  },
   "LivUik0h": {
     "defaultMessage": "{subject} at {provider}"
   },
@@ -811,6 +857,9 @@
   "M6S6vD/N": {
     "defaultMessage": "The overcommit of {dimension} is not a whole percentage."
   },
+  "MAWWMW0y": {
+    "defaultMessage": "Landing screen"
+  },
   "MCN1/L+K": {
     "defaultMessage": "QR code of the authenticator address"
   },
@@ -819,6 +868,9 @@
   },
   "MUFpIc0k": {
     "defaultMessage": "The invitation"
+  },
+  "MVcbe/H0": {
+    "defaultMessage": "This organization's own landing screen, shown to those it serves unless an organization beneath sets its own. Every part of it shows each viewer only what they can reach."
   },
   "MWd3cfIN": {
     "defaultMessage": "a project"
@@ -877,6 +929,9 @@
     "defaultMessage": "its runtime driver is missing",
     "description": "why a node cannot run a workload, completing 'it cannot run there because'"
   },
+  "NwZtHmAF": {
+    "defaultMessage": "What the viewer can reach"
+  },
   "Nz+sqiZJ": {
     "defaultMessage": "Change",
     "description": "column: changes to a file"
@@ -894,6 +949,9 @@
   "OJ+KsVog": {
     "defaultMessage": "passkey",
     "description": "a passkey's label, until renamed"
+  },
+  "OS0ZXSYI": {
+    "defaultMessage": "Move up: {what}"
   },
   "OTwZkKc4": {
     "defaultMessage": "A new password, at least 12 characters"
@@ -1151,8 +1209,15 @@
   "VrQtwEUx": {
     "defaultMessage": "Reading the delegation ceiling…"
   },
+  "W2AlNJQ/": {
+    "defaultMessage": "An item this panel does not know"
+  },
   "WLC8/hBB": {
     "defaultMessage": "the node answered a listing with no entries"
+  },
+  "WLzsHoQ8": {
+    "defaultMessage": "Remove",
+    "description": "remove an item"
   },
   "WNmQ7tuE": {
     "defaultMessage": "Set it"
@@ -1367,6 +1432,9 @@
   "c8yWpaVr": {
     "defaultMessage": "Removed; the nearest theme above applies."
   },
+  "cJoJtXpi": {
+    "defaultMessage": "Save the landing screen"
+  },
   "cLNad6D5": {
     "defaultMessage": "Open the console"
   },
@@ -1409,6 +1477,9 @@
   },
   "dastCq+7": {
     "defaultMessage": "This browser last heard from it {ago} ago."
+  },
+  "dsXbmI+3": {
+    "defaultMessage": "Add the notice"
   },
   "dtYTi3e8": {
     "defaultMessage": "Recorded as",
@@ -1483,6 +1554,9 @@
   "fsoxyMc0": {
     "defaultMessage": "Sign-in text"
   },
+  "g+VKkonE": {
+    "defaultMessage": "Link label"
+  },
   "g52ZeLQR": {
     "defaultMessage": "Redeem an invitation"
   },
@@ -1552,6 +1626,9 @@
   "iKKCuLhf": {
     "defaultMessage": "Register a passkey"
   },
+  "iOcrZf4w": {
+    "defaultMessage": "Add the quota"
+  },
   "iQQgmW3M": {
     "defaultMessage": "A part of the path is not a directory."
   },
@@ -1599,6 +1676,9 @@
   "jkeZBWE3": {
     "defaultMessage": "Limited now"
   },
+  "js1JYn5k": {
+    "defaultMessage": "The slot {name}"
+  },
   "jvo0vs3n": {
     "defaultMessage": "Save"
   },
@@ -1645,6 +1725,9 @@
     "defaultMessage": "Memory",
     "description": "a usage column"
   },
+  "lUejsUUp": {
+    "defaultMessage": "This organization shows the landing screen of the nearest organization above that composes one, or the panel's own."
+  },
   "lWYMAj0Y": {
     "defaultMessage": "Reading its configuration…"
   },
@@ -1656,6 +1739,9 @@
   },
   "liG+xsKp": {
     "defaultMessage": "No node can take it: {checks}."
+  },
+  "luUrKvb9": {
+    "defaultMessage": "(goes to {host})"
   },
   "lxaBrkGd": {
     "defaultMessage": "The volume is full."
@@ -1981,6 +2067,10 @@
   "wPj0Ogg+": {
     "defaultMessage": "Only the workloads labelled (optional)"
   },
+  "wWOah4PS": {
+    "defaultMessage": "Down",
+    "description": "move an item down"
+  },
   "wl8ilnIC": {
     "defaultMessage": "whoever held the share link {id}"
   },
@@ -2062,6 +2152,9 @@
   "zm+/6FZh": {
     "defaultMessage": "retry",
     "description": "what made a run"
+  },
+  "ztRJ6N7u": {
+    "defaultMessage": "Remove: {what}"
   },
   "zuF+uaw8": {
     "defaultMessage": "Password",

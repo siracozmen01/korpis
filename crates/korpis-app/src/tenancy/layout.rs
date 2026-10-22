@@ -15,7 +15,6 @@ use crate::ports::{
 };
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Decision, Kind, ObjectRef};
-use korpis_core::principal::Principal;
 use korpis_core::tenancy::layout::{Asked, Layout};
 use uuid::Uuid;
 
@@ -90,25 +89,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(GoverningLayout { set, own_version })
     }
 
-    /// The layout of the address the caller reached the control plane at, for a caller whose
-    /// landing no one organization of theirs names: at a portal its organization's, and
-    /// elsewhere the installation's root organization's. Answered to any caller signed in,
-    /// whatever they hold, since what it places renders under their own authority; a share
-    /// link's holder has no landing, the link opening one place (§6 of
-    /// docs/11-surface-web.md), and is answered as anyone not signed in is.
+    /// The layout `caller`'s landing shows, reached at `portal` or at the installation's own
+    /// address: that of the organization they land at, whoever provides their access, though
+    /// they may read none of its organizations (Finding 134 of docs/23-walkthroughs.md). Answered
+    /// to any caller signed in, whatever they hold, since what it places renders under their own
+    /// authority; a share link's holder is answered as anyone not signed in is.
     pub async fn landing_layout(
         &self,
         caller: &Caller,
         portal: Option<Uuid>,
     ) -> Result<GoverningLayout, AppError> {
-        if matches!(caller.principal, Principal::Link(_) | Principal::Anonymous) {
-            return Err(AppError::Unauthenticated);
-        }
-        let owner = match portal {
-            Some(p) => self.portal_organization(p).await?,
-            None => self.store.installation_root().await?,
-        };
-        let set = match owner {
+        let set = match self.landing_organization(caller, portal).await? {
             Some(org) => self.store.layout(org).await?,
             None => None,
         };

@@ -175,6 +175,14 @@ impl pb::OrganizationService for Api {
         super::layout::landing(self, &ctx).await
     }
 
+    async fn get_landing_theme(
+        &self,
+        ctx: RequestContext,
+        _request: ServiceRequest<'_, pb::GetLandingThemeRequest>,
+    ) -> ServiceResult<pb::GetLandingThemeResponse> {
+        super::theme::landing(self, &ctx).await
+    }
+
     async fn set_layout(
         &self,
         ctx: RequestContext,

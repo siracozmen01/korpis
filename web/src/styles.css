@@ -283,3 +283,19 @@ a:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
+
+/* A landing screen's own heading, above what its layout places, and a notice's text, whose line
+   breaks are its author's (question 2 of §10 of docs/11-surface-web.md). */
+.landing-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.kept-lines {
+  white-space: pre-line;
+}
+
+/* An item of a layout being composed: its parts spaced by the page, as an aside is. */
+li.layout-item > * + * {
+  margin-inline-start: 0.5em;
+}

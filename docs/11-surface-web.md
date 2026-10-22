@@ -406,8 +406,12 @@ where the licence needs it to be rather than where a brand would notice it.
 everything beneath it unless a descendant sets its own, as a layout is (question 2): a product
 name, a logo, a fixed set of colour tokens for the light and the dark scheme, the text of the
 sign-in page, and optionally a stylesheet of at most 64 KiB. The panel applies the theme of the
-viewer's provider, the top organization the viewer can read, whatever they are looking at; before
-anyone has signed in, it applies the root organization's. A reseller's sign-in page at the
+viewer's provider, whatever they are looking at: the nearest organization above everything the
+viewer's grants reach, which the control plane names from the grants it holds; before anyone has
+signed in, it applies the root organization's. (Corrected 2026-10-22, Finding 134 of
+`23-walkthroughs.md`: the provider was the top organization the viewer can read, which the panel
+found from the organizations it lists, and a customer holding only a project's grant reads none,
+so wore the installation root's theme and never their provider's.) A reseller's sign-in page at the
 reseller's own address needs the control plane to answer there, which Phase 2 designs with the
 names organizations hold for their customers (Finding 66 of `23-walkthroughs.md`); the theme of the
 organization holding the verified domain the panel was reached at, which the browser states in its
@@ -460,9 +464,12 @@ by whoever issues them.
 > escape, since an escape is how CSS spells `@import` past a check. `korpis theme
 > show|set|clear` is the command (§2 of `13-surface-cli.md`).
 >
-> The panel wears it (`web/src/theme`). A signed-in viewer wears, on every page, the theme of
-> the one organization they can read whose parent they cannot, the top of what their grants
-> reach; with no such organization, or more than one, the installation root's. A share link's
+> The panel wears it (`web/src/theme`). A signed-in viewer wears, on every page, the theme
+> `GetLandingTheme` answers: that of the nearest organization above everything their grants
+> reach, beneath the one a confined session is confined to, and with no grant the installation
+> root's; at a portal, the portal's organization's. (Corrected 2026-10-22, Finding 134 of
+> `23-walkthroughs.md`: this was the one organization they can read whose parent they cannot,
+> with none or more than one the installation root's.) A share link's
 > page wears the theme `GetTheme` answers for the place it opens, without its stylesheet, and so
 > does the profile; the sign-in and invitation pages, before anyone has signed in, the
 > installation root's. A colour is refused where it is set if text on the background or on a
@@ -714,14 +721,18 @@ which arrive after Phase 1. Phase 1's panel has one landing screen, its own.
    kind, by the slot's name, and it is refused while no extension declares slots, which they do
    from Phase 4 (`ui_slots`, §3.1 of `16-extensions.md`), since a layout places only what exists:
    the kind is in the format now so a layout made today is the same object once slots arrive.
-   The layout a viewer's landing shows is chosen as the theme is (§7): at a portal the portal's
-   organization's, else that of the top organization the viewer can read, else, for a viewer
-   with no such organization or more than one, the installation root's. `SetLayout` is
-   `org.write` on the organization, against the version `GetLayout` returned, and each change is
-   an effect, `org.layout.set`; `GetLayout` answers under the read action of the object asked
-   about, as `GetTheme` does; and `GetLandingLayout` answers any caller signed in with the
-   layout of the address it was reached at, since every component it places renders under the
-   caller's own authority and its notices are addressed to whoever signs in there.
+   The layout a viewer's landing shows is chosen as the theme is (§7), by the control plane,
+   which holds the viewer's grants (Finding 134 of `23-walkthroughs.md`): at a portal the
+   portal's organization's; else that of the nearest organization above everything the viewer's
+   grants reach, beneath the organization a confined session is confined to (§9.8 of
+   `08-identity.md`); and with no grant the installation root's. `SetLayout` is `org.write` on
+   the organization, against the version `GetLayout` returned, and each change is an effect,
+   `org.layout.set`; `GetLayout` answers under the read action of the object asked about, as
+   `GetTheme` does; and `GetLandingLayout` and `GetLandingTheme` answer any caller signed in,
+   though they may read none of the organizations above them, since every component a layout
+   places renders under the caller's own authority and a provider's brand and notices are
+   addressed to everyone it serves. A share link's holder lands nowhere, the link opening one
+   place (§6), and is refused as anyone not signed in is.
 
    What it does not do: it composes the landing screen and nothing else, so every other page is
    the panel's own; a notice or a link says what the organization that composed it says, which
@@ -730,6 +741,15 @@ which arrive after Phase 1. Phase 1's panel has one landing screen, its own.
    every component reads with the viewer's credential. What it costs: one more object per
    organization, inherited by the same walk up the tree a theme takes, and one more read when the
    landing screen opens, with one more for the quota where it is placed.
+
+   > As built, 2026-10-22 (`web/src/layout`). The landing screen shows the layout
+   > `GetLandingLayout` answers, its heading above its items in order, and the panel's own landing
+   > where there is none or it cannot be read; a link opens in a new window with no reference back
+   > to the panel. The organization's page offers the editor to whoever opens it, as the theme's
+   > is: a heading, the items with each moved up or down and every one but what the viewer can
+   > reach removed, a form adding a notice or a link, the quota added once, and the layout saved
+   > against the version it was read at or removed. `korpis layout` is the command (§5 of
+   > `13-surface-cli.md`).
 3. **Offline and PWA. Resolved 2026-10-16: the panel may be cached, what it shows may not.**
    Attractive for the incident case, the panel loading while the control plane is degraded.
    Requires deciding what a cached view is allowed to claim, which collides with §2.

@@ -3,9 +3,9 @@
 // Trace 48 of docs/23-walkthroughs.md, in a browser: Ada redeems an invitation at Pinecone's
 // portal, a name of its own the control plane answers under (§3.6 of docs/07-networking.md),
 // registering a passkey for the portal's own relying party; the panel wears Pinecone's theme
-// there, though her grant lies above Pinecone; her profile there shows what was begun there
-// alone; and setting a password there is refused, since her grant reaches beyond Pinecone (§9.8
-// of docs/08-identity.md).
+// there and lands on the landing screen Pinecone composed, though her grant lies above Pinecone;
+// her profile there shows what was begun there alone; and setting a password there is refused,
+// since her grant reaches beyond Pinecone (§9.8 of docs/08-identity.md).
 
 import { expect, test } from "@playwright/test";
 import { authenticator, given, visit } from "./support";
@@ -25,6 +25,10 @@ test("a reseller's customer signs in at the reseller's portal, confined beneath 
   await expect(page, "the portal's organization's theme, not her provider's").toHaveTitle(
     "Pinecone Panel",
   );
+  // And the landing screen Pinecone composed, its link shown with where it goes.
+  await expect(page.getByRole("heading", { name: "Welcome to Pinecone" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Pinecone support" })).toBeVisible();
+  await expect(page.getByText("(goes to help.pinecone.localhost)")).toBeVisible();
 
   // The passkey signs her in there again.
   await page.getByRole("button", { name: "Sign out" }).click();

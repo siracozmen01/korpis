@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `OrganizationService.GetTheme` and `SetTheme`, and `ServerInfoService.GetSignInTheme` (§7 of
-//! docs/11-surface-web.md).
+//! `OrganizationService.GetTheme`, `GetLandingTheme`, and `SetTheme`, and
+//! `ServerInfoService.GetSignInTheme` (§7 of docs/11-surface-web.md).
 
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, respond};
@@ -140,6 +140,20 @@ pub(super) async fn sign_in(
 ) -> ServiceResult<pb::GetSignInThemeResponse> {
     let g = api.app.sign_in_theme(portal).await.map_err(error::from_app)?;
     Response::ok(pb::GetSignInThemeResponse {
+        governing: governing_to_pb(&g).into(),
+        ..Default::default()
+    })
+}
+
+/// The theme a signed-in caller wears: that of the organization they land at.
+pub(super) async fn landing(
+    api: &Api,
+    ctx: &RequestContext,
+) -> ServiceResult<pb::GetLandingThemeResponse> {
+    let caller = api.caller(ctx).await?;
+    let portal = super::account::at(ctx).map(|p| p.portal);
+    let g = api.app.landing_theme(&caller, portal).await.map_err(error::from_app)?;
+    Response::ok(pb::GetLandingThemeResponse {
         governing: governing_to_pb(&g).into(),
         ..Default::default()
     })

@@ -2,14 +2,14 @@
 
 // The theme the page wears, chosen by who is looking rather than by what is shown (§7 of
 // docs/11-surface-web.md): a signed-in viewer wears the brand of whoever provides their access,
-// the top organization they can read, whatever deeper place they open, so a tenant's theme never
-// dresses its provider's screens; a share link's holder wears the brand of the place it opens, its
-// colours, name, and logo but never its stylesheet; before anyone signs in, the installation
-// root's. At a portal (§3.6 of docs/07-networking.md) the page wears the portal's organization's,
-// before anyone signs in and after, whatever the viewer reads, since the address is that
-// organization's: the control plane names the portal, and answers its theme as the sign-in
-// theme there. A theme that cannot be read leaves the panel's own on, which is what its absence
-// means.
+// whatever deeper place they open, so a tenant's theme never dresses its provider's screens. The
+// control plane names that provider (Finding 134 of docs/23-walkthroughs.md): at a portal
+// (§3.6 of docs/07-networking.md) the portal's organization, the address being its own, and
+// elsewhere the nearest organization above everything the viewer's grants reach, which a
+// customer holding only a project's grant cannot read. A share link's holder wears the brand of
+// the place it opens, its colours, name, and logo but never its stylesheet; before anyone signs
+// in, the address's: the portal's organization's, or the installation root's. A theme that
+// cannot be read leaves the panel's own on, which is what its absence means.
 
 import {
   createContext,
@@ -29,11 +29,7 @@ import { logoSource, productName, wear } from "./theme";
 
 /** Where a theme is read from. */
 export type Source =
-  | {
-      readonly kind: "viewer";
-      readonly clients: Clients;
-      readonly info: Client<typeof ServerInfoService>;
-    }
+  | { readonly kind: "viewer"; readonly clients: Clients }
   | { readonly kind: "link"; readonly clients: Clients; readonly entry: Entry }
   | { readonly kind: "sign-in"; readonly info: Client<typeof ServerInfoService> };
 
@@ -47,7 +43,7 @@ export function topOf(orgs: readonly Organization[]): Organization | undefined {
 }
 
 /** Every organization `clients`' caller can read, every page of them. */
-async function readable(clients: Clients): Promise<Organization[]> {
+export async function readable(clients: Clients): Promise<Organization[]> {
   const orgs: Organization[] = [];
   let pageToken = "";
   do {
@@ -71,18 +67,10 @@ async function read(source: Source): Promise<Theme | undefined> {
       });
       return r.governing?.theme;
     }
-    case "viewer": {
-      // At a portal, the portal's organization's, which the sign-in theme is there.
-      if ((await source.info.getServerInfo({})).portal !== "") {
-        return (await source.info.getSignInTheme({})).governing?.theme;
-      }
-      const top = topOf(await readable(source.clients));
-      if (top === undefined) return (await source.info.getSignInTheme({})).governing?.theme;
-      const r = await source.clients.organizations.getTheme({
-        of: { kind: { case: "organization", value: top.id } },
-      });
-      return r.governing?.theme;
-    }
+    case "viewer":
+      // The control plane names whoever provides the viewer's access, from the grants it holds,
+      // though the viewer may read none of their organizations (Finding 134).
+      return (await source.clients.organizations.getLandingTheme({})).governing?.theme;
   }
 }
 

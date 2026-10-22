@@ -108,6 +108,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(GoverningTheme { set, own_version: 0 })
     }
 
+    /// The theme a signed-in `caller` wears, reached at `portal` or at the installation's own
+    /// address: that of the organization they land at, whoever provides their access, though
+    /// they may read none of its organizations (Finding 134 of docs/23-walkthroughs.md). Answered
+    /// to any caller signed in; a share link's holder wears the theme of the place it opens.
+    pub async fn landing_theme(
+        &self,
+        caller: &Caller,
+        portal: Option<Uuid>,
+    ) -> Result<GoverningTheme, AppError> {
+        let set = match self.landing_organization(caller, portal).await? {
+            Some(org) => self.store.theme(org).await?,
+            None => None,
+        };
+        Ok(GoverningTheme { set, own_version: 0 })
+    }
+
     /// Sets or removes `organization`'s own theme, which applies to it and to everything beneath
     /// it that sets none of its own.
     pub async fn set_theme(

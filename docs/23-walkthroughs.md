@@ -1379,6 +1379,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 131 | A confined session could have changed what protects the account everywhere | §48 | `08-identity.md` §9.8 |
 | 132 | A relay of its own would have refused the console of a panel at a portal | §48 | `07-networking.md` §3.6 |
 | 133 | A password set at a portal would have served every grant issued after it | §48 | `08-identity.md` §9.8 |
+| 134 | A customer holding a project's grant alone wore the installation's theme and landing | §49 | `11-surface-web.md` §7, §10 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3253,6 +3254,11 @@ left unset taken as the panel's own. → `11-surface-web.md` §7; built and test
 `web/src/theme/useTheme.tsx`, `web/src/theme/theme.ts`, and
 `crates/korpis-core/src/tenancy/theme.rs`.
 
+> Corrected 2026-10-22, Finding 134 of §49. The viewer's provider is not the top organization
+> they can read but the nearest organization above everything their grants reach, which the
+> control plane names: a customer holding only a project's grant reads no organization, and
+> wore the installation root's theme.
+
 **FINDING 84: A secret field's value was read back by anyone who could read the workload.
 `CONFIRMED`**
 
@@ -4216,3 +4222,62 @@ follow Ada through steps 3 to 7.
 > alone, and the password she tries to set there is refused `session.portal_confined`. Building
 > it found Finding 133, and a review of it found that two secrets set at unrelated portals had
 > signed in unconfined, which is now refused (§9.8 of `08-identity.md`).
+
+## 49. A reseller composes its customers' landing screen
+
+Written 2026-10-22, when the layout was built (question 2 of §10 of `11-surface-web.md`, Phase 2
+of §4 of `20-roadmap.md`). Kestrel Hosting runs the installation; Northwind is a reseller beneath
+Kestrel's root, and Blockhaven a customer beneath Northwind, whose project `survival` runs `mc`.
+Northwind's keeper holds `org.write` on Northwind; Blockhaven's owner holds `org.read` and
+`org.write` on Blockhaven; and Ines, Blockhaven's moderator, holds `project.read` and
+`workload.write` on `survival` alone. Ada, of §48, rents from Pinecone and from Northwind.
+
+The trace was chosen by measuring coverage, as §0 describes: before it, two steps of every trace
+cited §10 of `11-surface-web.md`, neither of them its question 2, which the layout answers.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Northwind's keeper opens Northwind and composes its landing screen: a notice that a region opens on Monday, what each viewer can reach, a link to Northwind's support desk, and the quota. It is saved against version 0, and the change is an effect, `org.layout.set`, in Northwind's audit trail | `11-surface-web.md` §10; `15-observability.md` §4 |
+| 2 | The keeper looks for a way to leave out what each viewer can reach. The editor moves it and never removes it, and a layout sent without it from `korpis layout set` is refused `layout.items` | `11-surface-web.md` §10; `13-surface-cli.md` §2 |
+| 3 | Blockhaven's owner signs in at `korpis.kestrel.example`. The control plane names the organization they land at from the grants it holds: Blockhaven, the nearest above everything their grants reach. Blockhaven sets no layout, so Northwind's is shown, and Northwind's theme is worn | `11-surface-web.md` §7, §10 |
+| 4 | Each part of it reads with the owner's credential: what they can reach is Blockhaven and its project, and the quota is Blockhaven's as they read it, never Northwind's | `11-surface-web.md` §5, §10 |
+| 5 | Ines signs in. She reads no organization, only `survival` ‡ | `11-surface-web.md` §7, §10; `08-identity.md` §3.3 |
+| 6 | Ada signs in at Pinecone's portal and lands on Pinecone's landing screen, the address being Pinecone's; at `korpis.kestrel.example` her grants lie beneath Pinecone and Northwind, so she lands at Kestrel's root, the nearest above both, which neither reseller composes for | `07-networking.md` §3.6; `11-surface-web.md` §10 |
+| 7 | A share link to `mc` is opened. Its page shows `mc`; the link opens one place and has no landing, and asking for one is refused as for anyone not signed in | `11-surface-web.md` §6, §10 |
+| 8 | The owner follows the support link. It is shown with the host it goes to, `help.northwind.example`, and opens without the panel's window to reach back into | `11-surface-web.md` §10 |
+
+**One finding, at step 5** (‡).
+
+**FINDING 134: A customer holding a project's grant alone landed on, and wore, the installation's
+landing and theme rather than their provider's. `CONFIRMED`**
+
+Found 2026-10-22 writing this trace, by asking the algebra question of step 5: what chooses
+Ines's landing, where, and with what information? The panel did, from the organizations it
+lists: the theme and the layout were the top organization the viewer can read, and with none,
+the installation root's (§7 of `11-surface-web.md`). Ines reads no organization, so the panel
+found none, and she wore Kestrel's theme and landed on Kestrel's landing screen, though Northwind
+provides her access and composed its landing for exactly her. The rule asked the panel a question
+only the control plane can answer: which organization provides a viewer's access is a fact about
+their grants, and the panel holds the organizations its viewer can read, not the grants above
+them. It had stood since the theme was built in Phase 1; the layout made it visible, since a
+landing screen is the place a provider speaks to everyone it serves.
+
+**Resolution.** The control plane chooses. The organization a caller lands at is, at a portal, its
+organization; elsewhere the nearest organization above everything the caller's grants reach,
+beneath the one a confined session is confined to (§9.8 of `08-identity.md`); and with no grant
+the installation's root. `GetLandingTheme` and `GetLandingLayout` answer any caller signed in with
+that organization's, though they may read none of the organizations above them, and refuse a
+share link's holder. The panel's viewer theme and its landing ask for them. → corrected in place
+in `11-surface-web.md` §7 and §10 question 2, and in the resolution of Finding 83 at §38; built in
+`crates/korpis-app/src/tenancy/landing.rs`, and tested through the API with a customer holding a
+project's grant alone landing at, and wearing, their provider's.
+
+What it costs, and what it does not do. A landing reads the caller's grants and the ancestry of
+each, once for the theme and once for the layout, where the panel read its list of organizations;
+a person holding thousands of grants pays for each. A customer is told their provider's theme,
+landing screen, and identifier, which they could not otherwise read; both were composed to be
+shown to them, and nothing else of the provider's is answered. A viewer whose grants lie beneath
+two providers, as Ada's do, lands at whatever is above both, which may be the installation root,
+whose landing is the operator's; the panel does not choose one provider for her.
