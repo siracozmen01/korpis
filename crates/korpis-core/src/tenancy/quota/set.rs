@@ -75,6 +75,21 @@ pub enum SetError {
         /// What the set above allows them.
         bound: u64,
     },
+    /// What an organization runs itself, beside what it promised the organizations beneath it,
+    /// more than it holds (Finding 139 of docs/23-walkthroughs.md).
+    #[error(
+        "{} reservations the organization above holds itself, beside what it guaranteed beneath \
+         it, would be {would}, above its {bound}",
+        dimension.as_str()
+    )]
+    Unkept {
+        /// The dimension.
+        dimension: Dimension,
+        /// What it would hold and guarantee together.
+        would: u64,
+        /// Its bound.
+        bound: u64,
+    },
 }
 
 impl QuotaSet {

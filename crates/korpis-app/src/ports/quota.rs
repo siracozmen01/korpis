@@ -118,6 +118,15 @@ pub trait QuotaWrite {
     /// transaction, that they were consumed against (§5.1).
     fn consume_quota(&mut self, entries: &[Uuid]) -> impl Future<Output = StoreResult<()>> + Send;
 
+    /// The entries of the organizations directly beneath `organizations`, each with the one it
+    /// is beneath: what those promised them (§5.1, Finding 139). Not locked: every change to
+    /// what one counts or was given takes its parent's entry of its shape first, which the
+    /// caller holds.
+    fn promised_entries(
+        &mut self,
+        organizations: &[Uuid],
+    ) -> impl Future<Output = StoreResult<Vec<(Uuid, QuotaEntry)>>> + Send;
+
     /// Entry `id`, locked until the transaction ends.
     fn lock_quota_entry(
         &mut self,

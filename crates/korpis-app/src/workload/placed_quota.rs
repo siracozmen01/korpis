@@ -16,7 +16,7 @@ use crate::ports::{
     RecipeSource, Store, Tx as _, WorkloadWrite as _,
 };
 use korpis_core::schedule::Counting;
-use korpis_core::tenancy::quota::{Held, QuotaEntry, Totals};
+use korpis_core::tenancy::quota::{Held, Promise, QuotaEntry, Totals};
 use korpis_core::workload::Workload;
 use uuid::Uuid;
 
@@ -37,22 +37,25 @@ where
 }
 
 /// What placement checks of `entries` for a workload counted as `placed`: each entry, what it
-/// counts beside the workload, and what it counts of it.
+/// counts beside the workload, what it counts of it, and what it promised beneath it, from
+/// `promised`, one for each entry.
 #[must_use]
 pub(crate) fn counting<'a>(
     entries: &'a [QuotaEntry],
     placed: Option<&'a Placed>,
+    promised: Vec<Vec<Promise>>,
 ) -> Vec<Counting<'a>> {
     entries
         .iter()
-        .map(|entry| {
+        .zip(promised)
+        .map(|(entry, promises)| {
             let counted =
                 placed.filter(|p| p.counted.by.contains(&entry.id)).map(|p| &p.counted.held);
             let mut rest = entry.held.clone().unwrap_or_default();
             if let Some(held) = counted {
                 rest.sub(held);
             }
-            Counting { entry, rest, counted }
+            Counting { entry, rest, counted, promises }
         })
         .collect()
 }
@@ -72,6 +75,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         entries.retain(|e| e.counts(w.labels.as_map()));
         Ok((entries, tx.placement_held(w.id).await?))
+    }
+
+    /// What each of `entries`, counting where `w` runs, promised the organizations beneath its
+    /// owner (Finding 139), less what each of those counts of `w` as `placed`.
+    pub(crate) async fn placed_promises(
+        &self,
+        tx: &mut S::Tx,
+        w: &Workload,
+        (entries, placed): (&[QuotaEntry], Option<&Placed>),
+    ) -> Result<Vec<Vec<Promise>>, AppError> {
+        let chain = self.organization_chain(w.organization).await?;
+        let beneath = tx.promised_entries(&chain).await?;
+        let none = Counted::default();
+        let counted = placed.map_or(&none, |p| &p.counted);
+        let on = (chain.as_slice(), w.labels.as_map());
+        Ok(entries.iter().map(|e| super::admit::promises(e, &beneath, on, counted)).collect())
     }
 
     /// Where `w`'s placement is counted now: the node it is on, what its target runs, and the

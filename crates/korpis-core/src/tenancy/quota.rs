@@ -11,10 +11,12 @@
 //! together is kept beside each entry as its totals, so admission reads one row per entry.
 
 mod egress;
+mod promised;
 mod set;
 mod totals;
 
 pub use egress::{BudgetError, EgressBudget, Exhaustion, Spent, month_of};
+pub use promised::{Promise, keeps_promises};
 pub use set::{EXCLUSIVE, QuotaSet, SetError, Shape, shape};
 pub use totals::Totals;
 

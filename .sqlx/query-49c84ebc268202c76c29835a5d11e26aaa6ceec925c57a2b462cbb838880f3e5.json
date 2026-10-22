@@ -1,0 +1,148 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of the organizations directly beneath the organizations $1, with the parent\n-- each is beneath: what those parents promised them (§5.1 of docs/05-scheduling.md, Finding 139).\n-- Read without a lock: every change to what one of them counts, or to what it was given, takes\n-- the lock of its parent's entry of its shape first, which the caller holds.\nSELECT e.id, e.owner_kind, e.owner_id, e.selector, e.nodes, e.reservations, e.limits, e.version,\n       e.held, e.egress_budget, o.parent_id AS \"parent!\"\n  FROM quota_entry e\n  JOIN organization o ON e.owner_kind = 'organization' AND o.id = e.owner_id\n WHERE o.parent_id = ANY($1)\n ORDER BY e.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "owner_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "owner_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "owner_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "owner_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "selector",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "selector"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "nodes",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "nodes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "reservations",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "reservations"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "limits",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "limits"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "held",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "held"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "egress_budget",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "egress_budget"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "parent!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "organization",
+            "name": "parent_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "49c84ebc268202c76c29835a5d11e26aaa6ceec925c57a2b462cbb838880f3e5"
+}

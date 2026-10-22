@@ -33,6 +33,39 @@ pub(crate) struct EntryRow {
     pub(crate) egress_budget: Option<Value>,
 }
 
+/// An entry of an organization beneath another, with the one it is beneath.
+struct PromisedRow {
+    id: Uuid,
+    owner_kind: String,
+    owner_id: Uuid,
+    selector: Option<Value>,
+    nodes: Option<Value>,
+    reservations: Value,
+    limits: Value,
+    version: i64,
+    held: Option<Value>,
+    egress_budget: Option<Value>,
+    parent: Uuid,
+}
+
+impl PromisedRow {
+    fn into_domain(self) -> StoreResult<(Uuid, QuotaEntry)> {
+        let entry = EntryRow {
+            id: self.id,
+            owner_kind: self.owner_kind,
+            owner_id: self.owner_id,
+            selector: self.selector,
+            nodes: self.nodes,
+            reservations: self.reservations,
+            limits: self.limits,
+            version: self.version,
+            held: self.held,
+            egress_budget: self.egress_budget,
+        };
+        Ok((self.parent, entry.into_domain()?))
+    }
+}
+
 /// An entry's egress budget as stored: the bytes a month, and a floor or a cut-off.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct BudgetDoc {
@@ -124,6 +157,17 @@ impl QuotaWrite for PgTx {
             .await
             .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn promised_entries(
+        &mut self,
+        organizations: &[Uuid],
+    ) -> StoreResult<Vec<(Uuid, QuotaEntry)>> {
+        let rows = sqlx::query_file_as!(PromisedRow, "queries/quota_promised.sql", organizations)
+            .fetch_all(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        rows.into_iter().map(PromisedRow::into_domain).collect()
     }
 
     async fn lock_quota_entry(&mut self, id: Uuid) -> StoreResult<Option<QuotaEntry>> {

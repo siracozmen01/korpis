@@ -815,6 +815,23 @@ that has not enabled memory overcommit cannot oversell memory at all.
 Bet 4 survives, and it survives because the mechanism already existed one layer down and had simply
 never been applied to quota.
 
+> Corrected 2026-10-22 (Finding 139 of `23-walkthroughs.md`). The sets below were checked to sum
+> within the set above, but admission at an organization's entry counted only what the workloads
+> beneath it hold, so a reseller's own workloads could take what it had guaranteed a sub-tenant,
+> who was then refused below its guarantee: "never oversubscribed" held for what was given and
+> not for what was run. A guarantee is now held where it is evaluated. An organization's entry
+> counts each child organization's entry of its shape as the larger of what the child was given
+> and what it holds, beside what the organization's own workloads hold; a workload within the
+> guarantee of the child counting it is not refused by the entry above that child, whatever the
+> parent holds; and giving a child more is refused when the parent's own holdings and everything
+> it promised would exceed its bound (below, "Setting a quota set"). **What evaluates this, where,
+> and with what information:** the control plane, at admission and at a set's change, from the
+> entries it locks and the entries of the organizations directly beneath their owners, read under
+> the lock of the parent's entry, which every change to what a child's entry counts or was given
+> also takes. What it costs: promising is reserving, so a reseller's own servers run only in what
+> it has not promised; and a host that lowers a reseller beneath what it guaranteed and runs leaves
+> the reseller's own servers unable to grow until it holds less, while its children keep theirs.
+
 #### Admission holds what it checks
 
 > Finding 1 of `23-walkthroughs.md`.
@@ -841,7 +858,9 @@ as a limit.
 - **Which entries.** The entries of the workload's project and of its organization and every
   organization above it: an organization's entry bounds everything below it, sub-organizations
   included, which is how a reseller's 32 Gi bounds its customers' customers. The control plane
-  evaluates this at declaration, from the tenancy tree it holds.
+  evaluates this at declaration, from the tenancy tree it holds. Each organization's entry counts
+  what it promised its children beside what it holds, and admits a workload within its child's
+  guarantee (corrected 2026-10-22, above).
 - **What a selector matches: the workload's labels.** They are the only description of the
   workload admission has; where it will run is decided later, by placement. Question 6 below is
   what that leaves open.
@@ -902,7 +921,9 @@ The set is checked in one transaction holding the locks of every set it is check
 parent's, the siblings', the organization's children's, and its projects'. Entries are compared
 **by shape**, the pair of their workload selector and their node selector, because entries of one
 shape at two levels are the same promise made at each. Per shape and dimension: the reservations
-given to the organization and its siblings sum within the parent's, never oversubscribed; their
+given to the organization and its siblings sum within the parent's, never oversubscribed, and
+together with what the parent's own workloads hold, within the parent's bound unless that was
+already so before the change (Finding 139 of `23-walkthroughs.md`); their
 limits sum within the parent's times the overcommit percent the parent was permitted, none where
 it was permitted none, and never for dedicated IPv4 or node ports; what the organization gives its
 own children still fits what it is given now, so lowering a reseller below what it gave is

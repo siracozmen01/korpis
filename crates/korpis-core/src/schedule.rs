@@ -90,6 +90,9 @@ pub struct Counting<'a> {
     pub rest: Totals,
     /// What it counts of this workload now, placed on a node it counts.
     pub counted: Option<&'a Held>,
+    /// What it promised the organizations beneath its owner, by their entries of its shape
+    /// (Finding 139 of docs/23-walkthroughs.md); none for a project's entry.
+    pub promises: Vec<crate::tenancy::quota::Promise>,
 }
 
 /// A dependency as placement reads it: its name, whether it is required, and the workloads it

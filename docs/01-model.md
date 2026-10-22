@@ -181,8 +181,10 @@ Quota dimensions
   period was defined, and a period is now a UTC day, which would have made a monthly transfer
   allowance, what hosts sell, a daily one. What it costs: a host that bills from the day a customer
   signed up rather than from the first keeps that budget itself.
-- Reservations sum against the parent and are never oversubscribed; limits may exceed the parent's
-  by a declared ratio. Admission holds what it checks, at admission time, not at use time.
+- Reservations sum against the parent and are never oversubscribed, counting what the parent runs
+  itself beside what it gave (corrected 2026-10-22, Finding 139 of `23-walkthroughs.md`); limits
+  may exceed the parent's by a declared ratio. Admission holds what it checks, at admission time,
+  not at use time.
 
 > Named `Quota`, deliberately not `Plan`, `Plan` is taken by §3.3 and the collision would be
 > constant. A commercial "plan" is a billing concept and lives in the billing system (Rule K-12).

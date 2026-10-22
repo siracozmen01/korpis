@@ -22,7 +22,9 @@ use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, QuotaSetWrite, RecipeSource, Store};
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
-use korpis_core::tenancy::quota::{QuotaEntry, QuotaOwner, QuotaSet, SetError, shape};
+use korpis_core::tenancy::quota::{
+    QuotaEntry, QuotaOwner, QuotaSet, SetError, keeps_promises, shape,
+};
 use korpis_core::tenancy::{Organization, Project};
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -53,7 +55,9 @@ pub struct QuotaSetAt {
 
 fn refused(e: &SetError) -> AppError {
     match e {
-        SetError::Overallocated { .. } => AppError::conflict("quota.overallocated", e.to_string()),
+        SetError::Overallocated { .. } | SetError::Unkept { .. } => {
+            AppError::conflict("quota.overallocated", e.to_string())
+        }
         _ => AppError::invalid("quota", e.to_string()),
     }
 }
@@ -175,7 +179,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let orgs: Vec<Uuid> =
             std::iter::once(over).chain(beside.clone()).chain(below.clone()).collect();
         let all_projects: Vec<Uuid> = projects.into_iter().chain(below_projects.clone()).collect();
-        let entries = tx.lock_quota_sets(&orgs, &all_projects).await?;
+        let mut entries = tx.lock_quota_sets(&orgs, &all_projects).await?;
+        // What the set above holds itself is weighed against what it promised (Finding 139).
+        for e in entries.iter_mut().filter(|e| e.held.is_none() && e.nodes.is_none()) {
+            crate::workload::reckon(tx, e).await?;
+        }
         let mut percent = BTreeMap::new();
         percent.insert(over, tx.overcommit(QuotaOwner::Organization(over)).await?);
         let sets = grouped(entries, percent);
@@ -188,10 +196,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 Ok(set(&p).entries.clone())
             }
             QuotaOwner::Organization(o) => {
+                let before: Vec<&QuotaSet> = beside.iter().map(set).collect();
                 let mut given: Vec<&QuotaSet> =
                     beside.iter().filter(|b| **b != o).map(set).collect();
                 given.push(new);
                 above.fits(&given).map_err(|e| refused(&e))?;
+                let held = holding(new, set(&o));
+                given.pop();
+                given.push(&held);
+                keeps_promises(above, &given, &before).map_err(|e| refused(&e))?;
                 let children: Vec<&QuotaSet> = below.iter().map(set).collect();
                 new.fits(&children).map_err(|e| refused(&e))?;
                 for p in &below_projects {
@@ -201,6 +214,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
         }
     }
+}
+
+/// `new` with what the entries of `now`, the set it replaces, of each of its shapes hold: what
+/// its organization's workloads hold does not change with its set.
+fn holding(new: &QuotaSet, now: &QuotaSet) -> QuotaSet {
+    let entries = new
+        .entries
+        .iter()
+        .map(|e| QuotaEntry {
+            held: now.of_shape(shape(e)).and_then(|kept| kept.held.clone()),
+            ..e.clone()
+        })
+        .collect();
+    QuotaSet { entries, ..new.clone() }
 }
 
 fn organization(id: Uuid) -> ObjectRef {

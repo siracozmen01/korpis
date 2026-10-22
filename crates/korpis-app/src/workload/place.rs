@@ -167,7 +167,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let refused = self.refusals_screened(tx, (w, target), screened).await?;
         let learned = self.learned(tx, &ids, target).await?;
         let (entries, placed) = self.placed_entries(tx, w).await?;
-        let quota = super::placed_quota::counting(&entries, placed.as_ref());
+        let promised = self.placed_promises(tx, w, (&entries, placed.as_ref())).await?;
+        let quota = super::placed_quota::counting(&entries, placed.as_ref(), promised);
         let req = Request {
             workload: w.id,
             project: w.project,

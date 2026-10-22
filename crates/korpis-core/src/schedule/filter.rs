@@ -235,7 +235,7 @@ fn quota(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
     req.quota
         .iter()
         .filter(|q| q.entry.counts_on(c.node.labels.as_map()))
-        .filter_map(|q| q.entry.admit(&q.rest, q.counted, &held).err())
+        .filter_map(|q| q.entry.admit_promised(&q.rest, &q.promises, q.counted, &held).err())
         .map(|e| (Check::Quota, e.to_string()))
         .collect()
 }

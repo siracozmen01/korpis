@@ -1384,6 +1384,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 136 | Anyone could register another person's public key, and their SFTP client then signed in as the squatter | §50 | `08-identity.md` §9.9, `13-surface-cli.md` §8 |
 | 137 | The design let a browser reach an endpoint that requires a client certificate over a connection that never presented one | §51 | `07-networking.md` §3.2 |
 | 138 | One HTTP/2 connection could hold as many WebSockets to its workload as it opened streams, past the proxy's bound on connections | §51 | `07-networking.md` §3.2 |
+| 139 | A parent's own workloads could take what it had guaranteed a child, who was then refused below its guarantee | §52 | `05-scheduling.md` §5.1, `01-model.md` §3.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4477,3 +4478,62 @@ page; the bound is the operator's to size.
 > coalesced request of step 5, refused 421 over HTTP/1.1 and HTTP/2, against the proxy on
 > loopback, as are a client of another authority refused and an `optional` endpoint serving a
 > client with no certificate.
+
+---
+
+## 52. A reseller runs its own servers beside the sub-tenant it guaranteed
+
+Written 2026-10-22, to prove Phase 2's done-when (§4 of `20-roadmap.md`: "a reseller delegates to
+a sub-tenant who delegates to a customer, quota inherits correctly") before scripting it.
+Northwind, a reseller beneath Kestrel's host, is given 12 GiB of memory, reserved and sold. It
+guarantees Ledgerline, a sub-tenant, 8 GiB, and runs its own support servers in a project of its
+own, each reserving 4 GiB. Ledgerline gives a customer beneath it a share of its 8.
+
+The trace was chosen by asking the done-when's algebra rather than by coverage: "inherits
+correctly" is a claim about what holds a child's guarantee, and no earlier trace asked what holds
+it while the parent runs workloads of its own.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The host sets Northwind's set to 12 GiB, under `org.quota.write` over the root; Northwind cannot raise its own | `05-scheduling.md` §5.1, "Setting a quota set" |
+| 2 | Northwind sets Ledgerline's to 8 GiB: the sets beneath it sum within its 12, never oversubscribed | `05-scheduling.md` §5.1 |
+| 3 | Northwind declares one support server: 4 of its own beside the 8 it guaranteed, 12 of 12 | `05-scheduling.md` §5.1, "What admission counts" |
+| 4 | Northwind declares a second support server; its entry counted only what runs beneath it, 4 of 12, and admitted it ‡ | `05-scheduling.md` §5.1 |
+| 5 | Ledgerline's customer declares two servers, 8 GiB, within Ledgerline's guarantee; Northwind's entry would hold 16 of 12, and refused the second ‡ | `05-scheduling.md` §5.1 |
+| 6 | Northwind gives a second sub-tenant 4 GiB: the sets beneath it sum to 12 of 12, and it was given, though Northwind runs 4 itself ‡ | `05-scheduling.md` §5.1, "Setting a quota set" |
+| 7 | The host lowers Northwind to 8 GiB, the 8 it guaranteed; lowering a reseller below what it gave is refused, below what it runs is not | `05-scheduling.md` §5.1 |
+
+**One finding, at steps 4 to 6** (‡).
+
+**FINDING 139: A parent's own workloads could take what it had guaranteed a child, who was then
+refused below its guarantee. `CONFIRMED`, in the code and the document**
+
+Found 2026-10-22 by asking the algebra question of step 5: what holds Ledgerline's 8 GiB, and
+with what? At a set's change, `fits` checked that the sets beneath Northwind sum within its own,
+and §5.1 of `05-scheduling.md` called reservations "what the reseller has actually guaranteed",
+"never oversubscribed". At admission, Northwind's entry was compared with what the workloads
+beneath it hold, nothing else: it knew what Ledgerline had been given, and did not count it. So
+Northwind's second support server was admitted at step 4, Ledgerline's customer was refused at
+step 5 below what Ledgerline was guaranteed, and at step 6 Northwind promised a second sub-tenant
+capacity it was already running. The guarantee held on paper, in the sets, and nowhere it was
+evaluated. Finding 6 decided that reservations are guarantees; this is where its decision was not
+carried to the component that evaluates it.
+
+**Resolution.** An organization's entry counts each child's entry of its shape as the larger of
+what the child was given and what it holds, beside what its own workloads hold, at declaration and
+at placement alike; a workload within the guarantee of the child counting it is not refused by
+the entry above; and giving a child more is refused when the parent's own holdings and everything
+it promised would exceed its bound, unless they did already. With it, step 4 is refused, naming
+Northwind's entry; step 5 admits both servers; step 6 is refused `quota.overallocated`; and after
+step 7, Ledgerline still reserves its whole 8 while Northwind's own servers cannot grow. The
+children's entries are read under the lock of the parent's entry, which every change to what a
+child counts or was given also takes, so the count is never of a state that is changing. →
+corrected in §5.1 of `05-scheduling.md`, and in §3.1 of `01-model.md` where it restates the rule;
+built in `crates/korpis-core/src/tenancy/quota/promised.rs` and the admission, placement, and
+set paths, with an API test that walks steps 1 to 7.
+
+What it costs. Promising is reserving: a reseller that guaranteed most of what it holds runs its
+own servers in the rest, which is what a guarantee is; and an organization whose own servers fill
+what it has not promised cannot promise more until they shrink.

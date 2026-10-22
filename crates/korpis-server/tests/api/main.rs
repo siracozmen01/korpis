@@ -95,6 +95,7 @@ mod provision;
 mod proxy;
 mod prunes;
 mod quota;
+mod quota_promised;
 mod quota_region;
 mod quota_set;
 mod rate_grants;

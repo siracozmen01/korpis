@@ -37,7 +37,7 @@ fn a_node_an_entry_counts_is_refused_while_the_workload_would_exceed_it_there() 
     let entry = in_the_eu(3 * GIB);
     // Another workload runs 2 GiB in the EU.
     let other = Totals::sum([&Held::of(&body(2 * GIB))]);
-    let quota = [Counting { entry: &entry, rest: other.clone(), counted: None }];
+    let quota = [Counting { entry: &entry, rest: other.clone(), counted: None, promises: vec![] }];
     let mut r = req(&labels, &b);
     r.quota = &quota;
     let e = place(&r, &candidates, &[], &PlacementPolicy::default());
@@ -47,7 +47,8 @@ fn a_node_an_entry_counts_is_refused_while_the_workload_would_exceed_it_there() 
     assert_eq!(e.chosen, Some(us.id));
 
     let held = Held::of(&b);
-    let quota = [Counting { entry: &entry, rest: other, counted: Some(&held) }];
+    let quota =
+        [Counting { entry: &entry, rest: other, counted: Some(&held), promises: Vec::new() }];
     r.quota = &quota;
     let e = place(&r, &candidates, &[], &PlacementPolicy::default());
     assert!(checks(&e, 1).is_empty(), "what it already runs there is no growth");

@@ -14,6 +14,8 @@ mod declare;
 mod dependency;
 mod explain;
 mod hold;
+
+pub(crate) use hold::reckon;
 mod learned;
 mod observed;
 mod pin;

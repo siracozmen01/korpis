@@ -42,7 +42,7 @@ pub(super) fn drift(subject: (&str, Uuid), kept: String, counted: String) -> Eff
 
 /// Reckons `e`, locked and never reckoned, from what every workload under its owner was counted
 /// as holding, and counts it by the workloads it selects.
-async fn reckon<T: QuotaWrite>(tx: &mut T, e: &mut QuotaEntry) -> Result<(), AppError> {
+pub(crate) async fn reckon<T: QuotaWrite>(tx: &mut T, e: &mut QuotaEntry) -> Result<(), AppError> {
     let holdings = tx.holdings(e.owner).await?;
     let counted: Vec<_> = holdings.iter().filter(|h| e.counts(&h.labels)).collect();
     let totals = Totals::sum(counted.iter().map(|h| &h.counted.held));

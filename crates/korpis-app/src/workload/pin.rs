@@ -142,7 +142,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let drivers_refused = tx.refusals(w.id, target.id).await?;
         let learned = self.learned(tx, &[node.id], target).await?;
         let (entries, placed) = self.placed_entries(tx, w).await?;
-        let quota = super::placed_quota::counting(&entries, placed.as_ref());
+        let promised = self.placed_promises(tx, w, (&entries, placed.as_ref())).await?;
+        let quota = super::placed_quota::counting(&entries, placed.as_ref(), promised);
         let req = Request {
             workload: w.id,
             project: w.project,
