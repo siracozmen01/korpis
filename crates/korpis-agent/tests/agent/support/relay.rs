@@ -17,6 +17,17 @@ pub struct Relay {
     _dir: tempfile::TempDir,
 }
 
+impl Relay {
+    /// Serves SFTP on `listener` with `host_key` as well, as `--sftp-listen` has it.
+    pub fn serve_sftp(
+        &self,
+        listener: tokio::net::TcpListener,
+        host_key: korpis_server::sftp::host_key::PrivateKey,
+    ) -> tokio::task::JoinHandle<std::io::Result<()>> {
+        self.running.serve_sftp(listener, host_key).unwrap()
+    }
+}
+
 impl Drop for Relay {
     fn drop(&mut self) {
         self.running.task.abort();

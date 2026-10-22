@@ -9,6 +9,7 @@
 mod dir;
 pub mod fed;
 pub mod feed;
+mod files;
 mod follow;
 mod join;
 pub mod renew;
@@ -16,6 +17,7 @@ mod run;
 pub mod served;
 
 pub use dir::{RelayDir, TlsFiles};
+pub use files::AskControl;
 pub use follow::FollowError;
 pub use join::{JoinError, join};
 pub use run::{Edge, RunError, RunningRelay, run, url};

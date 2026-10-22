@@ -332,6 +332,16 @@ resume is built for; a person who needs the guarantee uploads with the panel or 
 sync`. A session over SFTP is recorded exactly as any other, by the node, and the token the relay
 asked for is recorded by the control plane (§9.9 of `08-identity.md`).
 
+> Built 2026-10-22. The relay sends a client's reads and writes on to the node as they arrive, up
+> to the sixteen the node holds unanswered, and answers any other request once those before it
+> are answered, so it sees what they did. `OPEN` creates or truncates by the empty write whose
+> `create` and `truncate` the session already has, and otherwise looks first, so a handle names a
+> file that is there; `EXCLUDE` is that look, which a second writer can race, because the session
+> has no verb that creates only what is absent; and a file opened with `APPEND` is written where a
+> look says it ends. `REMOVE` and `RMDIR` look first as well, so neither removes the other's kind.
+> A listing carries the line `ls -l` prints, whose permissions say what a session lets anyone do,
+> since it sets none.
+
 **What it does not do.** It does not compress or extract archives, set permissions, or follow a
 symbolic link out of the volumes; a recipe's install does what a recipe needs (§4 of
 `09-recipes.md`), and the rest is for the workload's own tools. It does not reach a volume of a

@@ -23,6 +23,14 @@ ignore = [
     { id = "RUSTSEC-2026-0370", reason = "zvariant merged into zbus 6; reached via secret-service" },
     { id = "RUSTSEC-2026-0371", reason = "zbus_names merged into zbus 6; reached via secret-service" },
     { id = "RUSTSEC-2026-0372", reason = "zvariant_derive merged into zbus 6; via secret-service" },
+    # The Marvin attack recovers an RSA private key from the timing of operations that use it:
+    # decrypting and signing. rsa reaches Korpis through russh, the SSH server a relay serving
+    # SFTP runs (§3.1 of docs/02-architecture.md), so that a person's RSA key can sign them in,
+    # and there it only verifies signatures, an operation on the public key with nothing secret
+    # to time. The relay's own host key is Ed25519, made so and refused otherwise, so no RSA
+    # private key is ever held. Revisit when rsa releases a constant-time version, and at once
+    # if anything here ever signs with RSA. Found by cargo-deny on 2026-10-22.
+    { id = "RUSTSEC-2023-0071", reason = "rsa verifies client keys only; the host key is Ed25519" },
 ]
 
 [licenses]

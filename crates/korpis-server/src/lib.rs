@@ -39,6 +39,7 @@ pub mod restore;
 pub mod revocations;
 pub mod sealer;
 pub mod sessions;
+pub mod sftp;
 pub mod standalone;
 #[cfg(feature = "testing")]
 pub mod testing;

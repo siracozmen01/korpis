@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, account_id, kind, public_key, label, within_id, added_at, last_used_at\n               FROM ssh_key WHERE fingerprint = $1",
+  "query": "SELECT k.id, k.account_id, k.kind, k.public_key, k.label, k.within_id, k.added_at,\n                    k.last_used_at\n               FROM ssh_key k JOIN account a ON a.id = k.account_id\n              WHERE k.fingerprint = $1 AND a.disabled_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -108,5 +108,5 @@
       true
     ]
   },
-  "hash": "15cd4227cb1d90fb57ffc913947ccc36e87be419f554e29d998f0c099f3cbf72"
+  "hash": "08d703f6dd4dde309e713ce99fe89c138e632519b3dd977e76815833f6d20359"
 }

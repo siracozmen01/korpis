@@ -270,6 +270,21 @@ What it costs: `connectrpc` depends on `rustls` with its default features, which
 compiles its C sources. Removing it needs that dependency declared without default features
 upstream; until then it is dead weight, not a second code path.
 
+**SSH, for SFTP.** A relay that serves SFTP (§3.1 of `02-architecture.md`) speaks SSH through
+`russh`, which runs on Tokio and is built with `ring`, as the rest of the process is, and reads SFTP
+packets with `russh-sftp`'s codec. The loop that answers them is Korpis's own (§3.2 of
+`06-storage.md`): the library's loop goes on reading after a packet it could not read, from a
+stream that has lost its framing, where Korpis's ends the connection. What it costs, twice over.
+SSH keys of RSA are verified through the `rsa` crate, which RUSTSEC-2023-0071 says leaks its private
+key through timing, with no fixed version; the advisory concerns operations with a private key, and
+a relay holds none of RSA, since its host key is Ed25519 and any other is refused, so the crate only
+checks a client's signature with a public one, and `deny.toml` states that reasoning beside the
+advisory rather than silencing it. And `russh` checks a client's signature against the algorithm
+the client named, not against the list the server offers, so a client that signs with `ssh-rsa`,
+whose hash is SHA-1, is accepted although the relay offers RSA only with SHA-2. OpenSSH's client
+does not sign so by default, and a forgery would need a SHA-1 collision that covers the session's
+own identifier, but the relay does not refuse one; it would take a change to `russh` to.
+
 ---
 
 ## 8. PostgreSQL only, and the friction it creates
@@ -403,7 +418,12 @@ own: the issuer's login and consent are answered by a script, not a form.
    are built on Tokio, so the worker uses it. The order matters and is fixed: the helper starts the
    worker inside its prepared mount namespace (§6 of `02-architecture.md`), the worker applies its
    Landlock ruleset while it is still single-threaded, and only then starts the runtime, so every
-   thread the runtime creates is born confined (§4). The control plane, the relay, the supervisor,
+   thread the runtime creates is born confined (§4). (Corrected 2026-10-22: the worker does not
+   serve SFTP, and runs no runtime. A relay serves SFTP (§3.1 of `02-architecture.md`) as a client
+   of the file session, and the worker answers that session's requests one at a time on its
+   socket, synchronously, so the order above is now simply that it applies its ruleset before it
+   serves anything. The relay's SSH server is the one built on Tokio, above.) The control plane,
+   the relay, the supervisor,
    and the CLI use Tokio as well, now that they are Rust. The privileged helper stays synchronous
    and single-threaded: it serves one structured request at a time, and an async runtime would add
    threads and code to the one process where both are least welcome. It does not even link one:

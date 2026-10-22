@@ -2,11 +2,13 @@
 
 //! Running a joined relay (§3.1 of docs/02-architecture.md): it serves `RelayService` and
 //! `DataService` with the certificate it was issued, renewing it as it nears expiry, verifying by
-//! what its feed sends, and holds no database. It stops when the control plane refuses its feed, since a removed relay must not
-//! go on verifying by what it held.
+//! what its feed sends, and holds no database; and SFTP where its operator turns it on. It stops
+//! when the control plane refuses its feed, since a removed relay must not go on verifying by
+//! what it held.
 
 use super::RelayDir;
 use super::fed::Fed;
+use super::files::AskControl;
 use super::follow::{FollowError, follow};
 use super::renew::keep_renewed;
 use super::served::{Served, load};
@@ -48,6 +50,29 @@ pub struct RunningRelay {
     pub served: Arc<Served>,
     /// The relay; it ends only on failure or refusal.
     pub task: tokio::task::JoinHandle<Result<(), RunError>>,
+    /// The relay role it serves, which its SFTP server opens sessions at.
+    role: Arc<RelayRole<Fed>>,
+    /// What it was started with, to answer SFTP from.
+    dir: RelayDir,
+    proxies: Arc<[ipnet::IpNet]>,
+}
+
+impl RunningRelay {
+    /// Serves SFTP on `listener` with `host_key` as well (§3.1 of docs/02-architecture.md),
+    /// meeting clients as the relay's API listener does. Ends only if accepting fails.
+    ///
+    /// # Errors
+    /// The relay's directory cannot be read.
+    pub fn serve_sftp(
+        &self,
+        listener: TcpListener,
+        host_key: russh::keys::PrivateKey,
+    ) -> Result<tokio::task::JoinHandle<std::io::Result<()>>, RunError> {
+        let asking = Arc::new(AskControl::new(&self.dir).map_err(RunError::Serve)?);
+        let ours = (Arc::clone(&self.role), asking);
+        let proxies = Arc::clone(&self.proxies);
+        Ok(tokio::spawn(crate::sftp::serve(listener, host_key, proxies, ours)))
+    }
 }
 
 /// The URL a relay serves at, as it joined with it.
@@ -78,15 +103,18 @@ pub async fn run(
     let tls = crate::tls::resolving(resolver)?;
     let fed = Arc::new(Fed::new(url(&dir)?));
     let addr = listener.local_addr()?;
-    let router = Arc::new(RelayRole::new(Arc::clone(&fed))).register(Router::new());
+    let role = Arc::new(RelayRole::new(Arc::clone(&fed)));
+    let router = Arc::clone(&role).register(Router::new());
     let service = connectrpc::ConnectRpcService::new(router);
     let service = crate::front::Front::new(service, None, edge.web_origins)
         .with_portal_origins(fed.portal_origins());
     let renewing = tokio::spawn(keep_renewed(dir.clone(), relay, Arc::clone(&served)));
-    let following = tokio::spawn(follow(dir, Arc::clone(&fed)));
+    let following = tokio::spawn(follow(dir.clone(), Arc::clone(&fed)));
+    let proxies: Arc<[ipnet::IpNet]> = edge.proxies.into();
+    let serving_proxies = Arc::clone(&proxies);
     let task = tokio::spawn(async move {
         let ended = tokio::select! {
-            served = crate::accept::serve_on(listener, Tls::own(tls), service, edge.proxies.into()) => {
+            served = crate::accept::serve_on(listener, Tls::own(tls), service, serving_proxies) => {
                 served.map_err(RunError::Serve)
             }
             refused = following => match refused {
@@ -98,5 +126,5 @@ pub async fn run(
         ended
     });
     tracing::info!(%addr, "relay serving");
-    Ok(RunningRelay { addr, fed, served, task })
+    Ok(RunningRelay { addr, fed, served, task, role, dir, proxies })
 }

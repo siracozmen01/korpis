@@ -4,6 +4,7 @@ mod installing;
 mod migrating;
 mod restoring;
 mod serving;
+mod sftp_flags;
 
 use clap::{Parser, Subcommand};
 use korpis_server::data::DataDir;
@@ -120,6 +121,8 @@ enum RelayCommand {
         /// browser can open sessions here; repeatable.
         #[arg(long = "web-origin", env = "KORPIS_WEB_ORIGIN", value_delimiter = ',')]
         web_origin: Vec<String>,
+        #[command(flatten)]
+        sftp: sftp_flags::SftpArgs,
     },
 }
 
@@ -170,13 +173,13 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         Command::Relay {
-            command: RelayCommand::Run { dir, listen, proxy_protocol_from, web_origin },
+            command: RelayCommand::Run { dir, listen, proxy_protocol_from, web_origin, sftp },
         } => {
             let edge = korpis_server::standalone::Edge {
                 proxies: proxy_protocol_from,
                 web_origins: web_origin,
             };
-            relay_run(dir, listen, edge).await
+            relay_run(dir, listen, edge, &sftp).await
         }
     }
 }
@@ -217,13 +220,20 @@ async fn relay_run(
     dir: PathBuf,
     listen: Option<SocketAddr>,
     edge: korpis_server::standalone::Edge,
+    sftp: &sftp_flags::SftpArgs,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let sftp = sftp.bound(&dir).await?;
     let dir = korpis_server::standalone::RelayDir::new(dir);
     let listen = listen.map_or_else(|| default_listen(&dir), Ok)?;
     let listener = tokio::net::TcpListener::bind(listen).await?;
     let running = korpis_server::standalone::run(dir, listener, edge).await?;
+    let sftp = match sftp {
+        Some((listener, key)) => Some(running.serve_sftp(listener, key)?),
+        None => None,
+    };
     tokio::select! {
         r = running.task => r??,
+        why = sftp_flags::ended(sftp) => return Err(why.into()),
         _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
     }
     Ok(())

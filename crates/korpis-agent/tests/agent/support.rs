@@ -14,6 +14,7 @@ use std::time::Duration;
 
 mod authority;
 mod contended;
+mod person;
 mod recipe;
 mod relay;
 mod served;

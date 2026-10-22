@@ -84,7 +84,7 @@ pub async fn serve(
 
 /// The client `stream` from `peer` was accepted for: the one its PROXY header names when `peer`
 /// is a configured proxy, `peer` itself otherwise.
-async fn client(
+pub(crate) async fn client(
     stream: &mut TcpStream,
     peer: SocketAddr,
     proxies: &[IpNet],

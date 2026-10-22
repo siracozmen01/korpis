@@ -592,7 +592,7 @@ ending the one it replaces (Finding 135 of `23-walkthroughs.md`); `korpis ssh-ke
 by label, kind, fingerprint, when it was added and last used, and the organization it is confined
 beneath where it was registered from a portal's session; `korpis ssh-key remove` removes one.
 `korpis sftp mc-survival` prints, for each relay serving SFTP, the line a client takes (`sftp -P
-2022 wkl_…@relay.example`), the host key's SHA-256 fingerprint, and a `known_hosts` line to add, so
+2022 wl_…@relay.example`), the host key's SHA-256 fingerprint, and a `known_hosts` line to add, so
 the first connection is checked rather than trusted; it opens nothing itself, the client being the
 person's own. A token's holder adds no key: a pipeline writes files with `korpis files sync`.
 

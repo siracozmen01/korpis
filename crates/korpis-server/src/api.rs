@@ -101,6 +101,7 @@ use korpis_proto::korpis::v1::{
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
 pub use rate::Charging;
+pub(crate) use relay::Carried;
 pub use relay::RelayRole;
 use std::sync::Arc;
 
@@ -211,6 +212,19 @@ impl Api {
     #[must_use]
     pub fn relay(&self) -> &InProcess {
         self.relay.verifier()
+    }
+
+    /// Serves SFTP for this process's relay role on `listener` with `host_key`, reading a PROXY
+    /// header from connections whose peer is in `proxies` (§3.1 of docs/02-architecture.md).
+    /// Ends only if accepting fails.
+    pub fn serve_sftp(
+        &self,
+        listener: tokio::net::TcpListener,
+        host_key: russh::keys::PrivateKey,
+        proxies: Arc<[ipnet::IpNet]>,
+    ) -> impl Future<Output = std::io::Result<()>> + Send + 'static {
+        let ours = (Arc::clone(&self.relay), Arc::new(sftp::OwnFiles(Arc::clone(&self.app))));
+        crate::sftp::serve(listener, host_key, proxies, ours)
     }
 
     /// The application, for the composition root's background work.

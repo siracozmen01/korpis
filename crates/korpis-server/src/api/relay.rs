@@ -85,7 +85,7 @@ impl<V: Verifier> RelayRole<V> {
 }
 
 /// What the relay judges a session's tokens by: the one it opened with, and every renewal.
-pub(super) struct Judge<V> {
+pub(crate) struct Judge<V> {
     keys: KeyRing,
     verifier: Arc<V>,
     action: String,
@@ -96,7 +96,7 @@ pub(super) struct Judge<V> {
 }
 
 impl<V: Verifier> Judge<V> {
-    pub(super) fn judge(&self, token: &str) -> Result<Verified, String> {
+    pub(crate) fn judge(&self, token: &str) -> Result<Verified, String> {
         self.judge_from(token, self.client)
     }
 
@@ -148,11 +148,11 @@ async fn client_to_node<V: Verifier>(
 
 /// A session the node agreed to carry: where the client's frames go, where the node's come
 /// from, and what judges the session's renewals.
-pub(super) struct Carried<V> {
-    pub(super) session: String,
-    pub(super) to_node: mpsc::Sender<agent::CarryDown>,
-    pub(super) from_node: mpsc::Receiver<pb::RelayResponse>,
-    pub(super) judge: Judge<V>,
+pub(crate) struct Carried<V> {
+    pub(crate) session: String,
+    pub(crate) to_node: mpsc::Sender<agent::CarryDown>,
+    pub(crate) from_node: mpsc::Receiver<pb::RelayResponse>,
+    pub(crate) judge: Judge<V>,
 }
 
 impl<V: Verifier> RelayRole<V> {
@@ -165,8 +165,19 @@ impl<V: Verifier> RelayRole<V> {
         open: pb::RelayOpen,
         send_key: String,
     ) -> Result<Carried<V>, ConnectError> {
-        let workload = id(IdKind::Workload, "open.workload", &open.workload).refuse()?;
         let ip = ctx.peer_addr().map(|a| a.ip()).ok_or_else(|| unavailable("no client address"))?;
+        self.carry_from(ip, open, send_key).await
+    }
+
+    /// [`Self::carry`], for a client at `ip`: what the SFTP server of this relay opens for the
+    /// SSH client it serves (§3.1 of docs/02-architecture.md).
+    pub(crate) async fn carry_from(
+        &self,
+        ip: std::net::IpAddr,
+        open: pb::RelayOpen,
+        send_key: String,
+    ) -> Result<Carried<V>, ConnectError> {
+        let workload = id(IdKind::Workload, "open.workload", &open.workload).refuse()?;
         let mut judge = Judge {
             keys: self.verifier.keys(),
             verifier: Arc::clone(&self.verifier),

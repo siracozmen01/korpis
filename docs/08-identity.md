@@ -2282,8 +2282,9 @@ key is a few hundred bytes, and registering one is charged as any write is (§10
 > them, `ssk_…` each. `RelayControlService.AuthorizeFiles` takes the key's wire form, the workload,
 > the client's address, and the token it renews, if it renews one, and the relay's identity key
 > signs a digest of all four with a fresh nonce, so a request captured on the way is good for no
-> other client, workload, or address. A key no account holds, or one removed, is answered as
-> unauthenticated; a renewal spends no use of a use-limited grant and is not recorded again.
+> other client, workload, or address. A key no account holds, one removed, or one whose account
+> is disabled is answered as unauthenticated, since a disabled account reaches nothing by its keys
+> as by its sessions; a renewal spends no use of a use-limited grant and is not recorded again.
 
 ---
 

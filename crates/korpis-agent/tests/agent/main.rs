@@ -33,6 +33,7 @@ mod restore;
 mod revocation;
 mod runs;
 mod session;
+mod sftp;
 mod support;
 mod token_keys;
 mod usage_now;

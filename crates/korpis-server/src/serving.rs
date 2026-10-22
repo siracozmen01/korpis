@@ -139,15 +139,38 @@ pub struct ServeArgs {
     /// docs/11-surface-web.md); without it, the address serves the API alone.
     #[arg(long, env = "KORPIS_WEB_ROOT")]
     web_root: Option<PathBuf>,
+    #[command(flatten)]
+    sftp: crate::sftp_flags::SftpArgs,
 }
 
 /// Serves the API until the process is interrupted or the server fails.
 pub async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
-    let policy = match args.placement_policy {
-        Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(&path)?)?,
+    let policy = match &args.placement_policy {
+        Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(path)?)?,
         None => PlacementPolicy::default(),
     };
-    let running = korpis_server::serve(korpis_server::ServeConfig {
+    if args.sftp.on() && !args.relay_role {
+        return Err("--sftp-listen serves the relay role's SFTP, and --relay-role is off".into());
+    }
+    let sftp = args.sftp.bound(&args.data_dir).await?;
+    let proxies: std::sync::Arc<[ipnet::IpNet]> = args.proxy_protocol_from.clone().into();
+    let running = korpis_server::serve(config(args, policy)?).await?;
+    let sftp =
+        sftp.map(|(listener, key)| tokio::spawn(running.api.serve_sftp(listener, key, proxies)));
+    tokio::select! {
+        r = running.task => r??,
+        why = crate::sftp_flags::ended(sftp) => return Err(why.into()),
+        _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
+    }
+    Ok(())
+}
+
+/// The control plane `args` configure, placing by `policy`.
+fn config(
+    args: ServeArgs,
+    policy: PlacementPolicy,
+) -> Result<korpis_server::ServeConfig, Box<dyn std::error::Error>> {
+    Ok(korpis_server::ServeConfig {
         data: DataDir::new(args.data_dir),
         database_url: args.database_url,
         listen: args.listen,
@@ -194,10 +217,4 @@ pub async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         session_limits: SessionLimits { idle: args.session_idle, max: args.session_max },
         web_root: args.web_root,
     })
-    .await?;
-    tokio::select! {
-        r = running.task => r??,
-        _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
-    }
-    Ok(())
 }

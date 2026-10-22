@@ -4,7 +4,7 @@
 //! docs/08-identity.md): a person registers keys, one installation-wide per fingerprint, and a
 //! relay is given, for a key its client holds, a token for what that person's grants allow on
 //! the workload, writing or else reading, recorded under the relay's name, and nothing for a key
-//! no one holds, or once it is removed.
+//! no one holds, once it is removed, or while its account is disabled.
 
 use crate::lifecycle::workload;
 use crate::panel::{access, browser, invite, redeem_keeping_cookie};
@@ -129,6 +129,19 @@ async fn a_relay_is_given_a_file_token_for_a_key_on_what_its_person_may_reach() 
     forged.client = "198.51.100.1".into();
     let forged = control.authorize_files(forged).await.unwrap_err();
     assert_eq!(forged.code, ErrorCode::Unauthenticated, "the signature covers the request");
+    let store = h.db.store().await.unwrap();
+    let disable =
+        |at: &'static str| sqlx::query(at).bind(Id::parse(IdKind::User, &account).unwrap().uuid());
+    disable("UPDATE account SET disabled_at = now() WHERE id = $1")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let disabled = ask(&asked).await.unwrap_err();
+    assert_eq!(disabled.code, ErrorCode::Unauthenticated, "a disabled account's keys hold nothing");
+    disable("UPDATE account SET disabled_at = NULL WHERE id = $1")
+        .execute(store.pool())
+        .await
+        .unwrap();
     let me = profile(&h, &bearer);
     me.remove_ssh_key(pb::RemoveSshKeyRequest { id: key_id, ..Default::default() }).await.unwrap();
     asked.renews = None;

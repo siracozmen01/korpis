@@ -13,7 +13,8 @@ pub trait SshKeyRead {
     /// The keys of `account`, oldest first.
     fn ssh_keys(&self, account: Uuid) -> impl Future<Output = StoreResult<Vec<SshKey>>> + Send;
 
-    /// The key whose SHA-256 fingerprint is `fingerprint`, as `ssh-keygen -l` prints it.
+    /// The key whose SHA-256 fingerprint is `fingerprint`, as `ssh-keygen -l` prints it, unless
+    /// its account is disabled: a disabled account reaches nothing by its keys, as by its sessions.
     fn ssh_key_by_fingerprint(
         &self,
         fingerprint: &str,

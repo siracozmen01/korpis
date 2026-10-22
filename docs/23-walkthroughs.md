@@ -4303,7 +4303,7 @@ and the CLI, which are its own clients.
 | 1 | Kestrel turns SFTP on for `fra-relay`: `--sftp-listen 0.0.0.0:2022`. The relay makes its host key at that first start, and reports the address and the key's fingerprint in its feed; `ServerInfo` lists them | `02-architecture.md` §3.1; `18-operations.md` §3 |
 | 2 | The owner, signed in at the panel, adds the laptop's public key to their profile. Their sign-in is an hour old, so the panel asks them to confirm it is them first; the key is recorded as `account.ssh_key_added` | `08-identity.md` §9.6, §9.9; `11-surface-web.md` §1 |
 | 3 | On another machine, the owner runs `korpis ssh-key add` an hour after `korpis login` ‡ | `08-identity.md` §9.4, §9.9; `13-surface-cli.md` §8 |
-| 4 | `korpis sftp mc` prints the line FileZilla takes, `wkl_…@fra-relay.kestrel.example` on port 2022, and the host key's fingerprint, which FileZilla shows on its first connection and the owner compares | `13-surface-cli.md` §8; `17-security.md` §8 |
+| 4 | `korpis sftp mc` prints the line FileZilla takes, `wl_…@fra-relay.kestrel.example` on port 2022, and the host key's fingerprint, which FileZilla shows on its first connection and the owner compares | `13-surface-cli.md` §8; `17-security.md` §8 |
 | 5 | FileZilla authenticates with the key. The relay checks the client holds it and asks the control plane for a file token for that key, `mc`, and the client's address; the gateway finds the owner's account, evaluates `workload.file.write` on `mc` from that address, mints the token with its route, and records `workload.file.sftp_authorized` naming `fra-relay` and the key | `02-architecture.md` §3.1; `08-identity.md` §9.9, §6 |
 | 6 | The relay opens the file session on `mc`'s node, which verifies the token again, and FileZilla uploads, several writes in flight; at 38 GB the volume is full and the next write fails saying so | `06-storage.md` §3, §3.2 |
 | 7 | The owner deletes old region files, and FileZilla resumes from the file's size. Every write after the first refused was refused too, the volume staying full until then, so the file holds what was written and the resume continues from its end | `06-storage.md` §3.2 |
@@ -4333,3 +4333,11 @@ through it. The session it replaces is ended, so the terminal holds one. → des
 
 What it costs. A key added from a terminal needs a browser where the person is signed in, as
 `korpis login` does; a machine with neither can add no key, and its owner adds it from the panel.
+
+> Built 2026-10-22, steps 5 to 8, and run against OpenSSH's own `sftp` client, a relay of its own,
+> and a node: a person allowed to write uploads a file of three mebibytes and some, lists it,
+> downloads it byte for byte, renames, and removes; a person allowed to read downloads and is
+> refused an upload as permission denied; a key no one registered is refused; and each token is
+> recorded under the relay's name. Step 4 first wrote the user `wkl_…`; a workload's identifier
+> begins `wl_` (`wl_7f3a` in §3 of `10-api.md`), so the user is `wl_…`, corrected here, in §8 of
+> `13-surface-cli.md`, and in `relay.proto`'s comment.

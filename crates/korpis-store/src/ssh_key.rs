@@ -59,8 +59,10 @@ impl SshKeyRead for PgStore {
     async fn ssh_key_by_fingerprint(&self, fingerprint: &str) -> StoreResult<Option<SshKey>> {
         let row = sqlx::query_as!(
             Row,
-            "SELECT id, account_id, kind, public_key, label, within_id, added_at, last_used_at
-               FROM ssh_key WHERE fingerprint = $1",
+            "SELECT k.id, k.account_id, k.kind, k.public_key, k.label, k.within_id, k.added_at,
+                    k.last_used_at
+               FROM ssh_key k JOIN account a ON a.id = k.account_id
+              WHERE k.fingerprint = $1 AND a.disabled_at IS NULL",
             fingerprint
         )
         .fetch_optional(&self.pool)

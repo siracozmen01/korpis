@@ -568,6 +568,17 @@ Primary:
   [AQtive Guard](https://docs.aqtiveguard.com/kb-articles/cryptographic-keylengths/), read
   2026-10-22; the PDF itself was not read). Why an SSH key of RSA is at least 3,072 bits (§9.9 of
   `../08-identity.md`).
+- **[V]** RUSTSEC-2023-0071 (CVE-2023-49092), the Marvin attack on the `rsa` crate: "information
+  about the private key is leaked through timing information which is observable over the
+  network", with no patched version as of 2026-09-12; the advisory's workaround is to avoid the
+  crate where an attacker can observe timing
+  ([RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071.html), read from the
+  advisory database `cargo deny` fetches, 2026-10-22). Why a relay's SSH host key is Ed25519 and
+  never RSA (§7 of `../21-stack.md`).
+- **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
+  `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
+  read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a
+  cost stated rather than one met in practice (§7 of `../21-stack.md`).
 Secondary:
 - [TheGamePanel: a modern alternative to
   Pterodactyl](https://ollieread.com/articles/thegamepanel-a-modern-alternative-to-pterodactyl)

@@ -44,7 +44,7 @@ message AuthorizeFilesRequest {
   korpis.agent.v1.NodeAuth auth = 2;
   // The client's SSH public key, in SSH's wire form (RFC 4253 §6.6).
   bytes key = 3;
-  // The workload the client named, `wkl_…`.
+  // The workload the client named, `wl_…`.
   string workload = 4;
   // The client's address, as the relay saw it or a PROXY header it believes named it.
   string client = 5;

@@ -13,6 +13,11 @@ publish.workspace = true
 testing = ["dep:tempfile"]
 
 [dependencies]
+# SFTP at a relay (§3.1 of docs/02-architecture.md): SSH over the ring backend the TLS stack
+# already brings, with RSA keys verified (never signed with), and the SFTP subsystem over its
+# channel.
+russh = { version = "0.64", default-features = false, features = ["ring", "rsa"] }
+russh-sftp = "3.0"
 base64 = "0.22"
 buffa = { version = "=0.9.2", features = ["json"] }
 buffa-types = { version = "=0.9.2", features = ["json"] }
