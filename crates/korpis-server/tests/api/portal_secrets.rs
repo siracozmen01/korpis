@@ -179,6 +179,14 @@ async fn secrets_set_at_two_unrelated_portals_sign_in_nowhere_together() {
     // Granted something later, she signs in with the two nowhere: one party may hold both
     // organizations, and nothing bounds what it would reach.
     granted(&h, "later", &h.root_org(), Some(&redeemed.account)).await;
+    let guess = pb::SignInWithPasswordRequest {
+        name: "ada".into(),
+        password: PASSWORD.into(),
+        second: Some(Second::TotpCode("000000".into())),
+        ..Default::default()
+    };
+    let wrong = accounts.sign_in_with_password(guess).await.unwrap_err();
+    assert_eq!(wrong.code, ErrorCode::Unauthenticated, "the password alone learns nothing");
     let sign_in = pb::SignInWithPasswordRequest {
         name: "ada".into(),
         password: PASSWORD.into(),

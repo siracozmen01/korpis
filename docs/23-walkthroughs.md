@@ -4194,9 +4194,11 @@ at the change, and what it protected against arrived afterwards.
 
 **Resolution.** Each shared secret records the organization beneath which the session that set it
 was confined, the password where it was set, the TOTP secret where it was enrolled, the recovery
-codes where they were shown; a sign-in with two secrets whose records name nested organizations reaches
-beneath the narrower, wherever it is begun, and one whose records name disjoint organizations is
-refused, since one party may hold both; the session records its reach. A session registers
+codes where they were shown; a sign-in with two secrets whose records name nested organizations
+reaches beneath the narrower, wherever it is begun, and one whose records name disjoint
+organizations is refused, since one party may hold both, but only once both secrets have passed,
+so the refusal tells nothing to whoever holds the password alone; the session records its
+reach. A session registers
 passkeys only where it is confined exactly as its address is, so a seen password cannot buy a
 passkey that reaches further. → corrected in place in `08-identity.md` §9.8.
 

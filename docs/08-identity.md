@@ -2116,14 +2116,18 @@ alone.
 > redemption at a portal recording all three there. A secret set again from a session that is not
 > confined records none, its new value being one no portal was shown. A password typed at a
 > portal is exposed too, and the control plane can neither see nor stop that, as the cost below
-> says; what it records is what it was itself given or showed. A sign-in with a password and a second factor
-> whose records both name an organization reaches only beneath the narrower of the two, where one
-> lies beneath the other, wherever the sign-in is begun, since one holder may know both; where
-> either records none, no portal's holder saw it, and the records confine nothing. Where the two
-> name organizations neither of which lies beneath the other, the sign-in is refused
-> `session.portal_confined`: one party may hold both organizations, and their common ancestor,
-> which could be the root, bounds nothing that party could not then reach. (Corrected
-> 2026-10-22, from a review of P2.9d2b, which had let such a sign-in reach unconfined.) A session begun at a portal reaches beneath the narrower of
+> says; what it records is what it was itself given or showed. A sign-in with a password and a
+> second factor whose records both name an organization reaches only beneath the narrower of the
+> two, where one lies beneath the other, wherever the sign-in is begun, since one holder may know
+> both; where either records none, no portal's holder saw it, and the records confine nothing.
+> Where the two name organizations neither of which lies beneath the other, the sign-in is
+> refused `session.portal_confined`: one party may hold both organizations, and their common
+> ancestor, which could be the root, bounds nothing that party could not then reach. (Corrected
+> 2026-10-22, from a review of P2.9d2b, which had let such a sign-in reach unconfined.) That
+> refusal is given only once both factors have passed, and a wrong second factor is refused as
+> any is: given with the password alone, it would tell whoever had guessed the password that the
+> guess was right, uncounted as a failed one. (Corrected 2026-10-22, from a review of P2.9e2,
+> which checked the records first.) A session begun at a portal reaches beneath the narrower of
 > that and the portal's organization, and where they are disjoint the sign-in is refused
 > `session.portal_confined`, since it would reach nothing. The session records its reach when it
 > begins, every access token names it, and a `korpis login` it approves is given it. A session

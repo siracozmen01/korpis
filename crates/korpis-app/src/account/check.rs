@@ -168,7 +168,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             SecondFactor::Totp(_) => Shared::Totp,
             SecondFactor::Recovery(_) => Shared::RecoveryCodes,
         };
-        let seen = self.seen_by(account, shared).await?;
+        // Read before the transaction, and refused only once both factors have passed: a
+        // refusal before then would tell whoever holds the password alone that it is right.
+        let seen = self.seen_by(account, shared).await;
         let mut tx = self.store.begin().await?;
         let now = self.clock.now();
         let factor = match &second {
@@ -192,6 +194,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 "password+recovery_code"
             }
         };
+        let seen = seen?;
         if let Some(fresh) = rehashed {
             tx.set_password(account, &fresh, now).await?;
         }
