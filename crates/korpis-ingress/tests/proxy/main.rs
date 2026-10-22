@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod alpn;
 mod clients;
 mod control;
 mod passthrough;

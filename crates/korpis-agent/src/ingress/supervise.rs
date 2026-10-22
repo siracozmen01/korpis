@@ -87,7 +87,10 @@ impl<H: Host> Supervisor<H> {
     /// of the set held.
     fn current(&mut self) -> ingress::IngressConfig {
         let mut config = self.config.borrow_and_update().clone();
-        config.challenges = super::challenges(&self.held.borrow_and_update());
+        let held = self.held.borrow_and_update();
+        config.challenges = super::challenges(&held);
+        config.alpn_challenges = super::alpn_challenges(&held);
+        drop(held);
         config
     }
 

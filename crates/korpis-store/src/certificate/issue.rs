@@ -71,12 +71,13 @@ pub(super) async fn challenges_for(
         .collect())
 }
 
+/// Withdraws every challenge standing for `certificate`, HTTP-01's and TLS-ALPN-01's.
 pub(super) async fn clear_challenges(tx: &mut PgTx, certificate: Uuid) -> StoreResult<()> {
     sqlx::query!("DELETE FROM certificate_challenge WHERE certificate_id = $1", certificate)
         .execute(&mut *tx.tx)
         .await
         .map_err(from_sqlx)?;
-    Ok(())
+    super::node::clear_alpn_challenges(tx, certificate).await
 }
 
 pub(super) async fn put_challenges(
@@ -84,7 +85,10 @@ pub(super) async fn put_challenges(
     certificate: Uuid,
     challenges: &[(String, HttpOffer)],
 ) -> StoreResult<()> {
-    clear_challenges(tx, certificate).await?;
+    sqlx::query!("DELETE FROM certificate_challenge WHERE certificate_id = $1", certificate)
+        .execute(&mut *tx.tx)
+        .await
+        .map_err(from_sqlx)?;
     for (name, c) in challenges {
         sqlx::query!(
             "INSERT INTO certificate_challenge (certificate_id, token, name, key_authorization)

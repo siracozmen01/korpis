@@ -2741,6 +2741,19 @@ record its resolver finds and the directory does not is a failed attempt, retrie
 `issuance_dns` runs this against Pebble resolving through a zone the test's DNS provider publishes
 into, behind a provider that refuses the name.
 
+**Step 7 where port 80 is closed.** Added 2026-10-22, when the TLS-ALPN challenge at a node's
+ingress was built (§3.2 of `07-networking.md`). A node whose provider blocks port 80 fails every
+HTTP-01 validation, and nothing in the installation can know it before a directory tries. What
+decides the way, and with what? The issuer, from the certificate's own record: the way a node's
+proxy last proved it, HTTP-01 for one never issued, and the other way after each failed attempt.
+The digest travels in the assignment as the token does, and the same acknowledgement gates the
+directory's look. The proxy answers a `ClientHello` offering only `acme-tls/1` for a name it holds
+a digest for, before routing, and a name it holds none for is routed as before, so a
+`passthrough` workload's own validations still reach it. The ingress end-to-end test runs it for
+real: Pebble, its HTTP-01 port closed, fails the first attempt, and the second, made by
+TLS-ALPN-01 against the node's proxy on port 443, issues the certificate, which is then served and
+kept as proven that way, so renewals do not fail first.
+
 **How step 10 was built.** Added 2026-10-16. What decides which certificates a compromised node
 held, and with what information? The control plane, from a record it writes whenever it answers a
 node's `CertificateRequest`: before that record existed, the answer was the only trace, and step 10

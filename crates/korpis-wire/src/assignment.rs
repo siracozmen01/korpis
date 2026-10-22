@@ -99,6 +99,15 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
                 ..Default::default()
             })
             .collect(),
+        alpn_challenges: a
+            .alpn_challenges
+            .iter()
+            .map(|c| agent::AlpnChallenge {
+                name: c.name.clone(),
+                digest: c.digest.clone(),
+                ..Default::default()
+            })
+            .collect(),
         runs: a.runs.iter().map(crate::run::ref_to_pb).collect(),
         kept_runs: a.kept_runs.iter().map(|r| wire_id(IdKind::Run, *r)).collect(),
         ..Default::default()

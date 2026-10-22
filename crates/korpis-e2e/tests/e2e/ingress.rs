@@ -28,6 +28,15 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
+/// Ports 80 and 443 of this machine's address, which one test's node serves at a time: every test
+/// whose node serves the ingress holds them for as long as it runs, since the tests of this binary
+/// run at once and only one helper can open them.
+pub(crate) async fn the_ports() -> tokio::sync::MutexGuard<'static, ()> {
+    static PORTS: std::sync::LazyLock<tokio::sync::Mutex<()>> =
+        std::sync::LazyLock::new(|| tokio::sync::Mutex::new(()));
+    PORTS.lock().await
+}
+
 /// What the node's port 80 answers a request for `path` on `name`, within two seconds.
 async fn plain(at: SocketAddr, name: &str, path: &str) -> String {
     let ask = async {
@@ -153,7 +162,7 @@ fn secure(
 }
 
 /// The first answer of [`secure`], within a minute: the node fetches the certificate first.
-async fn securely(
+pub(crate) async fn securely(
     at: SocketAddr,
     name: &str,
     authority: &rustls::pki_types::CertificateDer<'static>,
@@ -203,7 +212,7 @@ pub(crate) async fn attest(cp: &ControlPlane, domain: &str) {
 }
 
 /// Pebble's issuing root, which what it issues is trusted by.
-async fn issuing_root(pebble: &Pebble) -> rustls::pki_types::CertificateDer<'static> {
+pub(crate) async fn issuing_root(pebble: &Pebble) -> rustls::pki_types::CertificateDer<'static> {
     use rustls::pki_types::pem::PemObject as _;
     let ca = rustls::pki_types::CertificateDer::from_pem_file(&pebble.ca).unwrap();
     let mut roots = rustls::RootCertStore::empty();
@@ -263,6 +272,7 @@ async fn the_proxy_redirects_on_80_terminates_and_passes_tls_through_by_name_on_
     if !live() {
         return;
     }
+    let _ports = the_ports().await;
     let directory = directory().await;
     let acme = directory.as_ref().map_or_else(AcmeConfig::default, |(pebble, _)| pebble.config());
     let cp = ControlPlane::start_with(acme).await;

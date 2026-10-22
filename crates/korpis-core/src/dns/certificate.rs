@@ -11,6 +11,10 @@ use crate::event::Severity;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
+mod node_proof;
+
+pub use node_proof::NodeProof;
+
 /// The most names one certificate is for, as ACME's directories bound an order.
 pub const MAX_NAMES: usize = 100;
 
@@ -186,6 +190,16 @@ pub struct Owner {
     pub workload: Uuid,
     /// The endpoint, by name.
     pub endpoint: String,
+}
+
+/// A TLS-ALPN-01 challenge a node's proxy answers on port 443 while an order runs: `name`,
+/// proven by a certificate made for it carrying `digest` in its `acmeIdentifier` extension.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AlpnChallenge {
+    /// The name proven.
+    pub name: String,
+    /// The SHA-256 digest of the key authorization.
+    pub digest: Vec<u8>,
 }
 
 /// An HTTP-01 challenge a node's proxy answers on port 80 while an order runs: the key

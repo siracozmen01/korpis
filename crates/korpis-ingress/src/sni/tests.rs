@@ -5,12 +5,18 @@ use std::sync::Arc;
 
 /// The first flight of a real rustls client connecting to `name`.
 fn hello(name: &str) -> Vec<u8> {
+    offering(name, &[])
+}
+
+/// The first flight of a real rustls client connecting to `name`, offering `protocols`.
+fn offering(name: &str, protocols: &[&[u8]]) -> Vec<u8> {
     let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let config = rustls::ClientConfig::builder_with_provider(provider)
+    let mut config = rustls::ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .unwrap()
         .with_root_certificates(rustls::RootCertStore::empty())
         .with_no_client_auth();
+    config.alpn_protocols = protocols.iter().map(|p| p.to_vec()).collect();
     let server = rustls::pki_types::ServerName::try_from(name.to_owned()).unwrap();
     let mut client = rustls::ClientConnection::new(Arc::new(config), server).unwrap();
     let mut out = Vec::new();
@@ -47,6 +53,19 @@ async fn the_name_a_client_asks_for_is_read_and_every_byte_kept() {
 
     let by_address = hello("192.0.2.1");
     assert_eq!(read_hello(&mut by_address.as_slice()).await.unwrap().name, None, "no SNI");
+}
+
+#[tokio::test]
+async fn the_protocols_a_client_offers_say_whether_it_validates_a_name_by_tls_alpn() {
+    let read = |wire: Vec<u8>| async move { read_hello(&mut wire.as_slice()).await.unwrap() };
+    let validation = read(offering("shop.example.com", &[ACME_TLS])).await;
+    assert_eq!(validation.protocols, [ACME_TLS.to_vec()]);
+    assert!(validation.acme_only());
+    let browser = read(offering("shop.example.com", &[b"h2", b"http/1.1"])).await;
+    assert_eq!(browser.protocols, [b"h2".to_vec(), b"http/1.1".to_vec()]);
+    assert!(!browser.acme_only());
+    assert!(!read(offering("shop.example.com", &[ACME_TLS, b"h2"])).await.acme_only());
+    assert!(!read(hello("shop.example.com")).await.acme_only(), "none offered");
 }
 
 #[tokio::test]

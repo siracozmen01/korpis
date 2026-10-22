@@ -6,10 +6,13 @@
 //! client its own authority issued and tells the workload which one in `Client-Cert`, and gives
 //! a client without one no session; a browser's HTTP/2 connection opens a WebSocket to a workload
 //! that speaks HTTP/1.1; and a workload whose TLS is passed through, having declared the PROXY
-//! protocol, is told who connected before the client's first byte. It needs root and containerd,
-//! and holds ports 80 and 443 of this machine's address while it runs.
+//! protocol, is told who connected before the client's first byte. And a name of an `acme`
+//! endpoint whose node the directory cannot reach on port 80 is proven by TLS-ALPN-01 on 443, by
+//! the node's proxy, on the attempt after HTTP-01 failed, and kept that way. It needs root and
+//! containerd, Pebble for the last, and holds ports 80 and 443 of this machine's address while it
+//! runs.
 
-use crate::ingress::{attest, client_hello, serving, uploaded};
+use crate::ingress::{attest, client_hello, issuing_root, securely, serving, the_ports, uploaded};
 use crate::network::converged;
 use crate::node::{Node, host_address, live};
 use crate::recipes::push_web;
@@ -20,6 +23,7 @@ use bytes::Bytes;
 use http_body_util::{BodyExt as _, Empty};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use korpis_proto::korpis::v1 as pb;
+use korpis_server::testing::{ChallengeDns, Pebble, PebbleOptions, TestingError};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -171,6 +175,7 @@ async fn a_node_asks_for_client_certificates_opens_websockets_on_http2_and_write
     if !live() {
         return;
     }
+    let _ports = the_ports().await;
     let cp = ControlPlane::start().await;
     let project = cp.project().await;
     let node = Node::join(&cp, "edge-2").await;
@@ -210,6 +215,79 @@ async fn a_node_asks_for_client_certificates_opens_websockets_on_http2_and_write
     let (from, addresses, unchanged) = relayed(at).await;
     assert_eq!(addresses, (from, at).into(), "the client, and the address it reached");
     assert!(unchanged, "then the client's first bytes, as it sent them");
+
+    cp.retire(&w).await;
+    agent.stop().await;
+}
+
+/// Pebble validating for real, resolving every name to this machine's address, with nothing
+/// listening on the port it asks HTTP-01 at and TLS-ALPN-01 asked on 443, as a directory finds a
+/// node whose port 80 a provider blocks. `None` where it is not installed.
+async fn port_80_closed() -> Option<(Pebble, ChallengeDns)> {
+    let dns = match ChallengeDns::start(host_address()).await {
+        Ok(dns) => dns,
+        Err(e @ TestingError::NotInstalled(_)) => {
+            #[expect(clippy::print_stderr, reason = "a skipped check says why")]
+            {
+                eprintln!("{e}: TLS-ALPN-01 at a node's ingress not tested");
+            }
+            return None;
+        }
+        Err(e) => panic!("pebble-challtestsrv: {e}"),
+    };
+    let closed = std::net::TcpListener::bind((host_address(), 0)).ok()?.local_addr().ok()?.port();
+    let options = PebbleOptions {
+        http_port: Some(closed),
+        tls_port: Some(443),
+        dns: Some(dns.address),
+        ..PebbleOptions::default()
+    };
+    Some((Pebble::start(options).await.expect("pebble"), dns))
+}
+
+#[tokio::test]
+async fn a_name_whose_node_a_directory_cannot_reach_on_80_is_proven_by_tls_alpn_on_443() {
+    if !live() {
+        return;
+    }
+    let _ports = the_ports().await;
+    let Some((pebble, _dns)) = port_80_closed().await else { return };
+    let cp = ControlPlane::start_with(pebble.config()).await;
+    let project = cp.project().await;
+    let node = Node::join(&cp, "edge-3").await;
+    let agent = node.serving_ingress().await;
+    serving(&cp).await;
+    attest(&cp, "example.com").await;
+    let late = pb::EndpointSpec {
+        name: "late".into(),
+        protocol: pb::EndpointProtocol::ENDPOINT_PROTOCOL_HTTP.into(),
+        container_port: 8080,
+        exposure: pb::Exposure::EXPOSURE_INGRESS.into(),
+        domains: vec!["late.example.com".into()],
+        ..Default::default()
+    };
+    let body = pb::IntentBody { endpoints: vec![late], ..Default::default() };
+    let w = cp.declare_body(&project, "late", &push_web().await, body).await;
+    node.guard(&w);
+    converged(&cp, &w).await;
+
+    // HTTP-01 first, for a certificate never issued, which nothing answers.
+    for _ in 0..360 {
+        if cp.scalar::<i32>("SELECT attempts FROM certificate").await >= 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    assert_eq!(cp.scalar::<i32>("SELECT attempts FROM certificate").await, 1, "one failed");
+    // The next attempt, without waiting out the back-off, is made the other way.
+    let pool = cp.api.app().store().pool();
+    sqlx::query("UPDATE certificate SET next_attempt_at = now()").execute(pool).await.unwrap();
+    sqlx::query("SELECT pg_notify('korpis_certificate', '')").execute(pool).await.unwrap();
+    let root = issuing_root(&pebble).await;
+    let page = securely((host_address(), 443).into(), "late.example.com", &root).await;
+    assert!(page.starts_with("HTTP/1.1 200") && page.contains("served"), "{page}");
+    let way: String = cp.scalar("SELECT node_proof FROM certificate").await;
+    assert_eq!(way, "tls-alpn-01", "kept, so its renewals try it first");
 
     cp.retire(&w).await;
     agent.stop().await;

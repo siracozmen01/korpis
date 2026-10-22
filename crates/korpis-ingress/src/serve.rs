@@ -182,6 +182,12 @@ async fn secure_connection(shared: &Arc<Shared>, stream: TcpStream, client: Sock
     let reached = stream.local_addr();
     let mut io = Idle::new(stream, limits.idle_timeout);
     let Ok(Ok(hello)) = timeout(limits.header_timeout, read_hello(&mut io)).await else { return };
+    if let Some(name) = hello.name.as_deref()
+        && hello.acme_only()
+        && let Some(digest) = shared.table().alpn_challenge(name)
+    {
+        return validated(io, hello.read, (name, digest)).await;
+    }
     let route = hello.name.as_deref().and_then(|n| shared.table().route(n).cloned());
     let Some(route) = route else { return };
     if let Mode::Passthrough { proxy_protocol } = route.mode {
@@ -257,6 +263,26 @@ async fn request(
         return shared.backends.websocket_h2(&origin, req, counted).await;
     }
     shared.backends.forward(&origin, req).await
+}
+
+/// Answers a directory validating `name` by TLS-ALPN-01 with a certificate carrying `digest`,
+/// then closes the connection: the validation reads the certificate in the handshake, and nothing
+/// is served after it. A name the proxy holds no digest for is routed as any other, so a
+/// `passthrough` workload running its own ACME client still answers its own validations.
+async fn validated(io: Idle<TcpStream>, read: Vec<u8>, (name, digest): (&str, &[u8])) {
+    let config = match crate::tls::alpn_challenge(name, digest) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(name, error = %e, "no certificate for a TLS-ALPN-01 validation");
+            return;
+        }
+    };
+    let acceptor = tokio_rustls::TlsAcceptor::from(config);
+    if let Ok(Ok(mut tls)) =
+        timeout(Duration::from_secs(10), acceptor.accept(Replay::new(read, io))).await
+    {
+        let _ = tls.shutdown().await;
+    }
 }
 
 /// Splices a client to a `passthrough` workload, first giving it the bytes read to route it,

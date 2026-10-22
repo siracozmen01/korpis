@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT c.name, c.digest\n           FROM certificate_alpn_challenge c JOIN route r ON r.certificate_id = c.certificate_id\n          WHERE r.workload_id = $1 ORDER BY c.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate_alpn_challenge",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "digest",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "certificate_alpn_challenge",
+            "name": "digest"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "48c2134ce10011f059ec15da0b32335341df09171e480ab68601cd8cdbcfbcc1"
+}

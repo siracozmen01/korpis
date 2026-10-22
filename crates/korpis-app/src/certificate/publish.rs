@@ -7,7 +7,9 @@
 //! record is applied for an owner of its own, the certificate and the name's place among its
 //! names, so it never disturbs an endpoint's records, and it is recorded before the provider is
 //! asked, so it is withdrawn even if this issuer stops mid-order. A name no provider publishes is
-//! proven over HTTP, through the nodes its endpoint is placed on.
+//! proven through the nodes its endpoint is placed on, over HTTP-01 or by TLS-ALPN-01, whichever
+//! way the order is to try (`NodeProof::for_attempt`), or the other where the directory does not
+//! offer that one.
 //!
 //! The directory is told to look at a DNS record once the control plane's own resolver finds it,
 //! or after two minutes if it never does: a provider answers once its zone is changed, which its
@@ -21,6 +23,7 @@ use crate::ports::{
     AcmeError, CertificateWrite as _, Challenge, Clock, HttpOffer, PortalWrite as _, Proof,
     RecipeSource, Store, Tx as _,
 };
+use korpis_core::dns::certificate::{AlpnChallenge, NodeProof};
 use korpis_core::dns::{DnsRecord, RecordType};
 use korpis_core::extension::{CallOutcome, ProviderType};
 use korpis_core::id::{Id, IdKind};
@@ -56,8 +59,20 @@ fn unprovable(portal: bool, name: &str) -> String {
              offered"
         )
     } else {
-        format!("no DNS provider serves the zone of {name}, and HTTP-01 is not offered")
+        format!(
+            "no DNS provider serves the zone of {name}, and neither HTTP-01 nor TLS-ALPN-01 is \
+             offered"
+        )
     }
+}
+
+/// How a node's proxy proves `c`: `way`, or the other where the directory does not offer it.
+fn at_node(way: NodeProof, c: &Challenge) -> Option<NodeProof> {
+    let offered = |w| match w {
+        NodeProof::Http01 => c.http.is_some(),
+        NodeProof::TlsAlpn01 => c.tls_alpn.is_some(),
+    };
+    [way, way.other()].into_iter().find(|w| offered(*w))
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -88,8 +103,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         challenges: Vec<Challenge>,
     ) -> Result<Vec<Proof>, AcmeError> {
         let mut proofs = Vec::with_capacity(challenges.len());
-        let (mut http, mut txt) = (Vec::new(), Vec::new());
+        let (mut http, mut alpn, mut txt) = (Vec::new(), Vec::new(), Vec::new());
         for (index, c) in challenges.into_iter().enumerate() {
+            let node = at_node(order.way, &c);
             let by_dns = match &c.dns_value {
                 Some(value) => self.publish_txt(order, index, &c.name, value).await?,
                 None => false,
@@ -103,14 +119,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 proofs.push(self.answer_alpn(order.id, &c.name, c.tls_alpn).await?);
                 continue;
             }
-            let Some(offer) = c.http else {
-                return Err(AcmeError::Refused(unprovable(false, &c.name)));
-            };
-            http.push((c.name, offer));
-            proofs.push(Proof::Http01);
+            match (node, c.http, c.tls_alpn) {
+                (Some(NodeProof::Http01), Some(offer), _) => {
+                    http.push((c.name, offer));
+                    proofs.push(Proof::Http01);
+                    let _ = order.proved.set(NodeProof::Http01);
+                }
+                (Some(NodeProof::TlsAlpn01), _, Some(digest)) => {
+                    alpn.push(AlpnChallenge { name: c.name, digest });
+                    proofs.push(Proof::TlsAlpn01);
+                    let _ = order.proved.set(NodeProof::TlsAlpn01);
+                }
+                _ => return Err(AcmeError::Refused(unprovable(false, &c.name))),
+            }
         }
-        if !http.is_empty() {
-            self.publish_http(order, &http).await?;
+        if !http.is_empty() || !alpn.is_empty() {
+            self.publish_nodes(order, &http, &alpn).await?;
         }
         self.propagated(&txt).await?;
         Ok(proofs)
@@ -209,12 +233,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Carries `challenges` to the order's nodes through their assignments, answering once every
-    /// one has acknowledged a set carrying them, and its proxy has had a moment to take them.
-    async fn publish_http(
+    /// Carries the HTTP-01 challenges `http` and the TLS-ALPN-01 ones `alpn` to the order's
+    /// nodes through their assignments, answering once every one has acknowledged a set carrying
+    /// them, and its proxy has had a moment to take them.
+    async fn publish_nodes(
         &self,
         order: &Order,
-        challenges: &[(String, HttpOffer)],
+        http: &[(String, HttpOffer)],
+        alpn: &[AlpnChallenge],
     ) -> Result<(), AcmeError> {
         if order.nodes.is_empty() {
             let why = "its endpoint is placed on no node, and no DNS provider serves its zone";
@@ -222,7 +248,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let store = |e: AppError| unavailable(e);
         let mut tx = self.store.begin().await.map_err(|e| store(e.into()))?;
-        tx.put_challenges(order.id, challenges).await.map_err(|e| store(e.into()))?;
+        tx.put_challenges(order.id, http).await.map_err(|e| store(e.into()))?;
+        tx.put_alpn_challenges(order.id, alpn).await.map_err(|e| store(e.into()))?;
         tx.commit().await.map_err(|e| store(e.into()))?;
         let timer = self.timer.clone().ok_or_else(|| unavailable("no timer to wait with"))?;
         let mut waited = Duration::ZERO;

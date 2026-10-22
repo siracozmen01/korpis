@@ -98,3 +98,27 @@ fn the_challenges_of_every_live_assignment_are_answered_once_each() {
     let answered: Vec<_> = challenges(&held).into_iter().map(|c| c.token).collect();
     assert_eq!(answered, ["a", "b"], "sorted, once each, and none of a residual assignment");
 }
+
+#[test]
+fn the_tls_alpn_challenges_of_every_live_assignment_are_answered_once_each_by_name() {
+    let challenge = |name: &str| agent::AlpnChallenge {
+        name: name.into(),
+        digest: vec![7; 32],
+        ..Default::default()
+    };
+    let live = agent::Assignment {
+        alpn_challenges: vec![challenge("www.example.com"), challenge("Shop.example.com")],
+        ..Default::default()
+    };
+    let residual = agent::Assignment {
+        residual: true,
+        alpn_challenges: vec![challenge("old.example.com")],
+        ..Default::default()
+    };
+    let mut held = HeldSet::default();
+    held.assignments.insert("w1".into(), live.clone());
+    held.assignments.insert("w2".into(), live);
+    held.assignments.insert("w3".into(), residual);
+    let answered: Vec<_> = alpn_challenges(&held).into_iter().map(|c| c.name).collect();
+    assert_eq!(answered, ["shop.example.com", "www.example.com"], "lowercase, once each");
+}

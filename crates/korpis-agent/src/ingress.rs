@@ -80,6 +80,26 @@ pub fn challenges(held: &HeldSet) -> Vec<ingress::Challenge> {
     out
 }
 
+/// The TLS-ALPN-01 challenges the assignments `held` carry, which the proxy answers on port 443,
+/// one for each name; taken from the set the node holds, as the HTTP-01 ones are.
+#[must_use]
+pub fn alpn_challenges(held: &HeldSet) -> Vec<ingress::AlpnChallenge> {
+    let mut out: Vec<ingress::AlpnChallenge> = held
+        .assignments
+        .values()
+        .filter(|a| !a.residual)
+        .flat_map(|a| &a.alpn_challenges)
+        .map(|c| ingress::AlpnChallenge {
+            name: c.name.to_ascii_lowercase(),
+            digest: c.digest.clone(),
+            ..Default::default()
+        })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out.dedup_by(|a, b| a.name == b.name);
+    out
+}
+
 /// What the proxy serves for the assignments `held`, each workload reached at its address in
 /// `addresses`, with `certificates`: one route for each of their `ingress` endpoints. A
 /// workload with no address yet has no route until its network is made. A residual assignment

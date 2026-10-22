@@ -595,6 +595,14 @@ Primary:
   (Misdirected Request) status code" ([RFC 9113](https://www.rfc-editor.org/rfc/rfc9113.html),
   read 2026-10-22). Why the ingress refuses a request whose route asks for another client
   certificate than its connection's (Finding 137 of `../23-walkthroughs.md`).
+- **[V]** RFC 8737 §3 and §4 (TLS-ALPN-01): the validating server "MUST provide an ALPN extension
+  with the single protocol name "acme-tls/1"", over a connection that "MUST use TCP port 443";
+  the certificate presented carries "a subjectAltName extension containing the dNSName being
+  validated and no other entries" and "a critical acmeIdentifier extension" (`id-pe` 31,
+  1.3.6.1.5.5.7.1.31) holding the SHA-256 digest of the key authorization as an OCTET STRING of
+  32 bytes; the protocol "does not carry application data"
+  ([RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html), read 2026-10-22). How a node's proxy
+  answers a validation, by the protocols alone (§3.2 of `../07-networking.md`).
 - **[V]** RFC 9113 §6.5.2, `SETTINGS_MAX_CONCURRENT_STREAMS`: "It is recommended that this value be
   no smaller than 100, so as to not unnecessarily limit parallelism"; and §5.1.2, a stream beyond
   the limit is "a stream error of type PROTOCOL_ERROR or REFUSED_STREAM"

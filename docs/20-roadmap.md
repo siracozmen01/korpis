@@ -250,8 +250,8 @@ it (Rule K-3). The ingress's remaining protocol features, which Phase 1 leaves o
 `07-networking.md`): WebSocket over HTTP/2, client certificates, and the PROXY protocol for a
 `passthrough` workload (designed and built 2026-10-22, with trace 51 of `23-walkthroughs.md`), and
 ACME's TLS-ALPN challenge at a node's ingress, which §3.2 there placed in Phase 2 and this list
-left out until 2026-10-22; a reseller's
-names delegated to its customers are Phase 1's, since domains are.
+left out until 2026-10-22, when it was built; a reseller's names delegated to its customers are
+Phase 1's, since domains are.
 
 **The chat client is not here.** It is a first-party extension and ships in Phase 4 (§10 of
 `12-surface-discord.md`). What Phase 2 owes it is the machinery (external identity mapped to

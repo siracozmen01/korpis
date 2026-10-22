@@ -6,7 +6,9 @@
 use super::HttpOffer;
 use super::{SealedKey, StoreResult, VaultError};
 use crate::page::Page;
-use korpis_core::dns::certificate::{Certificate, ExpiryAlert, HttpChallenge, Leaf, Owner, Source};
+use korpis_core::dns::certificate::{
+    AlpnChallenge, Certificate, ExpiryAlert, HttpChallenge, Leaf, NodeProof, Owner, Source,
+};
 use korpis_core::dns::domain::Route;
 use korpis_core::event::Severity;
 use korpis_core::workload::endpoint::Served;
@@ -116,6 +118,9 @@ pub trait CertificateRead {
     /// The workloads whose routes are served with the certificate.
     fn routed_with(&self, id: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
+    /// The way a node's proxy last proved the names of certificate `id`, if one did.
+    fn node_proof(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<NodeProof>>> + Send;
+
     /// The certificate's key, sealed, once it holds one.
     fn sealed_key(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<SealedKey>>> + Send;
 
@@ -187,6 +192,28 @@ pub trait CertificateWrite {
         &mut self,
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Vec<HttpChallenge>>> + Send;
+
+    /// The TLS-ALPN-01 challenges standing for the certificates `workload`'s routes name.
+    fn alpn_challenges_for(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<AlpnChallenge>>> + Send;
+
+    /// Makes `challenges`, each a name's TLS-ALPN-01 challenge, the certificate's, replacing any
+    /// it had.
+    fn put_alpn_challenges(
+        &mut self,
+        certificate: Uuid,
+        challenges: &[AlpnChallenge],
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Records that a node's proxy proved `certificate`'s names `way` (§3.2 of
+    /// docs/07-networking.md), which its next order tries first.
+    fn set_node_proof(
+        &mut self,
+        certificate: Uuid,
+        way: NodeProof,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Makes `challenges`, each a name's HTTP-01 challenge, the certificate's, replacing any it
     /// had.

@@ -106,6 +106,7 @@ fn usize_of(v: u32) -> usize {
 pub struct Table {
     routes: HashMap<String, Arc<Route>>,
     challenges: HashMap<String, String>,
+    alpn: HashMap<String, Vec<u8>>,
     /// The bounds on what it accepts.
     pub limits: Limits,
 }
@@ -162,6 +163,17 @@ fn asking(
     crate::tls::asking_clients(certificate, clients).map(Some).map_err(|e| e.to_string())
 }
 
+/// The TLS-ALPN-01 digests `c` gives, by name; refused unless each is a SHA-256 digest.
+fn alpn(c: &pb::IngressConfig) -> Result<HashMap<String, Vec<u8>>, ConfigError> {
+    c.alpn_challenges
+        .iter()
+        .map(|a| match a.digest.len() {
+            32 => Ok((normal(&a.name), a.digest.clone())),
+            _ => Err(ConfigError(format!("challenge {}: a digest is 32 bytes", a.name))),
+        })
+        .collect()
+}
+
 impl Table {
     /// The table `c` describes, or why it is refused.
     pub fn from_pb(c: &pb::IngressConfig) -> Result<Self, ConfigError> {
@@ -203,7 +215,7 @@ impl Table {
             .map(|ch| (ch.token.clone(), ch.key_authorization.clone()))
             .collect();
         let limits = Limits::from_pb(c.limits.as_option().unwrap_or(&pb::Limits::default()));
-        Ok(Self { routes, challenges, limits })
+        Ok(Self { routes, challenges, alpn: alpn(c)?, limits })
     }
 
     /// The route of `name`, as a client named it in SNI or `Host`: without a port or a final
@@ -211,6 +223,12 @@ impl Table {
     #[must_use]
     pub fn route(&self, name: &str) -> Option<&Arc<Route>> {
         self.routes.get(&normal(name))
+    }
+
+    /// The digest a TLS-ALPN-01 validation of `name` is answered with, while one stands.
+    #[must_use]
+    pub fn alpn_challenge(&self, name: &str) -> Option<&[u8]> {
+        self.alpn.get(&normal(name)).map(Vec::as_slice)
     }
 
     /// The answer to the ACME challenge `token`.

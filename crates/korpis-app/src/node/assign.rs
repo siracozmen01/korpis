@@ -52,6 +52,7 @@ fn runs_digest(
     let runs = Assignment {
         plan: None,
         challenges: Vec::new(),
+        alpn_challenges: Vec::new(),
         runs: Vec::new(),
         kept_runs: Vec::new(),
         labels: korpis_core::labels::Labels::default(),
@@ -110,6 +111,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         a.endpoints =
             endpoints::placed(tx, (a.node, a.workload), &a.target.body, range, now).await?;
         a.challenges = tx.challenges_for(a.workload).await?;
+        a.alpn_challenges = tx.alpn_challenges_for(a.workload).await?;
         let active = tx.active_runs_within(a.workload).await?;
         if !held {
             a.runs = named(&active, &a.target.body.run_policy());
@@ -301,6 +303,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 egress,
                 dependencies,
                 challenges: Vec::new(),
+                alpn_challenges: Vec::new(),
                 runs: Vec::new(),
                 kept_runs: Vec::new(),
             },
@@ -356,6 +359,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 egress: None,
                 dependencies: Vec::new(),
                 challenges: Vec::new(),
+                alpn_challenges: Vec::new(),
                 runs: Vec::new(),
                 kept_runs: Vec::new(),
             },

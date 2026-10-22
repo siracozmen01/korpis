@@ -157,6 +157,15 @@ message AcmeChallenge {
   string key_authorization = 2;
 }
 
+// An ACME TLS-ALPN-01 challenge (RFC 8737): a connection to the name offering only acme-tls/1 is
+// answered with a certificate made for the name, carrying the digest in its acmeIdentifier
+// extension.
+message AlpnChallenge {
+  string name = 1;
+  // The SHA-256 digest of the key authorization, 32 bytes.
+  bytes digest = 2;
+}
+
 // A node whose proxy is to serve an endpoint with a certificate asks for its chain and key (§3.2
 // of docs/07-networking.md). The control plane answers only a node an endpoint served with the
 // certificate is placed on, and only once it holds a key.
@@ -479,6 +488,11 @@ message Assignment {
   // The HTTP-01 challenges the node's proxy answers on port 80 for the names of this
   // workload's endpoints while their certificates are ordered (§3.2 of docs/07-networking.md).
   repeated AcmeChallenge challenges = 22;
+  // The TLS-ALPN-01 challenges the node's proxy answers on port 443 for the names of this
+  // workload's endpoints while their certificates are ordered, which the issuer uses where
+  // HTTP-01 failed or a node's proxy last proved the certificate this way (§3.2 of
+  // docs/07-networking.md).
+  repeated AlpnChallenge alpn_challenges = 27;
   // The workload's name and labels, which the node does not use: a restored control plane that
   // lost the workload recovers it from them (§8 of docs/03-state.md).
   string workload_name = 23;

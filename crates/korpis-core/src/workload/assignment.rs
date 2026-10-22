@@ -70,6 +70,8 @@ pub struct Assignment {
     /// The HTTP-01 challenges the node's proxy answers for its endpoints' names while their
     /// certificates are ordered (§3.2 of docs/07-networking.md).
     pub challenges: Vec<crate::dns::certificate::HttpChallenge>,
+    /// The TLS-ALPN-01 challenges it answers for them on port 443, by name.
+    pub alpn_challenges: Vec<crate::dns::certificate::AlpnChallenge>,
     /// The runs of a task or scheduled workload the node is to execute (§4.5 of
     /// docs/05-scheduling.md).
     pub runs: Vec<super::run::RunRef>,

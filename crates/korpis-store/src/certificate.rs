@@ -5,15 +5,15 @@
 
 use crate::domain::{RouteRow, routes};
 use crate::errors::from_sqlx;
-use crate::stored::{from_time, to_time};
+use crate::stored::from_time;
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
 use korpis_app::ports::{
     CertificateRead, CertificateWrite, Expiry, Exposure, HttpOffer, PendingRevocation, SealedKey,
-    StandingRecord, StoreError, StoreResult,
+    StandingRecord, StoreResult,
 };
 use korpis_core::dns::certificate::{
-    Certificate, ExpiryAlert, HttpChallenge, Owner, Source, State,
+    AlpnChallenge, Certificate, ExpiryAlert, HttpChallenge, NodeProof, Owner,
 };
 use korpis_core::dns::domain::Route;
 use korpis_core::event::Severity;
@@ -24,59 +24,10 @@ use uuid::Uuid;
 mod expiry;
 mod exposure;
 mod issue;
+mod node;
+mod row;
 
-pub(crate) struct CertificateRow {
-    id: Uuid,
-    organization_id: Uuid,
-    names: Vec<String>,
-    source: String,
-    chain: String,
-    not_before: Option<chrono::DateTime<chrono::Utc>>,
-    not_after: Option<chrono::DateTime<chrono::Utc>>,
-    state: String,
-    reason: Option<String>,
-    renew_after: Option<chrono::DateTime<chrono::Utc>>,
-    revision: i64,
-    created_at: chrono::DateTime<chrono::Utc>,
-    workload_id: Option<Uuid>,
-    endpoint: Option<String>,
-    portal_id: Option<Uuid>,
-    attempts: i32,
-    next_attempt_at: Option<chrono::DateTime<chrono::Utc>>,
-    key_id: Option<String>,
-    exposed: bool,
-}
-
-impl TryFrom<CertificateRow> for Certificate {
-    type Error = StoreError;
-
-    fn try_from(r: CertificateRow) -> StoreResult<Self> {
-        let corrupt = |what: &str| StoreError::Corrupt(format!("certificate {}: {what}", r.id));
-        Ok(Self {
-            id: r.id,
-            organization: r.organization_id,
-            names: r.names,
-            source: Source::parse(&r.source).ok_or_else(|| corrupt("source"))?,
-            chain: r.chain,
-            not_before: r.not_before.map(to_time),
-            not_after: r.not_after.map(to_time),
-            state: State::parse(&r.state).ok_or_else(|| corrupt("state"))?,
-            reason: r.reason,
-            renew_after: r.renew_after.map(to_time),
-            revision: r.revision,
-            created_at: to_time(r.created_at),
-            owner: r
-                .workload_id
-                .zip(r.endpoint)
-                .map(|(workload, endpoint)| Owner { workload, endpoint }),
-            portal: r.portal_id,
-            attempts: u32::try_from(r.attempts).map_err(|_| corrupt("attempts"))?,
-            next_attempt: r.next_attempt_at.map(to_time),
-            key_id: r.key_id,
-            exposed: r.exposed,
-        })
-    }
-}
+pub(crate) use row::CertificateRow;
 
 impl CertificateRead for PgStore {
     async fn certificate(&self, id: Uuid) -> StoreResult<Option<Certificate>> {
@@ -92,6 +43,10 @@ impl CertificateRead for PgStore {
         .await
         .map_err(from_sqlx)?;
         row.map(Certificate::try_from).transpose()
+    }
+
+    async fn node_proof(&self, id: Uuid) -> StoreResult<Option<NodeProof>> {
+        node::node_proof(self, id).await
     }
 
     async fn routed_with(&self, id: Uuid) -> StoreResult<Vec<Uuid>> {
@@ -303,6 +258,22 @@ impl CertificateWrite for PgTx {
         challenges: &[(String, HttpOffer)],
     ) -> StoreResult<()> {
         issue::put_challenges(self, certificate, challenges).await
+    }
+
+    async fn alpn_challenges_for(&mut self, workload: Uuid) -> StoreResult<Vec<AlpnChallenge>> {
+        node::alpn_challenges_for(self, workload).await
+    }
+
+    async fn put_alpn_challenges(
+        &mut self,
+        certificate: Uuid,
+        challenges: &[AlpnChallenge],
+    ) -> StoreResult<()> {
+        node::put_alpn_challenges(self, certificate, challenges).await
+    }
+
+    async fn set_node_proof(&mut self, certificate: Uuid, way: NodeProof) -> StoreResult<()> {
+        node::set_node_proof(self, certificate, way).await
     }
 
     async fn take_due(

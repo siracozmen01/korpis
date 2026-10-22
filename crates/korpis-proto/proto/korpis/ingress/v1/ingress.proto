@@ -25,6 +25,8 @@ message IngressConfig {
   // ACME's HTTP challenges the proxy answers on port 80.
   repeated Challenge challenges = 3;
   Limits limits = 4;
+  // ACME's TLS-ALPN challenges the proxy answers on port 443, by name.
+  repeated AlpnChallenge alpn_challenges = 5;
 }
 
 // The names one endpoint routes, and where its workload listens.
@@ -80,6 +82,14 @@ message Certificate {
 message Challenge {
   string token = 1;
   string key_authorization = 2;
+}
+
+// A TLS-ALPN-01 challenge (RFC 8737): a ClientHello for `name` offering only acme-tls/1 is
+// answered with a certificate made for the name carrying `digest`, and the connection closed.
+message AlpnChallenge {
+  string name = 1;
+  // The SHA-256 digest of the key authorization, 32 bytes.
+  bytes digest = 2;
 }
 
 // What the proxy accepts; a zero is the proxy's default.

@@ -14,8 +14,9 @@ use crate::ports::{
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
-use korpis_core::dns::certificate::{Certificate, State, backoff, renew_after};
+use korpis_core::dns::certificate::{Certificate, NodeProof, State, backoff, renew_after};
 use korpis_core::principal::{Principal, SystemActor};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -41,6 +42,10 @@ pub(super) struct Order {
     /// Whether it is a portal's, which no node serves, so HTTP-01 has nowhere to be answered
     /// (§3.6 of docs/07-networking.md).
     pub(super) portal: bool,
+    /// The way a node's proxy is to prove the names no DNS provider proves, this attempt.
+    pub(super) way: NodeProof,
+    /// The way a node's proxy was given to prove them, once one was.
+    pub(super) proved: OnceLock<NodeProof>,
 }
 
 fn effect(c: &Certificate, outcome: Outcome, reason: Option<&str>) -> Effect {
@@ -112,21 +117,38 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return self.record(&waiting, None).await;
         }
         let portal = c.portal.is_some();
-        let order = Order { id: c.id, organization: c.organization, providers, nodes, portal };
+        let way = NodeProof::for_attempt(self.store.node_proof(c.id).await?, c.attempts);
+        let order = Arc::new(Order {
+            id: c.id,
+            organization: c.organization,
+            providers,
+            nodes,
+            portal,
+            way,
+            proved: OnceLock::new(),
+        });
+        let publishing = Arc::clone(&order);
         let publish: crate::ports::Publish<'_> = Box::new(move |challenges| {
-            Box::pin(async move { self.publish(&order, challenges).await })
+            Box::pin(async move { self.publish(&publishing, challenges).await })
         });
         let issued = acme.issue(&c.names, publish).await;
         self.withdraw_records(Some(c.id)).await?;
         self.withdraw_alpn(c.id).await?;
         match issued {
-            Ok(issued) => self.issued(c, &issued).await,
+            Ok(issued) => self.issued(c, &issued, order.proved.get().copied()).await,
             Err(e) => self.attempt_failed(c, &e).await,
         }
     }
 
-    /// Keeps what was issued for `c`: read and checked as an upload is, its key sealed.
-    async fn issued(&self, c: Certificate, issued: &Issued) -> Result<(), AppError> {
+    /// Keeps what was issued for `c`: read and checked as an upload is, its key sealed; and
+    /// `proved`, the way a node's proxy proved its names, if one did, for its renewals to try
+    /// first.
+    async fn issued(
+        &self,
+        c: Certificate,
+        issued: &Issued,
+        proved: Option<NodeProof>,
+    ) -> Result<(), AppError> {
         let tls = self.tls()?;
         let checked = tls.read(&issued.chain, &issued.key).map_err(|e| e.to_string()).and_then(
             |(leaf, chain)| {
@@ -156,6 +178,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let mut tx = self.store.begin().await?;
         tx.replace_certificate(&done, &sealed).await?;
+        if let Some(way) = proved {
+            tx.set_node_proof(done.id, way).await?;
+        }
         tx.append_effect(&effect(&done, Outcome::Succeeded, None)).await?;
         tx.commit().await?;
         Ok(())

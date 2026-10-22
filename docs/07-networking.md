@@ -487,14 +487,16 @@ there; client certificates; and the PROXY protocol for a `passthrough` workload 
 client's address. HTTP/3 arrives with edges in Phase 3, and the rest of these in Phase 2, except
 the backend's protocol, which is a question (§4 of `20-roadmap.md`). (Corrected 2026-10-22, when
 three of them were built, below, and proven on a real node: WebSocket over HTTP/2, client
-certificates, and the PROXY protocol. What the ingress still does not do is HTTP/3, the backend's
-protocol, and the TLS-ALPN challenge at a node's ingress, the last of which this paragraph places
-in Phase 2 although §4 of `20-roadmap.md` did not list it; it is listed there now.)
+certificates, and the PROXY protocol. This paragraph also placed the TLS-ALPN challenge at a
+node's ingress in Phase 2, which §4 of `20-roadmap.md` did not list; it was listed there, and
+built the same day, below. What the ingress still does not do is HTTP/3 and the backend's
+protocol.)
 
 **WebSocket over HTTP/2, client certificates, and the PROXY protocol, designed 2026-10-22** for
-Phase 2, and built the same day. Each is decided by what evaluates it, where, and with what: all three are evaluated by
-the node's proxy, from the route its agent gives it, which the agent builds from the endpoint as
-its assignment declares it, so no step asks the control plane anything at connection time.
+Phase 2, and built the same day. Each is decided by what evaluates it, where, and with what: all
+three are evaluated by the node's proxy, from the route its agent gives it, which the agent builds
+from the endpoint as its assignment declares it, so no step asks the control plane anything at
+connection time.
 
 *WebSocket over HTTP/2.* The proxy announces extended CONNECT on HTTP/2 (RFC 8441), so a browser
 whose connection to a name is HTTP/2 opens a WebSocket on it, as a stream of that connection,
@@ -557,6 +559,30 @@ workload that is told to expect the header and does not parse it reads the heade
 client's first bytes and fails every connection, which is the declaration's to get right; and a
 workload that parses it must accept it only from the proxy, which it can, since only the proxy
 reaches a `passthrough` workload's port through the ingress.
+
+**ACME's TLS-ALPN challenge at a node's ingress, designed 2026-10-22** for Phase 2, and built
+the same day. A name of an
+`acme` endpoint that no DNS provider proves is proven by the node's proxy either way a directory
+reaches a node: over HTTP-01 on port 80, as above, or by TLS-ALPN-01 (RFC 8737) on port 443. Which
+is decided by the issuer, from the certificate's own record: the way that last proved it, kept
+with the certificate when it is issued, and HTTP-01 for one never issued; and after an attempt
+fails, the next attempt is made the other way, so the two alternate until one succeeds, and the
+one that did is used first at every renewal. So a node whose port 80 a provider or a firewall
+blocks has its certificate on the second attempt and keeps it, without anyone declaring that its
+port 80 is closed, which no component could check. The digest travels in the workload's
+assignment beside the HTTP-01 tokens, with the name it proves, and the issuer tells the directory
+to look once every node serving the names has acknowledged it, as for HTTP-01. The proxy answers a
+`ClientHello` that offers `acme-tls/1` as its only protocol, for a name it holds a digest for,
+with a certificate it makes for that name from the digest, critical `acmeIdentifier` extension and
+all, speaking `acme-tls/1` alone, and closes the connection after the handshake; one offering it
+for a name it holds no digest for is routed as any other, so a `passthrough` workload that runs
+its own ACME client is still validated by its own answer. **What evaluates this, where, and with
+what information:** which way, the issuer, from the certificate's attempts and its record of the
+way that last proved it; the answer, the proxy, from the name and digest its node holds. What it
+costs: a first issuance on a node whose port 80 is closed fails once, a failed validation the
+directory counts and five minutes of back-off, before it succeeds; and a node reached on neither
+port at the name's address is proven neither way, and stays `failed` with the directory's reason,
+as before.
 
 ### 3.3 Protocol-aware routers are extensions
 

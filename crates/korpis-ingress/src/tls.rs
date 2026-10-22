@@ -82,3 +82,27 @@ pub fn clients(pem: &str, required: bool) -> Result<Arc<dyn ClientCertVerifier>,
     let builder = if required { builder } else { builder.allow_unauthenticated() };
     builder.build().map_err(|e| e.to_string())
 }
+
+/// The configuration a TLS-ALPN-01 validation of `name` is answered with (RFC 8737 §3): a
+/// certificate of its own, for the name alone, carrying `digest` in its critical
+/// `acmeIdentifier` extension, and `acme-tls/1` the one protocol spoken. Made for each
+/// validation, as the control plane makes a portal's, since a directory validates a name a few
+/// times at most.
+pub fn alpn_challenge(name: &str, digest: &[u8]) -> Result<Arc<rustls::ServerConfig>, String> {
+    let mut params =
+        rcgen::CertificateParams::new(vec![name.to_owned()]).map_err(|e| e.to_string())?;
+    params.custom_extensions = vec![rcgen::CustomExtension::new_acme_identifier(digest)];
+    let key = rcgen::KeyPair::generate().map_err(|e| e.to_string())?;
+    let cert = params.self_signed(&key).map_err(|e| e.to_string())?;
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(key.serialize_der().into());
+    let provider = crate::unverified::provider();
+    let signing = provider.key_provider.load_private_key(key).map_err(|e| e.to_string())?;
+    let certified = CertifiedKey::new(vec![cert.der().clone()], signing);
+    let mut config = rustls::ServerConfig::builder_with_provider(provider)
+        .with_protocol_versions(&[&rustls::version::TLS13, &rustls::version::TLS12])
+        .map_err(|e| e.to_string())?
+        .with_no_client_auth()
+        .with_cert_resolver(Arc::new(Fixed(Some(Arc::new(certified)))));
+    config.alpn_protocols = vec![crate::sni::ACME_TLS.to_vec()];
+    Ok(Arc::new(config))
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT node_proof FROM certificate WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_proof",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "node_proof"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "5af63594c96d5944b33de44d993a6de648ac90684b4006206542677d721fd395"
+}

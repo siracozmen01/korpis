@@ -25,6 +25,8 @@ hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto", "c
 korpis-confine = { path = "../korpis-confine" }
 korpis-proto = { workspace = true }
 landlock = "0.4"
+# The certificate a TLS-ALPN-01 validation is answered with, made for its name and digest.
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 rustix = { version = "1", features = ["net", "std", "thread"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 thiserror = { workspace = true }
@@ -35,4 +37,3 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 ppp = "2.3"
-rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }

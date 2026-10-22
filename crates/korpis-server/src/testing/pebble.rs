@@ -116,6 +116,10 @@ impl Pebble {
         let child = command
             .env("PEBBLE_VA_ALWAYS_VALID", if options.always_valid { "1" } else { "0" })
             .env("PEBBLE_VA_NOSLEEP", "1")
+            // Every order proves its names, as a test of how they are proven expects: by
+            // default Pebble reuses a valid authorization half the time, so a renewal would
+            // prove nothing as often as not.
+            .env("PEBBLE_AUTHZREUSE", "0")
             .env("PEBBLE_WFE_NONCEREJECT", "0")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
