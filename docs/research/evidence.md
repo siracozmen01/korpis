@@ -553,6 +553,21 @@ Primary:
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)
 
+- **[V]** OpenSSH's `AuthorizedKeysCommand`, the hook a server uses to look a key up elsewhere,
+  is given the key (`%k`), its fingerprint (`%f`), its type (`%t`), and the user, and no token
+  carries the client's signature, which `sshd` verifies itself
+  ([sshd_config(5)](https://man.openbsd.org/sshd_config), read 2026-10-22). russh 0.64's `Handler`
+  likewise calls `auth_publickey` with the user and the public key alone, after it has verified
+  the signature ([russh::server::Handler](https://docs.rs/russh/latest/russh/server/trait.Handler.html),
+  read 2026-10-22). Why a relay serving SFTP is believed when it says a client holds a key (§3.1
+  of `../02-architecture.md`, §9.9 of `../08-identity.md`).
+- **[R]** NIST SP 800-57 Part 1 Rev. 5, Tables 2 and 4, as reproduced by secondary sources: RSA
+  with a 2,048-bit modulus gives 112 bits of security strength, acceptable for new signatures
+  through 2030 and disallowed after; 3,072 bits gives 128, acceptable beyond 2030
+  ([Bootlin](https://bootlin.com/blog/the-nists-new-plan-for-digital-signatures-impact-on-secure-boot/),
+  [AQtive Guard](https://docs.aqtiveguard.com/kb-articles/cryptographic-keylengths/), read
+  2026-10-22; the PDF itself was not read). Why an SSH key of RSA is at least 3,072 bits (§9.9 of
+  `../08-identity.md`).
 Secondary:
 - [TheGamePanel: a modern alternative to
   Pterodactyl](https://ollieread.com/articles/thegamepanel-a-modern-alternative-to-pterodactyl)

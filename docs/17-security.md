@@ -267,6 +267,15 @@ behaviour:
   which node each session goes to (§3.1 of `02-architecture.md`); a stolen route key lets whoever
   also holds a client's routes learn which node its workloads run on, which a tenant is otherwise
   never told.
+- **A relay that serves SFTP can open a tenant's files as the tenant.** It checks that an SFTP
+  client holds the SSH key it offers, which no library lets it prove to the control plane, and
+  the control plane mints a file token for whoever registered that key on the relay's word (§3.1
+  of `02-architecture.md`, §9.9 of `08-identity.md`). A compromised relay serving SFTP can
+  therefore read and write the files of anyone with a registered key, on any workload their
+  grants reach, without that person connecting; it gains no console, no API call, and no other
+  action. Each token it asks for is a `workload.file.sftp_authorized` effect naming the relay on
+  the tenant's own trail, and a relay that does not serve SFTP gains nothing, which is why it is
+  off until an operator turns it on.
 - **A host reads a tenant's private data only through a grant that names the tenant**, which the
   tenant sees issued and sees used (§3.3 of `08-identity.md`).
 - **Tenant key custody limits backups, not the operator.** Under `tenant` custody (§5.5 of

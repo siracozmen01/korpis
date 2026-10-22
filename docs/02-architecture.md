@@ -125,7 +125,10 @@ client ──TLS──▶ relay ◀──TLS, dialled out── agent
   online and issues a short-lived capability token naming one workload and one action (§6 of
   `08-identity.md`). The relay verifies its signature, expiry, and the revocation list before
   routing. The agent verifies it again before acting, so a compromised relay can observe sessions
-  it carries but cannot invent one.
+  it carries but cannot invent one. (Corrected 2026-10-22, with SFTP, below: a relay that serves
+  SFTP authenticates its clients' keys itself and asks the gateway for their tokens, so it can
+  invent a file session as anyone who registered a key. A relay that does not serve it still
+  cannot invent any session.)
 - **The relay is the first hop that sees the client's address**, so conditions that depend on it
   (`source_cidr`, §3.2 of `01-model.md`) are evaluated there, or at the gateway for API calls. An
   agent behind a relay never sees a client address and never evaluates one. Behind a load balancer
@@ -224,6 +227,31 @@ operator infrastructure with the same trust as the control plane, and it is depl
 the operator controls. End-to-end encryption between a browser and a node would require every node
 to hold a publicly trusted certificate, which is the inbound-reachability requirement §3 exists to
 avoid. The cost is recorded in §8 of `17-security.md` rather than implied away.
+
+**SFTP, decided 2026-10-22.** A relay may also accept SSH, on a port of its own
+(`--sftp-listen`), and serve the SFTP subsystem there as a client of its own file sessions: the
+SSH user names the workload by its identifier, the client authenticates with an SSH key its person
+registered (§9.9 of `08-identity.md`), and the relay, having checked that the client holds the
+key, asks the control plane over its fed identity for a file token for that key's person, that
+workload, and the client's address. The gateway evaluates the grants online as it does for
+`MintToken`, and answers the token and the route, or a refusal; the relay then opens the session
+as any client does, translates each SFTP request into the file session's requests (§3.2 of
+`06-storage.md`), and asks again before the token expires. It is the relay, the tier that already
+joins clients to nodes, so a 40 GB upload never crosses the control plane, and it is the file
+session, so SFTP adds a protocol and decides nothing about files twice (§6). Off by default:
+an operator turns it on per relay, and on one machine for the control plane's own relay role.
+
+What it costs, stated plainly. No SSH server library hands its caller the client's signature: the
+one the relay uses verifies it and passes on the key alone, as OpenSSH's `AuthorizedKeysCommand`
+does, so the control plane cannot check that a client signed, and believes the relay that says
+one did. A relay serving SFTP can therefore open a file session as anyone who registered a key,
+on any workload that person's grants reach, a power no relay held before; it is bounded to file
+actions, every token it asks for is recorded with its name, and a relay not serving SFTP gains
+nothing. An operator who will not extend a relay that trust leaves SFTP off it. Each relay has
+its own host key (`--sftp-host-key`, made at its first start where the file is absent), whose
+fingerprint `ServerInfo` lists beside the relay's SFTP address, so a client checks the key it is
+shown; relays behind one name are given one key file, or a client's next connection may reach a
+relay whose key it has never seen.
 
 **From a browser, decided 2026-10-16.** A session is one stream both ways (`RelayService.Open`),
 and a browser cannot open one: the Connect protocol over `fetch` carries unary calls and server
@@ -1253,6 +1281,9 @@ this product category.
 > `20-roadmap.md`), where the tenants who need it without a shell first exist. When it is built it
 > is a second protocol in front of the same worker and the same file operations, so nothing about
 > the worker is decided twice.
+>
+> Designed 2026-10-22: SFTP is served by a relay (§3.1), which speaks the file session to the
+> node like any other client, so the worker on the node is the file manager's, unchanged.
 
 **Where the volume is a block device the guest owns, the worker runs in a guest kernel.** A
 `microvm` or `vm` volume is formatted and mounted by the guest (§3.1 of `06-storage.md`), so the

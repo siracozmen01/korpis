@@ -75,8 +75,12 @@ listed.
 > renewed and shown once, and each session with where it began and when it was last used, ended
 > one at a time or all but this one. A change refused `session.not_recent` asks the user to
 > confirm it is them and is then made, so none is lost to the ten-minute rule (§9.4 of
-> `08-identity.md`). A browser without Web Locks (no current one lacks
-> them) falls back to a lock per tab, and there two tabs exchanging at once end the session.
+> `08-identity.md`). The profile also lists the account's SSH keys, by label, kind, and
+> fingerprint, added by pasting a public key and removed under the same rule (designed
+> 2026-10-22, §9.9 of `08-identity.md`); a workload's files show, to whoever may write or read
+> them, where an SFTP client connects and the host key to expect, for each relay serving SFTP. A
+> browser without Web Locks (no current one lacks them) falls back to a lock per tab, and there two
+> tabs exchanging at once end the session.
 >
 > Signing in through an identity provider, designed 2026-10-20 (§9.7 of `08-identity.md`).
 > `/sign-in` offers, beside the account's ceremonies, a button for each provider

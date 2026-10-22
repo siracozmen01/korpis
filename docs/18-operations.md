@@ -382,6 +382,20 @@ every connection (§3.1 of `02-architecture.md`). Where relays carry the session
 serve --relay-role false` takes the role off the control plane, so nodes attach to the relays
 alone.
 
+SFTP is served by a relay an operator turns it on for (§3.1 of `02-architecture.md`):
+`--sftp-listen ADDRESS:PORT` on `relay run`, or on `serve` for the control plane's own relay
+role, with `--sftp-host-key PATH` naming the host key, made there at the first start where the
+file is absent and readable by the server alone, and `--sftp-advertise HOST:PORT` where clients
+reach it at another address than it listens on, as behind a load balancer or a port forward. The
+relay reports the address and the key's fingerprint in its feed, and `ServerInfo` lists them, so
+the panel and `korpis sftp` tell a person where to connect and which key to expect. Several relays
+behind one name are given the same key file, or a client is shown a key it has never seen on its
+next connection; a key replaced is a warning every client then shows, which is the warning a
+changed host key is meant to give. Turning it on extends the relay the trust §9.9 of
+`08-identity.md` states, and it is the operator's to extend, relay by relay; `--proxy-protocol-from`
+applies to the SSH port as to the relay's own, since `source_cidr` is judged by the client's address
+there too.
+
 
 ---
 

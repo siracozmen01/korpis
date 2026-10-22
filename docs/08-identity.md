@@ -2227,6 +2227,54 @@ identity provider its organization offers.
 > person, could then have done to them. Revoking is now held beneath the organization as issuing
 > is, and refused `session.portal_confined` outside it.
 
+### 9.9 SSH keys, for SFTP
+
+> Designed 2026-10-22, with SFTP (§3.1 of `02-architecture.md`, §3.2 of `06-storage.md`).
+
+**A person reaches their files over SFTP with an SSH key registered to their account, and with
+nothing else.** An account holds any number of public keys, each with a label it is listed by:
+Ed25519, ECDSA over P-256 or P-384, or RSA of at least 3,072 bits, the kinds every current SFTP
+client makes and none weaker than 128 bits, which NIST SP 800-57 keeps acceptable after 2030
+(`research/evidence.md` §5). A key is registered once in the installation,
+by its SHA-256 fingerprint, so a key names one person; one already registered is refused as
+`ssh_key.taken`, which tells the registrant only that they hold a key someone registered, which
+they could only have if it was theirs or was given to them. Adding one is a change to the account's
+factors (§9.6): it needs a session that signed in or re-authenticated within ten minutes, and is
+recorded as `account.ssh_key_added`; removing one is `account.ssh_key_removed`, and needs the same.
+A terminal cannot re-authenticate, so `korpis ssh-key add` refused as not recent signs it in again
+by the device flow of §9.4, whose approval re-authenticates in the browser where that sign-in is
+older than ten minutes: the session the approval begins is signed in at its approval, the key is
+added through it, and the session it replaces is ended (Finding 135 of `23-walkthroughs.md`).
+An SSH key is a credential for file sessions alone: it signs nobody in to the panel or the API,
+opens no console, and is never shown again but by its fingerprint and label.
+
+The reasoning. A password over SSH would be the account's whole credential typed into a client that
+asks no second factor and that most people point at whatever host they are given; a key proves
+possession without crossing the wire, and every SFTP client people use (FileZilla, WinSCP,
+Cyberduck, OpenSSH's `sftp`) offers one. A token holds no keys: a pipeline that writes files uses
+`korpis files sync` with its token (§8 of `13-surface-cli.md`), which its grants already bound.
+
+**What evaluates a key, where, and with what information.** The relay serving SFTP checks that the
+client holds the key, which only the relay can, and asks the control plane for a file token with
+the key, the workload the client named, and the client's address (§3.1 of `02-architecture.md`).
+The gateway finds the key's account, and fails if the key was removed; evaluates the account's
+grants for `workload.file.write`, or else `workload.file.read`, on the workload, from the client's
+address, as for any caller (§3.2); and, where the key was registered from a confined session,
+evaluates them confined beneath the organization that session was confined to, which the key
+records as a secret set there records it (§9.8), so a key a portal's holder could have seen
+reaches no further than the portal's organization. It mints the token the action allowed, which
+names the account, and records `workload.file.sftp_authorized` on the workload: the account, the
+key's fingerprint, the relay, and the client's address, so the tenant's own trail says which relay
+asked, and through which key.
+
+What it costs, and what it does not do. A removed key ends the sessions it opened when their
+tokens next renew, within one token lifetime, as a revoked grant does (§6.3); nothing on the wire
+names a key, so no revocation list could. The control plane believes the relay that says a client
+holds a key (§3.1 of `02-architecture.md`), so a compromised relay serving SFTP can open file
+sessions as anyone with a registered key; the record of each names the relay, and a relay not
+serving SFTP cannot. There is no per-account bound on how many keys an account holds (P10); each
+key is a few hundred bytes, and registering one is charged as any write is (§10 of `10-api.md`).
+
 ---
 
 ## 10. Open questions

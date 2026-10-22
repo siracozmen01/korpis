@@ -576,11 +576,25 @@ korpis console mc-survival           attach to the durable stream; scrollback, s
 korpis logs mc-survival --since 1h   read without attaching
 korpis exec mc-survival -- /bin/sh   a session, subject to the runtime's isolation tier
 korpis files sync ./world w:mc-survival/world   delta transfer, through a relay
+korpis sftp mc-survival               where an SFTP client connects for it, and the key to expect
 korpis forward mc-survival:25565     local port through the overlay, no public exposure
 korpis watch -f servers/             stream plans and effects as they occur
 korpis event follow sub_… --ack      print a subscription's events as they come, and record them
 korpis version                       client and server versions, and the source revision of each
 ```
+
+**SFTP, designed 2026-10-22** (§3.1 of `02-architecture.md`, §9.9 of `08-identity.md`). `korpis
+ssh-key add ~/.ssh/id_ed25519.pub --label laptop` registers a public key to the signed-in person,
+needing a sign-in within ten minutes, as every change to how they sign in does; a terminal cannot
+re-authenticate, so where its sign-in is older the command shows a code to approve on the panel's
+device page, as `korpis login` does, and adds the key through the session that approval begins,
+ending the one it replaces (Finding 135 of `23-walkthroughs.md`); `korpis ssh-key list` shows each
+by label, kind, fingerprint, when it was added and last used, and the organization it is confined
+beneath where it was registered from a portal's session; `korpis ssh-key remove` removes one.
+`korpis sftp mc-survival` prints, for each relay serving SFTP, the line a client takes (`sftp -P
+2022 wkl_…@relay.example`), the host key's SHA-256 fingerprint, and a `known_hosts` line to add, so
+the first connection is checked rather than trusted; it opens nothing itself, the client being the
+person's own. A token's holder adds no key: a pipeline writes files with `korpis files sync`.
 
 **`logs` as built** (Phase 1): `korpis logs mc-survival [--follow] [--from N | --since 1h]
 [--grep P [--regex]] [--limit N] [--timestamps] [--relay URL]` mints a token for

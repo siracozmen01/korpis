@@ -309,6 +309,29 @@ is, on the workload, so a session under a grant scoped above the workload's orga
 reading a customer's files, is on the tenant's own record as the operator access of §7 of
 `08-identity.md`.
 
+**Over SFTP, designed 2026-10-22.** An SFTP client reaches the same session through a relay that
+serves it (§3.1 of `02-architecture.md`), with an SSH key (§9.9 of `08-identity.md`), and the relay
+is the session's client: SFTP version 3, the version every client speaks, each request answered by
+the session's verbs. Opening a directory and reading it lists it page by page; `STAT` and `LSTAT`
+read a file's metadata, a symbolic link shown as a link; `OPEN`, `READ`, and `WRITE` read and write
+at the offsets the client names, creating or truncating as its flags ask; `MKDIR` makes a
+directory, `RENAME` renames without replacing, which is what version 3 means by it, `REMOVE`
+removes a file, and `RMDIR` removes a directory only once it is empty, as the protocol says,
+whatever a recursive remove in the panel does. `REALPATH` answers paths beneath `/`, the root the
+session sees, with the volumes at their declared paths. A full volume is a failure saying so, a
+session whose token allows reading alone refuses every change as permission denied, and what the
+session cannot do is refused as unsupported rather than faked: `SETSTAT` and `FSETSTAT`, since
+the session sets no permission or time, so a client that sets a file's time after an upload
+reports that it could not; `SYMLINK`; and `READLINK`, since a link is listed and never followed.
+
+What it costs, and what it does not do. An SFTP client writes at the offsets it chooses, several
+in flight at once, so the order the panel and the CLI enforce (`at_end`, above) is not asked of
+it: a connection lost mid-upload can leave a hole a client's resume, which continues from the
+file's size, does not fill. That is how every SFTP server behaves, and what an SFTP client's own
+resume is built for; a person who needs the guarantee uploads with the panel or `korpis files
+sync`. A session over SFTP is recorded exactly as any other, by the node, and the token the relay
+asked for is recorded by the control plane (§9.9 of `08-identity.md`).
+
 **What it does not do.** It does not compress or extract archives, set permissions, or follow a
 symbolic link out of the volumes; a recipe's install does what a recipe needs (§4 of
 `09-recipes.md`), and the rest is for the workload's own tools. It does not reach a volume of a

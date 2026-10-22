@@ -1380,6 +1380,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 132 | A relay of its own would have refused the console of a panel at a portal | §48 | `07-networking.md` §3.6 |
 | 133 | A password set at a portal would have served every grant issued after it | §48 | `08-identity.md` §9.8 |
 | 134 | A customer holding a project's grant alone wore the installation's theme and landing | §49 | `11-surface-web.md` §7, §10 |
+| 135 | A terminal could not register an SSH key ten minutes after signing in | §50 | `08-identity.md` §9.9, `13-surface-cli.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4281,3 +4282,54 @@ landing screen, and identifier, which they could not otherwise read; both were c
 shown to them, and nothing else of the provider's is answered. A viewer whose grants lie beneath
 two providers, as Ada's do, lands at whatever is above both, which may be the installation root,
 whose landing is the operator's; the panel does not choose one provider for her.
+
+## 50. A customer uploads a world with FileZilla, and loses a laptop
+
+Written 2026-10-22, to design SFTP (Phase 2 of §4 of `20-roadmap.md`) before building it.
+Kestrel Hosting runs the installation with a relay of its own, `fra-relay`; Blockhaven, a customer
+beneath Northwind, runs `mc` in `survival`. Blockhaven's owner holds `workload.file.write` on
+`survival`, and Ines, its moderator, `workload.file.read` there. The owner has a 40 GB world on
+a laptop and FileZilla, which speaks SFTP and nothing of Korpis.
+
+The trace was chosen by measuring coverage, as §0 describes: before it, the steps of every trace
+cited `17-security.md` twenty-seven times, the fewest of any document SFTP crosses, and §3.2 of
+`06-storage.md`, where the file session is decided, had been crossed only by traces of the panel
+and the CLI, which are its own clients.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Kestrel turns SFTP on for `fra-relay`: `--sftp-listen 0.0.0.0:2022`. The relay makes its host key at that first start, and reports the address and the key's fingerprint in its feed; `ServerInfo` lists them | `02-architecture.md` §3.1; `18-operations.md` §3 |
+| 2 | The owner, signed in at the panel, adds the laptop's public key to their profile. Their sign-in is an hour old, so the panel asks them to confirm it is them first; the key is recorded as `account.ssh_key_added` | `08-identity.md` §9.6, §9.9; `11-surface-web.md` §1 |
+| 3 | On another machine, the owner runs `korpis ssh-key add` an hour after `korpis login` ‡ | `08-identity.md` §9.4, §9.9; `13-surface-cli.md` §8 |
+| 4 | `korpis sftp mc` prints the line FileZilla takes, `wkl_…@fra-relay.kestrel.example` on port 2022, and the host key's fingerprint, which FileZilla shows on its first connection and the owner compares | `13-surface-cli.md` §8; `17-security.md` §8 |
+| 5 | FileZilla authenticates with the key. The relay checks the client holds it and asks the control plane for a file token for that key, `mc`, and the client's address; the gateway finds the owner's account, evaluates `workload.file.write` on `mc` from that address, mints the token with its route, and records `workload.file.sftp_authorized` naming `fra-relay` and the key | `02-architecture.md` §3.1; `08-identity.md` §9.9, §6 |
+| 6 | The relay opens the file session on `mc`'s node, which verifies the token again, and FileZilla uploads, several writes in flight; at 38 GB the volume is full and the next write fails saying so | `06-storage.md` §3, §3.2 |
+| 7 | The owner deletes old region files, and FileZilla resumes from the file's size. Every write after the first refused was refused too, the volume staying full until then, so the file holds what was written and the resume continues from its end | `06-storage.md` §3.2 |
+| 8 | Ines connects with her own key. She lists and downloads; her first upload is refused as permission denied, her token allowing reading alone | `06-storage.md` §3.2; `08-identity.md` §9.9 |
+| 9 | The laptop is stolen with FileZilla connected. The owner removes the key in the panel; the relay asks again before the token expires, is refused, and the session ends within one token lifetime | `08-identity.md` §9.9, §6.3 |
+| 10 | The tenant reads the trail: each `sftp_authorized` names `fra-relay`, so had Kestrel's relay been compromised, every session it asked for would be on the record under its name | `17-security.md` §8; `15-observability.md` §4 |
+
+**One finding, at step 3** (‡).
+
+**FINDING 135: A terminal could not register an SSH key ten minutes after signing in. `CONFIRMED`**
+
+Found 2026-10-22 writing this trace, by asking the algebra question of step 3: what evaluates the
+ten-minute rule for `korpis ssh-key add`, and with what? Adding a key is a change to how a person
+reaches their account (§9.9 of `08-identity.md`), and such a change needs a session that signed in
+or re-authenticated within ten minutes (§9.6). A session re-authenticates by a passkey ceremony
+or a password with a code, and a terminal does neither: §9.6 already says a caller without such a
+ceremony changes no factor. So the CLI could add a key in the ten minutes after `korpis login` and
+never again, and the person told `session.not_recent` had no way to answer it from where they
+were. The panel answers the same refusal by asking for a factor, which a browser can give.
+
+**Resolution.** Refused as not recent, `korpis ssh-key add` signs the terminal in again by the
+device flow of §9.4: it shows a code to approve on the panel's device page, whose approval
+re-authenticates in the browser first where that sign-in is older than ten minutes, and the
+session the approval begins is signed in at its approval, so it is recent, and the key is added
+through it. The session it replaces is ended, so the terminal holds one. → designed in
+`08-identity.md` §9.9 and `13-surface-cli.md` §8; built with the keys (P2.11).
+
+What it costs. A key added from a terminal needs a browser where the person is signed in, as
+`korpis login` does; a machine with neither can add no key, and its owner adds it from the panel.
