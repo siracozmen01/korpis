@@ -4,11 +4,15 @@
 //! project and of every organization above it that counts it, read from the totals kept beside
 //! each entry, and the entries are held, locked and consumed, in the transaction that writes it.
 //! An organization's entry counts what it promised the organizations beneath it beside what it
-//! holds, so a parent's own workloads never take what it guaranteed a child (Finding 139).
+//! holds, so a parent's own workloads never take what it guaranteed a child (Finding 139). A
+//! refusal names the set and its numbers only to a caller who may read the set's owner (Finding
+//! 140).
 
 use crate::App;
+use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, Counted, QuotaWrite, RecipeSource, Store};
+use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::tenancy::quota::{Exceeded, Held, Promise, QuotaEntry, QuotaOwner, shape};
 use korpis_core::workload::Workload;
 use std::collections::BTreeMap;
@@ -17,10 +21,6 @@ use uuid::Uuid;
 /// The deepest an organization tree is walked; a cycle is impossible by schema, so reaching it
 /// means corrupt data.
 const MAX_DEPTH: usize = 64;
-
-fn exceeded(e: &Exceeded) -> AppError {
-    AppError::QuotaExceeded { dimension: e.dimension.as_str(), message: e.to_string() }
-}
 
 /// What `e`, an organization's entry, promised beneath it: the entries of its shape of the
 /// organizations directly beneath its owner, from `beneath`, each less what it counted of the
@@ -70,11 +70,34 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(chain)
     }
 
+    /// The refusal `caller` is given for `x`: the set's owner, its bound, and what would be held
+    /// where the caller may read that owner, as `GetOrganization` and `GetProject` show the set;
+    /// otherwise only the dimension, since an ancestor's bound and what everything beneath it
+    /// holds are the ancestor's to see, not its tenants' (§8 of docs/10-api.md).
+    async fn quota_refused(&self, caller: &Caller, x: &Exceeded) -> AppError {
+        let (action, object) = match x.owner {
+            QuotaOwner::Organization(o) => ("org.read", ObjectRef::new(Kind::Organization, o)),
+            QuotaOwner::Project(p) => ("project.read", ObjectRef::new(Kind::Project, p)),
+        };
+        let message = match self.permitted(caller, action, object).await {
+            Ok(true) => x.to_string(),
+            Ok(false) => format!(
+                "a quota set you may not read bounds {} {}, and this would exceed it",
+                x.dimension.as_str(),
+                x.side.as_str()
+            ),
+            Err(e) => return e,
+        };
+        AppError::QuotaExceeded { dimension: x.dimension.as_str(), message }
+    }
+
     /// Admits `workload`, which held `old` (nothing, if new) and will hold `new`, against the
-    /// totals of every entry counting it, less what each already counted of it.
+    /// totals of every entry counting it, less what each already counted of it; a refusal is
+    /// told as `caller` may read it.
     pub(super) async fn admit(
         &self,
         tx: &mut S::Tx,
+        caller: &Caller,
         workload: &Workload,
         old: Option<&Held>,
         new: &Held,
@@ -91,7 +114,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 rest.sub(&counted.held);
             }
             let promised = promises(e, &beneath, (&chain, labels), &counted);
-            e.admit_promised(&rest, &promised, old, new).map_err(|x| exceeded(&x))?;
+            if let Err(x) = e.admit_promised(&rest, &promised, old, new) {
+                return Err(self.quota_refused(caller, &x).await);
+            }
         }
         let ids: Vec<Uuid> = counting.iter().map(|e| e.id).collect();
         if !ids.is_empty() {

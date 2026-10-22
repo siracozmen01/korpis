@@ -217,7 +217,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             // Admission runs, so the plan shows a quota refusal too, and the transaction is
             // dropped: nothing is held and nothing is written.
             let p = &prepared;
-            self.admit(&mut tx, &p.declared.workload, p.held.as_ref(), &p.holds).await?;
+            self.admit(&mut tx, caller, &p.declared.workload, p.held.as_ref(), &p.holds).await?;
             return Ok(Reply::Fresh(
                 Box::pin(self.declared_shown(caller, prepared.declared)).await?,
             ));
@@ -286,7 +286,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(p) = passage {
             self.create_set(tx, p).await?;
         }
-        self.write_declaration(tx, base, declared, held.as_ref(), holds).await?;
+        self.write_declaration(tx, caller, base, declared, (held.as_ref(), holds)).await?;
         if let Some(p) = passage {
             self.record_passage(tx, caller, base, declared, p).await?;
         }

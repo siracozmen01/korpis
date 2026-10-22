@@ -229,14 +229,16 @@ fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Ref
 
 /// Every quota entry counting what runs on the candidate that what this placement would run
 /// there exceeds (§5.1 of docs/05-scheduling.md, "Where a workload runs"). Only growth is
-/// refused, as at declaration: what an entry already counts of the workload is its before.
+/// refused, as at declaration: what an entry already counts of the workload is its before. The
+/// refusal is told without its numbers, since whoever may read the node, its owning tenant
+/// among them, may not read the set's owner (Finding 140 of docs/23-walkthroughs.md).
 fn quota(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
     let held = Held::of(req.body);
     req.quota
         .iter()
         .filter(|q| q.entry.counts_on(c.node.labels.as_map()))
         .filter_map(|q| q.entry.admit_promised(&q.rest, &q.promises, q.counted, &held).err())
-        .map(|e| (Check::Quota, e.to_string()))
+        .map(|e| (Check::Quota, e.unnumbered()))
         .collect()
 }
 

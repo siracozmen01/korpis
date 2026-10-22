@@ -871,6 +871,16 @@ as a limit.
   entry admits. Disk includes every volume the workload creates and the most its console stream
   can keep (§5 of `14-streams.md`), and placement reserves the same on the node, since a stream's
   segments are written there.
+- **A refusal names the set to whoever may read it.** Added 2026-10-22 (Finding 140 of
+  `23-walkthroughs.md`). It names the set by its owner, `organization org_…` or `project prj_…`,
+  with its bound and what would be held, to a caller who may read that owner (`org.read` or
+  `project.read`, which show the set); any other caller, a customer refused by its reseller's
+  set, is told only the dimension and the side, since the reseller's bound and what everything
+  beneath it holds are the reseller's (§8 of `10-api.md`). Both are `QUOTA_EXCEEDED` with the
+  dimension as the field. A node's refusal at placement, which whoever may read the node is shown
+  (§8 of `08-identity.md`), names the set and the dimension and no number, since a tenant may own
+  the node. The first build told every caller the entry's text, the ancestor's numbers included,
+  under an identifier no reply carries.
 - **Only growth is refused.** A declaration that holds no more than the workload already did, in a
   dimension, passes even where the entry is exceeded, so lowering a bound never strands a workload
   that then cannot be edited, not even to shrink it.

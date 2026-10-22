@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # shellcheck shell=bash
-# What the end-to-end scripts share (scripts/e2e-phase0.sh, scripts/e2e-phase1.sh): their output,
+# What the end-to-end scripts share (scripts/e2e-phase0.sh to scripts/e2e-phase2.sh): their output,
 # their waiting, the processes they start, and leaving the machine as they found it, however they
 # exit. Sourced by them, not run; it expects $REPO, and sets $BIN, $WORK, $PG, $REGISTRY, and $DB.
 

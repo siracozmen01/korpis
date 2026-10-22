@@ -29,18 +29,19 @@ pub(super) fn moved(w: &Workload) -> AppError {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Admits the declaration against quota, then creates the workload, or appends the intent
+    /// Admits the declaration, which held `held` and will hold `holds`, against quota, telling
+    /// a refusal as `caller` may read it, then creates the workload, or appends the intent
     /// if neither pointer moved since the plan was computed; then inserts the plan.
     pub(super) async fn write_declaration(
         &self,
         tx: &mut S::Tx,
+        caller: &Caller,
         base: &Base,
         d: &Declared,
-        held: Option<&Held>,
-        holds: &Held,
+        (held, holds): (Option<&Held>, &Held),
     ) -> Result<(), AppError> {
         if base.head.is_none() {
-            self.admit(tx, &d.workload, held, holds).await?;
+            self.admit(tx, caller, &d.workload, held, holds).await?;
             tx.create_workload(&d.workload, &d.intent, &d.power).await.map_err(|e| match e {
                 StoreError::Duplicate(Unique::WorkloadName) => AppError::conflict(
                     "workload.name_taken",
@@ -67,7 +68,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             // After the workload's lock, so admissions of one workload are serialized and the
             // lock order is always workload, then quota.
-            self.admit(tx, &d.workload, held, holds).await?;
+            self.admit(tx, caller, &d.workload, held, holds).await?;
             if !tx.append_intent(&d.intent).await? {
                 return Err(moved(&now));
             }

@@ -20,11 +20,13 @@ pub use promised::{Promise, keeps_promises};
 pub use set::{EXCLUSIVE, QuotaSet, SetError, Shape, shape};
 pub use totals::Totals;
 
+use crate::id::{Id, IdKind};
 use crate::labels::LabelSelector;
 use crate::workload::spec::endpoints::Exposure;
 use crate::workload::spec::resources::ReservedLimit;
 use crate::workload::spec::{ConsoleMode, IntentBody};
 use std::collections::BTreeMap;
+use std::fmt;
 use uuid::Uuid;
 
 /// A dimension admission can hold (§3.1 of docs/01-model.md). Egress is metered per period and
@@ -115,6 +117,17 @@ pub enum QuotaOwner {
     Organization(Uuid),
     /// A project.
     Project(Uuid),
+}
+
+impl fmt::Display for QuotaOwner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Organization(id) => {
+                write!(f, "organization {}", Id::from_uuid(IdKind::Organization, *id))
+            }
+            Self::Project(id) => write!(f, "project {}", Id::from_uuid(IdKind::Project, *id)),
+        }
+    }
 }
 
 /// One entry of a quota set.
@@ -241,13 +254,28 @@ pub enum Side {
     Limit,
 }
 
-/// Why a declaration is not admitted.
+impl Side {
+    /// The side as a refusal names it: `reservations` or `limits`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Reservation => "reservations",
+            Self::Limit => "limits",
+        }
+    }
+}
+
+/// Why a declaration is not admitted. It names the set's owner and its numbers, so it is for
+/// whoever may read that owner: a caller who may not is told less (Finding 140 of
+/// docs/23-walkthroughs.md).
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("quota entry {entry} bounds {} {side:?} at {bound}; this would hold {would}",
-        dimension.as_str())]
+#[error("the quota set of {owner} bounds {} {} at {bound}; this would hold {would}",
+        dimension.as_str(), side.as_str())]
 pub struct Exceeded {
     /// The entry.
     pub entry: Uuid,
+    /// Whose set the entry is of.
+    pub owner: QuotaOwner,
     /// The dimension.
     pub dimension: Dimension,
     /// Reservations or limits.
@@ -256,6 +284,19 @@ pub struct Exceeded {
     pub bound: u64,
     /// What would be held, saturating; `u64::MAX` for an unbounded limit.
     pub would: u64,
+}
+
+impl Exceeded {
+    /// The refusal without its numbers: the set and the dimension, for a reader who may not read
+    /// the set's owner, to whom its bound and what everything beneath it holds are not told.
+    #[must_use]
+    pub fn unnumbered(&self) -> String {
+        let (dimension, side) = (self.dimension.as_str(), self.side.as_str());
+        format!(
+            "the quota set of {} bounds {dimension} {side}, and this would exceed it",
+            self.owner
+        )
+    }
 }
 
 impl QuotaEntry {
@@ -325,6 +366,6 @@ impl QuotaEntry {
     }
 
     fn exceeded(&self, dimension: Dimension, side: Side, bound: u64, would: u64) -> Exceeded {
-        Exceeded { entry: self.id, dimension, side, bound, would }
+        Exceeded { entry: self.id, owner: self.owner, dimension, side, bound, would }
     }
 }

@@ -1385,6 +1385,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 137 | The design let a browser reach an endpoint that requires a client certificate over a connection that never presented one | §51 | `07-networking.md` §3.2 |
 | 138 | One HTTP/2 connection could hold as many WebSockets to its workload as it opened streams, past the proxy's bound on connections | §51 | `07-networking.md` §3.2 |
 | 139 | A parent's own workloads could take what it had guaranteed a child, who was then refused below its guarantee | §52 | `05-scheduling.md` §5.1, `01-model.md` §3.1 |
+| 140 | A quota refusal told a customer its reseller's bound and what all the reseller's customers held, and named the entry by an identifier no reader could resolve | §52 | `05-scheduling.md` §5.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4504,8 +4505,10 @@ it while the parent runs workloads of its own.
 | 5 | Ledgerline's customer declares two servers, 8 GiB, within Ledgerline's guarantee; Northwind's entry would hold 16 of 12, and refused the second ‡ | `05-scheduling.md` §5.1 |
 | 6 | Northwind gives a second sub-tenant 4 GiB: the sets beneath it sum to 12 of 12, and it was given, though Northwind runs 4 itself ‡ | `05-scheduling.md` §5.1, "Setting a quota set" |
 | 7 | The host lowers Northwind to 8 GiB, the 8 it guaranteed; lowering a reseller below what it gave is refused, below what it runs is not | `05-scheduling.md` §5.1 |
+| 8 | Ledgerline's customer declares a server whose limit fits what Ledgerline sold it but not what Northwind has left to sell; Northwind's entry refuses it, and the customer reads the refusal, which named that entry, its bound, and what everything beneath Northwind holds ‡ | `05-scheduling.md` §5.1, `10-api.md` §8 |
 
-**One finding, at steps 4 to 6** (‡).
+**Two findings: one at steps 4 to 6, one at step 8** (‡). Finding 140 was found writing
+`scripts/e2e-phase2.sh`, which was to check that the refusal at step 8 names the ancestor.
 
 **FINDING 139: A parent's own workloads could take what it had guaranteed a child, who was then
 refused below its guarantee. `CONFIRMED`, in the code and the document**
@@ -4537,3 +4540,37 @@ set paths, with an API test that walks steps 1 to 7.
 What it costs. Promising is reserving: a reseller that guaranteed most of what it holds runs its
 own servers in the rest, which is what a guarantee is; and an organization whose own servers fill
 what it has not promised cannot promise more until they shrink.
+
+**FINDING 140: A quota refusal told a customer its reseller's bound and what all the reseller's
+customers held together, and named the entry by an identifier no reader could resolve.
+`CONFIRMED`, in the code**
+
+Found 2026-10-22 asking what the customer at step 8 reads, while scripting the step. The refusal
+was the entry's own text: `quota entry <uuid> bounds memory_bytes Limit at <bound>; this would
+hold <total>`. The customer's grants reach Ledgerline's subtree, not Northwind, which §8 of
+`10-api.md` says does not exist for it; yet the refusal gave it Northwind's bound and the sum of
+what Northwind and every one of its customers hold, which is how much Northwind sells and to how
+many. A customer declaring dry runs of growing size could read it to the byte. And the entry's
+identifier appears on no wire: `QuotaEntry` carries no id, so even the host, who may read
+Northwind, could not tell which set had refused without the database.
+
+**Resolution.** A refusal names the set by its owner, `organization org_…` or `project prj_…`,
+with its bound and what would be held, to a caller who may read that owner (`org.read` or
+`project.read`, which show the set); any other caller is told only the dimension and side, "a
+quota set you may not read bounds memory_bytes limits, and this would exceed it", and the error's
+field names the dimension for both. → stated in §5.1 of `05-scheduling.md`; built in
+`crates/korpis-app/src/workload/admit.rs`, with an API test of both readers. What it costs: the
+customer cannot tell its reseller's set from one further up, or by how much it is over; it asks
+its reseller, whose own reading of the same declaration names the set. A placement refusal was
+affected the same way: its text is shown to a holder of `node.read` on the node (§8 of
+`08-identity.md`), and a tenant may own a node, so it now names the set and the dimension and no
+number, whoever reads it.
+
+**Run on a real node.** `scripts/e2e-phase2.sh` walks steps 1 to 5 and 8 through the `korpis`
+CLI, each level acting with a credential the level above issued it and never with root's, at a
+scale of mebibytes: Northwind given 512 and permitted to sell twice that, Kestrel given 256 and
+sold 768, Pinecone given all of Kestrel's. Pinecone's first server runs within all three sets;
+its second, which fits Pinecone's, is refused by Northwind's limits, with Pinecone told only the
+dimension and Northwind, planning the same file, told its own set and bound; Northwind's own
+second server is refused for reaching into what it guaranteed Kestrel; and each credential reads
+only the organizations beneath where it was issued.

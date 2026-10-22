@@ -74,6 +74,7 @@ impl QuotaEntry {
             if mine > before && !guaranteed && would > *bound {
                 return Err(Exceeded {
                     entry: self.id,
+                    owner: self.owner,
                     dimension: *d,
                     side: Side::Reservation,
                     bound: *bound,

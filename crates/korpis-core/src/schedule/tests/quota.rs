@@ -42,7 +42,10 @@ fn a_node_an_entry_counts_is_refused_while_the_workload_would_exceed_it_there() 
     r.quota = &quota;
     let e = place(&r, &candidates, &[], &PlacementPolicy::default());
     assert_eq!(checks(&e, 1), [Check::Quota]);
-    assert!(e.filtered[0].detail.contains("memory_bytes"), "{}", e.filtered[0].detail);
+    let detail = &e.filtered[0].detail;
+    assert!(detail.contains("memory_bytes"), "{detail}");
+    // Whoever may read the node is told the set, not its bound or what is held beneath it.
+    assert!(!detail.contains(&(3 * GIB).to_string()) && !detail.contains("hold"), "{detail}");
     assert!(checks(&e, 2).is_empty(), "the entry does not count the US");
     assert_eq!(e.chosen, Some(us.id));
 
