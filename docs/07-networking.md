@@ -392,11 +392,17 @@ send them, the time a connection may stay idle, and connections in all. A head t
 too many fields is refused 431; a connection beyond the bound is answered 503 on port 80 and closed
 on 443, where there is no TLS yet to answer in; a head not sent in time, a TLS greeting not sent in
 time, and a connection idle past its bound are closed, as HTTP lets a server do with a connection
-it gives up on. A request naming a name its connection's certificate does not serve is refused 421,
+it gives up on. A request naming a name its connection's route does not serve is refused 421,
 and a client asking for a name nobody routes, or one with no certificate yet, gets no handshake.
 What it costs: one more process per node, and a hop through it for every request; and a request's
 body is streamed, not buffered, so a slow workload holds the client's connection open as long as
 the workload does.
+
+> Corrected 2026-10-22 (Finding 137 of `23-walkthroughs.md`). This said a request naming a name
+> its connection's certificate does not serve is refused, which a wildcard certificate shared by
+> two endpoints makes every name of both; the proxy as built refuses any name outside the route its
+> connection's name chose, which is the rule, and what keeps a certificate one route asks for from
+> being skipped by a connection made for another.
 
 **Certificates belong to the control plane.** An endpoint's TLS is `acme` unless it says otherwise:
 the control plane obtains one certificate for the endpoint's names from the ACME directory the
@@ -468,13 +474,72 @@ control plane's own records rather than an observation a node reported. (Correct
 it was built: this said the endpoint's observation, which is what a node reports, and no node knows
 why a directory refused.)
 
-What the ingress does not do in Phase 1, stated plainly: HTTP/3, which needs the UDP path an edge
+What the ingress does not do in Phase 1, stated plainly (three of these designed for Phase 2 below,
+2026-10-22): HTTP/3, which needs the UDP path an edge
 tier brings; HTTP/2 or gRPC to the workload, since a backend's protocol beyond HTTP/1.1 is not yet
 something an endpoint declares (question 12 of §11); WebSocket over HTTP/2; ACME's TLS-ALPN
 challenge, which the HTTP and DNS challenges make unnecessary where port 80 or a DNS provider is
 there; client certificates; and the PROXY protocol for a `passthrough` workload that wants its
 client's address. HTTP/3 arrives with edges in Phase 3, and the rest of these in Phase 2, except
 the backend's protocol, which is a question (§4 of `20-roadmap.md`).
+
+**WebSocket over HTTP/2, client certificates, and the PROXY protocol, designed 2026-10-22** for
+Phase 2. Each is decided by what evaluates it, where, and with what: all three are evaluated by
+the node's proxy, from the route its agent gives it, which the agent builds from the endpoint as
+its assignment declares it, so no step asks the control plane anything at connection time.
+
+*WebSocket over HTTP/2.* The proxy announces extended CONNECT on HTTP/2 (RFC 8441), so a browser
+whose connection to a name is HTTP/2 opens a WebSocket on it, as a stream of that connection,
+rather than on a second connection of HTTP/1.1. A `CONNECT` with `:protocol websocket` is
+forwarded to the workload as the HTTP/1.1 upgrade the workload already understands, with the
+request's path and headers, and once the workload answers `101` the client is answered `200`,
+which is how HTTP/2, having no `101`, says it, and the stream and the upgraded connection are
+joined both ways; any other answer is returned as the stream's response (`research/evidence.md`
+§5). Nothing is
+declared: the workload sees what it sees from an HTTP/1.1 client, with a `Sec-WebSocket-Key` the
+proxy makes, since an HTTP/2 client sends none, and the client is given the subprotocol and
+extensions the workload chose (built 2026-10-22). What it costs: a WebSocket's
+frames share their client's connection with every other request on it, so one slow to read holds
+back flow control for that stream alone, as HTTP/2 does for any stream.
+
+*Client certificates.* An endpoint whose TLS the proxy terminates may ask clients for a
+certificate: `TlsSpec.client_certificates` is `required` or `optional`, and `TlsSpec.client_ca`
+holds, in PEM, the certificates of the authorities it trusts, which are public and travel in the
+declaration, checked at declaration to be certificates, at most sixteen of them and 64 KiB in all.
+The proxy chooses a TLS configuration by the name the client asks for, which it reads before the
+handshake as it does for `passthrough`, so the name's authorities, and no other route's, are the
+ones a certificate is verified against. A `required` endpoint completes no handshake without a
+certificate those authorities issued; an `optional` one completes it and tells the workload none
+was given. The proxy passes the verified certificate to the workload as RFC 9440 says, in
+`Client-Cert`, and the chain the client sent in `Client-Cert-Chain`, and removes both from every
+request a client sends, to every route, so a workload reads them only as the proxy wrote them. A
+`passthrough` endpoint asks for nothing: its workload terminates TLS and asks for certificates
+itself. What it does not do: it checks no revocation, neither a CRL nor OCSP, so a certificate an
+authority revoked is accepted until it expires, and an endpoint that must refuse one sooner
+issues short-lived certificates or checks itself, which the header lets it; and a client refused
+at the handshake sees its browser's error, not a page, because there is no TLS session to answer
+in. A request is served only by the route the connection's own name chose, whose configuration
+the handshake was made in, and any other is refused 421: a browser reuses an HTTP/2 connection for
+every name its certificate covers, and otherwise a name that requires a certificate would be
+reached on a connection made for one that does not (Finding 137 of `23-walkthroughs.md`).
+
+*The PROXY protocol.* A `passthrough` endpoint's workload sees the proxy as its peer (§3.4). Its
+endpoint may declare `client_address: proxy_protocol`, and the proxy then writes a PROXY header,
+version 2, naming the client's address and port and the address it was reached at, before the
+first byte it splices; the endpoint's observed `client_address` says `proxy_protocol`. It is
+refused at declaration on any other endpoint: one the proxy terminates tells its workload by
+`Forwarded` already, and one no proxy carries has no proxy to write the header. The refusal is
+held again where the endpoint is stored and where the proxy reads its route, so no later step
+carries a header to a connection the proxy terminates (built 2026-10-22). The header is TCP over
+IPv4 when both addresses are IPv4, an IPv4 address mapped into IPv6 by a dual-stack socket
+counting as one, and TCP over IPv6 otherwise; it carries no TLVs, since the proxy has read
+nothing of the connection but its SNI, which the workload reads itself. The address reached is
+the one the node's socket was reached at: behind a port forward or a NAT that is the node's own
+address, not the one the client dialled, which no node can know. What it costs: a
+workload that is told to expect the header and does not parse it reads the header as its
+client's first bytes and fails every connection, which is the declaration's to get right; and a
+workload that parses it must accept it only from the proxy, which it can, since only the proxy
+reaches a `passthrough` workload's port through the ingress.
 
 ### 3.3 Protocol-aware routers are extensions
 

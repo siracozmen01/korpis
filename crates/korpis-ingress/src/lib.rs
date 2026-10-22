@@ -9,6 +9,7 @@ pub mod confine;
 pub mod control;
 pub mod forward;
 pub mod headers;
+pub mod proxy_header;
 pub mod serve;
 pub mod sni;
 pub mod stream;

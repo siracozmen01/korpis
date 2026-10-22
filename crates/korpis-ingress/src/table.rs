@@ -27,7 +27,10 @@ pub enum Mode {
     /// verified.
     Https,
     /// Spliced to the workload unread, routed by SNI.
-    Passthrough,
+    Passthrough {
+        /// Whether the workload is first sent a PROXY header, version 2, naming its client.
+        proxy_protocol: bool,
+    },
 }
 
 /// The names one endpoint routes, and where its workload listens.
@@ -121,12 +124,16 @@ fn certified(c: &pb::Certificate) -> Result<CertifiedKey, ConfigError> {
     Ok(key)
 }
 
-fn mode(m: Option<pb::RouteMode>) -> Option<Mode> {
-    match m? {
-        pb::RouteMode::ROUTE_MODE_HTTP => Some(Mode::Http),
-        pb::RouteMode::ROUTE_MODE_HTTPS => Some(Mode::Https),
-        pb::RouteMode::ROUTE_MODE_PASSTHROUGH => Some(Mode::Passthrough),
-        pb::RouteMode::ROUTE_MODE_UNSPECIFIED => None,
+/// How `r` is served; none where it names no mode, or asks for a PROXY header on a connection
+/// the proxy terminates, whose workload is told its client in `Forwarded`.
+fn mode(r: &pb::Route) -> Option<Mode> {
+    match r.mode.as_known()? {
+        pb::RouteMode::ROUTE_MODE_HTTP if !r.proxy_protocol => Some(Mode::Http),
+        pb::RouteMode::ROUTE_MODE_HTTPS if !r.proxy_protocol => Some(Mode::Https),
+        pb::RouteMode::ROUTE_MODE_PASSTHROUGH => {
+            Some(Mode::Passthrough { proxy_protocol: r.proxy_protocol })
+        }
+        _ => None,
     }
 }
 
@@ -142,7 +149,7 @@ impl Table {
             let label = format!("{}/{}", r.workload, r.endpoint);
             let bad = |what: &str| ConfigError(format!("route {label}: {what}"));
             let backend = r.backend.parse().map_err(|_| bad("a backend is ip:port"))?;
-            let mode = mode(r.mode.as_known()).ok_or_else(|| bad("no mode"))?;
+            let mode = mode(r).ok_or_else(|| bad("no mode, or a PROXY header it cannot carry"))?;
             let certificate = match r.certificate.as_str() {
                 "" => None,
                 id => Some(Arc::clone(

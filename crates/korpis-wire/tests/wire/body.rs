@@ -79,3 +79,53 @@ fn a_run_policy_and_its_zone_read_back_exactly_and_unset_parts_are_the_defaults(
     let read = korpis_wire::spec::runs::policy_from_pb("runs", &allow).unwrap();
     assert_eq!(read.max_active, korpis_core::workload::spec::runs::ALLOW_ACTIVE);
 }
+
+#[test]
+fn the_proxy_protocol_is_declared_on_tls_passed_through_and_refused_elsewhere() {
+    use korpis_proto::korpis::v1 as pb;
+    use korpis_wire::spec::endpoints::{endpoint_from_pb, endpoint_to_pb};
+    let json: Value = serde_json::from_str(&encode(&body()).unwrap()).unwrap();
+    assert_eq!(json["endpoints"][2]["clientAddress"], "CLIENT_ADDRESS_PROXY_PROTOCOL");
+    assert_eq!(json["endpoints"][1]["clientAddress"], "CLIENT_ADDRESS_UNSPECIFIED");
+    let declared = endpoint_to_pb(&crate::support::tunnel());
+    let read = endpoint_from_pb("endpoints[0]", &declared).unwrap();
+    assert_eq!(read, crate::support::tunnel(), "reads back");
+    let terminated = pb::EndpointSpec {
+        tls: pb::TlsSpec { source: pb::TlsSource::TLS_SOURCE_ACME.into(), ..Default::default() }
+            .into(),
+        ..declared.clone()
+    };
+    let refused = endpoint_from_pb("endpoints[0]", &terminated).unwrap_err();
+    assert_eq!(refused.field, "endpoints[0].client_address", "the proxy terminates it");
+    let untold = pb::EndpointSpec { tls: None.into(), ..declared.clone() };
+    assert!(endpoint_from_pb("endpoints[0]", &untold).is_err(), "no TLS to pass through");
+    for observed in
+        [pb::ClientAddress::CLIENT_ADDRESS_PRESERVED, pb::ClientAddress::CLIENT_ADDRESS_TRANSLATED]
+    {
+        let said = pb::EndpointSpec { client_address: observed.into(), ..declared.clone() };
+        assert!(endpoint_from_pb("endpoints[0]", &said).is_err(), "{observed:?} is observed");
+    }
+}
+
+#[test]
+fn a_declaration_from_a_recipe_carries_the_proxy_protocol_it_declares() {
+    use korpis_core::workload::spec::endpoints::TlsSpec;
+    use korpis_proto::korpis::v1 as pb;
+    let tunnel = korpis_wire::spec::endpoints::endpoint_to_pb(&crate::support::tunnel());
+    let mut b = pb::IntentBody {
+        recipe: pb::RecipeRef {
+            name: "korpis.io/relay".into(),
+            version: "1.0.0".into(),
+            ..Default::default()
+        }
+        .into(),
+        endpoints: vec![tunnel],
+        ..Default::default()
+    };
+    let (_, declared) = korpis_wire::spec::declare::declaration_from_pb("body", &b).unwrap();
+    let told = Some(TlsSpec::Passthrough { proxy_protocol: true });
+    assert_eq!(declared.endpoints[0].tls, told);
+    b.endpoints[0].tls = None.into();
+    let refused = korpis_wire::spec::declare::declaration_from_pb("body", &b).unwrap_err();
+    assert_eq!(refused.field, "body.endpoints[0].client_address");
+}

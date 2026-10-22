@@ -16,3 +16,4 @@ mod passthrough;
 mod plain;
 mod support;
 mod terminated;
+mod websocket_h2;

@@ -1221,11 +1221,16 @@ Endpoint
                                  `node_bound`
   address       Address?         assigned; shape depends on exposure
   client_address  preserved | translated | proxy_protocol   how the workload sees the client
-                                 (§3.4 of 07-networking.md)
+                                 (§3.4 of 07-networking.md); declared only as proxy_protocol,
+                                 on an ingress passthrough endpoint (§3.2 there), added
+                                 2026-10-22
   domains       []string         for ingress exposure only: 1 to 100 exact names its
                                  organization holds, each routed by no other endpoint (§3.2
                                  of 07-networking.md)
-  tls           TLSSpec?         acme (the default), provided (a Certificate), or passthrough
+  tls           TLSSpec?         acme (the default), provided (a Certificate), or passthrough;
+                                 for TLS the proxy terminates, the client certificates it asks
+                                 for and the authorities it trusts (§3.2 of 07-networking.md),
+                                 added 2026-10-22
   certificate   CertificateID?   for ingress the proxy terminates: the certificate it is served
                                  with, once one with a key is held, and that certificate's
                                  revision, so its node fetches it again when it changes

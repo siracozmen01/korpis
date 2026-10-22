@@ -39,6 +39,16 @@ fn endpoint(name: &str, protocol: Protocol, port: u16) -> EndpointSpec {
     }
 }
 
+/// TLS the proxy passes through, its workload told who connected by a PROXY header.
+pub fn tunnel() -> EndpointSpec {
+    EndpointSpec {
+        exposure: Exposure::Ingress,
+        domains: vec!["tunnel.example.com".into()],
+        tls: Some(TlsSpec::Passthrough { proxy_protocol: true }),
+        ..endpoint("tunnel", Protocol::Tcp, 8443)
+    }
+}
+
 /// Where the fixture's workload may connect out.
 pub fn egress() -> korpis_core::workload::spec::EgressPolicy {
     let rule = NetworkRule {
@@ -207,7 +217,7 @@ pub fn body() -> IntentBody {
                 from_backup: None,
             },
         ],
-        endpoints: vec![endpoint("game", Protocol::Tcp, 25565), web()],
+        endpoints: vec![endpoint("game", Protocol::Tcp, 25565), web(), tunnel()],
         health: health(),
         config: config(),
         placement: placement(),

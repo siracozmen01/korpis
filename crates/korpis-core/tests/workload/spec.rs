@@ -36,12 +36,12 @@ fn an_ingress_endpoint_routes_exact_names_over_http_or_tls_it_passes_through() {
     let shop = &["shop.example.com"][..];
     assert!(valid(Box::new(ingress(Protocol::Http, None, shop))).is_ok(), "ACME by default");
     assert!(valid(Box::new(ingress(Protocol::Https, Some(TlsSpec::Acme), shop))).is_ok());
-    assert!(valid(Box::new(ingress(Protocol::Tcp, Some(TlsSpec::Passthrough), shop))).is_ok());
+    for proxy_protocol in [false, true] {
+        let passthrough = Some(TlsSpec::Passthrough { proxy_protocol });
+        assert!(valid(Box::new(ingress(Protocol::Tcp, passthrough.clone(), shop))).is_ok());
+        assert_eq!(refused(ingress(Protocol::Http, passthrough, shop)), "endpoints[0].tls");
+    }
     assert_eq!(refused(ingress(Protocol::Tcp, None, shop)), "endpoints[0].tls");
-    assert_eq!(
-        refused(ingress(Protocol::Http, Some(TlsSpec::Passthrough), shop)),
-        "endpoints[0].tls"
-    );
     assert_eq!(refused(ingress(Protocol::Udp, None, shop)), "endpoints[0].protocol");
     let provided = Some(TlsSpec::Provided { secret: String::new() });
     assert_eq!(refused(ingress(Protocol::Http, provided, shop)), "endpoints[0].tls.secret");

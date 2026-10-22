@@ -4,10 +4,11 @@
 //! answers ACME's HTTP challenges and redirects everything else it routes to HTTPS. On 443 it
 //! reads the name the client asks for, then either splices the connection to a `passthrough`
 //! workload unread or terminates TLS with the route's certificate and serves HTTP/1.1 and
-//! HTTP/2, routing each request whose `Host` is one of the route's names.
+//! HTTP/2, routing each request whose `Host` is one of the route's names, and a WebSocket opened
+//! on either.
 
 use crate::forward::{Backends, Body, Origin, answer};
-use crate::headers::wants_websocket;
+use crate::headers::{wants_websocket, wants_websocket_h2};
 use crate::sni::read_hello;
 use crate::stream::{Idle, Replay};
 use crate::table::{Limits, Mode, Route, Table, normal};
@@ -173,12 +174,20 @@ fn answer_owned(status: StatusCode, text: String) -> Response<Body> {
 
 async fn secure_connection(shared: &Arc<Shared>, stream: TcpStream, client: SocketAddr) {
     let limits = shared.table().limits;
+    let reached = stream.local_addr();
     let mut io = Idle::new(stream, limits.idle_timeout);
     let Ok(Ok(hello)) = timeout(limits.header_timeout, read_hello(&mut io)).await else { return };
     let route = hello.name.as_deref().and_then(|n| shared.table().route(n).cloned());
     let Some(route) = route else { return };
-    if route.mode == Mode::Passthrough {
-        return passthrough(io, hello.read, route.backend).await;
+    if let Mode::Passthrough { proxy_protocol } = route.mode {
+        let mut read = hello.read;
+        if proxy_protocol {
+            // The header names the address the client reached; without it there is no header,
+            // and a workload that expects one is not sent the connection without it.
+            let Ok(reached) = reached else { return };
+            read.splice(0..0, crate::proxy_header::v2(client, reached));
+        }
+        return passthrough(io, read, route.backend).await;
     }
     let acceptor = tokio_rustls::TlsAcceptor::from(Arc::clone(&shared.tls));
     let accepted = timeout(limits.header_timeout, acceptor.accept(Replay::new(hello.read, io)));
@@ -191,7 +200,12 @@ async fn secure_connection(shared: &Arc<Shared>, stream: TcpStream, client: Sock
         .max_buf_size(limits.max_header_bytes)
         .max_headers(limits.max_headers);
     let header_bytes = u32::try_from(limits.max_header_bytes).unwrap_or(u32::MAX);
-    builder.http2().timer(TokioTimer::new()).max_header_list_size(header_bytes);
+    // Extended CONNECT (RFC 8441), so a WebSocket can open on an HTTP/2 connection.
+    builder
+        .http2()
+        .timer(TokioTimer::new())
+        .max_header_list_size(header_bytes)
+        .enable_connect_protocol();
     let shared = Arc::clone(shared);
     let service = service_fn(move |req| {
         let (shared, route) = (Arc::clone(&shared), Arc::clone(&route));
@@ -220,10 +234,14 @@ async fn request(
     if req.version() == Version::HTTP_11 && wants_websocket(req.headers()) {
         return shared.backends.websocket(&origin, req).await;
     }
+    if req.version() == Version::HTTP_2 && wants_websocket_h2(&req) {
+        return shared.backends.websocket_h2(&origin, req).await;
+    }
     shared.backends.forward(&origin, req).await
 }
 
-/// Splices a client to a `passthrough` workload, first giving it the bytes read to route it.
+/// Splices a client to a `passthrough` workload, first giving it the bytes read to route it,
+/// after the PROXY header where its endpoint declared one.
 async fn passthrough(mut client: Idle<TcpStream>, read: Vec<u8>, backend: SocketAddr) {
     let connected = timeout(Duration::from_secs(10), TcpStream::connect(backend)).await;
     let Ok(Ok(mut workload)) = connected else { return };

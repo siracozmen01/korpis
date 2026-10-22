@@ -196,6 +196,22 @@ message EndpointSpec {
   NetworkPolicy policy = 7;
   bool accounting = 8;
   ShapingSpec shaping = 9;
+  // How the workload is told who its client is, declared only as CLIENT_ADDRESS_PROXY_PROTOCOL
+  // and only on an ingress endpoint whose TLS is passed through, whose workload is then sent a
+  // PROXY header before the connection's first byte (§3.2 of docs/07-networking.md). Left
+  // unspecified, the platform says how the workload sees its client: Endpoint.client_address.
+  ClientAddress client_address = 10;
+}
+
+// How the workload sees the client (§3.4 of docs/07-networking.md). Defined here, beside the
+// declaration that may name it, and observed on korpis.v1.Endpoint; moved 2026-10-22 from
+// attached.proto, in the same package, so its name and its numbers are unchanged.
+enum ClientAddress {
+  CLIENT_ADDRESS_UNSPECIFIED = 0;
+  CLIENT_ADDRESS_PRESERVED = 1;
+  CLIENT_ADDRESS_TRANSLATED = 2;
+  // Delivered by PROXY protocol v2, by the ingress proxy, to a workload that declared it.
+  CLIENT_ADDRESS_PROXY_PROTOCOL = 3;
 }
 
 message TlsSpec {

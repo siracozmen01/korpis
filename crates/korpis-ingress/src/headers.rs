@@ -79,6 +79,16 @@ pub fn wants_websocket(h: &HeaderMap) -> bool {
     has(header::CONNECTION, "upgrade") && has(header::UPGRADE, "websocket")
 }
 
+/// Whether `req`, on HTTP/2, opens a WebSocket by extended CONNECT (RFC 8441 §4): a `CONNECT`
+/// whose `:protocol` is `websocket`.
+pub fn wants_websocket_h2<B>(req: &http::Request<B>) -> bool {
+    req.method() == http::Method::CONNECT
+        && req
+            .extensions()
+            .get::<hyper::ext::Protocol>()
+            .is_some_and(|p| p.as_str().eq_ignore_ascii_case("websocket"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

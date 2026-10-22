@@ -40,6 +40,10 @@ message Route {
   // The workload and endpoint, for what the proxy logs.
   string workload = 5;
   string endpoint = 6;
+  // For ROUTE_MODE_PASSTHROUGH alone, and refused with any other mode: the workload is sent a
+  // PROXY header, version 2, naming its client and the address the client reached, before the
+  // first byte spliced to it (§3.2 of docs/07-networking.md).
+  bool proxy_protocol = 7;
 }
 
 enum RouteMode {

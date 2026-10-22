@@ -1382,6 +1382,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 134 | A customer holding a project's grant alone wore the installation's theme and landing | §49 | `11-surface-web.md` §7, §10 |
 | 135 | A terminal could not register an SSH key ten minutes after signing in | §50 | `08-identity.md` §9.9, `13-surface-cli.md` §8 |
 | 136 | Anyone could register another person's public key, and their SFTP client then signed in as the squatter | §50 | `08-identity.md` §9.9, `13-surface-cli.md` §8 |
+| 137 | The design let a browser reach an endpoint that requires a client certificate over a connection that never presented one | §51 | `07-networking.md` §3.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4372,3 +4373,56 @@ takes `--signature` made elsewhere; the panel shows the command with the person'
 What it costs. Adding a key is one more step: running a command where the key is. A key that
 cannot sign arbitrary text through `ssh-keygen` cannot be added, and RSA is bounded at 8,192 bits,
 the most the verifier checks a signature of.
+
+## 51. A customer locks its API to its own devices, behind the name its panel shares
+
+Written 2026-10-22, to design the ingress's remaining features (Phase 2 of §4 of `20-roadmap.md`,
+§3.2 of `07-networking.md`) before building them. Ledgerline, a customer beneath Northwind, runs
+two workloads behind Kestrel's ingress: `app`, a web application whose pages talk to their server
+over WebSocket, and `api`, which only Ledgerline's own devices may call, each holding a
+certificate Ledgerline's own authority issued. Ledgerline uploads one `provided` wildcard
+certificate for `*.ledgerline.example` and names it on both endpoints. A third workload, `relay`,
+is a TLS service of its own behind `passthrough`, which bans abusive clients by address.
+
+The trace was chosen by measuring coverage: §3.2 of `07-networking.md` had been crossed by four
+traces, every one of them about certificates and names, and none by a request's path through the
+proxy once a connection was open.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Ledgerline declares `api` with `tls.client_certificates: required` and its authority in `tls.client_ca`; the control plane checks the authority is certificates, sixteen at most, and declares it | `07-networking.md` §3.2; `01-model.md` Endpoint |
+| 2 | The agent on `api`'s node builds the route with the authority, from the endpoint its assignment declares; the proxy, reading the name in the client's first message, chooses that route's TLS configuration, which asks for a certificate | `07-networking.md` §3.2 |
+| 3 | A device presents its certificate; the proxy verifies it against Ledgerline's authority, removes any `Client-Cert` the device sent, and passes the verified one in `Client-Cert` | `07-networking.md` §3.2; RFC 9440 |
+| 4 | A browser loads `app.ledgerline.example` over HTTP/2 and opens a WebSocket on the same connection by extended CONNECT; the proxy forwards it to `app` as an HTTP/1.1 upgrade and joins the two | `07-networking.md` §3.2; RFC 8441 |
+| 5 | A page of `app` calls `api.ledgerline.example`. The wildcard certificate serves both names, so the browser sends the call on the connection it already holds to `app`, which presented no client certificate ‡ | `07-networking.md` §3.2; RFC 9113 §9.1.1 |
+| 6 | Ledgerline declares `client_address: proxy_protocol` on `app` by mistake, and is refused: `app`'s TLS is the proxy's, and `Forwarded` tells it already. On `relay`, a `passthrough` endpoint, it is declared, and the proxy writes a PROXY header before the first byte it splices | `07-networking.md` §3.2, §3.4 |
+| 7 | `relay` bans an address it read from the header; the ban holds, since only the proxy reaches the port through the ingress | `07-networking.md` §3.4 |
+| 8 | A device is stolen and its certificate revoked by Ledgerline's authority. The proxy checks no revocation, so `api` accepts it until it expires; Ledgerline's certificates last a day, which bounds it | `17-security.md` §6 |
+
+**One finding, at step 5** (‡).
+
+**FINDING 137: The design let a browser reach an endpoint that requires a client certificate
+over a connection that never presented one. `CONFIRMED`, in the document; the proxy as built
+already refused it**
+
+Found 2026-10-22 writing this trace, by asking the algebra question of step 5: what evaluates the
+client certificate of a request, and with what? The proxy evaluates it once, at the handshake, in
+the configuration the name the client asked for chose. A browser reuses an HTTP/2 connection for
+any name the connection's certificate covers (RFC 9113 §9.1.1), and §3.2 of `07-networking.md`
+said only that a request naming a name the connection's certificate does not serve is refused
+421. With a wildcard certificate on both endpoints, the call to `api` would have been routed on
+the connection made for `app`, whose handshake asked for no certificate. Checked against the
+proxy as built (`crates/korpis-ingress/src/serve.rs`), it refuses any name outside the route its
+connection's name chose, so the code held and the document did not.
+
+**Resolution.** §3.2 of `07-networking.md` is corrected in place to the rule the proxy holds: a
+request is served only by the route the connection's own name chose, whose configuration the
+handshake was made in, and any other is refused 421, which tells the browser to open a
+connection for that name, whose handshake then asks for the certificate. → corrected in §3.2 of
+`07-networking.md`; the client certificates are built on it (P2.12d), with a test of a coalesced
+request.
+
+What it costs. A page that calls a certificate-protected name from one that is not opens a second
+connection, as it would to an unrelated name.

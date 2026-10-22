@@ -3,7 +3,8 @@
 //! Forwarding a request to its workload over HTTP/1.1 (§3.2 of docs/07-networking.md), within
 //! TLS for a workload that serves its own certificate. Connections to workloads are pooled. A
 //! WebSocket upgrade gets a connection of its own, and once the workload agrees the two
-//! connections are joined byte for byte.
+//! connections are joined byte for byte; one opened on HTTP/2 by extended CONNECT (RFC 8441) is
+//! forwarded as the same HTTP/1.1 upgrade, and its stream joined to the workload's connection.
 
 use crate::headers::{set_forwarded, strip_hop_by_hop};
 use crate::table::{Mode, Route};
@@ -127,12 +128,65 @@ impl Backends {
         Response::from_parts(parts, body.boxed())
     }
 
+    /// Forwards a WebSocket opened on HTTP/2 by extended CONNECT (RFC 8441) as the HTTP/1.1
+    /// upgrade the workload understands, with a key the proxy makes, since an HTTP/2 client sends
+    /// none; once the workload switches protocols the client is answered 200, HTTP/2 having no
+    /// 101, and the stream is joined to the workload's connection. Any other answer is returned.
+    pub async fn websocket_h2(
+        &self,
+        origin: &Origin,
+        mut req: Request<Incoming>,
+    ) -> Response<Body> {
+        let from_client = hyper::upgrade::on(&mut req);
+        let (mut parts, _) = req.into_parts();
+        let mut asked = Request::new(Empty::<Bytes>::new());
+        *asked.uri_mut() = parts.uri.path_and_query().map_or_else(
+            || Uri::from_static("/"),
+            |pq| Uri::try_from(pq.as_str()).unwrap_or_else(|_| Uri::from_static("/")),
+        );
+        prepare(&mut parts.headers, origin, true);
+        let h = &mut parts.headers;
+        h.insert(header::CONNECTION, HeaderValue::from_static("upgrade"));
+        h.insert(header::UPGRADE, HeaderValue::from_static("websocket"));
+        if let Some(key) = websocket_key() {
+            h.insert(header::SEC_WEBSOCKET_KEY, key);
+        }
+        h.entry(header::SEC_WEBSOCKET_VERSION).or_insert(HeaderValue::from_static("13"));
+        *asked.headers_mut() = parts.headers;
+        let mut response = match self.upgrade(&origin.route, asked).await {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!(route = %origin.route.label, error = %e, "no WebSocket to the workload");
+                return answer(StatusCode::BAD_GATEWAY, "the workload did not answer\n");
+            }
+        };
+        if response.status() != StatusCode::SWITCHING_PROTOCOLS {
+            let (mut parts, body) = response.into_parts();
+            strip_hop_by_hop(&mut parts.headers, false);
+            return Response::from_parts(parts, body.boxed());
+        }
+        let from_workload = hyper::upgrade::on(&mut response);
+        tokio::spawn(join(from_client, from_workload));
+        let mut opened = Response::new(empty());
+        for name in [header::SEC_WEBSOCKET_PROTOCOL, header::SEC_WEBSOCKET_EXTENSIONS] {
+            if let Some(v) = response.headers().get(&name) {
+                opened.headers_mut().insert(name, v.clone());
+            }
+        }
+        opened
+    }
+
     /// Sends `req` on a new HTTP/1.1 connection to `route`'s workload, kept for an upgrade.
-    async fn upgrade(
+    async fn upgrade<B>(
         &self,
         route: &Route,
-        req: Request<Incoming>,
-    ) -> Result<Response<Incoming>, Box<dyn std::error::Error + Send + Sync>> {
+        req: Request<B>,
+    ) -> Result<Response<Incoming>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        B: hyper::body::Body + Send + 'static,
+        B::Data: Send,
+        B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
+    {
         let tcp = TcpStream::connect(route.backend).await?;
         tcp.set_nodelay(true)?;
         if route.mode == Mode::Https {
@@ -153,18 +207,30 @@ async fn join(client: hyper::upgrade::OnUpgrade, workload: hyper::upgrade::OnUpg
     let _ = tokio::io::copy_bidirectional(&mut client, &mut workload).await;
 }
 
-async fn send<I>(
+async fn send<I, B>(
     io: I,
-    req: Request<Incoming>,
+    req: Request<B>,
 ) -> Result<Response<Incoming>, Box<dyn std::error::Error + Send + Sync>>
 where
     I: hyper::rt::Read + hyper::rt::Write + Unpin + Send + 'static,
+    B: hyper::body::Body + Send + 'static,
+    B::Data: Send,
+    B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let (mut sender, connection) = hyper::client::conn::http1::handshake(io).await?;
     tokio::spawn(async move {
         let _ = connection.with_upgrades().await;
     });
     Ok(sender.send_request(req).await?)
+}
+
+/// A fresh `Sec-WebSocket-Key`: sixteen random bytes in base64 (RFC 6455 §4.1).
+fn websocket_key() -> Option<HeaderValue> {
+    use base64::Engine as _;
+    let mut nonce = [0u8; 16];
+    crate::unverified::provider().secure_random.fill(&mut nonce).ok()?;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(nonce);
+    HeaderValue::from_str(&encoded).ok()
 }
 
 /// The headers a request leaves with: its own, less what describes its hop and what says where

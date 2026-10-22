@@ -39,7 +39,7 @@ pub(crate) fn tls_to_pb(t: &TlsSpec) -> pb::TlsSpec {
     let (source, secret) = match t {
         TlsSpec::Acme => (pb::TlsSource::TLS_SOURCE_ACME, String::new()),
         TlsSpec::Provided { secret } => (pb::TlsSource::TLS_SOURCE_PROVIDED, secret.clone()),
-        TlsSpec::Passthrough => (pb::TlsSource::TLS_SOURCE_PASSTHROUGH, String::new()),
+        TlsSpec::Passthrough { .. } => (pb::TlsSource::TLS_SOURCE_PASSTHROUGH, String::new()),
     };
     pb::TlsSpec { source: source.into(), secret, ..Default::default() }
 }
@@ -50,8 +50,38 @@ pub(crate) fn tls_from_pb(field: &str, t: &pb::TlsSpec) -> Result<TlsSpec> {
         Some(pb::TlsSource::TLS_SOURCE_PROVIDED) => {
             Ok(TlsSpec::Provided { secret: t.secret.clone() })
         }
-        Some(pb::TlsSource::TLS_SOURCE_PASSTHROUGH) => Ok(TlsSpec::Passthrough),
+        Some(pb::TlsSource::TLS_SOURCE_PASSTHROUGH) => {
+            Ok(TlsSpec::Passthrough { proxy_protocol: false })
+        }
         _ => Err(invalid(&format!("{field}.source"), "expected a TLS source")),
+    }
+}
+
+/// The client address `e` declares, as its TLS: `proxy_protocol` is declared on an endpoint
+/// whose TLS is passed through and on no other, and the other ways a workload sees its client
+/// are the platform's to say, never declared (§3.2 and §3.4 of docs/07-networking.md).
+pub(crate) fn client_address_from_pb(
+    field: &str,
+    e: &pb::EndpointSpec,
+    tls: Option<TlsSpec>,
+) -> Result<Option<TlsSpec>> {
+    match (e.client_address.as_known(), tls) {
+        (Some(pb::ClientAddress::CLIENT_ADDRESS_UNSPECIFIED), tls) => Ok(tls),
+        (Some(pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL), tls) => match tls {
+            Some(TlsSpec::Passthrough { .. }) => {
+                Ok(Some(TlsSpec::Passthrough { proxy_protocol: true }))
+            }
+            _ => Err(invalid(
+                field,
+                "the PROXY protocol is written by the proxy that passes TLS through: declared \
+                 only with tls passthrough (§3.2 of docs/07-networking.md)",
+            )),
+        },
+        _ => Err(invalid(
+            field,
+            "only proxy_protocol is declared; preserved and translated say what the platform \
+             does (§3.4 of docs/07-networking.md)",
+        )),
     }
 }
 
@@ -178,6 +208,11 @@ pub fn endpoint_to_pb(e: &EndpointSpec) -> pb::EndpointSpec {
         exposure: exposure_to_pb(e.exposure).into(),
         domains: e.domains.clone(),
         tls: e.tls.as_ref().map(tls_to_pb).into(),
+        client_address: if matches!(e.tls, Some(TlsSpec::Passthrough { proxy_protocol: true })) {
+            pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL.into()
+        } else {
+            pb::ClientAddress::CLIENT_ADDRESS_UNSPECIFIED.into()
+        },
         policy: policy_to_pb(&e.policy).into(),
         accounting: e.accounting,
         shaping: pb::ShapingSpec {
@@ -199,7 +234,11 @@ pub fn endpoint_from_pb(field: &str, e: &pb::EndpointSpec) -> Result<EndpointSpe
         container_port: fits(&f("container_port"), u64::from(e.container_port))?,
         exposure: exposure_from_pb(&f("exposure"), e.exposure)?,
         domains: e.domains.clone(),
-        tls: e.tls.as_option().map(|t| tls_from_pb(&f("tls"), t)).transpose()?,
+        tls: client_address_from_pb(
+            &f("client_address"),
+            e,
+            e.tls.as_option().map(|t| tls_from_pb(&f("tls"), t)).transpose()?,
+        )?,
         policy: policy_from_pb(&f("policy"), e.policy.as_option())?,
         accounting: e.accounting,
         shaping: e.shaping.as_option().map_or_else(ShapingSpec::default, |s| ShapingSpec {

@@ -6,7 +6,7 @@ use crate::spec::endpoints::{exposure_to_pb, protocol_to_pb, tls_to_pb};
 use crate::wire_id;
 use korpis_core::id::IdKind;
 use korpis_core::workload::endpoint::Endpoint;
-use korpis_core::workload::spec::endpoints::Exposure;
+use korpis_core::workload::spec::endpoints::{Exposure, TlsSpec};
 use korpis_proto::korpis::v1 as pb;
 use std::net::IpAddr;
 
@@ -38,8 +38,11 @@ pub fn endpoint_to_pb(e: &Endpoint, addresses: &[IpAddr]) -> pb::Endpoint {
         address: address.into(),
         // The node forwards to the workload by translating the destination alone (§3 of
         // docs/07-networking.md); the ingress proxy is the workload's peer, and says who the
-        // client was in a header only it writes (§3.4 there).
-        client_address: if ingress {
+        // client was in a header only it writes (§3.4 there), or, to a workload whose TLS it
+        // passes through and that declared it, in a PROXY header (§3.2 there).
+        client_address: if matches!(e.tls, Some(TlsSpec::Passthrough { proxy_protocol: true })) {
+            pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL.into()
+        } else if ingress {
             pb::ClientAddress::CLIENT_ADDRESS_TRANSLATED.into()
         } else if e.port.is_some() {
             pb::ClientAddress::CLIENT_ADDRESS_PRESERVED.into()

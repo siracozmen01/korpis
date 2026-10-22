@@ -86,6 +86,8 @@ pub fn config(
             workload: workload.clone(),
             endpoint: e.name.clone(),
             certificate: e.certificate.clone(),
+            proxy_protocol: e.client_address.as_known()
+                == Some(pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL),
             ..Default::default()
         }));
     }

@@ -66,7 +66,12 @@ pub enum TlsSpec {
         secret: String,
     },
     /// Not terminated: the workload handles TLS itself.
-    Passthrough,
+    Passthrough {
+        /// Whether the proxy tells the workload its client's address in a PROXY header, version
+        /// 2, before the first byte it splices: the endpoint's declared `client_address:
+        /// proxy_protocol` (§3.2 of docs/07-networking.md).
+        proxy_protocol: bool,
+    },
 }
 
 /// Allow or deny.
@@ -233,14 +238,14 @@ pub const MAX_INGRESS_NAMES: usize = 100;
 fn check_ingress(at: &dyn Fn(&str) -> String, e: &EndpointSpec) -> Result<(), SpecError> {
     match (e.protocol, &e.tls) {
         (Protocol::Http | Protocol::Https, None | Some(TlsSpec::Acme))
-        | (Protocol::Tcp, Some(TlsSpec::Passthrough)) => {}
+        | (Protocol::Tcp, Some(TlsSpec::Passthrough { .. })) => {}
         (Protocol::Http | Protocol::Https, Some(TlsSpec::Provided { secret })) => {
             if secret.is_empty() {
                 let why = "a provided certificate is named by its identifier";
                 return Err(SpecError::new(&at("tls.secret"), why));
             }
         }
-        (Protocol::Tcp, _) | (_, Some(TlsSpec::Passthrough)) => {
+        (Protocol::Tcp, _) | (_, Some(TlsSpec::Passthrough { .. })) => {
             let why = "TLS the proxy does not terminate is tcp with tls passthrough, routed by SNI";
             return Err(SpecError::new(&at("tls"), why));
         }

@@ -88,15 +88,6 @@ message Address {
   string edge_group = 4;
 }
 
-// How the workload sees the client (§3.4 of docs/07-networking.md).
-enum ClientAddress {
-  CLIENT_ADDRESS_UNSPECIFIED = 0;
-  CLIENT_ADDRESS_PRESERVED = 1;
-  CLIENT_ADDRESS_TRANSLATED = 2;
-  // Delivered by PROXY protocol v2 to a router that requested it.
-  CLIENT_ADDRESS_PROXY_PROTOCOL = 3;
-}
-
 // A durable, addressable channel of output from a workload.
 message Stream {
   string id = 1;

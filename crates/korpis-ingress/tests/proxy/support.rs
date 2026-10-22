@@ -114,7 +114,11 @@ fn answer(mut req: Request<Incoming>, workload: &'static str) -> Response<Full<B
 }
 
 /// Serves one connection at workload `name`, behind `tls` if it has its own.
-async fn serve_one(stream: TcpStream, tls: Option<Arc<rustls::ServerConfig>>, name: &'static str) {
+pub async fn serve_one(
+    stream: TcpStream,
+    tls: Option<Arc<rustls::ServerConfig>>,
+    name: &'static str,
+) {
     let service = service_fn(move |req| std::future::ready(Ok::<_, Infallible>(answer(req, name))));
     let http = hyper::server::conn::http1::Builder::new();
     let Some(config) = tls else {
@@ -179,13 +183,22 @@ pub async fn connect(
     name: &str,
     alpn: &[&[u8]],
 ) -> std::io::Result<tokio_rustls::client::TlsStream<TcpStream>> {
+    tls_over(pki, TcpStream::connect(at).await?, name, alpn).await
+}
+
+/// TLS over `tcp`, asking for `name`, offering `alpn`.
+pub async fn tls_over(
+    pki: &Pki,
+    tcp: TcpStream,
+    name: &str,
+    alpn: &[&[u8]],
+) -> std::io::Result<tokio_rustls::client::TlsStream<TcpStream>> {
     let mut config = rustls::ClientConfig::builder_with_provider(provider())
         .with_safe_default_protocol_versions()
         .unwrap()
         .with_root_certificates(pki.roots())
         .with_no_client_auth();
     config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
-    let tcp = TcpStream::connect(at).await?;
     let name = ServerName::try_from(name.to_owned()).unwrap();
     tokio_rustls::TlsConnector::from(Arc::new(config)).connect(name, tcp).await
 }

@@ -16,6 +16,7 @@ mod accounts;
 mod assertion;
 mod buckets;
 mod chain;
+mod endpoints;
 mod epochs;
 mod events;
 mod grant_notify;

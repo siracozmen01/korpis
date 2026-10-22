@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,\n                    domains, tls, tls_secret, certificate_id, certificate_revision\n               FROM endpoint WHERE workload_id = $1 ORDER BY name",
+  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,\n                    domains, tls, tls_secret, proxy_protocol, certificate_id, certificate_revision\n               FROM endpoint WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -126,6 +126,17 @@
       },
       {
         "ordinal": 11,
+        "name": "proxy_protocol",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "proxy_protocol"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
         "name": "certificate_id",
         "type_info": "Uuid",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "certificate_revision",
         "type_info": "Int8",
         "origin": {
@@ -164,9 +175,10 @@
       false,
       true,
       false,
+      false,
       true,
       true
     ]
   },
-  "hash": "fef9069ed7de0b5b705ece2c2b0e23fb6d049995953c3b978cee9d6048758071"
+  "hash": "5956373a22049c58b5d79c0f3621410b80fa2c377fc9714d211f0edc0201085c"
 }

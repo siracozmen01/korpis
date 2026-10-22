@@ -31,6 +31,7 @@ fn each_ingress_endpoint_of_a_workload_with_an_address_is_a_route() {
     tls.tls =
         pb::TlsSpec { source: pb::TlsSource::TLS_SOURCE_PASSTHROUGH.into(), ..Default::default() }
             .into();
+    tls.client_address = pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL.into();
     let w1 = agent::Assignment {
         endpoints: vec![
             endpoint("web", http, pb::Exposure::EXPOSURE_INGRESS),
@@ -60,6 +61,8 @@ fn each_ingress_endpoint_of_a_workload_with_an_address_is_a_route() {
         ],
         "w2 has no address yet"
     );
+    let told: Vec<bool> = c.routes.iter().map(|r| r.proxy_protocol).collect();
+    assert_eq!(told, [false, true], "a PROXY header where the endpoint declared one");
 }
 
 #[test]

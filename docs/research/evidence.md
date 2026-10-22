@@ -568,6 +568,33 @@ Primary:
   [AQtive Guard](https://docs.aqtiveguard.com/kb-articles/cryptographic-keylengths/), read
   2026-10-22; the PDF itself was not read). Why an SSH key of RSA is at least 3,072 bits (§9.9 of
   `../08-identity.md`).
+- **[V]** RFC 8441 (WebSocket over HTTP/2): a client may use extended CONNECT once the server
+  sends `SETTINGS_ENABLE_CONNECT_PROTOCOL` with a value of 1 (§3); `:protocol` "MUST have a value
+  of "websocket" to initiate a WebSocket connection on an HTTP/2 stream" (§5); HTTP/2 has no `101`,
+  and the example answers `:status = 200` (§5.1)
+  ([RFC 8441](https://www.rfc-editor.org/rfc/rfc8441.html), read 2026-10-22). How the ingress
+  carries a WebSocket on HTTP/2 (§3.2 of `../07-networking.md`).
+- **[V]** RFC 9440 (Client-Cert HTTP header field): `Client-Cert` is a Byte Sequence of the
+  DER-encoded end-entity certificate, `Client-Cert-Chain` a List of them (§2); incoming instances
+  "MUST be removed or overwritten before forwarding the request" (§2.4, §4)
+  ([RFC 9440](https://www.rfc-editor.org/rfc/rfc9440.html), read 2026-10-22). How the ingress
+  tells a workload which certificate a client presented (§3.2 of `../07-networking.md`).
+- **[V]** HAProxy's PROXY protocol specification, §2.2 (binary header format, version 2): a
+  twelve-byte signature, then `\x21` for version 2 and the command PROXY, then `\x11` for TCP
+  over IPv4 or `\x21` for TCP over IPv6, then the address block's length, 12 or 36; the source
+  address, the destination address, the source port and the destination port, in that order and
+  in network byte order. The header is "prepended before any data flowing from the sender to the
+  receiver", and "the receiver SHOULD ensure proper access filtering so that only trusted proxies
+  are allowed to use this protocol"
+  ([proxy-protocol.txt](https://www.haproxy.org/download/2.9/doc/proxy-protocol.txt), read
+  2026-10-22). What the ingress writes to a `passthrough` workload that declared it (§3.2 of
+  `../07-networking.md`), checked in its tests by the `ppp` crate's parser.
+- **[V]** RFC 9113 §9.1.1: "connection reuse additionally depends on having a certificate that is
+  valid for the host in the URI", "a single certificate can be used to establish authority for
+  multiple origins", and a server may refuse a request on a connection by "sending a 421
+  (Misdirected Request) status code" ([RFC 9113](https://www.rfc-editor.org/rfc/rfc9113.html),
+  read 2026-10-22). Why the ingress refuses a request whose route asks for another client
+  certificate than its connection's (Finding 137 of `../23-walkthroughs.md`).
 - **[V]** RUSTSEC-2023-0071 (CVE-2023-49092), the Marvin attack on the `rsa` crate: "information
   about the private key is leaked through timing information which is observable over the
   network", with no patched version as of 2026-09-12; the advisory's workaround is to avoid the

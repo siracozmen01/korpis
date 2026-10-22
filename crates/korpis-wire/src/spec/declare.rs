@@ -4,7 +4,9 @@
 //! docs/09-recipes.md). An unspecified enum, a zero port or size, an empty path or driver, and an
 //! unset probe each mean "the recipe's", never a value of their own.
 
-use super::endpoints::{exposure_from_pb, policy_from_pb, protocol_from_pb, tls_from_pb};
+use super::endpoints::{
+    client_address_from_pb, exposure_from_pb, policy_from_pb, protocol_from_pb, tls_from_pb,
+};
 use super::health::{health_from_pb, placement_from_pb};
 use super::resources::{mode, resources_from_pb};
 use super::{console_from_pb, continuity_from_pb, lifecycle_from_pb, tier_from_pb};
@@ -80,7 +82,11 @@ fn endpoint(field: &str, e: &pb::EndpointSpec) -> Result<DeclaredEndpoint> {
             exposure_from_pb(&f("exposure"), e.exposure)
         })?,
         domains: e.domains.clone(),
-        tls: e.tls.as_option().map(|t| tls_from_pb(&f("tls"), t)).transpose()?,
+        tls: client_address_from_pb(
+            &f("client_address"),
+            e,
+            e.tls.as_option().map(|t| tls_from_pb(&f("tls"), t)).transpose()?,
+        )?,
         policy: policy_from_pb(&f("policy"), e.policy.as_option())?,
         accounting: e.accounting,
         shaping: e.shaping.as_option().map_or_else(ShapingSpec::default, |s| ShapingSpec {

@@ -248,8 +248,8 @@ which metering reads (§7 of `07-networking.md`); until then a declaration that 
 refused, or, for a workload's bandwidth, left unplaced on every node whose driver does not enforce
 it (Rule K-3). The ingress's remaining protocol features, which Phase 1 leaves out (§3.2 of
 `07-networking.md`): WebSocket over HTTP/2, client certificates, and the PROXY protocol for a
-`passthrough` workload; a reseller's names delegated to its customers are Phase 1's, since domains
-are.
+`passthrough` workload (designed 2026-10-22, with trace 51 of `23-walkthroughs.md`); a reseller's
+names delegated to its customers are Phase 1's, since domains are.
 
 **The chat client is not here.** It is a first-party extension and ships in Phase 4 (§10 of
 `12-surface-discord.md`). What Phase 2 owes it is the machinery (external identity mapped to
@@ -438,7 +438,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: forty-seven traces and their 136 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: forty-eight traces and their 137 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

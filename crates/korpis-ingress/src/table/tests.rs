@@ -48,7 +48,10 @@ fn a_configuration_is_served_whole_with_its_routes_by_name_in_any_case() {
     assert_eq!((r.mode, r.backend.port()), (Mode::Http, 8080));
     assert!(r.certificate.is_some());
     assert!(Arc::ptr_eq(r, t.route("www.example.com.").unwrap()), "one route, two names");
-    assert_eq!(t.route("tls.example.com").unwrap().mode, Mode::Passthrough);
+    assert_eq!(
+        t.route("tls.example.com").unwrap().mode,
+        Mode::Passthrough { proxy_protocol: false }
+    );
     assert!(t.route("example.com").is_none());
     assert_eq!(t.challenge("tok"), Some("tok.thumb"));
     assert_eq!((t.limits.max_headers, t.limits.max_header_bytes), (50, 8 << 10), "8 KiB floor");
@@ -74,6 +77,8 @@ fn a_configuration_with_anything_wrong_is_refused_whole() {
             .contains("certificate")
     );
     assert!(refused(config(vec![ok(), ok()], vec![])).contains("routed twice"));
+    let told = pb::Route { proxy_protocol: true, ..ok() };
+    assert!(refused(config(vec![told], vec![])).contains("PROXY"), "only passed through");
     let (chain, _) = self_signed("a.example.com");
     let (_, other_key) = self_signed("b.example.com");
     let mismatched = certificate("crt_1", (chain, other_key));
