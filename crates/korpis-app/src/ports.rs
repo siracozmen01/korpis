@@ -51,6 +51,7 @@ mod run;
 mod session;
 mod set;
 mod sign_in;
+mod ssh_key;
 mod stream;
 mod subscription;
 mod template;
@@ -127,6 +128,7 @@ pub use run::{RunRead, RunWrite};
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};
 pub use sign_in::SignInWrite;
+pub use ssh_key::{SshKeyRead, SshKeyWrite};
 pub use stream::{Expired, Reported, StreamRead, StreamWrite};
 pub use subscription::{SubscriptionRead, SubscriptionWrite};
 pub use template::{TemplateRead, TemplateWrite};
@@ -179,6 +181,8 @@ pub enum Unique {
     AccountName,
     /// A passkey's credential is registered once.
     Passkey,
+    /// An SSH key is registered once in the installation, by its fingerprint.
+    SshKey,
     /// A live grant template's name is unique in its organization.
     TemplateName,
     /// A subject is bound by one live identity binding.
@@ -233,6 +237,7 @@ pub trait Store:
     + TrustRead
     + ThemeRead
     + LayoutRead
+    + SshKeyRead
     + EnrollmentRead
     + AssignmentRead
     + JournalRead
@@ -322,6 +327,7 @@ pub trait Tx:
     + TrustWrite
     + ThemeWrite
     + LayoutWrite
+    + SshKeyWrite
     + EnrollmentWrite
     + SessionWrite
     + AssignmentWrite

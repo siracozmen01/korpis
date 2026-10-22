@@ -57,6 +57,7 @@ mod session;
 mod set;
 mod sign_in;
 mod snapshot;
+mod ssh_key;
 mod stored;
 mod stream;
 mod subscription;

@@ -30,6 +30,7 @@ pub mod run;
 pub mod session;
 pub mod sets;
 pub mod share;
+pub mod ssh_key;
 pub mod stream;
 pub mod stream_share;
 pub mod template;

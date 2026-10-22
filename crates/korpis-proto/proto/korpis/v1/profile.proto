@@ -45,7 +45,57 @@ service ProfileService {
   rpc RemoveTotp(RemoveTotpRequest) returns (RemoveTotpResponse);
   // Replaces the caller's recovery codes with ten fresh ones, shown once.
   rpc RenewRecoveryCodes(RenewRecoveryCodesRequest) returns (RenewRecoveryCodesResponse);
+  // The caller's SSH keys, for SFTP (§9.9 of docs/08-identity.md); a confined session sees those
+  // registered confined as it is.
+  rpc ListSshKeys(ListSshKeysRequest) returns (ListSshKeysResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Registers an SSH public key; refused ssh_key.taken where it is registered already.
+  rpc AddSshKey(AddSshKeyRequest) returns (AddSshKeyResponse);
+  // Removes one of the caller's SSH keys; the sessions it opened end when their tokens renew.
+  rpc RemoveSshKey(RemoveSshKeyRequest) returns (RemoveSshKeyResponse);
 }
+
+// An SSH key as its holder sees it; its public half, never shown again but by its fingerprint.
+message ProfileSshKey {
+  // `ssk_…`.
+  string id = 1;
+  string label = 2;
+  // `ssh-ed25519`, `ecdsa-sha2-nistp256`, `ecdsa-sha2-nistp384`, or `ssh-rsa`.
+  string kind = 3;
+  // As `ssh-keygen -l` prints it: `SHA256:` and the digest in base64.
+  string fingerprint = 4;
+  google.protobuf.Timestamp added_at = 5;
+  // Unset until a file session is first authorized with it.
+  google.protobuf.Timestamp last_used_at = 6;
+  // The organization the session that registered it was confined beneath, which confines what
+  // it opens; absent where it was not.
+  optional string within = 7;
+}
+
+message ListSshKeysRequest {}
+
+message ListSshKeysResponse {
+  repeated ProfileSshKey keys = 1;
+}
+
+message AddSshKeyRequest {
+  // A line as `ssh-keygen` writes it: the kind, the key in base64, and a comment, which is not
+  // kept. Ed25519, ECDSA over P-256 or P-384, or RSA of 3,072 to 16,384 bits.
+  string key = 1;
+  // At most 64 characters.
+  string label = 2;
+}
+
+message AddSshKeyResponse {
+  ProfileSshKey key = 1;
+}
+
+message RemoveSshKeyRequest {
+  string id = 1;
+}
+
+message RemoveSshKeyResponse {}
 
 message GetProfileRequest {}
 

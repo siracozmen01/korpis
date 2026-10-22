@@ -30,12 +30,18 @@
     "defaultMessage": "Danger",
     "description": "a theme colour"
   },
+  "/5dfS4z/": {
+    "defaultMessage": "Add an SSH key"
+  },
   "/65aXYXD": {
     "defaultMessage": "Light colours"
   },
   "/6RJEreY": {
     "defaultMessage": "Restart",
     "description": "button: restart a workload"
+  },
+  "/Aln2mIq": {
+    "defaultMessage": "Remove {label}"
   },
   "/E9XnKAE": {
     "defaultMessage": "Entry {n}, sold {dimension}"
@@ -326,6 +332,9 @@
   "8jocOM4G": {
     "defaultMessage": "A number"
   },
+  "8qBmPI7I": {
+    "defaultMessage": "Add the key"
+  },
   "8syzz/1K": {
     "defaultMessage": "{kind, select, user {user {id}} token {token {id}} workload {workload {id}} other {extension {id}}}",
     "description": "the subject a grant is issued to"
@@ -396,6 +405,9 @@
   },
   "ALnyx0KZ": {
     "defaultMessage": "Dark colours"
+  },
+  "ASqOsl6/": {
+    "defaultMessage": "Name for this key"
   },
   "ASrBq85Q": {
     "defaultMessage": "Passkeys"
@@ -1322,6 +1334,9 @@
     "defaultMessage": "Uses",
     "description": "how many uses a share link has"
   },
+  "ZUkqNXoj": {
+    "defaultMessage": "An SFTP client reaches your servers' files with one of these keys. A key opens files alone: it signs you in nowhere."
+  },
   "ZVtnkB2O": {
     "defaultMessage": "Data at risk: unknown."
   },
@@ -1357,6 +1372,9 @@
   "a2d2NBD2": {
     "defaultMessage": "unheard",
     "description": "a metering gap"
+  },
+  "aCxmC+O6": {
+    "defaultMessage": "never used"
   },
   "aKY5Nsss": {
     "defaultMessage": "Downloaded {name}."
@@ -1718,6 +1736,9 @@
     "defaultMessage": "Throttled",
     "description": "a usage figure: CPU throttled"
   },
+  "lHRqokhh": {
+    "defaultMessage": "SSH keys, for SFTP"
+  },
   "lNbJX12X": {
     "defaultMessage": "Delete…"
   },
@@ -1991,6 +2012,9 @@
     "defaultMessage": "Audit",
     "description": "an organization's effect log"
   },
+  "u0MKtjoc": {
+    "defaultMessage": "used to reach files"
+  },
   "u6Mspyx9": {
     "defaultMessage": "{kind, select, organization {organization} project {project} other {workload}}",
     "description": "the kind of a place the viewer can reach"
@@ -1998,6 +2022,9 @@
   "uBUvoH5J": {
     "defaultMessage": "Files",
     "description": "a workload's files"
+  },
+  "uONZVEnu": {
+    "defaultMessage": "Reading your SSH keys…"
   },
   "uXc0ekMl": {
     "defaultMessage": "your sign-in name, password, and a code"
@@ -2010,6 +2037,9 @@
   },
   "v132UQcc": {
     "defaultMessage": "Reserved now"
+  },
+  "v3j7Fquw": {
+    "defaultMessage": "You have no SSH keys."
   },
   "v8oIEeoT": {
     "defaultMessage": "Name for a new passkey"
@@ -2031,6 +2061,9 @@
   "vlFWCnal": {
     "defaultMessage": "Focus ring",
     "description": "a theme colour"
+  },
+  "vtivBNbt": {
+    "defaultMessage": "Public key, as in your .pub file"
   },
   "vxN1EcKI": {
     "defaultMessage": "someone",

@@ -20,7 +20,7 @@ use korpis_cli::cmd::run::{self as runs, RunAction};
 use korpis_cli::cmd::template;
 use korpis_cli::cmd::volume;
 use korpis_cli::cmd::{Answer, act, get, grant, sets};
-use korpis_cli::cmd::{console, layout, logs, stream_share, tenancy, theme};
+use korpis_cli::cmd::{console, layout, logs, ssh_key, stream_share, tenancy, theme};
 use korpis_cli::command::Command;
 use korpis_cli::complete::{COMPLETE_VAR, registration};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
@@ -104,6 +104,26 @@ fn no_server() -> CliError {
     CliError::Local("--server (or KORPIS_SERVER) names the control plane".into())
 }
 
+/// `korpis ssh-key …`; a change refused as not recent signs the terminal in again by the device
+/// flow and is asked once more (Finding 135 of docs/23-walkthroughs.md).
+#[expect(clippy::print_stderr, reason = "where to approve the code is said on standard error")]
+async fn ssh_keys(cli: &Cli, a: &ssh_key::SshKeyAction) -> Result<Answer, CliError> {
+    let first = ssh_key::ssh_key(&cli.required().await?, a).await;
+    match first {
+        Err(e) if a.changes() && ssh_key::not_recent(&e) => {
+            eprintln!("This needs a sign-in within ten minutes; approve this terminal again.");
+            let c = cli.anonymous()?;
+            let held = match cli.held.clone() {
+                Some(held) => held,
+                None => Held::Kept(Arc::new(Vault::new(c.server(), Vault::default_dir()?).await)),
+            };
+            session::signed_in_again(&c, &held, &mut std::io::stderr().lock()).await?;
+            ssh_key::ssh_key(&cli.required().await?, a).await
+        }
+        other => other,
+    }
+}
+
 /// `korpis login`: the device flow, then the session kept; or, with `--no-store`, `command`
 /// run with it held in memory, and the session ended after.
 #[expect(clippy::print_stderr, reason = "where to approve the code is said on standard error")]
@@ -173,6 +193,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Event(EventAction::Follow { subscription, ack }) => {
             event::follow(&cli.required().await?, subscription, *ack, &mut printer(cli.json)).await
         }
+        Command::SshKey(a) => answer(cli, Box::pin(ssh_keys(cli, a)).await),
         Command::Event(a) => answer(cli, event::event(&cli.required().await?, a).await),
         Command::Console(a) => console::console(&cli.required().await?, a).await,
         Command::Files(a) => answer(cli, remote_files(&cli.required().await?, a).await),

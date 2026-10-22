@@ -18,7 +18,171 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/profile.proto.
  */
 export const file_korpis_v1_profile: GenFile = /*@__PURE__*/
-  fileDesc("Chdrb3JwaXMvdjEvcHJvZmlsZS5wcm90bxIJa29ycGlzLnYxIhMKEUdldFByb2ZpbGVSZXF1ZXN0IrEBCg5Qcm9maWxlUGFzc2tleRIVCg1jcmVkZW50aWFsX2lkGAEgASgMEg0KBWxhYmVsGAIgASgJEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoPYmFja3VwX2VsaWdpYmxlGAUgASgIIpACChJHZXRQcm9maWxlUmVzcG9uc2USDwoHYWNjb3VudBgBIAEoCRIMCgRuYW1lGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIrCghwYXNza2V5cxgEIAMoCzIZLmtvcnBpcy52MS5Qcm9maWxlUGFzc2tleRIQCghwYXNzd29yZBgFIAEoCBIMCgR0b3RwGAYgASgIEhYKDnJlY292ZXJ5X2NvZGVzGAcgASgNEjQKEGF1dGhlbnRpY2F0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEioKBnBlcnNvbhgJIAEoCzIaLmtvcnBpcy52MS5JZGVudGl0eUJpbmRpbmcibQohUmVhdXRoZW50aWNhdGVXaXRoUGFzc3dvcmRSZXF1ZXN0EhAKCHBhc3N3b3JkGAEgASgJEhMKCXRvdHBfY29kZRgCIAEoCUgAEhcKDXJlY292ZXJ5X2NvZGUYAyABKAlIAEIICgZzZWNvbmQiTgoWUmVhdXRoZW50aWNhdGVSZXNwb25zZRI0ChBhdXRoZW50aWNhdGVkX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIYChZCZWdpbkFkZFBhc3NrZXlSZXF1ZXN0IkcKF0JlZ2luQWRkUGFzc2tleVJlc3BvbnNlEiwKCGNyZWF0aW9uGAEgASgLMhoua29ycGlzLnYxLlBhc3NrZXlDcmVhdGlvbiJJChFBZGRQYXNza2V5UmVxdWVzdBI0CgxyZWdpc3RyYXRpb24YASABKAsyHi5rb3JwaXMudjEuUGFzc2tleVJlZ2lzdHJhdGlvbiIUChJBZGRQYXNza2V5UmVzcG9uc2UiLQoUUmVtb3ZlUGFzc2tleVJlcXVlc3QSFQoNY3JlZGVudGlhbF9pZBgBIAEoDCIXChVSZW1vdmVQYXNza2V5UmVzcG9uc2UiJgoSU2V0UGFzc3dvcmRSZXF1ZXN0EhAKCHBhc3N3b3JkGAEgASgJIhUKE1NldFBhc3N3b3JkUmVzcG9uc2UiFwoVUmVtb3ZlUGFzc3dvcmRSZXF1ZXN0IhgKFlJlbW92ZVBhc3N3b3JkUmVzcG9uc2UiMAoQRW5yb2xUb3RwUmVxdWVzdBIOCgZzZWNyZXQYASABKAwSDAoEY29kZRgCIAEoCSITChFFbnJvbFRvdHBSZXNwb25zZSITChFSZW1vdmVUb3RwUmVxdWVzdCIUChJSZW1vdmVUb3RwUmVzcG9uc2UiGwoZUmVuZXdSZWNvdmVyeUNvZGVzUmVxdWVzdCI0ChpSZW5ld1JlY292ZXJ5Q29kZXNSZXNwb25zZRIWCg5yZWNvdmVyeV9jb2RlcxgBIAMoCTLIBwoOUHJvZmlsZVNlcnZpY2USTgoKR2V0UHJvZmlsZRIcLmtvcnBpcy52MS5HZXRQcm9maWxlUmVxdWVzdBodLmtvcnBpcy52MS5HZXRQcm9maWxlUmVzcG9uc2UiA5ACARJjChlSZWF1dGhlbnRpY2F0ZVdpdGhQYXNza2V5EiMua29ycGlzLnYxLlNpZ25JbldpdGhQYXNza2V5UmVxdWVzdBohLmtvcnBpcy52MS5SZWF1dGhlbnRpY2F0ZVJlc3BvbnNlEm0KGlJlYXV0aGVudGljYXRlV2l0aFBhc3N3b3JkEiwua29ycGlzLnYxLlJlYXV0aGVudGljYXRlV2l0aFBhc3N3b3JkUmVxdWVzdBohLmtvcnBpcy52MS5SZWF1dGhlbnRpY2F0ZVJlc3BvbnNlElgKD0JlZ2luQWRkUGFzc2tleRIhLmtvcnBpcy52MS5CZWdpbkFkZFBhc3NrZXlSZXF1ZXN0GiIua29ycGlzLnYxLkJlZ2luQWRkUGFzc2tleVJlc3BvbnNlEkkKCkFkZFBhc3NrZXkSHC5rb3JwaXMudjEuQWRkUGFzc2tleVJlcXVlc3QaHS5rb3JwaXMudjEuQWRkUGFzc2tleVJlc3BvbnNlElIKDVJlbW92ZVBhc3NrZXkSHy5rb3JwaXMudjEuUmVtb3ZlUGFzc2tleVJlcXVlc3QaIC5rb3JwaXMudjEuUmVtb3ZlUGFzc2tleVJlc3BvbnNlEkwKC1NldFBhc3N3b3JkEh0ua29ycGlzLnYxLlNldFBhc3N3b3JkUmVxdWVzdBoeLmtvcnBpcy52MS5TZXRQYXNzd29yZFJlc3BvbnNlElUKDlJlbW92ZVBhc3N3b3JkEiAua29ycGlzLnYxLlJlbW92ZVBhc3N3b3JkUmVxdWVzdBohLmtvcnBpcy52MS5SZW1vdmVQYXNzd29yZFJlc3BvbnNlEkYKCUVucm9sVG90cBIbLmtvcnBpcy52MS5FbnJvbFRvdHBSZXF1ZXN0Ghwua29ycGlzLnYxLkVucm9sVG90cFJlc3BvbnNlEkkKClJlbW92ZVRvdHASHC5rb3JwaXMudjEuUmVtb3ZlVG90cFJlcXVlc3QaHS5rb3JwaXMudjEuUmVtb3ZlVG90cFJlc3BvbnNlEmEKElJlbmV3UmVjb3ZlcnlDb2RlcxIkLmtvcnBpcy52MS5SZW5ld1JlY292ZXJ5Q29kZXNSZXF1ZXN0GiUua29ycGlzLnYxLlJlbmV3UmVjb3ZlcnlDb2Rlc1Jlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_timestamp, file_korpis_v1_account, file_korpis_v1_authority]);
+  fileDesc("Chdrb3JwaXMvdjEvcHJvZmlsZS5wcm90bxIJa29ycGlzLnYxIs0BCg1Qcm9maWxlU3NoS2V5EgoKAmlkGAEgASgJEg0KBWxhYmVsGAIgASgJEgwKBGtpbmQYAyABKAkSEwoLZmluZ2VycHJpbnQYBCABKAkSLAoIYWRkZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoGd2l0aGluGAcgASgJSACIAQFCCQoHX3dpdGhpbiIUChJMaXN0U3NoS2V5c1JlcXVlc3QiPQoTTGlzdFNzaEtleXNSZXNwb25zZRImCgRrZXlzGAEgAygLMhgua29ycGlzLnYxLlByb2ZpbGVTc2hLZXkiLgoQQWRkU3NoS2V5UmVxdWVzdBILCgNrZXkYASABKAkSDQoFbGFiZWwYAiABKAkiOgoRQWRkU3NoS2V5UmVzcG9uc2USJQoDa2V5GAEgASgLMhgua29ycGlzLnYxLlByb2ZpbGVTc2hLZXkiIQoTUmVtb3ZlU3NoS2V5UmVxdWVzdBIKCgJpZBgBIAEoCSIWChRSZW1vdmVTc2hLZXlSZXNwb25zZSITChFHZXRQcm9maWxlUmVxdWVzdCKxAQoOUHJvZmlsZVBhc3NrZXkSFQoNY3JlZGVudGlhbF9pZBgBIAEoDBINCgVsYWJlbBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3VzZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKD2JhY2t1cF9lbGlnaWJsZRgFIAEoCCKQAgoSR2V0UHJvZmlsZVJlc3BvbnNlEg8KB2FjY291bnQYASABKAkSDAoEbmFtZRgCIAEoCRIUCgxkaXNwbGF5X25hbWUYAyABKAkSKwoIcGFzc2tleXMYBCADKAsyGS5rb3JwaXMudjEuUHJvZmlsZVBhc3NrZXkSEAoIcGFzc3dvcmQYBSABKAgSDAoEdG90cBgGIAEoCBIWCg5yZWNvdmVyeV9jb2RlcxgHIAEoDRI0ChBhdXRoZW50aWNhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIqCgZwZXJzb24YCSABKAsyGi5rb3JwaXMudjEuSWRlbnRpdHlCaW5kaW5nIm0KIVJlYXV0aGVudGljYXRlV2l0aFBhc3N3b3JkUmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCRITCgl0b3RwX2NvZGUYAiABKAlIABIXCg1yZWNvdmVyeV9jb2RlGAMgASgJSABCCAoGc2Vjb25kIk4KFlJlYXV0aGVudGljYXRlUmVzcG9uc2USNAoQYXV0aGVudGljYXRlZF9hdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGAoWQmVnaW5BZGRQYXNza2V5UmVxdWVzdCJHChdCZWdpbkFkZFBhc3NrZXlSZXNwb25zZRIsCghjcmVhdGlvbhgBIAEoCzIaLmtvcnBpcy52MS5QYXNza2V5Q3JlYXRpb24iSQoRQWRkUGFzc2tleVJlcXVlc3QSNAoMcmVnaXN0cmF0aW9uGAEgASgLMh4ua29ycGlzLnYxLlBhc3NrZXlSZWdpc3RyYXRpb24iFAoSQWRkUGFzc2tleVJlc3BvbnNlIi0KFFJlbW92ZVBhc3NrZXlSZXF1ZXN0EhUKDWNyZWRlbnRpYWxfaWQYASABKAwiFwoVUmVtb3ZlUGFzc2tleVJlc3BvbnNlIiYKElNldFBhc3N3b3JkUmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCSIVChNTZXRQYXNzd29yZFJlc3BvbnNlIhcKFVJlbW92ZVBhc3N3b3JkUmVxdWVzdCIYChZSZW1vdmVQYXNzd29yZFJlc3BvbnNlIjAKEEVucm9sVG90cFJlcXVlc3QSDgoGc2VjcmV0GAEgASgMEgwKBGNvZGUYAiABKAkiEwoRRW5yb2xUb3RwUmVzcG9uc2UiEwoRUmVtb3ZlVG90cFJlcXVlc3QiFAoSUmVtb3ZlVG90cFJlc3BvbnNlIhsKGVJlbmV3UmVjb3ZlcnlDb2Rlc1JlcXVlc3QiNAoaUmVuZXdSZWNvdmVyeUNvZGVzUmVzcG9uc2USFgoOcmVjb3ZlcnlfY29kZXMYASADKAkytAkKDlByb2ZpbGVTZXJ2aWNlEk4KCkdldFByb2ZpbGUSHC5rb3JwaXMudjEuR2V0UHJvZmlsZVJlcXVlc3QaHS5rb3JwaXMudjEuR2V0UHJvZmlsZVJlc3BvbnNlIgOQAgESYwoZUmVhdXRoZW50aWNhdGVXaXRoUGFzc2tleRIjLmtvcnBpcy52MS5TaWduSW5XaXRoUGFzc2tleVJlcXVlc3QaIS5rb3JwaXMudjEuUmVhdXRoZW50aWNhdGVSZXNwb25zZRJtChpSZWF1dGhlbnRpY2F0ZVdpdGhQYXNzd29yZBIsLmtvcnBpcy52MS5SZWF1dGhlbnRpY2F0ZVdpdGhQYXNzd29yZFJlcXVlc3QaIS5rb3JwaXMudjEuUmVhdXRoZW50aWNhdGVSZXNwb25zZRJYCg9CZWdpbkFkZFBhc3NrZXkSIS5rb3JwaXMudjEuQmVnaW5BZGRQYXNza2V5UmVxdWVzdBoiLmtvcnBpcy52MS5CZWdpbkFkZFBhc3NrZXlSZXNwb25zZRJJCgpBZGRQYXNza2V5Ehwua29ycGlzLnYxLkFkZFBhc3NrZXlSZXF1ZXN0Gh0ua29ycGlzLnYxLkFkZFBhc3NrZXlSZXNwb25zZRJSCg1SZW1vdmVQYXNza2V5Eh8ua29ycGlzLnYxLlJlbW92ZVBhc3NrZXlSZXF1ZXN0GiAua29ycGlzLnYxLlJlbW92ZVBhc3NrZXlSZXNwb25zZRJMCgtTZXRQYXNzd29yZBIdLmtvcnBpcy52MS5TZXRQYXNzd29yZFJlcXVlc3QaHi5rb3JwaXMudjEuU2V0UGFzc3dvcmRSZXNwb25zZRJVCg5SZW1vdmVQYXNzd29yZBIgLmtvcnBpcy52MS5SZW1vdmVQYXNzd29yZFJlcXVlc3QaIS5rb3JwaXMudjEuUmVtb3ZlUGFzc3dvcmRSZXNwb25zZRJGCglFbnJvbFRvdHASGy5rb3JwaXMudjEuRW5yb2xUb3RwUmVxdWVzdBocLmtvcnBpcy52MS5FbnJvbFRvdHBSZXNwb25zZRJJCgpSZW1vdmVUb3RwEhwua29ycGlzLnYxLlJlbW92ZVRvdHBSZXF1ZXN0Gh0ua29ycGlzLnYxLlJlbW92ZVRvdHBSZXNwb25zZRJhChJSZW5ld1JlY292ZXJ5Q29kZXMSJC5rb3JwaXMudjEuUmVuZXdSZWNvdmVyeUNvZGVzUmVxdWVzdBolLmtvcnBpcy52MS5SZW5ld1JlY292ZXJ5Q29kZXNSZXNwb25zZRJRCgtMaXN0U3NoS2V5cxIdLmtvcnBpcy52MS5MaXN0U3NoS2V5c1JlcXVlc3QaHi5rb3JwaXMudjEuTGlzdFNzaEtleXNSZXNwb25zZSIDkAIBEkYKCUFkZFNzaEtleRIbLmtvcnBpcy52MS5BZGRTc2hLZXlSZXF1ZXN0Ghwua29ycGlzLnYxLkFkZFNzaEtleVJlc3BvbnNlEk8KDFJlbW92ZVNzaEtleRIeLmtvcnBpcy52MS5SZW1vdmVTc2hLZXlSZXF1ZXN0Gh8ua29ycGlzLnYxLlJlbW92ZVNzaEtleVJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_timestamp, file_korpis_v1_account, file_korpis_v1_authority]);
+
+/**
+ * An SSH key as its holder sees it; its public half, never shown again but by its fingerprint.
+ *
+ * @generated from message korpis.v1.ProfileSshKey
+ */
+export type ProfileSshKey = Message<"korpis.v1.ProfileSshKey"> & {
+  /**
+   * `ssk_…`.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * `ssh-ed25519`, `ecdsa-sha2-nistp256`, `ecdsa-sha2-nistp384`, or `ssh-rsa`.
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * As `ssh-keygen -l` prints it: `SHA256:` and the digest in base64.
+   *
+   * @generated from field: string fingerprint = 4;
+   */
+  fingerprint: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp added_at = 5;
+   */
+  addedAt?: Timestamp | undefined;
+
+  /**
+   * Unset until a file session is first authorized with it.
+   *
+   * @generated from field: google.protobuf.Timestamp last_used_at = 6;
+   */
+  lastUsedAt?: Timestamp | undefined;
+
+  /**
+   * The organization the session that registered it was confined beneath, which confines what
+   * it opens; absent where it was not.
+   *
+   * @generated from field: optional string within = 7;
+   */
+  within?: string | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.ProfileSshKey.
+ * Use `create(ProfileSshKeySchema)` to create a new message.
+ */
+export const ProfileSshKeySchema: GenMessage<ProfileSshKey> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_profile, 0);
+
+/**
+ * @generated from message korpis.v1.ListSshKeysRequest
+ */
+export type ListSshKeysRequest = Message<"korpis.v1.ListSshKeysRequest"> & {
+};
+
+/**
+ * Describes the message korpis.v1.ListSshKeysRequest.
+ * Use `create(ListSshKeysRequestSchema)` to create a new message.
+ */
+export const ListSshKeysRequestSchema: GenMessage<ListSshKeysRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_profile, 1);
+
+/**
+ * @generated from message korpis.v1.ListSshKeysResponse
+ */
+export type ListSshKeysResponse = Message<"korpis.v1.ListSshKeysResponse"> & {
+  /**
+   * @generated from field: repeated korpis.v1.ProfileSshKey keys = 1;
+   */
+  keys: ProfileSshKey[];
+};
+
+/**
+ * Describes the message korpis.v1.ListSshKeysResponse.
+ * Use `create(ListSshKeysResponseSchema)` to create a new message.
+ */
+export const ListSshKeysResponseSchema: GenMessage<ListSshKeysResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_profile, 2);
+
+/**
+ * @generated from message korpis.v1.AddSshKeyRequest
+ */
+export type AddSshKeyRequest = Message<"korpis.v1.AddSshKeyRequest"> & {
+  /**
+   * A line as `ssh-keygen` writes it: the kind, the key in base64, and a comment, which is not
+   * kept. Ed25519, ECDSA over P-256 or P-384, or RSA of 3,072 to 16,384 bits.
+   *
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * At most 64 characters.
+   *
+   * @generated from field: string label = 2;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message korpis.v1.AddSshKeyRequest.
+ * Use `create(AddSshKeyRequestSchema)` to create a new message.
+ */
+export const AddSshKeyRequestSchema: GenMessage<AddSshKeyRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_profile, 3);
+
+/**
+ * @generated from message korpis.v1.AddSshKeyResponse
+ */
+export type AddSshKeyResponse = Message<"korpis.v1.AddSshKeyResponse"> & {
+  /**
+   * @generated from field: korpis.v1.ProfileSshKey key = 1;
+   */
+  key?: ProfileSshKey | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.AddSshKeyResponse.
+ * Use `create(AddSshKeyResponseSchema)` to create a new message.
+ */
+export const AddSshKeyResponseSchema: GenMessage<AddSshKeyResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_profile, 4);
+
+/**
+ * @generated from message korpis.v1.RemoveSshKeyRequest
+ */
+export type RemoveSshKeyRequest = Message<"korpis.v1.RemoveSshKeyRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message korpis.v1.RemoveSshKeyRequest.
+ * Use `create(RemoveSshKeyRequestSchema)` to create a new message.
+ */
+export const RemoveSshKeyRequestSchema: GenMessage<RemoveSshKeyRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_profile, 5);
+
+/**
+ * @generated from message korpis.v1.RemoveSshKeyResponse
+ */
+export type RemoveSshKeyResponse = Message<"korpis.v1.RemoveSshKeyResponse"> & {
+};
+
+/**
+ * Describes the message korpis.v1.RemoveSshKeyResponse.
+ * Use `create(RemoveSshKeyResponseSchema)` to create a new message.
+ */
+export const RemoveSshKeyResponseSchema: GenMessage<RemoveSshKeyResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_profile, 6);
 
 /**
  * @generated from message korpis.v1.GetProfileRequest
@@ -31,7 +195,7 @@ export type GetProfileRequest = Message<"korpis.v1.GetProfileRequest"> & {
  * Use `create(GetProfileRequestSchema)` to create a new message.
  */
 export const GetProfileRequestSchema: GenMessage<GetProfileRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 0);
+  messageDesc(file_korpis_v1_profile, 7);
 
 /**
  * @generated from message korpis.v1.ProfilePasskey
@@ -72,7 +236,7 @@ export type ProfilePasskey = Message<"korpis.v1.ProfilePasskey"> & {
  * Use `create(ProfilePasskeySchema)` to create a new message.
  */
 export const ProfilePasskeySchema: GenMessage<ProfilePasskey> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 1);
+  messageDesc(file_korpis_v1_profile, 8);
 
 /**
  * @generated from message korpis.v1.GetProfileResponse
@@ -141,7 +305,7 @@ export type GetProfileResponse = Message<"korpis.v1.GetProfileResponse"> & {
  * Use `create(GetProfileResponseSchema)` to create a new message.
  */
 export const GetProfileResponseSchema: GenMessage<GetProfileResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 2);
+  messageDesc(file_korpis_v1_profile, 9);
 
 /**
  * @generated from message korpis.v1.ReauthenticateWithPasswordRequest
@@ -175,7 +339,7 @@ export type ReauthenticateWithPasswordRequest = Message<"korpis.v1.Reauthenticat
  * Use `create(ReauthenticateWithPasswordRequestSchema)` to create a new message.
  */
 export const ReauthenticateWithPasswordRequestSchema: GenMessage<ReauthenticateWithPasswordRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 3);
+  messageDesc(file_korpis_v1_profile, 10);
 
 /**
  * @generated from message korpis.v1.ReauthenticateResponse
@@ -192,7 +356,7 @@ export type ReauthenticateResponse = Message<"korpis.v1.ReauthenticateResponse">
  * Use `create(ReauthenticateResponseSchema)` to create a new message.
  */
 export const ReauthenticateResponseSchema: GenMessage<ReauthenticateResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 4);
+  messageDesc(file_korpis_v1_profile, 11);
 
 /**
  * @generated from message korpis.v1.BeginAddPasskeyRequest
@@ -205,7 +369,7 @@ export type BeginAddPasskeyRequest = Message<"korpis.v1.BeginAddPasskeyRequest">
  * Use `create(BeginAddPasskeyRequestSchema)` to create a new message.
  */
 export const BeginAddPasskeyRequestSchema: GenMessage<BeginAddPasskeyRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 5);
+  messageDesc(file_korpis_v1_profile, 12);
 
 /**
  * @generated from message korpis.v1.BeginAddPasskeyResponse
@@ -222,7 +386,7 @@ export type BeginAddPasskeyResponse = Message<"korpis.v1.BeginAddPasskeyResponse
  * Use `create(BeginAddPasskeyResponseSchema)` to create a new message.
  */
 export const BeginAddPasskeyResponseSchema: GenMessage<BeginAddPasskeyResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 6);
+  messageDesc(file_korpis_v1_profile, 13);
 
 /**
  * @generated from message korpis.v1.AddPasskeyRequest
@@ -239,7 +403,7 @@ export type AddPasskeyRequest = Message<"korpis.v1.AddPasskeyRequest"> & {
  * Use `create(AddPasskeyRequestSchema)` to create a new message.
  */
 export const AddPasskeyRequestSchema: GenMessage<AddPasskeyRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 7);
+  messageDesc(file_korpis_v1_profile, 14);
 
 /**
  * @generated from message korpis.v1.AddPasskeyResponse
@@ -252,7 +416,7 @@ export type AddPasskeyResponse = Message<"korpis.v1.AddPasskeyResponse"> & {
  * Use `create(AddPasskeyResponseSchema)` to create a new message.
  */
 export const AddPasskeyResponseSchema: GenMessage<AddPasskeyResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 8);
+  messageDesc(file_korpis_v1_profile, 15);
 
 /**
  * @generated from message korpis.v1.RemovePasskeyRequest
@@ -269,7 +433,7 @@ export type RemovePasskeyRequest = Message<"korpis.v1.RemovePasskeyRequest"> & {
  * Use `create(RemovePasskeyRequestSchema)` to create a new message.
  */
 export const RemovePasskeyRequestSchema: GenMessage<RemovePasskeyRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 9);
+  messageDesc(file_korpis_v1_profile, 16);
 
 /**
  * @generated from message korpis.v1.RemovePasskeyResponse
@@ -282,7 +446,7 @@ export type RemovePasskeyResponse = Message<"korpis.v1.RemovePasskeyResponse"> &
  * Use `create(RemovePasskeyResponseSchema)` to create a new message.
  */
 export const RemovePasskeyResponseSchema: GenMessage<RemovePasskeyResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 10);
+  messageDesc(file_korpis_v1_profile, 17);
 
 /**
  * @generated from message korpis.v1.SetPasswordRequest
@@ -301,7 +465,7 @@ export type SetPasswordRequest = Message<"korpis.v1.SetPasswordRequest"> & {
  * Use `create(SetPasswordRequestSchema)` to create a new message.
  */
 export const SetPasswordRequestSchema: GenMessage<SetPasswordRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 11);
+  messageDesc(file_korpis_v1_profile, 18);
 
 /**
  * @generated from message korpis.v1.SetPasswordResponse
@@ -314,7 +478,7 @@ export type SetPasswordResponse = Message<"korpis.v1.SetPasswordResponse"> & {
  * Use `create(SetPasswordResponseSchema)` to create a new message.
  */
 export const SetPasswordResponseSchema: GenMessage<SetPasswordResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 12);
+  messageDesc(file_korpis_v1_profile, 19);
 
 /**
  * @generated from message korpis.v1.RemovePasswordRequest
@@ -327,7 +491,7 @@ export type RemovePasswordRequest = Message<"korpis.v1.RemovePasswordRequest"> &
  * Use `create(RemovePasswordRequestSchema)` to create a new message.
  */
 export const RemovePasswordRequestSchema: GenMessage<RemovePasswordRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 13);
+  messageDesc(file_korpis_v1_profile, 20);
 
 /**
  * @generated from message korpis.v1.RemovePasswordResponse
@@ -340,7 +504,7 @@ export type RemovePasswordResponse = Message<"korpis.v1.RemovePasswordResponse">
  * Use `create(RemovePasswordResponseSchema)` to create a new message.
  */
 export const RemovePasswordResponseSchema: GenMessage<RemovePasswordResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 14);
+  messageDesc(file_korpis_v1_profile, 21);
 
 /**
  * @generated from message korpis.v1.EnrolTotpRequest
@@ -366,7 +530,7 @@ export type EnrolTotpRequest = Message<"korpis.v1.EnrolTotpRequest"> & {
  * Use `create(EnrolTotpRequestSchema)` to create a new message.
  */
 export const EnrolTotpRequestSchema: GenMessage<EnrolTotpRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 15);
+  messageDesc(file_korpis_v1_profile, 22);
 
 /**
  * @generated from message korpis.v1.EnrolTotpResponse
@@ -379,7 +543,7 @@ export type EnrolTotpResponse = Message<"korpis.v1.EnrolTotpResponse"> & {
  * Use `create(EnrolTotpResponseSchema)` to create a new message.
  */
 export const EnrolTotpResponseSchema: GenMessage<EnrolTotpResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 16);
+  messageDesc(file_korpis_v1_profile, 23);
 
 /**
  * @generated from message korpis.v1.RemoveTotpRequest
@@ -392,7 +556,7 @@ export type RemoveTotpRequest = Message<"korpis.v1.RemoveTotpRequest"> & {
  * Use `create(RemoveTotpRequestSchema)` to create a new message.
  */
 export const RemoveTotpRequestSchema: GenMessage<RemoveTotpRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 17);
+  messageDesc(file_korpis_v1_profile, 24);
 
 /**
  * @generated from message korpis.v1.RemoveTotpResponse
@@ -405,7 +569,7 @@ export type RemoveTotpResponse = Message<"korpis.v1.RemoveTotpResponse"> & {
  * Use `create(RemoveTotpResponseSchema)` to create a new message.
  */
 export const RemoveTotpResponseSchema: GenMessage<RemoveTotpResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 18);
+  messageDesc(file_korpis_v1_profile, 25);
 
 /**
  * @generated from message korpis.v1.RenewRecoveryCodesRequest
@@ -418,7 +582,7 @@ export type RenewRecoveryCodesRequest = Message<"korpis.v1.RenewRecoveryCodesReq
  * Use `create(RenewRecoveryCodesRequestSchema)` to create a new message.
  */
 export const RenewRecoveryCodesRequestSchema: GenMessage<RenewRecoveryCodesRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 19);
+  messageDesc(file_korpis_v1_profile, 26);
 
 /**
  * @generated from message korpis.v1.RenewRecoveryCodesResponse
@@ -437,7 +601,7 @@ export type RenewRecoveryCodesResponse = Message<"korpis.v1.RenewRecoveryCodesRe
  * Use `create(RenewRecoveryCodesResponseSchema)` to create a new message.
  */
 export const RenewRecoveryCodesResponseSchema: GenMessage<RenewRecoveryCodesResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_profile, 20);
+  messageDesc(file_korpis_v1_profile, 27);
 
 /**
  * The signed-in user's own account (§9.6 of docs/08-identity.md): its factors, read and changed.
@@ -564,6 +728,37 @@ export const ProfileService: GenService<{
     methodKind: "unary";
     input: typeof RenewRecoveryCodesRequestSchema;
     output: typeof RenewRecoveryCodesResponseSchema;
+  },
+  /**
+   * The caller's SSH keys, for SFTP (§9.9 of docs/08-identity.md); a confined session sees those
+   * registered confined as it is.
+   *
+   * @generated from rpc korpis.v1.ProfileService.ListSshKeys
+   */
+  listSshKeys: {
+    methodKind: "unary";
+    input: typeof ListSshKeysRequestSchema;
+    output: typeof ListSshKeysResponseSchema;
+  },
+  /**
+   * Registers an SSH public key; refused ssh_key.taken where it is registered already.
+   *
+   * @generated from rpc korpis.v1.ProfileService.AddSshKey
+   */
+  addSshKey: {
+    methodKind: "unary";
+    input: typeof AddSshKeyRequestSchema;
+    output: typeof AddSshKeyResponseSchema;
+  },
+  /**
+   * Removes one of the caller's SSH keys; the sessions it opened end when their tokens renew.
+   *
+   * @generated from rpc korpis.v1.ProfileService.RemoveSshKey
+   */
+  removeSshKey: {
+    methodKind: "unary";
+    input: typeof RemoveSshKeyRequestSchema;
+    output: typeof RemoveSshKeyResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_korpis_v1_profile, 0);

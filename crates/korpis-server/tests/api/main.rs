@@ -130,6 +130,7 @@ mod sessions;
 mod sets;
 mod shortlist;
 mod snapshots;
+mod ssh_keys;
 mod standalone;
 mod step;
 mod step_pin;

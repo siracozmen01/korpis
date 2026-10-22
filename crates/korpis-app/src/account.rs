@@ -18,6 +18,7 @@ mod recent;
 mod redeem;
 mod session;
 mod sign_in;
+mod ssh_keys;
 
 pub use ceremony::{NewRegistration, Registration, SignInOptions};
 pub use completion::{Completed, Completion};

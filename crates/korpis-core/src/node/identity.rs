@@ -65,6 +65,46 @@ pub fn relay_renew_message(
     m
 }
 
+/// What a relay serving SFTP signs to ask for a file token (§9.9 of docs/08-identity.md): the
+/// same form as [`relay_feed_message`] under `korpis.relay.v1.AuthorizeFiles`, followed by `|`
+/// and the SHA-256 of what it asks for in lowercase hexadecimal, so the signature vouches for
+/// that request alone and a captured one is good for no other.
+#[must_use]
+pub fn relay_files_message(
+    (relay, asked): (&str, &[u8; 32]),
+    seconds: i64,
+    nanos: u32,
+    nonce: &[u8],
+) -> Vec<u8> {
+    let mut m = proof_message("korpis.relay.v1.AuthorizeFiles", relay, seconds, nanos, nonce);
+    m.push(b'|');
+    for b in asked {
+        // Writing to a Vec cannot fail.
+        let _ = std::io::Write::write_fmt(&mut m, format_args!("{b:02x}"));
+    }
+    m
+}
+
+/// What a relay asks for a file token for, digested for [`relay_files_message`]: the client's
+/// SSH key in its wire form, the workload, the client's address, and the token it renews, if it
+/// renews one, each length-prefixed so no two requests digest alike.
+#[must_use]
+pub fn files_request_digest(
+    key: &[u8],
+    workload: uuid::Uuid,
+    client: std::net::IpAddr,
+    renews: Option<&str>,
+) -> [u8; 32] {
+    use sha2::Digest as _;
+    let mut h = sha2::Sha256::new();
+    let client = client.to_string();
+    for field in [key, workload.as_bytes(), client.as_bytes(), renews.unwrap_or("").as_bytes()] {
+        h.update(u64::try_from(field.len()).unwrap_or(u64::MAX).to_be_bytes());
+        h.update(field);
+    }
+    h.finalize().into()
+}
+
 /// What a node signs to answer a reachability probe's `nonce` on `port` (§9 of
 /// docs/07-networking.md): the same form as [`hello_message`] under
 /// `korpis.agent.v1.Reachability`, with the port in place of the timestamp, so the answer proves

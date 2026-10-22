@@ -27,6 +27,39 @@ service RelayControlService {
   // host, under the installation's authority, as long-lived as the relay's certificates are. A
   // relay asks at about two thirds of its certificate's life (§7 of docs/18-operations.md).
   rpc Renew(RenewRequest) returns (RenewResponse);
+  // A file token for an SFTP client the relay serves (§9.9 of docs/08-identity.md): the relay has
+  // checked that the client holds `key`, and the control plane believes it, mints for the
+  // account the key is registered to what that account's grants allow on the workload from the
+  // client's address, writing or else reading, and records the first under the relay's name.
+  // Refused as unauthenticated for a key no account holds.
+  rpc AuthorizeFiles(AuthorizeFilesRequest) returns (AuthorizeFilesResponse);
+}
+
+message AuthorizeFilesRequest {
+  string relay = 1;
+  // The relay identity key's Ed25519 signature over
+  // "korpis.relay.v1.AuthorizeFiles|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<digest in lowercase hex>",
+  // where the digest is SHA-256 over each of key, the workload's sixteen bytes, client, and
+  // renews, each preceded by its length as eight big-endian bytes; fresh and never replayed.
+  korpis.agent.v1.NodeAuth auth = 2;
+  // The client's SSH public key, in SSH's wire form (RFC 4253 §6.6).
+  bytes key = 3;
+  // The workload the client named, `wkl_…`.
+  string workload = 4;
+  // The client's address, as the relay saw it or a PROXY header it believes named it.
+  string client = 5;
+  // The token this one renews, for a session already open; no use of a use-limited grant is
+  // spent renewing.
+  string renews = 6;
+}
+
+message AuthorizeFilesResponse {
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  // The route the relay opens the session by (§3.1 of docs/02-architecture.md).
+  string route = 3;
+  // `workload.file.write`, or `workload.file.read` where reading alone is allowed.
+  string action = 4;
 }
 
 message RenewRequest {

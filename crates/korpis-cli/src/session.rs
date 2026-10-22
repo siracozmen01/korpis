@@ -188,6 +188,28 @@ pub async fn sign_out(c: &Connection, held: &Held) -> Result<(), CliError> {
     Ok(())
 }
 
+/// Signs the terminal in again by the device flow, through `c`, anonymous, telling `out` where to
+/// approve it, and replaces the session `held` holds with the one the approval begins, ending the
+/// old: what a change refused as not recent asks of a terminal, which cannot re-authenticate,
+/// since the approval re-authenticates in the browser and begins a session signed in now
+/// (Finding 135 of docs/23-walkthroughs.md).
+pub async fn signed_in_again(
+    c: &Connection,
+    held: &Held,
+    out: &mut impl Write,
+) -> Result<(), CliError> {
+    let fresh = device_flow(c, out).await?;
+    // The old session ends whether or not it still could; the new one is kept either way.
+    let _ = sign_out(c, held).await;
+    match held {
+        Held::Kept(vault) => {
+            vault.save(&fresh).await?;
+        }
+        Held::Memory(record) => *record.lock().await = fresh,
+    }
+    Ok(())
+}
+
 /// The connection to `server`, trusting `ca`, a command is borne by: `token` when one is given,
 /// for automation, which takes precedence; otherwise `held`, or the session kept for `server`,
 /// if there is one; otherwise none, for the calls anyone may make.

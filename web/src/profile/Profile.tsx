@@ -10,6 +10,7 @@ import { Shown } from "../views/Shown";
 import { Factors } from "./Factors";
 import type { ProfileServices } from "./services";
 import { Sessions } from "./Sessions";
+import { SshKeys } from "./SshKeys";
 import { subjectText } from "../identity/identity";
 import { t } from "../i18n/intl";
 
@@ -44,6 +45,7 @@ function Read(props: { readonly services: ProfileServices; readonly changed: () 
             <h1>{p.displayName}</h1>
             <p>{t({ defaultMessage: "Signed in as {name}.", id: "TDUCXqaO" }, { name: p.name })}</p>
             <Factors profile={p} services={services} changed={changed} />
+            <SshKeys services={services} />
           </>
         ) : (
           <>

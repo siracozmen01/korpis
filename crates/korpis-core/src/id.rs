@@ -77,6 +77,8 @@ pub enum IdKind {
     Binding,
     /// A metering record (`use_`).
     Usage,
+    /// An SSH key a person registered for SFTP (`ssk_`).
+    SshKey,
 }
 
 impl IdKind {
@@ -116,6 +118,7 @@ impl IdKind {
             Self::Template => "tpl",
             Self::Binding => "idb",
             Self::Usage => "use",
+            Self::SshKey => "ssk",
         }
     }
 }

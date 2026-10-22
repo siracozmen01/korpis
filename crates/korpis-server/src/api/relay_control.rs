@@ -225,4 +225,12 @@ impl relay::RelayControlService for Api {
             ..Default::default()
         })
     }
+
+    async fn authorize_files(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, relay::AuthorizeFilesRequest>,
+    ) -> ServiceResult<relay::AuthorizeFilesResponse> {
+        super::sftp::authorize(self, request.to_owned_message()).await
+    }
 }

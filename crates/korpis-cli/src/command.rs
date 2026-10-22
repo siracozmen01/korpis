@@ -17,7 +17,7 @@ use crate::cmd::template::TemplateAction;
 use crate::cmd::tenancy::{OrganizationAction, ProjectAction};
 use crate::cmd::volume::VolumeAction;
 use crate::cmd::{Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction};
-use crate::cmd::{console, layout, logs, stream_share, theme};
+use crate::cmd::{console, layout, logs, ssh_key, stream_share, theme};
 use crate::complete::{self, Shell};
 use crate::sets::SetArgs;
 use clap::Subcommand;
@@ -107,6 +107,9 @@ pub enum Command {
     /// Shows, sets, and clears the landing screen an organization composes in the panel.
     #[command(subcommand)]
     Layout(layout::LayoutAction),
+    /// Lists, adds, and removes the SSH keys you reach your files with over SFTP.
+    #[command(subcommand, name = "ssh-key")]
+    SshKey(ssh_key::SshKeyAction),
     /// Takes, lists, and shows backups.
     #[command(subcommand)]
     Backup(BackupAction),

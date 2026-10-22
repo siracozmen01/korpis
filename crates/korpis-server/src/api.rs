@@ -68,6 +68,8 @@ mod run;
 mod session;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod set;
+mod sftp;
+mod ssh_keys;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod stream;
 mod stream_offloaded;

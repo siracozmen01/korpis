@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The relay's signed requests (§3.1 of docs/02-architecture.md): its feed and its certificate's
-//! renewal, each signed by its identity key, fresh now and with a nonce never sent before.
+//! The relay's signed requests (§3.1 of docs/02-architecture.md): its feed, its certificate's
+//! renewal, and a file token for an SFTP client it serves (§9.9 of docs/08-identity.md), each
+//! signed by its identity key, fresh now and with a nonce never sent before.
 
-use korpis_core::node::identity::{relay_feed_message, relay_renew_message, sign};
+use korpis_core::node::identity::{
+    files_request_digest, relay_feed_message, relay_files_message, relay_renew_message, sign,
+};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::relay::v1 as relay;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -28,6 +31,40 @@ pub fn signed_renewal(
         relay: relay.to_owned(),
         auth: auth.into(),
         tls_key: tls_key.to_vec(),
+        ..Default::default()
+    })
+}
+
+/// What a relay asks a file token for: the client's SSH key in its wire form, the workload, the
+/// client's address, and the token it renews, if any.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilesAsked {
+    /// The key.
+    pub key: Vec<u8>,
+    /// The workload.
+    pub workload: uuid::Uuid,
+    /// The client's address.
+    pub client: std::net::IpAddr,
+    /// The token renewed.
+    pub renews: Option<String>,
+}
+
+/// A file token's request from `relay` for `asked`, signed now with `key` over all of it.
+pub fn signed_files_request(
+    relay: &str,
+    key: &ed25519_dalek::SigningKey,
+    asked: &FilesAsked,
+) -> Result<relay::AuthorizeFilesRequest, getrandom::Error> {
+    let renews = asked.renews.as_deref();
+    let digest = files_request_digest(&asked.key, asked.workload, asked.client, renews);
+    let auth = signed(key, |s, ns, nonce| relay_files_message((relay, &digest), s, ns, nonce))?;
+    Ok(relay::AuthorizeFilesRequest {
+        relay: relay.to_owned(),
+        auth: auth.into(),
+        key: asked.key.clone(),
+        workload: korpis_wire::wire_id(korpis_core::id::IdKind::Workload, asked.workload),
+        client: asked.client.to_string(),
+        renews: renews.unwrap_or_default().to_owned(),
         ..Default::default()
     })
 }

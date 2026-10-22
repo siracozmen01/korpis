@@ -2275,6 +2275,16 @@ sessions as anyone with a registered key; the record of each names the relay, an
 serving SFTP cannot. There is no per-account bound on how many keys an account holds (P10); each
 key is a few hundred bytes, and registering one is charged as any write is (§10 of `10-api.md`).
 
+> As built, 2026-10-22, the keys and the token (`crates/korpis-core/src/account/ssh_key.rs`,
+> `crates/korpis-app/src/relay/sftp.rs`). A key is read field by field from SSH's wire form
+> (RFC 4253 §6.6), its kind the one its line names, and stored by the SHA-256 fingerprint
+> `ssh-keygen -l` prints, unique in the installation. `ProfileService` lists, adds, and removes
+> them, `ssk_…` each. `RelayControlService.AuthorizeFiles` takes the key's wire form, the workload,
+> the client's address, and the token it renews, if it renews one, and the relay's identity key
+> signs a digest of all four with a fresh nonce, so a request captured on the way is good for no
+> other client, workload, or address. A key no account holds, or one removed, is answered as
+> unauthenticated; a renewal spends no use of a use-limited grant and is not recorded again.
+
 ---
 
 ## 10. Open questions

@@ -21,6 +21,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("node_name_key") => Unique::NodeName,
         Some("account_name_key") => Unique::AccountName,
         Some("passkey_pkey") => Unique::Passkey,
+        Some("ssh_key_fingerprint_key") => Unique::SshKey,
         Some("grant_template_name") => Unique::TemplateName,
         Some("identity_binding_subject") => Unique::BindingSubject,
         Some("node_public_key_key") => Unique::NodeKey,

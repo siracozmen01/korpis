@@ -94,6 +94,9 @@ table! {
     "korpis.v1.ProfileService/EnrolTotp" => ProfileServiceClient::enrol_totp(EnrolTotpRequest);
     "korpis.v1.ProfileService/RemoveTotp" => ProfileServiceClient::remove_totp(RemoveTotpRequest);
     "korpis.v1.ProfileService/RenewRecoveryCodes" => ProfileServiceClient::renew_recovery_codes(RenewRecoveryCodesRequest);
+    "korpis.v1.ProfileService/ListSshKeys" => ProfileServiceClient::list_ssh_keys(ListSshKeysRequest);
+    "korpis.v1.ProfileService/AddSshKey" => ProfileServiceClient::add_ssh_key(AddSshKeyRequest);
+    "korpis.v1.ProfileService/RemoveSshKey" => ProfileServiceClient::remove_ssh_key(RemoveSshKeyRequest);
     "korpis.v1.OrganizationService/CreateOrganization" => OrganizationServiceClient::create_organization(CreateOrganizationRequest);
     "korpis.v1.OrganizationService/GetOrganization" => OrganizationServiceClient::get_organization(GetOrganizationRequest);
     "korpis.v1.OrganizationService/ListOrganizations" => OrganizationServiceClient::list_organizations(ListOrganizationsRequest);

@@ -295,7 +295,9 @@ a:focus-visible {
   white-space: pre-line;
 }
 
-/* An item of a layout being composed: its parts spaced by the page, as an aside is. */
-li.layout-item > * + * {
+/* An item of a layout being composed, and an SSH key listed: their parts spaced by the page, as
+   an aside is. */
+li.layout-item > * + *,
+li.ssh-key > * + * {
   margin-inline-start: 0.5em;
 }

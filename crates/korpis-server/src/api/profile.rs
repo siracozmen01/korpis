@@ -153,6 +153,30 @@ impl pb::ProfileService for Api {
         Response::ok(pb::RemovePasskeyResponse::default())
     }
 
+    async fn list_ssh_keys(
+        &self,
+        ctx: RequestContext,
+        _request: ServiceRequest<'_, pb::ListSshKeysRequest>,
+    ) -> ServiceResult<pb::ListSshKeysResponse> {
+        super::ssh_keys::list(self, &ctx).await
+    }
+
+    async fn add_ssh_key(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::AddSshKeyRequest>,
+    ) -> ServiceResult<pb::AddSshKeyResponse> {
+        super::ssh_keys::add(self, &ctx, request).await
+    }
+
+    async fn remove_ssh_key(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::RemoveSshKeyRequest>,
+    ) -> ServiceResult<pb::RemoveSshKeyResponse> {
+        super::ssh_keys::remove(self, &ctx, request).await
+    }
+
     async fn set_password(
         &self,
         ctx: RequestContext,

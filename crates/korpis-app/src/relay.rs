@@ -10,10 +10,12 @@ mod enroll;
 mod feed;
 mod join;
 mod renew;
+mod sftp;
 
 pub use enroll::{CreateRelayEnrollment, RelayEnrollmentToken};
 pub use feed::RelayFeed;
 pub use join::{JoinRelay, JoinedRelay};
+pub use sftp::{AuthorizeFiles, FilesAuthorized};
 
 use crate::App;
 use crate::caller::Caller;

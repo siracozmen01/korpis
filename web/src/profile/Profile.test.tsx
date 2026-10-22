@@ -36,6 +36,7 @@ function services(seen: string[]) {
         return {};
       },
       renewRecoveryCodes: () => ({ recoveryCodes: ["new-1", "new-2"] }),
+      listSshKeys: () => ({ keys: [] }),
     });
     service(SessionService, {
       listSessions: () => ({

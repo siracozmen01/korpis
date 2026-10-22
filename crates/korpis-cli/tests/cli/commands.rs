@@ -208,3 +208,12 @@ async fn a_layout_is_set_from_a_file_shown_set_again_as_shown_and_cleared() {
     let cleared = ok(&cp.korpis(&s, &["layout", "clear"]).await);
     assert!(cleared.contains("the panel's own landing"), "{cleared}");
 }
+
+#[tokio::test]
+async fn a_token_holds_no_ssh_keys_and_is_told_so() {
+    let cp = ControlPlane::start().await;
+    let s = cp.secret.clone();
+    let listed = cp.korpis(&s, &["ssh-key", "list"]).await;
+    let said = String::from_utf8_lossy(&listed.stderr);
+    assert!(!listed.status.success() && said.contains("only a signed-in user"), "{said}");
+}
