@@ -40,6 +40,15 @@ pub struct PortalView {
     pub certificate: Option<Certificate>,
 }
 
+/// What deleting a portal would remove.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PortalReach {
+    /// The passkeys registered at it.
+    pub passkeys: u64,
+    /// The accounts with a passkey there and nothing else that signs in.
+    pub accounts_only_here: u64,
+}
+
 /// A portal to make.
 #[derive(Debug, Clone)]
 pub struct CreatePortal {
@@ -201,6 +210,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.authorize(caller, "portal.read", ObjectRef::new(Kind::Portal, id)).await?;
         let portal = self.store.portal(id).await?.ok_or(AppError::NotFound { kind: "portal" })?;
         self.viewed(portal).await
+    }
+
+    /// What deleting portal `id`, which the caller may read, would remove: the passkeys
+    /// registered there, and the accounts that sign in nowhere else (§9.8 of
+    /// docs/08-identity.md).
+    pub async fn portal_reach(&self, caller: &Caller, id: Uuid) -> Result<PortalReach, AppError> {
+        self.authorize(caller, "portal.read", ObjectRef::new(Kind::Portal, id)).await?;
+        let (passkeys, accounts_only_here) = self.store.portal_reach(id).await?;
+        Ok(PortalReach { passkeys, accounts_only_here })
     }
 
     /// `portal`, with its certificate read beside it.

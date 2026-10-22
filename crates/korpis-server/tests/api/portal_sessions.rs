@@ -7,8 +7,8 @@
 //! reach, and what it issues is held there too.
 
 use crate::domains::child;
-use crate::panel::{accounts, refresh_cookie};
-use crate::portal_client::{Portal, portal_of};
+use crate::panel::accounts;
+use crate::portal_client::{answered_at, portal_of, redeemed_at, signed_in_at};
 use crate::refusal::reason;
 use crate::support::{Harness, mutation, org_scope};
 use connectrpc::ErrorCode;
@@ -30,56 +30,6 @@ async fn invited(h: &Harness) -> (String, String) {
     (issued.invitation, issued.grant.into_option().unwrap().id)
 }
 
-/// Redeems `invitation` at `portal` with `browser`'s passkey.
-async fn redeemed_at(portal: &Portal, invitation: &str, browser: &SoftAuthenticator) {
-    let asked = pb::BeginRedemptionRequest {
-        invitation: invitation.into(),
-        name: "dana".into(),
-        ..Default::default()
-    };
-    let answer = portal.call("korpis.v1.AccountService/BeginRedemption", &asked, None).await;
-    let begun: pb::BeginRedemptionResponse = answer.unwrap().0;
-    let creation = begun.creation.as_option().unwrap().clone();
-    assert_eq!(creation.rp_id, NAME, "the portal's own relying party");
-    let created = browser.create(&creation.challenge);
-    let registration = pb::PasskeyRegistration {
-        challenge_id: creation.challenge_id,
-        label: "phone".into(),
-        client_data_json: created.client_data_json,
-        attestation_object: created.attestation_object,
-        ..Default::default()
-    };
-    let redeem = pb::RedeemWithPasskeyRequest {
-        invitation: invitation.into(),
-        name: "dana".into(),
-        registration: registration.into(),
-        ..Default::default()
-    };
-    let done = portal.call("korpis.v1.AccountService/RedeemWithPasskey", &redeem, None).await;
-    let _: pb::RedeemResponse = done.unwrap().0;
-}
-
-/// A sign-in challenge issued at `portal`, answered by `browser`.
-async fn answered_at(
-    portal: &Portal,
-    browser: &mut SoftAuthenticator,
-) -> pb::SignInWithPasskeyRequest {
-    let asked = pb::BeginSignInRequest::default();
-    let answer = portal.call("korpis.v1.AccountService/BeginSignIn", &asked, None).await;
-    let begun: pb::BeginSignInResponse = answer.unwrap().0;
-    let options = begun.request.as_option().unwrap().clone();
-    assert_eq!(options.rp_id, NAME);
-    let got = browser.get(&options.challenge);
-    pb::SignInWithPasskeyRequest {
-        challenge_id: options.challenge_id,
-        credential_id: got.credential_id,
-        client_data_json: got.client_data_json,
-        authenticator_data: got.authenticator_data,
-        signature: got.signature,
-        ..Default::default()
-    }
-}
-
 #[tokio::test]
 async fn a_portal_s_passkey_signs_in_there_alone_and_its_session_acts_beneath_its_organization() {
     let h = Harness::new().await;
@@ -94,7 +44,7 @@ async fn a_portal_s_passkey_signs_in_there_alone_and_its_session_acts_beneath_it
     let refused = accounts(&h).sign_in_with_passkey(elsewhere).await.unwrap_err();
     assert_eq!(refused.code, ErrorCode::Unauthenticated);
 
-    let access = signed_in_at(&portal, &mut browser).await;
+    let (_, access) = signed_in_at(&portal, &mut browser).await;
 
     // The token reaches the portal's organization, wherever it is presented, and nothing above.
     let confined = h.config(Some(&access));
@@ -127,18 +77,6 @@ async fn a_portal_s_passkey_signs_in_there_alone_and_its_session_acts_beneath_it
     let above = h.orgs(cli.clone()).get_organization(get(&h.root_org())).await.unwrap_err();
     assert_eq!(above.code, ErrorCode::NotFound);
     h.orgs(cli).get_organization(get(&reseller)).await.unwrap();
-}
-
-/// Signs in at `portal` with `browser`'s passkey; an access token the session gives.
-async fn signed_in_at(portal: &Portal, browser: &mut SoftAuthenticator) -> String {
-    let signed_in = answered_at(portal, browser).await;
-    let signed_in = portal.call("korpis.v1.AccountService/SignInWithPasskey", &signed_in, None);
-    let (_, headers): (pb::SignInResponse, _) = signed_in.await.unwrap();
-    let cookie = refresh_cookie(&headers).unwrap();
-    let exchange = pb::ExchangeRequest::default();
-    let exchanged = portal.call("korpis.v1.SessionService/Exchange", &exchange, Some(&cookie));
-    let (exchanged, _): (pb::ExchangeResponse, _) = exchanged.await.unwrap();
-    exchanged.access_token
 }
 
 /// A CLI's sign-in begun at the installation's address and approved with `access`; an access

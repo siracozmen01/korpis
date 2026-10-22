@@ -28,6 +28,7 @@ struct SessionRow {
     source: String,
     portal_id: Option<Uuid>,
     portal_organization: Option<Uuid>,
+    within_id: Option<Uuid>,
 }
 
 impl TryFrom<SessionRow> for UserSession {
@@ -60,6 +61,7 @@ impl TryFrom<SessionRow> for UserSession {
             user_agent: r.user_agent,
             source: r.source,
             portal,
+            within: r.within_id,
         })
     }
 }
@@ -86,7 +88,7 @@ impl UserSessionRead for PgStore {
             SessionRow,
             "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at, s.last_used_at,
                     s.authenticated_at, s.expires_at, s.user_agent, s.source, s.portal_id,
-                    p.organization_id AS \"portal_organization?\"
+                    p.organization_id AS \"portal_organization?\", s.within_id
                FROM user_session s LEFT JOIN portal p ON p.id = s.portal_id
               WHERE (s.account_id = $1 OR s.binding_id = $2)
               ORDER BY s.created_at DESC, s.id",
@@ -104,7 +106,7 @@ impl UserSessionRead for PgStore {
             SessionRow,
             "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at, s.last_used_at,
                     s.authenticated_at, s.expires_at, s.user_agent, s.source, s.portal_id,
-                    p.organization_id AS \"portal_organization?\"
+                    p.organization_id AS \"portal_organization?\", s.within_id
                FROM user_session s LEFT JOIN portal p ON p.id = s.portal_id
               WHERE (s.account_id = $1 OR s.binding_id = $2)
                 AND s.id = $3",
@@ -146,8 +148,8 @@ impl UserSessionWrite for PgTx {
         sqlx::query!(
             "INSERT INTO user_session (id, account_id, binding_id, sets, kind, refresh_hash,
                                        created_at, last_used_at, authenticated_at, expires_at,
-                                       user_agent, source, portal_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+                                       user_agent, source, portal_id, within_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
             s.id,
             s.holder.account(),
             s.holder.binding(),
@@ -160,7 +162,8 @@ impl UserSessionWrite for PgTx {
             from_time(s.expires_at),
             s.user_agent,
             s.source,
-            s.portal.map(|p| p.portal)
+            s.portal.map(|p| p.portal),
+            s.within
         )
         .execute(&mut *self.tx)
         .await
@@ -172,7 +175,7 @@ impl UserSessionWrite for PgTx {
         let current = sqlx::query!(
             r#"SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at,
                       s.last_used_at, s.authenticated_at, s.expires_at, s.user_agent, s.source,
-                      s.portal_id, p.organization_id AS "portal_organization?",
+                      s.portal_id, p.organization_id AS "portal_organization?", s.within_id,
                       CASE WHEN s.account_id IS NOT NULL THEN a.disabled_at IS NULL
                            ELSE b.retired_at IS NULL END AS "usable!"
                  FROM user_session s
@@ -200,6 +203,7 @@ impl UserSessionWrite for PgTx {
                 source: r.source,
                 portal_id: r.portal_id,
                 portal_organization: r.portal_organization,
+                within_id: r.within_id,
             };
             return Ok(Presented::Current {
                 session: UserSession::try_from(row)?,

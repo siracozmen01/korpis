@@ -14,6 +14,8 @@ use korpis_core::dns::portal::Portal;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+mod at;
+
 struct PortalRow {
     id: Uuid,
     organization_id: Uuid,
@@ -46,6 +48,10 @@ fn texts(names: &[DomainName]) -> Vec<String> {
 }
 
 impl PortalRead for PgStore {
+    async fn portal_reach(&self, portal: Uuid) -> StoreResult<(u64, u64)> {
+        at::reach(&self.pool, portal).await
+    }
+
     async fn portal(&self, id: Uuid) -> StoreResult<Option<Portal>> {
         let row = sqlx::query_as!(
             PortalRow,
@@ -234,6 +240,14 @@ impl PortalWrite for PgTx {
             .await
             .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn end_portal_sessions(&mut self, portal: Uuid) -> StoreResult<u64> {
+        at::end_sessions(self, portal).await
+    }
+
+    async fn remove_portal_passkeys(&mut self, portal: Uuid) -> StoreResult<Vec<(Uuid, String)>> {
+        at::remove_passkeys(self, portal).await
     }
 
     async fn delete_portal(&mut self, id: Uuid) -> StoreResult<()> {

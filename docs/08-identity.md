@@ -2106,6 +2106,51 @@ passkey at any portal is a lasting second factor beside a password, so a passwor
 factor is a passkey at one portal signs in at any other address with a TOTP code or a recovery code
 alone.
 
+> Corrected 2026-10-22, while building it (Finding 133 of `23-walkthroughs.md`): the rule above
+> holds at the change and not after it. A password set at a portal while every grant lay beneath
+> its organization is known to whoever serves the portal's name, and so is a TOTP secret enrolled
+> there; a grant issued to the account later, anywhere, would have been theirs, signing in at the
+> installation's own address with what they saw. So each of the account's shared secrets records
+> the organization beneath which the session that set it was confined: the password where it was
+> set, the TOTP secret where it was enrolled, the recovery codes where they were shown, a
+> redemption at a portal recording all three there. A secret set again from a session that is not
+> confined records none, its new value being one no portal was shown. A password typed at a
+> portal is exposed too, and the control plane can neither see nor stop that, as the cost below
+> says; what it records is what it was itself given or showed. A sign-in with a password and a second factor
+> whose records both name an organization reaches only beneath the narrower of the two, where one
+> lies beneath the other, wherever the sign-in is begun, since one holder may know both; where
+> either records none, or the two name organizations neither of which lies beneath the other, no
+> one holder knows both, and the records confine nothing. A session begun at a portal reaches beneath the narrower of
+> that and the portal's organization, and where they are disjoint the sign-in is refused
+> `session.portal_confined`, since it would reach nothing. The session records its reach when it
+> begins, every access token names it, and a `korpis login` it approves is given it. A session
+> registers a passkey only where it is confined exactly as its address is, unconfined at the
+> installation's own address and beneath the portal's organization at a portal, since a passkey
+> signs in reaching what its address reaches and whoever holds the session holds the
+> authenticator it registers: a session a seen password began at the installation's address
+> registers none there. **What evaluates this, where, and with what information:** the control
+> plane at the sign-in, from the account's records, read with the password, and the ancestry of
+> the organizations they name; at every exchange, from the session's recorded reach; and at a
+> change, from the account's grants, read in the change's transaction. What it
+> costs: a person whose password and TOTP were both set at a portal, and who is granted something
+> elsewhere afterwards, reaches it with them nowhere; they set one of them again at the
+> installation's own address from a session a passkey registered there began, or are recovered
+> as §9.3 recovers anyone, by a grant to an identity registered anew. An organization deleted
+> still confines what recorded it, reaching nothing. Built 2026-10-22 (P2.9d2b1), with the rule
+> of Finding 131 above, which refuses `session.portal_confined` too.
+>
+> Built 2026-10-22 (P2.9d2b2): what a confined session sees, and deleting a portal. A confined
+> session lists and ends only the sessions begun at its own portal and confined as it is, and
+> sees and removes only the passkeys registered at its portal; one confined at the installation's
+> own address, by a password seen at a portal, sees no passkey at all, so the holder who saw the
+> password cannot remove the person's passkeys there. Each is evaluated by the control plane at
+> the call, from the caller's session, read beside the sessions or the passkey it names.
+> Deleting a portal ends its sessions and removes its passkeys in the deletion's transaction,
+> each removal an `account.factor_removed` by the installation's authority naming the portal,
+> and the deletion's own effect counts both. `GetPortal` answers how many passkeys are
+> registered at the portal and how many accounts have one there and nothing else that signs
+> in, no password and no passkey at another address, which `korpis portal get` shows.
+
 **The sign-in page at a portal.** It wears the portal's organization's theme, which
 `GetSignInTheme` answers at the portal in place of the root organization's (§7 of
 `11-surface-web.md`). It offers the identity providers of the portal's organization that serve
@@ -2146,7 +2191,9 @@ identity provider its organization offers.
 > relying party. The session records its portal, and an exchange reads the portal's organization
 > beside it, refusing a session whose portal it cannot read rather than leaving it unconfined;
 > every access token names that organization, in a claim the token's format carries from its
-> second version. The gateway refuses a call made with such a token on any object outside the
+> second version. (Since P2.9d2b1 the session records the organization it reaches beneath,
+> which the correction above makes narrower than its portal's where its secrets say so, and the
+> claim is that.) The gateway refuses a call made with such a token on any object outside the
 > organization before it consults a grant, which also filters every list it answers per object;
 > issuing a grant, a token, or a share link with one is refused `session.portal_confined` unless
 > the scope lies beneath the organization, as is approving a plan, both of which evaluate chains

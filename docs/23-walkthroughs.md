@@ -1378,6 +1378,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 130 | A sign-in through an identity provider at a portal would have returned to the wrong address | §48 | `08-identity.md` §9.7, §9.8 |
 | 131 | A confined session could have changed what protects the account everywhere | §48 | `08-identity.md` §9.8 |
 | 132 | A relay of its own would have refused the console of a panel at a portal | §48 | `07-networking.md` §3.6 |
+| 133 | A password set at a portal would have served every grant issued after it | §48 | `08-identity.md` §9.8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4084,10 +4085,10 @@ where the panel is served; Finding 66 had left both waiting on this design.
 | 4 | Ada redeems Pinecone's invitation there: her passkey is registered for the relying party `panel.pinecone.example`, recorded with the portal, and her browser is given the portal's own device cookie (built in P2.9d1) | `08-identity.md` §9.6, §9.8 |
 | 5 | Ada's session began at the portal, so its access tokens name Pinecone's organization; she opens her Pinecone server, and her Northwind server is not listed there ‡ (built in P2.9d1) | `08-identity.md` §9.8, §3.3; `10-api.md` §8 |
 | 6 | Ada runs `korpis login` on her laptop against `korpis.kestrel.example` and approves its code on the portal's device page; the CLI's session is confined as the approving one is ‡ (built in P2.9d1) | `08-identity.md` §9.4, §9.8; `13-surface-cli.md` §7 |
-| 7 | Ada adds a second passkey at the portal, which is accepted, and tries to set a password there, which is refused `session.portal_confined`, since she holds a grant at Northwind; she sets it at `korpis.kestrel.example` ‡ | `08-identity.md` §9.8, §9.4 |
+| 7 | Ada adds a second passkey at the portal, which is accepted, and tries to set a password there, which is refused `session.portal_confined`, since she holds a grant at Northwind; she sets it at `korpis.kestrel.example` ‡ (built in P2.9d2b1, with Finding 133) | `08-identity.md` §9.8, §9.4 |
 | 8 | Pinecone's staff sign in through Pinecone's identity provider at the portal: the pending sign-in records the portal's `/sign-in/callback`, the identity provider returns them there, and the tab that began it holds the verifier ‡ (built in P2.9d2a) | `08-identity.md` §9.7, §9.8 |
 | 9 | Ada opens her server's console at the portal: the panel opens the session at Kestrel's relay, a process of its own, which answers the portal's origin from its feed ‡ (built in P2.9c) | `07-networking.md` §3.6; `02-architecture.md` §3.1; `14-streams.md` §6 |
-| 10 | A year later Pinecone deletes the portal: `GetPortal` says three passkeys are registered there and no account signs in nowhere else, Ada having a password and a passkey at home; the portal's sessions end, its passkeys are removed, and its certificate goes with it | `08-identity.md` §9.8; `01-model.md` §3.6; `07-networking.md` §3.2 |
+| 10 | A year later Pinecone deletes the portal: `GetPortal` says three passkeys are registered there and no account signs in nowhere else, Ada having a password and a passkey at home; the portal's sessions end, its passkeys are removed, and its certificate goes with it (built in P2.9d2b2) | `08-identity.md` §9.8; `01-model.md` §3.6; `07-networking.md` §3.2 |
 
 Each step was asked what evaluates it, where, and with what. Step 1 is the control plane's, from
 its records of domains, routes, and portals, under one lock. Step 2 is the issuer's and then any
@@ -4099,7 +4100,8 @@ plane's, from the approving session. Step 7 is the control plane's, from Ada's g
 change's transaction. Step 8 is the control plane's twice, and the tab's, which alone holds the
 verifier. Step 9 is the relay's, from its feed. Step 10 is the control plane's, from the passkeys
 and sessions recorded with the portal. Six steps (‡) found six defects in the design as first
-drafted, or in what earlier documents said it would be.
+drafted, or in what earlier documents said it would be; building it found a seventh, at step 7
+again (Finding 133).
 
 **FINDING 127: The theme of a reseller's sign-in page was to be chosen from a header the browser
 does not send. `CONFIRMED`**
@@ -4179,6 +4181,23 @@ at any time; the panel at Pinecone's portal could have signed Ada in and never o
 
 **Resolution.** The control plane names the portals' origins to every relay in its feed, and a
 relay answers them beside its `--web-origin`. → designed in `07-networking.md` §3.6.
+
+**FINDING 133: A password set at a portal would have served every grant issued after it.
+`CONFIRMED`**
+
+Found 2026-10-22 at step 7, while building the rule of Finding 131, asking what the rule decides
+after the change it allows. Suppose Ada held only Pinecone's grants when she set her password and
+enrolled TOTP at the portal, as the rule lets her. Pinecone, which can serve its own page at its
+name, saw both. When Northwind granted her a server a month later, Pinecone could have signed in as
+Ada at `korpis.kestrel.example` with them and reached it, unconfined: the rule was evaluated once,
+at the change, and what it protected against arrived afterwards.
+
+**Resolution.** Each shared secret records the organization beneath which the session that set it
+was confined, the password where it was set, the TOTP secret where it was enrolled, the recovery
+codes where they were shown; a sign-in with two secrets whose records name nested organizations reaches
+beneath the narrower, wherever it is begun, and the session records its reach. A session registers
+passkeys only where it is confined exactly as its address is, so a seen password cannot buy a
+passkey that reaches further. → corrected in place in `08-identity.md` §9.8.
 
 What the trace costs, and what it does not do. It was written before the code, so it confirms that
 every step has an owner and that each owner holds what it needs; whether the listener, the issuer,

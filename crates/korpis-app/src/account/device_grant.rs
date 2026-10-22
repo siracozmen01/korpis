@@ -183,9 +183,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Begins the CLI's session for `holder`, who approved from session `from`: an account's,
     /// or a person's with the sets that session holds, which they signed in with. It is
-    /// confined as the approving session is, beneath the organization of the portal that
-    /// session began at, or a page served at the portal could approve a login of its own and
-    /// hold a session confined to nothing (§9.8 of docs/08-identity.md, Finding 129).
+    /// confined as the approving session is, beneath the organization it reaches beneath, or a
+    /// page served at its portal could approve a login of its own and hold a session confined
+    /// to nothing (§9.8 of docs/08-identity.md, Finding 129).
     async fn begin_cli_session(
         &self,
         tx: &mut S::Tx,
@@ -201,9 +201,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let cli = Client { portal: approving.portal, ..cli.clone() };
         let Holder::Person(binding) = holder else {
             let account = holder.account().ok_or(AppError::Unauthenticated)?;
-            return self.begin_session(tx, account, &cli).await;
+            return self.begin_session(tx, account, &cli, approving.within).await;
         };
         let person = self.store.binding(binding).await?.ok_or(AppError::Unauthenticated)?;
-        self.begin_held(tx, (holder, person.subject), approving.sets, &cli).await
+        let held = (approving.sets, approving.within);
+        self.begin_held(tx, (holder, person.subject), held, &cli).await
     }
 }

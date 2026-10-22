@@ -10,12 +10,14 @@ use crate::{PgStore, PgTx};
 use korpis_app::ports::{
     AccountRead, AccountWrite, SealedKey, StoreError, StoreResult, TotpFactor,
 };
+use korpis_core::account::exposed::{SetWithin, Shared};
 use korpis_core::account::record::{Account, Challenge, Factors, Invitation, Passkey};
 use korpis_core::webauthn::Algorithm;
 use std::time::SystemTime;
 use uuid::Uuid;
 
 mod challenge;
+mod exposed;
 mod factor;
 
 struct AccountRow {
@@ -195,6 +197,10 @@ impl AccountRead for PgStore {
         factor::secrets_changed_at(&self.pool, account).await
     }
 
+    async fn secrets_set_within(&self, account: Uuid) -> StoreResult<SetWithin> {
+        exposed::set_within(&self.pool, account).await
+    }
+
     async fn totp(&self, account: Uuid) -> StoreResult<Option<TotpFactor>> {
         let row = sqlx::query!(
             "SELECT sealed_by, sealed, last_step FROM totp_factor WHERE account_id = $1",
@@ -316,6 +322,15 @@ impl AccountWrite for PgTx {
 
     async fn secrets_changed(&mut self, account: Uuid, at: SystemTime) -> StoreResult<()> {
         factor::secrets_changed(self, account, at).await
+    }
+
+    async fn secret_set_within(
+        &mut self,
+        account: Uuid,
+        secret: Shared,
+        within: Option<Uuid>,
+    ) -> StoreResult<()> {
+        exposed::record(self, account, secret, within).await
     }
 
     async fn replace_recovery_codes(

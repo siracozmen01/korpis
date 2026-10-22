@@ -69,7 +69,13 @@ impl pb::PortalService for Api {
         let caller = self.caller(&ctx).await?;
         let id = wire::id(IdKind::Portal, "id", request.id).refuse()?;
         let v = self.app.get_portal(&caller, id).await.map_err(error::from_app)?;
-        Response::ok(pb::GetPortalResponse { portal: shown(&v).into(), ..Default::default() })
+        let reach = self.app.portal_reach(&caller, id).await.map_err(error::from_app)?;
+        Response::ok(pb::GetPortalResponse {
+            portal: shown(&v).into(),
+            passkeys: reach.passkeys,
+            accounts_only_here: reach.accounts_only_here,
+            ..Default::default()
+        })
     }
 
     async fn list_portals(

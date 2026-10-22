@@ -79,6 +79,8 @@ mod pin;
 mod placement;
 mod plans;
 mod portal_client;
+mod portal_deletion;
+mod portal_secrets;
 mod portal_serving;
 mod portal_sessions;
 mod portal_sign_in;

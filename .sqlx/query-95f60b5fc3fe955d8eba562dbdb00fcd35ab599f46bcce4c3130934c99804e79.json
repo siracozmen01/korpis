@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*) FROM passkey WHERE portal_id = $1) AS \"passkeys!\",\n                  (SELECT count(DISTINCT k.account_id) FROM passkey k\n                    WHERE k.portal_id = $1\n                      AND NOT EXISTS (SELECT 1 FROM password_factor f\n                                       WHERE f.account_id = k.account_id)\n                      AND NOT EXISTS (SELECT 1 FROM passkey o\n                                       WHERE o.account_id = k.account_id\n                                         AND o.portal_id IS DISTINCT FROM $1)) AS \"only_here!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "passkeys!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "only_here!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "95f60b5fc3fe955d8eba562dbdb00fcd35ab599f46bcce4c3130934c99804e79"
+}

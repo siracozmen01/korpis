@@ -299,6 +299,23 @@ impl GrantWrite for PgTx {
         Ok(n == 1)
     }
 
+    async fn grants_held_now(&mut self, subject_key: &str) -> StoreResult<Vec<GrantRecord>> {
+        let rows = sqlx::query_as!(
+            GrantRow,
+            "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
+                    link_form, uses, issued_at, revoked_at, suspended_at, root,
+                    irreversible_override, label, template_id, template_version, via
+               FROM grants
+              WHERE subject_key = $1 AND revoked_at IS NULL
+              ORDER BY id",
+            subject_key
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        all(rows)
+    }
+
     async fn descendant_count(&mut self, grant: Uuid) -> StoreResult<u64> {
         let n = sqlx::query_scalar!(
             r#"WITH RECURSIVE d AS (

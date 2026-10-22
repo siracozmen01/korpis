@@ -4,6 +4,7 @@
 //! (§9.6 of docs/08-identity.md); and the vault that seals TOTP secrets.
 
 use super::{SealedKey, StoreResult, VaultError};
+use korpis_core::account::exposed::{SetWithin, Shared};
 use korpis_core::account::password::{self, PasswordError};
 use korpis_core::account::record::{Account, Challenge, Factors, Invitation, Passkey};
 use korpis_core::account::totp::TotpSecret;
@@ -64,6 +65,12 @@ pub trait AccountRead {
         &self,
         account: Uuid,
     ) -> impl Future<Output = StoreResult<Option<SystemTime>>> + Send;
+
+    /// Where each shared secret of `account` was set (§9.8 of docs/08-identity.md).
+    fn secrets_set_within(
+        &self,
+        account: Uuid,
+    ) -> impl Future<Output = StoreResult<SetWithin>> + Send;
 }
 
 /// Writing accounts and their factors. Every check-and-set here answers false when what it
@@ -146,6 +153,15 @@ pub trait AccountWrite {
 
     /// Removes the TOTP factor of `account`; false if it had none.
     fn remove_totp(&mut self, account: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Records that `secret` of `account` was set by a session confined beneath `within`, none
+    /// for a session that was not.
+    fn secret_set_within(
+        &mut self,
+        account: Uuid,
+        secret: Shared,
+        within: Option<Uuid>,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Records that the holder of `account` changed its password or TOTP factor `at`.
     fn secrets_changed(

@@ -56,22 +56,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The caller's account, if its session signed in or re-authenticated recently; a caller
     /// without a session, one presenting an API token, never has.
     pub(super) async fn recently_signed_in(&self, caller: &Caller) -> Result<Uuid, AppError> {
-        Ok(self.recently_signed_in_at(caller).await?.0)
+        Ok(self.recently_signed_in_session(caller).await?.0)
     }
 
-    /// The caller's account, as [`Self::recently_signed_in`] answers it, and the portal its
-    /// session began at, the one address its passkeys are registered at (§9.8 of
-    /// docs/08-identity.md).
-    pub(super) async fn recently_signed_in_at(
+    /// The caller's account, as [`Self::recently_signed_in`] answers it, and its session: the
+    /// portal it began at, the one address its passkeys are registered at, and the organization
+    /// it reaches beneath, which bounds what it may change (§9.8 of docs/08-identity.md).
+    pub(super) async fn recently_signed_in_session(
         &self,
         caller: &Caller,
-    ) -> Result<(Uuid, Option<Uuid>), AppError> {
+    ) -> Result<(Uuid, UserSession), AppError> {
         let account = own_account(caller)?;
         let session = self.recent_session(caller).await?;
         match session.holder {
-            Holder::Account(held) if held == account => {
-                Ok((account, session.portal.map(|p| p.portal)))
-            }
+            Holder::Account(held) if held == account => Ok((account, session)),
             Holder::Account(_) | Holder::Person(_) => Err(AppError::Unauthenticated),
         }
     }
@@ -132,7 +130,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or(AppError::Unauthenticated)?;
         let checked = self
             .guarded(&name, client, async {
-                let (found, tx, factor) = self.check_password(&name, password, second).await?;
+                let (found, tx, (factor, _)) = self.check_password(&name, password, second).await?;
                 if found != account {
                     return Err(AppError::Unauthenticated);
                 }

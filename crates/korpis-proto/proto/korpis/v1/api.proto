@@ -899,6 +899,13 @@ message GetPortalRequest {
 
 message GetPortalResponse {
   Portal portal = 1;
+  // The passkeys registered at the portal, which deleting it removes (§9.8 of
+  // docs/08-identity.md).
+  uint64 passkeys = 2;
+  // The accounts with a passkey at the portal and nothing else that signs in: no password, and no
+  // passkey at another address. Deleting the portal leaves each to be recovered as §9.3 recovers
+  // anyone.
+  uint64 accounts_only_here = 3;
 }
 
 message ListPortalsRequest {

@@ -88,6 +88,10 @@ pub struct UserSession {
     /// The portal it was begun at, beneath whose organization it acts (§9.8 of
     /// docs/08-identity.md); none for one begun at the installation's own address.
     pub portal: Option<AtPortal>,
+    /// The organization beneath which it acts, wherever it is used: its portal's, or the one its
+    /// password and second factor were both set beneath, the narrower where both (§9.8 of
+    /// docs/08-identity.md); none for one that reaches whatever its holder's grants do.
+    pub within: Option<Uuid>,
 }
 
 /// A portal a session was begun at, and the organization it is confined beneath.
@@ -132,6 +136,7 @@ mod tests {
             user_agent: String::new(),
             source: String::new(),
             portal: None,
+            within: None,
         };
         assert!(s.live(at + SESSION_IDLE - Duration::from_secs(1), SESSION_IDLE));
         assert!(!s.live(at + SESSION_IDLE, SESSION_IDLE), "idle");

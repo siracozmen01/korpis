@@ -7,11 +7,13 @@
 //! removals racing cannot leave it with neither. Changing the password or TOTP, the secrets a
 //! guess is aimed at, stops every device cookie issued before it being honoured (`device`).
 
+use super::reach::{registers_passkeys, sees_passkey, still_changeable};
 use super::{Registration, fresh_codes, own_account, record};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{AccountWrite as _, Clock, RecipeSource, Store, Tx};
+use korpis_core::account::exposed::Shared;
 use korpis_core::account::record::{Account, Ceremony, Factors, Passkey};
 use korpis_core::account::totp::TotpSecret;
 use korpis_core::webauthn::verify_registration;
@@ -47,21 +49,26 @@ async fn locked<T: Tx>(tx: &mut T, account: Uuid) -> Result<Factors, AppError> {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The caller's account.
+    /// The caller's account, with the passkeys it sees: for a confined session, those of its
+    /// own portal (§9.8 of docs/08-identity.md).
     pub async fn own_account(&self, caller: &Caller) -> Result<AccountView, AppError> {
         let id = own_account(caller)?;
+        let own = self.confining(caller).await?;
         let account =
             self.store.account(id).await?.ok_or(AppError::NotFound { kind: "account" })?;
         let factors = self.store.factors(id).await?;
-        let passkeys = self.store.passkeys(id).await?;
+        let mut passkeys = self.store.passkeys(id).await?;
+        passkeys.retain(|p| sees_passkey(own.as_ref(), p.portal));
         Ok(AccountView { account, factors, passkeys })
     }
 
     /// Begins registering another passkey for the caller, at the address its session began
-    /// at: a session begun at a portal registers passkeys there alone (§9.8 of
-    /// docs/08-identity.md).
+    /// at: a session begun at a portal registers passkeys there alone, and only a session
+    /// confined exactly as its address is registers any (§9.8 of docs/08-identity.md).
     pub async fn begin_add_passkey(&self, caller: &Caller) -> Result<Registration, AppError> {
-        let (_, at) = self.recently_signed_in_at(caller).await?;
+        let (_, session) = self.recently_signed_in_session(caller).await?;
+        registers_passkeys(&session)?;
+        let at = session.portal.map(|p| p.portal);
         let view = self.own_account(caller).await?;
         let name = view.account.name.clone().unwrap_or_else(|| view.account.id.to_string());
         let exclude =
@@ -75,7 +82,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         r: super::NewRegistration,
     ) -> Result<(), AppError> {
-        let (id, at) = self.recently_signed_in_at(caller).await?;
+        let (id, session) = self.recently_signed_in_session(caller).await?;
+        registers_passkeys(&session)?;
+        let at = session.portal.map(|p| p.portal);
         let challenge = self.take_challenge(r.challenge, Ceremony::Register, at).await?;
         if challenge.account != Some(id) || challenge.invitation.is_some() {
             return Err(AppError::Unauthenticated);
@@ -110,6 +119,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         credential_id: &[u8],
     ) -> Result<(), AppError> {
         let id = self.recently_signed_in(caller).await?;
+        let own = self.confining(caller).await?;
+        let seen = self.store.passkey(credential_id).await?;
+        if !seen.is_some_and(|p| p.account == id && sees_passkey(own.as_ref(), p.portal)) {
+            return Err(AppError::NotFound { kind: "passkey" });
+        }
         let mut tx = self.store.begin().await?;
         let mut after = locked(&mut tx, id).await?;
         if !tx.remove_passkey(id, credential_id).await? {
@@ -133,7 +147,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Sets the caller's password, which needs a passkey or TOTP beside it.
     pub async fn set_password(&self, caller: &Caller, password: &str) -> Result<(), AppError> {
-        let id = self.recently_signed_in(caller).await?;
+        let (id, session) = self.recently_signed_in_session(caller).await?;
+        let checked = self.secrets_changeable(id, session.within).await?;
         let phc = self
             .passwords()
             .hash(password)
@@ -141,12 +156,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .map_err(|e| AppError::invalid("password", e.to_string()))?;
         let mut tx = self.store.begin().await?;
         let mut after = locked(&mut tx, id).await?;
+        still_changeable(&mut tx, id, checked.as_ref()).await?;
         after.password = true;
         if !sound(&after) {
             return Err(unsound());
         }
         let now = self.clock.now();
         tx.set_password(id, &phc, now).await?;
+        tx.secret_set_within(id, Shared::Password, session.within).await?;
         tx.secrets_changed(id, now).await?;
         record(
             &mut tx,
@@ -162,12 +179,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Removes the caller's password.
     pub async fn remove_password(&self, caller: &Caller) -> Result<(), AppError> {
-        let id = self.recently_signed_in(caller).await?;
+        let (id, session) = self.recently_signed_in_session(caller).await?;
+        let checked = self.secrets_changeable(id, session.within).await?;
         let mut tx = self.store.begin().await?;
         let mut after = locked(&mut tx, id).await?;
+        still_changeable(&mut tx, id, checked.as_ref()).await?;
         if !tx.remove_password(id).await? {
             return Err(AppError::NotFound { kind: "password" });
         }
+        tx.secret_set_within(id, Shared::Password, None).await?;
         tx.secrets_changed(id, self.clock.now()).await?;
         after.password = false;
         if !sound(&after) {
@@ -193,7 +213,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         secret: &TotpSecret,
         code: &str,
     ) -> Result<(), AppError> {
-        let id = self.recently_signed_in(caller).await?;
+        let (id, session) = self.recently_signed_in_session(caller).await?;
+        let checked = self.secrets_changeable(id, session.within).await?;
         let step = secret
             .accept(code, self.clock.now(), None)
             .ok_or_else(|| AppError::invalid("code", "not the code the secret gives now"))?;
@@ -201,7 +222,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.factor_vault()?.seal(id, secret).map_err(|e| AppError::Internal(e.to_string()))?;
         let mut tx = self.store.begin().await?;
         locked(&mut tx, id).await?;
+        still_changeable(&mut tx, id, checked.as_ref()).await?;
         tx.set_totp(id, &sealed, step).await?;
+        tx.secret_set_within(id, Shared::Totp, session.within).await?;
         tx.secrets_changed(id, self.clock.now()).await?;
         record(&mut tx, &caller.principal, "account.factor_added", id, [("factor", "totp".into())])
             .await?;
@@ -211,12 +234,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Removes the caller's TOTP factor.
     pub async fn remove_totp(&self, caller: &Caller) -> Result<(), AppError> {
-        let id = self.recently_signed_in(caller).await?;
+        let (id, session) = self.recently_signed_in_session(caller).await?;
+        let checked = self.secrets_changeable(id, session.within).await?;
         let mut tx = self.store.begin().await?;
         let mut after = locked(&mut tx, id).await?;
+        still_changeable(&mut tx, id, checked.as_ref()).await?;
         if !tx.remove_totp(id).await? {
             return Err(AppError::NotFound { kind: "totp" });
         }
+        tx.secret_set_within(id, Shared::Totp, None).await?;
         tx.secrets_changed(id, self.clock.now()).await?;
         after.totp = false;
         if !sound(&after) {
@@ -236,10 +262,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Replaces the caller's recovery codes with ten fresh ones, answered once.
     pub async fn renew_recovery_codes(&self, caller: &Caller) -> Result<Vec<String>, AppError> {
-        let id = self.recently_signed_in(caller).await?;
+        let (id, session) = self.recently_signed_in_session(caller).await?;
+        let checked = self.secrets_changeable(id, session.within).await?;
         let mut tx = self.store.begin().await?;
         locked(&mut tx, id).await?;
+        still_changeable(&mut tx, id, checked.as_ref()).await?;
         let codes = fresh_codes(&mut tx, id).await?;
+        tx.secret_set_within(id, Shared::RecoveryCodes, session.within).await?;
         record(&mut tx, &caller.principal, "account.recovery_codes_renewed", id, []).await?;
         tx.commit().await?;
         Ok(codes)

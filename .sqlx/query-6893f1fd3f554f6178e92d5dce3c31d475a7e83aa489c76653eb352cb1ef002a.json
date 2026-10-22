@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT password_set_within, totp_set_within, recovery_codes_set_within\n           FROM account WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "password_set_within",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "password_set_within"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "totp_set_within",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "totp_set_within"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "recovery_codes_set_within",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "recovery_codes_set_within"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6893f1fd3f554f6178e92d5dce3c31d475a7e83aa489c76653eb352cb1ef002a"
+}

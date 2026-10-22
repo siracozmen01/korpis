@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at, s.last_used_at,\n                    s.authenticated_at, s.expires_at, s.user_agent, s.source, s.portal_id,\n                    p.organization_id AS \"portal_organization?\"\n               FROM user_session s LEFT JOIN portal p ON p.id = s.portal_id\n              WHERE (s.account_id = $1 OR s.binding_id = $2)\n                AND s.id = $3",
+  "query": "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at,\n                      s.last_used_at, s.authenticated_at, s.expires_at, s.user_agent, s.source,\n                      s.portal_id, p.organization_id AS \"portal_organization?\", s.within_id,\n                      CASE WHEN s.account_id IS NOT NULL THEN a.disabled_at IS NULL\n                           ELSE b.retired_at IS NULL END AS \"usable!\"\n                 FROM user_session s\n                 LEFT JOIN account a ON a.id = s.account_id\n                 LEFT JOIN identity_binding b ON b.id = s.binding_id\n                 LEFT JOIN portal p ON p.id = s.portal_id\n                WHERE s.refresh_hash = $1 FOR UPDATE OF s",
   "describe": {
     "columns": [
       {
@@ -145,13 +145,28 @@
             "name": "organization_id"
           }
         }
+      },
+      {
+        "ordinal": 13,
+        "name": "within_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "user_session",
+            "name": "within_id"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "usable!",
+        "type_info": "Bool",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Uuid",
-        "Uuid"
+        "Bytea"
       ]
     },
     "nullable": [
@@ -167,8 +182,10 @@
       false,
       false,
       true,
-      true
+      false,
+      true,
+      null
     ]
   },
-  "hash": "a6dcd76e6dcc7418c1ccd04cbc8554bfb25a35d6bd70152fbe43e4d8a1854d0c"
+  "hash": "7debf0963ea5066f6e0432d0da1d5101b72b97d419624cfdbe551af3e11b1328"
 }

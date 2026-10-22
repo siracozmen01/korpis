@@ -59,6 +59,7 @@ async fn signed_in(f: &Fixture) -> (IdentityBinding, Principal, Uuid) {
         user_agent: "test".into(),
         source: "203.0.113.7".into(),
         portal: None,
+        within: None,
     };
     let store = f.db.store().await.unwrap();
     let mut tx = store.begin().await.unwrap();

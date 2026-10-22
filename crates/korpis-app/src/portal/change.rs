@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Changing a portal: serving it with another certificate, keeping everything else, and deleting
-//! it. An `acme` certificate no portal names any more is removed by the issuer's sweep, as one no
+//! it, which ends the sessions begun at it and removes the passkeys registered there. An `acme` certificate no portal names any more is removed by the issuer's sweep, as one no
 //! endpoint routes is.
 
 use super::{PortalView, effect, servable};
 use crate::App;
+use crate::account::record;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
@@ -14,6 +15,7 @@ use crate::ports::{
 };
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::dns::certificate::Source;
+use korpis_core::principal::{Principal, SystemActor};
 use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -75,8 +77,27 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.authorize(caller, "portal.write", ObjectRef::new(Kind::Portal, id)).await?;
         let mut tx = self.store.begin().await?;
         let held = tx.lock_portal(id).await?.ok_or(AppError::NotFound { kind: "portal" })?;
+        // Nothing begun or registered at it outlives it, so a name made a portal again, by its
+        // organization or another that came to hold it, finds nothing that signs in there
+        // (§9.8 of docs/08-identity.md).
+        let ended = tx.end_portal_sessions(id).await?;
+        let removed = tx.remove_portal_passkeys(id).await?;
+        let system = Principal::System(SystemActor::Authority);
+        for (account, label) in &removed {
+            let more = [
+                ("factor", "passkey".into()),
+                ("passkey", label.as_str().into()),
+                ("portal", id.to_string().into()),
+            ];
+            record(&mut tx, &system, "account.factor_removed", *account, more).await?;
+        }
         tx.delete_portal(id).await?;
-        tx.append_effect(&effect(caller, OPERATION, permit.grant, &held)).await?;
+        let mut deleted = effect(caller, OPERATION, permit.grant, &held);
+        if let Some(after) = deleted.after.as_mut() {
+            after.insert("sessions_ended".into(), ended.into());
+            after.insert("passkeys_removed".into(), removed.len().into());
+        }
+        tx.append_effect(&deleted).await?;
         finish(tx, caller, idem, OPERATION, ()).await
     }
 }

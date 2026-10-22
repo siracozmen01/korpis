@@ -5,6 +5,7 @@
 //! is the second factor beside it.
 
 pub mod device_grant;
+pub mod exposed;
 pub mod password;
 pub mod record;
 pub mod recovery;

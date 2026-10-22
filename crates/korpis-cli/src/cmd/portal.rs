@@ -87,6 +87,18 @@ fn shown(p: &pb::Portal) -> Answer {
     Answer { human, json: json(p) }
 }
 
+/// [`shown`], with what deleting the portal would remove.
+fn reach(got: &pb::GetPortalResponse) -> Answer {
+    let portal = got.portal.as_option().cloned().unwrap_or_default();
+    let human = format!(
+        "{}Passkeys registered here: {}\nAccounts that sign in nowhere else: {}\n",
+        shown(&portal).human,
+        got.passkeys,
+        got.accounts_only_here
+    );
+    Answer { human, json: json(got) }
+}
+
 fn portal_of(p: Option<pb::Portal>) -> pb::Portal {
     p.unwrap_or_default()
 }
@@ -132,7 +144,7 @@ pub async fn portal(c: &Connection, action: &PortalAction) -> Result<Answer, Cli
         }
         PortalAction::Get { portal } => {
             let r = pb::GetPortalRequest { id: portal.clone(), ..Default::default() };
-            shown(&portal_of(client.get_portal(r).await?.into_owned().portal.into_option()))
+            reach(&client.get_portal(r).await?.into_owned())
         }
         PortalAction::Delete { portal, yes } => {
             if !yes {

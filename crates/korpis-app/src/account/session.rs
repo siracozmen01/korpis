@@ -4,6 +4,7 @@
 //! refresh credential for access tokens, rotated on every exchange, and ended by idleness, by
 //! age, by its user, or by a rotated credential presented again, which only a copy can do.
 
+use super::reach::sees_session;
 use super::{Device, own_holder, record_held};
 use crate::App;
 use crate::caller::Caller;
@@ -89,27 +90,32 @@ fn internal(e: &impl std::fmt::Display) -> AppError {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Begins a session for `account` and `client` in `tx`, a factor having just been checked.
+    /// Begins a session for `account` and `client` in `tx`, a factor having just been checked
+    /// whose secrets were seen beneath `seen`, if any were.
     pub(super) async fn begin_session(
         &self,
         tx: &mut S::Tx,
         account: Uuid,
         client: &Client,
+        seen: Option<Uuid>,
     ) -> Result<Begun, AppError> {
         let held = (Holder::Account(account), Principal::User(account));
-        self.begin_held(tx, held, Vec::new(), client).await
+        self.begin_held(tx, held, (Vec::new(), seen), client).await
     }
 
     /// Begins a session `holder` holds, acting as `actor`, with `sets` for a person, for
-    /// `client` in `tx`: what vouched for the holder having just been checked. The actor is
+    /// `client` in `tx`: what vouched for the holder having just been checked, its secrets seen
+    /// beneath `seen` if any were. The session reaches beneath the narrower of that and the
+    /// organization of the portal it is begun at (§9.8 of docs/08-identity.md). The actor is
     /// given rather than read, since a person's binding may be made in `tx` itself.
     pub(crate) async fn begin_held(
         &self,
         tx: &mut S::Tx,
         (holder, actor): (Holder, Principal),
-        sets: Vec<SetName>,
+        (sets, seen): (Vec<SetName>, Option<Uuid>),
         client: &Client,
     ) -> Result<Begun, AppError> {
+        let within = self.reach(client.portal.map(|p| p.organization), seen).await?;
         let now = self.clock.now();
         let session = UserSession {
             id: Uuid::now_v7(),
@@ -123,6 +129,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             user_agent: user_agent(&client.user_agent),
             source: source(client.ip),
             portal: client.portal,
+            within,
         };
         let refresh = Secret::generate_kind(SecretKind::Refresh).map_err(|e| internal(&e))?;
         tx.insert_user_session(&session, &refresh.digest()).await?;
@@ -178,7 +185,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let claims = AccessClaims {
             holder: session.holder,
             session: session.id,
-            within: session.portal.map(|p| p.organization),
+            within: session.within,
             expires_at: access_expires_at,
         };
         let access = mint(&self.token_key, &claims);
@@ -209,21 +216,27 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// The caller's sessions, newest first.
+    /// The caller's sessions, newest first; for a confined session, those it sees.
     pub async fn sessions(&self, caller: &Caller) -> Result<Vec<SessionView>, AppError> {
         let holder = own_holder(caller)?;
+        let own = self.confining(caller).await?;
         let now = self.clock.now();
         let sessions = self.store.user_sessions(holder).await?;
         Ok(sessions
             .into_iter()
-            .filter(|s| s.live(now, self.session_limits.idle))
+            .filter(|s| s.live(now, self.session_limits.idle) && sees_session(own.as_ref(), s))
             .map(|session| SessionView { current: caller.session == Some(session.id), session })
             .collect())
     }
 
-    /// Ends the caller's session `id`.
+    /// Ends the caller's session `id`, one it sees.
     pub async fn end_session(&self, caller: &Caller, id: Uuid) -> Result<(), AppError> {
         let holder = own_holder(caller)?;
+        let own = self.confining(caller).await?;
+        let target = self.store.user_session(holder, id).await?;
+        if !target.is_some_and(|t| sees_session(own.as_ref(), &t)) {
+            return Err(AppError::NotFound { kind: "session" });
+        }
         let mut tx = self.store.begin().await?;
         if !tx.end_user_session(holder, id).await? {
             return Err(AppError::NotFound { kind: "session" });
@@ -234,16 +247,45 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Ends every session of the caller's but the one it is using; how many it ended.
+    /// Ends every session of the caller's but the one it is using, of those it sees; how many
+    /// it ended.
     pub async fn end_other_sessions(&self, caller: &Caller) -> Result<u64, AppError> {
         let holder = own_holder(caller)?;
+        let own = self.confining(caller).await?;
+        // Those a confined session sees, read before the transaction begins (Finding 71).
+        let seen = match &own {
+            None => None,
+            Some(own) => Some(
+                self.store
+                    .user_sessions(holder)
+                    .await?
+                    .into_iter()
+                    .filter(|s| Some(s.id) != caller.session && sees_session(Some(own), s))
+                    .map(|s| s.id)
+                    .collect::<Vec<_>>(),
+            ),
+        };
         let mut tx = self.store.begin().await?;
-        let ended = tx.end_other_sessions(holder, caller.session).await?;
+        let ended = match seen {
+            None => tx.end_other_sessions(holder, caller.session).await?,
+            Some(ids) => ended_each(&mut tx, holder, &ids).await?,
+        };
         let more = [("ended", ended.into())];
         record_held(&mut tx, &caller.principal, "session.others_ended", holder, more).await?;
         tx.commit().await?;
         Ok(ended)
     }
+}
+
+/// Ends each of `ids`, sessions of `holder`, in `tx`; how many were still live to end.
+async fn ended_each<T: Tx>(tx: &mut T, holder: Holder, ids: &[Uuid]) -> Result<u64, AppError> {
+    let mut ended = 0;
+    for id in ids {
+        if tx.end_user_session(holder, *id).await? {
+            ended += 1;
+        }
+    }
+    Ok(ended)
 }
 
 /// Ends `session` of `holder`, a rotated refresh credential of it having been presented, which

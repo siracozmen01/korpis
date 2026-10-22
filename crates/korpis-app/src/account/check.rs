@@ -12,6 +12,7 @@ use super::sign_in::{Assertion, SecondFactor};
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{AccountWrite as _, Clock, RecipeSource, Store, Tx as _};
+use korpis_core::account::exposed::Shared;
 use korpis_core::account::password::{STAND_IN, outdated};
 use korpis_core::account::record::{Account, Ceremony, sign_in_name};
 use korpis_core::account::recovery;
@@ -19,6 +20,10 @@ use korpis_core::principal::Principal;
 use korpis_core::webauthn::{StoredPasskey, WebAuthnError, verify_assertion};
 use std::future::Future;
 use uuid::Uuid;
+
+/// What a password and its second factor were checked as: the factors, and the organization
+/// both were seen beneath, if they were.
+pub(super) type Checked = (&'static str, Option<Uuid>);
 
 /// A passkey assertion that verified, not yet spent.
 pub(super) struct CheckedPasskey {
@@ -136,15 +141,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Checks `password` and `second` for `name`, answering the account, a transaction in which
-    /// the second factor is spent, and the factors checked; the caller records what they were
-    /// for and commits. Everything read is read before the transaction begins, so it never holds
-    /// a connection while asking the pool for another (Finding 71).
+    /// the second factor is spent, the factors checked, and the organization the two were both
+    /// seen beneath if they were (§9.8 of docs/08-identity.md); the caller records what they
+    /// were for and commits. Everything read is read before the transaction begins, so it never
+    /// holds a connection while asking the pool for another (Finding 71).
     pub(super) async fn check_password(
         &self,
         name: &str,
         password: &str,
         second: SecondFactor,
-    ) -> Result<(Uuid, S::Tx, &'static str), AppError> {
+    ) -> Result<(Uuid, S::Tx, Checked), AppError> {
         let Some((account, phc)) = self.password_of(name).await? else {
             let _ = self.passwords().matches(password, STAND_IN).await;
             return Err(AppError::Unauthenticated);
@@ -158,6 +164,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let rehashed =
             if outdated(&phc) { self.passwords().hash(password).await.ok() } else { None };
+        let shared = match &second {
+            SecondFactor::Totp(_) => Shared::Totp,
+            SecondFactor::Recovery(_) => Shared::RecoveryCodes,
+        };
+        let seen = self.seen_by(account, shared).await?;
         let mut tx = self.store.begin().await?;
         let now = self.clock.now();
         let factor = match &second {
@@ -184,7 +195,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(fresh) = rehashed {
             tx.set_password(account, &fresh, now).await?;
         }
-        Ok((account, tx, factor))
+        Ok((account, tx, (factor, seen)))
     }
 
     /// The account `name` names and its password hash, if it may sign in with one.

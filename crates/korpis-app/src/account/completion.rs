@@ -126,7 +126,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let completed = match caller {
             None => {
                 let held = (holder, person);
-                let session = self.begin_held(&mut tx, held, assertion.sets, client).await?;
+                let session =
+                    self.begin_held(&mut tx, held, (assertion.sets, None), client).await?;
                 Completed::Begun { binding, session }
             }
             Some(caller) => reauthenticated(&mut tx, caller, holder, now).await?,

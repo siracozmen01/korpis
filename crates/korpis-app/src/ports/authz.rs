@@ -77,6 +77,13 @@ pub trait GrantWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
+    /// The unrevoked grants `subject_key` holds, read in the transaction, so a change decided
+    /// from them is decided from what it commits beside.
+    fn grants_held_now(
+        &mut self,
+        subject_key: &str,
+    ) -> impl Future<Output = StoreResult<Vec<GrantRecord>>> + Send;
+
     /// How many grants descend from `grant`, for reporting what a revocation cascaded to.
     fn descendant_count(&mut self, grant: Uuid) -> impl Future<Output = StoreResult<u64>> + Send;
 

@@ -331,7 +331,8 @@ changes what it is served with and keeps everything else. `korpis portal list` a
 get ptl_…` read them, with the certificate's state and why it is not issued where it is not, and
 the passkeys registered at the portal; `korpis portal delete ptl_…` deletes one, which ends the
 sessions begun at it and removes its passkeys and so takes `--yes`, as removing a node does, after
-`korpis portal get` has said how many accounts sign in nowhere else. (Designed 2026-10-21.)
+`korpis portal get` has said how many accounts sign in nowhere else. (Designed 2026-10-21; built
+2026-10-22.)
 
 ---
 

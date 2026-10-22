@@ -5,10 +5,12 @@
 //! Connect's unary protocol at the portal's own name.
 
 use crate::certificates::upload;
-use crate::panel::PANEL;
+use crate::panel::{PANEL, refresh_cookie};
 use crate::routes::attest;
 use crate::support::{Harness, mutation};
 use buffa::Message;
+use korpis_core::webauthn::testing::SoftAuthenticator;
+use korpis_proto::korpis::v1 as pb;
 use rustls::pki_types::CertificateDer;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -48,6 +50,8 @@ fn reaching(name: &str, at: SocketAddr, root: &CertificateDer<'static>) -> reqwe
 /// A portal, as a browser at it reaches it.
 pub struct Portal {
     http: reqwest::Client,
+    /// Its name, the identifier of its relying party.
+    pub name: String,
     /// Its identifier, `ptl_…`.
     pub id: String,
     /// Where the control plane's listener answers for it.
@@ -94,7 +98,7 @@ pub async fn portal_of(
     attest(h, &format!("{key}-domain"), org, domain).await;
     let (root, chain, pem) = issued(name);
     let certificate = upload(h, &format!("{key}-certificate"), org, (chain, pem)).await;
-    let made = korpis_proto::korpis::v1::CreatePortalRequest {
+    let made = pb::CreatePortalRequest {
         mutation: mutation(&format!("{key}-portal")).into(),
         organization: org.into(),
         name: name.into(),
@@ -106,6 +110,7 @@ pub async fn portal_of(
     let public = PANEL.rsplit_once(':').unwrap().1;
     let portal = Portal {
         http: reaching(name, SocketAddr::from(([127, 0, 0, 1], port)), &root),
+        name: name.into(),
         id: made.portal.into_option().unwrap().id,
         url: format!("https://{name}:{port}"),
         origin: format!("https://{name}:{public}"),
@@ -117,4 +122,68 @@ pub async fn portal_of(
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
     panic!("the portal was never served");
+}
+
+/// Redeems `invitation` at `portal` as `dana` with `browser`'s passkey, registered for the
+/// portal's own relying party.
+pub async fn redeemed_at(portal: &Portal, invitation: &str, browser: &SoftAuthenticator) {
+    let asked = pb::BeginRedemptionRequest {
+        invitation: invitation.into(),
+        name: "dana".into(),
+        ..Default::default()
+    };
+    let answer = portal.call("korpis.v1.AccountService/BeginRedemption", &asked, None).await;
+    let begun: pb::BeginRedemptionResponse = answer.unwrap().0;
+    let creation = begun.creation.as_option().unwrap().clone();
+    assert_eq!(creation.rp_id, portal.name, "the portal's own relying party");
+    let created = browser.create(&creation.challenge);
+    let registration = pb::PasskeyRegistration {
+        challenge_id: creation.challenge_id,
+        label: "phone".into(),
+        client_data_json: created.client_data_json,
+        attestation_object: created.attestation_object,
+        ..Default::default()
+    };
+    let redeem = pb::RedeemWithPasskeyRequest {
+        invitation: invitation.into(),
+        name: "dana".into(),
+        registration: registration.into(),
+        ..Default::default()
+    };
+    let done = portal.call("korpis.v1.AccountService/RedeemWithPasskey", &redeem, None).await;
+    let _: pb::RedeemResponse = done.unwrap().0;
+}
+
+/// A sign-in challenge issued at `portal`, answered by `browser`.
+pub async fn answered_at(
+    portal: &Portal,
+    browser: &mut SoftAuthenticator,
+) -> pb::SignInWithPasskeyRequest {
+    let asked = pb::BeginSignInRequest::default();
+    let answer = portal.call("korpis.v1.AccountService/BeginSignIn", &asked, None).await;
+    let begun: pb::BeginSignInResponse = answer.unwrap().0;
+    let options = begun.request.as_option().unwrap().clone();
+    assert_eq!(options.rp_id, portal.name);
+    let got = browser.get(&options.challenge);
+    pb::SignInWithPasskeyRequest {
+        challenge_id: options.challenge_id,
+        credential_id: got.credential_id,
+        client_data_json: got.client_data_json,
+        authenticator_data: got.authenticator_data,
+        signature: got.signature,
+        ..Default::default()
+    }
+}
+
+/// Signs in at `portal` with `browser`'s passkey; the session's refresh credential, and an
+/// access token it gives.
+pub async fn signed_in_at(portal: &Portal, browser: &mut SoftAuthenticator) -> (String, String) {
+    let signed_in = answered_at(portal, browser).await;
+    let signed_in = portal.call("korpis.v1.AccountService/SignInWithPasskey", &signed_in, None);
+    let (_, headers): (pb::SignInResponse, _) = signed_in.await.unwrap();
+    let cookie = refresh_cookie(&headers).unwrap();
+    let exchange = pb::ExchangeRequest::default();
+    let exchanged = portal.call("korpis.v1.SessionService/Exchange", &exchange, Some(&cookie));
+    let (exchanged, _): (pb::ExchangeResponse, _) = exchanged.await.unwrap();
+    (cookie, exchanged.access_token)
 }

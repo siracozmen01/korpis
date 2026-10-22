@@ -49,6 +49,7 @@ fn session(holder: Holder) -> UserSession {
         user_agent: "test".into(),
         source: "203.0.113.7".into(),
         portal: None,
+        within: None,
     }
 }
 

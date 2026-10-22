@@ -9,6 +9,7 @@ use super::{Begun, Client, NewRegistration, Registration, fresh_codes, record};
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{AccountWrite as _, Clock, RecipeSource, Store, StoreError, Tx as _, Unique};
+use korpis_core::account::exposed::Shared;
 use korpis_core::account::record::{Account, Ceremony, Invitation, Passkey, sign_in_name};
 use korpis_core::account::totp::TotpSecret;
 use korpis_core::authz::credential::{Secret, SecretKind};
@@ -170,6 +171,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.spend(&mut tx, &invitation, &account, &name).await?;
         tx.set_password(account.id, &phc, self.clock.now()).await?;
         tx.set_totp(account.id, &sealed, step).await?;
+        // Set at the address the redemption reached, whose portal's holder could see them.
+        let within = client.portal.map(|p| p.organization);
+        tx.secret_set_within(account.id, Shared::Password, within).await?;
+        tx.secret_set_within(account.id, Shared::Totp, within).await?;
         self.finish_redemption(tx, (&invitation, account.id), "password+totp", client).await
     }
 
@@ -190,8 +195,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
-    /// Gives the account its recovery codes, records the redemption, begins a session for
-    /// `client`, and commits.
+    /// Gives the account its recovery codes, shown at the address `client` reached, records the
+    /// redemption, begins a session for `client`, and commits.
     async fn finish_redemption(
         &self,
         mut tx: S::Tx,
@@ -200,9 +205,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         client: &Client,
     ) -> Result<Redeemed, AppError> {
         let recovery_codes = fresh_codes(&mut tx, account).await?;
+        let within = client.portal.map(|p| p.organization);
+        tx.secret_set_within(account, Shared::RecoveryCodes, within).await?;
         let more = [("invitation", invitation.id.to_string().into()), ("factor", factor.into())];
         record(&mut tx, &Principal::User(account), "account.redeemed", account, more).await?;
-        let session = self.begin_session(&mut tx, account, client).await?;
+        let session = self.begin_session(&mut tx, account, client, None).await?;
         tx.commit().await?;
         Ok(Redeemed { account, recovery_codes, session })
     }

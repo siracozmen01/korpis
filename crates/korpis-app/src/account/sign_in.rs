@@ -3,6 +3,7 @@
 //! Signing in (§9.6 of docs/08-identity.md): a passkey alone, or a password with a TOTP code or a
 //! recovery code beside it, each checked as `check` says, and a session begun.
 
+use super::check::Checked;
 use super::{Begun, Client, record};
 use crate::App;
 use crate::error::AppError;
@@ -57,7 +58,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let checked = self.check_passkey(a, client.address()).await?;
         let mut tx = self.store.begin().await?;
         self.spend_passkey(&mut tx, &checked).await?;
-        self.signed_in(tx, checked.account, "passkey", client).await
+        self.signed_in(tx, checked.account, ("passkey", None), client).await
     }
 
     /// Signs in as `name` with `password` and `second` beside it, from `client`, inside the
@@ -70,24 +71,24 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         client: &Client,
     ) -> Result<SignedIn, AppError> {
         self.guarded(name, client, async {
-            let (account, tx, factor) = self.check_password(name, password, second).await?;
-            self.signed_in(tx, account, factor, client).await
+            let (account, tx, checked) = self.check_password(name, password, second).await?;
+            self.signed_in(tx, account, checked, client).await
         })
         .await
     }
 
-    /// Records that `account` signed in with `factor` and begins a session for `client`, in
-    /// `tx`, and commits.
+    /// Records that `account` signed in with `factor`, whose secrets were seen beneath `seen` if
+    /// they were, and begins a session for `client`, in `tx`, and commits.
     async fn signed_in(
         &self,
         mut tx: S::Tx,
         account: Uuid,
-        factor: &'static str,
+        (factor, seen): Checked,
         client: &Client,
     ) -> Result<SignedIn, AppError> {
         let more = [("factor", factor.into())];
         record(&mut tx, &Principal::User(account), "account.signed_in", account, more).await?;
-        let session = self.begin_session(&mut tx, account, client).await?;
+        let session = self.begin_session(&mut tx, account, client, seen).await?;
         tx.commit().await?;
         Ok(SignedIn { account, mfa: true, session })
     }

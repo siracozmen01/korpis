@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at, s.last_used_at,\n                    s.authenticated_at, s.expires_at, s.user_agent, s.source, s.portal_id,\n                    p.organization_id AS \"portal_organization?\"\n               FROM user_session s LEFT JOIN portal p ON p.id = s.portal_id\n              WHERE (s.account_id = $1 OR s.binding_id = $2)\n              ORDER BY s.created_at DESC, s.id",
+  "query": "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at, s.last_used_at,\n                    s.authenticated_at, s.expires_at, s.user_agent, s.source, s.portal_id,\n                    p.organization_id AS \"portal_organization?\", s.within_id\n               FROM user_session s LEFT JOIN portal p ON p.id = s.portal_id\n              WHERE (s.account_id = $1 OR s.binding_id = $2)\n              ORDER BY s.created_at DESC, s.id",
   "describe": {
     "columns": [
       {
@@ -145,6 +145,17 @@
             "name": "organization_id"
           }
         }
+      },
+      {
+        "ordinal": 13,
+        "name": "within_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "user_session",
+            "name": "within_id"
+          }
+        }
       }
     ],
     "parameters": {
@@ -166,8 +177,9 @@
       false,
       false,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "eb933dd07e54ad053ae582a24df75efaf548ee9646fbf9b49e2d9b03d0177cf2"
+  "hash": "ec7dacf4998d2e08faddf910d5b89268ebf7edc2135c59bceabcc8ccb9dfac84"
 }

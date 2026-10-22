@@ -13,6 +13,7 @@ mod device;
 mod device_grant;
 mod external;
 mod manage;
+mod reach;
 mod recent;
 mod redeem;
 mod session;
