@@ -13,9 +13,9 @@
 //! filesystem until a rescan (research/evidence.md). A deleted volume's empty qgroup is left for
 //! an operator's `btrfs qgroup clear-stale`.
 //!
-//! This is one of the crate's two unsafe modules, with [`crate::quota`]: the btrfs ioctls have no
-//! safe wrapper in the libraries the helper may link. Each call passes a descriptor borrowed for
-//! its duration and a pointer to one correctly laid out structure owned by the caller.
+//! This is one of the crate's unsafe modules, listed in the crate's header: the btrfs ioctls have
+//! no safe wrapper in the libraries the helper may link. Each call passes a descriptor borrowed
+//! for its duration and a pointer to one correctly laid out structure owned by the caller.
 
 #![expect(unsafe_code, reason = "the btrfs ioctls have no safe wrapper")]
 

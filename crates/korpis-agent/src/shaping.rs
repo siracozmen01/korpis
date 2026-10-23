@@ -98,9 +98,7 @@ fn of(described: &helper::DescribeNetworkResponse, shaped: &[helper::Uplink]) ->
 /// holds for it, `kinds` (§4 of docs/04-runtimes.md).
 pub fn enforced(driver: &mut pb::DriverInfo, kinds: &[(&str, &str)]) {
     let Some(caps) = driver.capabilities.as_option_mut() else { return };
-    let joins =
-        caps.network_modes.iter().any(|m| m.as_known() == Some(pb::NetworkMode::NETWORK_MODE_VETH));
-    if !joins {
+    if !crate::network::joins_links(caps) {
         return;
     }
     for (kind, mechanism) in kinds {
@@ -165,5 +163,13 @@ mod tests {
         };
         enforced(&mut own, &[("egress", "tc")]);
         assert!(own.capabilities.as_option().is_some_and(|c| c.enforcement.is_empty()));
+        let caps = pb::Capabilities {
+            network_modes: vec![pb::NetworkMode::NETWORK_MODE_TAP.into()],
+            ..Default::default()
+        };
+        let mut tap = pb::DriverInfo { capabilities: caps.into(), ..Default::default() };
+        enforced(&mut tap, &[("egress", "tc")]);
+        let held = tap.capabilities.as_option().map(|c| c.enforcement.clone()).unwrap_or_default();
+        assert!(held.get("egress").is_some_and(|e| e.enforced), "a guest's tap is on the link");
     }
 }

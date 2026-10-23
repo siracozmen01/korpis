@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The few route-netlink requests a workload's network needs (§4.1 of docs/07-networking.md):
-//! making a veth pair whose peer is in another namespace, finding and removing a link, bringing
-//! one up, and adding an address or a route. A socket belongs to the namespace it was opened in,
+//! making a veth pair whose peer is in another namespace, finding and removing a link, reading
+//! its hardware address, bringing one up, and adding an address, a route, or a neighbour. A socket belongs to the namespace it was opened in,
 //! so one opened on a thread inside a workload's namespace configures that namespace.
 
 use netlink_packet_core::{
-    NLM_F_ACK, NLM_F_CREATE, NLM_F_EXCL, NLM_F_REQUEST, NetlinkHeader, NetlinkMessage,
-    NetlinkPayload,
+    NLM_F_ACK, NLM_F_CREATE, NLM_F_EXCL, NLM_F_REPLACE, NLM_F_REQUEST, NetlinkHeader,
+    NetlinkMessage, NetlinkPayload,
 };
 use netlink_packet_route::address::{AddressAttribute, AddressHeaderFlags, AddressMessage};
 use netlink_packet_route::link::{
     InfoData, InfoKind, InfoVeth, LinkAttribute, LinkFlags, LinkInfo, LinkMessage,
+};
+use netlink_packet_route::neighbour::{
+    NeighbourAddress, NeighbourAttribute, NeighbourFlags, NeighbourMessage, NeighbourState,
 };
 use netlink_packet_route::route::{
     RouteAddress, RouteAttribute, RouteFlags, RouteMessage, RouteProtocol, RouteScope, RouteType,
@@ -109,8 +112,12 @@ impl Rtnl {
 
     /// Sends a request that asks for no data and reads whether it held.
     fn request(&mut self, message: RouteNetlinkMessage, create: bool) -> io::Result<Answer> {
-        let flags = NLM_F_REQUEST | NLM_F_ACK | if create { NLM_F_CREATE | NLM_F_EXCL } else { 0 };
-        for answer in self.exchange(message, flags)? {
+        self.request_with(message, if create { NLM_F_CREATE | NLM_F_EXCL } else { 0 })
+    }
+
+    /// As [`Self::request`], with `flags` beside the request's own.
+    fn request_with(&mut self, message: RouteNetlinkMessage, flags: u16) -> io::Result<Answer> {
+        for answer in self.exchange(message, NLM_F_REQUEST | NLM_F_ACK | flags)? {
             if let NetlinkPayload::Error(e) = answer.payload {
                 return match e.code.map(i32::from) {
                     None => Ok(Answer::Done),
@@ -145,11 +152,60 @@ impl Rtnl {
         Ok(None)
     }
 
-    /// Makes a veth pair: `host` here, and `peer` moved into the namespace open as `namespace`.
-    /// Whether it was made; a pair already there is left as it is.
+    /// The hardware address of link `index`.
+    pub(crate) fn link_address(&mut self, index: u32) -> io::Result<Vec<u8>> {
+        let mut message = LinkMessage::default();
+        message.header.index = index;
+        let answers =
+            self.exchange(RouteNetlinkMessage::GetLink(message), NLM_F_REQUEST | NLM_F_ACK)?;
+        for answer in answers {
+            let link = match answer.payload {
+                NetlinkPayload::InnerMessage(RouteNetlinkMessage::NewLink(l)) => l,
+                NetlinkPayload::Error(e) if e.code.is_some() => return Err(e.to_io()),
+                _ => continue,
+            };
+            let address = link.attributes.into_iter().find_map(|a| match a {
+                LinkAttribute::Address(bytes) => Some(bytes),
+                _ => None,
+            });
+            if let Some(bytes) = address {
+                return Ok(bytes);
+            }
+        }
+        Err(io::Error::other("the link has no hardware address"))
+    }
+
+    /// Makes link `index` answer for `ip`: with `mac`, a permanent entry naming the neighbour
+    /// that holds it, replacing any other; without, a proxy entry, so this namespace answers
+    /// for `ip` on the link itself.
+    pub(crate) fn set_neighbour(
+        &mut self,
+        index: u32,
+        ip: IpAddr,
+        mac: Option<&[u8]>,
+    ) -> io::Result<()> {
+        let mut message = NeighbourMessage::default();
+        message.header.family = ip_family(ip);
+        message.header.ifindex = index;
+        message.header.state = NeighbourState::Permanent;
+        message.attributes.push(NeighbourAttribute::Destination(match ip {
+            IpAddr::V4(v4) => NeighbourAddress::Inet(v4),
+            IpAddr::V6(v6) => NeighbourAddress::Inet6(v6),
+        }));
+        match mac {
+            Some(mac) => message.attributes.push(NeighbourAttribute::LinkLayerAddress(mac.into())),
+            None => message.header.flags = NeighbourFlags::Proxy,
+        }
+        let flags = NLM_F_CREATE | NLM_F_REPLACE;
+        self.request_with(RouteNetlinkMessage::NewNeighbour(message), flags).map(|_| ())
+    }
+
+    /// Makes a veth pair: `host` here, with the hardware address `mac`, and `peer` moved into
+    /// the namespace open as `namespace`. Whether it was made; a pair already there is left as
+    /// it is.
     pub(crate) fn add_veth(
         &mut self,
-        host: &str,
+        (host, mac): (&str, [u8; 6]),
         peer: &str,
         namespace: RawFd,
     ) -> io::Result<bool> {
@@ -158,6 +214,7 @@ impl Rtnl {
         inner.attributes.push(LinkAttribute::NetNsFd(namespace));
         let mut message = LinkMessage::default();
         message.attributes.push(LinkAttribute::IfName(host.to_owned()));
+        message.attributes.push(LinkAttribute::Address(mac.to_vec()));
         message.attributes.push(LinkAttribute::LinkInfo(vec![
             LinkInfo::Kind(InfoKind::Veth),
             LinkInfo::Data(InfoData::Veth(InfoVeth::Peer(inner))),

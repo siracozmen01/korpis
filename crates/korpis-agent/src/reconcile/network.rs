@@ -69,24 +69,33 @@ fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Makes `a`'s workload's network and has `spec` join it, where the node gives networks;
-    /// its namespaces map the uid range the assignment gives it.
+    /// its namespaces map the uid range the assignment gives it. A microVM's guest, which holds
+    /// its addresses itself, is given them as well.
     pub(super) async fn network(
         &mut self,
         a: &agent::Assignment,
         spec: &mut driver::PreparedSpec,
     ) -> Result<(), Failure> {
-        let Some(made) = self.ensure_network(a).await? else { return Ok(()) };
+        let Some((asked, made)) = self.ensure_network(a).await? else { return Ok(()) };
+        if asked.tap {
+            spec.addresses = vec![format!("{}/32", asked.ipv4)];
+            if made.ipv6 && !asked.ipv6.is_empty() {
+                spec.addresses.push(format!("{}/128", asked.ipv6));
+            }
+        }
         spec.namespaces = made.namespaces;
         self.serve_resolver(&a.workload).await;
         Ok(())
     }
 
     /// Asks the helper to make `a`'s workload's network what `a` says now, allocating its
-    /// addresses if it has none; `None` where the node gives no networks.
+    /// addresses if it has none, with a tap where its driver's workloads hold one: what was
+    /// asked, and what was made, or `None` where the node gives no networks.
     pub(super) async fn ensure_network(
         &mut self,
         a: &agent::Assignment,
-    ) -> Result<Option<helper::EnsureNetworkResponse>, Failure> {
+    ) -> Result<Option<(helper::EnsureNetworkRequest, helper::EnsureNetworkResponse)>, Failure>
+    {
         let dependencies = self.dependency_destinations(a);
         let Some(net) = self.wiring.network.as_mut() else { return Ok(None) };
         let assigned = net
@@ -100,11 +109,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         super::policy::apply(&mut request, body)?;
         super::policy::spent(&mut request, a.shaping.as_option());
         request.opened.clone_from(&dependencies);
+        request.tap = self.wiring.driver_kinds.tap(super::volume::driver_of(a));
         let made = self.host.ensure_network(&request).await?;
         if let Some(n) = self.wiring.network.as_mut() {
             n.dependencies_opened.insert(a.workload.clone(), dependencies);
         }
-        Ok(Some(made))
+        Ok(Some((request, made)))
     }
 
     /// Serves `workload`'s resolver on the sockets the helper opens in its namespace, unless it

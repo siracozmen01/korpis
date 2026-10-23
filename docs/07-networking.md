@@ -825,7 +825,8 @@ ports, and its policy. The helper, which is root, makes it so with two operation
 and `ReleaseNetwork`, idempotent and keyed by workload, as it does for volumes (§3 of
 `06-storage.md`). The driver joins the namespaces in `/run/korpis/netns/<workload>`, its network
 namespace and the user namespace that owns it (below), and declares `network_modes: veth` (§4.1
-and §7 of `04-runtimes.md`); it builds no networking of its own.
+and §7 of `04-runtimes.md`); it builds no networking of its own. The `firecracker` driver declares
+`tap` instead: its guest holds the workload's addresses behind a tap in the same namespace (below).
 
 **One namespace per workload, routed, with no bridge.** The namespace has one interface, `eth0`,
 whose peer on the host is a point-to-point link named for the workload. The host routes each
@@ -860,7 +861,36 @@ and neighbour-discovery messages a network needs, and new connections only to th
 declared endpoints, over their protocols. It is written by the helper with the rest, so an
 endpoint removed from the intent closes its port at the next assignment. A rule in the workload's
 own namespace holds for traffic from anywhere, the node and its other workloads included, which
-is what §4's "closed except where declared" requires.
+is what §4's "closed except where declared" requires. For a microVM's guest the same rules are on
+the namespace's forward hook, which the guest's connections cross (below).
+
+**A microVM's guest holds its addresses behind a tap.** Decided 2026-10-23, as the `firecracker`
+driver was given its network (§6 of `04-runtimes.md`). A guest's interface is its own kernel's, so
+the workload's addresses are set inside the guest, from its config drive, and the namespace keeps
+the link. The agent asks for the network with a tap when the workload's driver declares `tap`
+(what each driver declared at its start, §4.1 of `04-runtimes.md`). The helper then makes `tap0` in
+the namespace beside `eth0`, persistent, so it outlives the VMM, and owned by the workload's first
+id, which the jailer runs Firecracker as, so no other user of the host can attach to it. The
+namespace routes between the two as the host routes between the link and its uplinks: `eth0` holds
+no address of the workload's, the workload's addresses are routed to the tap, and the default route
+is the gateway on `eth0`. The namespace answers for each side on the other, by proxy ARP on both
+links and proxy NDP entries for the workload's IPv6 address and the IPv6 gateway, so the host sees
+the guest where it saw a container's `eth0`, the guest sees `169.254.1.1` and `fe80::1` as a
+container does, and neither learns that a hop stands between them. Everything on the host side is
+unchanged: the link, its routes, its rules (§6), its shaping and accounting (§7) and the node's
+forwarded ports (§3) are the container's, since they name the link and the workload's addresses and
+never the interface behind them. The namespace has no address on either link, so it reaches the
+gateway through a permanent entry for the host side's hardware address; that address is set by the
+helper when it makes the link, from the hash the link's name is made from (Finding 148 of
+`23-walkthroughs.md`). Its own firewall moves to the forward hook: the guest's connections out
+are let through, replies are let back, and new connections in reach only the declared ports; its
+input admits from the tap only queries to the resolver's address (§5.1). A namespace made for one
+kind of interface is made again for the other, since a tap is not a veth's end. What it costs: one
+more routing and firewall lookup per packet, in the namespace; the namespace forwards, which its
+own `ip_forward` and proxy settings allow, sysctls of that namespace alone, never the host's; and a
+guest that is root in its own kernel can set any address on its interface, which reaches nothing,
+since the namespace routes only the workload's addresses to the tap and the host routes only those
+to the link, and the host's rules of §6 match the link, not the address.
 
 **The host's rules live in one table, a chain per workload.** The helper keeps the host's rules in
 one nftables table, `inet korpis`, with a chain per workload reached from a verdict map keyed by
@@ -896,7 +926,9 @@ with a forward chain that drops what it does not accept, which Docker and ufw bo
 drops every workload's traffic to and from beyond the node, because nftables lets every base
 chain on a hook drop a packet whatever another accepted. The helper does not edit another
 firewall: it reports such chains, and the agent logs them at start with the rule that opens each
-for Korpis's links, which are all named `kw` and twelve more characters. Until the operator opens
+for Korpis's links, which are all named `kw` and thirteen more characters (corrected 2026-10-23:
+this said twelve; the name is fifteen bytes, the most an interface's may be). Until the operator
+opens
 them, workloads reach the node and the node reaches them, and nothing else does. Likewise a node
 whose IPv6 forwarding is off gives its workloads IPv4 alone, and says so; the helper does not
 turn it on, because doing so stops the node taking router advertisements on its own interfaces.
@@ -1037,23 +1069,26 @@ all private ranges (where AWS puts the VPC resolver). A workload on either would
 
 **As built.** Decided 2026-10-15. The resolver's address is `169.254.1.53`, an address of the
 workload's own namespace's loopback, and the `/etc/resolv.conf` its container is given names it
-alone; the file is mounted read-only. The helper opens a UDP socket and a listening TCP socket on
-that address's port 53 inside the namespace, and hands them to the agent with the answer to its
-request (`OpenResolver`, the descriptors attached as `SCM_RIGHTS`); the agent answers on them from
-the host, as a socket keeps the namespace it was made in. A query never leaves the workload's
-namespace, so no firewall on the host, Korpis's or another's, stands between a workload and its
-resolver; the agent knows which workload asked by the socket the query arrived on, needs no
-privilege, and binds nothing on the host. It forwards each query, over UDP or TCP as it came, to
-the resolvers in the host's `/etc/resolv.conf`, which the host reaches whatever they are, a local
-stub included, and allows each workload 50 queries a second with a burst of 200, answering beyond
-that with `REFUSED`, which a resolver library treats as a failure to retry rather than as an
-answer, and an upstream that does not answer in two seconds with `SERVFAIL`. An agent that restarts
-asks for every running workload's sockets again, and a workload's are closed when its network is
-released, since they keep its namespace alive. The dependency names of §5 are answered here once
-dependencies are resolved (§5). What it costs: a workload whose software ignores `/etc/resolv.conf`
-and asks a resolver of its own on the public internet still reaches it, as egress allows; one that
-asks a private resolver is denied by §6, as it should be; and the agent holds two descriptors for
-each workload it runs.
+alone; the file is mounted read-only. A microVM's guest is given the same address on its config
+drive, and `korpis-guest` writes the file into its root's writable layer before the root is made
+read-only, in place of whatever the image held there; the guest reaches the address through its
+tap, the namespace's input admitting from the tap nothing else (§4.1). The helper opens a UDP
+socket and a listening TCP socket on that address's port 53 inside the namespace, and hands them to
+the agent with the answer to its request (`OpenResolver`, the descriptors attached as
+`SCM_RIGHTS`); the agent answers on them from the host, as a socket keeps the namespace it was made
+in. A query never leaves the workload's namespace, so no firewall on the host, Korpis's or
+another's, stands between a workload and its resolver; the agent knows which workload asked by the
+socket the query arrived on, needs no privilege, and binds nothing on the host. It forwards each
+query, over UDP or TCP as it came, to the resolvers in the host's `/etc/resolv.conf`, which the
+host reaches whatever they are, a local stub included, and allows each workload 50 queries a second
+with a burst of 200, answering beyond that with `REFUSED`, which a resolver library treats as a
+failure to retry rather than as an answer, and an upstream that does not answer in two seconds with
+`SERVFAIL`. An agent that restarts asks for every running workload's sockets again, and a
+workload's are closed when its network is released, since they keep its namespace alive. The
+dependency names of §5 are answered here once dependencies are resolved (§5). What it costs: a
+workload whose software ignores `/etc/resolv.conf` and asks a resolver of its own on the public
+internet still reaches it, as egress allows; one that asks a private resolver is denied by §6, as
+it should be; and the agent holds two descriptors for each workload it runs.
 
 > Corrected 2026-10-15, when it was built (Finding 56 of `23-walkthroughs.md`). The first version
 > made the resolver the workload's gateway, `169.254.1.1`, and redirected its port 53 on the host

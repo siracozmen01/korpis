@@ -213,12 +213,12 @@ scheduler refuses a workload that asks for a limit the driver cannot hold, while
 quietly suspended for one platform, and it is the honest version of the Windows column §2 admits it
 lacks.
 
-Bandwidth is the one limit a driver that joins the node's links (`network_modes: veth`, §4.1 of
-`07-networking.md`) does not hold itself: the node's network shapes it, on the workload's link and
-the node's uplinks (§7 there). So the agent adds `egress` and `ingress` to such a driver's
-`enforcement` when its operator has declared an uplink and its helper can write the qdiscs, and
-leaves them out otherwise; a driver that builds a network of its own declares its own. Added
-2026-10-21, when shaping was designed.
+Bandwidth is the one limit a driver that joins the node's links (`network_modes: veth`, or `tap`
+for a microVM's guest, §4.1 of `07-networking.md`) does not hold itself: the node's network shapes
+it, on the workload's link and the node's uplinks (§7 there). So the agent adds `egress` and
+`ingress` to such a driver's `enforcement` when its operator has declared an uplink and its helper
+can write the qdiscs, and leaves them out otherwise; a driver that builds a network of its own
+declares its own. Added 2026-10-21, when shaping was designed.
 
 > Corrected 2026-10-21, when an endpoint's own shaping and accounting were built (P2.8c of the
 > build plan): each kind is declared on what it rests on, and only an egress reservation rests
@@ -633,19 +633,28 @@ driver, which is root; so nothing in a chroot is trusted (2026-10-23, from a rev
 build). The chroot is built afresh for every run, so neither the jailer nor the driver reads what
 an earlier run left; the process the jailer names is believed only if it runs as the workload's id
 in the guest's cgroup, which only root can move a process into, since the driver kills what it
-records; and the API socket is opened as itself, never through a link, so it cannot be made to name
-another socket on the host. It is proven by guests run, stopped, killed, recovered, and given a
-console (`crates/korpis-guest/tests/boot.rs`, `crates/korpis-image/tests/build.rs`,
-`crates/korpis-driver-firecracker/tests/`), the last through the agent with the `oci` driver beside
-it; the console is described in §3. A volume's drive is the image the helper makes in it (§3.1 of
-`06-storage.md`), which is on the node's storage, where a hard link from the driver's state cannot
-reach: it is bound into the chroot instead, and unbound, without following a link, when the jail is
-removed. The driver takes nothing else under the volume root as a drive: only `<volume>/block.ext4`
-directly beneath it, with no link on the way, in a directory the helper marked as a block device's,
-given to the workload's first id and bound in through a descriptor of the file it checked, so the
-file given and bound is that one. What it does not do yet, stated: a guest has no network, so the
-driver refuses a spec that names one; and since every workload a node runs has its network, no node
-can place a workload on `microvm` until the helper gives a guest its tap.
+records (the jailer names its child as soon as it has cloned it, before the child drops to that id
+to run Firecracker, so a process named but still root is waited for within the jailer's bound, not
+refused: found 2026-10-23, when a start lost that race); and the API socket is opened as itself,
+never through a link, so it cannot be made to name another socket on the host. It is proven by
+guests run, stopped, killed, recovered, and given a console (`crates/korpis-guest/tests/boot.rs`,
+`crates/korpis-image/tests/build.rs`, `crates/korpis-driver-firecracker/tests/`), the last through
+the agent with the `oci` driver beside it; the console is described in §3. A volume's drive is the
+image the helper makes in it (§3.1 of `06-storage.md`), which is on the node's storage, where a
+hard link from the driver's state cannot reach: it is bound into the chroot instead, and unbound,
+without following a link, when the jail is removed. The driver takes nothing else under the volume
+root as a drive: only `<volume>/block.ext4` directly beneath it, with no link on the way, in a
+directory the helper marked as a block device's, given to the workload's first id and bound in
+through a descriptor of the file it checked, so the file given and bound is that one. A guest's
+network is its workload's (§4.1 of `07-networking.md`): the helper makes a tap beside the
+namespace's link, the jailer joins that namespace (`--netns`) before it starts Firecracker, which
+opens the tap as the guest's one interface, and the agent gives the driver the workload's addresses
+with the namespaces, which the config drive carries to `korpis-guest`; the driver joins no
+namespace but its workload's own under the helper's root, and takes addresses only with one. So the
+driver declares `network_modes: tap`, and a guest is reached at its endpoints as a container is
+(`crates/korpis-driver-firecracker/tests/network.rs`). Corrected 2026-10-23: this said a guest had
+no network, the driver refused a spec that named one, and no node could place a workload on
+`microvm` until the helper gave a guest its tap; that was so until then.
 
 ---
 

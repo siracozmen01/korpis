@@ -28,6 +28,9 @@ pub struct Settings {
     pub content: PathBuf,
     /// The directory the helper keeps volumes under; a volume's drive is nowhere else.
     pub volume_root: PathBuf,
+    /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
+    /// docs/07-networking.md): the only namespaces a guest's Firecracker joins.
+    pub netns_root: PathBuf,
     /// The driver's own directory.
     pub state: PathBuf,
     /// The cgroup, from the unified hierarchy's root, beneath which each guest's is made.

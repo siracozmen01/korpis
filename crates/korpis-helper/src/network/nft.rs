@@ -7,6 +7,7 @@
 //! rows of the egress default are added to the host's table by the policy (§6 there).
 
 use super::policy::{Inbound, limited, matches};
+use korpis_core::workload::network::RESOLVER_V4;
 use serde_json::{Value, json};
 use std::io::{self, Write as _};
 use std::process::{Command, Stdio};
@@ -96,9 +97,25 @@ const BASE_CHAINS: [&str; 8] = [
     "account_output",
 ];
 
-fn accept_when(left: &Value, op: &str, right: &Value) -> Value {
+fn accept_when(chain: &str, left: &Value, op: &str, right: &Value) -> Value {
     let matched = json!({"match": {"op": op, "left": left, "right": right}});
-    rule("input", vec![matched, json!({"accept": null})])
+    rule(chain, vec![matched, json!({"accept": null})])
+}
+
+/// The rules every chain that admits connections begins with: replies, and the messages a
+/// network needs.
+fn admitted(chain: &str) -> [Value; 3] {
+    let l4 = json!({"meta": {"key": "l4proto"}});
+    [
+        accept_when(
+            chain,
+            &json!({"ct": {"key": "state"}}),
+            "in",
+            &json!(["established", "related"]),
+        ),
+        accept_when(chain, &l4, "==", &json!("icmp")),
+        accept_when(chain, &l4, "==", &json!("ipv6-icmp")),
+    ]
 }
 
 /// A workload's own table, written whole: new connections in are dropped, except over loopback,
@@ -108,7 +125,12 @@ fn accept_when(left: &Value, op: &str, right: &Value) -> Value {
 /// (§7 of docs/07-networking.md), by the priority its output chain sets, which the workload,
 /// holding no `NET_ADMIN`, cannot change. A priority it sets on a socket itself can put what it
 /// sends only in another of its own classes, each beneath its own limit.
-pub(crate) fn namespace(inbound: &[Inbound]) -> Value {
+///
+/// For a microVM, whose guest is behind the tap `tap`, the same rules hold on the forward hook,
+/// since the guest's connections pass through the namespace rather than end in it, and its
+/// priorities are set there; the namespace's own input admits from the guest only the queries
+/// its resolver answers, as the guest's kernel is not loopback.
+pub(crate) fn namespace(inbound: &[Inbound], tap: Option<&str>) -> Value {
     let table = json!({"table": {"family": "inet", "name": TABLE}});
     let mut commands = vec![
         json!({ "add": table.clone() }),
@@ -116,32 +138,68 @@ pub(crate) fn namespace(inbound: &[Inbound]) -> Value {
         json!({ "add": table }),
         chain("input", "filter", "input", 0, "drop"),
         flush("input"),
-        accept_when(&json!({"meta": {"key": "iifname"}}), "==", &json!("lo")),
-        accept_when(&json!({"ct": {"key": "state"}}), "in", &json!(["established", "related"])),
-        accept_when(&json!({"meta": {"key": "l4proto"}}), "==", &json!("icmp")),
-        accept_when(&json!({"meta": {"key": "l4proto"}}), "==", &json!("ipv6-icmp")),
-        chain("output", "filter", "output", 0, "accept"),
-        flush("output"),
+        accept_when("input", &json!({"meta": {"key": "iifname"}}), "==", &json!("lo")),
     ];
+    commands.extend(admitted("input"));
+    commands.extend([chain("output", "filter", "output", 0, "accept"), flush("output")]);
+    let (ports, from_guest) = match tap {
+        None => ("input", vec![]),
+        Some(tap) => {
+            commands.extend([chain("forward", "filter", "forward", 0, "drop"), flush("forward")]);
+            commands.extend(resolved(tap));
+            (
+                "forward",
+                vec![json!({"match": {"op": "==",
+                "left": {"meta": {"key": "iifname"}}, "right": tap}})],
+            )
+        }
+    };
+    let marks = if tap.is_some() { "forward" } else { "output" };
     for i in inbound.iter().filter(|i| i.shaping.0 > 0) {
         let set = json!({"mangle": {"key": {"meta": {"key": "priority"}},
             "value": super::shape::link_id(i.class)}});
         let [proto, sport] = port_of(i, "sport");
-        commands.push(rule("output", vec![proto, sport, set]));
+        let mut e = from_guest.clone();
+        e.extend([proto, sport, set]);
+        commands.push(rule(marks, e));
+    }
+    if let Some(from) = from_guest.first() {
+        commands.push(rule("forward", vec![from.clone(), json!({"accept": null})]));
+        commands.extend(admitted("forward"));
     }
     for i in inbound {
         let [proto, dport] = port_of(i, "dport");
         let guarded = !i.rules.is_empty() || i.max_connections > 0 || i.new_per_sec > 0;
         if !guarded {
-            commands.push(rule("input", vec![proto, dport, json!({"accept": null})]));
+            commands.push(rule(ports, vec![proto, dport, json!({"accept": null})]));
             continue;
         }
         let name = format!("port_{}_{}", i.transport.name(), i.port);
         commands.push(json!({"add": {"chain": {"family": "inet", "table": TABLE, "name": name}}}));
-        commands.push(rule("input", vec![proto, dport, json!({"jump": {"target": name}})]));
+        commands.push(rule(ports, vec![proto, dport, json!({"jump": {"target": name}})]));
         commands.extend(guard(&name, i));
     }
     json!({"nftables": commands})
+}
+
+/// What the namespace's input admits from a guest behind `tap`: its resolver's queries, over
+/// UDP and TCP, to the resolver's address and port.
+fn resolved(tap: &str) -> Vec<Value> {
+    ["udp", "tcp"]
+        .into_iter()
+        .map(|proto| {
+            rule("input", vec![
+                json!({"match": {"op": "==", "left": {"meta": {"key": "iifname"}}, "right": tap}}),
+                json!({"match": {"op": "==", "left": {"payload": {"protocol": "ip",
+                    "field": "daddr"}}, "right": RESOLVER_V4.to_string()}}),
+                json!({"match": {"op": "==", "left": {"meta": {"key": "l4proto"}},
+                    "right": proto}}),
+                json!({"match": {"op": "==", "left": {"payload": {"protocol": "th",
+                    "field": "dport"}}, "right": 53}}),
+                json!({"accept": null}),
+            ])
+        })
+        .collect()
 }
 
 /// What matches `i`'s port as `field`, `dport` or `sport`, over its transport.

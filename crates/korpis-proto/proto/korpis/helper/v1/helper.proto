@@ -212,6 +212,11 @@ message EnsureNetworkRequest {
   uint32 new_per_sec = 14;
   // What it may send and be sent (§7 of docs/07-networking.md); absent shapes nothing.
   Bandwidth bandwidth = 15;
+  // The workload's interface is a tap, for a microVM's guest to hold (NETWORK_MODE_TAP, §4.1 of
+  // docs/07-networking.md): the addresses are the guest's, set by its own kernel, and the
+  // namespace routes between the tap and its link, which the VMM, running as the range's first
+  // id, alone may open. A network made for one kind of interface is made anew for the other.
+  bool tap = 16;
 }
 
 // A workload's bandwidth, in bits a second; zero for none of each. A reservation is held on

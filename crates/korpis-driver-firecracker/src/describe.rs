@@ -37,8 +37,11 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
     let disk = declared(true, "a volume's block device size", "the guest's ENOSPC at its size");
     let pids = declared(false, "none", "a guest's processes are its own kernel's to count");
     let io = declared(false, "none", "no io.max is set");
-    let egress = declared(false, "none", "a guest is given no network by this driver yet");
-    let ingress = declared(false, "none", "a guest is given no network by this driver yet");
+    // The node's network shapes a guest's link as it does a container's, and the agent declares
+    // so on the driver's behalf where the node does (§7 of docs/07-networking.md); the driver
+    // itself shapes nothing.
+    let egress = declared(false, "none", "no shaper is applied by the driver");
+    let ingress = declared(false, "none", "no policer is applied by the driver");
     [("memory", memory), ("cpu", cpu), ("disk", disk), ("pids", pids), ("io", io)]
         .into_iter()
         .chain([("egress", egress), ("ingress", ingress)])
@@ -60,7 +63,10 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         .into(),
         gpu: vec![pb::GpuMode::GPU_MODE_NONE.into()],
         rootfs_sources: vec![pb::RootfsSource::ROOTFS_SOURCE_OCI_IMAGE.into()],
-        network_modes: vec![pb::NetworkMode::NETWORK_MODE_NONE.into()],
+        network_modes: vec![
+            pb::NetworkMode::NETWORK_MODE_TAP.into(),
+            pb::NetworkMode::NETWORK_MODE_NONE.into(),
+        ],
         enforcement: enforcement().into_iter().collect(),
         volume_semantics: pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE.into(),
         file_access: pb::FileAccess::FILE_ACCESS_NONE.into(),
@@ -89,6 +95,8 @@ mod tests {
         assert_eq!(tiers, [Some(pb::IsolationTier::ISOLATION_TIER_MICROVM)]);
         assert!(caps.signals.is_empty(), "a guest is sent no named signal (Finding 144)");
         assert!(!caps.enforcement["pids"].enforced && caps.enforcement["memory"].enforced);
+        let modes: Vec<_> = caps.network_modes.iter().map(buffa::EnumValue::as_known).collect();
+        assert_eq!(modes[0], Some(pb::NetworkMode::NETWORK_MODE_TAP), "a guest holds a tap");
         assert_eq!(
             caps.volume_semantics.as_known(),
             Some(pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE)

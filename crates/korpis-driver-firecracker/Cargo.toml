@@ -40,6 +40,8 @@ uuid = { workspace = true }
 korpis-agent = { path = "../korpis-agent" }
 # The agent with both drivers, as a node runs them.
 korpis-driver-oci = { path = "../korpis-driver-oci" }
+# A guest's network, made by the helper as a node makes it.
+korpis-helper = { path = "../korpis-helper" }
 korpis-image = { path = "../korpis-image", features = ["testing"] }
 korpis-stream = { workspace = true }
 tempfile = "3"

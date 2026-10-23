@@ -1393,6 +1393,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 145 | A guest counted the stops it was sent, and nothing kept the count: a stop asked again was its kill, and a kill alone was its stop | §55 | `04-runtimes.md` §6 |
 | 146 | What was typed into a guest's console as it booted was lost, and a run's status could be the last run's | §56 | `04-runtimes.md` §3 |
 | 147 | Nothing said what became of a volume when its workload moved between a tier of files and one of block devices | §57 | `06-storage.md` §3.1 |
+| 148 | The namespace's way to its gateway named a hardware address the host changes | §58 | `07-networking.md` §4.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4912,3 +4913,59 @@ test keeps a sample's `disk_allocated` with its record, and the panel's test lab
 the backup of §5, which takes the directory as it takes any other. Asking step 10 the algebra
 question also found §2 of `15-observability.md` naming `statfs` where the helper reads the quota
 accounting, corrected there.
+
+---
+
+## 58. A microVM serves its players, and asks its resolver
+
+Written 2026-10-23, as the `firecracker` driver was given its network (§4.1 of
+`07-networking.md`). Every earlier trace that crossed a workload's network met a container, whose
+`eth0` holds its addresses; this one follows a guest, whose own kernel holds them, from the agent
+that decides what the network is to a player's first packet, and asks at each step which component
+holds what the step needs. A game server runs on `microvm` and declares one endpoint on a port of
+the node; its guest looks up its update server by name and is joined by a player.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The agent starts, and records that its `firecracker` driver declares `network_modes: tap` | `04-runtimes.md` §4.1; `07-networking.md` §4.1 |
+| 2 | The workload's build reaches the agent, which asks the helper for its network with a tap, since its driver's workloads hold one | `07-networking.md` §4.1 |
+| 3 | The helper makes the namespace, the host side of the link with its own hardware address, and the tap owned by the workload's first id ‡ | `07-networking.md` §4.1 |
+| 4 | The helper routes the workload's address to the tap, answers for each side on the other, and writes the namespace's firewall on its forward hook | `07-networking.md` §4.1, §6 |
+| 5 | The agent gives the driver the workload's namespaces and its addresses | `07-networking.md` §4.1; `04-runtimes.md` §6 |
+| 6 | The driver checks the namespaces are the workload's own, and the jailer joins them before it starts Firecracker, which opens the tap | `04-runtimes.md` §6 |
+| 7 | The guest's kernel holds the address, routes through `169.254.1.1`, and `korpis-guest` writes `/etc/resolv.conf` | `04-runtimes.md` §6; `07-networking.md` §5.1 |
+| 8 | The guest asks its resolver, in the namespace, which answers it from the agent's sockets | `07-networking.md` §5.1 |
+| 9 | A player connects to the node's port, forwarded to the workload's address, and is let through to the guest's | `07-networking.md` §3, §4.1 |
+| 10 | What the guest sends is shaped and counted on its link, as a container's is | `07-networking.md` §7; `04-runtimes.md` §4.1 |
+
+**One finding, at step 3** (‡).
+
+**FINDING 148: The namespace's way to its gateway named a hardware address the host changes.
+`CONFIRMED`, by the driver's network test**
+
+Found 2026-10-23 by the test of step 9, which timed out, and then by asking the algebra question of
+step 3: the namespace holds no address on `eth0`, so it reaches its gateway through a permanent
+entry naming the host side's hardware address, and what holds that address, and when? The helper
+read it from the link it had just made. But a veth is made with a random address, and on a host
+whose `systemd-udevd` applies `MACAddressPolicy=persistent`, as Ubuntu's does, udev replaces a
+random address moments after the link appears; the entry named an address the link no longer had,
+every frame the namespace sent towards the host went to nobody, and the guest was reachable from
+nowhere while every rule said it was.
+
+**Resolution.** The helper sets the host side's hardware address when it makes the link, from the
+hash its name is made from, locally administered and unicast, which udev leaves alone, and reads it
+back for the entry. → stated in §4.1 of `07-networking.md`; built in `crates/korpis-helper` and
+`korpis-core`'s `host_mac`. What it costs: two workloads' links can share an address with a chance
+of about one in 2^40 per pair, which nothing notices, since only the two ends of one link ever see
+it.
+
+Steps 1 to 10 are built, steps 2 to 9 tested: `crates/korpis-driver-firecracker/tests/network.rs`
+has the helper make a tap network, a guest reach its resolver's address in the namespace, and the
+host reach the guest's declared port at its address, reading back the address the guest holds and
+the resolver its file names; the agent's tests check that a driver declaring `tap` is asked a tap
+for and has the node's shaping declared on it. Step 10 is the link's shaping and accounting of §7,
+which name the link and the workload's addresses and are unchanged. Building step 6 also found a
+race in the driver, recorded in §6 of `04-runtimes.md`: the jailer names Firecracker's process
+before it drops to the workload's id, and a start that read it too soon refused its own guest.

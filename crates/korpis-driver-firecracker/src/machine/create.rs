@@ -24,8 +24,8 @@ fn refused(why: impl Into<String>) -> MachineError {
 }
 
 /// That `spec` is one this driver builds: its tier, its image by digest, its ids a whole range
-/// above the host's own, no network yet, its console written to its own stream volume alone,
-/// and every volume beneath the volume root.
+/// above the host's own, its network, if any, its workload's own namespaces, its console written
+/// to its own stream volume alone, and every volume beneath the volume root.
 fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()> {
     if spec.tier.as_known() != Some(pb::IsolationTier::ISOLATION_TIER_MICROVM) {
         return Err(refused("the firecracker driver builds the microvm tier alone"));
@@ -35,9 +35,7 @@ fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<(
     if spec.uid_count != IDS || spec.uid_base < IDS || spec.uid_base.checked_add(IDS).is_none() {
         return Err(refused("a range of 65536 ids above the host's own"));
     }
-    if !spec.namespaces.is_empty() {
-        return Err(refused("a guest is given no network by this driver yet"));
-    }
+    joined(spec, settings)?;
     if !korpis_driver_kit::console::own_dir(spec, &settings.volume_root) {
         return Err(refused("only the workload's own stream volume is written to"));
     }
@@ -53,6 +51,25 @@ fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<(
             return Err(refused(format!("volume {:?} is mounted at no absolute path", m.volume)));
         }
     }
+    Ok(())
+}
+
+/// That the namespaces `spec` joins, if any, are its workload's own under the helper's root, so
+/// no guest's Firecracker joins another workload's network, and that it is given addresses only
+/// with a network to hold them.
+fn joined(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()> {
+    if spec.namespaces.is_empty() {
+        if !spec.addresses.is_empty() {
+            return Err(refused("addresses without a network to hold them"));
+        }
+        return Ok(());
+    }
+    let plain = !spec.workload.is_empty()
+        && spec.workload.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+    if !plain || Path::new(&spec.namespaces) != settings.netns_root.join(&spec.workload) {
+        return Err(refused("only the workload's own namespaces are joined"));
+    }
+    crate::guest::network(spec).map_err(refused)?;
     Ok(())
 }
 

@@ -16,6 +16,15 @@ fn a_host_link_name_fits_an_interface_name_and_is_stable() {
 }
 
 #[test]
+fn a_host_link_s_hardware_address_is_its_own_locally_administered_unicast_one() {
+    let w = "0192f1a2-7c3e-7d00-8a1b-3c4d5e6f7a8b";
+    let mac = host_mac(w);
+    assert_eq!(mac[0], 0x02, "locally administered, and not multicast");
+    assert_eq!(mac, host_mac(w));
+    assert_ne!(mac, host_mac("0192f1a2-7c3e-7d00-8a1b-3c4d5e6f7a8c"));
+}
+
+#[test]
 fn an_address_must_be_a_host_address_of_its_pool() {
     let pool = p("10.47.0.0/16");
     assert!(within("10.47.0.2".parse().unwrap(), pool));

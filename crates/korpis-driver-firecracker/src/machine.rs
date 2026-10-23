@@ -210,23 +210,27 @@ impl Machine {
     /// The process id of object `id`'s Firecracker, running as `uid`, from the pid file its
     /// jailer leaves once it has started it. The file is in the chroot, which that Firecracker
     /// can write, so what it says is believed only of a process running as `uid` in the guest's
-    /// cgroup, which only root can move a process into: the driver kills what it records.
+    /// cgroup, which only root can move a process into: the driver kills what it records. The
+    /// jailer names its child as soon as it is cloned, while the child is still root and has
+    /// yet to drop to `uid` as it runs Firecracker, so a process named but not yet that is
+    /// waited for, within the same bound.
     async fn vmm_pid(&self, id: &str, uid: u32) -> MachineResult<i32> {
         let file = jail::pid_file(&self.settings, id);
+        let cgroup = self.settings.cgroup_of(id);
         let until = Instant::now() + JAILER_BOUND;
-        let pid = loop {
-            if let Some(pid) = read_pid(&file) {
-                break pid;
-            }
-            if Instant::now() >= until {
-                return Err(failed("the jailer named no Firecracker process"));
+        let mut named = None;
+        while Instant::now() < until {
+            named = read_pid(&file).or(named);
+            let ours = |pid: &i32| process::in_cgroup(*pid, &cgroup) && process::runs_as(*pid, uid);
+            if let Some(pid) = named.filter(ours) {
+                return Ok(pid);
             }
             tokio::time::sleep(Duration::from_millis(20)).await;
-        };
-        if process::in_cgroup(pid, &self.settings.cgroup_of(id)) && process::runs_as(pid, uid) {
-            return Ok(pid);
         }
-        Err(failed("the jailer's pid file names no process of this guest"))
+        Err(failed(match named {
+            Some(_) => "the jailer's pid file names no process of this guest",
+            None => "the jailer named no Firecracker process",
+        }))
     }
 
     /// Sends `data`, typed by `from` (who, and in which session), to object `id`'s console, once

@@ -55,6 +55,10 @@ pub struct Network {
     pub addresses: Vec<(IpAddr, u8)>,
     /// A default route through each, taken to be on the link.
     pub gateways: Vec<IpAddr>,
+    /// The resolvers `/etc/resolv.conf` names, in place of what the image holds there; none
+    /// leaves the image's.
+    #[serde(default)]
+    pub resolvers: Vec<IpAddr>,
 }
 
 /// A volume: its drive's filesystem, mounted at `path`.
@@ -117,7 +121,8 @@ mod tests {
             gid: 1000,
             network: Some(Network {
                 addresses: vec![("10.200.0.2".parse().unwrap(), 32)],
-                gateways: vec!["169.254.0.1".parse().unwrap()],
+                gateways: vec!["169.254.1.1".parse().unwrap()],
+                resolvers: vec!["169.254.1.53".parse().unwrap()],
             }),
             volumes: vec![Volume { path: "/data".into(), read_only: false }],
             interactive: true,

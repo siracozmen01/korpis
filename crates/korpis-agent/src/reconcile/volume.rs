@@ -27,37 +27,6 @@ pub(super) enum Why {
     Stream,
 }
 
-/// For each driver the node runs, by name, whether it takes its volumes as block devices (§3.1
-/// of docs/06-storage.md), as each declared itself when the agent started: what a driver is does
-/// not change while it runs, and asking it again for each volume would tie every volume to the
-/// driver's own health.
-#[derive(Debug, Clone, Default)]
-pub struct VolumeKinds(std::collections::BTreeMap<String, bool>);
-
-impl VolumeKinds {
-    /// What `drivers` declared.
-    #[must_use]
-    pub fn of(drivers: &[pb::DriverInfo]) -> Self {
-        let block = pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE;
-        let kind = |d: &pb::DriverInfo| {
-            let caps = d.capabilities.as_option();
-            caps.is_some_and(|c| c.volume_semantics.as_known() == Some(block))
-        };
-        Self(drivers.iter().map(|d| (d.name.clone(), kind(d))).collect())
-    }
-
-    /// Whether the driver named `driver`, or the node's only one when none is named, takes its
-    /// volumes as block devices; a driver the node lacks takes files, and is refused when it is
-    /// reached.
-    #[must_use]
-    pub fn block_device(&self, driver: &str) -> bool {
-        match driver {
-            "" if self.0.len() == 1 => self.0.values().next().copied().unwrap_or(false),
-            name => self.0.get(name).copied().unwrap_or(false),
-        }
-    }
-}
-
 /// The driver `a`'s target names, empty when it names none.
 pub(super) fn driver_of(a: &agent::Assignment) -> &str {
     let body = a.target.as_option().and_then(|t| t.body.as_option());
@@ -142,7 +111,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                     workload: a.workload.clone(),
                     storage_class: detail(s, "storage_class").unwrap_or_default().to_owned(),
                     size_bytes: number(s, "size_bytes"),
-                    block_device: self.wiring.volume_kinds.block_device(driver_of(a)),
+                    block_device: self.wiring.driver_kinds.block_device(driver_of(a)),
                     ..Default::default()
                 };
                 let made = self.ensure_volume(name, Why::Declared, &request).await?;
@@ -215,32 +184,5 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .await
             .map(|_| ())
             .map_err(|e| Failure(format!("volume {volume} could not be reported: {e}")))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn driver(name: &str, semantics: pb::VolumeSemantics) -> pb::DriverInfo {
-        let capabilities =
-            pb::Capabilities { volume_semantics: semantics.into(), ..Default::default() };
-        pb::DriverInfo {
-            name: name.into(),
-            capabilities: capabilities.into(),
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn a_volume_is_a_block_device_where_its_driver_says_so() {
-        let block = pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE;
-        let files = pb::VolumeSemantics::VOLUME_SEMANTICS_FILESYSTEM;
-        let both = VolumeKinds::of(&[driver("oci", files), driver("firecracker", block)]);
-        assert!(both.block_device("firecracker") && !both.block_device("oci"));
-        assert!(!both.block_device(""), "with two drivers, none named is none of them");
-        assert!(!both.block_device("qemu"), "a driver the node lacks takes files");
-        let one = VolumeKinds::of(&[driver("firecracker", block)]);
-        assert!(one.block_device(""), "the only driver, when none is named");
     }
 }

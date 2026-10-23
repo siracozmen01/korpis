@@ -105,6 +105,10 @@ message PreparedSpec {
   // The driver that prepared it, by the name it describes itself with: a node with several
   // drivers hands the spec's Create to that one (§3 of docs/04-runtimes.md).
   string driver = 18;
+  // The workload's addresses on its network, each as address/prefix, for a driver whose
+  // workload holds its own interface: a microVM's guest sets them on its `eth0`, routed through
+  // the gateways every workload has (§4.1 of docs/07-networking.md). Empty without `namespaces`.
+  repeated string addresses = 19;
 }
 
 // The console stream of a workload: its limits and the secret values it redacts, from Prepare;

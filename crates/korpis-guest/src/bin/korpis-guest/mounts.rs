@@ -4,12 +4,15 @@
 //! tmpfs above it in an overlay so the mount points it lacks can be made, then the overlay made
 //! read-only, as a container's root is (§2 of docs/04-runtimes.md). Beneath it, the kernel's
 //! filesystems, small tmpfs mounts at `/tmp`, `/run`, and `/dev/shm` so a read-only root is
-//! livable, and the volumes, each its own drive's filesystem.
+//! livable, the volumes, each its own drive's filesystem, and the resolver the guest is given.
 
 use crate::failed;
 use korpis_guest::config::Config;
 use korpis_guest::drive;
 use nix::mount::{MsFlags, mount};
+use std::io::Write as _;
+use std::net::IpAddr;
+use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Component, Path, PathBuf};
 
 /// Where the image is mounted, on the boot drive.
@@ -57,9 +60,37 @@ fn overlay(root: &str, config: &Config) -> Result<(), String> {
     for d in fixed.into_iter().chain(volumes).chain(working) {
         std::fs::create_dir_all(beneath(root, d)?).map_err(failed("a mount point"))?;
     }
+    resolv(root, config.network.as_ref().map_or(&[][..], |n| &n.resolvers[..]))?;
     let readonly = MsFlags::MS_REMOUNT | MsFlags::MS_RDONLY;
     mount(None::<&str>, root, None::<&str>, readonly, None::<&str>)
         .map_err(failed("making the root read-only"))
+}
+
+/// Writes `/etc/resolv.conf` beneath `root`, naming `resolvers` alone, in the overlay's
+/// writable layer, as a container is given its own (§5.1 of docs/07-networking.md). What the
+/// image holds there is removed first, never written through: it may be a link.
+fn resolv(root: &str, resolvers: &[IpAddr]) -> Result<(), String> {
+    if resolvers.is_empty() {
+        return Ok(());
+    }
+    let etc = beneath(root, "/etc")?;
+    std::fs::create_dir_all(&etc).map_err(failed("/etc"))?;
+    let path = etc.join("resolv.conf");
+    match std::fs::remove_file(&path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(format!("replacing the image's /etc/resolv.conf: {e}")),
+    }
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o644)
+        .open(&path)
+        .map_err(failed("writing /etc/resolv.conf"))?;
+    for r in resolvers {
+        writeln!(f, "nameserver {r}").map_err(failed("writing /etc/resolv.conf"))?;
+    }
+    Ok(())
 }
 
 /// The kernel's filesystems and the small writable ones, beneath `root`.

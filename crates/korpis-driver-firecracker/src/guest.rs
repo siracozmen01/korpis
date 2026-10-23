@@ -8,10 +8,12 @@
 
 use crate::jail::Shape;
 use korpis_core::content::image::ImageConfig;
+use korpis_core::workload::network::{GATEWAY_V4, GATEWAY_V6, RESOLVER_V4};
 use korpis_driver_kit::entry;
-use korpis_guest::config::{Config, Volume};
+use korpis_guest::config::{Config, Network, Volume};
 use korpis_proto::korpis::driver::v1 as driver;
 use std::collections::BTreeMap;
+use std::net::IpAddr;
 
 const MIB: u64 = 1 << 20;
 
@@ -50,7 +52,40 @@ pub fn shape(spec: &driver::PreparedSpec) -> Shape {
     if let Some(limit) = cpu.map(|c| c.limit_millis).filter(|l| *l > 0) {
         cgroup.push(format!("cpu.max={} {CPU_PERIOD}", limit * (CPU_PERIOD / 1000)));
     }
-    Shape { vcpus: u32::try_from(vcpus).unwrap_or(1), memory_mib, cgroup }
+    let netns = Some(spec.namespaces.as_str())
+        .filter(|n| !n.is_empty())
+        .map(|n| std::path::Path::new(n).join("net"));
+    Shape { vcpus: u32::try_from(vcpus).unwrap_or(1), memory_mib, cgroup, netns }
+}
+
+/// The guest's network, from the addresses `spec` gives it: each on its `eth0`, a default route
+/// through the gateway of each family it has an address of, and the workload's resolver, as a
+/// container is given them (§4.1 and §5.1 of docs/07-networking.md); none without addresses.
+pub fn network(spec: &driver::PreparedSpec) -> Result<Option<Network>, String> {
+    if spec.addresses.is_empty() {
+        return Ok(None);
+    }
+    let mut addresses = Vec::new();
+    for a in &spec.addresses {
+        let bad = || format!("{a:?} is not an address with its prefix");
+        let (ip, len) = a.split_once('/').ok_or_else(bad)?;
+        let ip: IpAddr = ip.parse().map_err(|_| bad())?;
+        let len: u8 = len.parse().map_err(|_| bad())?;
+        let whole = if ip.is_ipv4() { 32 } else { 128 };
+        let twice = addresses.iter().any(|(o, _): &(IpAddr, u8)| o.is_ipv4() == ip.is_ipv4());
+        if len != whole || twice {
+            return Err(format!("{a:?} is not the one host address of its family"));
+        }
+        addresses.push((ip, len));
+    }
+    let mut gateways = vec![IpAddr::V4(GATEWAY_V4)];
+    if addresses.iter().any(|(ip, _)| ip.is_ipv6()) {
+        gateways.push(IpAddr::V6(GATEWAY_V6));
+    }
+    if !addresses.iter().any(|(ip, _)| ip.is_ipv4()) {
+        return Err("a guest's addresses include one of IPv4".into());
+    }
+    Ok(Some(Network { addresses, gateways, resolvers: vec![IpAddr::V4(RESOLVER_V4)] }))
 }
 
 /// The config drive for `spec`, whose image's configuration is `image`.
@@ -75,7 +110,7 @@ pub fn config(spec: &driver::PreparedSpec, image: &ImageConfig) -> Result<Config
         working_dir: entry::working_dir(spec, image),
         uid: image.user.0,
         gid: image.user.1,
-        network: None,
+        network: network(spec)?,
         volumes,
         interactive: spec.stream.as_option().is_some_and(|s| s.input),
     })

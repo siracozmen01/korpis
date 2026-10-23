@@ -40,6 +40,9 @@ fn bound(path: &Path) -> bool {
     open(path).is_ok_and(|fd| rustix::fs::fstatfs(&fd).is_ok_and(|s| s.f_type == NSFS_MAGIC))
 }
 
+/// The file that marks namespaces made for a microVM's tap.
+const TAP_MARK: &str = "tap";
+
 /// The network namespace in `dir`.
 pub(crate) fn net(dir: &Path) -> std::path::PathBuf {
     dir.join("net")
@@ -50,12 +53,18 @@ fn mapped(base: u32, count: u32) -> String {
     format!("{base} {count}\n")
 }
 
-/// Makes the namespaces in `dir` for the uid range at `base` of `count`, unless they are there
-/// and map that range; whether it made them.
-pub(crate) fn ensure(dir: &Path, (base, count): (u32, u32)) -> io::Result<bool> {
+/// Makes the namespaces in `dir` for the uid range at `base` of `count`, unless they are there,
+/// map that range, and were made for the same kind of interface, a microVM's tap or a veth's
+/// end, which a file named `tap` marks; whether it made them.
+pub(crate) fn ensure(dir: &Path, (base, count): (u32, u32), tap: bool) -> io::Result<bool> {
     let ids = dir.join("ids");
     let kept = std::fs::read_to_string(&ids).ok();
-    if bound(&net(dir)) && bound(&dir.join("user")) && kept == Some(mapped(base, count)) {
+    let same_kind = dir.join(TAP_MARK).exists() == tap;
+    if bound(&net(dir))
+        && bound(&dir.join("user"))
+        && kept == Some(mapped(base, count))
+        && same_kind
+    {
         return Ok(false);
     }
     remove(dir)?;
@@ -79,7 +88,11 @@ pub(crate) fn ensure(dir: &Path, (base, count): (u32, u32)) -> io::Result<bool> 
         std::fs::write(format!("/proc/{pid}/gid_map"), &map)?;
         mount_bind(format!("/proc/{pid}/ns/user"), dir.join("user"))?;
         mount_bind(format!("/proc/{pid}/ns/net"), net(dir))?;
-        // Kept in the runtime directory, as the namespaces are: a reboot loses both.
+        if tap {
+            std::fs::write(dir.join(TAP_MARK), "")?;
+        }
+        // Kept in the runtime directory, as the namespaces are: a reboot loses both. Written
+        // last, so namespaces whose making was cut short are made again.
         std::fs::write(&ids, mapped(base, count))
     })();
     drop(child.stdin.take());

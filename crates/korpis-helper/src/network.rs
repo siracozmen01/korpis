@@ -2,7 +2,8 @@
 
 //! A workload's network, as the supervisor asks for it (§4.1 of docs/07-networking.md): a
 //! namespace of its own, bound under the helper's network root, joined to the host by a routed
-//! veth pair with no bridge, its addresses and routes on both ends, and its firewall. The
+//! veth pair with no bridge, its addresses and routes on both ends (or, for a microVM, routed on
+//! to the tap its guest holds), and its firewall. The
 //! supervisor chooses the addresses; the helper checks each against the pool it is said to be in,
 //! derives every name from the workload's identifier, and makes the rest so, whatever part of it
 //! a crash or a reboot left behind.
@@ -17,6 +18,7 @@ mod policy;
 mod resolver;
 mod rtnl;
 mod shape;
+mod tap;
 
 use crate::error::{HelperError, HelperResult, identifier};
 use forward::{Forward, Transport};
@@ -26,8 +28,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::os::fd::AsRawFd as _;
 use std::path::PathBuf;
 
-use korpis_core::workload::network::RESOLVER_V4;
-pub use korpis_core::workload::network::{GATEWAY_V4, GATEWAY_V6, host_link};
+pub use korpis_core::workload::network::{GATEWAY_V4, GATEWAY_V6, host_link, host_mac};
+use korpis_core::workload::network::{RESOLVER_V4, TAP};
 /// The name of the workload's side of its link.
 const INNER: &str = "eth0";
 
@@ -93,6 +95,7 @@ struct Asked {
     rules: Vec<policy::Rule>,
     limits: policy::Limits,
     shaping: bandwidth::Shaping,
+    tap: bool,
 }
 
 fn transport(t: buffa::EnumValue<helper::Transport>) -> HelperResult<Transport> {
@@ -175,48 +178,50 @@ fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
     let ids = (r.uid_base, r.uid_count);
     let (rules, limits) = (policy::rules(&r.egress)?, policy::limits(r)?);
     let shaping = bandwidth::asked(r.bandwidth.as_option())?;
-    let workload = r.workload.clone();
-    Ok(Asked { workload, ipv4, ipv6, ids, inbound, forwards, opened, rules, limits, shaping })
+    let (workload, tap) = (r.workload.clone(), r.tap);
+    Ok(Asked { workload, ipv4, ipv6, ids, inbound, forwards, opened, rules, limits, shaping, tap })
 }
 
-/// Configures the workload's side, from inside its namespace.
-fn inside(
-    ipv4: Ipv4Addr,
-    ipv6: Option<Ipv6Addr>,
-    inbound: &[policy::Inbound],
-) -> std::io::Result<()> {
+/// Configures the workload's side, from inside its namespace: its `eth0` holds its addresses,
+/// or, for a microVM, the guest behind its tap does, the host side's hardware address `mac`.
+fn inside(a: &Asked, ipv6: Option<Ipv6Addr>, mac: Vec<u8>) -> std::io::Result<()> {
     let mut nl = Rtnl::open()?;
     let missing = || std::io::Error::other("the namespace lacks its link");
     let lo = nl.link_index("lo")?.ok_or_else(missing)?;
     nl.set_up(lo)?;
     nl.add_address(lo, IpAddr::V4(RESOLVER_V4), 32)?;
+    if a.tap {
+        let routed = tap::Routed { ipv4: a.ipv4, ipv6, gateway_mac: mac, owner: a.ids.0 };
+        tap::route(&mut nl, &routed)?;
+        return nft::apply(&nft::namespace(&a.inbound, Some(TAP)));
+    }
     let eth = nl.link_index(INNER)?.ok_or_else(missing)?;
-    nl.add_address(eth, IpAddr::V4(ipv4), 32)?;
+    nl.add_address(eth, IpAddr::V4(a.ipv4), 32)?;
     nl.set_up(eth)?;
     nl.add_route((IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0), eth, Some(IpAddr::V4(GATEWAY_V4)))?;
     if let Some(v6) = ipv6 {
         nl.add_address(eth, IpAddr::V6(v6), 128)?;
         nl.add_route((IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0), eth, Some(IpAddr::V6(GATEWAY_V6)))?;
     }
-    nft::apply(&nft::namespace(inbound))
+    nft::apply(&nft::namespace(&a.inbound, None))
 }
 
 /// Makes the host side of the workload's link, `link`, to its namespace in `dir`, with the
 /// gateway's addresses and the routes to the workload's; a link left from a namespace `fresh`
-/// replaced is made again.
+/// replaced is made again, with the hardware address `mac`. The address it has.
 fn linked(
     dir: &std::path::Path,
-    link: &str,
+    (link, mac): (&str, [u8; 6]),
     fresh: bool,
     (ipv4, ipv6): (Ipv4Addr, Option<Ipv6Addr>),
-) -> HelperResult<()> {
+) -> HelperResult<Vec<u8>> {
     let mut nl = Rtnl::open()?;
     if fresh && let Some(stale) = nl.link_index(link)? {
         nl.delete_link(stale)?;
     }
     if nl.link_index(link)?.is_none() {
         let ns = std::fs::File::open(netns::net(dir))?;
-        nl.add_veth(link, INNER, ns.as_raw_fd())?;
+        nl.add_veth((link, mac), INNER, ns.as_raw_fd())?;
     }
     let index =
         nl.link_index(link)?.ok_or_else(|| HelperError::Failed("the link vanished".into()))?;
@@ -227,7 +232,7 @@ fn linked(
         nl.add_address(index, IpAddr::V6(GATEWAY_V6), 64)?;
         nl.add_route((IpAddr::V6(v6), 128), index, None)?;
     }
-    Ok(())
+    Ok(nl.link_address(index)?)
 }
 
 impl Network {
@@ -287,9 +292,9 @@ impl Network {
             );
         }
         let dir = self.path(&a.workload);
-        let fresh = netns::ensure(&dir, a.ids)?;
+        let fresh = netns::ensure(&dir, a.ids, a.tap)?;
         let link = host_link(&a.workload);
-        linked(&dir, &link, fresh, (a.ipv4, ipv6))?;
+        let mac = linked(&dir, (&link, host_mac(&a.workload)), fresh, (a.ipv4, ipv6))?;
         let listed = forward::listed()?;
         let mut host = nft::host(&listed.chains);
         host.extend(forward::hold(&link, (a.ipv4, ipv6), &a.forwards, &listed.ports));
@@ -302,7 +307,7 @@ impl Network {
         if class.is_none() {
             bandwidth::unclass(&link, &listed.account)?;
         }
-        netns::within(&netns::net(&dir), || inside(a.ipv4, ipv6, &a.inbound))?;
+        netns::within(&netns::net(&dir), || inside(&a, ipv6, mac))?;
         bandwidth::apply((&dir, &link), &a.shaping, class, &a.inbound)?;
         resolver::write(&dir)?;
         Ok(helper::EnsureNetworkResponse {

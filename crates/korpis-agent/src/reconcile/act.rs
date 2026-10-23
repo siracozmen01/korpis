@@ -73,7 +73,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         spec: &mut driver::PreparedSpec,
     ) -> Result<(), Failure> {
         let volumes = a.target.as_option().and_then(|t| t.body.as_option()).map(|b| &b.volumes);
-        let block_device = self.wiring.volume_kinds.block_device(&spec.driver);
+        let block_device = self.wiring.driver_kinds.block_device(&spec.driver);
         for m in spec.mounts.iter_mut().filter(|m| !m.volume.is_empty()) {
             let v = volumes.and_then(|vs| vs.iter().find(|v| v.name == m.volume));
             let request = helper::EnsureVolumeRequest {

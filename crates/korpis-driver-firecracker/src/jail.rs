@@ -3,12 +3,14 @@
 //! A guest's jail: the chroot Firecracker's jailer runs it in, holding the kernel, the drives in
 //! the order the guest counts them (`korpis_guest::drive`), and the machine's configuration, as
 //! hard links to what the driver keeps, and the volumes, which are on the node's storage where a
-//! hard link from the driver's state cannot reach, bound in and unbound with the jail; and the jailer's command line, which drops to the
-//! workload's own id, makes its cgroup with the guest's limits, and detaches it so the guest
-//! outlives the driver. Paths in the configuration are the chroot's, as the jailed Firecracker
+//! hard link from the driver's state cannot reach, bound in and unbound with the jail; and the
+//! jailer's command line, which drops to the workload's own id, makes its cgroup with the guest's
+//! limits, joins the workload's network namespace, whose tap is the guest's `eth0` (§4.1 of
+//! docs/07-networking.md), and detaches it so the guest outlives the driver. Paths in the configuration are the chroot's, as the jailed Firecracker
 //! sees them.
 
 use crate::settings::Settings;
+use korpis_core::workload::network::TAP;
 use std::io;
 use std::os::unix::fs::OpenOptionsExt as _;
 use std::os::unix::process::CommandExt as _;
@@ -39,6 +41,9 @@ pub struct Shape {
     pub memory_mib: u64,
     /// The cgroup v2 settings its Firecracker runs under, as `file=value`.
     pub cgroup: Vec<String>,
+    /// The network namespace its Firecracker joins, holding the tap that is its `eth0`; none
+    /// for a guest with loopback alone.
+    pub netns: Option<PathBuf>,
 }
 
 /// What the jail holds, by the host's paths.
@@ -70,11 +75,16 @@ fn machine(shape: &Shape, volumes: &[(PathBuf, bool)]) -> serde_json::Value {
     for (i, (_, ro)) in volumes.iter().enumerate() {
         drives.push(drive(format!("volume-{i}"), format!("/volume-{i}"), false, *ro));
     }
-    serde_json::json!({
+    let mut machine = serde_json::json!({
         "boot-source": {"kernel_image_path": "/vmlinux", "boot_args": BOOT_ARGS},
         "drives": drives,
         "machine-config": {"vcpu_count": shape.vcpus, "mem_size_mib": shape.memory_mib},
-    })
+    });
+    if let (Some(_), Some(m)) = (&shape.netns, machine.as_object_mut()) {
+        let tap = serde_json::json!([{"iface_id": "eth0", "host_dev_name": TAP}]);
+        m.insert("network-interfaces".into(), tap);
+    }
+    machine
 }
 
 /// Links `from` into the chroot `root` as `name`, replacing what a previous attempt left.
@@ -151,6 +161,9 @@ pub fn command(settings: &Settings, id: &str, (uid, gid): (u32, u32), shape: &Sh
     for setting in &shape.cgroup {
         c.args(["--cgroup", setting]);
     }
+    if let Some(netns) = &shape.netns {
+        c.arg("--netns").arg(netns);
+    }
     // In a pid namespace of its own, so its Firecracker can name no process but itself. The
     // jailer forks to do it and exits, and the process that is Firecracker is named in the pid
     // file it leaves in the chroot. It is not daemonized, which would put nothing on the guest's
@@ -210,7 +223,7 @@ mod tests {
 
     #[test]
     fn the_machine_names_its_drives_in_the_order_the_guest_counts_them() {
-        let shape = Shape { vcpus: 2, memory_mib: 256, cgroup: Vec::new() };
+        let shape = Shape { vcpus: 2, memory_mib: 256, cgroup: Vec::new(), netns: None };
         let m = machine(&shape, &[(PathBuf::from("/v/a"), false), (PathBuf::from("/v/b"), true)]);
         let ids: Vec<&str> = m["drives"]
             .as_array()
@@ -222,5 +235,36 @@ mod tests {
         assert_eq!(m["drives"][4]["is_read_only"], true);
         assert_eq!(m["machine-config"]["vcpu_count"], 2);
         assert!(m["boot-source"]["boot_args"].as_str().unwrap().contains("init=/korpis-guest"));
+        assert!(m.get("network-interfaces").is_none(), "loopback alone");
+    }
+
+    #[test]
+    fn a_guest_given_a_network_holds_its_namespace_s_tap_and_its_firecracker_joins_it() {
+        let netns = PathBuf::from("/run/korpis/netns/w1/net");
+        let shape = Shape { vcpus: 1, memory_mib: 128, cgroup: Vec::new(), netns: Some(netns) };
+        let m = machine(&shape, &[]);
+        assert_eq!(m["network-interfaces"][0]["host_dev_name"], TAP);
+        assert_eq!(m["network-interfaces"][0]["iface_id"], "eth0");
+        let settings = crate::settings::Settings {
+            firecracker: "/fc".into(),
+            jailer: "/jailer".into(),
+            kernel: "/k".into(),
+            guest: "/g".into(),
+            image_build: "/b".into(),
+            writer: "/w".into(),
+            content: "/c".into(),
+            volume_root: "/v".into(),
+            netns_root: "/run/korpis/netns".into(),
+            state: "/s".into(),
+            cgroup: "korpis".into(),
+        };
+        let c = command(&settings, "fc-1", (1 << 20, 1 << 20), &shape);
+        let args: Vec<String> = c.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        let at = args.iter().position(|a| a == "--netns").unwrap();
+        assert_eq!(args[at + 1], "/run/korpis/netns/w1/net");
+        assert!(
+            at < args.iter().position(|a| a == "--").unwrap(),
+            "the jailer's, not Firecracker's"
+        );
     }
 }
