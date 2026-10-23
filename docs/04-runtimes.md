@@ -637,10 +637,12 @@ the driver kills what it records; and the API socket is opened as itself, never 
 so it cannot be made to name another socket on the host. It is proven by guests run, stopped,
 killed, recovered, and given a console (`crates/korpis-guest/tests/boot.rs`,
 `crates/korpis-image/tests/build.rs`, `crates/korpis-driver-firecracker/tests/`), the last through
-the agent with the `oci` driver beside it; the console is described in §3. What it does not do
-yet, stated: a guest has no network and no volume a node's helper makes, so the driver refuses a
-spec that names either; and since every workload a node runs has its network, no node can place a
-workload on `microvm` until the helper gives a guest its tap and its block volumes.
+the agent with the `oci` driver beside it; the console is described in §3. A volume's drive is the
+image the helper makes in it (§3.1 of `06-storage.md`), which is on the node's storage, where a
+hard link from the driver's state cannot reach: it is bound into the chroot instead, and unbound,
+without following a link, when the jail is removed. What it does not do yet, stated: a guest has
+no network, so the driver refuses a spec that names one; and since every workload a node runs has
+its network, no node can place a workload on `microvm` until the helper gives a guest its tap.
 
 ---
 

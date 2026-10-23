@@ -301,6 +301,7 @@ impl Agent {
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
         let data = identity.clone();
         let ingress_facts = facts();
+        let volume_kinds = crate::reconcile::VolumeKinds::of(&ingress_facts.drivers);
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
         let (runtime, sampler) = meter(state, runtime, (&host, &link, &journal), options.metering)?;
         let (ingress, proxy) =
@@ -332,6 +333,7 @@ impl Agent {
             network,
             ingress,
             certificates: link.certificates.clone(),
+            volume_kinds,
             identity: Some(identity_sockets(
                 state,
                 options.identity_root,

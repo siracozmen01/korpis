@@ -28,6 +28,8 @@ mod step;
 pub mod streams;
 pub(crate) mod tail;
 mod volume;
+
+pub use volume::VolumeKinds;
 mod workload;
 
 use crate::held::HeldSet;
@@ -134,6 +136,8 @@ pub struct Wiring {
     pub ingress: Option<watch::Sender<korpis_proto::korpis::ingress::v1::IngressConfig>>,
     /// The certificates its proxy serves with, asked of the control plane and kept.
     pub certificates: Arc<crate::ingress::Certificates>,
+    /// Which of the node's drivers take their volumes as block devices.
+    pub volume_kinds: VolumeKinds,
 }
 
 /// The reconciler.

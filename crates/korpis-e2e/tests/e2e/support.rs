@@ -240,16 +240,19 @@ impl ControlPlane {
         self.approve(&plan).await;
     }
 
-    /// The identifier of `project`'s live volume called `name`.
+    /// The identifier of `project`'s live volume called `name`, once listed: a node's report of
+    /// a volume reaches the control plane on its own, after the workload may be running.
     pub async fn volume_named(&self, project: &str, name: &str) -> String {
-        let request = pb::ListVolumesRequest { project: project.to_owned(), ..Default::default() };
-        let listed = pb::VolumeServiceClient::new(self.http(), self.config())
-            .list_volumes(request)
-            .await
-            .unwrap()
-            .into_owned()
-            .volumes;
-        listed.into_iter().find(|v| v.name == name).unwrap().id
+        let client = pb::VolumeServiceClient::new(self.http(), self.config());
+        for _ in 0..300 {
+            let asked = pb::ListVolumesRequest { project: project.into(), ..Default::default() };
+            let listed = client.list_volumes(asked).await.unwrap().into_owned().volumes;
+            match listed.into_iter().find(|v| v.name == name) {
+                Some(v) => return v.id,
+                None => tokio::time::sleep(std::time::Duration::from_millis(100)).await,
+            }
+        }
+        panic!("{project} never listed a volume called {name}");
     }
 
     /// Approves `plan` as the operator.

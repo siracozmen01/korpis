@@ -184,6 +184,7 @@ impl Machine {
         let log = std::fs::File::create(dir.join(START_LOG)).map_err(failed)?;
         let stream = object.spec.stream.as_option();
         let console = console::attach(&self.settings.writer, &dir, stream).await.map_err(failed)?;
+        let writer = console.writer;
         command.stdin(console.stdin).stdout(console.stdout).stderr(log);
         let mut jailer = tokio::process::Command::from(command).spawn().map_err(failed)?;
         let done = tokio::time::timeout(JAILER_BOUND, jailer.wait()).await;
@@ -195,8 +196,8 @@ impl Machine {
             Err(_) => return Err(failed("the jailer did not detach in time")),
         }
         let pid = self.vmm_pid(id, owner.0).await?;
-        if let Some(writer) = console.writer {
-            console::join(writer, &self.settings.cgroup_of(id)).map_err(failed)?;
+        if let Some(writer) = writer {
+            console::join(&writer, &self.settings.cgroup_of(id)).map_err(failed)?;
         }
         let start_ticks = process::start_ticks(pid).unwrap_or(0);
         let vm = Vm { pid, start_ticks, started_at_ms: now_ms(), ended_at_ms: None };

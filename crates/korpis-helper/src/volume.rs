@@ -4,12 +4,12 @@
 //! workload-relative ids, §4.5 of docs/04-runtimes.md, and the driver's idmapped mount maps them
 //! onto the workload's range), or as a subvolume on btrfs; put in a quota project of their own,
 //! or limited by their qgroup, where the class enforces quota; made durable before the answer;
-//! and removed without following a link. A path is only ever the class root joined with a
-//! checked identifier.
+//! and removed without following a link. A block device is such a directory holding its image
+//! ([`crate::block`]). A path is only ever the class root joined with a checked identifier.
 
 use crate::error::{HelperError, HelperResult, identifier};
 use crate::storage::{Backend, Class};
-use crate::{btrfs, quota};
+use crate::{block, btrfs, quota};
 use korpis_proto::korpis::helper::v1 as helper;
 use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
 use std::path::Path;
@@ -40,27 +40,59 @@ impl Class {
     ) -> HelperResult<helper::EnsureVolumeResponse> {
         identifier("volume", &r.volume)?;
         let path = self.path_of(&r.volume);
+        if r.block_device && r.size_bytes == 0 && !existing_dir(&path)? {
+            return Err(HelperError::Failed("a block device needs a size".into()));
+        }
         let created = self.make(&r.volume, &path)?;
         if created {
             std::os::unix::fs::chown(&path, Some(0), Some(0))?;
             std::fs::set_permissions(&path, std::fs::Permissions::from_mode(VOLUME_MODE))?;
+        } else if block::is_block(&path) != r.block_device {
+            let (is, asked) = if r.block_device {
+                ("files", "a block device")
+            } else {
+                ("a block device", "files")
+            };
+            let why = format!("volume {} holds {is}, and is not made {asked}", r.volume);
+            return Err(HelperError::Failed(why));
         }
+        // A block device already there is grown, or refused a smaller size, before its limits
+        // change.
+        let resized = (r.block_device && !created).then(|| block::resize(&path, r.size_bytes));
+        let resized = resized.transpose()?;
         // An existing volume attached to another workload is asked for no size, and keeps the
         // limits it has; any other ask sets them, so a volume resized by a new intent gets its
-        // new limits.
+        // new limits. A block device's bound is its image, which its quota leaves room for.
         if created || r.size_bytes > 0 || r.inodes > 0 {
-            self.limit(r, &path)?;
+            let size = if r.block_device { block::quota_for(r.size_bytes) } else { r.size_bytes };
+            self.limit(&helper::EnsureVolumeRequest { size_bytes: size, ..r.clone() }, &path)?;
         }
+        let host_path = match resized {
+            Some(image) => image,
+            None if r.block_device => self.image(&r.volume, &path, r.size_bytes)?,
+            None => path.clone(),
+        };
         if created {
             sync_dir(self.root())?;
             tracing::info!(volume = %r.volume, workload = %r.workload, "volume created");
         }
         Ok(helper::EnsureVolumeResponse {
-            host_path: path.to_string_lossy().into_owned(),
+            host_path: host_path.to_string_lossy().into_owned(),
             created,
-            quota_enforced: self.backend().enforces(),
+            quota_enforced: r.block_device || self.backend().enforces(),
             storage_class: self.name().to_owned(),
             ..Default::default()
+        })
+    }
+
+    /// Makes the image of the new block-device volume `volume` at `path`; the volume is removed
+    /// again if it cannot be made, so a volume that holds no image is never left to be taken for
+    /// one of files.
+    fn image(&mut self, volume: &str, path: &Path, size: u64) -> HelperResult<std::path::PathBuf> {
+        block::make(path, size).inspect_err(|_| {
+            if let Err(e) = self.delete(volume) {
+                tracing::warn!(%volume, error = %e, "a block device that failed was not removed");
+            }
         })
     }
 

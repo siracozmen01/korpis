@@ -215,7 +215,7 @@ impl Helper {
                 crate::error::identifier("job", &r.job)?;
                 crate::job::install::check_ids(&self.ledger, &w.workload, w.id_base)?;
                 let spec = crate::job::install::place(w, |volume| {
-                    Ok(self.holding(volume)?.path_of(volume))
+                    crate::block::files_of(volume, self.holding(volume)?.path_of(volume))
                 })?;
                 Ok(Placed::Install(Box::new(spec)))
             }

@@ -252,6 +252,27 @@ filesystem to be one the restore tooling can read, so the driver declares which 
 filesystems it can traverse, and a volume it cannot traverse offers whole-image restore only,
 stated at backup time rather than discovered at restore time.
 
+**As built (Phase 3).** A `block_device` volume is a volume as above, a directory or a btrfs
+subvolume in its class, in its own quota project or qgroup, holding one image, `block.ext4`. The
+agent asks the helper for one when the driver that will run the workload declares its volumes block
+devices, and for a volume of files otherwise. The helper makes the image sparse at the volume's
+size and formats it empty with `mke2fs`, its root owned by the workload's root, and never mounts it
+or reads it again: what the guest writes in it is parsed by the guest's kernel alone (§4.4 of
+`04-runtimes.md`). The driver gives the image to the workload's first id, readable by it alone. A
+larger size extends the image, and the guest's kernel grows the filesystem to fill it, online, when
+`korpis-guest` next mounts it; a smaller one is refused, since only the guest could shrink what it
+holds. A block device needs a size, the quota its directory is given leaves the image room for its
+own extent blocks, and the bound the answer reports as enforced is the image's size, whatever the
+class. A volume's kind is written in an extended attribute in the `trusted` namespace, which no
+workload can set, and a volume of one kind is never made the other: a workload moved from
+`container` to `microvm` keeps its files where they are and is refused the block device, which a
+conversion through the guest (§4.4 of `04-runtimes.md`) is what would give it. Snapshots, backups,
+and whole-volume restores take the directory as they take any other, so they hold the image whole;
+file sessions and installs are refused on a block device, whose files only a worker in its guest
+may reach, until that worker is built. What it costs, beyond the table: a guest's disk usage as the
+class accounts it is the image's allocated blocks, which grow as the guest writes and do not shrink
+when it deletes, and is not yet labelled as allocated where it is shown.
+
 ---
 
 ### 3.2 Files, as their owner reaches them

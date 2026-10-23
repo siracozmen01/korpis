@@ -25,11 +25,9 @@ impl Helper {
         let classes = &self.classes;
         let spec = crate::files::place(&self.ledger, r, |v| {
             crate::error::identifier("volume", v)?;
-            classes
-                .iter()
-                .map(|c| c.path_of(v))
-                .find(|p| p.symlink_metadata().is_ok())
-                .ok_or_else(|| HelperError::NotFound(format!("volume {v}")))
+            let found = classes.iter().map(|c| c.path_of(v)).find(|p| p.symlink_metadata().is_ok());
+            let found = found.ok_or_else(|| HelperError::NotFound(format!("volume {v}")))?;
+            crate::block::files_of(v, found)
         })?;
         let files = self
             .files

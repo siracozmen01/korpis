@@ -154,10 +154,16 @@ message EnsureVolumeRequest {
   // ids (§4.5 of docs/04-runtimes.md), so the volume root is owned by id 0 as the workload sees
   // it, whatever range the workload holds on this node.
   uint32 uid_base = 6 [deprecated = true];
+  // The workload's driver declares its volumes block devices (§3.1 of docs/06-storage.md): the
+  // volume holds one image of `size_bytes`, an ext4 the helper makes empty and never mounts,
+  // grown when a larger size is asked and never shrunk. A volume of one kind is never made the
+  // other.
+  bool block_device = 7;
 }
 
 message EnsureVolumeResponse {
-  // The host path of the volume root, for the driver's mount list.
+  // The host path of the volume root, for the driver's mount list; for a block device, the
+  // image it holds.
   string host_path = 1;
   bool created = 2;
   // Whether the size and inode limits asked for are enforced in the write path. False on a

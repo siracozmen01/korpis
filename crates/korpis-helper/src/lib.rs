@@ -11,6 +11,7 @@
 
 #![warn(missing_docs)]
 
+pub mod block;
 pub mod btrfs;
 pub mod error;
 pub mod files;

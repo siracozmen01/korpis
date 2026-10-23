@@ -1392,6 +1392,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 144 | The interface named a signal for a stop, and nothing could carry one into a guest | §54 | `04-runtimes.md` §6 |
 | 145 | A guest counted the stops it was sent, and nothing kept the count: a stop asked again was its kill, and a kill alone was its stop | §55 | `04-runtimes.md` §6 |
 | 146 | What was typed into a guest's console as it booted was lost, and a run's status could be the last run's | §56 | `04-runtimes.md` §3 |
+| 147 | Nothing said what became of a volume when its workload moved between a tier of files and one of block devices | §57 | `06-storage.md` §3.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4858,3 +4859,52 @@ container.
 Steps 1 to 8 are built and tested: `crates/korpis-driver-firecracker/tests/console.rs` runs a
 guest of logs, which takes no input and whose lines hold no carriage return, and an interactive
 one; `tests/protocol.rs` asks for a resize through the agent and is refused.
+
+## 57. A world on a microVM grows, and its owner reaches for its files
+
+Written 2026-10-23, as block-device volumes were built (§3.1 of `06-storage.md`). Every earlier
+trace that touched a volume met a directory; this one follows a volume that is a disk, from the
+plan that makes it to the night it is backed up, and asks at each step who may read what is in it.
+A customer runs a game world on `microvm`, gives it more room, opens the file manager on it, and
+then, to use the file manager, moves the workload to `container`.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The workload is placed on a node whose `firecracker` driver declares its volumes block devices | `05-scheduling.md` §2.1; `04-runtimes.md` §4.1 |
+| 2 | The plan's volume step reaches the agent, which asks the helper for a block device because the workload's driver takes them | `06-storage.md` §3.1, §7 |
+| 3 | The helper makes the image sparse at its size, formats it empty, never mounts it, and says the image's size is the bound | `06-storage.md` §3.1 |
+| 4 | The driver gives the image to the workload's first id and binds it into the guest's chroot | `04-runtimes.md` §6 |
+| 5 | The guest's kernel mounts it, and the world is written there | `04-runtimes.md` §6 |
+| 6 | The customer gives it more room; the next build asks for the new size, the helper extends the image, and the guest's kernel grows the filesystem as it mounts it | `06-storage.md` §3.1 |
+| 7 | The customer opens the file manager on it, and is refused with the reason | `04-runtimes.md` §4.4; `06-storage.md` §3.1, §3.2 |
+| 8 | The customer moves the workload to `container` ‡ | `06-storage.md` §3.1; `04-runtimes.md` §4.4 |
+| 9 | The nightly backup reads the volume's directory and holds the image whole | `06-storage.md` §5 |
+
+**One finding, at step 8** (‡).
+
+**FINDING 147: Nothing said what became of a volume when its workload moved between a tier of
+files and one of block devices. `CONFIRMED`, by the helper's tests**
+
+Found 2026-10-23 asking the algebra question of step 8: when the next build asks for the world's
+volume as files, what decides what the volume is, and with what information? §3.1 of
+`06-storage.md` said the two contracts differ and the driver declares which it uses, and nothing
+said that a volume keeps the kind it was made with. The helper, asked for files where an image was,
+would have handed a container a directory holding one opaque image, with the world inside it; asked
+for a block device where files were, it would have formatted nothing and handed a guest a
+directory, or, had it made an image beside the files, a blank disk. Either way the customer's
+world would have looked gone, and nothing would have said why.
+
+**Resolution.** A volume's kind is written when it is made, in an extended attribute no workload
+can set, and a volume of one kind is never made the other: the build is refused, saying which kind
+the volume holds, and the world stays where it is. → stated in §3.1 of `06-storage.md`; built in
+`crates/korpis-helper`, whose test asks for each kind where the other is and is refused. What it
+costs: moving a workload between the two tiers needs its volumes converted, which only a worker in
+a guest may do, since it reads what the tenant wrote (§4.4 of `04-runtimes.md`); until that worker
+is built the move is refused rather than performed.
+
+Steps 1 to 9 are built, steps 2 to 8 tested: `crates/korpis-helper/tests/block.rs` makes, grows,
+refuses, and deletes a block device; `crates/korpis-driver-firecracker/tests/volumes.rs` has a
+guest grow its filesystem to a drive made larger. Step 9 is the backup of §5, which takes the
+directory as it takes any other.

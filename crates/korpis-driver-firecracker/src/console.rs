@@ -40,8 +40,9 @@ pub struct Attached {
     pub stdin: Stdio,
     /// Its standard output.
     pub stdout: Stdio,
-    /// The writer's process id, if there is a writer.
-    pub writer: Option<u32>,
+    /// The writer, if there is one, held unreaped until it is moved, so its process id names it
+    /// and no other process.
+    pub writer: Option<tokio::process::Child>,
 }
 
 /// Prepares the console files in object directory `dir` for `stream`: the secrets the writer
@@ -115,12 +116,18 @@ pub async fn attach(
         return Err(io::Error::other(format!("the console's writer did not start: {said}")));
     }
     let stdin = if stream.input { input(dir)? } else { Stdio::null() };
-    Ok(Attached { stdin, stdout: Stdio::from(guest_output), writer: child.id() })
+    Ok(Attached { stdin, stdout: Stdio::from(guest_output), writer: Some(child) })
 }
 
-/// Moves the writer `pid` into its guest's cgroup at `cgroup`.
-pub fn join(pid: u32, cgroup: &Path) -> io::Result<()> {
-    std::fs::write(cgroup.join("cgroup.procs"), pid.to_string())
+/// Moves `writer` into its guest's cgroup at `cgroup`; the caller lets it go after. A child that
+/// has not been waited for keeps its process id even once it has exited, so the id written is
+/// the writer's and never a process that took its id after it; one already waited for has none,
+/// and is not moved.
+pub fn join(writer: &tokio::process::Child, cgroup: &Path) -> io::Result<()> {
+    match writer.id() {
+        Some(pid) => std::fs::write(cgroup.join("cgroup.procs"), pid.to_string()),
+        None => Ok(()),
+    }
 }
 
 /// Sends `data`, typed by `by` in `session`, to the console of the object in `dir`, written to

@@ -10,10 +10,12 @@
 //! restarts the guest, which ends the microVM: Firecracker exits when its guest reboots. The first process must never return, so every failure ends the same way, with
 //! the reason on the console.
 //!
-//! It holds one `unsafe` block, in `run`: the entry's child clears the signal mask it inherits
+//! It holds two `unsafe` blocks. In `run`, the entry's child clears the signal mask it inherits
 //! before exec, and an interactive entry takes its terminal as its controlling one, which only
-//! `pre_exec` can do.
+//! `pre_exec` can do; in `grow`, a volume's filesystem is grown to its drive by an `ioctl` that
+//! has no safe form.
 
+mod grow;
 mod mounts;
 mod net;
 mod run;

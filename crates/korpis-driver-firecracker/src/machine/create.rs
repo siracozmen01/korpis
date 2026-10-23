@@ -48,6 +48,7 @@ fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<(
     }
     let root = settings.volume_root.canonicalize().map_err(failed)?;
     for m in &spec.mounts {
+        // Checked by the name it resolves to, which is the name the guest's drive is bound from.
         let source = Path::new(&m.source).canonicalize().map_err(|e| refused(e.to_string()))?;
         if !source.starts_with(&root) || !source.is_file() || !m.destination.starts_with('/') {
             return Err(refused(format!(
@@ -144,7 +145,15 @@ fn build(
     guest.write(&mut std::fs::File::create(&config_drive).map_err(failed)?).map_err(failed)?;
     let owner = Some(spec.uid_base);
     std::os::unix::fs::chown(&config_drive, owner, owner).map_err(failed)?;
-    let volumes = spec.mounts.iter().map(|m| (PathBuf::from(&m.source), m.read_only)).collect();
+    let mut volumes = Vec::new();
+    for m in &spec.mounts {
+        // Each volume's drive is its guest's to read and write, as its own first id: no other
+        // user of the host reads it.
+        let source = Path::new(&m.source).canonicalize().map_err(failed)?;
+        std::os::unix::fs::lchown(&source, Some(spec.uid_base), Some(spec.uid_base))
+            .map_err(failed)?;
+        volumes.push((source, m.read_only));
+    }
     let drives = Drives { kernel, boot, image, config: config_drive, volumes };
     Object::keep_drives(dir, &drives).map_err(failed)?;
     // Built here as well as at each start, so what would fail to build fails before anything runs.

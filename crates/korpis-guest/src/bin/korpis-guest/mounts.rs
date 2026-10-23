@@ -89,7 +89,16 @@ pub fn root(root: &str, config: &Config) -> Result<(), String> {
         if volume.read_only {
             flags |= MsFlags::MS_RDONLY;
         }
-        mounted(&drive::volume(index), &beneath(root, &volume.path)?, "ext4", flags, None)?;
+        let at = beneath(root, &volume.path)?;
+        mounted(&drive::volume(index), &at, "ext4", flags, None)?;
+        if !volume.read_only {
+            // A volume given more than it held is grown now; one that cannot be grown is still
+            // the volume it was, so the run goes on and the console says why.
+            let sys = beneath(root, "/sys")?;
+            if let Err(e) = crate::grow::grow(&sys, &drive::volume(index), &at) {
+                crate::say(&e);
+            }
+        }
     }
     Ok(())
 }

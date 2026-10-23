@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A guest's jail: the chroot Firecracker's jailer runs it in, holding the kernel, the drives in
-//! the order the guest counts them (`korpis_guest::drive`), and the machine's configuration,
-//! all as hard links to what the driver keeps; and the jailer's command line, which drops to the
+//! the order the guest counts them (`korpis_guest::drive`), and the machine's configuration, as
+//! hard links to what the driver keeps, and the volumes, which are on the node's storage where a
+//! hard link from the driver's state cannot reach, bound in and unbound with the jail; and the jailer's command line, which drops to the
 //! workload's own id, makes its cgroup with the guest's limits, and detaches it so the guest
 //! outlives the driver. Paths in the configuration are the chroot's, as the jailed Firecracker
 //! sees them.
 
 use crate::settings::Settings;
 use std::io;
+use std::os::unix::fs::OpenOptionsExt as _;
 use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -87,6 +89,35 @@ fn link(from: &Path, root: &Path, name: &str) -> io::Result<()> {
         .map_err(|e| io::Error::new(e.kind(), format!("{} into the jail: {e}", from.display())))
 }
 
+/// Binds the volume `from` into the chroot `root` as `name`.
+fn bind(from: &Path, root: &Path, name: &str) -> io::Result<()> {
+    let to = root.join(name);
+    std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&to)?;
+    rustix::mount::mount_bind(from, &to)
+        .map_err(|e| io::Error::other(format!("{} into the jail: {e}", from.display())))
+}
+
+/// Unbinds every volume in the chroot `root`. The chroot is the guest's to write, so each is
+/// unbound without following a link: a link it put there names nothing the driver unbinds.
+fn unbind(root: &Path) -> io::Result<()> {
+    use rustix::mount::{UnmountFlags, unmount};
+    let entries = match std::fs::read_dir(root) {
+        Ok(e) => e,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    for entry in entries.flatten() {
+        if !entry.file_name().to_string_lossy().starts_with("volume-") {
+            continue;
+        }
+        match unmount(entry.path(), UnmountFlags::DETACH | UnmountFlags::NOFOLLOW) {
+            Ok(()) | Err(rustix::io::Errno::INVAL | rustix::io::Errno::NOENT) => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(())
+}
+
 /// Builds object `id`'s chroot from `drives`, configured as `shape` says. It is built again for
 /// every run, with nothing kept from the last: the guest's Firecracker can write its chroot, so
 /// what one run left there is the guest's, and neither the jailer, which works in the chroot as
@@ -99,7 +130,7 @@ pub fn build(settings: &Settings, id: &str, drives: &Drives, shape: &Shape) -> i
     link(&drives.image, &root, "image.ext4")?;
     link(&drives.config, &root, "config")?;
     for (i, (volume, _)) in drives.volumes.iter().enumerate() {
-        link(volume, &root, &format!("volume-{i}"))?;
+        bind(volume, &root, &format!("volume-{i}"))?;
     }
     let config = serde_json::to_vec(&machine(shape, &drives.volumes)).map_err(io::Error::other)?;
     std::fs::write(root.join("vm.json"), config)
@@ -137,6 +168,7 @@ pub fn pid_file(settings: &Settings, id: &str) -> PathBuf {
 
 /// Removes object `id`'s jail and its cgroup; what is already gone is removed.
 pub fn remove(settings: &Settings, id: &str) -> io::Result<()> {
+    unbind(&settings.chroot(id))?;
     match std::fs::remove_dir_all(settings.jail(id)) {
         Ok(()) => {}
         Err(e) if e.kind() == io::ErrorKind::NotFound => {}

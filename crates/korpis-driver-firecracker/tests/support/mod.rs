@@ -83,7 +83,8 @@ impl Rig {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("volumes")).unwrap();
         let busybox = std::fs::read("/bin/busybox").unwrap();
-        let names = ["sh", "echo", "cat", "id", "sleep", "grep"].map(|a| format!("bin/{a}"));
+        let names =
+            ["sh", "echo", "cat", "id", "sleep", "grep", "df", "tail"].map(|a| format!("bin/{a}"));
         let mut entries = vec![Entry::File("bin/busybox", &busybox, (0, 0), 0o755)];
         entries.extend(names.iter().map(|n| Entry::Symlink(n, "busybox")));
         let layers = [(layer(&entries).unwrap(), Packing::Gzip)];
