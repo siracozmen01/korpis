@@ -1390,6 +1390,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 142 | A person whose authority came through a set was told they held no grant | §44 | `08-identity.md` §9.7, `11-surface-web.md` §5 |
 | 143 | Nothing bounded how many affinity rules and spread constraints a placement evaluates, under the installation's one lock | §53 | `05-scheduling.md` §2.2 |
 | 144 | The interface named a signal for a stop, and nothing could carry one into a guest | §54 | `04-runtimes.md` §6 |
+| 145 | A guest counted the stops it was sent, and nothing kept the count: a stop asked again was its kill, and a kill alone was its stop | §55 | `04-runtimes.md` §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4740,6 +4741,68 @@ with tests of both stops on a booted guest. What it costs: until a channel into 
 workload to reload on `SIGHUP` cannot be served on this tier, and two stops sent faster than the
 guest reads them arrive as one, which the driver's bound on a guest's exit covers.
 
+> Corrected 2026-10-23 (Finding 145, trace 55). The bound does not cover it: a guest the bound
+> ends is ended with its Firecracker, before it has written how its run ended, so its status says
+> nothing. Two stops that arrive as one are now a kill the driver sends until the guest has ended,
+> and a stop asked twice is sent once.
+
 Steps 2 to 9 are built and tested against the guest alone, the driver's part done by the test:
 `crates/korpis-guest/tests/boot.rs` boots the kernel and the drives, runs an entry as its user,
 reads its exit status back, and stops a guest once and twice.
+
+## 55. A microVM beside a container, on one node, and a stop asked twice
+
+Written 2026-10-23, as the `firecracker` driver was built as a process of its own (§6 of
+`04-runtimes.md`) and run beside the `oci` driver under one agent (§3 there). Trace 54 followed a
+guest through its own life with the driver's part done by a test; this one follows the driver's
+part, through the agent, on a node that runs both tiers, and asks of each verb which process
+carries it and what that process knows. A host runs a customer's game server in a container and
+the same customer's untrusted builds on `microvm`; the agent restarts while a build is being
+stopped, and a build is destroyed while it runs. The trace was chosen by the build.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The agent is given two driver sockets; each driver is asked its name and capabilities, and both are reported on the node, which is what placement filters by | `04-runtimes.md` §3; `18-operations.md` §3; `05-scheduling.md` §2.1 |
+| 2 | The build's intent names `runtime.driver: firecracker`; its `Prepare` goes there, and the prepared spec names the driver its `Create` goes to | `04-runtimes.md` §3, §4.2 |
+| 3 | The driver builds the drives and the jail; the jailer starts the guest's Firecracker as the workload's first id, forks, and detaches, and the driver watches the process the jailer names | `04-runtimes.md` §6; `18-operations.md` §3 |
+| 4 | The customer stops the build; the supervisor's stop is the guest's first Ctrl+Alt+Del | `02-architecture.md` §6; `04-runtimes.md` §4.2, §6 |
+| 5 | The agent restarts in the middle of the stop, adopts the guest through the driver's `Recover`, and signals it again ‡ | `02-architecture.md` §4.4, §6; `04-runtimes.md` §3 |
+| 6 | Another build, running, is destroyed: the driver kills it with no stop before it ‡ | `02-architecture.md` §6; `04-runtimes.md` §6 |
+| 7 | Each guest writes how its run ended, and the driver reads it; the agent's meter keeps reading each object by the identifier its driver issued | `04-runtimes.md` §6; `15-observability.md` §2 |
+
+**One finding, at steps 5 and 6** (‡).
+
+**FINDING 145: A guest counted the stops it was sent, and nothing kept the count: a stop asked
+again was its kill, and a kill alone was its stop. `CONFIRMED`, by the driver's tests**
+
+Found 2026-10-23 asking the algebra question of steps 5 and 6: what decides whether a
+Ctrl+Alt+Del is a guest's stop or its kill, and with what information? The guest does, by
+counting (Finding 144), and the count is right only if the host sends exactly one before the
+kill and at least one more for it. Nothing held that. The supervisor's stop is a state it moves on
+each pass, and an agent restarted in the middle of one signals the object again (§6 of
+`02-architecture.md`), so the guest read the second stop as its kill and lost its grace. A
+destroy of a running object kills it with no stop before it, so the guest read the kill as its
+stop, the entry that ignored `SIGTERM` ran on, and the driver's bound then ended the guest with
+its Firecracker before it had written how its run ended. And two Ctrl+Alt+Dels sent before the
+guest reads the first arrive as one, since the kernel keeps one pending signal of a kind. Trace 54
+had named this last case and said the driver's bound covered it, which it did not.
+
+**Resolution.** The driver keeps the count. A stop is sent once in a run, marked beside the object
+before it is sent and cleared when the guest is started again, so a stop asked twice is one; and
+a kill sends Ctrl+Alt+Del every quarter second until the guest has ended, so a kill with no stop
+before it, or one absorbed by a pending other, still reaches the guest as its kill, within the
+same five-second bound. → stated in §6 of `04-runtimes.md`; built in
+`crates/korpis-driver-firecracker`, whose tests stop a guest twice and see its entry's own exit,
+and kill one that ignores its stop and see `SIGKILL`; each of the two tests fails without its half
+of the fix. What it costs: a stop that Firecracker accepted and the guest never read is not sent
+again, so a guest whose first process was not yet reading its signals when the stop came is
+stopped only by the kill at the end of the grace; and a kill makes up to twenty requests of a
+guest's Firecracker.
+
+Steps 1 to 6 are built and tested: `crates/korpis-driver-firecracker/tests/protocol.rs` serves
+both drivers as their processes do and runs a guest through the agent's runtime over both, from
+`Prepare` to `Destroy`, with an agent restarted between; `tests/runtime.rs` holds the stops and
+the kill. Step 7's identifiers are the drivers' own, which the agent routes by and never marks
+(§3 of `04-runtimes.md`).

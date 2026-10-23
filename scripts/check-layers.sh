@@ -48,6 +48,12 @@ rules=(
     # An image build reads a publisher's layers: the content format and nothing else of ours, no
     # RPC stack, runtime, network client, or store.
     "korpis-image||korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-proto connectrpc tokio sqlx hyper reqwest"
+    # The runtime drivers are separate processes (§3 of docs/04-runtimes.md): each speaks the
+    # driver protocol, and none holds the agent, the helper, the control plane, a store, or
+    # another driver; what they share is the kit, which holds nothing of any one driver.
+    "korpis-driver-kit||korpis-app korpis-store korpis-server korpis-agent korpis-helper korpis-driver-oci korpis-driver-firecracker korpis-containerd sqlx"
+    "korpis-driver-oci||korpis-app korpis-store korpis-server korpis-agent korpis-helper korpis-driver-firecracker sqlx"
+    "korpis-driver-firecracker||korpis-app korpis-store korpis-server korpis-agent korpis-helper korpis-driver-oci korpis-containerd sqlx reqwest"
     # A first-party extension is built as a third party's would be (§1 of docs/22-first-party.md):
     # the SDK and the wire contract, and nothing else of ours.
     "korpis-target-s3||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-backup korpis-recipe sqlx"

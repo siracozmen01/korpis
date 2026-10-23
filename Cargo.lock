@@ -3132,6 +3132,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-driver-firecracker"
+version = "0.0.0"
+dependencies = [
+ "buffa",
+ "buffa-types",
+ "clap",
+ "connectrpc",
+ "futures-util",
+ "korpis-agent",
+ "korpis-core",
+ "korpis-driver-kit",
+ "korpis-driver-oci",
+ "korpis-guest",
+ "korpis-image",
+ "korpis-proto",
+ "rustix",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "korpis-driver-kit"
+version = "0.0.0"
+dependencies = [
+ "connectrpc",
+ "hyper",
+ "hyper-util",
+ "korpis-core",
+ "korpis-proto",
+ "korpis-recipe",
+ "korpis-wire",
+ "tokio",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "korpis-driver-oci"
 version = "0.0.0"
 dependencies = [
@@ -3147,6 +3190,7 @@ dependencies = [
  "korpis-agent",
  "korpis-containerd",
  "korpis-core",
+ "korpis-driver-kit",
  "korpis-proto",
  "korpis-recipe",
  "korpis-stream",
@@ -3181,6 +3225,7 @@ dependencies = [
  "korpis-backup",
  "korpis-cli",
  "korpis-core",
+ "korpis-driver-kit",
  "korpis-driver-oci",
  "korpis-extension",
  "korpis-helper",

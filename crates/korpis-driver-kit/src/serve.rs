@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The driver's socket. What the driver can do with containerd is root, so who may ask it is
-//! decided by the kernel rather than by anything a client says: the socket is a Unix socket only
+//! A driver's socket. What a driver can do is close to root, containerd's for the `oci` driver and
+//! KVM and the jailer's for the `firecracker` one, so who may ask it is decided by the kernel
+//! rather than by anything a client says: the socket is a Unix socket only
 //! its owner and group may open, and each connection's peer credentials, as the kernel recorded
 //! them at `connect`, must name an allowed user, or the connection is closed before a byte of it
 //! is read (§6.1 of docs/02-architecture.md). The protocol is gRPC over HTTP/2, the transport
 //! the agent's client speaks.
 
-use crate::service::Driver;
 use connectrpc::{ConnectRpcService, Router};
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use korpis_proto::korpis::driver::v1::DriverServiceExt as _;
+use korpis_proto::korpis::driver::v1::{DriverService, DriverServiceExt as _};
 use std::collections::BTreeSet;
 use std::future::Future;
 use std::os::unix::fs::PermissionsExt as _;
@@ -66,10 +66,10 @@ async fn connection(service: ConnectRpcService, stream: UnixStream) {
 
 /// Serves `driver` on `listener` to the users in `allowed` until `shutdown` resolves; the
 /// connections still open then are closed.
-pub async fn serve(
+pub async fn serve<D: DriverService + 'static>(
     listener: UnixListener,
     allowed: BTreeSet<u32>,
-    driver: Driver,
+    driver: D,
     shutdown: impl Future<Output = ()>,
 ) {
     let service = ConnectRpcService::new(Arc::new(driver).register(Router::new()));
@@ -93,4 +93,26 @@ pub async fn serve(
         connections.spawn(connection(service.clone(), stream));
     }
     connections.shutdown().await;
+}
+
+/// Waits for an interrupt or a termination request.
+pub async fn shutdown() {
+    use tokio::signal::unix::{SignalKind, signal};
+    if let Ok(mut term) = signal(SignalKind::terminate()) {
+        tokio::select! {
+            _ = term.recv() => {}
+            _ = tokio::signal::ctrl_c() => {}
+        }
+        return;
+    }
+    let _ = tokio::signal::ctrl_c().await;
+}
+
+/// The users allowed to connect: those named, or else the driver's own.
+pub fn allowed(named: Vec<u32>) -> std::io::Result<BTreeSet<u32>> {
+    use std::os::unix::fs::MetadataExt as _;
+    if named.is_empty() {
+        return Ok(BTreeSet::from([std::fs::metadata("/proc/self")?.uid()]));
+    }
+    Ok(named.into_iter().collect())
 }

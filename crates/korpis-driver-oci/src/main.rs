@@ -3,12 +3,11 @@
 //! `korpis-driver-oci`: the container tier, served to the agent on a local socket.
 
 use clap::Parser;
+use korpis_driver_kit::serve::{allowed, bind, serve, shutdown};
 use korpis_driver_oci::containerd::Containerd;
 use korpis_driver_oci::containerd::stream::Streams;
-use korpis_driver_oci::serve::{bind, serve};
 use korpis_driver_oci::service::Driver;
 use korpis_driver_oci::validate::Policy;
-use std::collections::BTreeSet;
 use std::os::unix::fs::{DirBuilderExt as _, MetadataExt as _};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -61,27 +60,6 @@ fn stream_writer(named: Option<PathBuf>) -> Result<PathBuf, String> {
         return Err(format!("no stream writer at {}: pass --stream-writer", path.display()));
     }
     Ok(path)
-}
-
-/// Waits for an interrupt or a termination request.
-async fn shutdown() {
-    use tokio::signal::unix::{SignalKind, signal};
-    if let Ok(mut term) = signal(SignalKind::terminate()) {
-        tokio::select! {
-            _ = term.recv() => {}
-            _ = tokio::signal::ctrl_c() => {}
-        }
-        return;
-    }
-    let _ = tokio::signal::ctrl_c().await;
-}
-
-/// The users allowed to connect: those named, or else the driver's own.
-fn allowed(named: Vec<u32>) -> std::io::Result<BTreeSet<u32>> {
-    if named.is_empty() {
-        return Ok(BTreeSet::from([std::fs::metadata("/proc/self")?.uid()]));
-    }
-    Ok(named.into_iter().collect())
 }
 
 async fn run(cli: Cli) -> Result<(), String> {

@@ -49,6 +49,7 @@ fn filesystem(dir: &Path) -> Result<(), String> {
         .arg(&tree)
         .arg(dir.join(DRIVE))
         .arg(format!("{size_kib}k"))
+        .stdout(std::process::Stdio::null())
         .status()
         .map_err(|e| format!("mke2fs: {e}"))?;
     if !status.success() {

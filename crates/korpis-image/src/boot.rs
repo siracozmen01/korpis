@@ -41,6 +41,7 @@ pub fn drive(guest: &Path, dir: &Path) -> io::Result<PathBuf> {
         .arg(&tree)
         .arg(&made)
         .arg(format!("{size_kib}k"))
+        .stdout(std::process::Stdio::null())
         .status();
     let renamed = match status {
         Ok(s) if s.success() => {

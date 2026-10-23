@@ -14,6 +14,5 @@ pub mod error;
 pub mod oci;
 pub mod prepare;
 pub mod seccomp;
-pub mod serve;
 pub mod service;
 pub mod validate;

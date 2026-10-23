@@ -1,0 +1,24 @@
+[package]
+name = "korpis-driver-kit"
+description = "What every Korpis runtime driver shares: its socket and who may use it, the preparing of a spec from a recipe, and the counters a cgroup keeps"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "server"] }
+hyper = { version = "1", features = ["server", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+korpis-core = { workspace = true, features = ["content"] }
+korpis-proto = { workspace = true, features = ["services"] }
+korpis-recipe = { path = "../korpis-recipe", default-features = false }
+korpis-wire = { workspace = true }
+tokio = { workspace = true }
+tower-service = "0.3"
+tracing = "0.1"

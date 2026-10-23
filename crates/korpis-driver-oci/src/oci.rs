@@ -249,28 +249,14 @@ fn system_mounts() -> Vec<Mount> {
     ]
 }
 
-/// The command: the spec's if it names one, else the image's entrypoint, with the spec's
-/// arguments if it has any and the image's otherwise.
+/// The command, as every driver starts an image (`korpis_driver_kit::entry`).
 fn argv(valid: &Valid, image: &ImageConfig) -> Vec<String> {
-    let s = valid.spec();
-    if !s.command.is_empty() {
-        return s.command.iter().chain(&s.args).cloned().collect();
-    }
-    let args = if s.args.is_empty() { &image.cmd } else { &s.args };
-    image.entrypoint.iter().chain(args).cloned().collect()
+    korpis_driver_kit::entry::argv(valid.spec(), image)
 }
 
-/// The image's environment, with the spec's variables replacing any of the same name.
+/// The environment, as every driver gives an image its own (`korpis_driver_kit::entry`).
 fn environment(valid: &Valid, image: &ImageConfig) -> Vec<String> {
-    let spec = &valid.spec().env;
-    let own = |e: &&String| e.split_once('=').is_none_or(|(k, _)| !spec.contains_key(k));
-    image
-        .env
-        .iter()
-        .filter(own)
-        .cloned()
-        .chain(spec.iter().map(|(k, v)| format!("{k}={v}")))
-        .collect()
+    korpis_driver_kit::entry::environment(valid.spec(), image)
 }
 
 fn signed(n: u64) -> i64 {

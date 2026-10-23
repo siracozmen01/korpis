@@ -17,6 +17,7 @@ dependencies point inward only:
 
    korpis-server  (Connect API)              korpis-store       (PostgreSQL)
    korpis-cli     (operator)        ----->   korpis-driver-oci  (containerd)
+                                             korpis-driver-firecracker (KVM)
            |                       ports            ^
            v                    (traits in          |
    +------------------------+  korpis-app)   implements
@@ -79,7 +80,9 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-server` | driving adapter, root | AGPL-3.0 | Connect API, TLS, keys, `install`, `serve` |
 | `korpis-agent` | its own hexagon | AGPL-3.0 | the node supervisor (§4 of `02-architecture.md`) |
 | `korpis-helper` | its own hexagon | AGPL-3.0 | the privileged helper, synchronous, minimal |
+| `korpis-driver-kit` | driven adapter, node | AGPL-3.0 | what every runtime driver process shares: the socket it serves the driver protocol on and who may use it, a spec prepared from an intent and its recipe, the entry a recipe declares, and a cgroup's counters (§3 and §4 of `04-runtimes.md`) |
 | `korpis-driver-oci` | driven adapter | AGPL-3.0 | the `oci` runtime driver over containerd |
+| `korpis-driver-firecracker` | driven adapter, node | AGPL-3.0 | the `firecracker` runtime driver: the `microvm` tier, each guest a Firecracker microVM started by its jailer, as one of its workload's ids, in a chroot and a cgroup of its own (§6 of `04-runtimes.md`) |
 | `korpis-image` | driven adapter, node | AGPL-3.0 | image drives for the tiers whose root is a block device: an image's layers applied in a user namespace and made an ext4 filesystem by `korpis-image-build`, which its driver starts; and the boot drive every guest shares (§6 of `04-runtimes.md`) |
 | `korpis-guest` | its own program, guest | AGPL-3.0 | the first process of every microVM, built static, and the drive order and config drive format its driver writes and it reads (§6 of `04-runtimes.md`) |
 | `korpis-containerd` | third-party wire contract | Apache-2.0 | containerd's API, vendored and generated (§6 of `21-stack.md`) |

@@ -558,9 +558,17 @@ process receives it as `SIGINT` and sends the entry's group `SIGTERM`, and a sec
 ends every process at once. The guest keeps no grace of its own: the grace is the supervisor's
 (§6 of `02-architecture.md`), whose stop signals the object with the driver's graceful default and
 kills it once the grace is over, so the driver's default is the first Ctrl+Alt+Del and its kill
-the second, after which the guest syncs its volumes and restarts; a guest that has not exited
-within a bound of that is ended with its Firecracker process. The host reads back sixteen bytes of
-fixed layout, the exit status or the signal, and never a filesystem the guest has written (§4.4).
+the second, after which the guest syncs its volumes and restarts. Since a guest counts what it is
+sent, the driver keeps the count honest at both ends (Finding 145 of `23-walkthroughs.md`). A stop
+is sent once in a run: an agent restarted in the middle of a stop asks for it again (§6 of
+`02-architecture.md`), and a second Ctrl+Alt+Del would be read as the kill, so the driver marks
+beside the object that its guest has been told, and clears the mark when it starts the guest
+again. A kill sends Ctrl+Alt+Del every quarter second until the guest has ended, because a kill may
+come with no stop before it, as a destroy's does, and because one that arrives before the guest
+has read the last is absorbed by it (the kernel keeps one pending signal of a kind); a guest that
+has not exited within a bound of five seconds is ended with its Firecracker process. The host
+reads back sixteen bytes of fixed layout, the exit status or the signal, and never a filesystem
+the guest has written (§4.4).
 
 What the guest does not give, stated: inside it the entry runs as its user with no user namespace,
 so the image's uid 0 is root of a kernel that runs nothing but this workload, which is the
@@ -591,10 +599,20 @@ a layer are skipped and counted, since the guest's `/dev` is its kernel's; and e
 are not kept, so a binary that relies on a file capability (`ping`, in some images) runs without it
 in this tier.
 
-Built so far (Phase 3): the kernel, `korpis-guest`, the config drive's format, and the image and
-boot drives, proven by booting guests on Firecracker from an image built out of its layers
-(`crates/korpis-guest/tests/boot.rs`, `crates/korpis-image/tests/build.rs`). The driver that does
-this for a workload is the next step, and until it is built no node offers `microvm`.
+Built so far (Phase 3): the kernel, `korpis-guest`, the config drive's format, the image and boot
+drives, and the `firecracker` driver as a process of its own. Each guest's Firecracker is started
+by Firecracker's jailer in a chroot holding hard links to its drives, as its workload's first id,
+in a pid namespace and a cgroup of its own whose `memory.max`, `pids.max`, and `cpu.max` hold the
+guest's shape, and it outlives the driver: a restarted driver finds every guest from the record
+it keeps per object, and watches each again by a descriptor of its process, so a process id
+reused is never mistaken for it. The jailer forks to do this, so the process the driver watches is
+the one the jailer names in its chroot, and never the one the driver started. It is proven by
+guests run, stopped, killed, and recovered (`crates/korpis-guest/tests/boot.rs`,
+`crates/korpis-image/tests/build.rs`, `crates/korpis-driver-firecracker/tests/`), the last through
+the agent with the `oci` driver beside it. What it does not do yet, stated: a guest has no
+console, no network, and no volume a node's helper makes, so the driver refuses a spec that names
+any of them; and since every workload a node runs has its network, no node can place a workload
+on `microvm` until the helper gives a guest its tap and its block volumes.
 
 ---
 

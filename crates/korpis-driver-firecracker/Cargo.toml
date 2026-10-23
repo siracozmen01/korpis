@@ -1,0 +1,42 @@
+[package]
+name = "korpis-driver-firecracker"
+description = "Korpis's firecracker runtime driver: the microvm tier, each guest a Firecracker microVM under its jailer"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+buffa = { version = "=0.9.2", features = ["json"] }
+buffa-types = { version = "=0.9.2", features = ["json"] }
+clap = { version = "4", features = ["derive", "env", "string"] }
+connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "server"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+korpis-core = { workspace = true, features = ["content"] }
+korpis-driver-kit = { path = "../korpis-driver-kit" }
+# The drive order and config drive the guest reads, and the drives a guest is built from.
+korpis-guest = { path = "../korpis-guest" }
+korpis-image = { path = "../korpis-image" }
+korpis-proto = { workspace = true, features = ["services"] }
+# A guest's VMM is watched by a descriptor of its own, so a process id reused is never mistaken
+# for it, and is signalled through it.
+rustix = { version = "1", features = ["fs", "process"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { workspace = true }
+
+[dev-dependencies]
+korpis-agent = { path = "../korpis-agent" }
+# The agent with both drivers, as a node runs them.
+korpis-driver-oci = { path = "../korpis-driver-oci" }
+korpis-image = { path = "../korpis-image", features = ["testing"] }
+tempfile = "3"

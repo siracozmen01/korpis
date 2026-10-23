@@ -159,13 +159,13 @@ async fn driver(socket: &Path, state: &StateDir, (volumes, netns): (&Path, &Path
     let streams = Streams { writer: writer(), state: state.root().with_file_name("driver") };
     let containerd =
         Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap().with_streams(streams);
-    let listener = korpis_driver_oci::serve::bind(socket).unwrap();
+    let listener = korpis_driver_kit::serve::bind(socket).unwrap();
     let identity_root = state.root().join("identity");
     let policy =
         Policy { volume_root: volumes.to_owned(), identity_root, netns_root: netns.to_owned() };
     let (d, _watcher) = korpis_driver_oci::service::Driver::new(containerd, policy);
     let allowed = BTreeSet::from([0]);
-    tokio::spawn(korpis_driver_oci::serve::serve(listener, allowed, d, std::future::pending()));
+    tokio::spawn(korpis_driver_kit::serve::serve(listener, allowed, d, std::future::pending()));
 }
 
 impl Node {
