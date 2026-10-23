@@ -90,6 +90,9 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
         CallRequest::RunStep { step, arguments, workload, platform } => {
             Request::RunStep(Box::new(run_step_to_pb(step, arguments, *workload, platform)))
         }
+        CallRequest::HealthStep(step) => {
+            Request::HealthStep(Box::new(crate::health::step_to_pb(step)))
+        }
         CallRequest::ApplyRecords { owner, records } => {
             Request::ApplyRecords(Box::new(pb::ApplyRecords {
                 owner: owner.clone(),
@@ -113,6 +116,8 @@ pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
     match &r.outcome {
         Some(Outcome::Pong(p)) => CallOutcome::Pong { nonce: p.nonce.clone() },
         Some(Outcome::StepResult(r)) => CallOutcome::StepResult(step_result_from_pb(r)),
+        Some(Outcome::HealthNext(n)) => crate::health::next_from_pb(n)
+            .map_or(CallOutcome::Failed(CallFailure::malformed()), CallOutcome::HealthNext),
         Some(
             o @ (Outcome::ObjectAccess(_) | Outcome::ObjectList(_) | Outcome::ObjectsDeleted(_)),
         ) => crate::backup::outcome_from_pb(o)

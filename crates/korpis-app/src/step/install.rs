@@ -118,7 +118,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let intent = self.store.intent(intent).await?.ok_or_else(|| missing("no intent"))?;
         let workload =
             self.store.workload(p.workload).await?.ok_or_else(|| missing("no workload"))?;
-        let pin = intent.body.recipe.providers.iter().find(|x| x.step == kind);
+        let pin = intent
+            .body
+            .recipe
+            .providers
+            .iter()
+            .find(|x| x.kind == ProviderType::Step && x.name == kind);
         let target = CallTarget {
             organization: workload.organization,
             kind: ProviderType::Step,
@@ -148,7 +153,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Whether the installation `pin` names is the one that answers `target` now, at the digest
     /// it was pinned at.
-    async fn still_answers(
+    pub(crate) async fn still_answers(
         &self,
         target: &CallTarget,
         pin: Option<&ProviderPin>,

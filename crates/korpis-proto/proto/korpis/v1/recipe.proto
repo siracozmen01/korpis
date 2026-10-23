@@ -29,12 +29,15 @@ message RecipeRef {
 }
 
 message ProviderPin {
-  // `<publisher>/<step>`.
+  // What it provides: a step kind, `<publisher>/<step>`, or, with `type` health, a query
+  // protocol, `<publisher>/<protocol>`.
   string step = 1;
   // The installation that provides it.
   string extension = 2;
   // Its artifact's digest when the recipe was declared.
   string digest = 3;
+  // Step, or health; unspecified is step, as every pin before health providers was.
+  ProviderType type = 4;
 }
 
 // Exactly one of the two.

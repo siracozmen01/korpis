@@ -27,6 +27,14 @@ pub(crate) fn slug(s: &str) -> bool {
         && s.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
+/// A name a publisher qualifies, `<publisher>/<name>`, the name words joined by dots, as
+/// `valve/steam.app` is: what a step kind and a health provider's query protocol are named, so
+/// that two publishers' names never collide (finding S26).
+#[must_use]
+pub fn qualified(name: &str) -> bool {
+    name.split_once('/').is_some_and(|(a, b)| slug(a) && b.len() <= 63 && b.split('.').all(slug))
+}
+
 /// Dotted words of lowercase letters, digits, and underscores.
 fn dotted(s: &str) -> bool {
     !s.is_empty()
@@ -173,15 +181,13 @@ impl ExtensionManifest {
         let mut seen = BTreeSet::new();
         for (i, p @ ProvidedInterface { kind, name }) in self.provides.iter().enumerate() {
             let well_formed = match kind {
-                // The step part is words joined by dots, as `valve/steam.app` is.
-                ProviderType::Step => name
-                    .split_once('/')
-                    .is_some_and(|(a, b)| slug(a) && b.len() <= 63 && b.split('.').all(slug)),
+                ProviderType::Step | ProviderType::Health => qualified(name),
                 _ => slug(name),
             };
             if !well_formed || !seen.insert(p) {
                 let why = match kind {
                     ProviderType::Step => "a step kind named once, <publisher>/<step>",
+                    ProviderType::Health => "a query protocol named once, <publisher>/<protocol>",
                     _ => "a name given once per type, in lowercase letters, digits, hyphens",
                 };
                 return Err(RecipeError::new(&format!("extension.provides[{i}].name"), why));

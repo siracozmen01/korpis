@@ -42,6 +42,7 @@ pub mod domain;
 pub mod endpoint;
 pub mod event;
 pub mod extension;
+pub mod health;
 pub mod identity;
 pub mod journal;
 pub mod keys;

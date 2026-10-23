@@ -138,3 +138,20 @@ message Resources {
   // Ports of a node held by node_port and node_bound endpoints (§3 of docs/07-networking.md).
   uint64 node_ports = 15;
 }
+
+// The kinds of thing Korpis calls out to an extension for (§5 of docs/16-extensions.md). Here
+// rather than beside the extension messages, so that a recipe reference can name one.
+enum ProviderType {
+  PROVIDER_TYPE_UNSPECIFIED = 0;
+  PROVIDER_TYPE_DNS = 1;
+  PROVIDER_TYPE_BACKUP_TARGET = 2;
+  PROVIDER_TYPE_STEP = 3;
+  PROVIDER_TYPE_HEALTH = 4;
+  PROVIDER_TYPE_CONSOLE = 5;
+  PROVIDER_TYPE_IDENTITY = 6;
+  PROVIDER_TYPE_EDGE_ROUTER = 7;
+  PROVIDER_TYPE_CHAT_ADAPTER = 8;
+  // A key management service holding a repository's key-encryption key for its tenant (§5.5 of
+  // docs/06-storage.md).
+  PROVIDER_TYPE_KEY_MANAGEMENT = 9;
+}

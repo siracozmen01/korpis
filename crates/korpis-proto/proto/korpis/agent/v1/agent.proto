@@ -84,6 +84,7 @@ message AgentMessage {
     StepRequest step_request = 14;
     CertificateRequest certificate_request = 15;
     Presented presented = 16;
+    HealthQuery health_query = 17;
   }
 }
 
@@ -110,6 +111,7 @@ message ControlMessage {
     StepResolution step_resolution = 17;
     CertificateKey certificate_key = 18;
     TokenKeys token_keys = 19;
+    HealthAnswer health_answer = 20;
   }
 }
 
@@ -212,6 +214,39 @@ message StepResolution {
     // Every artifact's path is relative to the step's `to`, and was checked to stay beneath it.
     korpis.v1.StepResult result = 2;
     korpis.v1.Error refused = 3;
+  }
+}
+
+// A node running a workload's query probe asks for its next round, or its verdict (§5 of
+// docs/04-runtimes.md). The control plane calls the health provider the workload's intent pinned
+// (§4.1 of docs/16-extensions.md) with the rounds run so far, and answers only the node the
+// workload is placed on, for a query probe of the intent the node names.
+message HealthQuery {
+  // Echoed in the answer.
+  string request = 1;
+  string workload = 2;
+  // The intent the workload's runtime object was built from, whose probe this is.
+  string intent = 3;
+  ProbeRole probe = 4;
+  repeated korpis.v1.HealthRound rounds = 5;
+  // How long the node waits for the answer: the provider is given no longer.
+  google.protobuf.Duration within = 6;
+}
+
+enum ProbeRole {
+  PROBE_ROLE_UNSPECIFIED = 0;
+  PROBE_ROLE_READINESS = 1;
+  PROBE_ROLE_LIVENESS = 2;
+}
+
+message HealthAnswer {
+  string request = 1;
+  oneof outcome {
+    korpis.v1.HealthNext next = 2;
+    // The probe was not judged this time: its provider failed or is broken off, or answers no
+    // longer for what the intent pinned. Its health is unknown, never unhealthy (§5 of
+    // docs/16-extensions.md).
+    korpis.v1.Error unjudged = 3;
   }
 }
 

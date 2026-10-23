@@ -22,6 +22,7 @@ pub mod domain;
 pub mod error;
 pub mod event;
 pub mod extension;
+pub mod health;
 pub mod idempotency;
 pub mod install;
 pub mod metering;

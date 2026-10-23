@@ -6,6 +6,7 @@
 mod certificate;
 mod credential;
 mod downlink;
+mod health;
 mod job;
 mod published;
 mod session;

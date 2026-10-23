@@ -166,11 +166,20 @@ fn recipe() -> RecipeRef {
         version: "1.21.4".into(),
         digest: format!("sha256:{}", "9d2f".repeat(16)),
         trust: Some(korpis_core::recipe::trust::Vouched::Signer("korpis".into())),
-        providers: vec![korpis_core::recipe::ProviderPin {
-            step: "valve/steam.app".into(),
-            extension: uuid::Uuid::from_u128(7),
-            digest: format!("sha256:{}", "5d0e".repeat(16)),
-        }],
+        providers: vec![
+            korpis_core::recipe::ProviderPin {
+                kind: korpis_core::extension::ProviderType::Step,
+                name: "valve/steam.app".into(),
+                extension: uuid::Uuid::from_u128(7),
+                digest: format!("sha256:{}", "5d0e".repeat(16)),
+            },
+            korpis_core::recipe::ProviderPin {
+                kind: korpis_core::extension::ProviderType::Health,
+                name: "korpis/minecraft".into(),
+                extension: uuid::Uuid::from_u128(8),
+                digest: format!("sha256:{}", "6e1f".repeat(16)),
+            },
+        ],
     }
 }
 

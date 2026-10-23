@@ -13,7 +13,6 @@ package korpis.v1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "korpis/v1/common.proto";
-import "korpis/v1/extension.proto";
 import "korpis/v1/tenancy.proto";
 
 service ProviderService {
@@ -91,6 +90,8 @@ message ProviderCall {
     Assert assert = 28;
     // identity, sign_in: where to send a person to sign in.
     Authorize authorize = 29;
+    // health: a query probe's next round, or its verdict.
+    HealthStep health_step = 30;
   }
 }
 
@@ -109,6 +110,7 @@ message CallResult {
     Members members = 26;
     Assertion assertion = 27;
     Authorization authorization = 28;
+    HealthNext health_next = 29;
   }
 }
 
@@ -451,4 +453,62 @@ message Authorize {
 message Authorization {
   // An https URL at the identity provider.
   string url = 1;
+}
+
+// Health providers (§5 of docs/04-runtimes.md, §5 of docs/16-extensions.md). A query probe is an
+// exchange the node runs and the provider directs: the node holds the socket, inside the
+// workload's network namespace, and the provider holds the protocol. Each step tells the provider
+// the rounds run so far, and it answers with the next round or the verdict; it is never given a way
+// to the workload itself.
+message HealthStep {
+  // `<publisher>/<protocol>`, the name the provider registered.
+  string protocol = 1;
+  string workload = 2;
+  // The endpoint the probe names.
+  string endpoint = 3;
+  HealthTransport transport = 4;
+  // The rounds run so far, oldest first; none for the first step. At most four.
+  repeated HealthRound rounds = 5;
+}
+
+enum HealthTransport {
+  HEALTH_TRANSPORT_UNSPECIFIED = 0;
+  // One connection, kept for every round.
+  HEALTH_TRANSPORT_TCP = 1;
+  // Each round sends one datagram and reads the first that comes back.
+  HEALTH_TRANSPORT_UDP = 2;
+}
+
+message HealthRound {
+  bytes sent = 1;
+  // What was read before the round's wait ran out, at most its read_at_most.
+  bytes received = 2;
+  // The workload ended the connection; never for UDP.
+  bool closed = 3;
+}
+
+message HealthNext {
+  oneof next {
+    HealthSend send = 1;
+    HealthVerdict verdict = 2;
+  }
+}
+
+// Another round. A step answering one when four rounds have run, or beyond these bounds, is the
+// provider's malfunction.
+message HealthSend {
+  // At most 4 KiB; empty to read on without sending.
+  bytes data = 1;
+  // At most 64 KiB.
+  uint32 read_at_most = 2;
+  // At most ten seconds; the probe's own timeout bounds the whole exchange too.
+  google.protobuf.Duration wait = 3;
+}
+
+message HealthVerdict {
+  bool healthy = 1;
+  // Why, for the workload's status; at most 256 bytes.
+  string reason = 2;
+  // What the workload said of itself, its players and map say; at most 32 entries.
+  map<string, string> detail = 3;
 }

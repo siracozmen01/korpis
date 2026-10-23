@@ -83,6 +83,11 @@ fn check_probe(at: &str, p: &Probe, endpoints: &[EndpointSpec]) -> Result<(), Sp
         {
             Err(SpecError::new(at, format!("no endpoint named {endpoint:?}")))
         }
+        // Named as a step kind is, since it names the provider that answers it (§5 of
+        // docs/16-extensions.md).
+        ProbeKind::Query { protocol, .. } if !crate::extension::qualified(protocol) => {
+            Err(SpecError::new(at, "a query protocol is <publisher>/<protocol>"))
+        }
         ProbeKind::Http { path, .. } if !path.starts_with('/') => {
             Err(SpecError::new(at, "an HTTP probe path starts with /"))
         }

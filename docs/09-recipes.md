@@ -174,8 +174,8 @@ templates:                                  # §6: sandboxed, allow-listed
     vars: [motd, max_players, difficulty]
 
 probes:                                     # Rule K-16
-  readiness: {kind: query, protocol: minecraft, endpoint: query, timeout: 5s}
-  liveness:  {kind: query, protocol: minecraft, endpoint: query, failures: 3, period: 30s}
+  readiness: {kind: query, protocol: korpis/minecraft, endpoint: query, timeout: 5s}
+  liveness:  {kind: query, protocol: korpis/minecraft, endpoint: query, failures: 3, period: 30s}
 
 logs:
   events:
@@ -191,6 +191,12 @@ disruption:                                 # §5.1: what this software costs to
   reconfigure:
     disruptive_fields: [max_players, difficulty]   # applied only by a restart
 ```
+
+> Corrected 2026-10-23, when health providers were built (§5 of `16-extensions.md`). The probes
+> named their query protocol `minecraft`. A query protocol names the health provider that answers
+> it, so it is named as a step kind is, `<publisher>/<protocol>`, and pinned at declaration as a
+> step kind is (§4.1 of `16-extensions.md`); a probe naming one that no installation answers
+> refuses the declaration.
 
 `pre_stop` deserves a note: a game server sent `SIGTERM` may not flush its world to disk. Writing
 `stop` to the console and waiting is the difference between a clean shutdown and a corrupted save,

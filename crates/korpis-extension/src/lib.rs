@@ -14,6 +14,7 @@ pub mod backup;
 pub mod consumer;
 pub mod dns;
 pub mod error;
+pub mod health;
 pub mod identity;
 pub mod identity_provider;
 pub mod keys;

@@ -56,7 +56,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 "a zone the control plane does not know",
             ));
         }
-        body.recipe.providers = self.pin_providers(&recipe, organization).await?;
+        body.recipe.providers = self.pin_providers(&recipe, &body.health, organization).await?;
         self.check_dependencies((base.workload.project, base.workload.id), &body).await?;
         let previous = base.head.as_ref().map(|h| &h.body.config);
         let changes = self.configure(caller, &mut body, &recipe, previous, organization).await?;

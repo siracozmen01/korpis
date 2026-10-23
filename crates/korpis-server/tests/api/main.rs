@@ -54,6 +54,7 @@ mod extensions;
 mod external_complete;
 mod external_sign_in;
 mod failures;
+mod health_query;
 mod identity;
 mod idp;
 mod issuance;

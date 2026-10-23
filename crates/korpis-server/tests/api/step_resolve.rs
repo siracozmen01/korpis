@@ -60,7 +60,7 @@ fn provider_action(plan: &pb::Plan) -> (u32, u32) {
 }
 
 /// Cordons every node but `keep`, so the workload lands there.
-async fn only(h: &Harness, keep: &str) {
+pub async fn only(h: &Harness, keep: &str) {
     let listed = pb::ListNodesRequest { organization: h.root_org(), ..Default::default() };
     let nodes = h.nodes(h.root()).list_nodes(listed).await.unwrap().into_owned().nodes;
     for n in nodes.iter().filter(|n| n.name != keep) {

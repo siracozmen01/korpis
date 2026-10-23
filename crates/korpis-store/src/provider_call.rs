@@ -3,6 +3,7 @@
 //! The provider call queue (§3.3 of docs/16-extensions.md, migration 0027).
 
 mod backup;
+mod health;
 mod identity;
 mod json;
 mod keys;

@@ -14,10 +14,8 @@ import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobu
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Duration, Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { Error, Value } from "./common_pb";
+import type { Error, ProviderType, Value } from "./common_pb";
 import { file_korpis_v1_common } from "./common_pb";
-import type { ProviderType } from "./extension_pb";
-import { file_korpis_v1_extension } from "./extension_pb";
 import type { ExternalSet } from "./tenancy_pb";
 import { file_korpis_v1_tenancy } from "./tenancy_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -26,7 +24,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/provider.proto.
  */
 export const file_korpis_v1_provider: GenFile = /*@__PURE__*/
-  fileDesc("Chhrb3JwaXMvdjEvcHJvdmlkZXIucHJvdG8SCWtvcnBpcy52MSJuCg9Qcm92aWRlck1lc3NhZ2USJwoIcmVnaXN0ZXIYASABKAsyEy5rb3JwaXMudjEuUmVnaXN0ZXJIABInCgZyZXN1bHQYAiABKAsyFS5rb3JwaXMudjEuQ2FsbFJlc3VsdEgAQgkKB21lc3NhZ2UimwEKD1Byb3ZpZGVyQ29udHJvbBIrCgpyZWdpc3RlcmVkGAEgASgLMhUua29ycGlzLnYxLlJlZ2lzdGVyZWRIABInCgRjYWxsGAIgASgLMhcua29ycGlzLnYxLlByb3ZpZGVyQ2FsbEgAEicKBmNhbmNlbBgDIAEoCzIVLmtvcnBpcy52MS5DYW5jZWxDYWxsSABCCQoHbWVzc2FnZSJ2CghSZWdpc3RlchIlCgR0eXBlGAEgASgOMhcua29ycGlzLnYxLlByb3ZpZGVyVHlwZRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSEwoLY29uY3VycmVuY3kYBCABKA0SDwoHc2lnbl9pbhgFIAEoCCIiCgpSZWdpc3RlcmVkEhQKDHJlZ2lzdHJhdGlvbhgBIAEoCSLEBAoMUHJvdmlkZXJDYWxsEgwKBGNhbGwYASABKAkSLAoIZGVhZGxpbmUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEh8KBHBpbmcYCiABKAsyDy5rb3JwaXMudjEuUGluZ0gAEjAKDWFwcGx5X3JlY29yZHMYFCABKAsyFy5rb3JwaXMudjEuQXBwbHlSZWNvcmRzSAASJgoIcnVuX3N0ZXAYFSABKAsyEi5rb3JwaXMudjEuUnVuU3RlcEgAEi4KDGdyYW50X2FjY2VzcxgWIAEoCzIWLmtvcnBpcy52MS5HcmFudEFjY2Vzc0gAEi4KDGxpc3Rfb2JqZWN0cxgXIAEoCzIWLmtvcnBpcy52MS5MaXN0T2JqZWN0c0gAEjIKDmRlbGV0ZV9vYmplY3RzGBggASgLMhgua29ycGlzLnYxLkRlbGV0ZU9iamVjdHNIABIuCgxnZW5lcmF0ZV9rZXkYGSABKAsyFi5rb3JwaXMudjEuR2VuZXJhdGVLZXlIABIqCgp1bndyYXBfa2V5GBogASgLMhQua29ycGlzLnYxLlVud3JhcEtleUgAEjIKDnZlcmlmeV9tZW1iZXJzGBsgASgLMhgua29ycGlzLnYxLlZlcmlmeU1lbWJlcnNIABIjCgZhc3NlcnQYHCABKAsyES5rb3JwaXMudjEuQXNzZXJ0SAASKQoJYXV0aG9yaXplGB0gASgLMhQua29ycGlzLnYxLkF1dGhvcml6ZUgAQgkKB3JlcXVlc3QimAQKCkNhbGxSZXN1bHQSDAoEY2FsbBgBIAEoCRIhCgVlcnJvchgCIAEoCzIQLmtvcnBpcy52MS5FcnJvckgAEh8KBHBvbmcYCiABKAsyDy5rb3JwaXMudjEuUG9uZ0gAEjQKD3JlY29yZHNfYXBwbGllZBgUIAEoCzIZLmtvcnBpcy52MS5SZWNvcmRzQXBwbGllZEgAEiwKC3N0ZXBfcmVzdWx0GBUgASgLMhUua29ycGlzLnYxLlN0ZXBSZXN1bHRIABIwCg1vYmplY3RfYWNjZXNzGBYgASgLMhcua29ycGlzLnYxLk9iamVjdEFjY2Vzc0gAEiwKC29iamVjdF9saXN0GBcgASgLMhUua29ycGlzLnYxLk9iamVjdExpc3RIABI0Cg9vYmplY3RzX2RlbGV0ZWQYGCABKAsyGS5rb3JwaXMudjEuT2JqZWN0c0RlbGV0ZWRIABIuCgxrZXlfbWF0ZXJpYWwYGSABKAsyFi5rb3JwaXMudjEuS2V5TWF0ZXJpYWxIABIlCgdtZW1iZXJzGBogASgLMhIua29ycGlzLnYxLk1lbWJlcnNIABIpCglhc3NlcnRpb24YGyABKAsyFC5rb3JwaXMudjEuQXNzZXJ0aW9uSAASMQoNYXV0aG9yaXphdGlvbhgcIAEoCzIYLmtvcnBpcy52MS5BdXRob3JpemF0aW9uSABCCQoHb3V0Y29tZSIaCgpDYW5jZWxDYWxsEgwKBGNhbGwYASABKAkiFQoEUGluZxINCgVub25jZRgBIAEoCSIVCgRQb25nEg0KBW5vbmNlGAEgASgJIpACChRQcm92aWRlclJlZ2lzdHJhdGlvbhIKCgJpZBgBIAEoCRIRCglleHRlbnNpb24YAiABKAkSFAoMb3JnYW5pemF0aW9uGAMgASgJEiUKBHR5cGUYBCABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYBSABKAkSDwoHdmVyc2lvbhgGIAEoCRITCgtjb25jdXJyZW5jeRgHIAEoDRItCgljb25uZWN0ZWQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEigKBHNlZW4YCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3NpZ25faW4YCiABKAgiLAoUTGlzdFByb3ZpZGVyc1JlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJInYKFUxpc3RQcm92aWRlcnNSZXNwb25zZRIyCglwcm92aWRlcnMYASADKAsyHy5rb3JwaXMudjEuUHJvdmlkZXJSZWdpc3RyYXRpb24SKQoGaGVhbHRoGAIgAygLMhkua29ycGlzLnYxLlByb3ZpZGVySGVhbHRoIo4CCg5Qcm92aWRlckhlYWx0aBIlCgR0eXBlGAEgASgOMhcua29ycGlzLnYxLlByb3ZpZGVyVHlwZRIMCgRuYW1lGAIgASgJEigKB2JyZWFrZXIYAyABKA4yFy5rb3JwaXMudjEuQnJlYWtlclN0YXRlEikKBXVudGlsGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVjYWxscxgFIAEoDRIOCgZmYWlsZWQYBiABKA0SMQoObWVkaWFuX2xhdGVuY3kYByABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SIAoYbWVkaWFuX2RlYWRsaW5lX3Blcm1pbGxlGAggASgNIowBChNQaW5nUHJvdmlkZXJSZXF1ZXN0EhQKDG9yZ2FuaXphdGlvbhgBIAEoCRIlCgR0eXBlGAIgASgOMhcua29ycGlzLnYxLlByb3ZpZGVyVHlwZRIMCgRuYW1lGAMgASgJEioKB3RpbWVvdXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24imAEKFFBpbmdQcm92aWRlclJlc3BvbnNlEgwKBGNhbGwYASABKAkSFAoMcmVnaXN0cmF0aW9uGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSKgoHZWxhcHNlZBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIfCgVlcnJvchgFIAEoCzIQLmtvcnBpcy52MS5FcnJvciJECgxBcHBseVJlY29yZHMSDQoFb3duZXIYASABKAkSJQoHcmVjb3JkcxgCIAMoCzIULmtvcnBpcy52MS5EbnNSZWNvcmQiXgoJRG5zUmVjb3JkEgwKBG5hbWUYASABKAkSJgoEdHlwZRgCIAEoDjIYLmtvcnBpcy52MS5EbnNSZWNvcmRUeXBlEgsKA3R0bBgDIAEoDRIOCgZ2YWx1ZXMYBCADKAkiQwoOUmVjb3Jkc0FwcGxpZWQSDwoHY3JlYXRlZBgBIAEoDRIPCgd1cGRhdGVkGAIgASgNEg8KB2RlbGV0ZWQYAyABKA0iygEKB1J1blN0ZXASDAoEc3RlcBgBIAEoCRI0Cglhcmd1bWVudHMYAiADKAsyIS5rb3JwaXMudjEuUnVuU3RlcC5Bcmd1bWVudHNFbnRyeRIQCgh3b3JrbG9hZBgDIAEoCRIlCghwbGF0Zm9ybRgEIAEoCzITLmtvcnBpcy52MS5QbGF0Zm9ybRpCCg5Bcmd1bWVudHNFbnRyeRILCgNrZXkYASABKAkSHwoFdmFsdWUYAiABKAsyEC5rb3JwaXMudjEuVmFsdWU6AjgBIiQKCFBsYXRmb3JtEgoKAm9zGAEgASgJEgwKBGFyY2gYAiABKAkiWgoKU3RlcFJlc3VsdBIqCglhcnRpZmFjdHMYASADKAsyFy5rb3JwaXMudjEuU3RlcEFydGlmYWN0Eg4KBnBpbm5lZBgCIAEoCBIQCghyZXNvbHZlZBgDIAEoCSJmCgxTdGVwQXJ0aWZhY3QSDAoEcGF0aBgBIAEoCRILCgN1cmwYAiABKAkSDgoGc2hhMjU2GAMgASgJEgwKBHNpemUYBCABKAQSDAoEbW9kZRgFIAEoDRIPCgdleHRyYWN0GAYgASgIIlcKC0dyYW50QWNjZXNzEg4KBnByZWZpeBgBIAEoCRIjCgRtb2RlGAIgASgOMhUua29ycGlzLnYxLkFjY2Vzc01vZGUSEwoLdHRsX3NlY29uZHMYAyABKA0ibQoMT2JqZWN0QWNjZXNzEi4KCmV4cGlyZXNfYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiEKAnMzGAogASgLMhMua29ycGlzLnYxLlMzQWNjZXNzSABCCgoIcHJvdG9jb2wi1QEKCFMzQWNjZXNzEhAKCGVuZHBvaW50GAEgASgJEg4KBnJlZ2lvbhgCIAEoCRIOCgZidWNrZXQYAyABKAkSEgoKa2V5X3ByZWZpeBgEIAEoCRIVCg1hY2Nlc3Nfa2V5X2lkGAUgASgJEhkKEXNlY3JldF9hY2Nlc3Nfa2V5GAYgASgJEhUKDXNlc3Npb25fdG9rZW4YByABKAkSEgoKcGF0aF9zdHlsZRgIIAEoCBIRCglzZXJ2ZWRfYnkYCSABKAkSEwoLY2VydGlmaWNhdGUYCiABKAwiOwoLTGlzdE9iamVjdHMSDgoGcHJlZml4GAEgASgJEg0KBWFmdGVyGAIgASgJEg0KBWxpbWl0GAMgASgNIkQKCk9iamVjdExpc3QSKAoHb2JqZWN0cxgBIAMoCzIXLmtvcnBpcy52MS5TdG9yZWRPYmplY3QSDAoEbW9yZRgCIAEoCCJXCgxTdG9yZWRPYmplY3QSCwoDa2V5GAEgASgJEgwKBHNpemUYAiABKAQSLAoIbW9kaWZpZWQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIh0KDURlbGV0ZU9iamVjdHMSDAoEa2V5cxgBIAMoCSIhCg5PYmplY3RzRGVsZXRlZBIPCgdkZWxldGVkGAEgASgNIj4KC0dlbmVyYXRlS2V5EgsKA2tleRgBIAEoCRIPCgdjb250ZXh0GAIgASgMEhEKCXJlY2lwaWVudBgDIAEoDCJNCglVbndyYXBLZXkSCwoDa2V5GAEgASgJEg8KB2NvbnRleHQYAiABKAwSEQoJcmVjaXBpZW50GAMgASgMEg8KB3dyYXBwZWQYBCABKAwiLgoLS2V5TWF0ZXJpYWwSDwoHd3JhcHBlZBgBIAEoDBIOCgZzZWFsZWQYAiABKAwieQoNVmVyaWZ5TWVtYmVycxIjCgNzZXQYASABKAsyFi5rb3JwaXMudjEuRXh0ZXJuYWxTZXQSDwoHbWVtYmVycxgCIAMoCRIyChJyZXF1aXJlX21lbWJlcnNoaXAYAyADKAsyFi5rb3JwaXMudjEuRXh0ZXJuYWxTZXQiPwoHTWVtYmVycxISCgpzZXRfZXhpc3RzGAEgASgIEg8KB3ByZXNlbnQYAiADKAkSDwoHdW5rbm93bhgDIAMoCSJ7CgZBc3NlcnQSEAoIZXZpZGVuY2UYASABKAwSLwoHaGVhZGVycxgCIAMoCzIeLmtvcnBpcy52MS5Bc3NlcnQuSGVhZGVyc0VudHJ5Gi4KDEhlYWRlcnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIn0KCUFzc2VydGlvbhIMCgR1c2VyGAEgASgJEiQKBHNldHMYAiADKAsyFi5rb3JwaXMudjEuRXh0ZXJuYWxTZXQSFAoMcHJlc2VudGF0aW9uGAMgASgJEiYKAmF0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJXCglBdXRob3JpemUSDQoFc3RhdGUYASABKAkSDQoFbm9uY2UYAiABKAkSFgoOY29kZV9jaGFsbGVuZ2UYAyABKAkSFAoMcmVkaXJlY3RfdXJpGAQgASgJIhwKDUF1dGhvcml6YXRpb24SCwoDdXJsGAEgASgJKnwKDEJyZWFrZXJTdGF0ZRIdChlCUkVBS0VSX1NUQVRFX1VOU1BFQ0lGSUVEEAASGAoUQlJFQUtFUl9TVEFURV9DTE9TRUQQARIWChJCUkVBS0VSX1NUQVRFX09QRU4QAhIbChdCUkVBS0VSX1NUQVRFX0hBTEZfT1BFThADKq4BCg1EbnNSZWNvcmRUeXBlEh8KG0ROU19SRUNPUkRfVFlQRV9VTlNQRUNJRklFRBAAEhUKEUROU19SRUNPUkRfVFlQRV9BEAESGAoURE5TX1JFQ09SRF9UWVBFX0FBQUEQAhIZChVETlNfUkVDT1JEX1RZUEVfQ05BTUUQAxIXChNETlNfUkVDT1JEX1RZUEVfU1JWEAQSFwoTRE5TX1JFQ09SRF9UWVBFX1RYVBAFKlYKCkFjY2Vzc01vZGUSGwoXQUNDRVNTX01PREVfVU5TUEVDSUZJRUQQABIVChFBQ0NFU1NfTU9ERV9XUklURRABEhQKEEFDQ0VTU19NT0RFX1JFQUQQAjKAAgoPUHJvdmlkZXJTZXJ2aWNlEkMKBVNlcnZlEhoua29ycGlzLnYxLlByb3ZpZGVyTWVzc2FnZRoaLmtvcnBpcy52MS5Qcm92aWRlckNvbnRyb2woATABElcKDUxpc3RQcm92aWRlcnMSHy5rb3JwaXMudjEuTGlzdFByb3ZpZGVyc1JlcXVlc3QaIC5rb3JwaXMudjEuTGlzdFByb3ZpZGVyc1Jlc3BvbnNlIgOQAgESTwoMUGluZ1Byb3ZpZGVyEh4ua29ycGlzLnYxLlBpbmdQcm92aWRlclJlcXVlc3QaHy5rb3JwaXMudjEuUGluZ1Byb3ZpZGVyUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_extension, file_korpis_v1_tenancy]);
+  fileDesc("Chhrb3JwaXMvdjEvcHJvdmlkZXIucHJvdG8SCWtvcnBpcy52MSJuCg9Qcm92aWRlck1lc3NhZ2USJwoIcmVnaXN0ZXIYASABKAsyEy5rb3JwaXMudjEuUmVnaXN0ZXJIABInCgZyZXN1bHQYAiABKAsyFS5rb3JwaXMudjEuQ2FsbFJlc3VsdEgAQgkKB21lc3NhZ2UimwEKD1Byb3ZpZGVyQ29udHJvbBIrCgpyZWdpc3RlcmVkGAEgASgLMhUua29ycGlzLnYxLlJlZ2lzdGVyZWRIABInCgRjYWxsGAIgASgLMhcua29ycGlzLnYxLlByb3ZpZGVyQ2FsbEgAEicKBmNhbmNlbBgDIAEoCzIVLmtvcnBpcy52MS5DYW5jZWxDYWxsSABCCQoHbWVzc2FnZSJ2CghSZWdpc3RlchIlCgR0eXBlGAEgASgOMhcua29ycGlzLnYxLlByb3ZpZGVyVHlwZRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSEwoLY29uY3VycmVuY3kYBCABKA0SDwoHc2lnbl9pbhgFIAEoCCIiCgpSZWdpc3RlcmVkEhQKDHJlZ2lzdHJhdGlvbhgBIAEoCSLyBAoMUHJvdmlkZXJDYWxsEgwKBGNhbGwYASABKAkSLAoIZGVhZGxpbmUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEh8KBHBpbmcYCiABKAsyDy5rb3JwaXMudjEuUGluZ0gAEjAKDWFwcGx5X3JlY29yZHMYFCABKAsyFy5rb3JwaXMudjEuQXBwbHlSZWNvcmRzSAASJgoIcnVuX3N0ZXAYFSABKAsyEi5rb3JwaXMudjEuUnVuU3RlcEgAEi4KDGdyYW50X2FjY2VzcxgWIAEoCzIWLmtvcnBpcy52MS5HcmFudEFjY2Vzc0gAEi4KDGxpc3Rfb2JqZWN0cxgXIAEoCzIWLmtvcnBpcy52MS5MaXN0T2JqZWN0c0gAEjIKDmRlbGV0ZV9vYmplY3RzGBggASgLMhgua29ycGlzLnYxLkRlbGV0ZU9iamVjdHNIABIuCgxnZW5lcmF0ZV9rZXkYGSABKAsyFi5rb3JwaXMudjEuR2VuZXJhdGVLZXlIABIqCgp1bndyYXBfa2V5GBogASgLMhQua29ycGlzLnYxLlVud3JhcEtleUgAEjIKDnZlcmlmeV9tZW1iZXJzGBsgASgLMhgua29ycGlzLnYxLlZlcmlmeU1lbWJlcnNIABIjCgZhc3NlcnQYHCABKAsyES5rb3JwaXMudjEuQXNzZXJ0SAASKQoJYXV0aG9yaXplGB0gASgLMhQua29ycGlzLnYxLkF1dGhvcml6ZUgAEiwKC2hlYWx0aF9zdGVwGB4gASgLMhUua29ycGlzLnYxLkhlYWx0aFN0ZXBIAEIJCgdyZXF1ZXN0IsYECgpDYWxsUmVzdWx0EgwKBGNhbGwYASABKAkSIQoFZXJyb3IYAiABKAsyEC5rb3JwaXMudjEuRXJyb3JIABIfCgRwb25nGAogASgLMg8ua29ycGlzLnYxLlBvbmdIABI0Cg9yZWNvcmRzX2FwcGxpZWQYFCABKAsyGS5rb3JwaXMudjEuUmVjb3Jkc0FwcGxpZWRIABIsCgtzdGVwX3Jlc3VsdBgVIAEoCzIVLmtvcnBpcy52MS5TdGVwUmVzdWx0SAASMAoNb2JqZWN0X2FjY2VzcxgWIAEoCzIXLmtvcnBpcy52MS5PYmplY3RBY2Nlc3NIABIsCgtvYmplY3RfbGlzdBgXIAEoCzIVLmtvcnBpcy52MS5PYmplY3RMaXN0SAASNAoPb2JqZWN0c19kZWxldGVkGBggASgLMhkua29ycGlzLnYxLk9iamVjdHNEZWxldGVkSAASLgoMa2V5X21hdGVyaWFsGBkgASgLMhYua29ycGlzLnYxLktleU1hdGVyaWFsSAASJQoHbWVtYmVycxgaIAEoCzISLmtvcnBpcy52MS5NZW1iZXJzSAASKQoJYXNzZXJ0aW9uGBsgASgLMhQua29ycGlzLnYxLkFzc2VydGlvbkgAEjEKDWF1dGhvcml6YXRpb24YHCABKAsyGC5rb3JwaXMudjEuQXV0aG9yaXphdGlvbkgAEiwKC2hlYWx0aF9uZXh0GB0gASgLMhUua29ycGlzLnYxLkhlYWx0aE5leHRIAEIJCgdvdXRjb21lIhoKCkNhbmNlbENhbGwSDAoEY2FsbBgBIAEoCSIVCgRQaW5nEg0KBW5vbmNlGAEgASgJIhUKBFBvbmcSDQoFbm9uY2UYASABKAkikAIKFFByb3ZpZGVyUmVnaXN0cmF0aW9uEgoKAmlkGAEgASgJEhEKCWV4dGVuc2lvbhgCIAEoCRIUCgxvcmdhbml6YXRpb24YAyABKAkSJQoEdHlwZRgEIAEoDjIXLmtvcnBpcy52MS5Qcm92aWRlclR5cGUSDAoEbmFtZRgFIAEoCRIPCgd2ZXJzaW9uGAYgASgJEhMKC2NvbmN1cnJlbmN5GAcgASgNEi0KCWNvbm5lY3RlZBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKAoEc2VlbhgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHc2lnbl9pbhgKIAEoCCIsChRMaXN0UHJvdmlkZXJzUmVxdWVzdBIUCgxvcmdhbml6YXRpb24YASABKAkidgoVTGlzdFByb3ZpZGVyc1Jlc3BvbnNlEjIKCXByb3ZpZGVycxgBIAMoCzIfLmtvcnBpcy52MS5Qcm92aWRlclJlZ2lzdHJhdGlvbhIpCgZoZWFsdGgYAiADKAsyGS5rb3JwaXMudjEuUHJvdmlkZXJIZWFsdGgijgIKDlByb3ZpZGVySGVhbHRoEiUKBHR5cGUYASABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYAiABKAkSKAoHYnJlYWtlchgDIAEoDjIXLmtvcnBpcy52MS5CcmVha2VyU3RhdGUSKQoFdW50aWwYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWNhbGxzGAUgASgNEg4KBmZhaWxlZBgGIAEoDRIxCg5tZWRpYW5fbGF0ZW5jeRgHIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIgChhtZWRpYW5fZGVhZGxpbmVfcGVybWlsbGUYCCABKA0ijAEKE1BpbmdQcm92aWRlclJlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJEiUKBHR5cGUYAiABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYAyABKAkSKgoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKYAQoUUGluZ1Byb3ZpZGVyUmVzcG9uc2USDAoEY2FsbBgBIAEoCRIUCgxyZWdpc3RyYXRpb24YAiABKAkSDwoHdmVyc2lvbhgDIAEoCRIqCgdlbGFwc2VkGAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEh8KBWVycm9yGAUgASgLMhAua29ycGlzLnYxLkVycm9yIkQKDEFwcGx5UmVjb3JkcxINCgVvd25lchgBIAEoCRIlCgdyZWNvcmRzGAIgAygLMhQua29ycGlzLnYxLkRuc1JlY29yZCJeCglEbnNSZWNvcmQSDAoEbmFtZRgBIAEoCRImCgR0eXBlGAIgASgOMhgua29ycGlzLnYxLkRuc1JlY29yZFR5cGUSCwoDdHRsGAMgASgNEg4KBnZhbHVlcxgEIAMoCSJDCg5SZWNvcmRzQXBwbGllZBIPCgdjcmVhdGVkGAEgASgNEg8KB3VwZGF0ZWQYAiABKA0SDwoHZGVsZXRlZBgDIAEoDSLKAQoHUnVuU3RlcBIMCgRzdGVwGAEgASgJEjQKCWFyZ3VtZW50cxgCIAMoCzIhLmtvcnBpcy52MS5SdW5TdGVwLkFyZ3VtZW50c0VudHJ5EhAKCHdvcmtsb2FkGAMgASgJEiUKCHBsYXRmb3JtGAQgASgLMhMua29ycGlzLnYxLlBsYXRmb3JtGkIKDkFyZ3VtZW50c0VudHJ5EgsKA2tleRgBIAEoCRIfCgV2YWx1ZRgCIAEoCzIQLmtvcnBpcy52MS5WYWx1ZToCOAEiJAoIUGxhdGZvcm0SCgoCb3MYASABKAkSDAoEYXJjaBgCIAEoCSJaCgpTdGVwUmVzdWx0EioKCWFydGlmYWN0cxgBIAMoCzIXLmtvcnBpcy52MS5TdGVwQXJ0aWZhY3QSDgoGcGlubmVkGAIgASgIEhAKCHJlc29sdmVkGAMgASgJImYKDFN0ZXBBcnRpZmFjdBIMCgRwYXRoGAEgASgJEgsKA3VybBgCIAEoCRIOCgZzaGEyNTYYAyABKAkSDAoEc2l6ZRgEIAEoBBIMCgRtb2RlGAUgASgNEg8KB2V4dHJhY3QYBiABKAgiVwoLR3JhbnRBY2Nlc3MSDgoGcHJlZml4GAEgASgJEiMKBG1vZGUYAiABKA4yFS5rb3JwaXMudjEuQWNjZXNzTW9kZRITCgt0dGxfc2Vjb25kcxgDIAEoDSJtCgxPYmplY3RBY2Nlc3MSLgoKZXhwaXJlc19hdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASIQoCczMYCiABKAsyEy5rb3JwaXMudjEuUzNBY2Nlc3NIAEIKCghwcm90b2NvbCLVAQoIUzNBY2Nlc3MSEAoIZW5kcG9pbnQYASABKAkSDgoGcmVnaW9uGAIgASgJEg4KBmJ1Y2tldBgDIAEoCRISCgprZXlfcHJlZml4GAQgASgJEhUKDWFjY2Vzc19rZXlfaWQYBSABKAkSGQoRc2VjcmV0X2FjY2Vzc19rZXkYBiABKAkSFQoNc2Vzc2lvbl90b2tlbhgHIAEoCRISCgpwYXRoX3N0eWxlGAggASgIEhEKCXNlcnZlZF9ieRgJIAEoCRITCgtjZXJ0aWZpY2F0ZRgKIAEoDCI7CgtMaXN0T2JqZWN0cxIOCgZwcmVmaXgYASABKAkSDQoFYWZ0ZXIYAiABKAkSDQoFbGltaXQYAyABKA0iRAoKT2JqZWN0TGlzdBIoCgdvYmplY3RzGAEgAygLMhcua29ycGlzLnYxLlN0b3JlZE9iamVjdBIMCgRtb3JlGAIgASgIIlcKDFN0b3JlZE9iamVjdBILCgNrZXkYASABKAkSDAoEc2l6ZRgCIAEoBBIsCghtb2RpZmllZBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiHQoNRGVsZXRlT2JqZWN0cxIMCgRrZXlzGAEgAygJIiEKDk9iamVjdHNEZWxldGVkEg8KB2RlbGV0ZWQYASABKA0iPgoLR2VuZXJhdGVLZXkSCwoDa2V5GAEgASgJEg8KB2NvbnRleHQYAiABKAwSEQoJcmVjaXBpZW50GAMgASgMIk0KCVVud3JhcEtleRILCgNrZXkYASABKAkSDwoHY29udGV4dBgCIAEoDBIRCglyZWNpcGllbnQYAyABKAwSDwoHd3JhcHBlZBgEIAEoDCIuCgtLZXlNYXRlcmlhbBIPCgd3cmFwcGVkGAEgASgMEg4KBnNlYWxlZBgCIAEoDCJ5Cg1WZXJpZnlNZW1iZXJzEiMKA3NldBgBIAEoCzIWLmtvcnBpcy52MS5FeHRlcm5hbFNldBIPCgdtZW1iZXJzGAIgAygJEjIKEnJlcXVpcmVfbWVtYmVyc2hpcBgDIAMoCzIWLmtvcnBpcy52MS5FeHRlcm5hbFNldCI/CgdNZW1iZXJzEhIKCnNldF9leGlzdHMYASABKAgSDwoHcHJlc2VudBgCIAMoCRIPCgd1bmtub3duGAMgAygJInsKBkFzc2VydBIQCghldmlkZW5jZRgBIAEoDBIvCgdoZWFkZXJzGAIgAygLMh4ua29ycGlzLnYxLkFzc2VydC5IZWFkZXJzRW50cnkaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEifQoJQXNzZXJ0aW9uEgwKBHVzZXIYASABKAkSJAoEc2V0cxgCIAMoCzIWLmtvcnBpcy52MS5FeHRlcm5hbFNldBIUCgxwcmVzZW50YXRpb24YAyABKAkSJgoCYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlcKCUF1dGhvcml6ZRINCgVzdGF0ZRgBIAEoCRINCgVub25jZRgCIAEoCRIWCg5jb2RlX2NoYWxsZW5nZRgDIAEoCRIUCgxyZWRpcmVjdF91cmkYBCABKAkiHAoNQXV0aG9yaXphdGlvbhILCgN1cmwYASABKAkimQEKCkhlYWx0aFN0ZXASEAoIcHJvdG9jb2wYASABKAkSEAoId29ya2xvYWQYAiABKAkSEAoIZW5kcG9pbnQYAyABKAkSLQoJdHJhbnNwb3J0GAQgASgOMhoua29ycGlzLnYxLkhlYWx0aFRyYW5zcG9ydBImCgZyb3VuZHMYBSADKAsyFi5rb3JwaXMudjEuSGVhbHRoUm91bmQiPQoLSGVhbHRoUm91bmQSDAoEc2VudBgBIAEoDBIQCghyZWNlaXZlZBgCIAEoDBIOCgZjbG9zZWQYAyABKAgiaAoKSGVhbHRoTmV4dBIlCgRzZW5kGAEgASgLMhUua29ycGlzLnYxLkhlYWx0aFNlbmRIABIrCgd2ZXJkaWN0GAIgASgLMhgua29ycGlzLnYxLkhlYWx0aFZlcmRpY3RIAEIGCgRuZXh0IlkKCkhlYWx0aFNlbmQSDAoEZGF0YRgBIAEoDBIUCgxyZWFkX2F0X21vc3QYAiABKA0SJwoEd2FpdBgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKVAQoNSGVhbHRoVmVyZGljdBIPCgdoZWFsdGh5GAEgASgIEg4KBnJlYXNvbhgCIAEoCRI0CgZkZXRhaWwYAyADKAsyJC5rb3JwaXMudjEuSGVhbHRoVmVyZGljdC5EZXRhaWxFbnRyeRotCgtEZXRhaWxFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBKnwKDEJyZWFrZXJTdGF0ZRIdChlCUkVBS0VSX1NUQVRFX1VOU1BFQ0lGSUVEEAASGAoUQlJFQUtFUl9TVEFURV9DTE9TRUQQARIWChJCUkVBS0VSX1NUQVRFX09QRU4QAhIbChdCUkVBS0VSX1NUQVRFX0hBTEZfT1BFThADKq4BCg1EbnNSZWNvcmRUeXBlEh8KG0ROU19SRUNPUkRfVFlQRV9VTlNQRUNJRklFRBAAEhUKEUROU19SRUNPUkRfVFlQRV9BEAESGAoURE5TX1JFQ09SRF9UWVBFX0FBQUEQAhIZChVETlNfUkVDT1JEX1RZUEVfQ05BTUUQAxIXChNETlNfUkVDT1JEX1RZUEVfU1JWEAQSFwoTRE5TX1JFQ09SRF9UWVBFX1RYVBAFKlYKCkFjY2Vzc01vZGUSGwoXQUNDRVNTX01PREVfVU5TUEVDSUZJRUQQABIVChFBQ0NFU1NfTU9ERV9XUklURRABEhQKEEFDQ0VTU19NT0RFX1JFQUQQAipnCg9IZWFsdGhUcmFuc3BvcnQSIAocSEVBTFRIX1RSQU5TUE9SVF9VTlNQRUNJRklFRBAAEhgKFEhFQUxUSF9UUkFOU1BPUlRfVENQEAESGAoUSEVBTFRIX1RSQU5TUE9SVF9VRFAQAjKAAgoPUHJvdmlkZXJTZXJ2aWNlEkMKBVNlcnZlEhoua29ycGlzLnYxLlByb3ZpZGVyTWVzc2FnZRoaLmtvcnBpcy52MS5Qcm92aWRlckNvbnRyb2woATABElcKDUxpc3RQcm92aWRlcnMSHy5rb3JwaXMudjEuTGlzdFByb3ZpZGVyc1JlcXVlc3QaIC5rb3JwaXMudjEuTGlzdFByb3ZpZGVyc1Jlc3BvbnNlIgOQAgESTwoMUGluZ1Byb3ZpZGVyEh4ua29ycGlzLnYxLlBpbmdQcm92aWRlclJlcXVlc3QaHy5rb3JwaXMudjEuUGluZ1Byb3ZpZGVyUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_tenancy]);
 
 /**
  * Provider to control plane.
@@ -267,6 +265,14 @@ export type ProviderCall = Message<"korpis.v1.ProviderCall"> & {
      */
     value: Authorize;
     case: "authorize";
+  } | {
+    /**
+     * health: a query probe's next round, or its verdict.
+     *
+     * @generated from field: korpis.v1.HealthStep health_step = 30;
+     */
+    value: HealthStep;
+    case: "healthStep";
   } | { case: undefined; value?: undefined };
 };
 
@@ -357,6 +363,12 @@ export type CallResult = Message<"korpis.v1.CallResult"> & {
      */
     value: Authorization;
     case: "authorization";
+  } | {
+    /**
+     * @generated from field: korpis.v1.HealthNext health_next = 29;
+     */
+    value: HealthNext;
+    case: "healthNext";
   } | { case: undefined; value?: undefined };
 };
 
@@ -1483,6 +1495,182 @@ export const AuthorizationSchema: GenMessage<Authorization> = /*@__PURE__*/
   messageDesc(file_korpis_v1_provider, 38);
 
 /**
+ * Health providers (§5 of docs/04-runtimes.md, §5 of docs/16-extensions.md). A query probe is an
+ * exchange the node runs and the provider directs: the node holds the socket, inside the
+ * workload's network namespace, and the provider holds the protocol. Each step tells the provider
+ * the rounds run so far, and it answers with the next round or the verdict; it is never given a way
+ * to the workload itself.
+ *
+ * @generated from message korpis.v1.HealthStep
+ */
+export type HealthStep = Message<"korpis.v1.HealthStep"> & {
+  /**
+   * `<publisher>/<protocol>`, the name the provider registered.
+   *
+   * @generated from field: string protocol = 1;
+   */
+  protocol: string;
+
+  /**
+   * @generated from field: string workload = 2;
+   */
+  workload: string;
+
+  /**
+   * The endpoint the probe names.
+   *
+   * @generated from field: string endpoint = 3;
+   */
+  endpoint: string;
+
+  /**
+   * @generated from field: korpis.v1.HealthTransport transport = 4;
+   */
+  transport: HealthTransport;
+
+  /**
+   * The rounds run so far, oldest first; none for the first step. At most four.
+   *
+   * @generated from field: repeated korpis.v1.HealthRound rounds = 5;
+   */
+  rounds: HealthRound[];
+};
+
+/**
+ * Describes the message korpis.v1.HealthStep.
+ * Use `create(HealthStepSchema)` to create a new message.
+ */
+export const HealthStepSchema: GenMessage<HealthStep> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 39);
+
+/**
+ * @generated from message korpis.v1.HealthRound
+ */
+export type HealthRound = Message<"korpis.v1.HealthRound"> & {
+  /**
+   * @generated from field: bytes sent = 1;
+   */
+  sent: Uint8Array;
+
+  /**
+   * What was read before the round's wait ran out, at most its read_at_most.
+   *
+   * @generated from field: bytes received = 2;
+   */
+  received: Uint8Array;
+
+  /**
+   * The workload ended the connection; never for UDP.
+   *
+   * @generated from field: bool closed = 3;
+   */
+  closed: boolean;
+};
+
+/**
+ * Describes the message korpis.v1.HealthRound.
+ * Use `create(HealthRoundSchema)` to create a new message.
+ */
+export const HealthRoundSchema: GenMessage<HealthRound> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 40);
+
+/**
+ * @generated from message korpis.v1.HealthNext
+ */
+export type HealthNext = Message<"korpis.v1.HealthNext"> & {
+  /**
+   * @generated from oneof korpis.v1.HealthNext.next
+   */
+  next: {
+    /**
+     * @generated from field: korpis.v1.HealthSend send = 1;
+     */
+    value: HealthSend;
+    case: "send";
+  } | {
+    /**
+     * @generated from field: korpis.v1.HealthVerdict verdict = 2;
+     */
+    value: HealthVerdict;
+    case: "verdict";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message korpis.v1.HealthNext.
+ * Use `create(HealthNextSchema)` to create a new message.
+ */
+export const HealthNextSchema: GenMessage<HealthNext> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 41);
+
+/**
+ * Another round. A step answering one when four rounds have run, or beyond these bounds, is the
+ * provider's malfunction.
+ *
+ * @generated from message korpis.v1.HealthSend
+ */
+export type HealthSend = Message<"korpis.v1.HealthSend"> & {
+  /**
+   * At most 4 KiB; empty to read on without sending.
+   *
+   * @generated from field: bytes data = 1;
+   */
+  data: Uint8Array;
+
+  /**
+   * At most 64 KiB.
+   *
+   * @generated from field: uint32 read_at_most = 2;
+   */
+  readAtMost: number;
+
+  /**
+   * At most ten seconds; the probe's own timeout bounds the whole exchange too.
+   *
+   * @generated from field: google.protobuf.Duration wait = 3;
+   */
+  wait?: Duration | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.HealthSend.
+ * Use `create(HealthSendSchema)` to create a new message.
+ */
+export const HealthSendSchema: GenMessage<HealthSend> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 42);
+
+/**
+ * @generated from message korpis.v1.HealthVerdict
+ */
+export type HealthVerdict = Message<"korpis.v1.HealthVerdict"> & {
+  /**
+   * @generated from field: bool healthy = 1;
+   */
+  healthy: boolean;
+
+  /**
+   * Why, for the workload's status; at most 256 bytes.
+   *
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * What the workload said of itself, its players and map say; at most 32 entries.
+   *
+   * @generated from field: map<string, string> detail = 3;
+   */
+  detail: { [key: string]: string };
+};
+
+/**
+ * Describes the message korpis.v1.HealthVerdict.
+ * Use `create(HealthVerdictSchema)` to create a new message.
+ */
+export const HealthVerdictSchema: GenMessage<HealthVerdict> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 43);
+
+/**
  * @generated from enum korpis.v1.BreakerState
  */
 export enum BreakerState {
@@ -1590,6 +1778,36 @@ export enum AccessMode {
  */
 export const AccessModeSchema: GenEnum<AccessMode> = /*@__PURE__*/
   enumDesc(file_korpis_v1_provider, 2);
+
+/**
+ * @generated from enum korpis.v1.HealthTransport
+ */
+export enum HealthTransport {
+  /**
+   * @generated from enum value: HEALTH_TRANSPORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * One connection, kept for every round.
+   *
+   * @generated from enum value: HEALTH_TRANSPORT_TCP = 1;
+   */
+  TCP = 1,
+
+  /**
+   * Each round sends one datagram and reads the first that comes back.
+   *
+   * @generated from enum value: HEALTH_TRANSPORT_UDP = 2;
+   */
+  UDP = 2,
+}
+
+/**
+ * Describes the enum korpis.v1.HealthTransport.
+ */
+export const HealthTransportSchema: GenEnum<HealthTransport> = /*@__PURE__*/
+  enumDesc(file_korpis_v1_provider, 3);
 
 /**
  * @generated from service korpis.v1.ProviderService

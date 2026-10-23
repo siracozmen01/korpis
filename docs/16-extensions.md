@@ -322,17 +322,18 @@ own (§8 of `09-recipes.md`), so a workload never changes provider because someo
 one later.
 
 **As built in Phase 1** (2026-10-15). The pin is part of the intent: its recipe reference carries,
-for each step kind the install names, the installation that answers it and that installation's
-artifact digest, set by the control plane at declaration whatever a client sends. Declaration
-walks up from the declaring organization to the nearest one with a live installation providing
-the kind, checks every step's arguments against the schema that installation's manifest declares,
-and refuses the declaration, on `body.recipe` naming the step, if no installation provides the
-kind or the arguments do not fit. A pin that differs from the previous intent's is an install
-change, as a new recipe digest is. What it costs: upgrading a step provider's installation changes
-its digest, so every workload pinned to the old one has to be declared again, which pins the new
-one and plans a reinstall, before its install can resolve; until then its install fails, saying
-so. That is the lockfile's promise kept, not a defect of it: an upgrade that silently changed what
-every workload installs is the thing a pin exists to stop.
+for each step kind the install names, and since 2026-10-23 for each query protocol its probes name
+(§5), the installation that answers it and that installation's artifact digest, set by the control
+plane at declaration whatever a client sends. Declaration walks up from the declaring organization
+to the nearest one with a live installation providing the kind, checks every step's arguments
+against the schema that installation's manifest declares, and refuses the declaration, on
+`body.recipe` naming the step, if no installation provides the kind or the arguments do not fit. A
+pin that differs from the previous intent's is an install change, as a new recipe digest is. What
+it costs: upgrading a step provider's installation changes its digest, so every workload pinned to
+the old one has to be declared again, which pins the new one and plans a reinstall, before its
+install can resolve; until then its install fails, saying so. That is the lockfile's promise kept,
+not a defect of it: an upgrade that silently changed what every workload installs is the thing a
+pin exists to stop.
 
 **As built in Phase 1.** Zones, backup repositories, and edges are not yet objects with owners
 of their own, so the resource a provider serves belongs to the organization its registration
@@ -496,6 +497,41 @@ the observation's own value for health nobody has judged (§3.3 of `01-model.md`
 adapter serves one request at a time and nothing else depends on it, so its failure is that
 request's alone.
 
+**As built: health providers** (2026-10-23, P3.2e0b). A health provider answers a `query` probe
+(§5 of `04-runtimes.md`), and the decision that shapes it is which component reaches the workload.
+The provider does not. The node holds the socket and the provider holds the protocol: the node
+runs the exchange from a socket the helper opens inside the workload's network namespace, and
+after each round asks the control plane what comes next (`HealthQuery` on its session); the
+control plane calls the provider (`HealthStep`, with the protocol, the workload, the endpoint, its
+transport, and every round run so far, each what was sent, what was read, and whether the
+workload closed the connection), and answers the node with the provider's next round, data to send
+and how much to read within how long, or its verdict, healthy or not, with a reason and what the
+workload said of itself. An exchange has at most four rounds, sends at most 4 KiB a round, reads at
+most 64 KiB, and waits at most ten seconds a round within the probe's own timeout; an answer past
+those bounds, or a round when four have run, is `provider.malformed`. A query protocol is named as
+a step kind is, `<publisher>/<protocol>`, for the same reason (finding S26), and is resolved and
+pinned at declaration as a step kind is (§4.1); a probe naming one that nothing answers refuses
+the declaration. The control plane answers only the node the workload is placed on, only for a
+query probe of the intent the node names, and only through the installation that intent pinned:
+`health.not_assigned`, `health.not_a_query`, and `health.provider_changed` otherwise. Each of
+those, the provider's own failure, and an open breaker are answered as unjudged, which leaves the
+probe's verdict unknown, as the table above requires.
+
+Why not give the provider a way to the workload, a tunnel through the relay or the endpoint's
+public address? An operator's provider serves its customers' subtrees (§4.1), and a way to their
+endpoints would be a tenant-private action (§3.3 of `08-identity.md`) the operator's own grants
+do not carry into a customer's organization, so either the rule bends for providers or the
+operator's provider cannot probe its customers' servers. And the public address fails on the one
+machine Phase 1 is for: the egress default drops what a workload sends to its own node's addresses
+(§6 of `07-networking.md`), so a provider on the node cannot reach the node's own port, and an
+endpoint that is not exposed is reached from nowhere. Directing the exchange gives the provider the
+bytes of one query and nothing to keep. What it costs: every round is a provider call through the
+queue of §3.3, three transactions, so a Minecraft server's status query, two rounds, is six
+transactions an attempt, and a thousand servers probed every fifteen seconds are four hundred a
+second (question 7); a protocol needing more than four rounds, or a connection held between
+attempts, cannot be a health provider's; and the provider learns nothing it could act on alone,
+which is the point.
+
 **As built in Phase 1: the breaker.** Each provider, by the organization whose installation
 serves it, its type, and its name, has one breaker, kept in Postgres because any replica may call
 any provider. What evaluates it is the caller of each call, after the call finishes, in a
@@ -615,21 +651,22 @@ that silently orphans an operator's DNS provider is an outage the operator did n
 interface of the contract the control plane actually speaks, never one it merely tolerates:
 `events.subscribe` (subscriptions and their delivery, §5 of `15-observability.md`),
 `identity.credential` (the credential socket, §9.5 of `08-identity.md`), `provider.serve` (a
-provider's stream, §3.3: registering, being pinged, being cancelled), and the calls of five
-provider types: `provider.backup_target` (§5.6 of `06-storage.md`), `provider.dns` (§3.5 of
+provider's stream, §3.3: registering, being pinged, being cancelled), and the calls of the provider
+types: `provider.backup_target` (§5.6 of `06-storage.md`), `provider.dns` (§3.5 of
 `07-networking.md`), `provider.identity` (re-verification and assertion, §5.1 and §5.2 of
 `08-identity.md`, added in Phase 2), `provider.key_management` (§5.5 of `06-storage.md`), and
-`provider.step` (§4 of `09-recipes.md`). The `provider.<type>` of health, console, edge router,
-and chat adapter providers is added when that type's own calls join
-the contract; until then an extension requiring one is refused, because installing it would leave
-it waiting for calls nothing makes, the failure six weeks later this section forbids. A capability
-is offered once its calls are in the contract and the SDK, even while the control plane's own use
-of them is still being built (DNS records are published for endpoints, which Phase 1 creates
-later), since the provider is then correct to wait. The check runs at install, a dry run included,
-so the installer reads the refusal before approving anything: an unknown contract version, or every
-required capability that is missing, at once, is refused as `extension.incompatible` naming what is
-missing and what is offered. A client reads both lists from `ServerInfo` (`extension_contracts` and
-`capabilities`), which is how an extension's SDK negotiates rather than compares version numbers.
+`provider.step` (§4 of `09-recipes.md`), with `provider.health` (§5) joining on 2026-10-23. The
+`provider.<type>` of console, edge router, and chat adapter providers is added when that type's own
+calls join the contract; until then an extension requiring one is refused, because installing it
+would leave it waiting for calls nothing makes, the failure six weeks later this section forbids. A
+capability is offered once its calls are in the contract and the SDK, even while the control
+plane's own use of them is still being built (DNS records are published for endpoints, which Phase
+1 creates later), since the provider is then correct to wait. The check runs at install, a dry run
+included, so the installer reads the refusal before approving anything: an unknown contract
+version, or every required capability that is missing, at once, is refused as
+`extension.incompatible` naming what is missing and what is offered. A client reads both lists from
+`ServerInfo` (`extension_contracts` and `capabilities`), which is how an extension's SDK negotiates
+rather than compares version numbers.
 
 **Signing in, designed 2026-10-20** (§9.7 of `08-identity.md`). `provider.identity` grows, as the
 rules above allow, by addition alone. An identity provider that can sign people in says so when it
@@ -750,3 +787,10 @@ with now, and the plan that declaration produces is approved like any other. All
 transaction, which refuses with `extension.changed` if the installation changed since it was read.
 What it does not do: change the configuration, which the new document's schema must still accept
 as it stands, or the subscription filters an installer narrowed, which are the document's.
+7. **A query probe's cost in the queue.** Added 2026-10-23, with health providers (§5). Each round
+   of a query probe is a provider call through the stored queue, three transactions, so a fleet of
+   game servers probed every fifteen seconds spends hundreds of transactions a second on what is
+   a few datagrams each. The queue is right for calls a plan waits on and wrong for a periodic
+   exchange; a provider stream the node's own replica holds could be called in memory, or one call
+   could carry the rounds of many probes. Measured before chosen, on a fleet of the size that
+   makes it matter. → here

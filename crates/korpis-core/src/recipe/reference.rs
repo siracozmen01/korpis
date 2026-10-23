@@ -15,17 +15,23 @@ pub struct RecipeRef {
     /// What vouched for the recipe when it was declared, under the declaring organization's
     /// policy (§7 of docs/09-recipes.md); `None` only in a declaration not yet resolved.
     pub trust: Option<crate::recipe::trust::Vouched>,
-    /// The installation that answers each step kind the recipe's install names, pinned at
-    /// declaration with its artifact's digest (§4.1 of docs/16-extensions.md), one per kind, in
-    /// kind order.
+    /// The installation that answers each step kind the recipe's install names, and each query
+    /// protocol its probes name, pinned at declaration with its artifact's digest (§4.1 of
+    /// docs/16-extensions.md), one per type and name, in that order.
     pub providers: Vec<ProviderPin>,
 }
 
-/// A recipe step kind pinned to the installation that answers it.
+/// A step kind or a query protocol pinned to the installation that answers it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProviderPin {
-    /// The step kind, `<publisher>/<step>`.
-    pub step: String,
+    /// The type of provider: [`ProviderType::Step`] or [`ProviderType::Health`].
+    ///
+    /// [`ProviderType::Step`]: crate::extension::ProviderType::Step
+    /// [`ProviderType::Health`]: crate::extension::ProviderType::Health
+    pub kind: crate::extension::ProviderType,
+    /// What it provides: a step kind, `<publisher>/<step>`, or a query protocol,
+    /// `<publisher>/<protocol>`.
+    pub name: String,
     /// The installation that provides it.
     pub extension: uuid::Uuid,
     /// That installation's artifact digest when the recipe was declared: an installation

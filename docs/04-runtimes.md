@@ -529,10 +529,12 @@ with its crashes, and recorded as `node.restart` with the cause `unhealthy` and 
 under a lease that has expired, only where the workload keeps running (§4.6 of
 `02-architecture.md`).
 
-What it does not do yet. A `query` probe needs its protocol's provider extension, a `heartbeat`
-probe the workload calling Korpis, and a `guest_agent` probe the guest's channel to its agent; each
-is built later in Phase 3 (§4 of `20-roadmap.md`), and until then such a probe is unjudged: the
-workload's health is `unknown` and its readiness is its object running, as before. An `exec` probe
+What it does not do yet. A `query` probe is an exchange the node runs and its protocol's health
+provider directs (§5 of `16-extensions.md`); the provider's calls and the control plane's half are
+built, and the node's half is not yet. A `heartbeat` probe needs the workload calling Korpis, and a
+`guest_agent` probe the guest's channel to its agent. Each is built later in Phase 3 (§4 of
+`20-roadmap.md`), and until then such a probe is unjudged: the workload's health is `unknown` and
+its readiness is its object running, as before. An `exec` probe
 needs a driver that runs a command inside its workload, which neither driver does yet, so every
 node whose driver does not declare `exec` refuses such a workload at placement (the `probe` check
 of §2.1 of `05-scheduling.md`), which until one does is every node; that is said rather than a

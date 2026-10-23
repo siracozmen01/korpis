@@ -21,6 +21,9 @@ pub const CAPABILITIES: &[&str] = &[
     "provider.backup_target",
     // DNS providers' calls: applying an owner's records, §3.5 of docs/07-networking.md.
     "provider.dns",
+    // Health providers' calls: a query probe's next round, or its verdict, §5 of
+    // docs/04-runtimes.md.
+    "provider.health",
     // Identity providers' calls: a binding re-verified, and a presentation asserted, §5 of
     // docs/08-identity.md.
     "provider.identity",

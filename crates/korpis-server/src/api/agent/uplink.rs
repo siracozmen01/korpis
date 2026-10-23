@@ -139,6 +139,10 @@ impl Uplink {
                 super::step::answer(app, node, (**r).clone(), self.tx.clone());
                 Ok(())
             }
+            Some(Up::HealthQuery(r)) => {
+                super::health::answer(app, node, (**r).clone(), self.tx.clone());
+                Ok(())
+            }
             Some(Up::FeasibilityResult(r)) => {
                 self.sessions.feasibility_result(node, r);
                 Ok(())

@@ -2,6 +2,7 @@
 
 //! Recipe references, `korpis.v1.RecipeRef`, and trust policies, `korpis.v1.TrustPolicy`.
 
+use korpis_core::extension::ProviderType;
 use korpis_core::id::{Id, IdKind};
 use korpis_core::recipe::trust::{Signer, TrustPolicy, Vouched};
 use korpis_core::recipe::{ProviderPin, RecipeRef};
@@ -37,9 +38,10 @@ pub fn ref_to_pb(r: &RecipeRef) -> pb::RecipeRef {
             .providers
             .iter()
             .map(|p| pb::ProviderPin {
-                step: p.step.clone(),
+                step: p.name.clone(),
                 extension: crate::wire_id(IdKind::Extension, p.extension),
                 digest: p.digest.clone(),
+                r#type: crate::extension::provider_type_to_pb(p.kind).into(),
                 ..Default::default()
             })
             .collect(),
@@ -63,7 +65,21 @@ pub fn ref_from_pb(r: &pb::RecipeRef) -> RecipeRef {
             .iter()
             .filter_map(|p| {
                 let extension = Id::parse(IdKind::Extension, &p.extension).ok()?.uuid();
-                Some(ProviderPin { step: p.step.clone(), extension, digest: p.digest.clone() })
+                // A pin from before health providers names no type: it is a step's.
+                let kind = match p.r#type.as_known() {
+                    Some(pb::ProviderType::PROVIDER_TYPE_HEALTH) => ProviderType::Health,
+                    Some(
+                        pb::ProviderType::PROVIDER_TYPE_STEP
+                        | pb::ProviderType::PROVIDER_TYPE_UNSPECIFIED,
+                    ) => ProviderType::Step,
+                    _ => return None,
+                };
+                Some(ProviderPin {
+                    kind,
+                    name: p.step.clone(),
+                    extension,
+                    digest: p.digest.clone(),
+                })
             })
             .collect(),
     }

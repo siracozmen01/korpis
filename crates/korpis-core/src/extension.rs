@@ -10,6 +10,7 @@ mod breaker;
 mod call;
 mod condition;
 mod contract;
+pub mod health;
 pub mod identity;
 mod installation;
 mod registration;
@@ -30,6 +31,7 @@ pub use contract::{CAPABILITIES, CONTRACT_VERSIONS, Incompatible};
 pub use installation::Installation;
 pub use registration::{MAX_CONCURRENCY, MAX_VERSION, Registration};
 pub use step::{MAX_ARTIFACTS, Platform, StepArtifact, StepResult, check_arguments};
+pub use validate::qualified;
 #[cfg(feature = "authz")]
 pub(crate) use validate::slug;
 

@@ -79,6 +79,8 @@ pub enum CallRequest {
     /// `identity`, for a provider that signs people in: where to send a person (§9.7 of
     /// docs/08-identity.md).
     Authorize(super::identity::SignIn),
+    /// `health`: a query probe's next round, or its verdict (§5 of docs/04-runtimes.md).
+    HealthStep(super::health::HealthStep),
     /// `step`: resolve an install step (§4 of docs/09-recipes.md).
     RunStep {
         /// The step kind, `<publisher>/<step>`.
@@ -147,6 +149,8 @@ pub enum CallOutcome {
     Asserted(super::identity::Assertion),
     /// The answer to [`CallRequest::Authorize`].
     Authorization(super::identity::Authorization),
+    /// The answer to [`CallRequest::HealthStep`].
+    HealthNext(super::health::HealthNext),
     /// The provider, or the control plane on its behalf, failed the call.
     Failed(CallFailure),
 }
@@ -162,6 +166,7 @@ impl CallRequest {
             | (Self::Ping { .. }, CallOutcome::Pong { .. })
             | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. }) => true,
             (Self::RunStep { .. }, CallOutcome::StepResult(r)) => r.problem().is_none(),
+            (Self::HealthStep(step), CallOutcome::HealthNext(next)) => next.answers(step),
             (Self::GrantAccess { prefix, .. }, CallOutcome::Access(a)) => {
                 a.s3.key_prefix.ends_with(prefix.as_str()) && super::is_located(&a.s3)
             }

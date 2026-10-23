@@ -108,6 +108,8 @@ pub(crate) fn request_to(r: &CallRequest) -> Value {
             // Always some for these three.
             super::identity::request_to(r).unwrap_or(Value::Null)
         }
+        // Always some.
+        CallRequest::HealthStep(_) => super::health::request_to(r).unwrap_or(Value::Null),
         CallRequest::ApplyRecords { owner, records } => json!({
             "apply_records": {
                 "owner": owner,
@@ -130,6 +132,9 @@ pub(crate) fn request_from(v: &Value) -> StoreResult<CallRequest> {
         return Ok(r);
     }
     if let Some(r) = super::identity::request_from(v) {
+        return Ok(r);
+    }
+    if let Some(r) = super::health::request_from(v) {
         return Ok(r);
     }
     if let Some(r) = v.get("run_step") {
@@ -155,6 +160,7 @@ pub(crate) fn outcome_to(o: &CallOutcome) -> Value {
             super::backup::outcome_to(o).unwrap_or(Value::Null)
         }
         CallOutcome::KeyMaterial { .. } => super::keys::outcome_to(o).unwrap_or(Value::Null),
+        CallOutcome::HealthNext(_) => super::health::outcome_to(o).unwrap_or(Value::Null),
         CallOutcome::Members(_) | CallOutcome::Asserted(_) | CallOutcome::Authorization(_) => {
             // Always some for these three.
             super::identity::outcome_to(o).unwrap_or(Value::Null)
@@ -181,6 +187,9 @@ pub(crate) fn outcome_from(v: &Value) -> StoreResult<CallOutcome> {
         return Ok(o);
     }
     if let Some(o) = super::identity::outcome_from(v) {
+        return Ok(o);
+    }
+    if let Some(o) = super::health::outcome_from(v) {
         return Ok(o);
     }
     if let Some(r) = v.get("step_result") {

@@ -1398,6 +1398,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 150 | A guest restarted after its node's kernel was replaced booted the old kernel | §59 | `04-runtimes.md` §6; `18-operations.md` §2 |
 | 151 | No node ran a health probe, and four documents said one did | §60 | `04-runtimes.md` §5; `05-scheduling.md` §2.1; `07-networking.md` §6; `20-roadmap.md` §4; `22-first-party.md` §3 |
 | 152 | A dependent created by its plan did not wait for its dependencies | §60 | `07-networking.md` §5 |
+| 153 | A query protocol was named without its publisher, and nothing said which provider answered it or how one was pinned | §61 | `16-extensions.md` §4.1, §5; `09-recipes.md` §3; `22-first-party.md` §3 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -5127,3 +5128,57 @@ with a busybox server whose answers the test changes inside its namespaces. The 
 restarted on its volume, which counts two boots. `crates/korpis-helper/tests/probe.rs` shows a
 probe's socket reaching an endpoint whose rules turn the host away.
 `crates/korpis-e2e/tests/e2e/microvm.rs` judges a guest's liveness probe through its tap.
+
+---
+
+## 61. A host's query provider judges its customers' Minecraft servers
+
+Written 2026-10-23, as health providers were built (§5 of `16-extensions.md`). Trace 60 followed
+probes the node runs alone; this one follows a `query` probe, whose protocol only an extension
+knows, from the operator who installs the provider to a customer's server judged by it, asking at
+each step which component reaches the workload and on whose authority. A host installs a
+`korpis/minecraft` health provider in its root organization; a customer of a reseller below it
+declares a server whose recipe's liveness probe queries that protocol on the server's `query`
+endpoint.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The host installs the provider; its `provides` entry names the protocol `korpis/minecraft` ‡ | `16-extensions.md` §3.3, §4.1 |
+| 2 | The customer declares the server; the protocol resolves, walking up, to the host's installation, and the intent pins it with its digest | `16-extensions.md` §4.1; `09-recipes.md` §3 |
+| 3 | The server runs on its node, and the node starts its liveness probe's exchange from a socket inside the server's namespace | `04-runtimes.md` §5; `07-networking.md` §4.1 |
+| 4 | The node asks the control plane what to send first; the control plane checks the server is placed on that node and the probe is a query probe of the intent named | `16-extensions.md` §5 |
+| 5 | The control plane calls the pinned provider with no rounds; it answers with a status request to send | `16-extensions.md` §3.3, §5 |
+| 6 | The node sends it, reads the answer, and asks again with the round; the provider reads the server's status and answers healthy, with its players | `16-extensions.md` §5; `04-runtimes.md` §5 |
+| 7 | The host's provider is down: the node is answered unjudged, the server's health is unknown, and it is not restarted | `16-extensions.md` §5; `04-runtimes.md` §5 |
+
+**One finding, at step 1** (‡).
+
+**FINDING 153: A query protocol was named without its publisher, and nothing said which provider
+answered it or how one was pinned. `CONFIRMED`, by reading the documents**
+
+Found 2026-10-23 asking step 1's question as health providers were designed: what names the
+provider a probe's protocol reaches, and who decides which installation it is? §3 of
+`09-recipes.md` named the protocol `minecraft`, §3 of `22-first-party.md` `query.minecraft`, and
+§4.1 of `16-extensions.md`, which finding S26 had made name step kinds by publisher and pin them at
+declaration so that two publishers' names cannot collide and a workload never changes provider
+because someone registered one later, said nothing of health providers, although its own table
+lists them beside step providers. Two publishers' `minecraft` providers in one tree would have
+answered each other's servers, and a provider registered later would have taken over a running
+server's probe.
+
+**Resolution.** A query protocol is `<publisher>/<protocol>`, checked where a probe is declared and
+where an extension says what it provides; declaration resolves it as it resolves a step kind and
+pins the installation and its digest in the intent; a protocol nothing answers refuses the
+declaration; and only the pinned installation is called. → stated in §4.1 and §5 of
+`16-extensions.md`, §3 of `09-recipes.md` corrected in place, and §3 of `22-first-party.md`; built
+in `korpis-core`, `korpis-app`, and `korpis-wire`. What it costs: upgrading a health provider asks
+every workload that pinned it to be declared again before it is judged, as a step provider's
+upgrade does; until then its probe is unjudged, and its health `unknown`.
+
+Steps 1, 2, 4, 5, and 7 are built: `crates/korpis-server/tests/api/health_query.rs` installs a
+provider of a test protocol written with the SDK, declares a workload that pins it and one that is
+refused for naming a protocol nothing answers, and plays the node, asking for each round and the
+verdict, and being refused for another workload's intent, for the recipe's own `tcp` probe, and
+once the provider is uninstalled. Steps 3 and 6, the node's half, follow in Phase 3.
