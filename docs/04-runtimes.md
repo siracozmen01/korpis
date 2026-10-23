@@ -273,10 +273,24 @@ Wait(RuntimeID)          → ExitStatus
 Stats(RuntimeID)         → ResourceUsage, ObjectCounters
 
 Signal(RuntimeID, SignalName)
-Exec(RuntimeID, Command) → Stream                      // capability-gated
+Exec(RuntimeID, Command, timeout, limit) → Stream      // capability-gated
 AttachConsole(RuntimeID) → Stream                      // capability-gated
 Resize(RuntimeID, Resources)                           // capability-gated
 ```
+
+**`Exec` as built** (2026-10-23, for `exec` probes). It runs a command inside a running object, in
+its namespaces and its cgroup, as the object's own process runs: its user, environment, working
+directory, capabilities, and limits, with the command in place of the entry. The answer is a stream
+of what the command writes, stdout and stderr together, at most the limit the caller asks for and
+never more than 64 KiB, then how it ended: its status, 128 and the signal's number where a signal
+ended it, and whether it was killed for outliving its timeout, at most ten minutes, or had output
+dropped. What is written past the limit is read and dropped, so a command never blocks on a full
+pipe and the driver holds no more of it than the limit. The `oci` driver runs it through
+containerd's task exec, from a FIFO in its own state directory that it opens before the process
+starts. The command is not validated against the intent, which the driver does not see at that
+point: a supervisor that asks for another command could run it in any workload it runs, which is no
+more than it can already do with the objects it creates. The interface has no input to a command
+yet; an interactive `workload.exec` (§3.3 of `08-identity.md`) is not built.
 
 Three of these carry more weight than the rest.
 
@@ -564,17 +578,28 @@ calling it runs, not that the workload works, which is what the workload chose t
 workload whose beat is a thread of its own reports healthy while the rest of it is stuck, which is
 why a probe from outside is preferred wherever the workload has an endpoint to reach.
 
+An `exec` probe runs its command inside the workload through its driver's `Exec` (§4.2), which the
+agent asks on the probe's period, in a task of its own so that a slow command holds up nothing
+else, given the probe's timeout: an exit status of zero passes, any other fails, and so does a
+command killed for its timeout; a driver that could not run the command, its object gone or its
+driver unreachable, leaves the attempt unjudged, as a query's silent provider does, since the
+prober's failure is not the workload's. Built 2026-10-23; until then neither driver ran a command,
+so every node refused such a workload at placement. What it costs: the command runs in the
+workload's cgroup and counts against its limits, so a workload at its process limit cannot fork the
+probe's command and is judged failing, which is what such a workload is; and the node's log keeps
+the first 4 KiB of a failing command's output, which nothing else shows yet.
+
 What it does not do yet. A `guest_agent` probe needs the guest's channel to its agent, which is
 built later in Phase 3 (§4 of `20-roadmap.md`), and until then such a probe is unjudged: the
-workload's health is `unknown` and its readiness is its object running, as before. An `exec` probe
-needs a driver that runs a command inside its workload, which neither driver does yet, so every
-node whose driver does not declare `exec` refuses such a workload at placement (the `probe` check
-of §2.1 of `05-scheduling.md`), which until one does is every node; that is said rather than a
-probe nobody runs. Where a node gives its workloads no network, it runs no probe from a socket, and
-where it serves no identity sockets, no heartbeat. What it costs: one connection a period for each
-probe of each running workload, and a call to the helper for each socket; and a workload whose
-liveness probe fails a minute after each start is restarted every minute and never backs off
-further, as one that crashes a minute after each start is.
+workload's health is `unknown` and its readiness is its object running, as before. A node whose
+driver does not declare `exec` refuses a workload with an `exec` probe at placement (the `probe`
+check of §2.1 of `05-scheduling.md`), and the `firecracker` driver declares none until its guest's
+agent is reached over vsock; that is said rather than a probe nobody runs. Where a node gives its
+workloads no network, it runs no probe from a socket, and where it serves no identity sockets, no
+heartbeat. What it costs: one connection a period for each probe of each running workload, and a
+call to the helper for each socket; and a workload whose liveness probe fails a minute after each
+start is restarted every minute and never backs off further, as one that crashes a minute after
+each start is.
 
 ---
 
@@ -787,6 +812,8 @@ A published **conformance suite** defines what a driver must do:
   enforcement (Rule K-3, a limit that is not enforced is a lie in a text field, and this is where
   that is caught)
 - isolation: tier-appropriate escape attempts must fail
+- exec honesty: a driver declaring `exec` runs a command as its object's user, in its namespaces,
+  kills it at its timeout, and sends no more of its output than its limit
 
 A driver is conforming if it passes. That is the whole gate. This is how an ecosystem of drivers
 exists instead of a series of forks.

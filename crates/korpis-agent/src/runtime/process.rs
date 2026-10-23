@@ -7,7 +7,7 @@
 //! open for as long as the runtime lives, reopened when it ends, and each event wakes the
 //! reconciler for the object it names.
 
-use super::{Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
+use super::{Executed, Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
 use connectrpc::client::{CallOptions, ClientConfig, Http2Connection, SharedHttp2Connection};
 use connectrpc::{ConnectError, ErrorCode, Protocol};
 use korpis_proto::korpis::driver::v1 as driver;
@@ -197,6 +197,16 @@ impl Runtime for DriverRuntime {
 
     fn signal(&self, id: &str, signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
         self.signal_call(id, signal)
+    }
+
+    fn exec(
+        &self,
+        id: &str,
+        command: &[String],
+        timeout: Duration,
+        output_limit: u32,
+    ) -> impl Future<Output = RuntimeResult<Executed>> + Send {
+        self.exec_call(id, command, timeout, output_limit)
     }
 
     fn console_input(

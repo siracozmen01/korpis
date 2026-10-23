@@ -2,7 +2,9 @@
 
 //! The driver against the machine's containerd, when there is one and the test runs as root:
 //! busybox, fetched into a content store by the agent's own fetcher, imported, unpacked, and run
-//! as a hardened container in the `korpis` namespace, then stopped, started again, and destroyed.
+//! as a hardened container in the `korpis` namespace, then stopped, started again, and destroyed;
+//! and, while it runs, commands run inside it as an `exec` probe's are (§4.2 of
+//! docs/04-runtimes.md): their status and output, a timeout, and output past its limit.
 
 #![allow(
     clippy::unwrap_used,
@@ -14,6 +16,8 @@
 use korpis_agent::content::ContentStore;
 use korpis_core::workload::assignment::IdRange;
 use korpis_driver_oci::containerd::Containerd;
+use korpis_driver_oci::containerd::exec::{Command, Ran};
+use korpis_driver_oci::containerd::stream::Streams;
 use korpis_driver_oci::validate::{Policy, validate};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
@@ -79,6 +83,44 @@ async fn until_state(c: &Containerd, id: &str, state: driver::RuntimeState) {
     panic!("{id} never reached {state:?}");
 }
 
+/// What `argv` run in `id` wrote, and how it ended: its status, whether it timed out, and whether
+/// output was dropped.
+async fn ran(c: &Containerd, id: &str, argv: &[&str], timeout: u64, limit: u32) -> (Vec<u8>, Ran) {
+    let argv = argv.iter().map(|a| (*a).to_owned()).collect();
+    let command = Command::checked(argv, Duration::from_secs(timeout), limit).unwrap();
+    let (tx, mut rx) = tokio::sync::mpsc::channel(16);
+    let running = tokio::spawn({
+        let (c, id) = (c.clone(), id.to_owned());
+        async move { c.exec(&id, command, tx).await }
+    });
+    let mut output = Vec::new();
+    while let Some(r) = rx.recv().await {
+        match r {
+            Ran::Output(data) => output.extend(data),
+            exit @ Ran::Exit { .. } => {
+                running.await.unwrap().unwrap();
+                return (output, exit);
+            }
+        }
+    }
+    panic!("no exit: {:?}", running.await);
+}
+
+/// Commands run inside the running container `id`.
+async fn commands_run_inside(c: &Containerd, id: &str) {
+    let exit = |status, timed_out, truncated| Ran::Exit { status, timed_out, truncated };
+    let (out, end) = ran(c, id, &["id", "-u"], 10, 1024).await;
+    assert_eq!((out.as_slice(), end), (&b"0\n"[..], exit(0, false, false)), "as its own user");
+    let (out, end) = ran(c, id, &["sh", "-c", "echo out; echo err >&2; exit 3"], 10, 1024).await;
+    assert_eq!(end, exit(3, false, false));
+    let out = String::from_utf8(out).unwrap();
+    assert!(out.contains("out") && out.contains("err"), "stdout and stderr together: {out}");
+    let (_, end) = ran(c, id, &["sleep", "30"], 1, 1024).await;
+    assert_eq!(end, exit(137, true, false), "killed for its timeout");
+    let (out, end) = ran(c, id, &["sh", "-c", "yes | head -c 100000"], 10, 1000).await;
+    assert_eq!((out.len(), end), (1000, exit(0, false, true)), "read past its limit, and dropped");
+}
+
 /// What the driver may mount and join, all under `volumes`.
 fn policy(volumes: &Path) -> Policy {
     Policy {
@@ -101,7 +143,8 @@ async fn a_hardened_container_runs_stops_starts_and_is_destroyed() {
     let volumes = dir.path().join("volumes");
     std::fs::create_dir_all(volumes.join("data")).unwrap();
     let nonce = uuid::Uuid::now_v7().simple().to_string();
-    let c = Containerd::connect(Path::new(SOCKET), &content).await.unwrap();
+    let streams = Streams { writer: "/nonexistent".into(), state: dir.path().join("state") };
+    let c = Containerd::connect(Path::new(SOCKET), &content).await.unwrap().with_streams(streams);
     let valid = validate(spec(&volumes, &nonce), &policy(&volumes)).unwrap();
     let id = c.create(&valid, &policy(&volumes)).await.unwrap();
     assert_eq!(
@@ -133,12 +176,16 @@ async fn a_hardened_container_runs_stops_starts_and_is_destroyed() {
     assert_eq!(std::fs::metadata(&up).unwrap().uid(), 0, "workload-relative ids on disk");
     let found = c.recover().await.unwrap().into_iter().find(|o| o.runtime_id == id).unwrap();
     assert_eq!(found.labels.as_option().unwrap().assignment_generation, 3, "labelled for adoption");
+    commands_run_inside(&c, &id).await;
     c.usage(&id).unwrap();
     tokio::time::sleep(Duration::from_millis(200)).await;
     assert!(c.usage(&id).unwrap().memory_bytes > 0);
 
     c.stop(&id, 15, Duration::from_secs(5)).await.unwrap();
     until_state(&c, &id, driver::RuntimeState::RUNTIME_STATE_STOPPED).await;
+    let (tx, _rx) = tokio::sync::mpsc::channel(1);
+    let command = Command::checked(vec!["true".into()], Duration::from_secs(1), 0).unwrap();
+    assert!(c.exec(&id, command, tx).await.is_err(), "nothing is run in a stopped container");
     c.start(&id).await.unwrap();
     until_state(&c, &id, driver::RuntimeState::RUNTIME_STATE_RUNNING).await;
     c.destroy(&id).await.unwrap();

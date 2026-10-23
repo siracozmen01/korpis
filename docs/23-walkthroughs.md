@@ -5239,3 +5239,39 @@ again; `crates/korpis-e2e/tests/e2e/heartbeat.rs` runs `korpis heartbeat --every
 container on a real node, stops its process from the host, and sees the same; and
 `crates/korpis-core` refuses a heartbeat probe at placement on a driver without the directory.
 Step 6 follows from step 4, since nothing in a beat reaches the control plane.
+
+## 63. A database judged by its own client, inside its container
+
+Written 2026-10-23, as exec probes were built (§5 of `04-runtimes.md`). Traces 60 to 62 followed
+probes the node makes from outside the workload or hears from it; this one follows the probe that
+runs inside it, asking at each step who runs the command, as whom, for how long, and what it may
+cost the workload. A customer runs PostgreSQL, whose recipe's liveness probe runs `pg_isready`
+inside the container; one night the server stops accepting connections with its port still open.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The database is declared; placement keeps it to a node whose driver declares `exec` | `05-scheduling.md` §2.1; `04-runtimes.md` §4.1 |
+| 2 | Its object runs; on each period the agent asks the driver's `Exec` to run `pg_isready`, given the probe's timeout, in a task of its own | `04-runtimes.md` §4.2, §5 |
+| 3 | The `oci` driver runs it through containerd's task exec: the container's process with the command in place of the entry, as its user, in its namespaces and its cgroup | `04-runtimes.md` §4.2 |
+| 4 | The command's output is read as it is written, at most the limit, and its status comes back; zero passes | `04-runtimes.md` §4.2, §5 |
+| 5 | The server stops accepting: `pg_isready` exits non-zero for its failures in a row, and the database is unhealthy and restarted, recorded with the probe's kind | `04-runtimes.md` §5 |
+| 6 | Another night the command hangs: the driver kills it at its timeout, and the attempt fails | `04-runtimes.md` §4.2, §5 |
+| 7 | The node's driver is restarting as an attempt is made: the agent cannot reach it, the attempt judges nothing, and the database is not restarted for it | `04-runtimes.md` §5 |
+| 8 | The customer asks for the database on the `microvm` tier, and placement refuses it, the `firecracker` driver declaring no `exec` | `05-scheduling.md` §2.1; `04-runtimes.md` §5 |
+
+**No finding.** Each step's question had an answer with an owner: the driver runs the command
+because only it reaches the object's namespaces, and the agent judges the status because it holds
+the probe and its verdicts. The one cost the trace surfaced, that the command counts against the
+workload's own limits so a workload at its process limit is judged failing, is stated in §5 of
+`04-runtimes.md` rather than worked around: such a workload cannot fork, and that is what its
+probe reports.
+
+Steps 1 to 6 and 8 are built: `crates/korpis-driver-oci/tests/live.rs` runs commands in a
+container in containerd, as its user, and sees a status and both streams, a timeout's kill, and
+output past its limit dropped; `crates/korpis-agent/tests/agent/exec_probe.rs` judges the
+in-memory runtime's commands and restarts on failure; `crates/korpis-e2e/tests/e2e/exec_probe.rs`
+runs a probe's command through the driver process on a real node and restarts the container when
+it fails; and `crates/korpis-core` refuses an `exec` probe at placement on a driver without
+`exec`. Step 7 follows from the agent's handling of a driver error, which judges nothing.

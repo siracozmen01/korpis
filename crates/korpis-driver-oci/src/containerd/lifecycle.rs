@@ -28,7 +28,7 @@ const LABEL_CYCLE: &str = "korpis.power_cycle";
 const LABEL_EPOCH: &str = "korpis.lease_epoch";
 pub(crate) const LABEL_RUN: &str = "korpis.run";
 /// How long a killed task is given to be reaped.
-const KILL_WAIT: Duration = Duration::from_secs(10);
+pub(crate) const KILL_WAIT: Duration = Duration::from_secs(10);
 
 /// The container identifier of `workload` built from `intent`, for `run` when it executes one:
 /// one per intent and run, so a create is idempotent, a rebuild never collides with the object

@@ -49,6 +49,11 @@ service DriverService {
   rpc ConsoleInput(ConsoleInputRequest) returns (ConsoleInputResponse);
   // The terminal of an interactive console was resized; recorded as a control record.
   rpc ResizeConsole(ResizeConsoleRequest) returns (ResizeConsoleResponse);
+  // Runs a command inside a running object, in its namespaces and its cgroup, as its own user
+  // (§4.2 of docs/04-runtimes.md): what an `exec` probe runs. Capability-gated: a driver that
+  // declares `exec`. Its output is sent as it is written, at most `output_limit` bytes of it, and
+  // the last message is how the command ended.
+  rpc Exec(ExecRequest) returns (stream ExecResponse);
 }
 
 message DescribeRequest {}
@@ -300,3 +305,33 @@ message ResizeConsoleRequest {
 }
 
 message ResizeConsoleResponse {}
+
+message ExecRequest {
+  string runtime_id = 1;
+  // The command and its arguments; the first is resolved as the object's own process would
+  // resolve it.
+  repeated string command = 2;
+  // How long it may run before it is killed, which its exit then says; at most ten minutes.
+  google.protobuf.Duration timeout = 3;
+  // The most of its output sent, stdout and stderr together; what it writes beyond is read
+  // and dropped, so it never blocks on a full pipe. At most 64 KiB.
+  uint32 output_limit = 4;
+}
+
+message ExecResponse {
+  oneof event {
+    // What it wrote, stdout and stderr interleaved as written.
+    bytes output = 1;
+    // How it ended; the last message.
+    ExecExit exit = 2;
+  }
+}
+
+message ExecExit {
+  // Its exit status, as a shell reports it: 128 and the signal's number for one a signal ended.
+  uint32 status = 1;
+  // Killed for outliving its timeout.
+  bool timed_out = 2;
+  // Output beyond `output_limit` was dropped.
+  bool truncated = 3;
+}

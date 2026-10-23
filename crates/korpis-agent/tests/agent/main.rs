@@ -17,6 +17,7 @@ mod console_read;
 mod console_write;
 mod content;
 mod data;
+mod exec_probe;
 mod files;
 mod halting;
 mod health;

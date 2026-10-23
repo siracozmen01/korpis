@@ -154,7 +154,8 @@ pub struct Wiring {
 /// The reconciler.
 #[derive(Debug)]
 pub struct Reconciler<R, H> {
-    runtime: R,
+    /// Shared with the tasks that run exec probes' commands.
+    runtime: Arc<R>,
     host: H,
     wiring: Wiring,
     progress: Progress,
@@ -214,6 +215,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     pub fn new(runtime: R, host: H, wiring: Wiring, progress: Progress, streams: Streams) -> Self {
         let (tracked, orphans) = (BTreeMap::new(), BTreeSet::new());
         let outcomes = health::Outcomes::default();
+        let runtime = Arc::new(runtime);
         Self { runtime, host, wiring, progress, streams, tracked, orphans, reaped: None, outcomes }
     }
 

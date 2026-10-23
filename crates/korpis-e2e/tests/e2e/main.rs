@@ -15,6 +15,7 @@
 mod backups;
 mod console;
 mod dependencies;
+mod exec_probe;
 mod extension;
 mod files;
 mod fs_target;

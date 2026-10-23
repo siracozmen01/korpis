@@ -8,7 +8,7 @@
 //! its book by them (§2 of docs/15-observability.md), so an object keeps its identifier however
 //! many drivers its node runs. An identifier the table lacks is asked of each driver in turn.
 
-use super::{Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
+use super::{Executed, Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::collections::HashMap;
@@ -199,6 +199,16 @@ impl<R: Runtime> Drivers<R> {
         self.owner(id).await?.signal(id, signal).await
     }
 
+    async fn exec_on(
+        &self,
+        id: &str,
+        command: &[String],
+        timeout: Duration,
+        output_limit: u32,
+    ) -> RuntimeResult<Executed> {
+        self.owner(id).await?.exec(id, command, timeout, output_limit).await
+    }
+
     async fn input_on(&self, id: &str, from: Sender<'_>, data: &[u8]) -> RuntimeResult<()> {
         self.owner(id).await?.console_input(id, from, data).await
     }
@@ -272,6 +282,16 @@ impl<R: Runtime> Runtime for Drivers<R> {
 
     fn signal(&self, id: &str, signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
         self.signal_on(id, signal)
+    }
+
+    fn exec(
+        &self,
+        id: &str,
+        command: &[String],
+        timeout: Duration,
+        output_limit: u32,
+    ) -> impl Future<Output = RuntimeResult<Executed>> + Send {
+        self.exec_on(id, command, timeout, output_limit)
     }
 
     fn console_input(

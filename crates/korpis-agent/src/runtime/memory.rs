@@ -6,7 +6,7 @@
 //! machine without a driver. Every call is logged, so a test can say what was done, and any
 //! verb can be made to fail.
 
-use super::{Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
+use super::{Executed, Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::collections::{BTreeMap, BTreeSet};
@@ -42,6 +42,8 @@ struct State {
     deaf: bool,
     /// Whether what a stop hook writes is ignored, rather than heeded by exiting.
     unheeding: bool,
+    /// The status a command run inside an object ends with.
+    exec_status: u32,
 }
 
 /// The in-memory runtime; clones share it.
@@ -313,6 +315,25 @@ impl Runtime for InMemory {
 
     fn signal(&self, id: &str, signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
         ready(self.signal_now(id, signal))
+    }
+
+    /// Records the command, and ends it as [`InMemory::exec_status`] says, writing nothing; a
+    /// command is run only in an object that runs.
+    fn exec(
+        &self,
+        id: &str,
+        _command: &[String],
+        _timeout: Duration,
+        _output_limit: u32,
+    ) -> impl Future<Output = RuntimeResult<Executed>> + Send {
+        let ran = self.call("exec", id).and_then(|s| {
+            let o = s.objects.get(id).ok_or_else(|| RuntimeError::NotFound(id.into()))?;
+            if o.status.state.as_known() != Some(driver::RuntimeState::RUNTIME_STATE_RUNNING) {
+                return Err(RuntimeError::Failed(format!("{id} does not run")));
+            }
+            Ok(Executed { status: s.exec_status, ..Executed::default() })
+        });
+        ready(ran)
     }
 
     fn console_input(

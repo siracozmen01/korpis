@@ -4,6 +4,7 @@
 //! of §4.2 of docs/04-runtimes.md mapped onto [`Containerd`], every spec validated again at
 //! `Create` whatever `Prepare` said, and every failure given the code the agent branches on.
 
+use crate::containerd::exec::{Command, Ran};
 use crate::containerd::{Containerd, Sender, signal_number};
 use crate::describe::info;
 use crate::error::DriverError;
@@ -15,7 +16,7 @@ use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::future::{Future, ready};
 use std::time::Duration;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 
 /// The grace a stop gets when the request names none.
 pub const DEFAULT_GRACE: Duration = Duration::from_secs(10);
@@ -67,6 +68,45 @@ fn grace_of(d: Option<&buffa_types::google::protobuf::Duration>) -> Duration {
     d.map_or(DEFAULT_GRACE, |d| {
         let secs = u64::try_from(d.seconds).unwrap_or(0);
         Duration::from_secs(secs) + Duration::from_nanos(u64::try_from(d.nanos).unwrap_or(0))
+    })
+}
+
+/// A duration of the protocol's; zero where absent.
+fn duration_of(d: Option<(i64, i32)>) -> Duration {
+    d.map_or(Duration::ZERO, |(seconds, nanos)| {
+        let secs = u64::try_from(seconds).unwrap_or(0);
+        Duration::from_secs(secs) + Duration::from_nanos(u64::try_from(nanos).unwrap_or(0))
+    })
+}
+
+/// One event of a command's run, as the protocol sends it.
+fn exec_response(ran: Ran) -> driver::ExecResponse {
+    use driver::__buffa::oneof::exec_response::Event;
+    let event = match ran {
+        Ran::Output(data) => Event::Output(data),
+        Ran::Exit { status, timed_out, truncated } => {
+            let exit = driver::ExecExit { status, timed_out, truncated, ..Default::default() };
+            Event::Exit(Box::new(exit))
+        }
+    };
+    driver::ExecResponse { event: Some(event), ..Default::default() }
+}
+
+/// What a command's run sends while it runs, then how it ended; or, if it could not be run, why.
+fn exec_stream(
+    ran: mpsc::Receiver<Ran>,
+    running: tokio::task::JoinHandle<Result<(), DriverError>>,
+) -> impl futures_util::Stream<Item = Result<driver::ExecResponse, ConnectError>> + Send + 'static {
+    futures_util::stream::unfold(Some((ran, running)), |state| async move {
+        let (mut ran, running) = state?;
+        if let Some(r) = ran.recv().await {
+            return Some((Ok(exec_response(r)), Some((ran, running))));
+        }
+        match running.await {
+            Ok(Ok(())) => None,
+            Ok(Err(e)) => Some((Err(status(e)), None)),
+            Err(e) => Some((Err(ConnectError::new(ErrorCode::Internal, e.to_string())), None)),
+        }
     })
 }
 
@@ -236,6 +276,22 @@ impl driver::DriverService for Driver {
         let size = (size(request.cols)?, size(request.rows)?);
         self.containerd.resize_console(request.runtime_id, from, size).await.map_err(status)?;
         Response::ok(driver::ResizeConsoleResponse::default())
+    }
+
+    fn exec(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, driver::ExecRequest>,
+    ) -> impl Future<Output = ServiceResult<ServiceStream<driver::ExecResponse>>> + Send {
+        let argv = request.command.iter().map(|a| (*a).to_owned()).collect();
+        let timeout = duration_of(request.timeout.as_option().map(|d| (d.seconds, d.nanos)));
+        let checked = Command::checked(argv, timeout, request.output_limit);
+        let (id, containerd) = (request.runtime_id.to_owned(), self.containerd.clone());
+        ready(checked.map_err(status).and_then(|c| {
+            let (tx, rx) = mpsc::channel(16);
+            let running = tokio::spawn(async move { containerd.exec(&id, c, tx).await });
+            Response::stream_ok(exec_stream(rx, running))
+        }))
     }
 
     async fn signal(

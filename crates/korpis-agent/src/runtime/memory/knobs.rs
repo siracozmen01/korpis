@@ -101,6 +101,14 @@ impl InMemory {
         }
     }
 
+    /// Makes every later command run inside an object end with `status`, as a probe's command
+    /// that fails would; zero, the default, is success.
+    pub fn exec_status(&self, status: u32) {
+        if let Ok(mut s) = self.lock() {
+            s.exec_status = status;
+        }
+    }
+
     /// Makes every later `prepare` reject with `rejection`, or accept again.
     pub fn reject(&self, rejection: Option<driver::Rejection>) {
         if let Ok(mut s) = self.lock() {

@@ -7,6 +7,7 @@
 mod console;
 
 mod events;
+pub mod exec;
 mod import;
 mod inspect;
 mod lifecycle;

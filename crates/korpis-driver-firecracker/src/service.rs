@@ -220,4 +220,15 @@ impl driver::DriverService for Driver {
         self.machine.signal(request.runtime_id, request.signal).await.map_err(status)?;
         Response::ok(driver::SignalResponse::default())
     }
+
+    /// Refused: nothing runs a command in a guest until its agent is reached over vsock, and the
+    /// driver declares no `exec` meanwhile (§5 of docs/04-runtimes.md).
+    fn exec(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, driver::ExecRequest>,
+    ) -> impl Future<Output = ServiceResult<ServiceStream<driver::ExecResponse>>> + Send {
+        let why = "this driver runs no command inside a guest; it declares no exec";
+        ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, why)))
+    }
 }

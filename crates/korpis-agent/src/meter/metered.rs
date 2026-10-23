@@ -5,7 +5,7 @@
 //! counters are readable until then and never after. Everything else passes through.
 
 use super::Meter;
-use crate::runtime::{Prepared, Runtime, RuntimeResult, Sender};
+use crate::runtime::{Executed, Prepared, Runtime, RuntimeResult, Sender};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::future::Future;
@@ -102,6 +102,16 @@ impl<R: Runtime> Runtime for Metered<R> {
 
     fn signal(&self, id: &str, signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
         self.inner.signal(id, signal)
+    }
+
+    fn exec(
+        &self,
+        id: &str,
+        command: &[String],
+        timeout: Duration,
+        output_limit: u32,
+    ) -> impl Future<Output = RuntimeResult<Executed>> + Send {
+        self.inner.exec(id, command, timeout, output_limit)
     }
 
     fn console_input(

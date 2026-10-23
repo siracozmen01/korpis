@@ -9,8 +9,9 @@
 //! Liveness is read with `inspect`, polled by the reconciler, which is the level-triggered
 //! reading anyway (§4.1 of docs/02-architecture.md); `changes`, the protocol's `Events`, only
 //! makes it look sooner, so a crash is seen when it happens. Of the capability-gated verbs,
-//! console input and resizing are here (§6 of docs/14-streams.md); exec and resource resizing
-//! arrive with the rest of Phase 1 (§4 of docs/20-roadmap.md).
+//! console input and resizing are here (§6 of docs/14-streams.md), and exec, which an `exec`
+//! probe runs (§5 of docs/04-runtimes.md); resource resizing is not yet (§4 of
+//! docs/20-roadmap.md).
 
 pub mod drivers;
 pub mod memory;
@@ -47,6 +48,17 @@ pub enum RuntimeError {
 
 /// A result from a driver.
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
+
+/// How a command run inside a runtime object ended (§4.2 of docs/04-runtimes.md).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Executed {
+    /// Its exit status; 128 and the signal's number for one a signal ended.
+    pub status: u32,
+    /// Killed for outliving its timeout.
+    pub timed_out: bool,
+    /// What it wrote, stdout and stderr together, at most the limit asked for.
+    pub output: Vec<u8>,
+}
 
 /// Who sent a console input, and on which data-path session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -133,6 +145,17 @@ pub trait Runtime: Send + Sync + 'static {
         from: Sender<'_>,
         size: (u16, u16),
     ) -> impl Future<Output = RuntimeResult<()>> + Send;
+
+    /// Runs `command` inside it, in its namespaces as its own user, for at most `timeout`,
+    /// keeping at most `output_limit` bytes of what it writes. Capability-gated: a driver that
+    /// declares `exec`.
+    fn exec(
+        &self,
+        id: &str,
+        command: &[String],
+        timeout: Duration,
+        output_limit: u32,
+    ) -> impl Future<Output = RuntimeResult<Executed>> + Send;
 
     /// The runtime objects whose status changes, by identifier, as the driver reports them: a
     /// reason to look sooner, never a reading, which `inspect` is.

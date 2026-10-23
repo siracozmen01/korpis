@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The verbs that are one request and one answer.
+//! The verbs that are one request and one answer, and `Exec`, whose answer is streamed and read
+//! to its end.
 
 use super::{CREATE, DriverRuntime, QUICK, error, within};
-use crate::runtime::{RuntimeError, RuntimeResult, Sender};
+use crate::runtime::{Executed, RuntimeError, RuntimeResult, Sender};
 use korpis_proto::korpis::driver::v1 as driver;
+use korpis_proto::korpis::driver::v1::__buffa::oneof::exec_response::Event;
 use korpis_proto::korpis::v1 as pb;
+use std::time::Duration;
 
 impl DriverRuntime {
     pub(super) async fn describe_call(&self) -> RuntimeResult<pb::DriverInfo> {
@@ -92,6 +95,43 @@ impl DriverRuntime {
         };
         self.client.resize_console_with_options(request, within(QUICK)).await.map_err(error)?;
         Ok(())
+    }
+
+    /// Runs `command` in `id` and reads what it wrote, up to `output_limit`, and how it ended;
+    /// the call is given the command's timeout and the quick deadline beyond it.
+    pub(super) async fn exec_call(
+        &self,
+        id: &str,
+        command: &[String],
+        timeout: Duration,
+        output_limit: u32,
+    ) -> RuntimeResult<Executed> {
+        let request = driver::ExecRequest {
+            runtime_id: id.to_owned(),
+            command: command.to_vec(),
+            timeout: korpis_wire::duration(timeout).into(),
+            output_limit,
+            ..Default::default()
+        };
+        let options = within(timeout + QUICK);
+        let mut stream = self.client.exec_with_options(request, options).await.map_err(error)?;
+        let mut executed = Executed::default();
+        let limit = usize::try_from(output_limit).unwrap_or(0);
+        while let Some(m) = stream.message::<driver::ExecResponse>().await.map_err(error)? {
+            match m.to_owned_message().event {
+                Some(Event::Output(data)) => {
+                    let room = limit.saturating_sub(executed.output.len());
+                    executed.output.extend(data.into_iter().take(room));
+                }
+                Some(Event::Exit(exit)) => {
+                    executed.status = exit.status;
+                    executed.timed_out = exit.timed_out;
+                    return Ok(executed);
+                }
+                None => {}
+            }
+        }
+        Err(RuntimeError::Failed("the driver ended a command's stream without its exit".into()))
     }
 
     pub(super) async fn signal_call(&self, id: &str, signal: &str) -> RuntimeResult<()> {
