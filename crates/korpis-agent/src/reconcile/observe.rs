@@ -11,10 +11,12 @@ use super::{Reconciler, Tracked};
 use crate::host::Host;
 use crate::runtime::Runtime;
 use buffa_types::google::protobuf::Timestamp;
+use korpis_core::workload::observation::Health;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
+use korpis_wire::observation::health_to_pb;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn timestamp(t: SystemTime) -> Timestamp {
@@ -66,25 +68,27 @@ fn state(a: &agent::Assignment, t: &Tracked) -> pb::ObservedState {
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Each endpoint of `a` that is reachable at all, at the address the node gave the workload
-    /// and the port it listens on, ready while the workload runs (§4.1 of
-    /// docs/07-networking.md); none where the node gives its workloads no network.
+    /// and the port it listens on, ready while the workload runs and its readiness probe passes
+    /// (§4.1 of docs/07-networking.md, §5 of docs/04-runtimes.md); none where the node gives its
+    /// workloads no network.
     fn endpoints(
         &self,
         a: &agent::Assignment,
         state: pb::ObservedState,
+        t: &Tracked,
     ) -> Vec<pb::EndpointStatus> {
         let Some(held) = self.wiring.network.as_ref().and_then(|n| n.addresses.of(&a.workload))
         else {
             return Vec::new();
         };
-        let running = state == pb::ObservedState::OBSERVED_STATE_RUNNING;
+        let ready = state == pb::ObservedState::OBSERVED_STATE_RUNNING && t.probing.ready();
         a.endpoints
             .iter()
             .filter(|e| e.exposure.as_known() != Some(pb::Exposure::EXPOSURE_NONE))
             .map(|e| pb::EndpointStatus {
                 name: e.name.clone(),
                 address: format!("{}:{}", held.ipv4, e.container_port),
-                ready: running,
+                ready,
                 ..Default::default()
             })
             .collect()
@@ -109,7 +113,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             ..Default::default()
         });
         let rejected = t.rejected.as_ref();
-        let endpoints = self.endpoints(a, state);
+        let endpoints = self.endpoints(a, state, t);
+        let health = if state == pb::ObservedState::OBSERVED_STATE_RUNNING {
+            t.probing.health()
+        } else {
+            Health::Unknown
+        };
         pb::Observation {
             endpoints,
             workload: a.workload.clone(),
@@ -126,6 +135,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             state: state.into(),
             reason: rejected.map(|r| r.reason).unwrap_or_default(),
             reason_detail: rejected.map_or_else(|| waiting(t), |r| r.detail.clone()),
+            health: health_to_pb(health).into(),
             exit_code: t.status.as_ref().filter(|s| !running(s)).and_then(|s| s.exit_code),
             runtime_id: t.runtime.clone().unwrap_or_default(),
             ..Default::default()

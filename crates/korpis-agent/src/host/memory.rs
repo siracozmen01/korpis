@@ -249,6 +249,17 @@ impl Host for InMemoryHost {
         ready(Err(HostError("the in-memory host makes no networks".into())))
     }
 
+    /// A socket of the agent's own namespace, the in-memory host having no other.
+    fn open_probe(
+        &self,
+        _workload: &str,
+    ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send {
+        let (inet, stream) = (rustix::net::AddressFamily::INET, rustix::net::SocketType::STREAM);
+        let opened =
+            rustix::net::socket_with(inet, stream, rustix::net::SocketFlags::CLOEXEC, None);
+        ready(opened.map_err(|e| HostError(e.to_string())))
+    }
+
     /// Listeners on loopback in place of each address's ports 80 and 443, so a test reaches
     /// what the agent serves on them.
     fn open_ingress(

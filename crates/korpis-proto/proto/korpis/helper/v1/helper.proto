@@ -93,6 +93,7 @@ message HelperRequest {
     OpenFilesRequest open_files = 22;
     EnsureUplinksRequest ensure_uplinks = 23;
     ReadCountersRequest read_counters = 24;
+    OpenProbeRequest open_probe = 25;
   }
 }
 
@@ -124,6 +125,7 @@ message HelperResponse {
     OpenFilesResponse open_files = 23;
     EnsureUplinksResponse ensure_uplinks = 24;
     ReadCountersResponse read_counters = 25;
+    OpenProbeResponse open_probe = 26;
   }
 }
 
@@ -279,6 +281,21 @@ message OpenResolverRequest {
 // The sockets are attached to this answer's frame as SCM_RIGHTS: UDP first, then TCP, which
 // is listening. Each belongs to the workload's namespace, wherever its holder runs.
 message OpenResolverResponse {
+  uint32 attached = 1;
+}
+
+// Opens a socket inside a workload's network namespace for the supervisor's health probes (§5
+// of docs/04-runtimes.md): an IPv4 stream socket, neither bound nor connected, which the
+// supervisor connects to the workload's address. A connection made from it starts inside the
+// namespace, so it reaches the workload as the workload's own loopback or its guest's link
+// does, past the rules its endpoints set for connections from elsewhere, and it reaches
+// nothing the workload itself could not.
+message OpenProbeRequest {
+  string workload = 1;
+}
+
+// The socket is attached to this answer's frame as SCM_RIGHTS.
+message OpenProbeResponse {
   uint32 attached = 1;
 }
 

@@ -20,7 +20,7 @@ fn address_of(node: &Node, w: &str) -> Option<String> {
 }
 
 /// The process id of `w`'s running task, once it runs.
-async fn running(w: &str) -> u32 {
+pub async fn running(w: &str) -> u32 {
     for _ in 0..900 {
         let ctr = |args: &[&str]| Command::new("ctr").args(["-n", "korpis"]).args(args).output();
         let filter = format!("labels.\"korpis.workload\"=={w}");

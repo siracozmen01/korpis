@@ -6,6 +6,10 @@
 //! Korpis's first process from the boot drive, its image from a drive built of the image's layers,
 //! and what to run from its config drive (§6 there). It is Rule D's second driver: the most
 //! different from the `oci` one, sharing with it only what `korpis_driver_kit` holds.
+//!
+//! The crate has one unsafe block, registering a process's descriptor it owns with tokio's
+//! reactor in [`process`], which tokio offers only as an unsafe constructor; it carries the
+//! `SAFETY` argument a reviewer checks.
 
 #![warn(missing_docs)]
 

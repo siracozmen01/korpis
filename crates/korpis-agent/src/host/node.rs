@@ -168,6 +168,13 @@ impl Host for NodeHost {
         self.helper.open_resolver(workload)
     }
 
+    fn open_probe(
+        &self,
+        workload: &str,
+    ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send {
+        self.helper.open_probe(workload)
+    }
+
     fn open_ingress(
         &self,
         addresses: &[String],

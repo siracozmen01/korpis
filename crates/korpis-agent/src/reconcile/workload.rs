@@ -24,6 +24,13 @@ const MOST: Duration = Duration::from_secs(300);
 /// How long a workload must stay up for its past crashes to be forgiven.
 const FORGIVEN: Duration = Duration::from_secs(60);
 
+/// Counts one more restart of `t` and holds the next back, twice as long after each.
+pub(super) fn back_off(t: &mut Tracked) {
+    t.restarts = t.restarts.saturating_add(1);
+    let wait = FIRST.saturating_mul(2u32.saturating_pow(t.restarts.saturating_sub(1))).min(MOST);
+    t.next_restart = Some(Instant::now() + wait);
+}
+
 /// Whether the approved power state is running.
 pub(super) fn wants_running(a: &agent::Assignment) -> bool {
     a.power.as_option().map(|p| p.desired.as_known())
@@ -51,8 +58,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.runs(a, &mut t, false).await
             }
             Standing::Expired { on_expiry: OnExpiry::KeepRunning, .. } => {
-                self.revive(a, &mut t).await;
-                Ok(())
+                if let Some(restarted) = self.unhealthy(a, &mut t).await {
+                    restarted
+                } else {
+                    self.revive(a, &mut t).await;
+                    Ok(())
+                }
             }
             Standing::Pending | Standing::Refused(_) => Ok(()),
         };
@@ -62,6 +73,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if matches!(standing, Standing::Held { .. }) {
             t.generation = a.generation;
         }
+        self.aim(a, &mut t);
         self.observe(a, &mut t).await;
         self.tracked.insert(a.workload.clone(), t);
     }
@@ -137,17 +149,25 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             // Its own object is never started: each run is (§4.2 of docs/05-scheduling.md).
             return self.runs(a, t, true).await;
         }
+        if !wants_running(a) || t.runtime.is_none() {
+            // A restart for its health is overtaken by a stop, or by its object being gone.
+            t.recovering = None;
+        }
         if !wants_running(a) {
             return self.stop(t).await.map(drop);
         }
         if t.runtime.is_none() {
-            // A required dependency not yet running here holds its dependent back (§5 of
-            // docs/07-networking.md); it is created once the dependency runs.
-            t.waiting = self.waiting_for(a);
-            if t.waiting.is_none() {
+            // A required dependency not yet running here and ready holds its dependent back (§5
+            // of docs/07-networking.md); it is created once the dependency is.
+            if !self.held_back(a, t) {
                 self.start(a, t).await?;
             }
             return Ok(());
+        }
+        // A liveness probe that fails restarts it (§5 of docs/04-runtimes.md), before anything
+        // else is kept: its stop may take several passes.
+        if let Some(restarted) = self.unhealthy(a, t).await {
+            return restarted;
         }
         if !t.status.as_ref().is_some_and(running) {
             if t.stopped_by_us {
@@ -175,10 +195,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
         let exit = t.status.as_ref().and_then(|s| s.exit_code).unwrap_or_default();
         let result = self.start(a, t).await;
-        t.restarts = t.restarts.saturating_add(1);
-        let wait =
-            FIRST.saturating_mul(2u32.saturating_pow(t.restarts.saturating_sub(1))).min(MOST);
-        t.next_restart = Some(Instant::now() + wait);
+        back_off(t);
         let mut e = effect(Some(&a.workload), "node.restart", result.is_ok());
         e.after.insert("cause".into(), text("crashed"));
         e.after.insert("exit_code".into(), text(&exit.to_string()));

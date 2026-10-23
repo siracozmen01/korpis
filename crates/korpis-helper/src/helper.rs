@@ -126,6 +126,14 @@ impl Helper {
                     ..Default::default()
                 }))
             }
+            Verb::OpenProbe(r) => {
+                self.attached = self.network()?.open_probe(&r.workload)?;
+                let attached = u32::try_from(self.attached.len()).unwrap_or(u32::MAX);
+                Answer::OpenProbe(Box::new(helper::OpenProbeResponse {
+                    attached,
+                    ..Default::default()
+                }))
+            }
             Verb::DescribeNetwork(_) => Answer::DescribeNetwork(Box::new(match &self.network {
                 Some(n) => n.describe(),
                 None => helper::DescribeNetworkResponse {
@@ -358,7 +366,8 @@ impl Helper {
             | Verb::DescribeNetwork(_)
             | Verb::EnsureUplinks(_)
             | Verb::ReadCounters(_)
-            | Verb::OpenResolver(_)) => self.networking(v)?,
+            | Verb::OpenResolver(_)
+            | Verb::OpenProbe(_)) => self.networking(v)?,
             v @ (Verb::OpenIngress(_) | Verb::StartIngress(_) | Verb::StopIngress(_)) => {
                 self.ingress_verb(v)?
             }

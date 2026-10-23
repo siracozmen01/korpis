@@ -2,9 +2,9 @@
 
 //! A workload's dependencies, the node's half (§5 of docs/07-networking.md). The control plane
 //! said which endpoints each reaches; the node says where they are, from the addresses it gave
-//! their workloads, holds a dependent back while a required dependency is not running here,
-//! injects the addresses into its environment at creation and into a file it keeps current,
-//! and opens each in the dependent's chain past the egress default.
+//! their workloads, holds a dependent back while a required dependency is not running here and
+//! ready, injects the addresses into its environment at creation and into a file it keeps
+//! current, and opens each in the dependent's chain past the egress default.
 
 use super::Reconciler;
 use super::act::running;
@@ -116,16 +116,24 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .collect()
     }
 
-    /// The first required dependency of `a` that is not running on this node, by name.
-    pub(super) fn waiting_for(&self, a: &agent::Assignment) -> Option<String> {
+    /// The first required dependency of `a` whose targets are not all running on this node and
+    /// ready, by name: a target with a readiness probe is ready once it passes (§5 of
+    /// docs/07-networking.md).
+    fn waiting_for(&self, a: &agent::Assignment) -> Option<String> {
         a.dependencies.iter().filter(|d| d.required).find_map(|d| {
             let reached = self.reached(d);
             let up = |r: &Reached| {
                 let t = self.tracked.get(&r.workload);
-                t.and_then(|t| t.status.as_ref()).is_some_and(running)
+                t.is_some_and(|t| t.status.as_ref().is_some_and(running) && t.probing.ready())
             };
             (reached.is_empty() || !reached.iter().all(up)).then(|| d.name.clone())
         })
+    }
+
+    /// Whether `a`'s object waits to be made for a required dependency, which `t` then says.
+    pub(super) fn held_back(&self, a: &agent::Assignment, t: &mut super::Tracked) -> bool {
+        t.waiting = self.waiting_for(a);
+        t.waiting.is_some()
     }
 
     /// What `a`'s dependencies open past the egress default: each endpoint they reach here.

@@ -10,6 +10,7 @@ use crate::node::{NodeAdmin, NodeStatus, Reachability};
 use crate::tenancy::quota::Held;
 use crate::workload::spec::ConsoleMode;
 use crate::workload::spec::endpoints::Exposure;
+use crate::workload::spec::health::ProbeKind;
 use crate::workload::spec::placement::AffinityRule;
 use uuid::Uuid;
 
@@ -32,8 +33,16 @@ fn status(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     (!ok).then(|| (Check::Status, c.node.status().as_str().to_owned()))
 }
 
-/// The driver checks: name, tier, console, and the limits it holds. The first failing one is
-/// the reason, because each depends on the one before it having a driver to ask.
+/// Whether a probe of the intent runs a command inside the workload, which only a driver that
+/// declares `exec` can do (§5 of docs/04-runtimes.md).
+fn runs_commands(req: &Request<'_>) -> bool {
+    let health = &req.body.health;
+    let mut probes = [&health.readiness, &health.liveness].into_iter().flatten();
+    probes.any(|p| matches!(p.kind, ProbeKind::Exec { .. }))
+}
+
+/// The driver checks: name, tier, console, probes, and the limits it holds. The first failing
+/// one is the reason, because each depends on the one before it having a driver to ask.
 fn driver<'n>(req: &Request<'_>, c: &Candidate<'n>) -> Result<&'n DriverInfo, Refusal> {
     let rt = &req.body.runtime;
     let Some(d) = c.node.drivers.iter().find(|d| d.name == rt.driver && d.healthy) else {
@@ -45,6 +54,11 @@ fn driver<'n>(req: &Request<'_>, c: &Candidate<'n>) -> Result<&'n DriverInfo, Re
     let console = req.body.console;
     if console != ConsoleMode::None && !d.capabilities.console.contains(&console) {
         return Err((Check::Console, format!("{:?} offers no {console:?} console", d.name)));
+    }
+    if !d.capabilities.exec && runs_commands(req) {
+        let why =
+            format!("{:?} runs no command inside a workload, as its exec probe needs", d.name);
+        return Err((Check::Probe, why));
     }
     Ok(d)
 }

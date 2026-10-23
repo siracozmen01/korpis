@@ -388,5 +388,6 @@ mod bandwidth;
 mod colocation;
 mod ingress;
 mod owners;
+mod probes;
 mod quota;
 mod signals;

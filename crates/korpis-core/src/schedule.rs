@@ -154,6 +154,9 @@ pub enum Check {
     Tier,
     /// The driver offers the requested console.
     Console,
+    /// The driver can run every probe the intent declares that needs it (§5 of
+    /// docs/04-runtimes.md).
+    Probe,
     /// The driver holds every limit the intent sets (Rule K-3).
     Enforcement,
     /// The node can be reached the way the endpoints need.
@@ -182,12 +185,13 @@ pub enum Check {
 
 impl Check {
     /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 17] = [
         Self::Owner,
         Self::Status,
         Self::Driver,
         Self::Tier,
         Self::Console,
+        Self::Probe,
         Self::Enforcement,
         Self::Reachability,
         Self::Selector,
@@ -216,6 +220,7 @@ impl Check {
             Self::Driver => "driver",
             Self::Tier => "tier",
             Self::Console => "console",
+            Self::Probe => "probe",
             Self::Enforcement => "enforcement",
             Self::Reachability => "reachability",
             Self::Selector => "selector",

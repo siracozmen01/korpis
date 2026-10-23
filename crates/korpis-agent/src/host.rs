@@ -140,6 +140,13 @@ pub trait Host: Send + Sync + 'static {
         workload: &str,
     ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send;
 
+    /// A stream socket for probing a workload's health (§5 of docs/04-runtimes.md), opened
+    /// inside its network namespace, neither bound nor connected.
+    fn open_probe(
+        &self,
+        workload: &str,
+    ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send;
+
     /// Ports 80 and 443 of each of `addresses`, opened listening for the ingress proxy: every
     /// port 80, then every 443 (§3.2 of docs/07-networking.md).
     fn open_ingress(

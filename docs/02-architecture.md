@@ -650,7 +650,7 @@ This is the payoff of P1, and it should be stated as a guarantee rather than a h
 | Capability | Control plane down |
 |---|---|
 | Running workloads | **keep running** |
-| Crash restarts, health checks, drift correction | **keep working**, the agent has the intent and does not need permission to execute a decision already made; a crash restart under a lease that expired is the one change a `keep_running` workload still gets, and it waits a second after the first crash, doubling to five minutes, forgiven after a minute up |
+| Crash restarts, health checks, drift correction | **keep working**, the agent has the intent and does not need permission to execute a decision already made; a crash restart under a lease that expired is the one change a `keep_running` workload still gets, a restart for a failing liveness probe counted as one (§5 of `04-runtimes.md`), and it waits a second after the first crash, doubling to five minutes, forgiven after a minute up |
 | Leases with `on_expiry: keep_running` | honoured until the control plane returns |
 | Leases with `on_expiry: stop` | workload stops when the lease expires, by design |
 | Plan steps already assigned to the node | continue to the end of their assignment; nothing new is assigned |

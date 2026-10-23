@@ -4,9 +4,9 @@
 //! `firecracker` drivers serve one agent, a container and a guest are placed on the node side by
 //! side, and the guest converges as the container does. Its console is read with `korpis logs`,
 //! its endpoint answers through the node's port, its volume, a disk the helper made, keeps what it
-//! wrote across a restart, and it sees no more memory than its limit. Needs what the node tests
-//! need, and KVM with the pinned Firecracker and guest kernel (`scripts/tools.sh`,
-//! `scripts/guest-kernel.sh`); skipped without them.
+//! wrote across a restart, it sees no more memory than its limit, and its liveness probe is
+//! answered by the guest. Needs what the node tests need, and KVM with the pinned Firecracker and
+//! guest kernel (`scripts/tools.sh`, `scripts/guest-kernel.sh`); skipped without them.
 
 use crate::network::served;
 use crate::node::{Node, host_address, live};
@@ -46,6 +46,8 @@ preset:
   resources:
     memory: {{min: 64Mi, recommended: 128Mi}}
     cpu:    {{min: 100m, recommended: 500m}}
+probes:
+  liveness: {{kind: http, endpoint: http, path: /, period: 2s}}
 "#
     )
 }
@@ -63,6 +65,21 @@ async fn answered(cp: &ControlPlane, w: &str, wanted: &str) -> String {
             return said;
         }
         assert!(Instant::now() < until, "never answered {wanted:?}; last {said:?}");
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+}
+
+/// Waits until the node judges `w` healthy: its liveness probe, made from inside its network
+/// namespace and through the tap, answered by the guest (§5 of docs/04-runtimes.md).
+async fn healthy(cp: &ControlPlane, w: &str) {
+    let until = Instant::now() + Duration::from_secs(60);
+    loop {
+        let status = cp.status(w).await;
+        let o = status.observation.as_option();
+        if o.is_some_and(|o| o.health.as_known() == Some(pb::HealthState::HEALTH_STATE_HEALTHY)) {
+            return;
+        }
+        assert!(Instant::now() < until, "never healthy: {o:?}");
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
 }
@@ -118,6 +135,7 @@ async fn a_microvm_beside_a_container_serves_through_the_node_and_keeps_its_volu
     let total = said.lines().find_map(|l| l.strip_prefix("MemTotal:")).expect("its memory");
     let kib: u64 = total.trim().trim_end_matches("kB").trim().parse().unwrap();
     assert!(kib <= 128 * 1024 && kib > 64 * 1024, "{kib} KiB in a guest limited to 128 MiB");
+    healthy(&cp, &w).await;
 
     // Restarted, it finds on its volume what it wrote there.
     restart(&cp, &w).await;

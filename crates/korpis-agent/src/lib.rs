@@ -4,6 +4,10 @@
 //! out to the control plane, holds the node's assignment set, and makes the node match it. It
 //! never touches tenant files and holds no capability; what it can cause is bounded by what the
 //! drivers and the helper will do.
+//!
+//! The crate has one unsafe block, registering a descriptor it owns with tokio's reactor in
+//! [`data`]'s wake, which tokio offers only as an unsafe constructor; it carries the `SAFETY`
+//! argument a reviewer checks.
 
 #![warn(missing_docs)]
 
@@ -12,6 +16,7 @@ pub mod content;
 pub mod data;
 pub mod durable;
 pub mod feasibility;
+pub mod health;
 pub mod held;
 pub mod host;
 pub mod identity;

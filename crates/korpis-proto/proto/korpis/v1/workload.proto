@@ -185,6 +185,8 @@ message Observation {
   // For unsatisfiable: the structured reason (§7 of docs/05-scheduling.md).
   UnsatisfiableReason reason = 10;
   string reason_detail = 11;
+  // Its liveness probe's verdict, or its readiness probe's where it declares no liveness probe;
+  // unknown while neither is judged, or while it does not run (§5 of docs/04-runtimes.md).
   HealthState health = 12;
   optional int32 exit_code = 13;
   string runtime_id = 14;
@@ -247,6 +249,8 @@ message ResourceUsage {
 message EndpointStatus {
   string name = 1;
   string address = 2;
+  // Its workload runs and, where its node runs its readiness probe, the probe passes (§5 of
+  // docs/04-runtimes.md).
   bool ready = 3;
 }
 

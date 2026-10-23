@@ -87,6 +87,14 @@ restart policy can act on it.
 The same provider returns the player count, the map, and the version, which is what makes §6
 possible and what a host wants on a dashboard anyway.
 
+> Not yet as built, found 2026-10-23 (Finding 151 of `23-walkthroughs.md`). Nodes run `tcp` and
+> `http` probes (§5 of `04-runtimes.md`); a `query` probe is unjudged until its provider is called,
+> which Phase 3 builds (§4 of `20-roadmap.md`), so until then a Minecraft server that declares one
+> is reported with its health `unknown`, not as healthy. The block above is not the syntax a recipe
+> declares either: a recipe names the probe and the protocol, as `liveness: {kind: query, protocol:
+> minecraft, endpoint: query, failures: 3, period: 15s}` (§3 of `09-recipes.md`), and the
+> protocol is what chooses the provider.
+
 ---
 
 ## 4. SteamCMD, without reopening the hole

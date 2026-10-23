@@ -50,7 +50,11 @@ pub fn descriptor(vm: &Vm) -> Option<OwnedFd> {
 
 /// Waits until the process `fd` names has ended.
 pub async fn ended(fd: OwnedFd) {
-    if let Ok(watched) = tokio::io::unix::AsyncFd::new(fd) {
+    // SAFETY: `fd` is owned and moved into the `AsyncFd`, so it stays open and names the same
+    // process until the `AsyncFd` is dropped; nothing else can close it.
+    #[allow(unsafe_code, reason = "tokio registers a descriptor only through `register`")]
+    let watched = unsafe { tokio::io::unix::AsyncFd::register(fd) };
+    if let Ok(watched) = watched {
         let _ = watched.readable().await;
     }
 }

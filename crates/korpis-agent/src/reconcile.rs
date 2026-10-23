@@ -6,15 +6,19 @@
 //! of them (§4.4); an object no assignment claims is reported as an orphan and never deleted.
 //! Then, on every change and on a period, it executes the plan steps it was given in order up
 //! to `through`, journals each completion, keeps the approved power state and cycle, restarts a
-//! crashed workload with a backoff, and reports what it observes. It acts only under a lease
-//! (§4.5): without one it changes nothing, and when another node holds the workload it stops it.
+//! crashed workload with a backoff, and reports what it observes. Between passes it runs each
+//! running workload's health probes, and passes again when a verdict changes (§5 of
+//! docs/04-runtimes.md). It acts only under a lease (§4.5): without one it changes nothing, and
+//! when another node holds the workload it stops it.
 
 pub(crate) mod act;
 pub(crate) use act::volume_id;
+mod adopt;
 mod backup;
 mod content;
 mod deps;
 mod halt;
+mod health;
 mod install;
 mod jobs;
 mod kinds;
@@ -96,6 +100,10 @@ struct Tracked {
     /// Its recipe's pre-stop hook, and the recipe it was read from (§3 of docs/09-recipes.md).
     pre_stop: Option<korpis_core::recipe::behaviour::Hook>,
     hook_of: String,
+    /// Its health probes in the life of its object (§5 of docs/04-runtimes.md).
+    probing: health::Probing,
+    /// The kind of the liveness probe whose failure it is being restarted for, until it is.
+    recovering: Option<&'static str>,
 }
 
 /// Where the reconciler reads and writes.
@@ -153,6 +161,8 @@ pub struct Reconciler<R, H> {
     orphans: BTreeSet<String>,
     /// When the helper's jobs were last looked at for ones nothing names.
     reaped: Option<Instant>,
+    /// Where health probes' attempts report.
+    outcomes: health::Outcomes,
 }
 
 /// A string value.
@@ -169,6 +179,14 @@ async fn reported(reports: &mut Option<broadcast::Receiver<String>>) {
     match rx.recv().await {
         Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
         Err(broadcast::error::RecvError::Closed) => *reports = None,
+    }
+}
+
+/// Resolves at `at`; never, without one.
+async fn until(at: Option<Instant>) {
+    match at {
+        Some(at) => tokio::time::sleep_until(at.into()).await,
+        None => std::future::pending().await,
     }
 }
 
@@ -193,7 +211,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     #[must_use]
     pub fn new(runtime: R, host: H, wiring: Wiring, progress: Progress, streams: Streams) -> Self {
         let (tracked, orphans) = (BTreeMap::new(), BTreeSet::new());
-        Self { runtime, host, wiring, progress, streams, tracked, orphans, reaped: None }
+        let outcomes = health::Outcomes::default();
+        Self { runtime, host, wiring, progress, streams, tracked, orphans, reaped: None, outcomes }
     }
 
     /// Records `e` in the journal; whether it is on disk.
@@ -214,19 +233,27 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let mut tick = tokio::time::interval(self.wiring.period);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         let mut reports = Some(self.runtime.changes());
+        let mut pass = true;
         loop {
-            self.pass().await;
+            if pass {
+                self.pass().await;
+            }
             let leases = self.wiring.leases.clone();
-            let open = tokio::select! {
-                changed = self.wiring.held.changed() => changed.is_ok(),
+            let due = self.probes_due();
+            // A probe's attempt changes nothing until it changes a verdict, so it does not make
+            // the pass every other wake does.
+            pass = tokio::select! {
+                changed = self.wiring.held.changed() => if changed.is_ok() { true } else { return },
                 () = leases.changed() => true,
                 _ = tick.tick() => true,
                 () = reported(&mut reports) => true,
-                e = self.wiring.events.recv() => self.heard(&e),
+                e = self.wiring.events.recv() => if self.heard(&e) { true } else { return },
+                () = until(due) => {
+                    self.probe().await;
+                    false
+                }
+                Some(o) = self.outcomes.rx.recv() => self.judged(&o),
             };
-            if !open {
-                return;
-            }
         }
     }
 
@@ -245,75 +272,6 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Every runtime object the driver created, enumerated as often as it takes: nothing is
-    /// reconciled before adoption, because acting without knowing what exists would start a
-    /// second copy of what already runs (§4.4 of docs/02-architecture.md). `None` once the
-    /// session has ended.
-    async fn recovered(&mut self) -> Option<Vec<driver::RuntimeObject>> {
-        let mut wait = RECOVER_FIRST_WAIT;
-        loop {
-            match self.runtime.recover().await {
-                Ok(objects) => return Some(objects),
-                Err(e) => tracing::error!(
-                    error = %e,
-                    retry_in = ?wait,
-                    "the driver could not enumerate its objects; nothing is reconciled until it can"
-                ),
-            }
-            tokio::select! {
-                () = tokio::time::sleep(wait) => {}
-                e = self.wiring.events.recv() => if !self.heard(&e) { return None },
-            }
-            wait = (wait * 2).min(RECOVER_LONGEST_WAIT);
-        }
-    }
-
-    /// Takes over every runtime object the driver created, touching none (§4.4 of
-    /// docs/02-architecture.md); what no assignment claims is an orphan.
-    async fn adopt(&mut self, objects: Vec<driver::RuntimeObject>) {
-        let held = self.wiring.held.borrow().clone();
-        for o in objects {
-            let workload = o.labels.as_option().map(|l| l.workload.clone()).unwrap_or_default();
-            let claimed = held.assignments.contains_key(&workload);
-            let run = o.labels.as_option().map(|l| l.run.clone()).unwrap_or_default();
-            if claimed && !run.is_empty() {
-                self.adopt_run(&workload, &run, &o);
-                continue;
-            }
-            if !claimed || self.tracked.contains_key(&workload) {
-                self.orphan(&o.runtime_id, &workload).await;
-                continue;
-            }
-            let running = o.status.as_option().is_some_and(act::running);
-            let t = Tracked {
-                runtime: Some(o.runtime_id.clone()),
-                labels: o.labels.as_option().cloned(),
-                status: o.status.as_option().cloned(),
-                stopped_by_us: !running,
-                running_since: running.then(Instant::now),
-                ..Tracked::default()
-            };
-            self.tracked.insert(workload.clone(), t);
-            // A restarted agent serves the socket again at the path the container mounts.
-            if let Some(Err(e)) = self.wiring.identity.as_ref().map(|i| i.ensure(&workload)) {
-                tracing::error!(%workload, error = %e, "an identity socket could not be served");
-            }
-            let mut e = effect(Some(&workload), "node.adopt", true);
-            e.after.insert("runtime_id".into(), text(&o.runtime_id));
-            e.after.insert("running".into(), text(if running { "true" } else { "false" }));
-            self.record(e).await;
-        }
-    }
-
-    /// Takes over the object of `run` of `workload`, as it is: one running is tended from now,
-    /// its timeout counted from when it started, and one that ended is reported once more,
-    /// which the control plane takes once.
-    fn adopt_run(&mut self, workload: &str, run: &str, o: &driver::RuntimeObject) {
-        let t = self.tracked.entry(workload.to_owned()).or_default();
-        let held = runs::RunTracked { runtime: o.runtime_id.clone(), ..Default::default() };
-        t.runs.insert(run.to_owned(), held);
-    }
-
     /// Forgets a workload that left the set with nothing left of it on the node.
     fn forget(&mut self, workload: &str) {
         self.tracked.remove(workload);
@@ -323,18 +281,6 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if let Err(e) = self.progress.forget(workload) {
             tracing::error!(error = %e, "progress could not be kept");
         }
-    }
-
-    /// Reports a runtime object no assignment claims, once: it is never deleted.
-    async fn orphan(&mut self, runtime_id: &str, workload: &str) {
-        if !self.orphans.insert(runtime_id.to_owned()) {
-            return;
-        }
-        tracing::warn!(%runtime_id, %workload, "orphaned runtime object; left untouched");
-        let mut e = effect(None, "node.orphan", true);
-        e.after.insert("runtime_id".into(), text(runtime_id));
-        e.after.insert("workload_label".into(), text(workload));
-        self.record(e).await;
     }
 
     /// One pass over the set held, and over what it no longer claims.

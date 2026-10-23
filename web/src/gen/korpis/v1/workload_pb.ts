@@ -601,6 +601,9 @@ export type Observation = Message<"korpis.v1.Observation"> & {
   reasonDetail: string;
 
   /**
+   * Its liveness probe's verdict, or its readiness probe's where it declares no liveness probe;
+   * unknown while neither is judged, or while it does not run (§5 of docs/04-runtimes.md).
+   *
    * @generated from field: korpis.v1.HealthState health = 12;
    */
   health: HealthState;
@@ -751,6 +754,9 @@ export type EndpointStatus = Message<"korpis.v1.EndpointStatus"> & {
   address: string;
 
   /**
+   * Its workload runs and, where its node runs its readiness probe, the probe passes (§5 of
+   * docs/04-runtimes.md).
+   *
    * @generated from field: bool ready = 3;
    */
   ready: boolean;

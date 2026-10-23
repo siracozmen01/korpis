@@ -19,6 +19,7 @@ mod extension;
 mod files;
 mod fs_target;
 mod guests;
+mod health;
 mod image;
 mod ingress;
 mod ingress_features;

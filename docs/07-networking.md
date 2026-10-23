@@ -1041,6 +1041,16 @@ targets on its node run and, where they have a readiness probe, are ready; until
 is `starting`, and its status says which dependency it waits for. The agent judges this, since it
 observes both workloads.
 
+> Corrected 2026-10-23, when probes were built (Findings 151 and 152 of `23-walkthroughs.md`).
+> Readiness was not judged by any node until then, so a target with a readiness probe was taken
+> as ready once it ran (§5 of `04-runtimes.md`). And the wait held only where the node created the
+> dependent by itself: a plan's `create` or `start` step, which is how a declared dependent is
+> first created, made the object whether its dependencies ran or not, so the order held for a
+> dependent created again after a stop and not for a new one. Both steps now wait, the step left
+> outstanding and the status saying for which dependency, as the node's own creation does; the
+> wait is for a target's readiness probe where the node runs it, and for its running where it
+> does not.
+
 What it costs: a dependent and its targets share a node until the overlay exists, so a database
 that fills its node keeps its web application off every other; a change of address reaches the
 environment only at the next start; and a selector is evaluated when the assignment is computed,
@@ -1249,18 +1259,22 @@ of §11. An endpoint's rules are in the workload's own table, in a chain for the
 that the port's connections pass through: its limits first, a connection limit and a new-connection
 rate for the endpoint as a whole, then its rules in order, an allow letting the connection in and a
 deny dropping and counting it, and then anything no rule matched, let in. They see the client's own
-address, which the node's forwarding preserves (§3.4). Every rule names an address range, because a
-packet filter judges addresses: a rule naming workloads by label is refused until Phase 3, since on
-one node another workload is denied by the default and opened by a dependency (§5), so such a rule
-would decide nothing those do not, and it is needed where workloads on other nodes are reached,
-which the overlay brings (corrected 2026-10-15, when dependencies were built: it had been promised
-with them, and they resolve endpoints, not a policy's peers), and one naming a domain is refused
-until question 8 of §11 is answered. A rule that arrives at a node anyway fails the workload's
-network rather than being left out, because a deny left out is a weaker policy than the one
-declared. Half-open connections have no limit of their own to declare (above), and a declaration
-that sets one is refused. What it costs: an endpoint's limits are for the endpoint as a whole and
-not for each client, so they protect the workload from a flood and not one player from another,
-which is the workload's own to judge.
+address, which the node's forwarding preserves (§3.4). The node's own health probes do not pass
+through them: each is made from a socket opened inside the workload's namespace, which reaches the
+endpoint as its loopback does and so is judged by none of its rules or limits (§5 of
+`04-runtimes.md`), since a probe an endpoint's allow list turned away would restart a healthy
+workload. Every rule names an address range, because a packet filter judges addresses: a rule
+naming workloads by label is refused until Phase 3, since on one node another workload is denied by
+the default and opened by a dependency (§5), so such a rule would decide nothing those do not, and
+it is needed where workloads on other nodes are reached, which the overlay brings (corrected
+2026-10-15, when dependencies were built: it had been promised with them, and they resolve
+endpoints, not a policy's peers), and one naming a domain is refused until question 8 of §11 is
+answered. A rule that arrives at a node anyway fails the workload's network rather than being left
+out, because a deny left out is a weaker policy than the one declared. Half-open connections have
+no limit of their own to declare (above), and a declaration that sets one is refused. What it
+costs: an endpoint's limits are for the endpoint as a whole and not for each client, so they
+protect the workload from a flood and not one player from another, which is the workload's own to
+judge.
 
 ---
 

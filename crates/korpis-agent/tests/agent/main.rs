@@ -19,6 +19,7 @@ mod content;
 mod data;
 mod files;
 mod halting;
+mod health;
 mod identity;
 mod ingress;
 mod join;

@@ -24,7 +24,11 @@ impl Wake {
         let fd = inotify::init(CreateFlags::NONBLOCK | CreateFlags::CLOEXEC)?;
         let what = WatchFlags::MODIFY | WatchFlags::CREATE | WatchFlags::MOVED_TO;
         inotify::add_watch(&fd, dir, what)?;
-        Ok(Self { fd: AsyncFd::new(fd)? })
+        // SAFETY: `fd` is owned and moved into the `AsyncFd`, so it stays open and names the
+        // same inotify instance until the `AsyncFd` is dropped; nothing else can close it.
+        #[allow(unsafe_code, reason = "tokio registers a descriptor only through `register`")]
+        let fd = unsafe { AsyncFd::register(fd) }?;
+        Ok(Self { fd })
     }
 
     /// Resolves once the directory has changed since the last call.

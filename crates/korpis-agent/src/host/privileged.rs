@@ -165,6 +165,20 @@ impl HelperClient {
         }
     }
 
+    /// A stream socket for probing `workload`, opened by the helper inside its network
+    /// namespace (§5 of docs/04-runtimes.md).
+    pub async fn open_probe(&self, workload: &str) -> Result<OwnedFd, HostError> {
+        let r = helper::OpenProbeRequest { workload: workload.to_owned(), ..Default::default() };
+        match self.call_attached(Verb::OpenProbe(Box::new(r))).await? {
+            (Answer::OpenProbe(a), mut fds) if a.attached == 1 && fds.len() == 1 => {
+                fds.pop().ok_or_else(|| failed("no socket"))
+            }
+            (other, fds) => {
+                Err(failed(format!("answered {other:?} with {} descriptors", fds.len())))
+            }
+        }
+    }
+
     /// Ports 80 and 443 of each of `addresses`, opened by the helper for the ingress proxy:
     /// every port 80, then every 443 (§3.2 of docs/07-networking.md).
     pub async fn open_ingress(&self, addresses: &[String]) -> Result<Vec<OwnedFd>, HostError> {

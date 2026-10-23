@@ -164,6 +164,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                     return Ok(None);
                 }
             }
+            // Its object is not made while a required dependency is not running here and ready
+            // (§5 of docs/07-networking.md): the step waits, and the status says for what.
+            "create" | "start" if t.runtime.is_none() && self.held_back(a, t) => return Ok(None),
             "create" => {
                 let Some(id) = self.current(a, t).await? else { return Ok(None) };
                 after.insert("runtime_id".into(), text(&id));

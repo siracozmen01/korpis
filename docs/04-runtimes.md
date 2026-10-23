@@ -496,6 +496,51 @@ optional. Probes are declared by the recipe and executed by the agent from outsi
 TCAdmin distinguishes "service monitoring" from "game monitoring" and charges for the distinction.
 It is right that they are different, and there is no reason it should be a premium feature.
 
+> Not built until 2026-10-23, and found that day (Finding 151 of `23-walkthroughs.md`). This
+> section, §5 of `07-networking.md`, §4.6 of `02-architecture.md`, and §3 of `22-first-party.md`
+> described probes the agent runs, and no phase of §4 of `20-roadmap.md` named running them, so
+> none did: through Phase 2 every observation's health was `unknown`, an endpoint was `ready`
+> whenever its workload's process ran, and a dependent was created once its database's process
+> ran, ready or not. The probes a node runs are built as below, and the kinds it does not run yet
+> are homed in Phase 3 there.
+
+**As built.** Decided 2026-10-23. The agent runs a workload's `tcp` and `http` probes while its
+runtime object runs. Each attempt is made from a socket the helper opens inside the workload's
+network namespace (`OpenProbe`), connected to the workload's address and the port of the endpoint
+the probe names. A connection made from inside reaches the endpoint as the workload's own loopback
+does, or, for a microVM, as its tap does, so an endpoint whose rules turn away the node's own
+address (§6 of `07-networking.md`) is probed all the same, as is one whose exposure is `none`; the
+socket reaches nothing the workload itself could not. A `tcp` probe passes when the connection is
+made; an `http` probe sends a `GET` of its path over HTTP/1.0 and passes on the status it expects,
+or any 2xx where it expects none; each attempt, connecting included, is held to the probe's
+timeout. A probe that does not say is tried every 10 seconds, given 5 seconds and never more than
+its period, judged failing after 3 attempts in a row fail, and first tried as its object starts; a
+period under a second is taken as one second, so that no recipe makes the prober a load on what it
+judges. A probe passes at its first success and fails only after its `failures`; before either it
+is unjudged. Each start of the object, and an object built from another intent, is judged afresh.
+
+The verdicts decide three things. Readiness decides whether the workload's endpoints are `ready`,
+and whether a dependent that requires it is created (§5 of `07-networking.md`). The health the node
+reports is the liveness verdict, or the readiness verdict where no liveness probe is declared, and
+`unknown` while unjudged or while the object does not run; a change of it is the `health.changed`
+event (§5 of `15-observability.md`). A liveness probe that fails restarts the workload as a crash
+does: the same backoff, a second doubling to five minutes and forgiven after a minute up, counted
+with its crashes, and recorded as `node.restart` with the cause `unhealthy` and the probe's kind;
+under a lease that has expired, only where the workload keeps running (§4.6 of
+`02-architecture.md`).
+
+What it does not do yet. A `query` probe needs its protocol's provider extension, a `heartbeat`
+probe the workload calling Korpis, and a `guest_agent` probe the guest's channel to its agent; each
+is built later in Phase 3 (§4 of `20-roadmap.md`), and until then such a probe is unjudged: the
+workload's health is `unknown` and its readiness is its object running, as before. An `exec` probe
+needs a driver that runs a command inside its workload, which neither driver does yet, so every
+node whose driver does not declare `exec` refuses such a workload at placement (the `probe` check
+of §2.1 of `05-scheduling.md`), which until one does is every node; that is said rather than a
+probe nobody runs. Where a node gives its workloads no network, it runs no probe. What it costs:
+one connection a period for each probe of each running workload, and a call to the helper for each
+socket; and a workload whose liveness probe fails a minute after each start is restarted every
+minute and never backs off further, as one that crashes a minute after each start is.
+
 ---
 
 ## 6. Content and rootfs

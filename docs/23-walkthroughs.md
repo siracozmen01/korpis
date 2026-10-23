@@ -1396,6 +1396,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 148 | The namespace's way to its gateway named a hardware address the host changes | §58 | `07-networking.md` §4.1 |
 | 149 | A guest could send from an address not its own, and the design said it reached nothing | §58 | `07-networking.md` §4.1 |
 | 150 | A guest restarted after its node's kernel was replaced booted the old kernel | §59 | `04-runtimes.md` §6; `18-operations.md` §2 |
+| 151 | No node ran a health probe, and four documents said one did | §60 | `04-runtimes.md` §5; `05-scheduling.md` §2.1; `07-networking.md` §6; `20-roadmap.md` §4; `22-first-party.md` §3 |
+| 152 | A dependent created by its plan did not wait for its dependencies | §60 | `07-networking.md` §5 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -5049,3 +5051,79 @@ installation finds KVM and the files is `korpis-server`'s own test. Steps 4, 5, 
 by `crates/korpis-agent`, `crates/korpis-e2e/tests/e2e/microvm.rs`, and
 `crates/korpis-driver-firecracker/tests/runtime.rs`; step 6 is a maintainer's commit and an
 operator's script, as §5 of `21-stack.md` says.
+
+---
+
+## 60. A shop waits for its database to be ready, and the database hangs
+
+Written 2026-10-23, as the node's health probes were built (§5 of `04-runtimes.md`). The traces
+before this one that met a workload's health took it as the node's to judge; this one asks, at
+each step, what judges it, where, and with what information. A shop requires its database. The
+database's recipe declares an `http` readiness probe at `/ready` and an `http` liveness probe at
+`/alive` on its endpoint; it is ready only once its schema is migrated, and one night it deadlocks
+with its port still open.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Both are declared; the shop's dependency is required, and both are placed on one node | `07-networking.md` §5; `05-scheduling.md` §2.1 |
+| 2 | The plan's `create` step for the shop waits, the step left outstanding and the shop's status naming the database ‡ | `07-networking.md` §5 |
+| 3 | The database's object starts; for each probe, every second, the agent has the helper open a socket in the database's namespace and connects it to the database's address and its endpoint's port † | `04-runtimes.md` §5; `07-networking.md` §4.1 |
+| 4 | `/alive` answers and `/ready` does not: the database is reported healthy, and its endpoint not ready | `04-runtimes.md` §5; `02-architecture.md` §4.3 |
+| 5 | The migration finishes and `/ready` answers: the endpoint is ready, and the shop's step creates it with the database's address | `07-networking.md` §5 |
+| 6 | The database deadlocks: `/alive` fails twice, its health turns unhealthy, and the event is a warning | `04-runtimes.md` §5; `15-observability.md` §5 |
+| 7 | The node restarts it, as a crash, and records `node.restart` with the cause `unhealthy` | `04-runtimes.md` §5; `02-architecture.md` §4.6 |
+| 8 | The restarted database is judged afresh, and is healthy again; the shop ran throughout | `04-runtimes.md` §5 |
+
+**Two findings, at step 3** (†) **and step 2** (‡).
+
+**FINDING 151: No node ran a health probe, and four documents said one did. `CONFIRMED`, by
+reading the agent**
+
+Found 2026-10-23 asking step 3's question: which component attempts a probe, and from where? §5
+of `04-runtimes.md` says probes are executed by the agent from outside the workload, and §5 of
+`07-networking.md`, §4.6 of `02-architecture.md` and §3 of `22-first-party.md` build on it. The
+agent never read a probe. Recipes declared probes, intents stored them, and nothing attempted one:
+every observation's health was `unknown`, so no `health.changed` event was ever written; an
+endpoint was `ready` whenever its workload's process ran; a liveness probe restarted nothing; and
+a dependent waited for its target's process, not its readiness. No phase of §4 of `20-roadmap.md`
+named the work, so no phase's done-when could have caught it: Rule K-16 was a rule of the
+documents only.
+
+**Resolution.** The agent runs the `tcp` and `http` probes, each attempt from a socket the helper
+opens inside the workload's namespace, so that an endpoint's own rules do not turn the node away;
+readiness decides an endpoint's `ready` and a dependent's creation, liveness the health reported
+and a restart as a crash's, with the crash's backoff; and a probe the node does not run yet is
+unjudged and said to be, an `exec` probe refused at placement by every node whose driver runs no
+command inside its workload. → stated in §5 of `04-runtimes.md`, with the defaults, corrected in
+place; the other kinds homed in Phase 3 (§4 of `20-roadmap.md`); §2.1 of `05-scheduling.md` gains
+the `probe` check, §6 of `07-networking.md` says the probes pass by an endpoint's rules, and §3 of
+`22-first-party.md` says what is not built yet. Built in `korpis-core` (the defaults and the
+verdicts), `crates/korpis-helper` (`OpenProbe`), and `crates/korpis-agent`. What it costs: a
+connection a period for each probe of each running workload, and a call to the helper for each.
+
+**FINDING 152: A dependent created by its plan did not wait for its dependencies. `CONFIRMED`, by
+the agent's test**
+
+Found 2026-10-23 by the first test of step 2, in which the shop ran before its database was ready.
+§5 of `07-networking.md` says the agent creates a dependent only once its required targets run.
+The agent held a dependent back only where it created the object by itself, keeping the approved
+state; a plan's `create` and `start` steps made the object at once, and every declared workload's
+first object is made by its plan, so the start order held for a dependent made again after a stop
+and not for a new one. The dependencies test of `crates/korpis-e2e` passed because its database
+ran first anyway.
+
+**Resolution.** Both steps wait, left outstanding, while a required target is not running and
+ready, and the dependent's status says for which dependency, as the node's own creation does. →
+stated in §5 of `07-networking.md`, corrected in place; built in `crates/korpis-agent`. What it
+costs: a plan whose dependent's target never becomes ready never completes, which is what a
+required dependency asks for, and its status says why.
+
+Steps 1 to 8 are built and tested twice. `crates/korpis-agent/tests/agent/health.rs` runs them
+against a real control plane, with the in-memory runtime in place of a driver and a server on this
+machine in place of the database. `crates/korpis-e2e/tests/e2e/health.rs` runs them on a real node,
+with a busybox server whose answers the test changes inside its namespaces. The database is
+restarted on its volume, which counts two boots. `crates/korpis-helper/tests/probe.rs` shows a
+probe's socket reaching an endpoint whose rules turn the host away.
+`crates/korpis-e2e/tests/e2e/microvm.rs` judges a guest's liveness probe through its tap.

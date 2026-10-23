@@ -9,6 +9,7 @@
 //! a crash or a reboot left behind.
 
 mod account;
+mod asked;
 mod bandwidth;
 mod egress;
 mod forward;
@@ -21,7 +22,7 @@ mod shape;
 mod tap;
 
 use crate::error::{HelperError, HelperResult, identifier};
-use forward::{Forward, Transport};
+use asked::{Asked, Prefix, asked, port, prefix};
 use korpis_proto::korpis::helper::v1 as helper;
 use rtnl::Rtnl;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -33,13 +34,6 @@ use korpis_core::workload::network::{RESOLVER_V4, TAP};
 /// The name of the workload's side of its link.
 const INNER: &str = "eth0";
 
-/// A network prefix.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Prefix {
-    addr: IpAddr,
-    len: u8,
-}
-
 /// Workload networks, their namespaces bound under `root`.
 #[derive(Debug, Clone)]
 pub struct Network {
@@ -48,138 +42,6 @@ pub struct Network {
 
 fn sysctl_on(path: &str) -> bool {
     std::fs::read_to_string(path).is_ok_and(|v| v.trim() == "1")
-}
-
-fn prefix(what: &str, text: &str) -> HelperResult<Prefix> {
-    let bad = || HelperError::Refused(format!("{what} is not a prefix"));
-    let (addr, len) = text.split_once('/').ok_or_else(bad)?;
-    let addr: IpAddr = addr.parse().map_err(|_| bad())?;
-    let len: u8 = len.parse().map_err(|_| bad())?;
-    let max = if addr.is_ipv4() { 32 } else { 128 };
-    if len > max || len == 0 {
-        return Err(bad());
-    }
-    Ok(Prefix { addr, len })
-}
-
-fn bits(ip: IpAddr) -> (u128, u8) {
-    match ip {
-        IpAddr::V4(v4) => (u128::from(u32::from(v4)), 32),
-        IpAddr::V6(v6) => (u128::from(v6), 128),
-    }
-}
-
-/// Whether `ip` is in `pool` and is neither its first address nor its last.
-fn within(ip: IpAddr, pool: Prefix) -> bool {
-    let ((a, width), (p, pool_width)) = (bits(ip), bits(pool.addr));
-    if width != pool_width {
-        return false;
-    }
-    let host_bits = u32::from(width - pool.len);
-    let mask =
-        u128::MAX.checked_shl(host_bits).unwrap_or(0) & (u128::MAX >> (128 - u32::from(width)));
-    let host = a & !mask;
-    let last = !mask & (u128::MAX >> (128 - u32::from(width)));
-    a & mask == p & mask && host != 0 && host != last
-}
-
-/// What a request asks for, checked.
-struct Asked {
-    workload: String,
-    ipv4: Ipv4Addr,
-    ipv6: Option<Ipv6Addr>,
-    ids: (u32, u32),
-    inbound: Vec<policy::Inbound>,
-    forwards: Vec<Forward>,
-    opened: Vec<egress::Opened>,
-    rules: Vec<policy::Rule>,
-    limits: policy::Limits,
-    shaping: bandwidth::Shaping,
-    tap: bool,
-}
-
-fn transport(t: buffa::EnumValue<helper::Transport>) -> HelperResult<Transport> {
-    match t.as_known() {
-        Some(helper::Transport::TRANSPORT_TCP) => Ok(Transport::Tcp),
-        Some(helper::Transport::TRANSPORT_UDP) => Ok(Transport::Udp),
-        _ => Err(HelperError::Refused("a port's transport is tcp or udp".into())),
-    }
-}
-
-fn port(what: &str, p: u32, lowest: u16) -> HelperResult<u16> {
-    u16::try_from(p)
-        .ok()
-        .filter(|p| *p >= lowest)
-        .ok_or_else(|| HelperError::Refused(format!("{what} {p} is not a port it may use")))
-}
-
-/// The ports a workload accepts connections on, and those of the node forwarded to it.
-type Ports = (Vec<policy::Inbound>, Vec<Forward>);
-
-/// The ports a request accepts and forwards, checked: a node's port is never below 1024, which
-/// the node's own services hold, and none is forwarded twice.
-fn ports(r: &helper::EnsureNetworkRequest) -> HelperResult<Ports> {
-    let inbound = policy::inbound(&r.inbound)?;
-    let forwards = r
-        .forwards
-        .iter()
-        .map(|f| {
-            Ok(Forward {
-                transport: transport(f.transport)?,
-                node_port: port("a node's port", f.node_port, 1024)?,
-                container_port: port("a port inside", f.container_port, 1)?,
-            })
-        })
-        .collect::<HelperResult<Vec<_>>>()?;
-    let mut node_ports: Vec<u16> = forwards.iter().map(|f| f.node_port).collect();
-    node_ports.sort_unstable();
-    node_ports.dedup();
-    if node_ports.len() != forwards.len() {
-        return Err(HelperError::Refused("a node's port is forwarded twice".into()));
-    }
-    Ok((inbound, forwards))
-}
-
-fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
-    identifier("workload", &r.workload)?;
-    let refuse = |m: &str| HelperError::Refused(m.to_owned());
-    let ipv4: Ipv4Addr = r.ipv4.parse().map_err(|_| refuse("ipv4 is not an address"))?;
-    let ipv4_pool = prefix("ipv4_pool", &r.ipv4_pool)?;
-    if !within(IpAddr::V4(ipv4), ipv4_pool) {
-        return Err(refuse("ipv4 is not a host address of its pool"));
-    }
-    let ipv6 = if r.ipv6.is_empty() {
-        None
-    } else {
-        let ip: Ipv6Addr = r.ipv6.parse().map_err(|_| refuse("ipv6 is not an address"))?;
-        let pool = prefix("ipv6_pool", &r.ipv6_pool)?;
-        if !within(IpAddr::V6(ip), pool) {
-            return Err(refuse("ipv6 is not a host address of its pool"));
-        }
-        Some(ip)
-    };
-    if r.uid_count == 0 || r.uid_base.checked_add(r.uid_count).is_none() {
-        return Err(refuse("the workload holds no uid range for its namespaces to map"));
-    }
-    let (inbound, forwards) = ports(r)?;
-    let opened = r
-        .opened
-        .iter()
-        .map(|d| {
-            let addr = d.address.parse().map_err(|_| refuse("an opened address is not one"))?;
-            let why = match d.reason.as_known() {
-                Some(helper::DestinationReason::DESTINATION_REASON_DEPENDENCY) => "dependency",
-                _ => return Err(refuse("an opened destination says why it is opened")),
-            };
-            let (port, transport) = (port("an opened port", d.port, 1)?, transport(d.transport)?);
-            Ok(egress::Opened { addr, port, transport, why })
-        })
-        .collect::<HelperResult<Vec<_>>>()?;
-    let ids = (r.uid_base, r.uid_count);
-    let (rules, limits) = (policy::rules(&r.egress)?, policy::limits(r)?);
-    let shaping = bandwidth::asked(r.bandwidth.as_option())?;
-    let (workload, tap) = (r.workload.clone(), r.tap);
-    Ok(Asked { workload, ipv4, ipv6, ids, inbound, forwards, opened, rules, limits, shaping, tap })
 }
 
 /// Configures the workload's side, from inside its namespace: its `eth0` holds its addresses,
@@ -338,12 +200,32 @@ impl Network {
     /// The sockets of `workload`'s resolver, opened inside its network namespace: UDP, then TCP
     /// listening. Its network must have been made.
     pub fn open_resolver(&self, workload: &str) -> HelperResult<Vec<rustix::fd::OwnedFd>> {
+        self.opened(workload, resolver::sockets)
+    }
+
+    /// A stream socket for probing `workload` (§5 of docs/04-runtimes.md), opened inside its
+    /// network namespace, neither bound nor connected. Its network must have been made.
+    pub fn open_probe(&self, workload: &str) -> HelperResult<Vec<rustix::fd::OwnedFd>> {
+        self.opened(workload, || {
+            let (inet, stream) =
+                (rustix::net::AddressFamily::INET, rustix::net::SocketType::STREAM);
+            let flags = rustix::net::SocketFlags::CLOEXEC;
+            Ok(vec![rustix::net::socket_with(inet, stream, flags, None)?])
+        })
+    }
+
+    /// What `open` opens inside `workload`'s network namespace, which must have been made.
+    fn opened(
+        &self,
+        workload: &str,
+        open: impl FnOnce() -> std::io::Result<Vec<rustix::fd::OwnedFd>>,
+    ) -> HelperResult<Vec<rustix::fd::OwnedFd>> {
         identifier("workload", workload)?;
         let net = netns::net(&self.path(workload));
         if !net.exists() {
             return Err(HelperError::Refused("the workload has no network here".into()));
         }
-        Ok(netns::within(&net, resolver::sockets)?)
+        Ok(netns::within(&net, open)?)
     }
 
     /// Removes `workload`'s network; whether there was one.
