@@ -634,6 +634,13 @@ Primary:
   [actions](https://github.com/firecracker-microvm/firecracker/tree/v1.17.0/docs/api_requests),
   read 2026-10-23 at v1.17.0). Why a microVM's run ends with its guest restarting, and a stop
   arrives as Ctrl+Alt+Del (§6 of `../04-runtimes.md`).
+- **[V]** The OCI image layer specification, "Whiteouts": a whiteout is an empty file named `.wh.`
+  and the basename of the path deleted, which "MUST only apply to resources in lower/parent
+  layers", so "files that are present in the same layer as a whiteout file can only be hidden by
+  whiteout files in subsequent layers"; an opaque whiteout, `.wh..wh..opq`, hides all of its
+  directory's children in the lower layers
+  ([layer.md](https://github.com/opencontainers/image-spec/blob/v1.1.1/layer.md), read
+  2026-10-23 at v1.1.1). How a microVM's image drive applies layers (§6 of `../04-runtimes.md`).
 Secondary:
 - [TheGamePanel: a modern alternative to
   Pterodactyl](https://ollieread.com/articles/thegamepanel-a-modern-alternative-to-pterodactyl)

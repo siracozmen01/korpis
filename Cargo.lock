@@ -3264,6 +3264,7 @@ dependencies = [
 name = "korpis-guest"
 version = "0.0.0"
 dependencies = [
+ "korpis-image",
  "netlink-packet-core",
  "netlink-packet-route",
  "netlink-sys",
@@ -3316,6 +3317,25 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+]
+
+[[package]]
+name = "korpis-image"
+version = "0.0.0"
+dependencies = [
+ "flate2",
+ "korpis-core",
+ "korpis-image",
+ "rustix",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tracing",
+ "tracing-subscriber",
+ "zstd",
 ]
 
 [[package]]

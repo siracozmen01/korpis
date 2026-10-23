@@ -29,4 +29,5 @@ serde_json = "1"
 thiserror = { workspace = true }
 
 [dev-dependencies]
+korpis-image = { path = "../korpis-image", features = ["testing"] }
 tempfile = "3"

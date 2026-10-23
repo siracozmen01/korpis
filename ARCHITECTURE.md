@@ -80,6 +80,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-agent` | its own hexagon | AGPL-3.0 | the node supervisor (§4 of `02-architecture.md`) |
 | `korpis-helper` | its own hexagon | AGPL-3.0 | the privileged helper, synchronous, minimal |
 | `korpis-driver-oci` | driven adapter | AGPL-3.0 | the `oci` runtime driver over containerd |
+| `korpis-image` | driven adapter, node | AGPL-3.0 | image drives for the tiers whose root is a block device: an image's layers applied in a user namespace and made an ext4 filesystem by `korpis-image-build`, which its driver starts; and the boot drive every guest shares (§6 of `04-runtimes.md`) |
 | `korpis-guest` | its own program, guest | AGPL-3.0 | the first process of every microVM, built static, and the drive order and config drive format its driver writes and it reads (§6 of `04-runtimes.md`) |
 | `korpis-containerd` | third-party wire contract | Apache-2.0 | containerd's API, vendored and generated (§6 of `21-stack.md`) |
 | `korpis-extension` | client SDK | Apache-2.0 | what an extension is written with: identity, events, provider stream, and the request signing a backup target that speaks to or serves an S3-compatible store needs |

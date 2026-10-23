@@ -567,9 +567,34 @@ so the image's uid 0 is root of a kernel that runs nothing but this workload, wh
 boundary the tier draws; the console carries what the guest kernel prints at its quiet level beside
 what the workload prints; and the image's user must be a number, as for the container tier (§2).
 
-Built so far (Phase 3): the kernel, `korpis-guest`, and the config drive's format, proven by
-booting guests on Firecracker in `crates/korpis-guest/tests/boot.rs`. The driver that does this
-for a workload is the next step, and until it is built no node offers `microvm`.
+**How a `microvm`'s image drive is made** (2026-10-23). With no containerd to unpack for it, the
+driver has the image's layers applied by `korpis-image-build`, and the layers are a publisher's
+bytes, so the process that reads them holds no privilege. The build runs as two processes. The
+first, root, reads the image from the node's content store, its manifest and configuration checked
+against their digests, and makes a work directory owned by the workload's range of ids. The worker
+drops its groups and makes its own user, network, and IPC namespaces in a pid namespace of its own;
+the first maps its ids from 0 to the workload's 65,536 and streams it each layer, checked against
+its digest as it goes. The worker becomes its namespace's root and applies the layers as the image
+layer specification says (§5 of `research/evidence.md`): an entry replaces what was at its path,
+`.wh.NAME` removes the `NAME` a lower layer made, `.wh..wh..opq` hides what lower layers put in its
+directory, and every path is resolved by the kernel as if the tree were the root
+(`RESOLVE_IN_ROOT`), so an earlier layer's link, absolute or climbing, is followed within the tree
+and never out of it. Then it runs `mke2fs -d` on the tree in the same namespace, so the drive's
+files are owned by the workload's ids from 0, as they are for the container tier on disk (§4.5),
+and the first makes the drive root's, read-only, and named by the manifest's digest, which a later
+workload of the same image reuses. The boot drive is made the same way minus the worker, since
+nothing in it comes from a tenant, and is named by the digest of the `korpis-guest` it holds. What
+it costs: a node holds each image twice, its layers in the content store and its drive beside them,
+and builds the drive once before the image's first guest can start; an entry owned by an id beyond
+the workload's 65,536 refuses the image, as the container tier's id mapping would; device nodes in
+a layer are skipped and counted, since the guest's `/dev` is its kernel's; and extended attributes
+are not kept, so a binary that relies on a file capability (`ping`, in some images) runs without it
+in this tier.
+
+Built so far (Phase 3): the kernel, `korpis-guest`, the config drive's format, and the image and
+boot drives, proven by booting guests on Firecracker from an image built out of its layers
+(`crates/korpis-guest/tests/boot.rs`, `crates/korpis-image/tests/build.rs`). The driver that does
+this for a workload is the next step, and until it is built no node offers `microvm`.
 
 ---
 

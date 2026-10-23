@@ -8,10 +8,10 @@
 
 use super::{Containerd, under};
 use crate::error::{DriverError, DriverResult};
-use crate::image::ImageConfig;
 use korpis_containerd::containerd::services::content::v1 as content;
 use korpis_containerd::containerd::services::images::v1 as images;
 use korpis_containerd::containerd::types;
+use korpis_core::content::image::ImageConfig;
 use korpis_core::content::{self as oci, Descriptor, Document};
 use std::collections::BTreeMap;
 use tokio::io::AsyncReadExt as _;

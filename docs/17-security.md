@@ -161,6 +161,8 @@ backup jobs         one per backup or restore, started by the helper, holding on
 install jobs        one per install, started by the helper, running as the workload's own ids in a
                     user namespace whose root holds only that workload's volumes (09 §4).
 runtime drivers     separate processes, each holding only its own driver's privileges.
+image builds        one per image a microvm node has not built, started by its driver, applying
+                    a publisher's layers as the workload's ids in a user namespace (04 §6).
 ingress proxy       one per node, unprivileged and confined, the only process parsing requests
                     from the internet; holds its routes and certificates in memory (07 §3.2).
 ```

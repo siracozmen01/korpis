@@ -2,7 +2,7 @@
 
 //! A microVM booted as its driver will boot one (§6 of docs/04-runtimes.md): the node's guest
 //! kernel (scripts/guest-kernel.sh), a boot drive holding nothing but `korpis-guest`, an image
-//! drive, the config drive, and a volume. The entry runs as its user with its environment, writes
+//! drive built from an image's layer by `korpis-image-build`, the config drive, and a volume. The entry runs as its user with its environment, writes
 //! its volume, and its exit status comes back on the config drive; a stop sent as Ctrl+Alt+Del
 //! reaches it as `SIGTERM`. Needs root, /dev/kvm, Firecracker (scripts/tools.sh), the guest
 //! kernel, and mkfs.ext4 and debugfs, and is skipped without them.
@@ -17,6 +17,9 @@
 
 use korpis_guest::config::{Config, Volume};
 use korpis_guest::status::Ended;
+use korpis_image::build::Request;
+use korpis_image::source::Packing;
+use korpis_image::testing::Entry;
 use std::collections::BTreeMap;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
@@ -45,16 +48,42 @@ fn ok(c: &mut Command) {
     assert!(out.status.success(), "{c:?}: {}", String::from_utf8_lossy(&out.stderr));
 }
 
+/// Where this test was built.
+fn target() -> PathBuf {
+    let exe = std::env::current_exe().unwrap();
+    exe.parent().and_then(Path::parent).and_then(Path::parent).unwrap().to_owned()
+}
+
 /// `korpis-guest`, built static where this test was built.
 fn guest() -> PathBuf {
-    let exe = std::env::current_exe().unwrap();
-    let target = exe.parent().and_then(Path::parent).and_then(Path::parent).unwrap();
     let triple = "x86_64-unknown-linux-musl";
     ok(Command::new(env!("CARGO"))
         .args(["build", "-q", "-p", "korpis-guest", "--bin", "korpis-guest", "--target", triple])
         .arg("--target-dir")
-        .arg(target));
-    target.join(triple).join("debug/korpis-guest")
+        .arg(target()));
+    target().join(triple).join("debug/korpis-guest")
+}
+
+/// The image drive a driver would build for an image of busybox and its applets: a layer
+/// from the content store, applied and made a filesystem by `korpis-image-build`.
+fn image_drive(dir: &Path, out: &Path) {
+    ok(Command::new(env!("CARGO"))
+        .args(["build", "-q", "-p", "korpis-image", "--bin", "korpis-image-build"])
+        .arg("--target-dir")
+        .arg(target()));
+    let busybox = std::fs::read("/bin/busybox").unwrap();
+    let applets = ["sh", "echo", "id", "sleep", "cat", "pwd", "touch"].map(|a| format!("bin/{a}"));
+    let mut entries = vec![Entry::File("bin/busybox", &busybox, (0, 0), 0o755)];
+    entries.extend(applets.iter().map(|a| Entry::Symlink(a, "busybox")));
+    let content = dir.join("content");
+    let image = korpis_image::testing::image(
+        &content,
+        &[(korpis_image::testing::layer(&entries).unwrap(), Packing::Gzip)],
+        "1000:1000",
+    )
+    .unwrap();
+    let request = Request { content, image, out: out.to_owned(), ids: 1_900_065_536 };
+    korpis_image::build::run(&target().join("debug/korpis-image-build"), &request).unwrap();
 }
 
 /// An ext4 image of `size` MiB at `image` holding `dir`'s tree, owned as `owner` at its root.
@@ -68,22 +97,11 @@ fn ext4(dir: &Path, image: &Path, size: u32, owner: &str) {
 
 /// The four drives of a guest whose entry is `script`, in `dir`.
 fn drives(dir: &Path, script: &str) -> [PathBuf; 4] {
-    let boot = dir.join("boot");
-    for d in ["dev", "lower", "upper", "newroot"] {
-        std::fs::create_dir_all(boot.join(d)).unwrap();
-    }
-    std::fs::copy(guest(), boot.join("korpis-guest")).unwrap();
-    let image = dir.join("image");
-    std::fs::create_dir_all(image.join("bin")).unwrap();
-    std::fs::copy("/bin/busybox", image.join("bin/busybox")).unwrap();
-    for applet in ["sh", "echo", "id", "sleep", "cat"] {
-        std::os::unix::fs::symlink("busybox", image.join("bin").join(applet)).unwrap();
-    }
     let empty = dir.join("empty");
     std::fs::create_dir_all(&empty).unwrap();
-    let paths = ["boot.ext4", "image.ext4", "config", "data.ext4"].map(|n| dir.join(n));
-    ext4(&boot, &paths[0], 16, "0:0");
-    ext4(&image, &paths[1], 16, "0:0");
+    let boot = korpis_image::boot::drive(&guest(), dir).unwrap();
+    let paths = [boot, dir.join("image.ext4"), dir.join("config"), dir.join("data.ext4")];
+    image_drive(dir, &paths[1]);
     ext4(&empty, &paths[3], 16, "1000:1000");
     let config = Config {
         hostname: "guest-1".into(),

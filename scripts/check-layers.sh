@@ -45,6 +45,9 @@ rules=(
     # The microVM guest's first process runs inside a tenant's guest: its config format and
     # nothing else of ours, no RPC stack, runtime, network client, or store.
     "korpis-guest||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-proto connectrpc tokio sqlx hyper reqwest"
+    # An image build reads a publisher's layers: the content format and nothing else of ours, no
+    # RPC stack, runtime, network client, or store.
+    "korpis-image||korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-proto connectrpc tokio sqlx hyper reqwest"
     # A first-party extension is built as a third party's would be (§1 of docs/22-first-party.md):
     # the SDK and the wire contract, and nothing else of ours.
     "korpis-target-s3||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-backup korpis-recipe sqlx"

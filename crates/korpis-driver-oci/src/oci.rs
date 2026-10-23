@@ -8,9 +8,9 @@
 //! loopback until the networking of Phase 1), and its limits as cgroup v2 enforces them. A volume
 //! is bind-mounted with an idmapped mount, so its files keep workload-relative ids on disk (§4.5).
 
-use crate::image::ImageConfig;
 use crate::seccomp::{Seccomp, profile};
 use crate::validate::{IDENTITY_MOUNT, Valid};
+use korpis_core::content::image::ImageConfig;
 use serde::Serialize;
 
 /// The OCI runtime specification version written.

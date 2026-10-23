@@ -1,0 +1,41 @@
+[package]
+name = "korpis-image"
+description = "Korpis's image drives: an OCI image's layers applied in a user namespace and made an ext4 filesystem, for the tiers whose root is a block device"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# The job a driver starts for each image it has not built (§6 of docs/04-runtimes.md): it reads
+# layers a tenant's publisher wrote, so the part that reads them holds no privilege, and nothing
+# here links an RPC stack, a runtime, or a store (scripts/check-layers.sh).
+[[bin]]
+name = "korpis-image-build"
+path = "src/bin/korpis-image-build/main.rs"
+
+[features]
+# An image made in a content store, for tests here and in the crates that boot one.
+testing = []
+
+[dependencies]
+# Layers arrive as tar, bare or in gzip or zstd, as an image's manifest names them.
+flate2 = "1"
+korpis-core = { workspace = true, features = ["content"] }
+rustix = { version = "1", features = ["fs", "process", "thread"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tar = { version = "0.4", default-features = false }
+thiserror = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+zstd = "0.13"
+
+[dev-dependencies]
+korpis-image = { path = ".", features = ["testing"] }
+tempfile = "3"

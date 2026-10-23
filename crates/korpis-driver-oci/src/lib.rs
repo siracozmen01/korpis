@@ -11,7 +11,6 @@
 pub mod containerd;
 pub mod describe;
 pub mod error;
-pub mod image;
 pub mod oci;
 pub mod prepare;
 pub mod seccomp;

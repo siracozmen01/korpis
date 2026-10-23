@@ -3,6 +3,8 @@
 //! What an image's configuration says about running it: its default command, environment,
 //! working directory, and user, and the uncompressed digests of its layers. An image is
 //! untrusted input, so what it says is bounded and checked like anything else from outside.
+//! Every driver that runs an image reads it here, so a `container` and a `microvm` run one image
+//! the same way (§6 of docs/04-runtimes.md).
 
 use serde::Deserialize;
 
@@ -88,7 +90,7 @@ impl ImageConfig {
         }
         let raw: Raw = serde_json::from_slice(bytes).map_err(|e| ImageError(e.to_string()))?;
         for d in &raw.rootfs.diff_ids {
-            korpis_core::content::hex_of(d).map_err(|e| ImageError(e.to_string()))?;
+            super::hex_of(d).map_err(|e| ImageError(e.to_string()))?;
         }
         let run = raw.config.unwrap_or_default();
         Ok(Self {

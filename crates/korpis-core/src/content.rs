@@ -6,6 +6,8 @@
 //! manifest names, and the chain identifiers its unpacked layers are known by. Pure: bytes in,
 //! decisions out, and every digest checked by the caller against the bytes it names.
 
+pub mod image;
+
 use serde::Deserialize;
 use sha2::{Digest as _, Sha256};
 use std::fmt::Write as _;
