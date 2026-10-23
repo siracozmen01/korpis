@@ -2,8 +2,7 @@
 
 //! `Prepare` for the microvm tier (§4.2 of docs/04-runtimes.md): the shared preparing of
 //! `korpis_driver_kit::prepare` as the `firecracker` driver serves it, with no default process
-//! limit, since a guest's processes are its own kernel's to count, and refusing a console until
-//! the guest's serial console reaches a stream.
+//! limit, since a guest's processes are its own kernel's to count.
 
 use korpis_core::workload::spec::IsolationTier;
 use korpis_driver_kit::prepare::Serves;
@@ -27,13 +26,5 @@ pub fn prepare(
     intent: &pb::Intent,
     manifest: &[u8],
 ) -> Result<driver::PreparedSpec, driver::Rejection> {
-    let spec = korpis_driver_kit::prepare::prepare(&SERVES, workload, (intent, manifest))?;
-    if spec.stream.is_set() {
-        return Err(driver::Rejection {
-            reason: pb::UnsatisfiableReason::UNSATISFIABLE_REASON_PREPARE_REJECTED.into(),
-            detail: "the firecracker driver offers no console yet; declare `console: none`".into(),
-            ..Default::default()
-        });
-    }
-    Ok(spec)
+    korpis_driver_kit::prepare::prepare(&SERVES, workload, (intent, manifest))
 }

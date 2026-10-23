@@ -9,6 +9,7 @@
 
 use crate::settings::Settings;
 use std::io;
+use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -116,11 +117,14 @@ pub fn command(settings: &Settings, id: &str, (uid, gid): (u32, u32), shape: &Sh
     for setting in &shape.cgroup {
         c.args(["--cgroup", setting]);
     }
-    // Detached, so the guest outlives the driver; in a pid namespace of its own, so its
-    // Firecracker can name no process but itself. The jailer forks to do both, and the process
-    // that is Firecracker is named in the pid file it leaves in the chroot.
-    c.args(["--daemonize", "--new-pid-ns", "--", "--config-file", "/vm.json", "--api-sock", API])
+    // In a pid namespace of its own, so its Firecracker can name no process but itself. The
+    // jailer forks to do it and exits, and the process that is Firecracker is named in the pid
+    // file it leaves in the chroot. It is not daemonized, which would put nothing on the guest's
+    // serial port: the caller gives it the console as its standard input and output, and a
+    // process group of its own, so the guest outlives the driver.
+    c.args(["--new-pid-ns", "--", "--config-file", "/vm.json", "--api-sock", API])
         .args(["--level", "Error"]);
+    c.process_group(0);
     c
 }
 
@@ -138,10 +142,30 @@ pub fn remove(settings: &Settings, id: &str) -> io::Result<()> {
         Err(e) if e.kind() == io::ErrorKind::NotFound => {}
         Err(e) => return Err(e),
     }
-    match std::fs::remove_dir(settings.cgroup_of(id)) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e),
+    remove_cgroup(&settings.cgroup_of(id))
+}
+
+/// Removes the cgroup at `path`, once the console's writer has sealed what its guest wrote and
+/// left it; one that has not within a bound is ended, and one still there a bound later said.
+fn remove_cgroup(path: &Path) -> io::Result<()> {
+    use std::time::{Duration, Instant};
+    let start = Instant::now();
+    let mut killed = false;
+    loop {
+        match std::fs::remove_dir(path) {
+            Ok(()) => return Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(e) if e.raw_os_error() != Some(rustix::io::Errno::BUSY.raw_os_error()) => {
+                return Err(e);
+            }
+            Err(e) if killed && start.elapsed() > Duration::from_secs(10) => return Err(e),
+            Err(_) if !killed && start.elapsed() > Duration::from_secs(5) => {
+                std::fs::write(path.join("cgroup.kill"), "1")?;
+                killed = true;
+            }
+            Err(_) => {}
+        }
+        std::thread::sleep(Duration::from_millis(20));
     }
 }
 

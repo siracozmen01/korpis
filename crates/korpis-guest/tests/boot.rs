@@ -115,6 +115,7 @@ fn drives(dir: &Path, script: &str) -> [PathBuf; 4] {
         gid: 1000,
         network: None,
         volumes: vec![Volume { path: "/data".into(), read_only: false }],
+        interactive: false,
     };
     config.write(&mut std::fs::File::create(&paths[2]).unwrap()).unwrap();
     paths

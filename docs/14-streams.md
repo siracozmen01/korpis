@@ -266,6 +266,14 @@ of `research/evidence.md`); the writer drains for at most three seconds, seals, 
 workload's last output is a sealed segment rather than a file left open for a writer that never
 comes.
 
+The `microvm` tier (Phase 3, the `firecracker` driver) has no shim, so its driver starts the same
+writer for each run of a guest, before the guest, on the same descriptors, and its readiness is
+waited on the same way; the guest's console is its serial port, which is its Firecracker's
+output. The writer is moved into the guest's cgroup once there is one, so it outlives a restart of
+the driver as the guest does and is counted with the guest, and it seals and exits when the
+guest's Firecracker closes the port's output, having read what was left (§3 of
+`04-runtimes.md`).
+
 The stream's directory is a volume of its own, `<workload>.stream_console`, that the agent asks
 the privileged helper for before Create, sized to the most the stream can hold (§5), so the quota
 on it is the kernel's (K-3). The `_` in its name is a character no declared volume's name may

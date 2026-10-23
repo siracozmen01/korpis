@@ -11,7 +11,8 @@
 //! the reason on the console.
 //!
 //! It holds one `unsafe` block, in `run`: the entry's child clears the signal mask it inherits
-//! before exec, which only `pre_exec` can do.
+//! before exec, and an interactive entry takes its terminal as its controlling one, which only
+//! `pre_exec` can do.
 
 mod mounts;
 mod net;
@@ -53,6 +54,21 @@ fn signals() -> Result<SignalFd, String> {
         .map_err(failed("a signal descriptor"))
 }
 
+/// The console's output as the entry writes it. A terminal's output processing turns each
+/// newline into a carriage return and a newline; with it off, a console of logs holds what a
+/// container's would. An interactive console keeps it, as a container's terminal does.
+fn plain_output() {
+    use rustix::termios::{OptionalActions, OutputModes, tcgetattr, tcsetattr};
+    let console = std::io::stdout();
+    let set = tcgetattr(&console).and_then(|mut modes| {
+        modes.output_modes.remove(OutputModes::OPOST);
+        tcsetattr(&console, OptionalActions::Now, &modes)
+    });
+    if let Err(e) = set {
+        say(&format!("the console's output modes: {e}"));
+    }
+}
+
 /// Everything up to the entry's end, on the config drive `drive`.
 fn boot(drive: &mut File) -> Result<Ended, String> {
     // Ctrl+Alt+Del becomes SIGINT to this process rather than an immediate restart, so a stop
@@ -60,6 +76,14 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     set_cad_enabled(false).map_err(failed("taking Ctrl+Alt+Del"))?;
     let mut signals = signals()?;
     let config = Config::read(drive).map_err(failed("reading the config drive"))?;
+    // The serial port was opened for this process before it ran, and what is typed on it from
+    // now on is kept for whoever reads it: the driver holds a console's input until it is told.
+    if let Err(e) = korpis_guest::status::started(drive) {
+        say(&format!("saying the run has started: {e}"));
+    }
+    if !config.interactive {
+        plain_output();
+    }
     nix::unistd::sethostname(&config.hostname).map_err(failed("setting the hostname"))?;
     mounts::root(ROOT, &config)?;
     net::configure(config.network.as_ref())?;

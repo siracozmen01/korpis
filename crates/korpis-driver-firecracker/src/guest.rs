@@ -77,6 +77,7 @@ pub fn config(spec: &driver::PreparedSpec, image: &ImageConfig) -> Result<Config
         gid: image.user.1,
         network: None,
         volumes,
+        interactive: spec.stream.as_option().is_some_and(|s| s.input),
     })
 }
 

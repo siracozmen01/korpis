@@ -1391,6 +1391,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 143 | Nothing bounded how many affinity rules and spread constraints a placement evaluates, under the installation's one lock | §53 | `05-scheduling.md` §2.2 |
 | 144 | The interface named a signal for a stop, and nothing could carry one into a guest | §54 | `04-runtimes.md` §6 |
 | 145 | A guest counted the stops it was sent, and nothing kept the count: a stop asked again was its kill, and a kill alone was its stop | §55 | `04-runtimes.md` §6 |
+| 146 | What was typed into a guest's console as it booted was lost, and a run's status could be the last run's | §56 | `04-runtimes.md` §3 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4806,3 +4807,54 @@ both drivers as their processes do and runs a guest through the agent's runtime 
 `Prepare` to `Destroy`, with an agent restarted between; `tests/runtime.rs` holds the stops and
 the kill. Step 7's identifiers are the drivers' own, which the agent routes by and never marks
 (§3 of `04-runtimes.md`).
+
+## 56. A customer types into a build's console as its microVM boots
+
+Written 2026-10-23, as the `firecracker` driver was given a console (§3 of `04-runtimes.md`).
+Trace 55 followed a guest's stops; this one follows its console, which for a container is
+containerd's and for a guest is a serial port the driver hands to the same writer, and asks of
+each step what holds the bytes and from when. A customer debugs a build that waits for a line on
+its input; their tool opens the console and types the line the moment the build starts, then
+resizes the terminal, and the build ends.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The intent declares an interactive console; `Prepare` returns the stream's limits and secrets, and the agent names the stream volume the helper made | `14-streams.md` §4; `04-runtimes.md` §3 |
+| 2 | `Create` refuses a stream directory that is not the workload's own, and keeps the secrets the writer redacts in a file only the driver reads | `04-runtimes.md` §3; `14-streams.md` §7 |
+| 3 | `Start` clears the config drive's status, starts the writer and waits until it is ready, then starts the guest with the serial port as its Firecracker's input and output, and moves the writer into the guest's cgroup | `04-runtimes.md` §3, §6; `14-streams.md` §4 |
+| 4 | The customer's line arrives while the guest is still booting ‡ | `14-streams.md` §6; `04-runtimes.md` §3 |
+| 5 | The guest's kernel opens the port; `korpis-guest` says the run has started, and runs the entry in a session whose controlling terminal is the port | `04-runtimes.md` §3, §6 |
+| 6 | The writer records the line with who typed it, and the entry's answer reaches the stream | `14-streams.md` §6 |
+| 7 | The customer resizes the terminal, and is refused, as stated | `04-runtimes.md` §3, §4.4 |
+| 8 | The build ends; the writer seals what it read and leaves the cgroup, and the driver reads how the run ended from the record the run wrote ‡ | `14-streams.md` §4; `04-runtimes.md` §6 |
+
+**One finding, at steps 4 and 8** (‡).
+
+**FINDING 146: What was typed into a guest's console as it booted was lost, and a run's status
+could be the last run's. `CONFIRMED`, by the driver's tests**
+
+Found 2026-10-23 by the interactive console's test, which sent its line the moment the guest's
+Firecracker was running and saw it recorded by the writer and never read. Asked as the algebra
+question of step 4: what holds a typed byte between the writer and the entry, and from when? For
+a container, its terminal, which exists before the task starts. For a guest, the serial port,
+which is the guest kernel's: Firecracker passes on what arrives on its input as it arrives, and
+the kernel clears the port's receive buffer when it opens the port at boot. Between the guest's
+start and that moment a byte had nowhere to wait, and the stream said it was typed. The same
+question of step 8, what says how this run ended, found the second half: the record a guest writes
+on its config drive was never cleared, so a run that ended before writing its own would have been
+reported with the last run's exit status.
+
+**Resolution.** The run says when it can be typed to: `korpis-guest` writes that it has started on
+the config drive once the port is open, and the driver holds an input until the record says so,
+within ten seconds; and the driver clears the record before every run. → stated in §3 and §6 of
+`04-runtimes.md`; built in `crates/korpis-guest` and `crates/korpis-driver-firecracker`, whose
+console test types into a guest at once and reads the answer. What it costs: an input waits for a
+booting guest, and one sent to a guest that never starts is sent when the bound runs out and lost,
+as the guest is; the writer's record says what was typed, not what was read, as it does for a
+container.
+
+Steps 1 to 8 are built and tested: `crates/korpis-driver-firecracker/tests/console.rs` runs a
+guest of logs, which takes no input and whose lines hold no carriage return, and an interactive
+one; `tests/protocol.rs` asks for a resize through the agent and is refused.

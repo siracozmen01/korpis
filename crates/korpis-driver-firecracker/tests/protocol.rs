@@ -15,20 +15,20 @@
     reason = "a failing test should fail loudly"
 )]
 
-mod rig;
+mod support;
 
 use korpis_agent::runtime::drivers::Drivers;
 use korpis_agent::runtime::process::DriverRuntime;
-use korpis_agent::runtime::{Prepared, Runtime, RuntimeError};
+use korpis_agent::runtime::{Prepared, Runtime, RuntimeError, Sender};
 use korpis_driver_kit::serve::{bind, serve};
 use korpis_driver_oci::containerd::Containerd;
 use korpis_driver_oci::validate::Policy;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
-use rig::{Rig, live};
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::time::{Duration, Instant};
+use support::{Rig, live};
 
 const CONTAINERD: &str = "/run/containerd/containerd.sock";
 
@@ -125,6 +125,9 @@ async fn the_agent_routes_each_verb_to_the_driver_that_serves_it() {
     state_once(&node, &id, driver::RuntimeState::RUNTIME_STATE_RUNNING).await;
     let heard = tokio::time::timeout(Duration::from_secs(5), changes.recv()).await;
     assert_eq!(heard.unwrap().unwrap(), id, "a guest's change reaches the agent");
+    let alex = Sender { by: "user:alex", session: "s1" };
+    let resized = node.resize_console(&id, alex, (80, 24)).await;
+    assert!(resized.is_err(), "nothing carries a size into a guest yet: {resized:?}");
     let signalled = node.signal(&id, "SIGHUP").await;
     assert!(
         matches!(signalled, Err(RuntimeError::Failed(_))),

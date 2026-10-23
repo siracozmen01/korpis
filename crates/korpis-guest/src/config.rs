@@ -40,6 +40,11 @@ pub struct Config {
     pub network: Option<Network>,
     /// The volumes, each on the drive of its place in this list ([`crate::drive::volume`]).
     pub volumes: Vec<Volume>,
+    /// The console takes input: the entry runs with the serial port as its controlling
+    /// terminal, as a container's interactive console runs under one. Otherwise its input is
+    /// empty and its output reaches the console as it wrote it.
+    #[serde(default)]
+    pub interactive: bool,
 }
 
 /// The guest's one interface, `eth0`.
@@ -115,6 +120,7 @@ mod tests {
                 gateways: vec!["169.254.0.1".parse().unwrap()],
             }),
             volumes: vec![Volume { path: "/data".into(), read_only: false }],
+            interactive: true,
         }
     }
 

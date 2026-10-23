@@ -22,6 +22,8 @@ pub struct Settings {
     pub guest: PathBuf,
     /// `korpis-image-build`, which makes an image's drive.
     pub image_build: PathBuf,
+    /// `korpis-stream-writer`, which writes a guest's console to its stream.
+    pub writer: PathBuf,
     /// The node's content store, which the agent fills and the driver only reads.
     pub content: PathBuf,
     /// The directory the helper keeps volumes under; a volume's drive is nowhere else.

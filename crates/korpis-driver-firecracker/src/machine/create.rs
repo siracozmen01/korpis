@@ -15,13 +15,17 @@ use std::path::{Path, PathBuf};
 
 /// The ids a workload's range holds.
 const IDS: u32 = 65_536;
+/// The most secret values a console redacts, and the longest name and value together.
+const SECRETS: usize = 4096;
+const SECRET: usize = 64 << 10;
 
 fn refused(why: impl Into<String>) -> MachineError {
     MachineError::Refused(why.into())
 }
 
 /// That `spec` is one this driver builds: its tier, its image by digest, its ids a whole range
-/// above the host's own, no network or console yet, and every volume beneath the volume root.
+/// above the host's own, no network yet, its console written to its own stream volume alone,
+/// and every volume beneath the volume root.
 fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()> {
     if spec.tier.as_known() != Some(pb::IsolationTier::ISOLATION_TIER_MICROVM) {
         return Err(refused("the firecracker driver builds the microvm tier alone"));
@@ -34,8 +38,13 @@ fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<(
     if !spec.namespaces.is_empty() {
         return Err(refused("a guest is given no network by this driver yet"));
     }
-    if spec.stream.is_set() {
-        return Err(refused("a guest's console reaches no stream yet"));
+    if !korpis_driver_kit::console::own_dir(spec, &settings.volume_root) {
+        return Err(refused("only the workload's own stream volume is written to"));
+    }
+    let secrets = spec.stream.as_option().map_or(&[][..], |s| &s.secrets[..]);
+    let long = |x: &driver::StreamSecret| x.name.len() + x.value.len() > SECRET;
+    if secrets.len() > SECRETS || secrets.iter().any(long) {
+        return Err(refused("too many secrets to redact, or one too long"));
     }
     let root = settings.volume_root.canonicalize().map_err(failed)?;
     for m in &spec.mounts {
@@ -128,6 +137,9 @@ fn build(
     Object::create(dir, id, spec).map_err(failed)?;
     let (kernel, boot, image, config) = shared(settings, spec).map_err(failed)?;
     let guest = crate::guest::config(spec, &config).map_err(refused)?;
+    if let Some(stream) = spec.stream.as_option() {
+        crate::console::prepare(dir, stream).map_err(failed)?;
+    }
     let config_drive = Object::config(dir);
     guest.write(&mut std::fs::File::create(&config_drive).map_err(failed)?).map_err(failed)?;
     let owner = Some(spec.uid_base);

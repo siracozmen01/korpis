@@ -12,7 +12,7 @@ mod status;
 
 use crate::object::{Object, Vm};
 use crate::settings::Settings;
-use crate::{api, jail, process};
+use crate::{api, console, jail, process};
 use korpis_proto::korpis::driver::v1 as driver;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -26,15 +26,21 @@ pub const KILL_BOUND: Duration = Duration::from_secs(5);
 /// What the jailer said as it started the guest, in the object's directory.
 pub const START_LOG: &str = "start.log";
 
-/// The process id in the pid file at `file`, read without following a link.
+/// The process id in the pid file at `file`. The guest's Firecracker can write where it is, so
+/// it is opened without following a link and without waiting, believed only if it is a regular
+/// file, and read no further than a process id can run: a FIFO or an endless file put there
+/// stalls nothing.
 fn read_pid(file: &std::path::Path) -> Option<i32> {
-    use std::os::unix::fs::OpenOptionsExt as _;
-    let mut f = std::fs::OpenOptions::new()
-        .read(true)
-        .custom_flags(rustix::fs::OFlags::NOFOLLOW.bits().cast_signed())
-        .open(file)
-        .ok()?;
-    std::io::read_to_string(&mut f).ok()?.trim().parse().ok()
+    use rustix::fs::{FileType, Mode, OFlags};
+    let flags = OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC;
+    let fd = rustix::fs::open(file, flags, Mode::empty()).ok()?;
+    let stat = rustix::fs::fstat(&fd).ok()?;
+    if FileType::from_raw_mode(stat.st_mode) != FileType::RegularFile {
+        return None;
+    }
+    let mut text = [0u8; 32];
+    let n = rustix::io::read(&fd, &mut text).ok()?;
+    std::str::from_utf8(text.get(..n)?).ok()?.trim().parse().ok()
 }
 
 /// How long a kill waits between one Ctrl+Alt+Del and the next.
@@ -170,11 +176,15 @@ impl Machine {
         jail::build(&self.settings, id, &drives, &shape).map_err(failed)?;
         let owner = (object.spec.uid_base, object.spec.uid_base);
         let mut command = jail::command(&self.settings, id, owner, &shape);
-        // What the jailer says before it detaches is kept beside the object: once detached, its
-        // output and Firecracker's go nowhere.
-        Object::untell(&self.dir(id)?).map_err(failed)?;
-        let log = std::fs::File::create(self.dir(id)?.join(START_LOG)).map_err(failed)?;
-        command.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(log);
+        // What the jailer and the guest's Firecracker say of themselves is kept beside the
+        // object; the guest's console is their standard output.
+        Object::untell(&dir).map_err(failed)?;
+        let mut drive = std::fs::OpenOptions::new().write(true).open(Object::config(&dir));
+        drive.as_mut().map(korpis_guest::status::clear).map_err(failed)?.map_err(failed)?;
+        let log = std::fs::File::create(dir.join(START_LOG)).map_err(failed)?;
+        let stream = object.spec.stream.as_option();
+        let console = console::attach(&self.settings.writer, &dir, stream).await.map_err(failed)?;
+        command.stdin(console.stdin).stdout(console.stdout).stderr(log);
         let mut jailer = tokio::process::Command::from(command).spawn().map_err(failed)?;
         let done = tokio::time::timeout(JAILER_BOUND, jailer.wait()).await;
         let said = || std::fs::read_to_string(self.settings.object(id).join(START_LOG));
@@ -185,9 +195,12 @@ impl Machine {
             Err(_) => return Err(failed("the jailer did not detach in time")),
         }
         let pid = self.vmm_pid(id, owner.0).await?;
+        if let Some(writer) = console.writer {
+            console::join(writer, &self.settings.cgroup_of(id)).map_err(failed)?;
+        }
         let start_ticks = process::start_ticks(pid).unwrap_or(0);
         let vm = Vm { pid, start_ticks, started_at_ms: now_ms(), ended_at_ms: None };
-        object.record(&self.dir(id)?, vm).map_err(failed)?;
+        object.record(&dir, vm).map_err(failed)?;
         self.watch(id, vm);
         self.changed(id);
         Ok(())
@@ -213,6 +226,30 @@ impl Machine {
             return Ok(pid);
         }
         Err(failed("the jailer's pid file names no process of this guest"))
+    }
+
+    /// Sends `data`, typed by `from` (who, and in which session), to object `id`'s console, once
+    /// its guest has started: what reaches the serial port before the guest's kernel has opened
+    /// it is lost, so an input sent as a guest boots waits for it, within a bound.
+    pub async fn console_input(
+        &self,
+        id: &str,
+        from: (&str, &str),
+        data: &[u8],
+    ) -> MachineResult<()> {
+        let object = self.load(id)?;
+        let dir = self.dir(id)?;
+        let until = Instant::now() + JAILER_BOUND;
+        let started = || {
+            let drive = std::fs::File::open(Object::config(&dir));
+            drive.and_then(|mut d| korpis_guest::status::has_started(&mut d)).unwrap_or(false)
+        };
+        while !started() && Instant::now() < until {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        console::send(&dir, object.spec.stream.as_option(), from, data).map_err(|(refused, why)| {
+            if refused { MachineError::Refused(why) } else { MachineError::Failed(why) }
+        })
     }
 
     /// Tells object `id`'s guest to stop, as the driver's graceful default, and kills it once
@@ -303,5 +340,27 @@ impl Machine {
                 ..Default::default()
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_pid_file_is_believed_only_as_a_short_regular_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("firecracker.pid");
+        std::fs::write(&file, "4242\n").unwrap();
+        assert_eq!(read_pid(&file), Some(4242));
+        let link = dir.path().join("link.pid");
+        std::os::unix::fs::symlink(&file, &link).unwrap();
+        assert_eq!(read_pid(&link), None, "a link is not followed");
+        let fifo = dir.path().join("fifo.pid");
+        korpis_driver_kit::console::make_fifo(&fifo).unwrap();
+        assert_eq!(read_pid(&fifo), None, "a FIFO is refused, not waited on");
+        let long = dir.path().join("long.pid");
+        std::fs::write(&long, format!("4242{}", " ".repeat(1 << 20))).unwrap();
+        assert_eq!(read_pid(&long), Some(4242), "read no further than a pid runs");
     }
 }

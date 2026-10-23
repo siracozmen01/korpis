@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The entry, run as the config says: its own process group, its environment and nothing else,
-//! its user and group, the console as its output. The first process reaps every process that
+//! its user and group, the console as its output; and for an interactive console, a session of
+//! its own whose controlling terminal is the serial port, its input, output, and errors all
+//! there, so the terminal's line discipline does for it what a container's terminal does. The first process reaps every process that
 //! ends, its own child or an orphan the entry left, until the entry itself has ended; a stop
 //! sends the entry's group `SIGTERM`, and a second ends every process.
 
@@ -50,26 +52,48 @@ fn stops(signals: &mut SignalFd) -> Result<usize, String> {
     Ok(asked)
 }
 
+/// The serial port, which an interactive entry has as its terminal.
+const TTY: &str = "/dev/ttyS0";
+
+/// Gives `command` the serial port as its input, output, and errors.
+fn on_the_terminal(command: &mut Command) -> Result<(), String> {
+    let tty = std::fs::OpenOptions::new().read(true).write(true).open(TTY);
+    let tty = tty.map_err(failed("opening the console's terminal"))?;
+    let copy = || tty.try_clone().map_err(failed("opening the console's terminal"));
+    command.stdin(copy()?).stdout(copy()?).stderr(tty);
+    Ok(())
+}
+
 fn spawn(config: &Config) -> Result<Pid, String> {
     let (program, args) = config.argv.split_first().ok_or("the config names no entry")?;
     let working = if config.working_dir.is_empty() { "/" } else { config.working_dir.as_str() };
     let mut command = Command::new(program);
-    command
-        .args(args)
-        .env_clear()
-        .envs(&config.env)
-        .current_dir(working)
-        .uid(config.uid)
-        .gid(config.gid)
-        .process_group(0)
-        .stdin(Stdio::null());
+    command.args(args).env_clear().envs(&config.env).current_dir(working);
+    command.uid(config.uid).gid(config.gid);
+    if config.interactive {
+        on_the_terminal(&mut command)?;
+    } else {
+        command.process_group(0).stdin(Stdio::null());
+    }
+    let interactive = config.interactive;
     // The first process blocks the signals it reads from a descriptor, and a child inherits its
-    // parent's mask across exec: the entry would never see SIGTERM. So the child clears it.
+    // parent's mask across exec: the entry would never see SIGTERM. So the child clears it, and
+    // an interactive entry starts its own session, the terminal on its input its controlling
+    // one; a session leader's process group is its own, so a stop still reaches its group.
     #[allow(unsafe_code, reason = "only pre_exec runs code in the child before exec")]
-    // SAFETY: the closure calls pthread_sigmask on a set built on the stack, which is
-    // async-signal-safe, allocates nothing, and takes no lock, as code between fork and exec must.
+    // SAFETY: the closure calls pthread_sigmask on a set built on the stack, setsid, and the
+    // TIOCSCTTY ioctl on descriptor 0, each a single system call that is async-signal-safe,
+    // allocates nothing, and takes no lock, as code between fork and exec must. Descriptor 0 is
+    // open for the closure's whole run: the spawn sets the child's input before pre_exec runs.
     unsafe {
-        command.pre_exec(|| SigSet::empty().thread_set_mask().map_err(std::io::Error::from));
+        command.pre_exec(move || {
+            SigSet::empty().thread_set_mask().map_err(std::io::Error::from)?;
+            if interactive {
+                rustix::process::setsid()?;
+                rustix::process::ioctl_tiocsctty(rustix::stdio::stdin())?;
+            }
+            Ok(())
+        });
     }
     let child = command.spawn().map_err(|e| format!("starting {program}: {e}"))?;
     let pid = i32::try_from(child.id()).map_err(failed("the entry's process id"))?;

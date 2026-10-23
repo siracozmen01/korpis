@@ -321,14 +321,17 @@ The `microvm` tier is another process, `korpis-driver-firecracker`, which serves
 protocol on `/run/korpis/driver-firecracker.sock` to the users `--allow-uid` names, and which the
 agent is given as a second `--driver-socket`. It runs as root, because Firecracker's jailer must:
 the jailer makes each guest's chroot, cgroup, and pid namespace and then runs that guest's
-Firecracker as the workload's first id, so what root holds is the driver and the jailer, and no
-guest. It reads Firecracker, the jailer, the guest kernel, and `korpis-guest` from
-`/usr/lib/korpis` (`--firecracker`, `--jailer`, `--kernel`, `--guest`), images from the node's
-content store as the `oci` driver does, and volumes from beneath the volume root; it keeps its
-objects, the drives guests share, and their jails in `/var/lib/korpis-driver-firecracker`
-(`--state-dir`), and each guest's cgroup beneath `korpis-firecracker` (`--cgroup`). Stopping it
-stops no guest, and the next one reads them back with `Recover`. How a node is given the kernel
-and Firecracker is question 7 of §10.
+Firecracker as the workload's first id, so no guest runs as root. What does beside it is the
+guest's console writer, as a container's does under its shim, moved into the guest's cgroup. The
+driver reads Firecracker, the jailer, the guest kernel, and `korpis-guest` from `/usr/lib/korpis`
+(`--firecracker`, `--jailer`, `--kernel`, `--guest`), and starts `korpis-stream-writer` and
+`korpis-image-build` from beside its own binary (`--stream-writer`, `--image-build`); it reads
+images from the node's content store as the `oci` driver does, and volumes from beneath the
+volume root; it keeps its objects, the drives guests share, and their jails in
+`/var/lib/korpis-driver-firecracker` (`--state-dir`), and each guest's cgroup beneath
+`korpis-firecracker` (`--cgroup`). Stopping it stops no guest and no console, and the next one
+reads the guests back with `Recover`. How a node is given the kernel and Firecracker is question 7
+of §10.
 
 The privileged helper runs only when asked. Its socket is a systemd socket unit
 (`ListenStream=/run/korpis/helper.sock`, `SocketMode=0660`, the supervisor's group as

@@ -51,7 +51,13 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
 pub fn info(healthy: bool) -> pb::DriverInfo {
     let capabilities = pb::Capabilities {
         tiers: vec![pb::IsolationTier::ISOLATION_TIER_MICROVM.into()],
-        console: vec![pb::ConsoleMode::CONSOLE_MODE_NONE.into()],
+        console: [
+            pb::ConsoleMode::CONSOLE_MODE_NONE,
+            pb::ConsoleMode::CONSOLE_MODE_LOGS,
+            pb::ConsoleMode::CONSOLE_MODE_INTERACTIVE,
+        ]
+        .map(Into::into)
+        .into(),
         gpu: vec![pb::GpuMode::GPU_MODE_NONE.into()],
         rootfs_sources: vec![pb::RootfsSource::ROOTFS_SOURCE_OCI_IMAGE.into()],
         network_modes: vec![pb::NetworkMode::NETWORK_MODE_NONE.into()],

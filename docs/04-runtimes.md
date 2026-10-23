@@ -316,6 +316,25 @@ workload, and `ResizeConsole` records the new size the same way and resizes the 
 (§6 of `14-streams.md`). Neither waits on the writer: input that finds it gone, or the workload not
 reading, is refused or recorded as dropped, never left to stall the call.
 
+**The `firecracker` driver declares the same three console modes** (Phase 3), through the one
+console a guest has, its serial port, which is its Firecracker's standard input and output. The
+driver has no shim to start the writer, so it starts `korpis-stream-writer` itself for each run,
+before the guest, handing it the guest's output on the descriptors containerd's shim would; once
+the jailer has made the guest's cgroup the writer is moved into it, so it is counted with its
+guest and outlives a restart of the driver, and it seals and exits when the guest's Firecracker
+does. It refuses the same stream directories, and the same secrets, as the `oci` driver; what both
+share of a console is one module of `korpis-driver-kit`. Inside the guest, `korpis-guest` gives a
+console of logs the port's output as the entry writes it, with the terminal's output processing
+off, so a line holds no carriage return a container's would not; an interactive entry runs in a
+session of its own whose controlling terminal is the port, as a container's runs under its
+terminal. A guest's kernel clears the port when it opens it at boot, so what is typed before then
+is lost: `korpis-guest` says on the config drive that the run has started once the port is open,
+and the driver holds an input until it has, within ten seconds (Finding 146 of
+`23-walkthroughs.md`). What it does not do, stated: `ResizeConsole` is refused, since nothing
+carries a terminal's size into a guest until its agent does (§4.4), so a full-screen program in an
+interactive guest sees the port's default size; and the console carries what the guest kernel
+prints at its quiet level (§6).
+
 **`Wait` is a stream of events.** The protocol carries it as `Events`: for every task of the
 driver's objects that starts, exits, pauses, resumes, is deleted, or runs out of memory, the status
 it leaves the object in, read back with `Inspect` rather than built from the event. An event can
@@ -568,7 +587,9 @@ come with no stop before it, as a destroy's does, and because one that arrives b
 has read the last is absorbed by it (the kernel keeps one pending signal of a kind); a guest that
 has not exited within a bound of five seconds is ended with its Firecracker process. The host
 reads back sixteen bytes of fixed layout, the exit status or the signal, and never a filesystem
-the guest has written (§4.4).
+the guest has written (§4.4). The driver clears them before every run, and the guest first writes
+there that the run has started, once its serial port is open (§3; Finding 146 of
+`23-walkthroughs.md`).
 
 What the guest does not give, stated: inside it the entry runs as its user with no user namespace,
 so the image's uid 0 is root of a kernel that runs nothing but this workload, which is the
@@ -613,13 +634,13 @@ review of the first build). The chroot is built afresh for every run, so neither
 the driver reads what an earlier run left; the process the jailer names is believed only if it
 runs as the workload's id in the guest's cgroup, which only root can move a process into, since
 the driver kills what it records; and the API socket is opened as itself, never through a link,
-so it cannot be made to name another socket on the host. It is proven by
-guests run, stopped, killed, and recovered (`crates/korpis-guest/tests/boot.rs`,
+so it cannot be made to name another socket on the host. It is proven by guests run, stopped,
+killed, recovered, and given a console (`crates/korpis-guest/tests/boot.rs`,
 `crates/korpis-image/tests/build.rs`, `crates/korpis-driver-firecracker/tests/`), the last through
-the agent with the `oci` driver beside it. What it does not do yet, stated: a guest has no
-console, no network, and no volume a node's helper makes, so the driver refuses a spec that names
-any of them; and since every workload a node runs has its network, no node can place a workload
-on `microvm` until the helper gives a guest its tap and its block volumes.
+the agent with the `oci` driver beside it; the console is described in §3. What it does not do
+yet, stated: a guest has no network and no volume a node's helper makes, so the driver refuses a
+spec that names either; and since every workload a node runs has its network, no node can place a
+workload on `microvm` until the helper gives a guest its tap and its block volumes.
 
 ---
 

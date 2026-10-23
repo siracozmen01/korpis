@@ -12,7 +12,6 @@
 //! filesystem when the container is created.
 
 use korpis_core::workload::assignment::{FIRST_WORKLOAD_ID, IDS_PER_WORKLOAD};
-use korpis_core::workload::stream::StreamKind;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::path::{Component, Path, PathBuf};
@@ -150,15 +149,7 @@ fn network(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation
 /// run writes its own console, and never another run's or the workload's.
 fn stream(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation> {
     let Some(s) = spec.stream.as_option() else { return Ok(()) };
-    let path = Path::new(&s.dir);
-    let run = spec.labels.as_option().map_or("", |l| l.run.as_str());
-    let volume = match run {
-        "" => StreamKind::Console.volume(&spec.workload),
-        run => StreamKind::Console.run_volume(&spec.workload, run),
-    };
-    let own = path.file_name().is_some_and(|n| n == volume.as_str());
-    let under_root = path.strip_prefix(&policy.volume_root).is_ok();
-    if !clean_absolute(&s.dir) || !own || !under_root {
+    if !korpis_driver_kit::console::own_dir(spec, &policy.volume_root) {
         return refuse("stream.dir", "only the workload's own stream volume is written to");
     }
     if s.secrets.len() > MAX_ITEMS {

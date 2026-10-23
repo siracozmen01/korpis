@@ -5,10 +5,11 @@
 //! stdin; a resize is recorded the same way and applied to the task's terminal by containerd.
 
 use super::Containerd;
-use super::stream::{frames, resize_frame, takes_input};
+use super::stream::{frames, takes_input};
 use crate::error::{DriverError, DriverResult};
 use korpis_containerd::containerd::services::containers::v1 as containers;
 use korpis_containerd::containerd::services::tasks::v1 as tasks;
+use korpis_driver_kit::console::resize_frame;
 use std::collections::BTreeMap;
 
 /// Who sent an input, and on which session.

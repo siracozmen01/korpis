@@ -21,9 +21,9 @@ use korpis_proto::korpis::v1 as pb;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-mod rig;
+mod support;
 
-use rig::{MIB, Rig, live};
+use support::{MIB, Rig, live};
 
 /// The state of object `id`, once it is `state`, within `limit`.
 async fn until(

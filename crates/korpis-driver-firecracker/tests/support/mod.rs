@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What the driver's tests share: whether this machine can run a guest, and a driver over a
-//! directory of its own with an image of busybox in its content store and a volume per guest.
+//! directory of its own with an image of busybox in its content store, a volume per guest, and a
+//! console's stream for a guest that has one.
 
 #![allow(dead_code, reason = "each test file uses what it needs")]
 
@@ -69,6 +70,7 @@ pub fn settings(dir: &Path) -> Settings {
         kernel: tools.join("guest/vmlinux"),
         guest: built("korpis-guest", "korpis-guest", Some("x86_64-unknown-linux-musl")),
         image_build: built("korpis-image", "korpis-image-build", None),
+        writer: built("korpis-stream", "korpis-stream-writer", None),
         content: dir.join("content"),
         volume_root: dir.join("volumes"),
         state: dir.join("state"),
@@ -131,6 +133,27 @@ impl Rig {
             driver: "firecracker".into(),
             ..Default::default()
         }
+    }
+}
+
+impl Rig {
+    /// `spec` with its console written to its own stream volume, taking input if `input`; and
+    /// the stream's directory.
+    pub fn console(
+        &self,
+        mut spec: driver::PreparedSpec,
+        input: bool,
+    ) -> (driver::PreparedSpec, PathBuf) {
+        let volume = korpis_core::workload::stream::StreamKind::Console.volume(&spec.workload);
+        let dir = self.dir.path().join("volumes").join(volume);
+        std::fs::create_dir_all(&dir).unwrap();
+        let stream = driver::StreamCapture {
+            dir: dir.to_string_lossy().into_owned(),
+            input,
+            ..Default::default()
+        };
+        spec.stream = stream.into();
+        (spec, dir)
     }
 }
 

@@ -17,8 +17,6 @@
 use crate::error::{DriverError, DriverResult};
 use crate::validate::Valid;
 use std::collections::BTreeMap;
-use std::io::Write as _;
-use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Path, PathBuf};
 
 const DIR: &str = "korpis.stream.dir";
@@ -27,11 +25,6 @@ const BURST: &str = "korpis.stream.burst";
 const RETENTION_BYTES: &str = "korpis.stream.retention_bytes";
 const RETENTION_SECONDS: &str = "korpis.stream.retention_seconds";
 const INPUT: &str = "korpis.stream.input";
-/// The most a frame may be, so the FIFO takes it whole and two never interleave (`PIPE_BUF`).
-const PIPE_BUF: usize = 4096;
-/// Room left in a frame for who sent it and the JSON around the data.
-const ENVELOPE: usize = 1024;
-
 /// Where the writer is, and where the driver keeps the files it hands it.
 #[derive(Debug, Clone)]
 pub struct Streams {
@@ -61,38 +54,7 @@ pub(crate) fn takes_input(labels: &BTreeMap<String, String>) -> bool {
 
 /// The frames that carry `data` from `by` in `session`, each small enough to be written whole.
 pub(crate) fn frames(by: &str, session: &str, data: &[u8]) -> DriverResult<Vec<Vec<u8>>> {
-    use base64::Engine as _;
-    if by.len() + session.len() > ENVELOPE / 2 {
-        return Err(DriverError::Rejected("the sender and session names are too long".into()));
-    }
-    let chunk = (PIPE_BUF - ENVELOPE) / 4 * 3;
-    let frames = data.chunks(chunk).map(|part| {
-        let data = base64::engine::general_purpose::STANDARD.encode(part);
-        frame(&serde_json::json!({ "by": by, "session": session, "data": data }))
-    });
-    Ok(frames.collect())
-}
-
-/// The frame that says the terminal was resized.
-pub(crate) fn resize_frame(by: &str, session: &str, cols: u16, rows: u16) -> Vec<u8> {
-    frame(&serde_json::json!({ "by": by, "session": session, "resize": [cols, rows] }))
-}
-
-fn frame(json: &serde_json::Value) -> Vec<u8> {
-    let body = json.to_string().into_bytes();
-    let mut out = u32::try_from(body.len()).unwrap_or(u32::MAX).to_be_bytes().to_vec();
-    out.extend(body);
-    out
-}
-
-/// Makes a FIFO at `path`, readable and writable by the driver's user alone; one already there
-/// is kept.
-fn make_fifo(path: &Path) -> std::io::Result<()> {
-    use rustix::fs::{CWD, FileType, Mode, mknodat};
-    match mknodat(CWD, path, FileType::Fifo, Mode::RUSR | Mode::WUSR, 0) {
-        Ok(()) | Err(rustix::io::Errno::EXIST) => Ok(()),
-        Err(e) => Err(e.into()),
-    }
+    korpis_driver_kit::console::frames(by, session, data).map_err(DriverError::Rejected)
 }
 
 impl Streams {
@@ -117,7 +79,7 @@ impl Streams {
         }
         for extension in ["stdin", "input"] {
             let path = self.path(id, extension);
-            make_fifo(&path)
+            korpis_driver_kit::console::make_fifo(&path)
                 .map_err(|e| DriverError::Failed(format!("{}: {e}", path.display())))?;
         }
         Ok(())
@@ -125,48 +87,19 @@ impl Streams {
 
     /// Writes `frame` to container `id`'s writer, without waiting for it.
     pub(crate) fn send(&self, id: &str, frame: &[u8]) -> DriverResult<()> {
-        use rustix::fs::{Mode, OFlags, open};
-        use std::io::Write as _;
-        let path = self.path(id, "input");
-        let flags = OFlags::WRONLY | OFlags::NONBLOCK | OFlags::CLOEXEC;
-        let fd = open(&path, flags, Mode::empty()).map_err(|e| match e {
-            rustix::io::Errno::NXIO | rustix::io::Errno::NOENT => {
-                DriverError::Failed("the console's writer is not running".into())
-            }
-            e => DriverError::Failed(format!("{}: {e}", path.display())),
-        })?;
-        std::fs::File::from(fd).write_all(frame).map_err(|e| match e.kind() {
-            std::io::ErrorKind::WouldBlock => DriverError::Failed(
-                "the console's input is full: the workload is not reading".into(),
-            ),
-            _ => DriverError::Failed(format!("{}: {e}", path.display())),
-        })
+        korpis_driver_kit::console::send(&self.path(id, "input"), frame)
+            .map_err(DriverError::Failed)
     }
 
     /// Writes the secret values `valid`'s stream redacts, for container `id`, readable by the
     /// driver's user alone; replaced if a create is asked again.
     pub(crate) fn write_secrets(&self, valid: &Valid, id: &str) -> DriverResult<()> {
         let Some(s) = valid.spec().stream.as_option() else { return Ok(()) };
-        let secrets: Vec<_> = s
-            .secrets
-            .iter()
-            .map(|x| serde_json::json!({ "name": x.name, "value": x.value }))
-            .collect();
-        let json = serde_json::to_vec(&secrets).map_err(|e| DriverError::Failed(e.to_string()))?;
         let path = self.secrets_path(id);
         let io = |e: std::io::Error| DriverError::Failed(format!("{}: {e}", path.display()));
         let dir = path.parent().ok_or_else(|| DriverError::Failed("no state directory".into()))?;
         std::fs::create_dir_all(dir).map_err(io)?;
-        let beside = path.with_extension("json.new");
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&beside)
-            .map_err(io)?;
-        f.write_all(&json).and_then(|()| f.sync_all()).map_err(io)?;
-        std::fs::rename(&beside, &path).map_err(io)
+        korpis_driver_kit::console::write_secrets(&path, s).map_err(io)
     }
 
     /// Forgets container `id`'s secrets file and input FIFOs.

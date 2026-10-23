@@ -34,6 +34,10 @@ struct Cli {
     /// `korpis-image-build`; by default the one installed beside this binary.
     #[arg(long)]
     image_build: Option<PathBuf>,
+    /// `korpis-stream-writer`, which writes a guest's console to its stream (§4 of
+    /// docs/14-streams.md); by default the one installed beside this binary.
+    #[arg(long)]
+    stream_writer: Option<PathBuf>,
     /// The node's content store, which the agent fills and the driver only reads.
     #[arg(long, default_value = "/var/lib/korpis-agent/content")]
     content: PathBuf,
@@ -53,18 +57,20 @@ struct Cli {
 
 async fn run(cli: Cli) -> Result<(), String> {
     let allowed = allowed(cli.allow_uids).map_err(|e| format!("own uid: {e}"))?;
-    let image_build = match cli.image_build {
-        Some(p) => p,
-        None => std::env::current_exe()
-            .map_err(|e| format!("own path: {e}"))?
-            .with_file_name("korpis-image-build"),
+    let beside = |name: &str| {
+        std::env::current_exe()
+            .map(|p| p.with_file_name(name))
+            .map_err(|e| format!("own path: {e}"))
     };
+    let image_build = cli.image_build.map_or_else(|| beside("korpis-image-build"), Ok)?;
+    let writer = cli.stream_writer.map_or_else(|| beside("korpis-stream-writer"), Ok)?;
     let settings = Settings {
         firecracker: cli.firecracker,
         jailer: cli.jailer,
         kernel: cli.kernel,
         guest: cli.guest,
         image_build,
+        writer,
         content: cli.content,
         volume_root: cli.volume_root,
         state: cli.state_dir,

@@ -24,6 +24,8 @@ netlink-packet-core = "0.9"
 netlink-packet-route = "0.33"
 netlink-sys = "0.8"
 nix = { version = "0.31", features = ["fs", "hostname", "mount", "poll", "process", "reboot", "signal"] }
+# An interactive entry's controlling terminal, and the console's output modes.
+rustix = { version = "1", features = ["process", "stdio", "termios"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = { workspace = true }

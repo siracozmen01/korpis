@@ -10,6 +10,7 @@
 #![warn(missing_docs)]
 
 pub mod api;
+pub mod console;
 pub mod describe;
 pub mod guest;
 pub mod jail;

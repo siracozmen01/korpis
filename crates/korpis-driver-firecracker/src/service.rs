@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The driver protocol (`korpis.driver.v1.DriverService`) answered over [`Machine`]: each verb of
-//! §4.2 of docs/04-runtimes.md, and every failure given the code the agent branches on. Console
-//! input and resizing are refused: a guest's console reaches no stream yet.
+//! §4.2 of docs/04-runtimes.md, and every failure given the code the agent branches on. A
+//! console's input reaches the guest; resizing is refused, since nothing carries a terminal's
+//! size into a guest until its agent does (§6 of docs/04-runtimes.md).
 
 use crate::describe::info;
 use crate::machine::{Machine, MachineError};
@@ -34,7 +35,7 @@ impl Driver {
     fn healthy(&self) -> bool {
         let s = self.machine.settings();
         let kvm = std::fs::OpenOptions::new().read(true).write(true).open("/dev/kvm").is_ok();
-        kvm && [&s.firecracker, &s.jailer, &s.kernel, &s.guest, &s.image_build]
+        kvm && [&s.firecracker, &s.jailer, &s.kernel, &s.guest, &s.image_build, &s.writer]
             .iter()
             .all(|p| p.is_file())
     }
@@ -76,8 +77,9 @@ fn grace_of(d: Option<&buffa_types::google::protobuf::Duration>) -> Duration {
     })
 }
 
-fn no_console() -> ConnectError {
-    ConnectError::new(ErrorCode::FailedPrecondition, "a guest's console reaches no stream yet")
+fn no_resize() -> ConnectError {
+    let why = "a guest's terminal cannot be resized: nothing carries its size into the guest yet";
+    ConnectError::new(ErrorCode::FailedPrecondition, why)
 }
 
 #[expect(refining_impl_trait, reason = "async fn handlers for the generated trait")]
@@ -191,12 +193,15 @@ impl driver::DriverService for Driver {
         ready(Response::stream_ok(out))
     }
 
-    fn console_input(
+    async fn console_input(
         &self,
         _ctx: RequestContext,
-        _request: ServiceRequest<'_, driver::ConsoleInputRequest>,
-    ) -> impl Future<Output = ServiceResult<driver::ConsoleInputResponse>> + Send {
-        ready(Err(no_console()))
+        request: ServiceRequest<'_, driver::ConsoleInputRequest>,
+    ) -> ServiceResult<driver::ConsoleInputResponse> {
+        let from = (request.by, request.session);
+        let sent = self.machine.console_input(request.runtime_id, from, request.data).await;
+        sent.map_err(status)?;
+        Response::ok(driver::ConsoleInputResponse::default())
     }
 
     fn resize_console(
@@ -204,7 +209,7 @@ impl driver::DriverService for Driver {
         _ctx: RequestContext,
         _request: ServiceRequest<'_, driver::ResizeConsoleRequest>,
     ) -> impl Future<Output = ServiceResult<driver::ResizeConsoleResponse>> + Send {
-        ready(Err(no_console()))
+        ready(Err(no_resize()))
     }
 
     async fn signal(
