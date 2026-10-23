@@ -26,6 +26,16 @@ pub const BOOT_ARGS: &str = "console=ttyS0 reboot=k panic=1 pci=off quiet loglev
 /// The API socket, as the jailed Firecracker sees it.
 pub const API: &str = "/api.socket";
 
+/// The vsock device's socket, as the jailed Firecracker sees it: a connection on it reaches a
+/// port of the guest's agent (§6 of docs/04-runtimes.md).
+pub const VSOCK: &str = "/vsock.socket";
+
+/// The vsock device's socket of object `id`'s Firecracker, as the driver reaches it.
+#[must_use]
+pub fn vsock_socket(settings: &Settings, id: &str) -> PathBuf {
+    settings.chroot(id).join(VSOCK.trim_start_matches('/'))
+}
+
 /// The API socket of object `id`'s Firecracker, as the driver reaches it.
 #[must_use]
 pub fn api_socket(settings: &Settings, id: &str) -> PathBuf {
@@ -79,6 +89,7 @@ fn machine(shape: &Shape, volumes: &[(PathBuf, bool)]) -> serde_json::Value {
         "boot-source": {"kernel_image_path": "/vmlinux", "boot_args": BOOT_ARGS},
         "drives": drives,
         "machine-config": {"vcpu_count": shape.vcpus, "mem_size_mib": shape.memory_mib},
+        "vsock": {"guest_cid": korpis_guest::control::GUEST_CID, "uds_path": VSOCK},
     });
     if let (Some(_), Some(m)) = (&shape.netns, machine.as_object_mut()) {
         let tap = serde_json::json!([{"iface_id": "eth0", "host_dev_name": TAP}]);
@@ -234,6 +245,7 @@ mod tests {
         assert_eq!(ids, ["boot", "image", "config", "volume-0", "volume-1"]);
         assert_eq!(m["drives"][4]["is_read_only"], true);
         assert_eq!(m["machine-config"]["vcpu_count"], 2);
+        assert_eq!(m["vsock"]["uds_path"], VSOCK, "the agent's channel, in the chroot");
         assert!(m["boot-source"]["boot_args"].as_str().unwrap().contains("init=/korpis-guest"));
         assert!(m.get("network-interfaces").is_none(), "loopback alone");
     }

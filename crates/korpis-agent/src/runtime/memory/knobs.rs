@@ -109,6 +109,14 @@ impl InMemory {
         }
     }
 
+    /// Makes every object's guest agent silent, or answer again, as a guest whose kernel has
+    /// hung while its hypervisor runs would be.
+    pub fn guest_silent(&self, silent: bool) {
+        if let Ok(mut s) = self.lock() {
+            s.silent = silent;
+        }
+    }
+
     /// Makes every later `prepare` reject with `rejection`, or accept again.
     pub fn reject(&self, rejection: Option<driver::Rejection>) {
         if let Ok(mut s) = self.lock() {

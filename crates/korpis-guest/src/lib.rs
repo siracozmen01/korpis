@@ -3,10 +3,13 @@
 //! What a microVM's driver and its first process, `korpis-guest`, say to each other (§4.4 and §6
 //! of docs/04-runtimes.md): the drives a guest is given and in which order, what the guest is to
 //! run, written by the driver on the config drive before boot, and how the run ended, written by
-//! the guest on the same drive before it powers off. Nothing else crosses: the guest is the
-//! tenant's kernel, and the host reads back one fixed-size record, never a filesystem.
+//! the guest on the same drive before it powers off; and, while it runs, what the driver asks its
+//! agent on the control port over vsock. Nothing else crosses: the guest is the tenant's kernel,
+//! and the host reads back one fixed-size record and fixed-layout answers, never a filesystem and
+//! never a structure it parses.
 
 pub mod config;
+pub mod control;
 pub mod drive;
 pub mod status;
 

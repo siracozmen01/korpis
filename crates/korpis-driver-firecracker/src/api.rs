@@ -33,7 +33,7 @@ fn succeeded(status: &[u8]) -> bool {
 }
 
 /// The socket at `path`, opened without following a link, and checked to be one.
-fn socket_at(path: &Path) -> io::Result<std::os::fd::OwnedFd> {
+pub(crate) fn socket_at(path: &Path) -> io::Result<std::os::fd::OwnedFd> {
     use rustix::fs::{FileType, Mode, OFlags};
     let flags = OFlags::PATH | OFlags::NOFOLLOW | OFlags::CLOEXEC;
     let fd = rustix::fs::open(path, flags, Mode::empty())?;

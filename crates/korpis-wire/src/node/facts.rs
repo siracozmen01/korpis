@@ -55,6 +55,7 @@ fn capabilities_from_pb(field: &str, c: &pb::Capabilities) -> Result<Capabilitie
         console: each(&f("console"), &c.console, console_from_pb)?,
         exec: c.exec,
         identity_dir: c.identity_dir,
+        guest_agent: c.guest_agent,
         signals: c.signals.clone(),
         hot_resize: c.hot_resize.clone(),
         hot_volume_attach: c.hot_volume_attach,

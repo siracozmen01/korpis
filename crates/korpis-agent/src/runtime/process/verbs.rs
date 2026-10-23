@@ -134,6 +134,23 @@ impl DriverRuntime {
         Err(RuntimeError::Failed("the driver ended a command's stream without its exit".into()))
     }
 
+    /// Asks the driver whether `id`'s guest's agent answers within `wait`; the call is given
+    /// that and the quick deadline beyond it.
+    pub(super) async fn ping_call(&self, id: &str, wait: Duration) -> RuntimeResult<bool> {
+        let request = driver::PingGuestRequest {
+            runtime_id: id.to_owned(),
+            timeout: korpis_wire::duration(wait).into(),
+            ..Default::default()
+        };
+        let options = within(wait + QUICK);
+        let r = self.client.ping_guest_with_options(request, options).await.map_err(error)?;
+        let r = r.into_owned();
+        if !r.answered {
+            tracing::debug!(%id, detail = %r.detail, "a guest's agent did not answer");
+        }
+        Ok(r.answered)
+    }
+
     pub(super) async fn signal_call(&self, id: &str, signal: &str) -> RuntimeResult<()> {
         let request = driver::SignalRequest {
             runtime_id: id.to_owned(),

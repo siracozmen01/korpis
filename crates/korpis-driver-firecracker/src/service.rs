@@ -17,6 +17,8 @@ use tokio::sync::broadcast;
 
 /// The grace a stop gets when the request names none.
 pub const DEFAULT_GRACE: Duration = Duration::from_secs(10);
+/// The longest a guest's agent is given to answer.
+const MOST_PING: Duration = Duration::from_secs(60);
 
 /// The driver's service.
 #[derive(Debug, Clone)]
@@ -219,6 +221,24 @@ impl driver::DriverService for Driver {
     ) -> ServiceResult<driver::SignalResponse> {
         self.machine.signal(request.runtime_id, request.signal).await.map_err(status)?;
         Response::ok(driver::SignalResponse::default())
+    }
+
+    async fn ping_guest(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, driver::PingGuestRequest>,
+    ) -> ServiceResult<driver::PingGuestResponse> {
+        let r = request.to_owned_message();
+        let within = r.timeout.as_option().map_or(Duration::ZERO, |d| grace_of(Some(d)));
+        if within.is_zero() || within > MOST_PING {
+            let why = "a guest's agent is given more than nothing and at most a minute";
+            return Err(ConnectError::new(ErrorCode::InvalidArgument, why));
+        }
+        let pinged = self.machine.ping_guest(&r.runtime_id, within).await.map_err(status)?;
+        let detail = pinged.as_ref().err().cloned().unwrap_or_default();
+        let answer =
+            driver::PingGuestResponse { answered: pinged.is_ok(), detail, ..Default::default() };
+        Response::ok(answer)
     }
 
     /// Refused: nothing runs a command in a guest until its agent is reached over vsock, and the

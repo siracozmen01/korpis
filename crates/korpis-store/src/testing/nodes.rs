@@ -59,6 +59,7 @@ pub fn oci_driver() -> DriverInfo {
             config_schema: "{}".to_owned(),
             disruptive: vec![],
             identity_dir: true,
+            guest_agent: false,
         },
     }
 }

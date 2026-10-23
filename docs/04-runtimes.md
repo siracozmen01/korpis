@@ -158,6 +158,7 @@ Capabilities
                                           driver's layer of the classification chain
   identity_dir         bool               gives each workload its node's directory at
                                           /run/korpis (§6 of 02-architecture.md)
+  guest_agent          bool               asks a guest's own agent whether it answers (§5)
 
 EnforcementDecl
   enforced      bool
@@ -274,6 +275,7 @@ Stats(RuntimeID)         → ResourceUsage, ObjectCounters
 
 Signal(RuntimeID, SignalName)
 Exec(RuntimeID, Command, timeout, limit) → Stream      // capability-gated
+PingGuest(RuntimeID, timeout) → answered               // capability-gated
 AttachConsole(RuntimeID) → Stream                      // capability-gated
 Resize(RuntimeID, Resources)                           // capability-gated
 ```
@@ -505,7 +507,7 @@ optional. Probes are declared by the recipe and executed by the agent from outsi
 | `http` | `service` | request a path, check status |
 | `query` | `console` | a game or application query protocol, provided by an extension |
 | `exec` | tiers with the `exec` capability | run a command, check exit status |
-| `guest_agent` | `microvm`, `vm` | an in-guest agent reports over a virtio channel |
+| `guest_agent` | drivers declaring `guest_agent` | the driver asks the guest's own agent over vsock |
 | `exit` | `task`, `scheduled` | exit status |
 | `heartbeat` | drivers declaring `identity_dir` | the workload calls its identity socket; absence is the signal |
 
@@ -589,17 +591,24 @@ workload's cgroup and counts against its limits, so a workload at its process li
 probe's command and is judged failing, which is what such a workload is; and the node's log keeps
 the first 4 KiB of a failing command's output, which nothing else shows yet.
 
-What it does not do yet. A `guest_agent` probe needs the guest's channel to its agent, which is
-built later in Phase 3 (§4 of `20-roadmap.md`), and until then such a probe is unjudged: the
-workload's health is `unknown` and its readiness is its object running, as before. A node whose
-driver does not declare `exec` refuses a workload with an `exec` probe at placement (the `probe`
-check of §2.1 of `05-scheduling.md`), and the `firecracker` driver declares none until its guest's
-agent is reached over vsock; that is said rather than a probe nobody runs. Where a node gives its
-workloads no network, it runs no probe from a socket, and where it serves no identity sockets, no
-heartbeat. What it costs: one connection a period for each probe of each running workload, and a
-call to the helper for each socket; and a workload whose liveness probe fails a minute after each
-start is restarted every minute and never backs off further, as one that crashes a minute after
-each start is.
+A `guest_agent` probe asks the agent inside the workload's guest whether it answers: the agent asks
+the driver's `PingGuest` (§4.2) on the probe's period, given its timeout, and the driver asks
+`korpis-guest` on the control port of the guest's vsock device (§6). An answer passes, and silence
+fails, since a guest whose agent does not answer is one whose kernel or agent has stopped while its
+hypervisor runs, which the tier's own signal cannot show (the table above); a driver that could not
+ask leaves the attempt unjudged. Built 2026-10-24. The probe table said the agent reports; it is
+asked instead, so the host listens for nothing a guest could open, and corrected in place. What it
+does not stop: the workload is root of its own guest where its image's user is 0, so it can stop
+the agent, or answer in its place, which can only misreport its own health.
+
+What it does not do yet. A node whose driver does not declare `exec` refuses a workload with an
+`exec` probe at placement (the `probe` check of §2.1 of `05-scheduling.md`), and the `firecracker`
+driver declares none until its guest's agent runs commands, later in Phase 3; that is said rather
+than a probe nobody runs. Where a node gives its workloads no network, it runs no probe from a
+socket, and where it serves no identity sockets, no heartbeat. What it costs: one connection a
+period for each probe of each running workload, and a call to the helper for each socket; and a
+workload whose liveness probe fails a minute after each start is restarted every minute and never
+backs off further, as one that crashes a minute after each start is.
 
 ---
 
@@ -699,14 +708,21 @@ there that the run has started, once its serial port is open (§3; Finding 146 o
 What the guest does not give, stated: inside it the entry runs as its user with no user namespace,
 so the image's uid 0 is root of a kernel that runs nothing but this workload, which is the boundary
 the tier draws; the console carries what the guest kernel prints at its quiet level beside what the
-workload prints; and the image's user must be a number, as for the container tier (§2). Nor does
-the guest have `/run/korpis` yet: its identity socket, the API relay, its managed files, and its
-dependencies' files are served on the host for it and reach nothing inside the guest, so the driver
-declares no `identity_dir` (§4.1) and a heartbeat probe keeps a workload off it (Finding 154 of
-`23-walkthroughs.md`). A recipe whose configuration is delivered as files, or whose dependencies
-are, is not refused on a microVM, because placement does not read the recipe and the driver cannot
-tell which files the node will render: such a workload starts without them, and is said here to.
-The vsock channel of Phase 3 carries the directory in (§4 of `20-roadmap.md`).
+workload prints; and the image's user must be a number, as for the container tier (§2). A guest has
+a vsock device, whose socket is in its chroot (`vsock.socket`), and `korpis-guest` listens on its
+control port as the guest's first process, answering at most eight connections at once and closing
+one that is silent for half a minute; the driver connects through the socket as it does to the API
+socket, never through a link, and asks. What a guest's agent answers is read as the run's record
+is: a frame's kind and length, bounded before anything else is read, then numbers of fixed layout,
+so the root driver parses nothing the guest could shape (`korpis_guest::control`). A guest whose
+kernel has no vsock boots all the same and says so on its console, and its `guest_agent` probe
+fails. Nor does the guest have `/run/korpis` yet: its identity socket, the API relay, its managed
+files, and its dependencies' files are served on the host for it and reach nothing inside the
+guest, so the driver declares no `identity_dir` (§4.1) and a heartbeat probe keeps a workload off
+it (Finding 154 of `23-walkthroughs.md`). A recipe whose configuration is delivered as files, or
+whose dependencies are, is not refused on a microVM, because placement does not read the recipe and
+the driver cannot tell which files the node will render: such a workload starts without them, and
+is said here to. The vsock channel of Phase 3 carries the directory in (§4 of `20-roadmap.md`).
 
 **How a `microvm`'s image drive is made** (2026-10-23). With no containerd to unpack for it, the
 driver has the image's layers applied by `korpis-image-build`, and the layers are a publisher's

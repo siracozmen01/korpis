@@ -54,6 +54,10 @@ service DriverService {
   // declares `exec`. Its output is sent as it is written, at most `output_limit` bytes of it, and
   // the last message is how the command ended.
   rpc Exec(ExecRequest) returns (stream ExecResponse);
+  // Whether the agent inside a guest answers, within `timeout`: what a `guest_agent` probe asks
+  // (§5 of docs/04-runtimes.md). Capability-gated: a driver that declares `guest_agent`. An
+  // object that does not run is an error, not a guest that did not answer.
+  rpc PingGuest(PingGuestRequest) returns (PingGuestResponse);
 }
 
 message DescribeRequest {}
@@ -334,4 +338,17 @@ message ExecExit {
   bool timed_out = 2;
   // Output beyond `output_limit` was dropped.
   bool truncated = 3;
+}
+
+message PingGuestRequest {
+  string runtime_id = 1;
+  // How long the agent is given; at most a minute.
+  google.protobuf.Duration timeout = 2;
+}
+
+message PingGuestResponse {
+  // It answered, in the driver's protocol.
+  bool answered = 1;
+  // Why it did not, for the node's log.
+  string detail = 2;
 }

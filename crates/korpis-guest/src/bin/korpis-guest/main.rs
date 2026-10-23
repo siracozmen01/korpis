@@ -7,14 +7,16 @@
 //! as its user, reaping whatever the entry's own children leave behind. A stop arrives as
 //! Ctrl+Alt+Del and reaches the entry as `SIGTERM`; a second ends every process. When the entry
 //! has ended, it ends every other process, writes how the run ended on the config drive, and
-//! restarts the guest, which ends the microVM: Firecracker exits when its guest reboots. The first process must never return, so every failure ends the same way, with
-//! the reason on the console.
+//! restarts the guest, which ends the microVM: Firecracker exits when its guest reboots. The first
+//! process must never return, so every failure ends the same way, with the reason on the console.
+//! While the entry runs, it answers the driver on the control port over vsock.
 //!
 //! It holds two `unsafe` blocks. In `run`, the entry's child clears the signal mask it inherits
 //! before exec, and an interactive entry takes its terminal as its controlling one, which only
 //! `pre_exec` can do; in `grow`, a volume's filesystem is grown to its drive by an `ioctl` that
 //! has no safe form.
 
+mod control;
 mod grow;
 mod mounts;
 mod net;
@@ -85,6 +87,9 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     }
     if !config.interactive {
         plain_output();
+    }
+    if let Err(e) = control::serve(std::time::Instant::now()) {
+        say(&format!("{e}; the guest's agent will not answer"));
     }
     nix::unistd::sethostname(&config.hostname).map_err(failed("setting the hostname"))?;
     mounts::root(ROOT, &config)?;

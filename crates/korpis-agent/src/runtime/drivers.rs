@@ -209,6 +209,10 @@ impl<R: Runtime> Drivers<R> {
         self.owner(id).await?.exec(id, command, timeout, output_limit).await
     }
 
+    async fn ping_on(&self, id: &str, within: Duration) -> RuntimeResult<bool> {
+        self.owner(id).await?.ping_guest(id, within).await
+    }
+
     async fn input_on(&self, id: &str, from: Sender<'_>, data: &[u8]) -> RuntimeResult<()> {
         self.owner(id).await?.console_input(id, from, data).await
     }
@@ -292,6 +296,14 @@ impl<R: Runtime> Runtime for Drivers<R> {
         output_limit: u32,
     ) -> impl Future<Output = RuntimeResult<Executed>> + Send {
         self.exec_on(id, command, timeout, output_limit)
+    }
+
+    fn ping_guest(
+        &self,
+        id: &str,
+        within: Duration,
+    ) -> impl Future<Output = RuntimeResult<bool>> + Send {
+        self.ping_on(id, within)
     }
 
     fn console_input(

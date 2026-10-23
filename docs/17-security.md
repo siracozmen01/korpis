@@ -136,6 +136,17 @@ claims more than anywhere else.
 > what the tier stops on its own and what it stops only with dedicated cores (§5.2 of
 > `05-scheduling.md`), and §13 question 1 is resolved by offering exactly that.
 
+**What a guest says to its host is read as data of fixed layout.** Added 2026-10-24, when the
+driver first asked a running guest anything (§6 of `04-runtimes.md`). The `firecracker` driver is
+root, and a guest is the tenant's kernel, so the channels between them are as narrow as the work
+allows: the run's record on the config drive is sixteen bytes, and the guest's agent on the vsock
+control port answers in frames whose kind and length are checked before anything else is read and
+whose answers are numbers of fixed layout; nothing a guest writes is parsed as a structure by the
+host, and the host listens on no vsock port, so a guest opens no connection to it. What it does
+not stop: a bug in Firecracker's vsock device is a hypervisor vulnerability, in the row above; and
+the agent answers for the workload, which is root of its guest and can answer in its place, so its
+answer is evidence of liveness and of nothing else.
+
 **A shared-kernel tier does not survive a kernel privilege-escalation vulnerability.** That is true
 of every container platform, it is true here, and it is why the tier is an operator choice rather
 than a platform property. An operator running their own services picks `process` and gets density;

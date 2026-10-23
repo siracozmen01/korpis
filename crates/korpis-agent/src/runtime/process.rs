@@ -209,6 +209,14 @@ impl Runtime for DriverRuntime {
         self.exec_call(id, command, timeout, output_limit)
     }
 
+    fn ping_guest(
+        &self,
+        id: &str,
+        within: Duration,
+    ) -> impl Future<Output = RuntimeResult<bool>> + Send {
+        self.ping_call(id, within)
+    }
+
     fn console_input(
         &self,
         id: &str,

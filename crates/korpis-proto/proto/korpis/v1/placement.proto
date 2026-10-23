@@ -139,6 +139,9 @@ message Capabilities {
   // identity socket, the API relay, and the managed and dependency files (§6 of
   // docs/02-architecture.md). A heartbeat probe needs it (§5 of docs/04-runtimes.md).
   bool identity_dir = 19;
+  // Whether it can ask a guest's own agent whether it answers, which a `guest_agent` probe
+  // needs (§5 of docs/04-runtimes.md).
+  bool guest_agent = 20;
 }
 
 // What a driver makes disruptive on one tier: `stop` on a `vm` costs a boot.

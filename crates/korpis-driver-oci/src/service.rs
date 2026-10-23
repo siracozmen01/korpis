@@ -294,6 +294,16 @@ impl driver::DriverService for Driver {
         }))
     }
 
+    /// Refused: a container has no agent of its own; the driver declares no `guest_agent`.
+    fn ping_guest(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, driver::PingGuestRequest>,
+    ) -> impl Future<Output = ServiceResult<driver::PingGuestResponse>> + Send {
+        let why = "a container has no guest agent; this driver declares no guest_agent";
+        ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, why)))
+    }
+
     async fn signal(
         &self,
         _ctx: RequestContext,

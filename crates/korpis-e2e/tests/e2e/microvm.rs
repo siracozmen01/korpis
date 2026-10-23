@@ -4,8 +4,9 @@
 //! `firecracker` drivers serve one agent, a container and a guest are placed on the node side by
 //! side, and the guest converges as the container does. Its console is read with `korpis logs`,
 //! its endpoint answers through the node's port, its volume, a disk the helper made, keeps what it
-//! wrote across a restart, it sees no more memory than its limit, and its liveness probe is
-//! answered by the guest. Needs what the node tests need, and KVM with the pinned Firecracker and
+//! wrote across a restart, it sees no more memory than its limit, its readiness probe is
+//! answered by the guest's server through its tap, and its liveness probe by `korpis-guest` over
+//! the guest's vsock device. Needs what the node tests need, and KVM with the pinned Firecracker and
 //! guest kernel (`scripts/tools.sh`, `scripts/guest-kernel.sh`); skipped without them.
 
 use crate::network::served;
@@ -47,7 +48,8 @@ preset:
     memory: {{min: 64Mi, recommended: 128Mi}}
     cpu:    {{min: 100m, recommended: 500m}}
 probes:
-  liveness: {{kind: http, endpoint: http, path: /, period: 2s}}
+  readiness: {{kind: http, endpoint: http, path: /, period: 2s}}
+  liveness: {{kind: guest_agent, period: 2s}}
 "#
     )
 }
@@ -69,17 +71,20 @@ async fn answered(cp: &ControlPlane, w: &str, wanted: &str) -> String {
     }
 }
 
-/// Waits until the node judges `w` healthy: its liveness probe, made from inside its network
-/// namespace and through the tap, answered by the guest (§5 of docs/04-runtimes.md).
+/// Waits until the node judges `w` healthy and its endpoint ready (§5 of docs/04-runtimes.md):
+/// its liveness probe, which the driver asks of the guest's agent over vsock, and its readiness
+/// probe, made from inside its network namespace and through the tap.
 async fn healthy(cp: &ControlPlane, w: &str) {
     let until = Instant::now() + Duration::from_secs(60);
     loop {
         let status = cp.status(w).await;
         let o = status.observation.as_option();
-        if o.is_some_and(|o| o.health.as_known() == Some(pb::HealthState::HEALTH_STATE_HEALTHY)) {
+        let healthy = pb::HealthState::HEALTH_STATE_HEALTHY;
+        let ready = |o: &pb::Observation| o.endpoints.iter().any(|e| e.ready);
+        if o.is_some_and(|o| ready(o) && o.health.as_known() == Some(healthy)) {
             return;
         }
-        assert!(Instant::now() < until, "never healthy: {o:?}");
+        assert!(Instant::now() < until, "never healthy and ready: {o:?}");
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
 }

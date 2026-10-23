@@ -285,9 +285,9 @@ node, which one an edge serves does not use (§3 of `07-networking.md`). Applica
 homed here 2026-10-23, when it was found that no phase named it while four documents described it
 (Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are built, the `query` probe
 through its protocol's health provider (§5 of `16-extensions.md`), the `heartbeat` probe through
-the workload's identity socket, and the `exec` probe through the `oci` driver's `Exec`; the
-`guest_agent` probe through a microVM's channel to its guest, and an `exec` probe in a microVM
-through the same channel, follow in this phase. So does a microVM's `/run/korpis`, its identity
+the workload's identity socket, the `exec` probe through the `oci` driver's `Exec`, and the
+`guest_agent` probe through a microVM's vsock channel to its guest; an `exec` probe in a microVM,
+through the same channel, follows in this phase. So does a microVM's `/run/korpis`, its identity
 socket, relay, and files, carried into its guest over that channel (Finding 154 there), without
 which a microVM holds no credential and reads no managed file.
 
@@ -449,7 +449,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: sixty traces and their 154 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: sixty-one traces and their 154 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

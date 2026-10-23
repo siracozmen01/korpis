@@ -28,6 +28,7 @@ struct Object {
 }
 
 #[derive(Debug, Default)]
+#[expect(clippy::struct_excessive_bools, reason = "each is a knob a test turns on its own")]
 struct State {
     objects: BTreeMap<String, Object>,
     next: u64,
@@ -44,6 +45,8 @@ struct State {
     unheeding: bool,
     /// The status a command run inside an object ends with.
     exec_status: u32,
+    /// Whether a guest's agent is silent.
+    silent: bool,
 }
 
 /// The in-memory runtime; clones share it.
@@ -334,6 +337,22 @@ impl Runtime for InMemory {
             Ok(Executed { status: s.exec_status, ..Executed::default() })
         });
         ready(ran)
+    }
+
+    /// Answers as [`InMemory::guest_silent`] says, for an object that runs.
+    fn ping_guest(
+        &self,
+        id: &str,
+        _within: Duration,
+    ) -> impl Future<Output = RuntimeResult<bool>> + Send {
+        let answered = self.call("ping_guest", id).and_then(|s| {
+            let o = s.objects.get(id).ok_or_else(|| RuntimeError::NotFound(id.into()))?;
+            if o.status.state.as_known() != Some(driver::RuntimeState::RUNTIME_STATE_RUNNING) {
+                return Err(RuntimeError::Failed(format!("{id} does not run")));
+            }
+            Ok(!s.silent)
+        });
+        ready(answered)
     }
 
     fn console_input(

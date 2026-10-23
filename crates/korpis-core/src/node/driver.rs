@@ -163,6 +163,8 @@ pub struct Capabilities {
     /// identity socket, the API relay, and the managed and dependency files (§6 of
     /// docs/02-architecture.md).
     pub identity_dir: bool,
+    /// Whether it can ask a guest's own agent whether it answers (§5 of docs/04-runtimes.md).
+    pub guest_agent: bool,
 }
 
 impl Capabilities {

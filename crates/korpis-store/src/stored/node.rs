@@ -76,6 +76,8 @@ struct CapsDoc {
     /// at its next session.
     #[serde(default)]
     identity_dir: bool,
+    #[serde(default)]
+    guest_agent: bool,
     signals: Vec<String>,
     hot_resize: Vec<String>,
     hot_volume_attach: bool,
@@ -165,6 +167,7 @@ impl CapsDoc {
             console: all(&c.console),
             exec: c.exec,
             identity_dir: c.identity_dir,
+            guest_agent: c.guest_agent,
             signals: c.signals.clone(),
             hot_resize: c.hot_resize.clone(),
             hot_volume_attach: c.hot_volume_attach,
@@ -213,6 +216,7 @@ impl CapsDoc {
             console: all(&self.console),
             exec: self.exec,
             identity_dir: self.identity_dir,
+            guest_agent: self.guest_agent,
             signals: self.signals,
             hot_resize: self.hot_resize,
             hot_volume_attach: self.hot_volume_attach,

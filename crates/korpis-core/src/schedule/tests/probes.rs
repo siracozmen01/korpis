@@ -52,3 +52,15 @@ fn a_heartbeat_probe_needs_a_driver_that_gives_the_workload_its_identity_socket(
     assert!(e.filtered[0].detail.contains("heartbeat probe"), "{}", e.filtered[0].detail);
     assert_eq!(e.chosen, Some(Uuid::from_u128(1)), "the node whose driver serves the socket");
 }
+
+#[test]
+fn a_guest_agent_probe_needs_a_driver_that_reaches_the_guest_s_agent() {
+    let mut with = node(1, &[]);
+    with.drivers[0].capabilities.guest_agent = true;
+    let mut case = Case::new(vec![with, node(2, &[])]);
+    case.body.health.liveness = Some(Probe { kind: ProbeKind::GuestAgent, ..exec() });
+    let e = case.run();
+    assert_eq!(checks(&e, 2), [Check::Probe]);
+    assert!(e.filtered[0].detail.contains("guest_agent probe"), "{}", e.filtered[0].detail);
+    assert_eq!(e.chosen, Some(Uuid::from_u128(1)));
+}

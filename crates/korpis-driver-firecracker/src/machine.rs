@@ -12,7 +12,7 @@ mod status;
 
 use crate::object::{Object, Vm};
 use crate::settings::Settings;
-use crate::{api, console, jail, process};
+use crate::{agent, api, console, jail, process};
 use korpis_proto::korpis::driver::v1 as driver;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -291,6 +291,20 @@ impl Machine {
             let _ = Object::untell(&dir);
         }
         told.map_err(failed)
+    }
+
+    /// Asks the agent of object `id`'s guest whether it answers within `within`; why not, where it
+    /// does not. A guest that does not run has no agent to ask, and is refused.
+    pub async fn ping_guest(
+        &self,
+        id: &str,
+        within: Duration,
+    ) -> MachineResult<Result<(), String>> {
+        if !self.load(id)?.vm.as_ref().is_some_and(process::alive) {
+            return Err(MachineError::Refused(format!("{id} does not run")));
+        }
+        let pinged = agent::ping(&jail::vsock_socket(&self.settings, id), within).await;
+        Ok(pinged.map(drop).map_err(|e| e.to_string()))
     }
 
     /// Kills object `id`'s guest: a second Ctrl+Alt+Del, which ends every process and has the

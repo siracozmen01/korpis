@@ -5275,3 +5275,35 @@ in-memory runtime's commands and restarts on failure; `crates/korpis-e2e/tests/e
 runs a probe's command through the driver process on a real node and restarts the container when
 it fails; and `crates/korpis-core` refuses an `exec` probe at placement on a driver without
 `exec`. Step 7 follows from the agent's handling of a driver error, which judges nothing.
+
+## 64. A build server's guest hangs while its hypervisor runs
+
+Written 2026-10-24, as the vsock channel to a guest's agent was built (§6 of `04-runtimes.md`).
+Trace 54 followed a microVM from placement to its stop; this one follows the signal §5 of
+`04-runtimes.md` says the tier cannot give on its own, that the guest is alive, asking at each
+step who asks, over what, and what the host reads back. A customer runs a build server on the
+`microvm` tier with a `guest_agent` liveness probe; one night its guest kernel deadlocks, and its
+Firecracker process runs on.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The server is declared; placement keeps it to a node whose driver declares `guest_agent` | `05-scheduling.md` §2.1; `04-runtimes.md` §4.1 |
+| 2 | The guest boots with a vsock device whose socket is in its chroot; `korpis-guest` listens on the control port before the entry runs | `04-runtimes.md` §6 |
+| 3 | On each period the agent asks the driver's `PingGuest`, given the probe's timeout | `04-runtimes.md` §4.2, §5 |
+| 4 | The driver opens the device's socket as itself, never through a link, asks for the control port, and pings; the answer's kind and length are checked before it is read, then its version and uptime | `04-runtimes.md` §6; `17-security.md` §5 |
+| 5 | The guest's kernel deadlocks: no answer comes within the timeout, the attempt fails, and after its failures the node restarts the server, recorded with the probe's kind | `04-runtimes.md` §5 |
+| 6 | The restarted guest's agent answers, and the server is healthy again | `04-runtimes.md` §5 |
+| 7 | The node's driver is restarting as an attempt is made: the agent cannot ask, the attempt judges nothing, and nothing is restarted for it | `04-runtimes.md` §5 |
+
+**No finding.** The trace's one correction is a design choice recorded where it was made: the
+probe table of §5 of `04-runtimes.md` said the guest's agent reports, which would have had the
+host listen for connections a guest opens; the driver asks instead, and the row is corrected in
+place. What the host reads back is stated in §5 of `17-security.md`.
+
+Steps 1 to 4 and 7 are built: `crates/korpis-driver-firecracker` asks a stand-in device and agent
+and refuses another version, silence, and a refused connection; `crates/korpis-guest` frames and
+bounds what crosses; `crates/korpis-core` refuses a `guest_agent` probe on a driver without it;
+`crates/korpis-agent` judges the in-memory runtime's guests; and `crates/korpis-e2e` judges a real
+microVM's guest by its agent. Steps 5 and 6 follow from the restart every liveness probe makes.

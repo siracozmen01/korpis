@@ -114,6 +114,14 @@ impl<R: Runtime> Runtime for Metered<R> {
         self.inner.exec(id, command, timeout, output_limit)
     }
 
+    fn ping_guest(
+        &self,
+        id: &str,
+        within: Duration,
+    ) -> impl Future<Output = RuntimeResult<bool>> + Send {
+        self.inner.ping_guest(id, within)
+    }
+
     fn console_input(
         &self,
         id: &str,

@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A running workload's health probes, the node's half (Rule K-16, §5 of docs/04-runtimes.md).
-//! The node runs the `tcp`, `http`, and `query` probes its intent declares, from sockets the
-//! helper opens in the workload's namespace, each on its own period and from its initial delay
-//! after the object started, never two attempts of one probe at once; a `heartbeat` probe is
-//! checked on its period against when the workload last said on its identity socket that it is
-//! alive, and an `exec` probe runs its command inside the object through its driver. A new start,
-//! or an object built from another intent, is judged afresh. Its
-//! readiness decides whether its endpoints are `ready` and whether a dependent waiting for it is
-//! created; its liveness, or its readiness where it declares no liveness probe, is the health it
-//! reports; and a liveness probe that fails restarts it, as a crash does, with the same backoff.
-//! A query attempt its health provider could not judge leaves the verdict unknown (§5 of
-//! docs/16-extensions.md), as is an exec whose driver could not run its command. A probe it
-//! declares that this node does not run (a `guest_agent` probe, a `heartbeat` where the node
-//! serves no identity sockets, or one from a socket where it gives the workload no address) is
-//! unjudged: its health is unknown, and readiness is held to the object running.
+//! A running workload's health probes, the node's half (Rule K-16, §5 of docs/04-runtimes.md). The
+//! node runs the `tcp`, `http`, and `query` probes its intent declares, from sockets the helper
+//! opens in the workload's namespace, each on its own period and from its initial delay after the
+//! object started, never two attempts of one probe at once; a `heartbeat` probe is checked on its
+//! period against when the workload last said on its identity socket that it is alive, and an
+//! `exec` probe runs its command inside the object through its driver. A new start, or an object
+//! built from another intent, is judged afresh. Its readiness decides whether its endpoints are
+//! `ready` and whether a dependent waiting for it is created; its liveness, or its readiness where
+//! it declares no liveness probe, is the health it reports; and a liveness probe that fails
+//! restarts it, as a crash does, with the same backoff. A query attempt its health provider could
+//! not judge leaves the verdict unknown (§5 of docs/16-extensions.md), as is an `exec` or a
+//! `guest_agent` probe whose driver could not make it. A probe it declares that this node does not
+//! run (a `heartbeat` where the node serves no identity sockets, or one from a socket where it
+//! gives the workload no address) is unjudged: its health is unknown, and readiness is held to the
+//! object running.
 
 mod unsocketed;
 
@@ -164,6 +164,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 return heard.then_some(Attempt::Heartbeat { max_interval: *max_interval });
             }
             ProbeKind::Exec { command } => return Some(Attempt::Exec { command: command.clone() }),
+            ProbeKind::GuestAgent => return Some(Attempt::GuestAgent),
             _ => {}
         }
         let held = self.wiring.network.as_ref()?.addresses.of(&a.workload)?;
@@ -271,6 +272,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 }
                 Some(Attempt::Exec { command }) => {
                     self.run_exec(&workload, which, command, now);
+                    continue;
+                }
+                Some(Attempt::GuestAgent) => {
+                    self.ping_guest(&workload, which, now);
                     continue;
                 }
                 _ => {}

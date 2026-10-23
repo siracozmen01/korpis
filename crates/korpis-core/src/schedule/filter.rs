@@ -41,9 +41,10 @@ fn probes(req: &Request<'_>, is: impl Fn(&ProbeKind) -> bool) -> bool {
 }
 
 /// Why `d` cannot run the intent's probes: an `exec` probe runs a command inside the workload,
-/// which only a driver that declares `exec` can do, and a `heartbeat` probe hears from the
-/// workload through its identity socket, which only a driver that gives it its directory serves
-/// (§5 of docs/04-runtimes.md).
+/// which only a driver that declares `exec` can do; a `heartbeat` probe hears from the workload
+/// through its identity socket, which only a driver that gives it its directory serves; and a
+/// `guest_agent` probe asks a guest's own agent, which only a driver that declares `guest_agent`
+/// reaches (§5 of docs/04-runtimes.md).
 fn unprobed(req: &Request<'_>, d: &DriverInfo) -> Option<String> {
     if !d.capabilities.exec && probes(req, |k| matches!(k, ProbeKind::Exec { .. })) {
         return Some(format!(
@@ -52,8 +53,13 @@ fn unprobed(req: &Request<'_>, d: &DriverInfo) -> Option<String> {
         ));
     }
     let heartbeat = |k: &ProbeKind| matches!(k, ProbeKind::Heartbeat { .. });
-    (!d.capabilities.identity_dir && probes(req, heartbeat)).then(|| {
-        format!("{:?} gives a workload no identity socket, as its heartbeat probe needs", d.name)
+    if !d.capabilities.identity_dir && probes(req, heartbeat) {
+        let why = "gives a workload no identity socket, as its heartbeat probe needs";
+        return Some(format!("{:?} {why}", d.name));
+    }
+    let agent = |k: &ProbeKind| matches!(k, ProbeKind::GuestAgent);
+    (!d.capabilities.guest_agent && probes(req, agent)).then(|| {
+        format!("{:?} reaches no agent inside a guest, as its guest_agent probe needs", d.name)
     })
 }
 

@@ -65,6 +65,7 @@ fn driver(enforced: &[&str]) -> DriverInfo {
             config_schema: String::new(),
             disruptive: vec![],
             identity_dir: true,
+            guest_agent: false,
         },
     }
 }

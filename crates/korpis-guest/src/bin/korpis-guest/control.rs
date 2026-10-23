@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! The control port, which the first process serves the driver over the microVM's vsock device
+//! (§6 of docs/04-runtimes.md): a thread that accepts, and one for each connection, at most
+//! eight at once, each answering frames until the host closes it or is silent for half a minute.
+//! A ping is answered with the protocol's version and how long the agent has run. A guest whose
+//! kernel has no vsock, or whose device is missing, boots all the same, and says so: its
+//! `guest_agent` probe then fails, which is what such a guest is.
+
+use korpis_guest::control::{self, Kind, Pong};
+use rustix::net::{AddressFamily, SocketType};
+use std::os::fd::{AsRawFd as _, OwnedFd};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
+
+/// The most connections answered at once; more wait to be accepted.
+const MOST_CONNECTIONS: usize = 8;
+/// How long a connection may be silent before it is closed.
+const IDLE: Duration = Duration::from_secs(30);
+/// `VMADDR_CID_ANY`: listen whatever the guest's address.
+const ANY_CID: u32 = u32::MAX;
+
+/// Listens on the control port and answers in threads of its own; `started` is when the agent
+/// began.
+///
+/// # Errors
+/// The port cannot be listened on: no vsock in the guest's kernel, or no device.
+pub fn serve(started: Instant) -> Result<(), String> {
+    let listener = rustix::net::socket(AddressFamily::VSOCK, SocketType::STREAM, None)
+        .map_err(|e| format!("a vsock socket: {e}"))?;
+    let at = nix::sys::socket::VsockAddr::new(ANY_CID, control::PORT);
+    nix::sys::socket::bind(listener.as_raw_fd(), &at)
+        .map_err(|e| format!("the control port: {e}"))?;
+    rustix::net::listen(&listener, 16).map_err(|e| format!("the control port: {e}"))?;
+    std::thread::spawn(move || accepting(&listener, started));
+    Ok(())
+}
+
+/// Accepts connections on `listener` for as long as the guest runs.
+fn accepting(listener: &OwnedFd, started: Instant) {
+    let open = Arc::new(AtomicUsize::new(0));
+    loop {
+        while open.load(Ordering::Acquire) >= MOST_CONNECTIONS {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let Ok(connection) = rustix::net::accept(listener) else { continue };
+        open.fetch_add(1, Ordering::AcqRel);
+        let open = Arc::clone(&open);
+        std::thread::spawn(move || {
+            answer(connection, started);
+            open.fetch_sub(1, Ordering::AcqRel);
+        });
+    }
+}
+
+/// Answers the frames on `connection` until it ends, is silent too long, or sends what this
+/// agent does not take.
+fn answer(connection: OwnedFd, started: Instant) {
+    use rustix::net::sockopt::{Timeout, set_socket_timeout};
+    if set_socket_timeout(&connection, Timeout::Recv, Some(IDLE)).is_err() {
+        return;
+    }
+    let mut stream = std::fs::File::from(connection);
+    while let Ok((kind, _)) = control::read(&mut stream) {
+        let answered = match kind {
+            Kind::Ping => {
+                let uptime_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+                let pong = Pong { version: control::VERSION, uptime_ms };
+                control::write(&mut stream, Kind::Pong, &pong.encode())
+            }
+            Kind::Pong => return,
+        };
+        if answered.is_err() {
+            return;
+        }
+    }
+}

@@ -70,6 +70,7 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         enforcement: enforcement().into_iter().collect(),
         volume_semantics: pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE.into(),
         file_access: pb::FileAccess::FILE_ACCESS_NONE.into(),
+        guest_agent: true,
         config_schema: r#"{"type":"object","additionalProperties":false}"#.into(),
         ..Default::default()
     };

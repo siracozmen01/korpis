@@ -157,6 +157,15 @@ pub trait Runtime: Send + Sync + 'static {
         output_limit: u32,
     ) -> impl Future<Output = RuntimeResult<Executed>> + Send;
 
+    /// Whether the agent inside its guest answers within `within`: what a `guest_agent` probe
+    /// asks. Capability-gated: a driver that declares `guest_agent`. An object that does not run
+    /// is an error, not a guest that did not answer.
+    fn ping_guest(
+        &self,
+        id: &str,
+        within: Duration,
+    ) -> impl Future<Output = RuntimeResult<bool>> + Send;
+
     /// The runtime objects whose status changes, by identifier, as the driver reports them: a
     /// reason to look sooner, never a reading, which `inspect` is.
     fn changes(&self) -> broadcast::Receiver<String>;
