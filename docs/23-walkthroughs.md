@@ -1395,6 +1395,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 147 | Nothing said what became of a volume when its workload moved between a tier of files and one of block devices | §57 | `06-storage.md` §3.1 |
 | 148 | The namespace's way to its gateway named a hardware address the host changes | §58 | `07-networking.md` §4.1 |
 | 149 | A guest could send from an address not its own, and the design said it reached nothing | §58 | `07-networking.md` §4.1 |
+| 150 | A guest restarted after its node's kernel was replaced booted the old kernel | §59 | `04-runtimes.md` §6; `18-operations.md` §2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4993,3 +4994,58 @@ Step 10 is the link's shaping and accounting of §7, which name the link and the
 addresses and are unchanged. Building step 6 also found a race in the driver, recorded in §6 of
 `04-runtimes.md`: the jailer names Firecracker's process before it drops to the workload's id, and
 a start that read it too soon refused its own guest.
+
+---
+
+## 59. An operator gives a node microVMs, and later a newer guest kernel
+
+Written 2026-10-23, as the `firecracker` driver became a node component (§2 of
+`18-operations.md`). The traces before this one met a node already running the driver, started by
+a test; this one follows an operator from a machine with KVM to a node whose tenants run guests,
+and then through the day a guest kernel with a flaw is replaced, asking at each step what tells
+each component that the node offers microVMs, and what decides which kernel a guest boots.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The operator puts Firecracker, its jailer, the guest kernel, and `korpis-guest` in `/usr/lib/korpis` with `scripts/microvm-files.sh` | `18-operations.md` §2; `21-stack.md` §5 |
+| 2 | `korpis-agent preflight`, given both drivers' sockets, asks each which tiers it offers, and reports KVM and the tun driver as needed and met | `18-operations.md` §2 |
+| 3 | `korpis-server install` finds KVM and the files, writes the `firecracker` driver's unit, and gives the agent both drivers' sockets | `18-operations.md` §2 |
+| 4 | The agent starts, records that one driver takes block devices and holds taps, and the node offers `microvm` | `04-runtimes.md` §4.1; `07-networking.md` §4.1 |
+| 5 | A tenant's workload is placed on `microvm` and its guest boots the node's kernel | `05-scheduling.md` §2.1; `04-runtimes.md` §6 |
+| 6 | A flaw is found in the guest kernel; a reviewed commit moves the pin, and the operator puts the new kernel in place | `21-stack.md` §5; `18-operations.md` §10 |
+| 7 | The running guest keeps its kernel, since nothing changes a guest while it runs | `04-runtimes.md` §6 |
+| 8 | The tenant restarts the workload, and its guest boots the new kernel ‡ | `04-runtimes.md` §6 |
+
+**One finding, at step 8** (‡).
+
+**FINDING 150: A guest restarted after its node's kernel was replaced booted the old kernel, which
+§6 of `04-runtimes.md` said it would not. `CONFIRMED`, by the driver's test**
+
+Found 2026-10-23 asking step 8's question as question 7 of §10 of `18-operations.md` was resolved:
+what decides the kernel a guest boots, and when is it decided? §6 of `04-runtimes.md` says a newer
+kernel reaches a guest at its next boot. The driver decided it once, when the guest's object was
+made: it copied the node's kernel and boot drive among its drives by their digests and recorded
+those copies with the object, and every later start built the jail from the record. A restart
+keeps the object, since the workload's target is unchanged, so a guest restarted after an upgrade
+booted the kernel with the flaw, and so would every restart after it, until the workload was moved
+or its target changed. Nothing said so; the node's kernel was the new one.
+
+**Resolution.** At every start the driver resolves the node's kernel and boot drive as they are
+then, made if missing, and records them with the object before it builds the jail; the image's
+drive and the volumes stay the object's own. → stated in §2 of `18-operations.md`; §6 of
+`04-runtimes.md` was right and is unchanged; built in `crates/korpis-driver-firecracker`, whose
+test starts a guest whose record names a kernel and boot drive the node no longer has, and it boots
+the node's own. What it costs: a start reads the kernel to learn its digest, tens of megabytes; and
+the copies of replaced kernels and boot drives stay among the driver's drives until something
+removes what no object names, which nothing does yet.
+
+Steps 1 to 8 are built. Steps 1 to 3 were run on the machine Phase 3 is built on, short of
+installing the units on it: the script put the four files in a directory of its own, preflight
+asked a driver run under the unit's own settings, the units installation writes were checked by
+`systemd-analyze verify`, and the driver's tests that run guests passed under those settings; how
+installation finds KVM and the files is `korpis-server`'s own test. Steps 4, 5, 7, and 8 are tested
+by `crates/korpis-agent`, `crates/korpis-e2e/tests/e2e/microvm.rs`, and
+`crates/korpis-driver-firecracker/tests/runtime.rs`; step 6 is a maintainer's commit and an
+operator's script, as §5 of `21-stack.md` says.

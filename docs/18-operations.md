@@ -35,6 +35,8 @@ korpis-agent      one signed package of separate executables (§6.2 of `02-archi
                     korpis-fsworker       the per-workload filesystem worker
                     korpis-driver-*       one per runtime driver the node offers
                     korpis-guest          placed inside microVMs, never run on the host
+                    firecracker, jailer   Firecracker's release, for the microvm tier
+                    vmlinux               the microVMs' guest kernel, built from a pinned release
 PostgreSQL        authoritative state (§6 of `03-state.md`. Postgres only, no SQLite, no MySQL).
 korpis            the CLI, one static binary, for whoever operates the installation
 ```
@@ -104,13 +106,13 @@ token, for an unattended install). Then it is the same binary that runs
 the control plane, there is no separate installer artifact to drift out of sync with what it
 installs.
 
-> As built, 2026-10-17 (`crates/korpis-server/src/install`). `korpis-server install` runs
-> preflight before it changes anything, and stops, having changed nothing, when an essential check
-> lacks: PostgreSQL 13 or later (17 is the version it is tested against; another that has every
-> feature the schema uses is reported unchecked, not met), an empty database, the right to create
-> the schema, the right to create roles (not needed when `--database-url` names a login the
-> operator made), the data directory (absolute, not on a tmpfs, and not open to other users), and
-> the control plane's backup target of §6. A server holding other databases is reported and not
+> As built, 2026-10-17 (`crates/korpis-server/src/install`). `korpis-server install` runs preflight
+> before it changes anything, and stops, having changed nothing, when an essential check lacks:
+> PostgreSQL 13 or later (17 is the version it is tested against; another that has every feature
+> the schema uses is reported unchecked, not met), an empty database, the right to create the
+> schema, the right to create roles (not needed when `--database-url` names a login the operator
+> made), the data directory (absolute, not on a tmpfs, and not open to other users), and the
+> control plane's backup target of §6. A server holding other databases is reported and not
 > refused, with the timeout the paragraph above names. It then makes the users the units run as,
 > `korpis` and `korpis-agent`, from a `sysusers.d` file through `systemd-sysusers`; installs into
 > the database; and gives the control plane a login of its own, `korpis_server`, a member of
@@ -119,20 +121,20 @@ installs.
 > migrations', never the running service's. The login's URL goes into `/etc/korpis/server.env`,
 > readable by root alone. The units it writes are the control plane; the helper's socket and
 > service, root and socket-activated, admitting the agent's uid; the `oci` driver, root with every
-> capability dropped (§6 of `02-architecture.md` says what that does not stop); the agent, as
-> `korpis-agent`, with `KillMode=process` so workloads outlive its restart; and a relay unit for a
-> machine that is a relay alone, never enabled on this one, where the control plane is the relay.
-> Last it prints the root credential, the backup key once, the first node's join command with a
-> one-time enrollment token valid for a day, and the `systemctl` commands to run, which it does
-> not run itself. `--dry-run` prints the report and every file it would write; `--no-system`
+> capability dropped (§6 of `02-architecture.md` says what that does not stop); where the machine
+> can run guests, the `firecracker` driver (below), and the agent given both drivers' sockets; the
+> agent, as `korpis-agent`, with `KillMode=process` so workloads outlive its restart; and a relay
+> unit for a machine that is a relay alone, never enabled on this one, where the control plane is
+> the relay. Last it prints the root credential, the backup key once, the first node's join command
+> with a one-time enrollment token valid for a day, and the `systemctl` commands to run, which it
+> does not run itself. `--dry-run` prints the report and every file it would write; `--no-system`
 > installs into the database and the data directory alone, for a container or a test whose
-> processes something else starts, and prints the login it made once, since no file keeps it.
-> The backup
-> target is a directory, checked to be writable and on another device than the data directory,
-> which a bind mount of the same filesystem is not and another partition of the same disk is, so
-> that one passes; an S3 target is refused as not built. Declaring a target records it beside the
-> data directory and makes the key its backup is sealed with; writing the backup there is the
-> control-plane backup of §6, `korpis-server backup`, which said "not built yet" here until
+> processes something else starts, and prints the login it made once, since no file keeps it. The
+> backup target is a directory, checked to be writable and on another device than the data
+> directory, which a bind mount of the same filesystem is not and another partition of the same
+> disk is, so that one passes; an S3 target is refused as not built. Declaring a target records it
+> beside the data directory and makes the key its backup is sealed with; writing the backup there
+> is the control-plane backup of §6, `korpis-server backup`, which said "not built yet" here until
 > 2026-10-19 though it was built on 2026-10-18 (the as-built note in §6).
 
 > As built, 2026-10-17 (`crates/korpis-server/src/install/postgres`). Where PostgreSQL comes
@@ -183,23 +185,27 @@ exactly what to run to fix each. **It does not silently modify the host.** An in
 kernel modules and rewrites `sysctl` on someone's machine is a configuration management system, and
 Korpis is not one.
 
-> As built, 2026-10-17 (`crates/korpis-agent/src/preflight`). `korpis-agent preflight` checks
-> each row of the table below that a node can see, against the driver it is configured with: the
-> kernel floor, cgroup v2 and the cpu, memory, pids, and io controllers, user namespaces, seccomp,
+> As built, 2026-10-17 (`crates/korpis-agent/src/preflight`). `korpis-agent preflight` checks each
+> row of the table below that a node can see, against the driver it is configured with: the kernel
+> floor, cgroup v2 and the cpu, memory, pids, and io controllers, user namespaces, seccomp,
 > Landlock (by making rulesets it never applies, so it names the newest ABI whose file access
-> rights the kernel handles), KVM and, only inside a virtual machine, nested virtualization,
-> io.cost on the disk the volumes are on (a partition followed to its disk, which is where
-> io.cost is configured), containerd for the `oci` driver, the storage classes the helper
+> rights the kernel handles), KVM and, only inside a virtual machine, nested virtualization, the
+> tun driver, io.cost on the disk the volumes are on (a partition followed to its disk, which is
+> where io.cost is configured), containerd for the `oci` driver, the storage classes the helper
 > declares, nftables 1.0 or later with its JSON input, IP forwarding, and IPv6. Each is met, not
 > needed for this node's offer, lacking (with what the node offers less of and the command that
-> fixes it), or unchecked (with what would let it be checked). It reads, and asks `nft` to list
-> the ruleset; it writes nothing, and `--json` prints the same for a program. It fails only when
-> the node could offer nothing: the kernel floor, cgroup v2, user namespaces, seccomp, or, for the
+> fixes it), or unchecked (with what would let it be checked). It reads, and asks `nft` to list the
+> ruleset; it writes nothing, and `--json` prints the same for a program. It fails only when the
+> node could offer nothing: the kernel floor, cgroup v2, user namespaces, seccomp, or, for the
 > `oci` driver, containerd; anything else lacking is a node that offers less. Storage is the
-> helper's to say, since the helper makes the volumes, so preflight asks it rather than judging
-> the filesystem a second time, and says so when it cannot reach it. What it does not check: the
+> helper's to say, since the helper makes the volumes, so preflight asks it rather than judging the
+> filesystem a second time, and says so when it cannot reach it. What it does not check: the
 > `stable` exposure mode's edge failover group or routed pool, which is the control plane's
-> configuration rather than the node's, and KVM is reported but needed by no driver built yet.
+> configuration rather than the node's. KVM and the tun driver are needed where a driver the node
+> runs offers `microvm`, which preflight asks each driver whose socket it is given
+> (`--driver-socket`, repeatable, as `run` takes them); otherwise they are reported as not needed.
+> Corrected 2026-10-23: this said KVM was reported but needed by no driver built yet, which stopped
+> being so when the `firecracker` driver was built (§6 of `04-runtimes.md`).
 
 ### What a node actually requires
 
@@ -328,12 +334,28 @@ guest's console writer, as a container's does under its shim, moved into the gue
 driver reads Firecracker, the jailer, the guest kernel, and `korpis-guest` from `/usr/lib/korpis`
 (`--firecracker`, `--jailer`, `--kernel`, `--guest`), and starts `korpis-stream-writer` and
 `korpis-image-build` from beside its own binary (`--stream-writer`, `--image-build`); it reads
-images from the node's content store as the `oci` driver does, and volumes from beneath the
-volume root; it keeps its objects, the drives guests share, and their jails in
+images from the node's content store as the `oci` driver does, and volumes from beneath the volume
+root; it keeps its objects, the drives guests share, and their jails in
 `/var/lib/korpis-driver-firecracker` (`--state-dir`), and each guest's cgroup beneath
 `korpis-firecracker` (`--cgroup`). Stopping it stops no guest and no console, and the next one
-reads the guests back with `Recover`. How a node is given the kernel and Firecracker is question 7
-of §10.
+reads the guests back with `Recover`. Installation writes its unit only where `/dev/kvm` opens and
+Firecracker, the jailer, `vmlinux`, and `korpis-guest` are all in `--microvm-dir`
+(`/usr/lib/korpis`), and says otherwise why the node runs containers alone; `korpis-agent
+preflight`, given the drivers' sockets, asks each which tiers it offers, and where one offers
+`microvm` it reports KVM and the tun driver lacking, with their fix, rather than not needed. Until
+the signed agent package carries the four files (question 7 of §10, resolved there),
+`scripts/microvm-files.sh` puts them there from a checkout, built and pinned as §5 of `21-stack.md`
+says, and prints each one's digest. The unit runs it as root under `ProtectSystem=strict`, with its
+state directory, the volume root, `/run/korpis`, and the cgroup hierarchy writable, and
+`KillMode=process`, since its guests outlive it; it is not held by `RestrictSUIDSGID`, because
+systemd refuses `openat2` and `fchmodat2` under it, which it cannot inspect, and the image build
+resolves every path of a layer with `openat2` and keeps an image's own setuid files on the guest's
+disk. The driver's tests that run guests pass under exactly those settings (2026-10-23, as
+transient units on the machine Phase 3 is built on); the unit itself is checked by `systemd-analyze
+verify`, and not yet started by the package test, which puts no microVM files in place. At every
+start the driver builds the jail with the node's kernel and boot drive as they are then, not as
+they were when the guest was made, so an upgraded package reaches each guest at its next boot
+(Finding 150 of `23-walkthroughs.md`).
 
 The privileged helper runs only when asked. Its socket is a systemd socket unit
 (`ListenStream=/run/korpis/helper.sock`, `SocketMode=0660`, the supervisor's group as
@@ -876,9 +898,14 @@ plane requires outbound internet access, and telemetry is off by default (§6 of
    `05-scheduling.md` (question 2) and not carried until now (finding S18). The likely boundary is
    the same as for DNS: a node-pool provider extension creates machines and hands them an
    enrollment token, and Korpis never speaks a cloud API itself. → here
-7. **How a node gets the guest kernel and Firecracker.** Today an operator runs
-   `scripts/guest-kernel.sh` and `scripts/tools.sh` on the node, as the tests do (§5 of
-   `21-stack.md`). A packaged node needs them shipped: built and pinned by the release pipeline,
-   verified by digest when the package is installed, and upgraded with it, with what an upgrade
-   does to guests already running stated (they keep their kernel until their next boot, §6 of
-   `04-runtimes.md`). Decided when the `firecracker` driver becomes a node component. → here
+7. **How a node gets the guest kernel and Firecracker. Resolved in §2** (2026-10-23, as the
+   `firecracker` driver became a node component). The signed agent package carries Firecracker,
+   its jailer, and the guest kernel into `/usr/lib/korpis` beside `korpis-guest`, built by the
+   release pipeline from the pins of §5 of `21-stack.md` and verified, as every file of the
+   package is, by its signature; installation runs the driver only where KVM opens and the files
+   are there; and an upgrade reaches a running guest at its next boot, never while it runs (§6 of
+   `04-runtimes.md`). Until a release ships them, `scripts/microvm-files.sh` puts them there from
+   a checkout. The release pipeline that builds and signs the package is a first-release blocker
+   of its own (§9 of `20-roadmap.md`). The question asked how a packaged node would be given them,
+   when an operator ran `scripts/guest-kernel.sh` and `scripts/tools.sh` on the node, as the
+   tests do. → here

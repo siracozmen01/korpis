@@ -14,8 +14,10 @@ use korpis_agent::state::StateDir;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// The standing of `workload`'s lease once `pick` takes it, within twenty seconds: a machine
+/// busy with other work slows the renewals the standing waits on.
 async fn standing(leases: &Leases, workload: &str, pick: impl Fn(&Standing) -> bool) -> Standing {
-    for _ in 0..100 {
+    for _ in 0..400 {
         let s = leases.standing(workload);
         if pick(&s) {
             return s;

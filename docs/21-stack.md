@@ -211,8 +211,9 @@ digest, stamped so the same compiler rebuilds the same bytes. And the guest's fi
 `rust-toolchain.toml` installs, since it runs on a root filesystem Korpis did not make. What it
 costs: Firecracker's security releases and the kernel's longterm updates reach Korpis only through
 a reviewed commit that moves a pin, so following them is a maintainer's chore no tool does; and
-until a release pipeline builds the kernel, a node's operator runs the script (question 7 of §10
-of `18-operations.md`).
+until a release pipeline builds the kernel, a node's operator runs the scripts, and
+`scripts/microvm-files.sh` puts what they made where installation finds it (question 7 of §10 of
+`18-operations.md`, resolved there).
 
 ---
 

@@ -440,16 +440,17 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: fifty-five traces and their 149 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: fifty-six traces and their 150 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
+| release pipeline (§6 of `19-governance.md`, §11 of `17-security.md`) | **not built**: reproducible builds, signed artifacts recorded in a transparency log, the SBOM, and the agent package that carries the microvm tier's files (question 7 of §10 of `18-operations.md`); blocks the first release, not a phase |
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
 | `ARCHITECTURE.md`, `crates/`, `web/` | Phases 0 to 2 built: twenty-six crates and the panel, about 209,000 lines of Rust and 17,100 of TypeScript, 1,262 Rust tests and 136 of the panel's, 122 migrations, and the 162 calls of the public API |
 
-Seventy-one numbered open questions remain open, of 143 recorded. Sixteen of them are a question
+Seventy numbered open questions remain open, of 143 recorded. Sixteen of them are a question
 restated in a second document, carried there by name or pointing on to the one that will settle
-it, so fifty-five decisions are open, each assigned to the one that will settle it. They
+it, so fifty-four decisions are open, each assigned to the one that will settle it. They
 are the design's honest edges, not omissions: an open question with an owner is a decision
 deferred deliberately, and every one of them was recorded where the person who hits it will find
 it.
@@ -484,7 +485,11 @@ it.
 > by" another document; one that says "carried from" one is that question's owner.
 >
 > Since that count, question 7 of §10 of `18-operations.md` was recorded, open (2026-10-23, how a
-> node gets the microVM guest's kernel), which makes the 143, seventy-one, and fifty-five above.
+> node gets the microVM guest's kernel), which made 143, seventy-one, and fifty-five; and it was
+> resolved in §2 there the same day, as the `firecracker` driver became a node component, which
+> makes the seventy and fifty-four above. Resolving it named the release pipeline, which §6 of
+> `19-governance.md` and §11 of `17-security.md` promise and nothing tracked, as a release blocker
+> beside the succession document, in the table above.
 
 **Phase 1 is built, and its done-when holds.** `scripts/e2e-phase1.sh` runs it as an operator
 would, on one machine, every step through the `korpis` CLI: the control plane installed into a
@@ -537,6 +542,7 @@ workload (§4, Phase 3). Phase 2 was built and proven on the one machine §7 cal
 two machines it lists from Phase 2 onward are for what Phase 3 measures, migration across a real
 network and lease fencing under a real partition, and Phase 2 needed neither. The release
 blockers stand as Phase 1 left them: the succession document, and the ZFS and LVM-thin volume
-backends.
+backends; the release pipeline was named one beside them on 2026-10-23, in Phase 3 (the table
+above).
 
 The model is drawn, and its first three phases are built. What remains is Phase 3.

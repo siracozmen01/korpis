@@ -105,6 +105,15 @@ fn kernel(settings: &Settings) -> std::io::Result<PathBuf> {
     Ok(at)
 }
 
+/// `drives` with the node's kernel and boot drive as they are now, each made if missing, so what
+/// a guest boots is the node's at its start, whatever it was when its object was made: an
+/// upgraded kernel or `korpis-guest` reaches every guest at its next boot (Finding 150 of
+/// docs/23-walkthroughs.md). The image's drive and the volumes are the object's own.
+pub(super) fn current(settings: &Settings, drives: Drives) -> std::io::Result<Drives> {
+    let boot = korpis_image::boot::drive(&settings.guest, &settings.drives())?;
+    Ok(Drives { kernel: kernel(settings)?, boot, ..drives })
+}
+
 /// The drives every guest of `spec`'s image shares, made if missing, and what the image says
 /// about running it.
 fn shared(

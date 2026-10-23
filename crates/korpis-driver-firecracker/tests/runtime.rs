@@ -182,3 +182,34 @@ async fn a_restarted_driver_finds_its_guests_and_a_spec_outside_its_tier_is_refu
         assert!(matches!(made, Err(MachineError::Refused(_))), "{made:?}");
     }
 }
+
+#[tokio::test]
+async fn a_guest_boots_the_node_s_kernel_and_boot_drive_as_they_are_at_its_start() {
+    if !live() {
+        return;
+    }
+    let rig = Rig::new();
+    let id = rig.machine.create(rig.spec("wl_upgraded", "exit 0")).await.unwrap();
+    // As an object made before the node's kernel and korpis-guest were upgraded: its record
+    // names drives the node no longer has.
+    let record = rig.machine.settings().object(&id).join("drives.json");
+    let mut drives: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&record).unwrap()).unwrap();
+    let current = (drives["kernel"].clone(), drives["boot"].clone());
+    drives["kernel"] = "/nonexistent/vmlinux-old".into();
+    drives["boot"] = "/nonexistent/boot-old.ext4".into();
+    std::fs::write(&record, serde_json::to_vec(&drives).unwrap()).unwrap();
+
+    rig.machine.start(&id).await.unwrap();
+    let s = until(
+        &rig.machine,
+        &id,
+        driver::RuntimeState::RUNTIME_STATE_STOPPED,
+        Duration::from_secs(30),
+    )
+    .await;
+    assert_eq!(s.exit_code, Some(0), "it booted");
+    let kept: serde_json::Value = serde_json::from_slice(&std::fs::read(&record).unwrap()).unwrap();
+    assert_eq!((kept["kernel"].clone(), kept["boot"].clone()), current, "the node's, now");
+    rig.machine.destroy(&id).await.unwrap();
+}

@@ -73,6 +73,9 @@ pub struct Probes {
     pub nft: Option<(String, bool)>,
     /// Whether containerd's socket answered, when the oci driver is configured.
     pub containerd: Option<Result<(), String>>,
+    /// The tiers the node's drivers declare, or why one could not be asked; `None` when no
+    /// driver process is configured.
+    pub tiers: Option<Result<Vec<pb::IsolationTier>, String>>,
     /// The storage classes the helper declares, or why it could not be asked.
     pub storage: Option<Result<Vec<pb::StorageClassInfo>, String>>,
     /// The block device the volumes are on, as `major:minor`, and the disk it is part of.

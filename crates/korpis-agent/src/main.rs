@@ -53,23 +53,7 @@ enum Command {
     /// Report what this machine lacks of what the node is configured to offer, and how to fix
     /// each; change nothing (§2 of docs/18-operations.md). Fails only when the node could offer
     /// nothing at all.
-    Preflight {
-        /// The runtime driver the node will run: `oci` or `memory`.
-        #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "oci")]
-        driver: String,
-        /// containerd's socket, which the oci driver runs workloads through.
-        #[arg(long, default_value = "/run/containerd/containerd.sock")]
-        containerd_socket: PathBuf,
-        /// The privileged helper's socket.
-        #[arg(long, default_value = "/run/korpis/helper.sock")]
-        helper_socket: PathBuf,
-        /// The helper's volume root.
-        #[arg(long, default_value = "/var/lib/korpis/volumes")]
-        volume_root: PathBuf,
-        /// Print the report as JSON.
-        #[arg(long)]
-        json: bool,
-    },
+    Preflight(PreflightArgs),
     /// Run the node: hold the control stream, keep the journal, and reconcile.
     Run {
         /// The runtime: `oci`, the driver processes serving on `--driver-socket`, the container
@@ -265,6 +249,43 @@ async fn preflight(asking: &Asking, json: bool) -> ExitCode {
     if report.offers_anything() { ExitCode::SUCCESS } else { ExitCode::FAILURE }
 }
 
+/// What `preflight` is told.
+#[derive(clap::Args)]
+struct PreflightArgs {
+    /// The runtime driver the node will run: `oci` or `memory`.
+    #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "oci")]
+    driver: String,
+    /// containerd's socket, which the oci driver runs workloads through.
+    #[arg(long, default_value = "/run/containerd/containerd.sock")]
+    containerd_socket: PathBuf,
+    /// A driver's socket, as `run` is given them, each asked which tiers it offers.
+    #[arg(long, default_values = ["/run/korpis/driver-oci.sock"])]
+    driver_socket: Vec<PathBuf>,
+    /// The privileged helper's socket.
+    #[arg(long, default_value = "/run/korpis/helper.sock")]
+    helper_socket: PathBuf,
+    /// The helper's volume root.
+    #[arg(long, default_value = "/var/lib/korpis/volumes")]
+    volume_root: PathBuf,
+    /// Print the report as JSON.
+    #[arg(long)]
+    json: bool,
+}
+
+impl PreflightArgs {
+    /// Where preflight asks.
+    fn asking(self) -> Asking {
+        Asking {
+            offer: Offer { driver: self.driver },
+            containerd: self.containerd_socket,
+            drivers: self.driver_socket,
+            helper: self.helper_socket,
+            volume_root: self.volume_root,
+            sys: "/sys".into(),
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -279,15 +300,9 @@ async fn main() -> ExitCode {
         Command::Join { server, token, ca_fingerprint, hostname } => {
             enroll(&state, &Join { server, token, ca_fingerprint, hostname }).await
         }
-        Command::Preflight { driver, containerd_socket, helper_socket, volume_root, json } => {
-            let asking = Asking {
-                offer: Offer { driver },
-                containerd: containerd_socket,
-                helper: helper_socket,
-                volume_root,
-                sys: "/sys".into(),
-            };
-            preflight(&asking, json).await
+        Command::Preflight(args) => {
+            let json = args.json;
+            preflight(&args.asking(), json).await
         }
         Command::Run {
             driver,

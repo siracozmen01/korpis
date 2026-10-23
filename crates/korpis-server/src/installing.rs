@@ -76,6 +76,11 @@ pub struct InstallArgs {
     /// The node agent's state directory.
     #[arg(long, default_value = "/var/lib/korpis-agent")]
     agent_state: PathBuf,
+    /// The directory holding what the microvm tier runs: `firecracker`, `jailer`, `vmlinux`, and
+    /// `korpis-guest` (`scripts/microvm-files.sh` puts them there). Where they are all there and
+    /// the machine has KVM, the node runs the `firecracker` driver beside the `oci` driver.
+    #[arg(long, default_value = "/usr/lib/korpis")]
+    microvm_dir: PathBuf,
     /// Run preflight and print what would be written, changing nothing.
     #[arg(long)]
     dry_run: bool,
@@ -151,17 +156,11 @@ async fn on_the_system(
     system::make_users(Path::new(SYSUSERS_FILE), SYSUSERS)?;
     let agent = lookup("korpis-agent")?;
     let done = install(config).await?;
-    let layout = Layout {
-        bin,
-        data: args.data_dir.clone(),
-        agent_state: args.agent_state.clone(),
-        env_file: args.env_file.clone(),
-        agent_uid: agent.0,
-        backup_target: target_dir(args),
-    };
+    let layout = layout(args, bin, agent.0);
     let public_url = public_url(args);
     write_system(args, &done, &public_url, &layout)?;
     crate::say(&installed_report(config, &done, &public_url));
+    crate::say(&microvm_report(args));
     if let Some(made) = database.made {
         let file = args.env_file.with_file_name("owner.env");
         system::write_environment(
@@ -170,8 +169,48 @@ async fn on_the_system(
         )?;
         crate::say(&provision::made_report(made, &config.owner_url, Some(&file)));
     }
-    crate::say(&next_steps());
+    crate::say(&next_steps(layout.microvm.is_some()));
     Ok(())
+}
+
+/// Where everything is on this machine, and who runs it, the agent's user being `uid`.
+fn layout(args: &InstallArgs, bin: PathBuf, uid: u32) -> Layout {
+    Layout {
+        bin,
+        data: args.data_dir.clone(),
+        agent_state: args.agent_state.clone(),
+        env_file: args.env_file.clone(),
+        agent_uid: uid,
+        backup_target: target_dir(args),
+        microvm: microvm_tier(&args.microvm_dir).ok(),
+    }
+}
+
+/// `dir`, where this machine can run guests (§6 of docs/04-runtimes.md): KVM opens, and the
+/// files the `firecracker` driver runs are all in `dir`; otherwise why not.
+fn microvm_tier(dir: &Path) -> Result<PathBuf, String> {
+    let kvm = std::fs::OpenOptions::new().read(true).write(true).open("/dev/kvm");
+    kvm.map_err(|e| format!("/dev/kvm does not open: {e}"))?;
+    for file in ["firecracker", "jailer", "vmlinux", "korpis-guest"] {
+        if !dir.join(file).is_file() {
+            return Err(format!("{} is missing", dir.join(file).display()));
+        }
+    }
+    Ok(dir.to_owned())
+}
+
+/// Whether the node runs microVMs, and, where not, why and how it would.
+fn microvm_report(args: &InstallArgs) -> String {
+    match microvm_tier(&args.microvm_dir) {
+        Ok(dir) => format!(
+            "\nThe node runs microVMs: the firecracker driver, with its files in {}.\n",
+            dir.display()
+        ),
+        Err(why) => format!(
+            "\nThe node runs containers alone, not microVMs: {why}. On a machine with KVM, \
+             scripts/microvm-files.sh puts the files in place; then install again.\n"
+        ),
+    }
 }
 
 /// The library's configuration, from the command's.
@@ -270,31 +309,47 @@ fn dry_run(args: &InstallArgs, bin: PathBuf) -> String {
         );
         return out;
     };
-    let layout = Layout {
-        bin,
-        data: args.data_dir.clone(),
-        agent_state: args.agent_state.clone(),
-        env_file: args.env_file.clone(),
-        agent_uid: uid,
-        backup_target: target_dir(args),
-    };
-    for (name, text) in units(&layout) {
+    for (name, text) in units(&layout(args, bin, uid)) {
         let _ = write!(out, "\nWould write {}:\n\n{text}", args.units_dir.join(name).display());
     }
+    out.push_str(&microvm_report(args));
     out
 }
 
-/// What the operator runs once installation is done, in order.
-fn next_steps() -> String {
-    "\nThen start the control plane and the node's services, join the node, and start its agent:
+/// What the operator runs once installation is done, in order; the firecracker driver started
+/// with the others where the node runs `microvms`.
+fn next_steps(microvms: bool) -> String {
+    let fc =
+        if microvms { "\n  systemctl enable --now korpis-driver-firecracker.service" } else { "" };
+    format!(
+        "\nThen start the control plane and the node's services, join the node, and start its agent:
 
   systemctl daemon-reload
-  systemctl enable --now korpis-server.service korpis-helper.socket korpis-driver-oci.service
+  systemctl enable --now korpis-server.service korpis-helper.socket korpis-driver-oci.service{fc}
   systemctl enable --now korpis-backup.timer
   (the join command above)
   systemctl enable --now korpis-agent.service
 
 korpis-relay.service is for a machine that is a relay alone; here the control plane is the relay.
 "
-    .to_owned()
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_node_runs_microvms_only_with_kvm_and_every_file_the_driver_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        let kvm = std::fs::OpenOptions::new().read(true).write(true).open("/dev/kvm").is_ok();
+        let missing = microvm_tier(dir.path()).unwrap_err();
+        assert!(missing.contains(if kvm { "firecracker is missing" } else { "/dev/kvm" }));
+        for file in ["firecracker", "jailer", "vmlinux"] {
+            std::fs::write(dir.path().join(file), "").unwrap();
+        }
+        assert!(microvm_tier(dir.path()).is_err(), "korpis-guest is missing");
+        std::fs::write(dir.path().join("korpis-guest"), "").unwrap();
+        assert_eq!(microvm_tier(dir.path()).is_ok(), kvm, "every file, and KVM");
+    }
 }

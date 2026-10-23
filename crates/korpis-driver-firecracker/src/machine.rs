@@ -171,7 +171,11 @@ impl Machine {
         }
         let shape = crate::guest::shape(&object.spec);
         let dir = self.dir(id)?;
-        let drives = Object::drives(&dir).map_err(failed)?;
+        let kept = Object::drives(&dir).map_err(failed)?;
+        let settings = Arc::clone(&self.settings);
+        let current = tokio::task::spawn_blocking(move || create::current(&settings, kept));
+        let drives = current.await.map_err(failed)?.map_err(failed)?;
+        Object::keep_drives(&dir, &drives).map_err(failed)?;
         jail::remove(&self.settings, id).map_err(failed)?;
         jail::build(&self.settings, id, &drives, &shape).map_err(failed)?;
         let owner = (object.spec.uid_base, object.spec.uid_base);

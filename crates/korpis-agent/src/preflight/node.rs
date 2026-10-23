@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What the node's configured offer needs of the machine (§2 of docs/18-operations.md): its
-//! driver's runtime, the storage the helper can enforce, I/O shares, and KVM, which only the
-//! virtual-machine tiers need and nested virtualization only when the node is itself a virtual
-//! machine (finding S67).
+//! driver's runtime, the storage the helper can enforce, I/O shares, and KVM and the tun driver,
+//! which only the virtual-machine tiers need, as its drivers declare them, and nested
+//! virtualization only when the node is itself a virtual machine (finding S67).
 
 use super::{Check, Machine, Offer, Outcome, Probes};
 use korpis_proto::korpis::v1 as pb;
@@ -11,7 +11,17 @@ use korpis_proto::korpis::v1 as pb;
 /// The checks of the node's own offer.
 #[must_use]
 pub fn checks(m: &Machine, p: &Probes, offer: &Offer) -> Vec<Check> {
-    vec![kvm(m), io_cost(m, p), runtime(p, offer), storage(p)]
+    vec![kvm(m, p), tun(m, p), io_cost(m, p), runtime(p, offer), storage(p)]
+}
+
+/// Whether a driver of the node offers the microvm tier, or, where the drivers could not be
+/// asked, why not.
+fn microvms(p: &Probes) -> Result<bool, String> {
+    match &p.tiers {
+        None => Ok(false),
+        Some(Ok(tiers)) => Ok(tiers.contains(&pb::IsolationTier::ISOLATION_TIER_MICROVM)),
+        Some(Err(e)) => Err(e.clone()),
+    }
 }
 
 /// Whether this machine is itself a virtual machine: its processors say a hypervisor runs them.
@@ -29,7 +39,7 @@ fn nested(m: &Machine) -> Option<bool> {
         .map(|v| v == "Y" || v == "1")
 }
 
-fn kvm(m: &Machine) -> Check {
+fn kvm(m: &Machine, p: &Probes) -> Check {
     let present = m.dev.join("kvm").exists();
     let in_vm = virtual_machine(m);
     let mut found = if present { "/dev/kvm present".to_owned() } else { "no /dev/kvm".to_owned() };
@@ -41,12 +51,44 @@ fn kvm(m: &Machine) -> Check {
         };
         found = format!("{found}; this machine is a virtual machine, {nesting}");
     }
-    let outcome = Outcome::NotNeeded(
-        "no driver this node runs offers the microvm or vm tiers yet; without KVM it offers \
-         process and container only (§4.1 of docs/04-runtimes.md)"
-            .into(),
-    );
+    let fix = if in_vm {
+        "load kvm_intel or kvm_amd, and turn on nested virtualization in the hypervisor that runs \
+         this machine"
+    } else {
+        "turn on virtualization in the firmware, and load kvm_intel or kvm_amd"
+    };
+    let outcome = match microvms(p) {
+        Ok(true) if present => Outcome::Met,
+        Ok(true) => Outcome::Lacking {
+            costs: "the microvm tier: its driver runs no guest".into(),
+            fix: fix.into(),
+        },
+        Ok(false) => Outcome::NotNeeded(
+            "no driver this node runs offers the microvm or vm tiers; without KVM it offers \
+             process and container only (§4.1 of docs/04-runtimes.md)"
+                .into(),
+        ),
+        Err(e) => Outcome::Unchecked(e),
+    };
     Check { name: "KVM", needed_for: "microvm, vm", found, outcome, essential: false }
+}
+
+/// The tun driver, through which the helper makes a guest's tap (§4.1 of
+/// docs/07-networking.md).
+fn tun(m: &Machine, p: &Probes) -> Check {
+    let present = m.dev.join("net/tun").exists();
+    let found = if present { "/dev/net/tun present" } else { "no /dev/net/tun" }.to_owned();
+    let outcome = match microvms(p) {
+        Ok(true) if present => Outcome::Met,
+        Ok(true) => Outcome::Lacking {
+            costs: "a microVM's network: its workload does not start where networks are given"
+                .into(),
+            fix: "modprobe tun, and name it in /etc/modules-load.d/ so every boot loads it".into(),
+        },
+        Ok(false) => Outcome::NotNeeded("no driver this node runs offers the microvm tier".into()),
+        Err(e) => Outcome::Unchecked(e),
+    };
+    Check { name: "tun", needed_for: "microvm networks", found, outcome, essential: false }
 }
 
 fn io_cost(m: &Machine, p: &Probes) -> Check {

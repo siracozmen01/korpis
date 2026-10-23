@@ -44,6 +44,7 @@ fn probes() -> Probes {
         landlock_abi: Some(5),
         nft: Some(("nftables v1.0.6 (Lester Gooch #5)".into(), true)),
         containerd: Some(Ok(())),
+        tiers: Some(Ok(vec![pb::IsolationTier::ISOLATION_TIER_CONTAINER])),
         storage: Some(Ok(vec![class("local", pb::StorageBackend::STORAGE_BACKEND_XFS_PROJECT)])),
         volume_disk: Some(("259:4".into(), "259:0".into())),
         shaping: Some(Ok(())),
@@ -59,7 +60,7 @@ fn outcome<'a>(r: &'a Report, name: &str) -> &'a Outcome {
 }
 
 #[test]
-fn a_machine_with_everything_offers_everything_and_says_kvm_is_not_needed_yet() {
+fn a_machine_with_everything_offers_everything_and_says_kvm_is_not_needed_without_microvms() {
     let (_dir, m) = machine(GOOD);
     let r = checks(&m, &probes(), &oci());
     for c in &r.0 {
@@ -157,4 +158,29 @@ fn what_could_not_be_asked_is_unchecked_and_says_how_to_ask_it() {
     let json = r.json();
     assert_eq!(json["checks"][0]["status"], "met");
     assert_eq!(json["offers_anything"], true);
+}
+
+#[test]
+fn kvm_and_the_tun_driver_are_needed_where_a_driver_offers_microvms_and_lacking_never_fatal() {
+    let microvm = || {
+        let tiers = vec![
+            pb::IsolationTier::ISOLATION_TIER_CONTAINER,
+            pb::IsolationTier::ISOLATION_TIER_MICROVM,
+        ];
+        Probes { tiers: Some(Ok(tiers)), ..probes() }
+    };
+    let mut good = GOOD.to_vec();
+    good.push(("dev/net/tun", ""));
+    let (_dir, m) = machine(&good);
+    let r = checks(&m, &microvm(), &oci());
+    assert_eq!((outcome(&r, "KVM"), outcome(&r, "tun")), (&Outcome::Met, &Outcome::Met));
+    let bare: Vec<_> = GOOD.iter().copied().filter(|(p, _)| *p != "dev/kvm").collect();
+    let (_dir, m) = machine(&bare);
+    let r = checks(&m, &microvm(), &oci());
+    assert!(matches!(outcome(&r, "KVM"), Outcome::Lacking { .. }));
+    assert!(matches!(outcome(&r, "tun"), Outcome::Lacking { .. }));
+    assert!(r.offers_anything(), "the node still offers containers");
+    let unasked =
+        Probes { tiers: Some(Err("the driver at /run/x.sock: refused".into())), ..probes() };
+    assert!(matches!(outcome(&checks(&m, &unasked, &oci()), "tun"), Outcome::Unchecked(_)));
 }

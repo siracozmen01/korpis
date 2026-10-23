@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What preflight asks of things other than files: the kernel's Landlock, `nft`, containerd's
-//! socket, the helper, and the block device the volumes are on. Each is only asked: `nft` lists
-//! the ruleset and changes nothing, and Landlock rulesets are made and never applied.
+//! socket, the drivers, the helper, and the block device the volumes are on. Each is only asked:
+//! `nft` lists the ruleset and changes nothing, and Landlock rulesets are made and never applied.
 
 use super::{Offer, Probes};
 use crate::host::privileged::HelperClient;
+use crate::runtime::Runtime as _;
+use crate::runtime::process::DriverRuntime;
+use korpis_proto::korpis::v1 as pb;
 use std::path::{Path, PathBuf};
 
 /// Where preflight asks.
@@ -15,6 +18,8 @@ pub struct Asking {
     pub offer: Offer,
     /// containerd's socket, for the oci driver.
     pub containerd: PathBuf,
+    /// The driver processes' sockets.
+    pub drivers: Vec<PathBuf>,
     /// The privileged helper's socket.
     pub helper: PathBuf,
     /// The helper's volume root.
@@ -37,14 +42,33 @@ pub async fn probe(a: &Asking) -> Probes {
         Ok(d) => Err(d.why_not_shapes),
         Err(e) => Err(e.to_string()),
     };
+    let tiers = if a.offer.driver == "oci" { Some(tiers(&a.drivers).await) } else { None };
     Probes {
         landlock_abi: landlock_abi(),
         nft: nft().await,
         containerd,
+        tiers,
         storage: Some(storage),
         volume_disk: volume_disk(&a.volume_root, &a.sys),
         shaping: Some(shaping),
     }
+}
+
+/// The tiers the drivers at `sockets` declare (§4.1 of docs/04-runtimes.md), each asked, or why
+/// one could not be.
+async fn tiers(sockets: &[PathBuf]) -> Result<Vec<pb::IsolationTier>, String> {
+    let mut all = Vec::new();
+    for socket in sockets {
+        let declared = DriverRuntime::connect(socket)
+            .describe()
+            .await
+            .map_err(|e| format!("the driver at {}: {e}", socket.display()))?;
+        let caps = declared.capabilities.as_option();
+        all.extend(
+            caps.into_iter().flat_map(|c| c.tiers.iter().filter_map(buffa::EnumValue::as_known)),
+        );
+    }
+    Ok(all)
 }
 
 /// The newest Landlock ABI whose file access rights the kernel handles. Only ABIs 1, 2, 3, and
