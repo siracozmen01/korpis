@@ -193,7 +193,10 @@ fn inside(a: &Asked, ipv6: Option<Ipv6Addr>, mac: Vec<u8>) -> std::io::Result<()
     if a.tap {
         let routed = tap::Routed { ipv4: a.ipv4, ipv6, gateway_mac: mac, owner: a.ids.0 };
         tap::route(&mut nl, &routed)?;
-        return nft::apply(&nft::namespace(&a.inbound, Some(TAP)));
+        let own: Vec<IpAddr> =
+            std::iter::once(IpAddr::V4(a.ipv4)).chain(ipv6.map(IpAddr::V6)).collect();
+        let guest = nft::Guest { tap: TAP, addresses: &own };
+        return nft::apply(&nft::namespace(&a.inbound, Some(&guest)));
     }
     let eth = nl.link_index(INNER)?.ok_or_else(missing)?;
     nl.add_address(eth, IpAddr::V4(a.ipv4), 32)?;

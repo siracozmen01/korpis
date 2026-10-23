@@ -1394,6 +1394,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 146 | What was typed into a guest's console as it booted was lost, and a run's status could be the last run's | §56 | `04-runtimes.md` §3 |
 | 147 | Nothing said what became of a volume when its workload moved between a tier of files and one of block devices | §57 | `06-storage.md` §3.1 |
 | 148 | The namespace's way to its gateway named a hardware address the host changes | §58 | `07-networking.md` §4.1 |
+| 149 | A guest could send from an address not its own, and the design said it reached nothing | §58 | `07-networking.md` §4.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4939,8 +4940,9 @@ the node; its guest looks up its update server by name and is joined by a player
 | 8 | The guest asks its resolver, in the namespace, which answers it from the agent's sockets | `07-networking.md` §5.1 |
 | 9 | A player connects to the node's port, forwarded to the workload's address, and is let through to the guest's | `07-networking.md` §3, §4.1 |
 | 10 | What the guest sends is shaped and counted on its link, as a container's is | `07-networking.md` §7; `04-runtimes.md` §4.1 |
+| 11 | The guest, root in its own kernel, sends from another workload's address † | `07-networking.md` §4.1, §6 |
 
-**One finding, at step 3** (‡).
+**Two findings, at step 3** (‡) **and step 11** (†).
 
 **FINDING 148: The namespace's way to its gateway named a hardware address the host changes.
 `CONFIRMED`, by the driver's network test**
@@ -4961,11 +4963,33 @@ back for the entry. → stated in §4.1 of `07-networking.md`; built in `crates/
 of about one in 2^40 per pair, which nothing notices, since only the two ends of one link ever see
 it.
 
-Steps 1 to 10 are built, steps 2 to 9 tested: `crates/korpis-driver-firecracker/tests/network.rs`
-has the helper make a tap network, a guest reach its resolver's address in the namespace, and the
-host reach the guest's declared port at its address, reading back the address the guest holds and
-the resolver its file names; the agent's tests check that a driver declaring `tap` is asked a tap
-for and has the node's shaping declared on it. Step 10 is the link's shaping and accounting of §7,
-which name the link and the workload's addresses and are unchanged. Building step 6 also found a
-race in the driver, recorded in §6 of `04-runtimes.md`: the jailer names Firecracker's process
-before it drops to the workload's id, and a start that read it too soon refused its own guest.
+**FINDING 149: A guest could send from an address not its own, and §4.1 said it reached
+nothing. `CONFIRMED`, by the helper's test**
+
+Found 2026-10-23 by a review of the first build, asking step 11's question: what checks the source
+of what a guest sends, and with what information? §4.1 of `07-networking.md` said a guest's other
+addresses reached nothing because the namespace routes only the workload's to the tap and the host
+only those to the link; that is true of what is sent to a guest. Nothing checked what it sent. A
+container cannot forge a source, since it holds neither `NET_ADMIN` nor `NET_RAW`, but a guest is
+root in its own kernel: the namespace forwarded from the tap whatever the source, and the host's
+loose reverse-path filter passes an address that is another workload's, so a guest could have
+passed for that workload with any rule that trusts its address, or sent its resolver queries from
+another address and had the answers delivered there.
+
+**Resolution.** The namespace's firewall checks the source of everything from the tap before any
+other rule: the workload's own addresses and link-local ones go on, everything else is counted and
+dropped; and the namespace's IPv4 reverse-path filter is strict besides. → stated in §4.1 of
+`07-networking.md`, corrected in place; built in `crates/korpis-helper`, whose test stands a guest
+in on the tap and sends to the resolver from the workload's address, which arrives, and from
+another, which is dropped and counted. What it costs: one more match per packet from a guest.
+
+Steps 1 to 11 are built, steps 2 to 9 and 11 tested:
+`crates/korpis-driver-firecracker/tests/network.rs` has the helper make a tap network, a guest
+reach its resolver's address in the namespace, and the host reach the guest's declared port at its
+address, reading back the address the guest holds and the resolver its file names; the agent's
+tests check that a driver declaring `tap` is asked a tap for and has the node's shaping declared on
+it; `crates/korpis-helper/tests/tap.rs` checks the tap, its routes and its gateway, and step 11.
+Step 10 is the link's shaping and accounting of §7, which name the link and the workload's
+addresses and are unchanged. Building step 6 also found a race in the driver, recorded in §6 of
+`04-runtimes.md`: the jailer names Firecracker's process before it drops to the workload's id, and
+a start that read it too soon refused its own guest.

@@ -10,6 +10,7 @@ use super::policy::{Inbound, limited, matches};
 use korpis_core::workload::network::RESOLVER_V4;
 use serde_json::{Value, json};
 use std::io::{self, Write as _};
+use std::net::IpAddr;
 use std::process::{Command, Stdio};
 
 /// The table Korpis keeps, on the host and in each workload's namespace.
@@ -126,11 +127,15 @@ fn admitted(chain: &str) -> [Value; 3] {
 /// holding no `NET_ADMIN`, cannot change. A priority it sets on a socket itself can put what it
 /// sends only in another of its own classes, each beneath its own limit.
 ///
-/// For a microVM, whose guest is behind the tap `tap`, the same rules hold on the forward hook,
-/// since the guest's connections pass through the namespace rather than end in it, and its
-/// priorities are set there; the namespace's own input admits from the guest only the queries
-/// its resolver answers, as the guest's kernel is not loopback.
-pub(crate) fn namespace(inbound: &[Inbound], tap: Option<&str>) -> Value {
+/// For a microVM, whose guest is behind a tap, the same rules hold on the forward hook, since
+/// the guest's connections pass through the namespace rather than end in it, and its priorities
+/// are set there; the namespace's own input admits from the guest only the queries its resolver
+/// answers, as the guest's kernel is not loopback. A guest is root in its own kernel and can send
+/// from any address, so what comes from the tap is taken only from the workload's own addresses,
+/// and link-local ones, which the namespace never forwards: anything else is dropped before any
+/// other rule, so the guest can neither pass for another workload nor have the resolver answer
+/// another address.
+pub(crate) fn namespace(inbound: &[Inbound], guest: Option<&Guest<'_>>) -> Value {
     let table = json!({"table": {"family": "inet", "name": TABLE}});
     let mut commands = vec![
         json!({ "add": table.clone() }),
@@ -140,31 +145,30 @@ pub(crate) fn namespace(inbound: &[Inbound], tap: Option<&str>) -> Value {
         flush("input"),
         accept_when("input", &json!({"meta": {"key": "iifname"}}), "==", &json!("lo")),
     ];
+    if let Some(g) = guest {
+        commands.extend(checked(g));
+        commands
+            .push(rule("input", vec![from_tap(g.tap), json!({"jump": {"target": FROM_GUEST}})]));
+    }
     commands.extend(admitted("input"));
     commands.extend([chain("output", "filter", "output", 0, "accept"), flush("output")]);
-    let (ports, from_guest) = match tap {
-        None => ("input", vec![]),
-        Some(tap) => {
-            commands.extend([chain("forward", "filter", "forward", 0, "drop"), flush("forward")]);
-            commands.extend(resolved(tap));
-            (
-                "forward",
-                vec![json!({"match": {"op": "==",
-                "left": {"meta": {"key": "iifname"}}, "right": tap}})],
-            )
-        }
-    };
-    let marks = if tap.is_some() { "forward" } else { "output" };
+    let (ports, marks) = if guest.is_some() { ("forward", "forward") } else { ("input", "output") };
+    if let Some(g) = guest {
+        commands.extend([chain("forward", "filter", "forward", 0, "drop"), flush("forward")]);
+        commands
+            .push(rule("forward", vec![from_tap(g.tap), json!({"jump": {"target": FROM_GUEST}})]));
+        commands.extend(resolved(g.tap));
+    }
     for i in inbound.iter().filter(|i| i.shaping.0 > 0) {
         let set = json!({"mangle": {"key": {"meta": {"key": "priority"}},
             "value": super::shape::link_id(i.class)}});
         let [proto, sport] = port_of(i, "sport");
-        let mut e = from_guest.clone();
+        let mut e: Vec<Value> = guest.iter().map(|g| from_tap(g.tap)).collect();
         e.extend([proto, sport, set]);
         commands.push(rule(marks, e));
     }
-    if let Some(from) = from_guest.first() {
-        commands.push(rule("forward", vec![from.clone(), json!({"accept": null})]));
+    if let Some(g) = guest {
+        commands.push(rule("forward", vec![from_tap(g.tap), json!({"accept": null})]));
         commands.extend(admitted("forward"));
     }
     for i in inbound {
@@ -182,22 +186,62 @@ pub(crate) fn namespace(inbound: &[Inbound], tap: Option<&str>) -> Value {
     json!({"nftables": commands})
 }
 
-/// What the namespace's input admits from a guest behind `tap`: its resolver's queries, over
-/// UDP and TCP, to the resolver's address and port.
+/// The guest behind a microVM's tap: the tap's name, and the workload's addresses, the only
+/// sources the namespace takes from it beside link-local ones.
+pub(crate) struct Guest<'a> {
+    pub(crate) tap: &'a str,
+    pub(crate) addresses: &'a [IpAddr],
+}
+
+/// The chain what comes from a guest is checked in before anything else is done with it.
+const FROM_GUEST: &str = "from_guest";
+
+fn from_tap(tap: &str) -> Value {
+    json!({"match": {"op": "==", "left": {"meta": {"key": "iifname"}}, "right": tap}})
+}
+
+/// The chain [`FROM_GUEST`]: back to its caller for the guest's own addresses and link-local
+/// ones, and dropped otherwise.
+fn checked(g: &Guest<'_>) -> Vec<Value> {
+    let saddr = |ip: IpAddr, right: Value| {
+        let protocol = if ip.is_ipv4() { "ip" } else { "ip6" };
+        let left = json!({"payload": {"protocol": protocol, "field": "saddr"}});
+        rule(
+            FROM_GUEST,
+            vec![
+                json!({"match": {"op": "==", "left": left, "right": right}}),
+                json!({"return": null}),
+            ],
+        )
+    };
+    let mut commands =
+        vec![json!({"add": {"chain": {"family": "inet", "table": TABLE, "name": FROM_GUEST}}})];
+    commands.extend(g.addresses.iter().map(|ip| saddr(*ip, json!(ip.to_string()))));
+    let link_local = json!({"prefix": {"addr": "fe80::", "len": 10}});
+    commands.push(saddr(IpAddr::V6(std::net::Ipv6Addr::UNSPECIFIED), link_local));
+    commands.push(rule(FROM_GUEST, vec![json!({"counter": null}), json!({"drop": null})]));
+    commands
+}
+
+/// What the namespace's input admits from a guest behind `tap`, its source already checked: its
+/// resolver's queries, over UDP and TCP, to the resolver's address and port.
 fn resolved(tap: &str) -> Vec<Value> {
     ["udp", "tcp"]
         .into_iter()
         .map(|proto| {
-            rule("input", vec![
-                json!({"match": {"op": "==", "left": {"meta": {"key": "iifname"}}, "right": tap}}),
-                json!({"match": {"op": "==", "left": {"payload": {"protocol": "ip",
+            rule(
+                "input",
+                vec![
+                    from_tap(tap),
+                    json!({"match": {"op": "==", "left": {"payload": {"protocol": "ip",
                     "field": "daddr"}}, "right": RESOLVER_V4.to_string()}}),
-                json!({"match": {"op": "==", "left": {"meta": {"key": "l4proto"}},
+                    json!({"match": {"op": "==", "left": {"meta": {"key": "l4proto"}},
                     "right": proto}}),
-                json!({"match": {"op": "==", "left": {"payload": {"protocol": "th",
+                    json!({"match": {"op": "==", "left": {"payload": {"protocol": "th",
                     "field": "dport"}}, "right": 53}}),
-                json!({"accept": null}),
-            ])
+                    json!({"accept": null}),
+                ],
+            )
         })
         .collect()
 }

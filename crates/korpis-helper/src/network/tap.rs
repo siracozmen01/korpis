@@ -93,6 +93,11 @@ pub(super) fn route(nl: &mut Rtnl, r: &Routed) -> io::Result<()> {
         sysctl(&format!("ipv4/conf/{link}/proxy_arp"), "1")?;
         sysctl(&format!("ipv4/neigh/{link}/proxy_delay"), "0")?;
     }
+    // Strict reverse-path filtering, beside the namespace's firewall, which already drops what the
+    // guest sends from an address not its own: the kernel takes the larger of `all` and a link's.
+    for scope in ["all", INNER, TAP] {
+        sysctl(&format!("ipv4/conf/{scope}/rp_filter"), "1")?;
+    }
     nl.set_neighbour(eth, IpAddr::V4(GATEWAY_V4), Some(&r.gateway_mac))?;
     nl.set_up(eth)?;
     nl.set_up(tap)?;

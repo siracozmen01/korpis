@@ -884,13 +884,22 @@ gateway through a permanent entry for the host side's hardware address; that add
 helper when it makes the link, from the hash the link's name is made from (Finding 148 of
 `23-walkthroughs.md`). Its own firewall moves to the forward hook: the guest's connections out
 are let through, replies are let back, and new connections in reach only the declared ports; its
-input admits from the tap only queries to the resolver's address (§5.1). A namespace made for one
-kind of interface is made again for the other, since a tap is not a veth's end. What it costs: one
-more routing and firewall lookup per packet, in the namespace; the namespace forwards, which its
-own `ip_forward` and proxy settings allow, sysctls of that namespace alone, never the host's; and a
-guest that is root in its own kernel can set any address on its interface, which reaches nothing,
-since the namespace routes only the workload's addresses to the tap and the host routes only those
-to the link, and the host's rules of §6 match the link, not the address.
+input admits from the tap only queries to the resolver's address (§5.1). A guest is root in its
+own kernel, so it can send from any address, as a container, holding no `NET_ADMIN` or
+`NET_RAW`, cannot: what comes from the tap is therefore taken only from the workload's own
+addresses and link-local ones, which are never forwarded, and dropped and counted otherwise,
+before any other rule; and the namespace's IPv4 reverse-path filter is strict besides. A namespace
+made for one kind of interface is made again for the other, since a tap is not a veth's end. What
+it costs: one more routing and firewall lookup per packet, in the namespace; and the namespace
+forwards, which its own `ip_forward`, proxy, and reverse-path settings allow, sysctls of that
+namespace alone, never the host's.
+
+> Corrected 2026-10-23, from a review of the first build (Finding 149 of `23-walkthroughs.md`):
+> this paragraph said a guest's other addresses reached nothing, since the namespace routes only
+> the workload's to the tap and the host only those to the link. That holds for what is sent to a
+> guest, not for what it sends: the namespace forwarded from the tap whatever the source, and the
+> host's loose reverse-path filter passes another workload's address, so a guest could have passed
+> for another workload, or had its resolver answer another address.
 
 **The host's rules live in one table, a chain per workload.** The helper keeps the host's rules in
 one nftables table, `inet korpis`, with a chain per workload reached from a verdict map keyed by

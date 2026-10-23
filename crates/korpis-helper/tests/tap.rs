@@ -94,3 +94,90 @@ fn a_microvm_s_namespace_routes_its_address_to_a_tap_its_first_id_owns() {
     assert!(held.contains(&format!("{ip}/32")), "the container's end holds it: {held}");
     assert!(network.release(&workload).unwrap());
 }
+
+/// Runs `script` with python3 inside the namespace bound at `path`; what it printed.
+fn python(path: &Path, script: &str) -> String {
+    inside(path, &["python3", "-c", script])
+}
+
+/// A network namespace bound at its path, unbound however the test ends.
+struct Bound(std::path::PathBuf);
+
+impl Drop for Bound {
+    fn drop(&mut self) {
+        let _ = Command::new("umount").arg(&self.0).status();
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+/// A guest standing in for a microVM's behind the namespace `net`: a namespace of its own bound
+/// at `at`, on a veth named as the tap is, holding the workload's address `ip` and `spoofed`
+/// beside it. The namespace's reverse-path filter is turned off, so its firewall alone decides.
+fn stand_in(net: &Path, at: &Path, (ip, spoofed): (Ipv4Addr, Ipv4Addr)) -> Bound {
+    std::fs::File::create(at).unwrap();
+    let made = Command::new("unshare").arg(format!("--net={}", at.display())).arg("true").status();
+    let bound = Bound(at.to_owned());
+    assert!(made.unwrap().success());
+    let peer = format!("g{}", std::process::id());
+    let script = format!(
+        "ip link del tap0 && ip link add tap0 type veth peer name {peer} netns {at} && \
+         ip link set tap0 up && ip route add {ip}/32 dev tap0 && \
+         for s in all eth0 tap0; do echo 0 > /proc/sys/net/ipv4/conf/$s/rp_filter; done && \
+         echo 1 > /proc/sys/net/ipv4/conf/tap0/proxy_arp && echo made",
+        at = at.display()
+    );
+    assert_eq!(inside(net, &["sh", "-c", &script]).trim(), "made");
+    let script = format!(
+        "ip link set {peer} up && ip addr add {ip}/32 dev {peer} && \
+         ip addr add {spoofed}/32 dev {peer} && \
+         ip route add default via 169.254.1.1 dev {peer} onlink && echo made"
+    );
+    assert_eq!(inside(at, &["sh", "-c", &script]).trim(), "made");
+    bound
+}
+
+/// A script sending a datagram from `from` to the resolver, which it carries.
+fn sent_from(from: Ipv4Addr) -> String {
+    format!(
+        "import socket\ns=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)\n\
+         s.bind(('{from}',0))\ns.sendto(b'{from}',('169.254.1.53',53))\nprint('sent')"
+    )
+}
+
+#[test]
+fn what_a_guest_sends_from_an_address_not_its_own_is_dropped() {
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let network = Network::new(tmp.path().join("netns"));
+    if !rustix::process::geteuid().is_root() || !network.describe().offered {
+        eprintln!("networks need root and a node that offers them: not run");
+        return;
+    }
+    let workload = format!("spoof-test-{}", std::process::id());
+    let ip = Ipv4Addr::new(10, 244, u8::try_from(std::process::id() % 250).unwrap(), 2);
+    let request = helper::EnsureNetworkRequest {
+        workload: workload.clone(),
+        ipv4: ip.to_string(),
+        ipv4_pool: "10.244.0.0/16".into(),
+        uid_base: FIRST_WORKLOAD_ID,
+        uid_count: 1 << 16,
+        tap: true,
+        ..Default::default()
+    };
+    let made = network.ensure(&request).unwrap();
+    let _held = Held(network.clone(), workload.clone());
+    let net = Path::new(&made.namespaces).join("net");
+    let resolver = network.open_resolver(&workload).unwrap().into_iter().next().unwrap();
+    let resolver = std::net::UdpSocket::from(resolver);
+    resolver.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
+    let spoofed = Ipv4Addr::new(10, 244, 251, 9);
+    let guest = stand_in(&net, &tmp.path().join("guest"), (ip, spoofed));
+
+    let mut got = [0_u8; 64];
+    assert_eq!(python(&guest.0, &sent_from(ip)).trim(), "sent");
+    let (n, _) = resolver.recv_from(&mut got).expect("its own address reaches the resolver");
+    assert_eq!(&got[..n], ip.to_string().as_bytes());
+    assert_eq!(python(&guest.0, &sent_from(spoofed)).trim(), "sent");
+    assert!(resolver.recv_from(&mut got).is_err(), "another address reaches nothing");
+    let chain = inside(&net, &["nft", "list", "chain", "inet", "korpis", "from_guest"]);
+    assert!(!chain.contains("packets 0 "), "counted as dropped: {chain}");
+}
