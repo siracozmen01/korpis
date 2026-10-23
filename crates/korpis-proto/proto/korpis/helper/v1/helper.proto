@@ -517,6 +517,10 @@ message VolumeUsageResponse {
   // false and zeros: usage is read, never computed by walking the tree (§3 of
   // docs/06-storage.md).
   bool accounted = 5;
+  // The volume is a block device, and its bytes are the blocks its image has allocated, which
+  // grow as its guest writes and do not shrink when it deletes: not what the guest's filesystem
+  // holds (§3.1 of docs/06-storage.md).
+  bool allocated = 6;
 }
 
 message EnsureIdRangeRequest {

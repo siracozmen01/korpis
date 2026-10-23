@@ -168,12 +168,20 @@ impl Class {
         Ok(existed)
     }
 
-    /// What the filesystem accounts for `volume`.
+    /// What the filesystem accounts for `volume`; for a block device, the blocks its image has
+    /// allocated, and said to be.
     pub fn usage(&self, volume: &str) -> HelperResult<helper::VolumeUsageResponse> {
         identifier("volume", volume)?;
-        if !existing_dir(&self.path_of(volume))? {
+        let path = self.path_of(volume);
+        if !existing_dir(&path)? {
             return Err(HelperError::NotFound(format!("volume {volume}")));
         }
+        let allocated = block::is_block(&path);
+        Ok(helper::VolumeUsageResponse { allocated, ..self.accounted(volume)? })
+    }
+
+    /// What the filesystem accounts for the existing volume `volume`.
+    fn accounted(&self, volume: &str) -> HelperResult<helper::VolumeUsageResponse> {
         if self.backend() == Backend::Btrfs {
             return self.btrfs_usage(volume);
         }

@@ -210,14 +210,24 @@ function Accounted({ records, from }: { readonly records: UsageRecord[]; readonl
           [
             NAMES.disk(),
             map(sum.disk, (d) =>
-              t(
-                {
-                  defaultMessage: "{size} at {at}",
-                  id: "/0MCIc2b",
-                  description: "disk measured then",
-                },
-                { size: bytes(d.bytes), at: at(d.at) },
-              ),
+              d.allocated
+                ? t(
+                    {
+                      defaultMessage: "{size} allocated at {at}",
+                      id: "s21iDKaW",
+                      description:
+                        "a microVM's disk measured then: what its block devices have allocated, which grows as it writes and does not shrink when it deletes",
+                    },
+                    { size: bytes(d.bytes), at: at(d.at) },
+                  )
+                : t(
+                    {
+                      defaultMessage: "{size} at {at}",
+                      id: "/0MCIc2b",
+                      description: "disk measured then",
+                    },
+                    { size: bytes(d.bytes), at: at(d.at) },
+                  ),
             ),
           ],
         ]}
@@ -226,8 +236,8 @@ function Accounted({ records, from }: { readonly records: UsageRecord[]; readonl
       <p className="aside">
         {t({
           defaultMessage:
-            "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end. Egress, and each endpoint whose accounting is on, are counted in the node's firewall, out of the workload's reach; egress is what left for anything but another workload on its node. A gap is an interval nothing was heard over, never filled in.",
-          id: "leHarPmZ",
+            "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end, or, said to be allocated, what a microVM's block devices have allocated, which grows as it writes and does not shrink when it deletes. Egress, and each endpoint whose accounting is on, are counted in the node's firewall, out of the workload's reach; egress is what left for anything but another workload on its node. A gap is an interval nothing was heard over, never filled in.",
+          id: "0BoBaABh",
         })}
       </p>
       <Intervals records={records} />

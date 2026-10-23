@@ -48,13 +48,28 @@ fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<(
     }
     let root = settings.volume_root.canonicalize().map_err(failed)?;
     for m in &spec.mounts {
-        // Checked by the name it resolves to, which is the name the guest's drive is bound from.
-        let source = Path::new(&m.source).canonicalize().map_err(|e| refused(e.to_string()))?;
-        if !source.starts_with(&root) || !source.is_file() || !m.destination.starts_with('/') {
-            return Err(refused(format!(
-                "volume {:?} is no drive beneath the volume root",
-                m.volume
-            )));
+        crate::volume::checked(&root, &m.source).map_err(refused)?;
+        if !m.destination.starts_with('/') {
+            return Err(refused(format!("volume {:?} is mounted at no absolute path", m.volume)));
+        }
+    }
+    Ok(())
+}
+
+/// That no other workload's object holds a block device `spec` mounts: two guests mounting one
+/// filesystem corrupt it, so a block device is attached to one workload at a time.
+fn unshared(settings: &Settings, spec: &driver::PreparedSpec) -> MachineResult<()> {
+    for other in Object::all(&settings.objects()) {
+        if other.spec.workload == spec.workload {
+            continue;
+        }
+        let held = Object::drives(&settings.object(&other.id)).map(|d| d.volumes);
+        let held = held.unwrap_or_default();
+        if let Some(m) =
+            spec.mounts.iter().find(|m| held.iter().any(|(v, _)| v == Path::new(&m.source)))
+        {
+            let why = format!("volume {:?} is attached to another workload's guest", m.volume);
+            return Err(refused(why));
         }
     }
     Ok(())
@@ -105,6 +120,7 @@ impl Machine {
     pub async fn create(&self, spec: driver::PreparedSpec) -> MachineResult<String> {
         validate(&spec, self.settings())?;
         let _held = self.lock.lock().await;
+        unshared(self.settings(), &spec)?;
         if let Some(o) =
             Object::all(&self.settings.objects()).into_iter().find(|o| same(&o.spec, &spec))
         {
@@ -149,9 +165,8 @@ fn build(
     for m in &spec.mounts {
         // Each volume's drive is its guest's to read and write, as its own first id: no other
         // user of the host reads it.
-        let source = Path::new(&m.source).canonicalize().map_err(failed)?;
-        std::os::unix::fs::lchown(&source, Some(spec.uid_base), Some(spec.uid_base))
-            .map_err(failed)?;
+        let source = PathBuf::from(&m.source);
+        crate::volume::give(&source, spec.uid_base).map_err(failed)?;
         volumes.push((source, m.read_only));
     }
     let drives = Drives { kernel, boot, image, config: config_drive, volumes };

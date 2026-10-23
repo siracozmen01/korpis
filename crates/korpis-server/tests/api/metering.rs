@@ -65,7 +65,12 @@ async fn a_sample_is_measured_from_the_one_before_it_and_lost_ones_leave_a_span(
     assert_eq!(until(&mut s, ack).await, 1);
     assert_eq!(h.effects("journal.rejected").await.len(), 1, "a workload it never held");
 
-    send(&mut s, vec![sample(2, &workload, 0, 100)]).await;
+    // A microVM's disk, what its block devices have allocated, and said to be.
+    let mut allocated = sample(2, &workload, 0, 100);
+    if let Some(B::Metering(m)) = allocated.body.as_mut() {
+        (m.disk_bytes, m.disk_allocated) = (Some(4096), true);
+    }
+    send(&mut s, vec![allocated]).await;
     assert_eq!(until(&mut s, ack).await, 2);
     send(&mut s, vec![sample(2, &workload, 0, 100), sample(3, &workload, 3, 400)]).await;
     assert_eq!(until(&mut s, ack).await, 3, "a duplicate is dropped by the cursor");
@@ -93,6 +98,8 @@ async fn a_sample_is_measured_from_the_one_before_it_and_lost_ones_leave_a_span(
         "the first from zero, then one span: measured, not divided"
     );
     assert!(records.iter().all(|r| r.kind == RecordKind::Measured && r.node.is_some()));
+    let disks: Vec<_> = records.iter().map(|r| (r.disk_bytes, r.disk_allocated)).collect();
+    assert_eq!(disks, [(Some(4096), true), (None, false)], "kept with the record that read it");
     assert!(h.effects("journal.unsupported").await.is_empty(), "a sample is no effect");
 }
 

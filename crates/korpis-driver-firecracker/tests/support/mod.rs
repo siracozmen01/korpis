@@ -93,9 +93,15 @@ impl Rig {
         Self { dir, machine, image }
     }
 
-    /// A volume of its own for the guest with ids from `base`, owned by its Firecracker.
+    /// A volume of its own for the guest with ids from `base`, a block device as the helper makes
+    /// one: its image in a directory marked as a block device's.
     pub fn volume(&self, name: &str, base: u32) -> PathBuf {
-        let path = self.dir.path().join("volumes").join(name);
+        use korpis_core::workload::volume::{BLOCK_IMAGE, BLOCK_MARK};
+        let dir = self.dir.path().join("volumes").join(name);
+        std::fs::create_dir(&dir).unwrap();
+        rustix::fs::setxattr(&dir, BLOCK_MARK.0, BLOCK_MARK.1, rustix::fs::XattrFlags::empty())
+            .unwrap();
+        let path = dir.join(BLOCK_IMAGE);
         ok(Command::new("mkfs.ext4")
             .args(["-q", "-F", "-E", "root_owner=1000:1000"])
             .arg(&path)

@@ -86,6 +86,9 @@
     "defaultMessage": "unknown",
     "description": "a grant's state"
   },
+  "0BoBaABh": {
+    "defaultMessage": "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end, or, said to be allocated, what a microVM's block devices have allocated, which grows as it writes and does not shrink when it deletes. Egress, and each endpoint whose accounting is on, are counted in the node's firewall, out of the workload's reach; egress is what left for anything but another workload on its node. A gap is an interval nothing was heard over, never filled in."
+  },
   "0CdU+wF7": {
     "defaultMessage": "{received} received, {sent} sent",
     "description": "an endpoint's bytes"
@@ -1764,9 +1767,6 @@
   "lWYMAj0Y": {
     "defaultMessage": "Reading its configuration…"
   },
-  "leHarPmZ": {
-    "defaultMessage": "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end. Egress, and each endpoint whose accounting is on, are counted in the node's firewall, out of the workload's reach; egress is what left for anything but another workload on its node. A gap is an interval nothing was heard over, never filled in."
-  },
   "lfun+oaM": {
     "defaultMessage": "It is shown this once. Send it only to the person it is for, not to a group."
   },
@@ -1957,6 +1957,10 @@
   "rxv4RRs4": {
     "defaultMessage": "Rename",
     "description": "button: rename a file"
+  },
+  "s21iDKaW": {
+    "defaultMessage": "{size} allocated at {at}",
+    "description": "a microVM's disk measured then: what its block devices have allocated, which grows as it writes and does not shrink when it deletes"
   },
   "s4yZXgis": {
     "defaultMessage": "Signing in…"

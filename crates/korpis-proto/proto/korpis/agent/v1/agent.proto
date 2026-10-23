@@ -677,6 +677,9 @@ message MeteringSample {
   optional uint64 disk_bytes = 12;
   // What the node knows it could not measure since its previous sample.
   repeated MeterLoss losses = 13;
+  // `disk_bytes` counts what block devices' images have allocated, not what their guests'
+  // filesystems hold (§3.1 of docs/06-storage.md).
+  bool disk_allocated = 14;
 }
 
 // Cumulative counters. Each is absent where nothing measured it, never zero for that.

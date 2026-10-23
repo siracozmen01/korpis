@@ -266,12 +266,17 @@ own extent blocks, and the bound the answer reports as enforced is the image's s
 class. A volume's kind is written in an extended attribute in the `trusted` namespace, which no
 workload can set, and a volume of one kind is never made the other: a workload moved from
 `container` to `microvm` keeps its files where they are and is refused the block device, which a
-conversion through the guest (§4.4 of `04-runtimes.md`) is what would give it. Snapshots, backups,
-and whole-volume restores take the directory as they take any other, so they hold the image whole;
-file sessions and installs are refused on a block device, whose files only a worker in its guest
-may reach, until that worker is built. What it costs, beyond the table: a guest's disk usage as the
+conversion through the guest (§4.4 of `04-runtimes.md`) is what would give it. A block device is
+attached to one workload at a time, since two kernels mounting one filesystem corrupt it: the
+driver refuses a guest a block device another workload's guest holds, so sharing a volume between
+workloads, which a volume of files allows, is refused for a block device. Snapshots, backups, and
+whole-volume restores take the directory as they take any other, so they hold the image whole; file
+sessions and installs are refused on a block device, whose files only a worker in its guest may
+reach, until that worker is built. What it costs, beyond the table: a guest's disk usage as the
 class accounts it is the image's allocated blocks, which grow as the guest writes and do not shrink
-when it deletes, and is not yet labelled as allocated where it is shown.
+when it deletes. It is labelled as allocated wherever it is shown: the metering sample and record
+carry `disk_allocated`, and `korpis get usage` and the panel say "allocated" beside the figure (§2
+of `15-observability.md`).
 
 ---
 

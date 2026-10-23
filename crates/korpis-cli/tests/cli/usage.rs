@@ -36,6 +36,7 @@ fn record(workload: uuid::Uuid, from: SystemTime, kind: RecordKind) -> Record {
         used: Counters::default(),
         memory_peak_bytes: None,
         disk_bytes: None,
+        disk_allocated: false,
         losses: Vec::new(),
         recorded_at: None,
     }

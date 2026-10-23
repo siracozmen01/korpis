@@ -16,11 +16,11 @@ use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Path, PathBuf};
 
 /// The image, in its volume's directory.
-pub const IMAGE: &str = "block.ext4";
+pub const IMAGE: &str = korpis_core::workload::volume::BLOCK_IMAGE;
 
 /// The attribute that says a volume is a block device, and its value.
-const KIND: &str = "trusted.korpis.volume";
-const BLOCK: &[u8] = b"block_device";
+const KIND: &str = korpis_core::workload::volume::BLOCK_MARK.0;
+const BLOCK: &[u8] = korpis_core::workload::volume::BLOCK_MARK.1;
 
 /// The most a guest's own filesystem keeps beyond the image's bytes in the volume's quota: the
 /// image file's own extent blocks, a sliver of its size.

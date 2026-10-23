@@ -76,6 +76,7 @@ pub fn sample_from_pb(field: &str, s: &agent::MeteringSample) -> Result<Sample> 
         },
         memory_peak_bytes: s.memory_peak_bytes,
         disk_bytes: s.disk_bytes,
+        disk_allocated: s.disk_allocated,
         losses: losses.collect::<Result<_>>()?,
     })
 }

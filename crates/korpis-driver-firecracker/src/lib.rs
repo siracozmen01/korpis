@@ -20,3 +20,4 @@ pub mod prepare;
 pub mod process;
 pub mod service;
 pub mod settings;
+pub mod volume;

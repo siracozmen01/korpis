@@ -71,6 +71,7 @@ fn record_to_pb(r: &Record) -> pb::UsageRecord {
         memory_kib_seconds: r.used.memory_kib_seconds,
         memory_peak_bytes: r.memory_peak_bytes,
         disk_bytes: r.disk_bytes,
+        disk_allocated: r.disk_allocated,
         losses: losses.collect(),
         egress_bytes: r.used.egress_bytes,
         endpoints: endpoints.collect(),

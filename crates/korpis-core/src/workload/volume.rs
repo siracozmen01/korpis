@@ -9,6 +9,14 @@
 use std::time::SystemTime;
 use uuid::Uuid;
 
+/// A block-device volume's image, in its volume's directory on the node (§3.1 of
+/// docs/06-storage.md): what the helper makes and the driver gives its guest.
+pub const BLOCK_IMAGE: &str = "block.ext4";
+
+/// The extended attribute on a volume's directory that says it holds a block device, and its
+/// value: in the `trusted` namespace, which no workload can set.
+pub const BLOCK_MARK: (&str, &[u8]) = ("trusted.korpis.volume", b"block_device");
+
 /// Why a volume exists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VolumeKind {

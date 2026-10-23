@@ -89,11 +89,14 @@ fn link(from: &Path, root: &Path, name: &str) -> io::Result<()> {
         .map_err(|e| io::Error::new(e.kind(), format!("{} into the jail: {e}", from.display())))
 }
 
-/// Binds the volume `from` into the chroot `root` as `name`.
+/// Binds the volume `from` into the chroot `root` as `name`, from a descriptor of the file
+/// itself, so what is bound is what was checked.
 fn bind(from: &Path, root: &Path, name: &str) -> io::Result<()> {
+    use std::os::fd::AsRawFd as _;
     let to = root.join(name);
     std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&to)?;
-    rustix::mount::mount_bind(from, &to)
+    let held = crate::volume::held(from)?;
+    rustix::mount::mount_bind(format!("/proc/self/fd/{}", held.as_raw_fd()), &to)
         .map_err(|e| io::Error::other(format!("{} into the jail: {e}", from.display())))
 }
 

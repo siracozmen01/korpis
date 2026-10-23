@@ -624,25 +624,28 @@ Built so far (Phase 3): the kernel, `korpis-guest`, the config drive's format, t
 drives, and the `firecracker` driver as a process of its own. Each guest's Firecracker is started
 by Firecracker's jailer in a chroot holding hard links to its drives, as its workload's first id,
 in a pid namespace and a cgroup of its own whose `memory.max`, `pids.max`, and `cpu.max` hold the
-guest's shape, and it outlives the driver: a restarted driver finds every guest from the record
-it keeps per object, and watches each again by a descriptor of its process, so a process id
-reused is never mistaken for it. The jailer forks to do this, so the process the driver watches is
-the one the jailer names in its chroot, and never the one the driver started. A guest's
-Firecracker can write its chroot, and a guest that escaped into it would write there whatever
-would mislead the driver, which is root; so nothing in a chroot is trusted (2026-10-23, from a
-review of the first build). The chroot is built afresh for every run, so neither the jailer nor
-the driver reads what an earlier run left; the process the jailer names is believed only if it
-runs as the workload's id in the guest's cgroup, which only root can move a process into, since
-the driver kills what it records; and the API socket is opened as itself, never through a link,
-so it cannot be made to name another socket on the host. It is proven by guests run, stopped,
-killed, recovered, and given a console (`crates/korpis-guest/tests/boot.rs`,
-`crates/korpis-image/tests/build.rs`, `crates/korpis-driver-firecracker/tests/`), the last through
-the agent with the `oci` driver beside it; the console is described in §3. A volume's drive is the
-image the helper makes in it (§3.1 of `06-storage.md`), which is on the node's storage, where a
-hard link from the driver's state cannot reach: it is bound into the chroot instead, and unbound,
-without following a link, when the jail is removed. What it does not do yet, stated: a guest has
-no network, so the driver refuses a spec that names one; and since every workload a node runs has
-its network, no node can place a workload on `microvm` until the helper gives a guest its tap.
+guest's shape, and it outlives the driver: a restarted driver finds every guest from the record it
+keeps per object, and watches each again by a descriptor of its process, so a process id reused is
+never mistaken for it. The jailer forks to do this, so the process the driver watches is the one
+the jailer names in its chroot, and never the one the driver started. A guest's Firecracker can
+write its chroot, and a guest that escaped into it would write there whatever would mislead the
+driver, which is root; so nothing in a chroot is trusted (2026-10-23, from a review of the first
+build). The chroot is built afresh for every run, so neither the jailer nor the driver reads what
+an earlier run left; the process the jailer names is believed only if it runs as the workload's id
+in the guest's cgroup, which only root can move a process into, since the driver kills what it
+records; and the API socket is opened as itself, never through a link, so it cannot be made to name
+another socket on the host. It is proven by guests run, stopped, killed, recovered, and given a
+console (`crates/korpis-guest/tests/boot.rs`, `crates/korpis-image/tests/build.rs`,
+`crates/korpis-driver-firecracker/tests/`), the last through the agent with the `oci` driver beside
+it; the console is described in §3. A volume's drive is the image the helper makes in it (§3.1 of
+`06-storage.md`), which is on the node's storage, where a hard link from the driver's state cannot
+reach: it is bound into the chroot instead, and unbound, without following a link, when the jail is
+removed. The driver takes nothing else under the volume root as a drive: only `<volume>/block.ext4`
+directly beneath it, with no link on the way, in a directory the helper marked as a block device's,
+given to the workload's first id and bound in through a descriptor of the file it checked, so the
+file given and bound is that one. What it does not do yet, stated: a guest has no network, so the
+driver refuses a spec that names one; and since every workload a node runs has its network, no node
+can place a workload on `microvm` until the helper gives a guest its tap.
 
 ---
 

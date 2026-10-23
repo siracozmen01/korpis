@@ -28,11 +28,11 @@ cannot be undone later, because by then invoices depend on it.
 
 ### Measured, never assumed
 
-Every metered quantity comes from a kernel counter, cgroup v2 accounting, `statfs`, nftables
-counters, driver-reported device usage. **No metered quantity is ever derived from a configured
-limit.** Pterodactyl reports the limit you set as though it were consumption because it cannot
-measure the difference; that is the failure P4 and K-3 exist to prevent, and it is worst here,
-because the number becomes an invoice.
+Every metered quantity comes from a kernel counter, cgroup v2 accounting, the filesystem's quota
+accounting, nftables counters, driver-reported device usage. **No metered quantity is ever derived
+from a configured limit.** Pterodactyl reports the limit you set as though it were consumption
+because it cannot measure the difference; that is the failure P4 and K-3 exist to prevent, and it
+is worst here, because the number becomes an invoice.
 
 ### What is metered
 
@@ -197,9 +197,20 @@ calling them all one or the other. A workload with no network of its own has no 
 dedicated addresses, both Phase 3 (§4 of `20-roadmap.md`). A sample names the quantities it
 measured, and a quantity it does not name is absent, never zero: a zero is a measurement.
 
-**Storage is sampled, and the samples are stored.** `disk_bytes_stored` is `statfs` of each of the
-workload's volumes at the sample, used bytes summed, as the helper reads it for the volume's own
-status. `backup_bytes_stored` is measured where backups are stored, not reported by the jobs that
+**Storage is sampled, and the samples are stored.** `disk_bytes_stored` is what the storage class
+accounts for each of the workload's volumes at the sample, summed, as the helper reads it from the
+filesystem's own quota accounting (§3 of `06-storage.md`); a volume in a class that accounts
+nothing is not counted, and a workload none of whose volumes is accounted has the quantity
+absent. For a `microvm`'s volumes, which are block devices, what is accounted is the blocks their
+images have allocated, which grow as the guest writes and do not shrink when it deletes, not what
+the guest's filesystem holds; the sample, the record, `korpis get usage`, and the panel each say
+so, as `disk_allocated` (§3.1 of `06-storage.md`).
+
+> Corrected 2026-10-23, as block devices were metered: this paragraph said the quantity was
+> `statfs` of each volume. The helper has always read the class's quota accounting, which counts
+> one volume where `statfs` would count the filesystem it shares with every other.
+
+`backup_bytes_stored` is measured where backups are stored, not reported by the jobs that
 wrote them: once a day the control plane lists each workload's prefix in each repository holding
 its backups and sums what it holds, which is the post-deduplication size with the scope named,
 since a workload's scope is its own prefix (§5.3 of `06-storage.md`): recipe content it holds by

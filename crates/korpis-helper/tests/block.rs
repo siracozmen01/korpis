@@ -77,7 +77,9 @@ fn a_block_device_is_an_empty_ext4_of_its_size_grown_and_never_shrunk() {
     assert!(class.ensure(&block("wl_b.none", 0)).is_err(), "a block device needs a size");
 
     let u = class.usage("wl_b.disk").unwrap();
-    assert!(u.accounted && u.limit_bytes > 32 * MIB && u.used_bytes < 32 * MIB, "{u:?}");
+    assert!(u.accounted && u.allocated, "{u:?}");
+    assert!(u.limit_bytes > 32 * MIB && u.used_bytes < 32 * MIB, "{u:?}");
+    assert!(!class.usage("wl_b.data").unwrap().allocated, "a volume of files holds what it says");
     assert!(class.delete("wl_b.disk").unwrap());
     assert!(!image.exists());
 }

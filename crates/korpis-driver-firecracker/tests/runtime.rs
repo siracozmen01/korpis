@@ -146,8 +146,15 @@ async fn a_restarted_driver_finds_its_guests_and_a_spec_outside_its_tier_is_refu
         return;
     }
     let rig = Rig::new();
-    let id =
-        rig.machine.create(rig.spec("wl_stays", "while true; do sleep 1; done")).await.unwrap();
+    let stays = rig.spec("wl_stays", "while true; do sleep 1; done");
+    let mut shares = rig.spec("wl_shares", "true");
+    shares.mounts[0].source.clone_from(&stays.mounts[0].source);
+    let id = rig.machine.create(stays).await.unwrap();
+    let refused_share = rig.machine.create(shares).await;
+    assert!(
+        matches!(refused_share, Err(MachineError::Refused(_))),
+        "one workload's at a time: {refused_share:?}"
+    );
     rig.machine.start(&id).await.unwrap();
     let again = Machine::new(rig.machine.settings().clone()).unwrap();
     let found = again.recover();

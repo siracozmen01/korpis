@@ -9,6 +9,7 @@ const HOUR = 3600n;
 interface Init {
   readonly cpuUsec?: bigint;
   readonly diskBytes?: bigint;
+  readonly diskAllocated?: boolean;
   readonly egressBytes?: bigint;
   readonly endpoints?: { endpoint: string; receivedBytes: bigint; sentBytes: bigint }[];
 }
@@ -44,9 +45,17 @@ test("a day's records sum what was measured and count the unheard apart", () => 
   expect(sum.adjustments).toBe(1);
   expect(sum.gaps).toBe(1);
   expect(sum.gapMs).toBe(3_600_000);
-  expect(sum.disk).toEqual({ bytes: 20n, at: 3 * 3_600_000 });
+  expect(sum.disk).toEqual({ bytes: 20n, at: 3 * 3_600_000, allocated: false });
   expect(sum.netRxBytes, "nothing measured it: absent, not zero").toBeUndefined();
   expect(totals([]).cpuUsec).toBeUndefined();
+});
+
+test("a microVM's disk is the latest record's, and said to be what its devices allocated", () => {
+  const sum = totals([
+    record(0n, UsageKind.MEASURED, { diskBytes: 10n }),
+    record(1n, UsageKind.MEASURED, { diskBytes: 30n, diskAllocated: true }),
+  ]);
+  expect(sum.disk).toEqual({ bytes: 30n, at: 2 * 3_600_000, allocated: true });
 });
 
 test("a day's egress and each counted endpoint are summed by name", () => {

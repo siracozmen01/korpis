@@ -4881,6 +4881,7 @@ then, to use the file manager, moves the workload to `container`.
 | 7 | The customer opens the file manager on it, and is refused with the reason | `04-runtimes.md` §4.4; `06-storage.md` §3.1, §3.2 |
 | 8 | The customer moves the workload to `container` ‡ | `06-storage.md` §3.1; `04-runtimes.md` §4.4 |
 | 9 | The nightly backup reads the volume's directory and holds the image whole | `06-storage.md` §5 |
+| 10 | The month's usage shows the world's disk as what its image has allocated, and says so | `15-observability.md` §2; `06-storage.md` §3.1 |
 
 **One finding, at step 8** (‡).
 
@@ -4904,7 +4905,10 @@ costs: moving a workload between the two tiers needs its volumes converted, whic
 a guest may do, since it reads what the tenant wrote (§4.4 of `04-runtimes.md`); until that worker
 is built the move is refused rather than performed.
 
-Steps 1 to 9 are built, steps 2 to 8 tested: `crates/korpis-helper/tests/block.rs` makes, grows,
-refuses, and deletes a block device; `crates/korpis-driver-firecracker/tests/volumes.rs` has a
-guest grow its filesystem to a drive made larger. Step 9 is the backup of §5, which takes the
-directory as it takes any other.
+Steps 1 to 10 are built, steps 2 to 8 and 10 tested: `crates/korpis-helper/tests/block.rs` makes,
+grows, refuses, accounts, and deletes a block device; `crates/korpis-driver-firecracker/tests/
+volumes.rs` has a guest grow its filesystem to a drive made larger; the control plane's metering
+test keeps a sample's `disk_allocated` with its record, and the panel's test labels it. Step 9 is
+the backup of §5, which takes the directory as it takes any other. Asking step 10 the algebra
+question also found §2 of `15-observability.md` naming `statfs` where the helper reads the quota
+accounting, corrected there.

@@ -68,8 +68,10 @@ export interface Totals {
   readonly egressBytes: bigint | undefined;
   /** What each endpoint whose accounting is on carried, by name. */
   readonly endpoints: ReadonlyMap<string, EndpointTotal>;
-  /** The disk the latest record measured, and when its interval ended. */
-  readonly disk: { readonly bytes: bigint; readonly at: number } | undefined;
+  /** The disk the latest record measured, when its interval ended, and whether it counted what
+   * a guest's block devices have allocated rather than what filesystems hold. */
+  readonly disk:
+    { readonly bytes: bigint; readonly at: number; readonly allocated: boolean } | undefined;
   /** How many records were measured, adjustments among them. */
   readonly measured: number;
   readonly adjustments: number;
@@ -135,7 +137,10 @@ export function totals(records: readonly UsageRecord[]): Totals {
       netTxBytes: sum(acc.netTxBytes, r.netTxBytes),
       egressBytes: sum(acc.egressBytes, r.egressBytes),
       endpoints,
-      disk: later && r.diskBytes !== undefined ? { bytes: r.diskBytes, at: span.to } : acc.disk,
+      disk:
+        later && r.diskBytes !== undefined
+          ? { bytes: r.diskBytes, at: span.to, allocated: r.diskAllocated }
+          : acc.disk,
       measured: acc.measured + 1,
       adjustments: acc.adjustments + (r.kind === UsageKind.ADJUSTMENT ? 1 : 0),
     };

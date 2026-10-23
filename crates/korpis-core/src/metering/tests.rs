@@ -19,6 +19,7 @@ fn sample(hour: u64, cpu: u64) -> Sample {
         counters: Counters { cpu_usec: Some(cpu), ..Counters::default() },
         memory_peak_bytes: None,
         disk_bytes: None,
+        disk_allocated: false,
         losses: Vec::new(),
     }
 }

@@ -144,6 +144,8 @@ pub struct Sample {
     pub memory_peak_bytes: Option<u64>,
     /// The bytes its volumes held at the sample.
     pub disk_bytes: Option<u64>,
+    /// Those bytes are what block devices' images have allocated, not what their guests hold.
+    pub disk_allocated: bool,
     /// What the node could not measure since its previous sample.
     pub losses: Vec<Loss>,
 }
@@ -279,6 +281,8 @@ pub struct Record {
     pub memory_peak_bytes: Option<u64>,
     /// The bytes its volumes held at its end.
     pub disk_bytes: Option<u64>,
+    /// Those bytes are what block devices' images have allocated (§3.1 of docs/06-storage.md).
+    pub disk_allocated: bool,
     /// What the node could not measure within it.
     pub losses: Vec<Loss>,
     /// When the control plane recorded it, once it has: an adjustment's date.
@@ -302,6 +306,7 @@ impl Record {
             used: m.used.clone(),
             memory_peak_bytes: sample.memory_peak_bytes,
             disk_bytes: sample.disk_bytes,
+            disk_allocated: sample.disk_allocated,
             losses: sample.losses.clone(),
             recorded_at: None,
         }
@@ -325,6 +330,7 @@ impl Record {
             used: Counters::default(),
             memory_peak_bytes: None,
             disk_bytes: None,
+            disk_allocated: false,
             losses: Vec::new(),
             recorded_at: None,
         }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, workload_id, node_id, lease_epoch, interval_start, interval_end, kind,\n                    cause, supersedes, cpu_usec, cpu_throttled_usec, io_read_bytes,\n                    io_write_bytes, net_rx_bytes, net_tx_bytes, memory_kib_seconds,\n                    memory_peak_bytes, disk_bytes, losses, recorded_at, egress_bytes, endpoints\n               FROM metering_record\n              WHERE workload_id = $1 AND interval_start >= $2 AND interval_start < $3\n              ORDER BY interval_start, recorded_at, id",
+  "query": "SELECT r.id, r.workload_id, r.node_id, r.lease_epoch, r.interval_start,\n                    r.interval_end, r.kind, r.cause, r.supersedes, r.cpu_usec,\n                    r.cpu_throttled_usec, r.io_read_bytes, r.io_write_bytes, r.net_rx_bytes,\n                    r.net_tx_bytes, r.memory_kib_seconds, r.memory_peak_bytes, r.disk_bytes,\n                    r.disk_allocated, r.losses, r.recorded_at, r.egress_bytes, r.endpoints\n               FROM metering_record r JOIN workload w ON w.id = r.workload_id\n              WHERE ((NOT $10 OR r.kind <> 'adjustment')\n                     AND r.interval_start >= $4 AND r.interval_start < $5\n                  OR $10 AND r.kind = 'adjustment' AND r.recorded_at >= $4 AND r.recorded_at < $5)\n                AND ($1::uuid IS NULL OR r.workload_id = $1)\n                AND ($2::uuid IS NULL OR w.project_id = $2)\n                AND ($3::uuid IS NULL OR w.organization_id IN (\n                        WITH RECURSIVE tree AS (\n                            SELECT id FROM organization WHERE id = $3\n                            UNION ALL\n                            SELECT o.id FROM organization o JOIN tree t ON o.parent_id = t.id)\n                        SELECT id FROM tree))\n                AND (NOT $6 OR NOT EXISTS (\n                        SELECT 1 FROM metering_record s WHERE r.id = ANY (s.supersedes)\n                           AND (NOT $10 OR s.kind <> 'adjustment')))\n                AND ($7::timestamptz IS NULL OR (r.interval_start, r.id) > ($7, $8::uuid))\n              ORDER BY r.interval_start, r.id LIMIT $9",
   "describe": {
     "columns": [
       {
@@ -203,6 +203,17 @@
       },
       {
         "ordinal": 18,
+        "name": "disk_allocated",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "metering_record",
+            "name": "disk_allocated"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
         "name": "losses",
         "type_info": "Jsonb",
         "origin": {
@@ -213,7 +224,7 @@
         }
       },
       {
-        "ordinal": 19,
+        "ordinal": 20,
         "name": "recorded_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -224,7 +235,7 @@
         }
       },
       {
-        "ordinal": 20,
+        "ordinal": 21,
         "name": "egress_bytes",
         "type_info": "Int8",
         "origin": {
@@ -235,7 +246,7 @@
         }
       },
       {
-        "ordinal": 21,
+        "ordinal": 22,
         "name": "endpoints",
         "type_info": "Jsonb",
         "origin": {
@@ -249,8 +260,15 @@
     "parameters": {
       "Left": [
         "Uuid",
+        "Uuid",
+        "Uuid",
         "Timestamptz",
-        "Timestamptz"
+        "Timestamptz",
+        "Bool",
+        "Timestamptz",
+        "Uuid",
+        "Int8",
+        "Bool"
       ]
     },
     "nullable": [
@@ -274,9 +292,10 @@
       true,
       false,
       false,
+      false,
       true,
       false
     ]
   },
-  "hash": "3055683e95b02b3e1de197b6265779ee4cd28a72cfa8217e4a8cca4a1ba4b7d8"
+  "hash": "99a43acda7db0c4a2d8e14f9d3034695a3e9100217c902c7428912b4746e4053"
 }

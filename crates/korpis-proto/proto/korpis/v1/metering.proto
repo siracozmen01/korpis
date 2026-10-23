@@ -96,6 +96,10 @@ message UsageRecord {
   optional uint64 memory_kib_seconds = 17;
   optional uint64 memory_peak_bytes = 18;
   optional uint64 disk_bytes = 19;
+  // `disk_bytes` is what the workload's block devices have allocated, which grows as its guest
+  // writes and does not shrink when it deletes, not what its filesystems hold: a different
+  // number from a container's, and shown as such (§3.1 of docs/06-storage.md).
+  bool disk_allocated = 23;
   // What the node could not measure within it.
   repeated UsageLoss losses = 20;
   // Bytes that left the workload's link for anything but another workload's link on its node,

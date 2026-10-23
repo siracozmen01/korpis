@@ -279,9 +279,9 @@ impl MeteringWrite for PgTx {
                     interval_start, interval_end, kind, cause, supersedes, cpu_usec,
                     cpu_throttled_usec, io_read_bytes, io_write_bytes, net_rx_bytes, net_tx_bytes,
                     memory_kib_seconds, memory_peak_bytes, disk_bytes, losses, egress_bytes,
-                    endpoints)
+                    endpoints, disk_allocated)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                     $18, $19, $20, $21, $22)",
+                     $18, $19, $20, $21, $22, $23)",
             r.id,
             from_time(at),
             r.workload,
@@ -303,7 +303,8 @@ impl MeteringWrite for PgTx {
             stored("disk_bytes", r.disk_bytes)?,
             losses_doc(&r.losses)?,
             egress,
-            endpoints_doc(&r.used.endpoints)?
+            endpoints_doc(&r.used.endpoints)?,
+            r.disk_allocated
         )
         .execute(&mut *self.tx)
         .await

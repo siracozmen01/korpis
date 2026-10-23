@@ -18,7 +18,9 @@ use std::time::SystemTime;
 const METHOD: &str = "Times are UTC. CPU, throttled time, and block and network bytes are the \
                       kernel's counters, differenced between two samples on the node; memory is \
                       integrated from readings every ten seconds; disk is what the volumes' \
-                      filesystem accounted at the interval's end. Egress, and each endpoint whose \
+                      filesystem accounted at the interval's end, or, marked allocated, what a \
+                      guest's block devices have allocated, which grows as it writes and does not \
+                      shrink when it deletes. Egress, and each endpoint whose \
                       accounting is on, are counted in the node's host table: egress is what left \
                       the workload's link for anything but another workload's on its node. A gap \
                       is an interval nothing was heard over.";
@@ -193,7 +195,10 @@ fn usage_row(r: &pb::UsageRecord) -> Vec<String> {
         size(r.net_rx_bytes),
         size(r.net_tx_bytes),
         size(r.egress_bytes),
-        size(r.disk_bytes),
+        match r.disk_bytes {
+            Some(b) if r.disk_allocated => format!("{} allocated", bytes(b)),
+            _ => size(r.disk_bytes),
+        },
         r.node.clone().unwrap_or_else(|| "-".to_owned()),
         cause,
     ]

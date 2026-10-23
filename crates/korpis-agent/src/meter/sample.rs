@@ -211,18 +211,22 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
         });
     }
 
-    /// The bytes `a`'s volumes hold, where their filesystem accounts them.
-    async fn disk(&self, a: &agent::Assignment) -> Option<u64> {
+    /// The bytes `a`'s volumes hold, where their filesystem accounts them, and whether any of
+    /// them counts a block device's allocated blocks rather than what its guest holds.
+    async fn disk(&self, a: &agent::Assignment) -> (Option<u64>, bool) {
         let body = a.target.as_option().and_then(|t| t.body.as_option());
-        let mut total = None;
+        let (mut total, mut allocated) = (None, false);
         for v in body.map(|b| b.volumes.as_slice()).unwrap_or_default() {
             match self.sources.host.volume_usage(&volume_id(a, &v.name)).await {
-                Ok(u) if u.accounted => total = Some(total.unwrap_or(0_u64) + u.used_bytes),
+                Ok(u) if u.accounted => {
+                    total = Some(total.unwrap_or(0_u64) + u.used_bytes);
+                    allocated |= u.allocated;
+                }
                 Ok(_) => {}
                 Err(e) => tracing::debug!(error = %e, volume = v.name, "a volume went unread"),
             }
         }
-        total
+        (total, allocated)
     }
 
     /// Journals the interval from `start`, `span` long, of every workload held or still read.
@@ -236,9 +240,9 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
         }
         for workload in workloads {
             let a = held.get(&workload);
-            let disk = match a {
+            let (disk, disk_allocated) = match a {
                 Some(a) => self.disk(a).await,
-                None => None,
+                None => (None, false),
             };
             let closed = self.meter.with_book(|b| b.pending(&workload));
             let sample = agent::MeteringSample {
@@ -249,6 +253,7 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
                 counters: closed.counters.into(),
                 memory_peak_bytes: closed.peak,
                 disk_bytes: disk,
+                disk_allocated,
                 losses: closed.losses,
                 ..Default::default()
             };

@@ -102,7 +102,9 @@ throttled time in seconds, memory in GiB-hours, its peak, the block, network, an
 node that measured it where the caller may read that node, and why it is longer than an interval or
 is a gap, with its egress beside the network bytes (added 2026-10-21, P2.8d), and under the table,
 where any record counts an endpoint, a row for each endpoint of each record with its bytes and
-packets received and sent. A quantity nothing measured is `-`, never `0`, and how each was measured
+packets received and sent. A microVM's disk bytes read `allocated` after the figure, being what its
+block devices have allocated rather than what its filesystems hold (added 2026-10-23, P3.2d1b; §3.1
+of `06-storage.md`). A quantity nothing measured is `-`, never `0`, and how each was measured
 is printed under the table, since a billable number is never shown without its source, its window,
 and its method (§8 of `11-surface-web.md`). It reads an organization's subtree, the caller's own
 top organization when nothing is named, or one `--project` or `--workload`. `--from` and `--to`
