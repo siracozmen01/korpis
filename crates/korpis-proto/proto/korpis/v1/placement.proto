@@ -135,6 +135,10 @@ message Capabilities {
   // Per tier, the plan step actions it makes disruptive there: the driver's layer of the
   // classification chain (§3.3 of docs/01-model.md), which may only add to the vocabulary's floor.
   repeated TierDisruption disruption = 18;
+  // Whether it gives each workload the directory its node serves it, at /run/korpis: the
+  // identity socket, the API relay, and the managed and dependency files (§6 of
+  // docs/02-architecture.md). A heartbeat probe needs it (§5 of docs/04-runtimes.md).
+  bool identity_dir = 19;
 }
 
 // What a driver makes disruptive on one tier: `stop` on a `vm` costs a boot.

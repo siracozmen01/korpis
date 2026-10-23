@@ -531,15 +531,19 @@ server named and `/run/korpis/identity.sock` present, or with `--identity` (`KOR
 naming a socket, the command asks the socket for the workload's credential (§9.5 of
 `08-identity.md`), asking again for up to a minute while the socket says to, as it does until the
 node holds the workload's lease, and saying a refusal at once. It trusts the CA the socket names,
-reaches the control plane at the address the socket names, through the relay the node serves
-beside the socket where it serves one and over the network otherwise, and renews the credential
-five minutes before it expires for as long as it runs. So `korpis backup create vol_…
---repository rep_…` in a nightly backup's run holds exactly the grants issued to the workload,
-and nothing is written into the workload's configuration. A server named, with no socket named, is
-the operator's choice and is used as before. What it does not do: through the relay it reaches the
-control plane alone, so a relay at another address, a console's or a file session's, is refused
-with a message saying why; and a relay the node starts serving after the command began, for a
-grant issued while it runs, is not taken up by that command, which keeps the path it began with.
+reaches the control plane at the address the socket names, through the relay the node serves beside
+the socket where it serves one and over the network otherwise, and renews the credential five
+minutes before it expires for as long as it runs. So `korpis backup create vol_… --repository
+rep_…` in a nightly backup's run holds exactly the grants issued to the workload, and nothing is
+written into the workload's configuration. A server named, with no socket named, is the operator's
+choice and is used as before. What it does not do: through the relay it reaches the control plane
+alone, so a relay at another address, a console's or a file session's, is refused with a message
+saying why; and a relay the node starts serving after the command began, for a grant issued while
+it runs, is not taken up by that command, which keeps the path it began with. `korpis heartbeat`
+says on the socket that the workload is alive, for its heartbeat probe (§5 of `04-runtimes.md`),
+and `--every 30s` says it again at that interval for as long as it runs, so an entry script can
+start it beside its program; it needs no credential and no grant, and a beat that fails while it
+repeats is said and tried again at the next interval. Added 2026-10-23.
 
 Installing an extension is issuing grants, so it is two steps, as `plan` and `apply` are. `korpis
 extension install ARTIFACT --version 1.0.0` changes nothing: it prints what the extension needs,

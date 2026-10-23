@@ -34,7 +34,7 @@ A node survives the filter only if all hold:
 |---|---|
 | offers a driver implementing the requested tier | `Node.drivers[].Capabilities.tiers` |
 | that driver's declared capabilities admit the intent | `Node.drivers[].Capabilities`, evaluated in the control plane (below) |
-| that driver runs a command inside its workload, where a probe of the intent does (an `exec` probe) | `Node.drivers[].Capabilities.exec`; added 2026-10-23, when probes were built, as the `probe` check: no probe is accepted that its node would never run (§5 of `04-runtimes.md`) |
+| that driver runs a command inside its workload, where a probe of the intent does (an `exec` probe), and gives it its identity socket, where a probe of the intent hears from it (a `heartbeat` probe) | `Node.drivers[].Capabilities.exec` and `.identity_dir`; added 2026-10-23, when probes were built, as the `probe` check: no probe is accepted that its node would never run, or that its workload could never answer (§5 of `04-runtimes.md`) |
 | for the shortlist, the driver's `Prepare` accepts it | a `FeasibilityQuery` (§4.2 of `02-architecture.md`), side-effect free |
 | has unallocated capacity for every requested dimension | `Node.allocatable` minus `allocated`; among them `node_ports`, the ports of its range its `node_port` and `node_bound` endpoints hold (§3 of `07-networking.md`) |
 | has every requested device available | §6 |

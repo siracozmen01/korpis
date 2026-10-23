@@ -1399,6 +1399,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 151 | No node ran a health probe, and four documents said one did | §60 | `04-runtimes.md` §5; `05-scheduling.md` §2.1; `07-networking.md` §6; `20-roadmap.md` §4; `22-first-party.md` §3 |
 | 152 | A dependent created by its plan did not wait for its dependencies | §60 | `07-networking.md` §5 |
 | 153 | A query protocol was named without its publisher, and nothing said which provider answered it or how one was pinned | §61 | `16-extensions.md` §4.1, §5; `09-recipes.md` §3; `22-first-party.md` §3 |
+| 154 | A microVM was given no `/run/korpis`, and nothing said so | §62 | `02-architecture.md` §6; `04-runtimes.md` §4.1, §5, §6; `05-scheduling.md` §2.1; `20-roadmap.md` §4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -5186,3 +5187,55 @@ once the provider is uninstalled. Steps 3 and 6, the node's half, were built the
 `crates/korpis-e2e/tests/e2e/query.rs` runs every step on a real node, the provider the SDK's test
 extension in a container there, judging a server that answers `pong` healthy, restarting it when
 it stops, and restarting nothing once the provider is uninstalled and its health is unknown.
+
+## 62. A Discord bot says it is alive, and is moved to a microVM
+
+Written 2026-10-23, as heartbeat probes were built (§5 of `04-runtimes.md`). Traces 60 and 61
+followed probes made from outside the workload; this one follows the one kind the workload makes
+itself, the Discord bot of §2 of `01-model.md`, which has no endpoint anyone could probe, asking at
+each step what hears the beat, where, and what judges the silence. A customer declares the bot with
+a liveness heartbeat allowing a minute of silence; its entry starts `korpis heartbeat --every 20s`
+beside the bot, and later the customer asks for it on the `microvm` tier.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The customer declares the bot; its liveness probe is a `heartbeat` with a `max_interval` of a minute | `01-model.md` §2; `09-recipes.md` §3 |
+| 2 | Placement keeps the bot on a node whose driver declares `identity_dir`, and refuses others with the `probe` check | `05-scheduling.md` §2.1; `04-runtimes.md` §4.1 |
+| 3 | The node builds its container with `/run/korpis` mounted, its identity socket in it | `02-architecture.md` §6; `08-identity.md` §9.5 |
+| 4 | `korpis heartbeat` calls `Heartbeat` on the socket every twenty seconds; the node keeps when it last heard | `13-surface-cli.md` §7; `08-identity.md` §9.5 |
+| 5 | The node checks the probe on its period: healthy while a beat came within the minute | `04-runtimes.md` §5 |
+| 6 | The node loses its control plane; it still hears the bot and judges it, since a beat goes no further | `04-runtimes.md` §5; `02-architecture.md` §4.6 |
+| 7 | The bot hangs and its beats stop; after the minute and its failures the probe fails, and the node restarts it, recorded with its cause; a beat from before the restart does not count for the new life | `04-runtimes.md` §5 |
+| 8 | The customer asks for the bot on the `microvm` tier ‡ | `04-runtimes.md` §6; `05-scheduling.md` §2.1 |
+
+**One finding, at step 8** (‡).
+
+**FINDING 154: A microVM was given no `/run/korpis`, and nothing said so. `CONFIRMED`, by reading
+the code**
+
+Found 2026-10-23 asking step 8's question: what would hear the bot's beat in a guest? §6 of
+`02-architecture.md` says every workload has an identity socket, which the driver mounts at
+`/run/korpis`, and the same directory carries its managed files and its dependencies' files (§5.2
+of `09-recipes.md`, §5 of `07-networking.md`). The `firecracker` driver, built in Phase 3, takes
+the directory in its create request and ignores it: a guest's filesystem is its own drive, and
+nothing carries a host directory into it. So a microVM could obtain no credential, read no managed
+file, and, had heartbeat probes been built without asking, be judged silent and restarted every
+minute and a half for a beat it had no way to send.
+
+**Resolution.** A driver now declares whether it gives a workload the directory (`identity_dir`,
+§4.1 of `04-runtimes.md`): the `oci` driver does, the `firecracker` driver does not, and the `probe`
+check refuses a heartbeat probe on a node whose driver does not (§2.1 of `05-scheduling.md`). The
+rest is stated rather than refused, in §6 of `04-runtimes.md` and §6 of `02-architecture.md`: a
+recipe whose configuration or dependencies are delivered as files is not refused on a microVM,
+since placement does not read the recipe, and starts without them. Carrying the directory into a
+guest over its vsock channel is homed in Phase 3 (§4 of `20-roadmap.md`). What it costs: until
+then a microVM holds no credential, and a recipe that relies on its files does not work in one.
+
+Steps 1 to 5 and 7 are built: `crates/korpis-agent/tests/agent/heartbeat.rs` beats through the
+SDK on an agent's identity socket, stops, and sees the workload unhealthy, restarted, and healthy
+again; `crates/korpis-e2e/tests/e2e/heartbeat.rs` runs `korpis heartbeat --every 1s` in a
+container on a real node, stops its process from the host, and sees the same; and
+`crates/korpis-core` refuses a heartbeat probe at placement on a driver without the directory.
+Step 6 follows from step 4, since nothing in a beat reaches the control plane.

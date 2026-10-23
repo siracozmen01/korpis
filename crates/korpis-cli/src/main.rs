@@ -124,6 +124,16 @@ async fn ssh_keys(cli: &Cli, a: &ssh_key::SshKeyAction) -> Result<Answer, CliErr
     }
 }
 
+/// `korpis heartbeat`: through the identity socket named, or the one mounted into the workload.
+async fn heartbeat(cli: &Cli, every: Option<&str>) -> Result<(), CliError> {
+    let socket = inside::socket(cli.identity.clone(), false).ok_or_else(|| {
+        CliError::Local("no identity socket: run it inside a workload, or name one".into())
+    })?;
+    let every = every.map(korpis_cli::cmd::seconds).transpose()?;
+    let every = every.and_then(|s| u64::try_from(s).ok()).map(std::time::Duration::from_secs);
+    inside::heartbeat(&socket, every).await
+}
+
 /// `korpis login`: the device flow, then the session kept; or, with `--no-store`, `command`
 /// run with it held in memory, and the session ended after.
 #[expect(clippy::print_stderr, reason = "where to approve the code is said on standard error")]
@@ -167,6 +177,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         }
         Command::Login { no_store, command } => login(cli, *no_store, command).await,
         Command::Logout => session::log_out(&cli.anonymous()?).await,
+        Command::Heartbeat { every } => heartbeat(cli, every.as_deref()).await,
         Command::Plan { action: Some(a), .. } => {
             answer(cli, act::plan(&cli.required().await?, a).await)
         }

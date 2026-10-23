@@ -65,7 +65,7 @@ fn probe(path: &str, failures: u32) -> pb::Probe {
 }
 
 /// Declares `name` from the example recipe with `body`'s parts; its wire id.
-async fn declare(cp: &ControlPlane, project: &str, name: &str, body: pb::IntentBody) -> String {
+pub async fn declare(cp: &ControlPlane, project: &str, name: &str, body: pb::IntentBody) -> String {
     let recipe =
         pb::RecipeRef { name: push_paper().await, version: "1.21.4".into(), ..Default::default() };
     let request = pb::DeclareIntentRequest {
@@ -83,7 +83,7 @@ async fn declare(cp: &ControlPlane, project: &str, name: &str, body: pb::IntentB
 }
 
 /// What the node last observed of `w`, once `pick` holds of it.
-async fn observed(
+pub async fn observed(
     cp: &ControlPlane,
     w: &str,
     pick: impl Fn(&pb::Observation) -> bool,
@@ -98,7 +98,7 @@ async fn observed(
     panic!("{w} never reached the observation awaited: {:?}", cp.status(w).await);
 }
 
-fn health(o: &pb::Observation) -> Option<pb::HealthState> {
+pub fn health(o: &pb::Observation) -> Option<pb::HealthState> {
     o.health.as_known()
 }
 

@@ -4,7 +4,8 @@
 //! [`MOUNT_POINT`] inside that workload and nowhere else (§6 of docs/02-architecture.md). The
 //! socket is the workload's identity: a request on it is forwarded naming the workload it was
 //! made for, whoever connected. It speaks Connect over HTTP/1.1 and HTTP/2, so a workload can
-//! ask with any HTTP client, `curl --unix-socket` included.
+//! ask with any HTTP client, `curl --unix-socket` included. A heartbeat on it is kept here, when
+//! it was last heard, for the workload's heartbeat probe (§5 of docs/04-runtimes.md).
 
 use super::{Credentials, NoCredential};
 use connectrpc::{ConnectError, ConnectRpcService, RequestContext, Response, Router};
@@ -17,6 +18,7 @@ use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Instant;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::task::JoinHandle;
 use tower_service::Service as _;
@@ -36,6 +38,26 @@ pub struct IdentitySockets {
     /// The relays of the API served to the workloads marked as reaching it (§9.5 of
     /// docs/08-identity.md).
     relays: Mutex<HashMap<String, JoinHandle<()>>>,
+    beats: Arc<Beats>,
+}
+
+/// When each workload last said, on its socket, that it is alive.
+#[derive(Debug, Default)]
+struct Beats(Mutex<HashMap<String, Instant>>);
+
+impl Beats {
+    fn heard(&self, workload: &str) {
+        let mut beats = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        beats.insert(workload.to_owned(), Instant::now());
+    }
+
+    fn last(&self, workload: &str) -> Option<Instant> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner).get(workload).copied()
+    }
+
+    fn forget(&self, workload: &str) {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner).remove(workload);
+    }
 }
 
 /// Where a workload's credential is used, which the socket tells it with the credential: the
@@ -53,6 +75,7 @@ struct Socket {
     workload: String,
     credentials: Arc<Credentials>,
     control_plane: Arc<ControlPlane>,
+    beats: Arc<Beats>,
 }
 
 #[expect(refining_impl_trait, reason = "async fn handlers for the generated trait")]
@@ -73,6 +96,15 @@ impl agent::WorkloadIdentityService for Socket {
             Err(e @ NoCredential::Unavailable) => Err(ConnectError::unavailable(e.to_string())),
         }
     }
+
+    fn heartbeat(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, agent::HeartbeatRequest>,
+    ) -> impl Future<Output = ServiceResult<agent::HeartbeatResponse>> + Send {
+        self.beats.heard(&self.workload);
+        std::future::ready(Response::ok(agent::HeartbeatResponse::default()))
+    }
 }
 
 /// Whether `workload` can name a directory: a wire identifier, nothing else.
@@ -91,7 +123,14 @@ impl IdentitySockets {
     ) -> Arc<Self> {
         let control_plane = Arc::new(control_plane);
         let (served, relays) = (Mutex::new(HashMap::new()), Mutex::new(HashMap::new()));
-        Arc::new(Self { root, credentials, control_plane, served, relays })
+        let beats = Arc::default();
+        Arc::new(Self { root, credentials, control_plane, served, relays, beats })
+    }
+
+    /// When `workload` last said on its socket that it is alive, if it has since the node began.
+    #[must_use]
+    pub fn last_beat(&self, workload: &str) -> Option<Instant> {
+        self.beats.last(workload)
     }
 
     /// The directory holding `workload`'s socket, which the driver mounts.
@@ -126,6 +165,7 @@ impl IdentitySockets {
             workload: workload.to_owned(),
             credentials: self.credentials.clone(),
             control_plane: self.control_plane.clone(),
+            beats: Arc::clone(&self.beats),
         };
         served.insert(workload.to_owned(), tokio::spawn(serve(listener, socket)));
         Ok(dir)
@@ -157,8 +197,10 @@ impl IdentitySockets {
         Ok(())
     }
 
-    /// Stops serving `workload`'s socket and relay and removes its directory.
+    /// Stops serving `workload`'s socket and relay, forgets when it was last heard from, and
+    /// removes its directory.
     pub fn remove(&self, workload: &str) {
+        self.beats.forget(workload);
         let task = self.served.lock().unwrap_or_else(PoisonError::into_inner).remove(workload);
         if let Some(task) = task {
             task.abort();

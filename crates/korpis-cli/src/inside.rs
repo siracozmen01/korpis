@@ -73,6 +73,30 @@ async fn asked(source: &IdentitySocket, patience: Duration) -> Result<Credential
     }
 }
 
+/// `korpis heartbeat`: says on the identity socket at `socket` that the workload is alive, once,
+/// or, given `every`, at that interval for as long as the process runs (§5 of
+/// docs/04-runtimes.md). A beat that fails while it repeats is said and tried again at the next
+/// interval, since an agent restarting binds the socket again; the probe judges the silence.
+///
+/// # Errors
+/// A single beat the socket did not take.
+#[expect(clippy::print_stderr, reason = "a beat that failed is said on standard error")]
+pub async fn heartbeat(socket: &Path, every: Option<Duration>) -> Result<(), CliError> {
+    let source = IdentitySocket::at(socket);
+    let failed = |e: korpis_extension::Error| {
+        CliError::Local(format!("the workload's identity socket: {e}"))
+    };
+    let Some(every) = every else { return source.heartbeat().await.map_err(failed) };
+    let mut tick = tokio::time::interval(every);
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        if let Err(e) = source.heartbeat().await {
+            eprintln!("{}", failed(e));
+        }
+    }
+}
+
 /// Replaces the credential in `bearer`, which expires at `expires`, before each expires. A
 /// renewal that fails is tried again until the credential in hand has expired, after which every
 /// call is refused as unauthenticated and says so.

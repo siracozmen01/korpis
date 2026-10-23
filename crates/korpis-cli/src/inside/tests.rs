@@ -2,7 +2,7 @@
 
 //! Against a fake identity socket, served as the agent serves one: it says to ask again a few
 //! times, as before the node holds the lease, then answers with a credential, a different one
-//! each time.
+//! each time; and it counts the heartbeats it hears.
 
 use super::*;
 use connectrpc::{ConnectError, ConnectRpcService, RequestContext, Response, Router};
@@ -24,6 +24,8 @@ struct Fake {
     good_for: Duration,
     asked: AtomicU32,
     ca_pem: Vec<u8>,
+    /// How many heartbeats it heard.
+    beats: Arc<AtomicU32>,
 }
 
 #[expect(refining_impl_trait, reason = "async fn handlers for the generated trait")]
@@ -62,6 +64,15 @@ impl agent::WorkloadIdentityService for Fake {
             ..Default::default()
         })
     }
+
+    async fn heartbeat(
+        &self,
+        _ctx: RequestContext,
+        _request: connectrpc::ServiceRequest<'_, agent::HeartbeatRequest>,
+    ) -> connectrpc::ServiceResult<agent::HeartbeatResponse> {
+        self.beats.fetch_add(1, Ordering::SeqCst);
+        Response::ok(agent::HeartbeatResponse::default())
+    }
 }
 
 /// `fake` served at `identity.sock` in `dir`; the socket's path.
@@ -90,7 +101,8 @@ async fn one(service: ConnectRpcService, stream: tokio::net::UnixStream) {
 fn fake(unavailable: u32, refuses: bool, good_for: Duration) -> Fake {
     let ca = rcgen::generate_simple_self_signed(vec!["cp.test".into()]).unwrap();
     let ca_pem = ca.cert.pem().into_bytes();
-    Fake { unavailable, refuses, good_for, asked: AtomicU32::new(0), ca_pem }
+    let (asked, beats) = (AtomicU32::new(0), Arc::default());
+    Fake { unavailable, refuses, good_for, asked, ca_pem, beats }
 }
 
 /// The bearer `c`'s calls carry now.
@@ -158,4 +170,21 @@ fn a_named_socket_is_used_and_the_mounted_one_only_when_no_server_is_named() {
     if !Path::new(SOCKET).exists() {
         assert_eq!(socket(None, false), None, "not inside a workload");
     }
+}
+
+#[tokio::test]
+async fn a_heartbeat_is_said_once_or_at_its_interval_for_as_long_as_it_runs() {
+    let dir = tempfile::tempdir().unwrap();
+    let fake = fake(0, false, Duration::from_secs(900));
+    let beats = Arc::clone(&fake.beats);
+    let socket = served(dir.path(), fake);
+    heartbeat(&socket, None).await.unwrap();
+    assert_eq!(beats.load(Ordering::SeqCst), 1, "once");
+    let repeating =
+        tokio::spawn(async move { heartbeat(&socket, Some(Duration::from_millis(50))).await });
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    repeating.abort();
+    assert!(beats.load(Ordering::SeqCst) >= 4, "again at its interval");
+    let e = heartbeat(&dir.path().join("elsewhere.sock"), None).await.unwrap_err();
+    assert!(e.to_string().contains("identity socket"), "{e}");
 }

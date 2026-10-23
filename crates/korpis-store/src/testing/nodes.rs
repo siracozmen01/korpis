@@ -58,6 +58,7 @@ pub fn oci_driver() -> DriverInfo {
             id_mapping: IdMapCaps { idmapped_mounts: true, user_namespaces: true },
             config_schema: "{}".to_owned(),
             disruptive: vec![],
+            identity_dir: true,
         },
     }
 }

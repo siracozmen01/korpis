@@ -15,6 +15,10 @@ service WorkloadIdentityService {
   // A credential for this socket's workload, valid until its expiry. Refused when the
   // control plane no longer places the workload on this node.
   rpc GetCredential(GetCredentialRequest) returns (GetCredentialResponse);
+  // That this socket's workload is alive, for its heartbeat probe (§5 of docs/04-runtimes.md).
+  // The node keeps when it last heard, and nothing else: a beat goes no further than the node,
+  // asks nothing of the control plane, and is answered at once.
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 }
 
 message GetCredentialRequest {}
@@ -28,3 +32,7 @@ message GetCredentialResponse {
   string control_plane = 2;
   bytes ca_pem = 3;
 }
+
+message HeartbeatRequest {}
+
+message HeartbeatResponse {}

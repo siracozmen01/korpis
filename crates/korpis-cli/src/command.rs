@@ -170,6 +170,13 @@ pub enum Command {
     },
     /// Ends the session `korpis login` began, and forgets it.
     Logout,
+    /// Inside a workload, says on its identity socket that it is alive, for its heartbeat probe;
+    /// with `--every`, again at that interval for as long as it runs. Needs no grant.
+    Heartbeat {
+        /// How often: a number then s, m, h, or d; once by default.
+        #[arg(long)]
+        every: Option<String>,
+    },
     /// Calls any method of the API by name, e.g. `WorkloadService/GetWorkload`.
     Call {
         /// The method, as `Service/Method` or `korpis.v1.Service/Method`.

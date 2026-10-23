@@ -156,6 +156,8 @@ Capabilities
   config_schema        JSONSchema         driver-specific configuration
   disruption           map[Tier][]StepAction   what it makes disruptive on each tier: the
                                           driver's layer of the classification chain
+  identity_dir         bool               gives each workload its node's directory at
+                                          /run/korpis (§6 of 02-architecture.md)
 
 EnforcementDecl
   enforced      bool
@@ -491,7 +493,7 @@ optional. Probes are declared by the recipe and executed by the agent from outsi
 | `exec` | tiers with the `exec` capability | run a command, check exit status |
 | `guest_agent` | `microvm`, `vm` | an in-guest agent reports over a virtio channel |
 | `exit` | `task`, `scheduled` | exit status |
-| `heartbeat` | any | the workload calls Korpis; absence is the signal |
+| `heartbeat` | drivers declaring `identity_dir` | the workload calls its identity socket; absence is the signal |
 
 TCAdmin distinguishes "service monitoring" from "game monitoring" and charges for the distinction.
 It is right that they are different, and there is no reason it should be a premium feature.
@@ -542,17 +544,37 @@ workload. A query probe is tried at most every five seconds, since each round is
 provider through the control plane's queue, and a probe is never attempted twice at once, since its
 rounds can take longer than its period.
 
-What it does not do yet. A `heartbeat` probe needs the workload calling Korpis, and a
-`guest_agent` probe the guest's channel to its agent. Each is built later in Phase 3 (§4 of
-`20-roadmap.md`), and until then such a probe is unjudged: the workload's health is `unknown` and
-its readiness is its object running, as before. An `exec` probe
+A `heartbeat` probe is the workload's own word: a process in it calls `Heartbeat` on its identity
+socket (§9.5 of `08-identity.md`), which the SDK's `IdentitySocket::heartbeat` and `korpis
+heartbeat --every 30s` do (§7 of `13-surface-cli.md`), and the node keeps when it last heard from
+it, nothing more; a beat asks nothing of the control plane, so a workload can beat as often as it
+likes and a node cut off from its control plane still judges it. Decided 2026-10-23, when it was
+built. The node checks it on its period as it tries any probe: the check passes when a beat came
+within `max_interval`, in this life of the object, and fails when none has; while the life is
+younger than its initial delay and `max_interval` and nothing has been heard yet, the check judges
+nothing, since a workload still starting has not missed a beat. Its failures are counted as any
+probe's, so a workload is judged failing after `max_interval` and its failures less one periods of
+silence. A beat before the object last started is not counted, so a workload restarted for its
+silence is judged on its new life alone. A heartbeat needs the directory its node serves the
+workload, which only a driver declaring `identity_dir` (§4.1) gives it, so a node whose driver does
+not is refused at placement by the `probe` check of §2.1 of `05-scheduling.md`. The `oci` driver
+declares it; the `firecracker` driver does not yet, since nothing carries the directory into a
+guest (Finding 154 of `23-walkthroughs.md`). What it costs: a heartbeat says that the process
+calling it runs, not that the workload works, which is what the workload chose to mean by it; and a
+workload whose beat is a thread of its own reports healthy while the rest of it is stuck, which is
+why a probe from outside is preferred wherever the workload has an endpoint to reach.
+
+What it does not do yet. A `guest_agent` probe needs the guest's channel to its agent, which is
+built later in Phase 3 (§4 of `20-roadmap.md`), and until then such a probe is unjudged: the
+workload's health is `unknown` and its readiness is its object running, as before. An `exec` probe
 needs a driver that runs a command inside its workload, which neither driver does yet, so every
 node whose driver does not declare `exec` refuses such a workload at placement (the `probe` check
 of §2.1 of `05-scheduling.md`), which until one does is every node; that is said rather than a
-probe nobody runs. Where a node gives its workloads no network, it runs no probe. What it costs:
-one connection a period for each probe of each running workload, and a call to the helper for each
-socket; and a workload whose liveness probe fails a minute after each start is restarted every
-minute and never backs off further, as one that crashes a minute after each start is.
+probe nobody runs. Where a node gives its workloads no network, it runs no probe from a socket, and
+where it serves no identity sockets, no heartbeat. What it costs: one connection a period for each
+probe of each running workload, and a call to the helper for each socket; and a workload whose
+liveness probe fails a minute after each start is restarted every minute and never backs off
+further, as one that crashes a minute after each start is.
 
 ---
 
@@ -650,9 +672,16 @@ there that the run has started, once its serial port is open (§3; Finding 146 o
 `23-walkthroughs.md`).
 
 What the guest does not give, stated: inside it the entry runs as its user with no user namespace,
-so the image's uid 0 is root of a kernel that runs nothing but this workload, which is the
-boundary the tier draws; the console carries what the guest kernel prints at its quiet level beside
-what the workload prints; and the image's user must be a number, as for the container tier (§2).
+so the image's uid 0 is root of a kernel that runs nothing but this workload, which is the boundary
+the tier draws; the console carries what the guest kernel prints at its quiet level beside what the
+workload prints; and the image's user must be a number, as for the container tier (§2). Nor does
+the guest have `/run/korpis` yet: its identity socket, the API relay, its managed files, and its
+dependencies' files are served on the host for it and reach nothing inside the guest, so the driver
+declares no `identity_dir` (§4.1) and a heartbeat probe keeps a workload off it (Finding 154 of
+`23-walkthroughs.md`). A recipe whose configuration is delivered as files, or whose dependencies
+are, is not refused on a microVM, because placement does not read the recipe and the driver cannot
+tell which files the node will render: such a workload starts without them, and is said here to.
+The vsock channel of Phase 3 carries the directory in (§4 of `20-roadmap.md`).
 
 **How a `microvm`'s image drive is made** (2026-10-23). With no containerd to unpack for it, the
 driver has the image's layers applied by `korpis-image-build`, and the layers are a publisher's

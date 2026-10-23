@@ -54,6 +54,7 @@ fn capabilities_from_pb(field: &str, c: &pb::Capabilities) -> Result<Capabilitie
         tiers: each(&f("tiers"), &c.tiers, tier_from_pb)?,
         console: each(&f("console"), &c.console, console_from_pb)?,
         exec: c.exec,
+        identity_dir: c.identity_dir,
         signals: c.signals.clone(),
         hot_resize: c.hot_resize.clone(),
         hot_volume_attach: c.hot_volume_attach,

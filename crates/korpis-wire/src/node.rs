@@ -126,6 +126,7 @@ fn capabilities_to_pb(c: &Capabilities) -> pb::Capabilities {
         tiers: all(&c.tiers, tier_to_pb),
         console: all(&c.console, console_to_pb),
         exec: c.exec,
+        identity_dir: c.identity_dir,
         signals: c.signals.clone(),
         hot_resize: c.hot_resize.clone(),
         hot_volume_attach: c.hot_volume_attach,

@@ -20,6 +20,7 @@ mod files;
 mod fs_target;
 mod guests;
 mod health;
+mod heartbeat;
 mod image;
 mod ingress;
 mod ingress_features;

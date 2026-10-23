@@ -116,6 +116,10 @@ pub struct IdMapCaps {
 
 /// A driver's declared capabilities.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "each is a capability the driver declares on its own (§4.1 of docs/04-runtimes.md)"
+)]
 pub struct Capabilities {
     /// The isolation tiers it implements.
     pub tiers: Vec<IsolationTier>,
@@ -155,6 +159,10 @@ pub struct Capabilities {
     /// Per tier, the step actions it makes disruptive there: the driver's layer of the
     /// classification chain (§3.3 of docs/01-model.md), which only ever adds to the floor.
     pub disruptive: Vec<(IsolationTier, Vec<StepAction>)>,
+    /// Whether it gives each workload the directory its node serves it, at `/run/korpis`: the
+    /// identity socket, the API relay, and the managed and dependency files (§6 of
+    /// docs/02-architecture.md).
+    pub identity_dir: bool,
 }
 
 impl Capabilities {

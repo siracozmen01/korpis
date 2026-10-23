@@ -1674,6 +1674,12 @@ elsewhere, is `permission_denied`. Added 2026-10-15, from the implementation: th
 answered every refusal as denied, so a workload asking as it started was told, wrongly, that it
 never would be.
 
+**The socket also hears that the workload is alive.** Added 2026-10-23, when heartbeat probes were
+built (§5 of `04-runtimes.md`). `Heartbeat` on the same socket records, on the node, when the
+workload last called it, for its `heartbeat` probe; it carries nothing, is answered at once, and
+goes no further than the node, so it needs no credential and no lease, and it proves only what the
+socket already does, that the call came from inside that workload.
+
 **An installed extension reaches the API through its node.** Added 2026-10-15 (Finding 57 of
 `23-walkthroughs.md`). The agent serves an installed extension's workload a second socket in the
 same directory, `/run/korpis/api.sock`, and relays each connection on it, byte for byte, to the

@@ -3,15 +3,17 @@
 //! A running workload's health probes, the node's half (Rule K-16, §5 of docs/04-runtimes.md).
 //! The node runs the `tcp`, `http`, and `query` probes its intent declares, from sockets the
 //! helper opens in the workload's namespace, each on its own period and from its initial delay
-//! after the object started, never two attempts of one probe at once; a new start, or an object
-//! built from another intent, is judged afresh. Its
+//! after the object started, never two attempts of one probe at once; a `heartbeat` probe is
+//! checked on its period against when the workload last said on its identity socket that it is
+//! alive. A new start, or an object built from another intent, is judged afresh. Its
 //! readiness decides whether its endpoints are `ready` and whether a dependent waiting for it is
 //! created; its liveness, or its readiness where it declares no liveness probe, is the health it
 //! reports; and a liveness probe that fails restarts it, as a crash does, with the same backoff.
 //! A query attempt its health provider could not judge leaves the verdict unknown (§5 of
-//! docs/16-extensions.md). A probe it declares that this node does not run (an `exec`,
-//! `guest_agent` or `heartbeat` probe, or any where the node gives the workload no address) is
-//! unjudged: its health is unknown, and readiness is held to the object running.
+//! docs/16-extensions.md). A probe it declares that this node does not run (an `exec` or
+//! `guest_agent` probe, a `heartbeat` where the node serves no identity sockets, or one from a
+//! socket where it gives the workload no address) is unjudged: its health is unknown, and
+//! readiness is held to the object running.
 
 use super::act::{Failure, running};
 use super::runs::has_runs;
@@ -20,13 +22,13 @@ use super::{Reconciler, Tracked, effect, text};
 use crate::health::{Attempt, Query, Tried, attempt};
 use crate::host::Host;
 use crate::runtime::Runtime;
-use korpis_core::workload::health::{Judge, Timing, Verdict, health};
+use korpis_core::workload::health::{Judge, Timing, Verdict, health, heard};
 use korpis_core::workload::observation::Health;
 use korpis_core::workload::spec::health::{Probe, ProbeKind};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
 /// Which of a workload's probes.
@@ -150,9 +152,13 @@ impl Default for Outcomes {
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// What `a`'s probe `p` attempts from this node, if this node runs it: a `tcp`, `http`, or
     /// `query` probe, at the address the node gave the workload and the port of the endpoint it
-    /// names. A query names the intent its object was built from, and whether it is the liveness
-    /// probe, `asked`.
+    /// names, or a `heartbeat` where the node serves identity sockets. A query names the intent
+    /// its object was built from, and whether it is the liveness probe, `asked`.
     fn attempt_of(&self, a: &agent::Assignment, p: &Probe, asked: (&str, bool)) -> Option<Attempt> {
+        if let ProbeKind::Heartbeat { max_interval } = p.kind {
+            let heard = self.wiring.identity.is_some();
+            return heard.then_some(Attempt::Heartbeat { max_interval });
+        }
         let held = self.wiring.network.as_ref()?.addresses.of(&a.workload)?;
         let endpoint = |name: &str| a.endpoints.iter().find(|e| e.name == name);
         let at = |name: &str| {
@@ -236,9 +242,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         self.tracked.values().flat_map(|t| t.probing.due()).map(|(_, at)| at).min()
     }
 
-    /// Makes every attempt that is due, each in a task of its own that reports what it found.
-    pub(super) async fn probe(&mut self) {
+    /// Makes every attempt that is due, each in a task of its own that reports what it found,
+    /// and checks every heartbeat that is due; whether a heartbeat changed a verdict.
+    pub(super) async fn probe(&mut self) -> bool {
         let now = Instant::now();
+        let mut changed = false;
         let due: Vec<(String, Which)> = self
             .tracked
             .iter()
@@ -247,8 +255,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .map(|(w, which, _)| (w.clone(), which))
             .collect();
         for (workload, which) in due {
-            let udp = self.tracked.get_mut(&workload).and_then(|t| t.probing.track(which));
-            let udp = udp.is_some_and(|track| track.attempt.udp());
+            let track = self.tracked.get_mut(&workload).and_then(|t| t.probing.track(which));
+            let what = track.map(|track| track.attempt.clone());
+            if let Some(Attempt::Heartbeat { max_interval }) = what {
+                changed |= self.listened(&workload, which, max_interval, now);
+                continue;
+            }
+            let udp = what.is_some_and(|a| a.udp());
             let socket = self.host.open_probe(&workload, udp).await;
             let Some(t) = self.tracked.get_mut(&workload) else { continue };
             let Some(life) = t.probing.life.clone() else { continue };
@@ -270,6 +283,26 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 let _ = tx.send(Outcome { workload, life, which, tried }).await;
             });
         }
+        changed
+    }
+
+    /// Checks `workload`'s heartbeat probe `which` at `now` against when its identity socket last
+    /// heard from it in this life; whether the verdict changed.
+    fn listened(
+        &mut self,
+        workload: &str,
+        which: Which,
+        max_interval: Duration,
+        now: Instant,
+    ) -> bool {
+        let last = self.wiring.identity.as_ref().and_then(|i| i.last_beat(workload));
+        let Some(t) = self.tracked.get_mut(workload) else { return false };
+        let Some((since, _)) = t.probing.life.clone() else { return false };
+        let Some(track) = t.probing.track(which) else { return false };
+        track.next = now + track.timing.period;
+        let last = last.filter(|beat| *beat >= since);
+        let from = since + track.timing.initial_delay;
+        heard(last, from, max_interval, now).is_some_and(|passed| track.judge.record(passed))
     }
 
     /// Where an attempt reports.

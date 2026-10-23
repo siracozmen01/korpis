@@ -20,6 +20,7 @@ mod data;
 mod files;
 mod halting;
 mod health;
+mod heartbeat;
 mod identity;
 mod ingress;
 mod join;

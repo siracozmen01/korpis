@@ -75,6 +75,7 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         enforcement: enforcement().into_iter().collect(),
         volume_semantics: pb::VolumeSemantics::VOLUME_SEMANTICS_FILESYSTEM.into(),
         file_access: pb::FileAccess::FILE_ACCESS_HOST_WORKER.into(),
+        identity_dir: true,
         id_mapping: pb::IdMapCaps {
             idmapped_mounts: true,
             user_namespaces: true,

@@ -64,6 +64,7 @@ fn driver(enforced: &[&str]) -> DriverInfo {
             id_mapping: IdMapCaps::default(),
             config_schema: String::new(),
             disruptive: vec![],
+            identity_dir: true,
         },
     }
 }

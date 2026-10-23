@@ -67,10 +67,15 @@ struct SnapshotDoc {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[expect(clippy::struct_excessive_bools, reason = "the domain's capabilities, stored as declared")]
 struct CapsDoc {
     tiers: Vec<TierDoc>,
     console: Vec<ConsoleDoc>,
     exec: bool,
+    /// Absent from a node stored before drivers declared it, whose drivers are asked again
+    /// at its next session.
+    #[serde(default)]
+    identity_dir: bool,
     signals: Vec<String>,
     hot_resize: Vec<String>,
     hot_volume_attach: bool,
@@ -159,6 +164,7 @@ impl CapsDoc {
             tiers: all(&c.tiers),
             console: all(&c.console),
             exec: c.exec,
+            identity_dir: c.identity_dir,
             signals: c.signals.clone(),
             hot_resize: c.hot_resize.clone(),
             hot_volume_attach: c.hot_volume_attach,
@@ -206,6 +212,7 @@ impl CapsDoc {
             tiers: all(&self.tiers),
             console: all(&self.console),
             exec: self.exec,
+            identity_dir: self.identity_dir,
             signals: self.signals,
             hot_resize: self.hot_resize,
             hot_volume_attach: self.hot_volume_attach,

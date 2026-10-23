@@ -243,17 +243,14 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             let leases = self.wiring.leases.clone();
             let due = self.probes_due();
             // A probe's attempt changes nothing until it changes a verdict, so it does not make
-            // the pass every other wake does.
+            // the pass every other wake does; a heartbeat's check is its verdict at once.
             pass = tokio::select! {
                 changed = self.wiring.held.changed() => if changed.is_ok() { true } else { return },
                 () = leases.changed() => true,
                 _ = tick.tick() => true,
                 () = reported(&mut reports) => true,
                 e = self.wiring.events.recv() => if self.heard(&e) { true } else { return },
-                () = until(due) => {
-                    self.probe().await;
-                    false
-                }
+                () = until(due) => self.probe().await,
                 Some(o) = self.outcomes.rx.recv() => self.judged(&o),
             };
         }

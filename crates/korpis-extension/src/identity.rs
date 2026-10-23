@@ -6,7 +6,7 @@
 
 use crate::error::Error;
 use crate::transport::{Transport, transport};
-use connectrpc::client::{ClientConfig, Http2Connection};
+use connectrpc::client::{ClientConfig, Http2Connection, SharedHttp2Connection};
 use korpis_proto::korpis::agent::v1 as agent;
 use std::future::Future;
 use std::path::PathBuf;
@@ -81,14 +81,28 @@ impl IdentitySocket {
         let relay = self.path.parent()?.join(RELAY);
         relay.exists().then_some(relay)
     }
+
+    fn client(&self) -> agent::WorkloadIdentityServiceClient<SharedHttp2Connection> {
+        let authority = http::Uri::from_static("http://localhost");
+        let conn = Http2Connection::lazy_unix(&self.path, authority.clone()).shared(1);
+        agent::WorkloadIdentityServiceClient::new(conn, ClientConfig::new(authority))
+    }
+
+    /// Says that the workload is alive, for its `heartbeat` probe (§5 of docs/04-runtimes.md):
+    /// a workload whose probe allows `max_interval` of silence calls this more often than that.
+    /// The node keeps when it last heard, and the beat goes no further.
+    ///
+    /// # Errors
+    /// The socket cannot be reached: the workload runs where its node serves it none.
+    pub async fn heartbeat(&self) -> Result<(), Error> {
+        self.client().heartbeat(agent::HeartbeatRequest::default()).await?;
+        Ok(())
+    }
 }
 
 impl CredentialSource for IdentitySocket {
     async fn fetch(&self) -> Result<Credential, Error> {
-        let authority = http::Uri::from_static("http://localhost");
-        let conn = Http2Connection::lazy_unix(&self.path, authority.clone()).shared(1);
-        let client = agent::WorkloadIdentityServiceClient::new(conn, ClientConfig::new(authority));
-        let answer = client.get_credential(agent::GetCredentialRequest::default()).await?;
+        let answer = self.client().get_credential(agent::GetCredentialRequest::default()).await?;
         let answer = answer.into_owned();
         let c = answer
             .credential

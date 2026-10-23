@@ -39,6 +39,12 @@ pub enum Attempt {
     },
     /// Runs the exchange the query probe's health provider directs.
     Query(Query),
+    /// Asks when the workload last said on its identity socket that it is alive; made from no
+    /// socket of the prober's.
+    Heartbeat {
+        /// The longest silence that is still healthy.
+        max_interval: Duration,
+    },
 }
 
 impl Attempt {
@@ -49,6 +55,7 @@ impl Attempt {
             Self::Tcp(_) => "tcp",
             Self::Http { .. } => "http",
             Self::Query(_) => "query",
+            Self::Heartbeat { .. } => "heartbeat",
         }
     }
 
@@ -93,8 +100,8 @@ async fn tried(socket: OwnedFd, what: &Attempt) -> std::io::Result<bool> {
     let (at, asked) = match what {
         Attempt::Tcp(at) => (*at, None),
         Attempt::Http { at, path, expect } => (*at, Some((path, *expect))),
-        // Run by `query`, never here.
-        Attempt::Query(_) => return Ok(false),
+        // Run by `query`, and judged by the reconciler without a socket: never here.
+        Attempt::Query(_) | Attempt::Heartbeat { .. } => return Ok(false),
     };
     let mut stream = socket.connect(at).await?;
     let Some((path, expect)) = asked else { return Ok(true) };

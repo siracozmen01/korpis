@@ -33,12 +33,28 @@ fn status(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     (!ok).then(|| (Check::Status, c.node.status().as_str().to_owned()))
 }
 
-/// Whether a probe of the intent runs a command inside the workload, which only a driver that
-/// declares `exec` can do (§5 of docs/04-runtimes.md).
-fn runs_commands(req: &Request<'_>) -> bool {
+/// Whether a probe of the intent is of a kind `is`.
+fn probes(req: &Request<'_>, is: impl Fn(&ProbeKind) -> bool) -> bool {
     let health = &req.body.health;
     let mut probes = [&health.readiness, &health.liveness].into_iter().flatten();
-    probes.any(|p| matches!(p.kind, ProbeKind::Exec { .. }))
+    probes.any(|p| is(&p.kind))
+}
+
+/// Why `d` cannot run the intent's probes: an `exec` probe runs a command inside the workload,
+/// which only a driver that declares `exec` can do, and a `heartbeat` probe hears from the
+/// workload through its identity socket, which only a driver that gives it its directory serves
+/// (§5 of docs/04-runtimes.md).
+fn unprobed(req: &Request<'_>, d: &DriverInfo) -> Option<String> {
+    if !d.capabilities.exec && probes(req, |k| matches!(k, ProbeKind::Exec { .. })) {
+        return Some(format!(
+            "{:?} runs no command inside a workload, as its exec probe needs",
+            d.name
+        ));
+    }
+    let heartbeat = |k: &ProbeKind| matches!(k, ProbeKind::Heartbeat { .. });
+    (!d.capabilities.identity_dir && probes(req, heartbeat)).then(|| {
+        format!("{:?} gives a workload no identity socket, as its heartbeat probe needs", d.name)
+    })
 }
 
 /// The driver checks: name, tier, console, probes, and the limits it holds. The first failing
@@ -55,9 +71,7 @@ fn driver<'n>(req: &Request<'_>, c: &Candidate<'n>) -> Result<&'n DriverInfo, Re
     if console != ConsoleMode::None && !d.capabilities.console.contains(&console) {
         return Err((Check::Console, format!("{:?} offers no {console:?} console", d.name)));
     }
-    if !d.capabilities.exec && runs_commands(req) {
-        let why =
-            format!("{:?} runs no command inside a workload, as its exec probe needs", d.name);
+    if let Some(why) = unprobed(req, d) {
         return Err((Check::Probe, why));
     }
     Ok(d)

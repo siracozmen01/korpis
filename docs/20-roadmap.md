@@ -283,10 +283,13 @@ the count of a node's ports learns them: until then every `stable` endpoint rese
 node, which one an edge serves does not use (§3 of `07-networking.md`). Application-level health
 (Rule K-16): the node runs a workload's probes and acts on their verdicts (§5 of `04-runtimes.md`),
 homed here 2026-10-23, when it was found that no phase named it while four documents described it
-(Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are built, and the `query` probe
-through its protocol's health provider (§5 of `16-extensions.md`); the `heartbeat` probe through
-the workload's identity socket, the `guest_agent` probe through a microVM's channel to its guest,
-and the `exec` probe through a driver that runs a command inside its workload follow in this phase.
+(Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are built, the `query` probe
+through its protocol's health provider (§5 of `16-extensions.md`), and the `heartbeat` probe
+through the workload's identity socket; the `guest_agent` probe through a microVM's channel to its
+guest, and the `exec` probe through a driver that runs a command inside its workload, follow in
+this phase. So does a microVM's `/run/korpis`, its identity socket, relay, and files, carried into
+its guest over that channel (Finding 154 there), without which a microVM holds no credential and
+reads no managed file.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -446,7 +449,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: fifty-eight traces and their 153 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: fifty-nine traces and their 154 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

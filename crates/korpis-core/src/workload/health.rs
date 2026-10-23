@@ -9,7 +9,7 @@
 
 use super::observation::Health;
 use super::spec::health::{Probe, ProbeKind};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// How often a probe is tried when it does not say.
 pub const PERIOD: Duration = Duration::from_secs(10);
@@ -123,6 +123,25 @@ impl Judge {
     }
 }
 
+/// What a `heartbeat` probe finds when it is checked at `now` (§5 of docs/04-runtimes.md): passed
+/// when the workload's last beat in this life of its object, `last`, came within `max_interval`;
+/// failed when it is older, or when none came within `max_interval` of `from`, the life's start
+/// and its initial delay; and nothing yet while the workload has not been silent that long, since
+/// a workload that is still starting has not missed a beat.
+#[must_use]
+pub fn heard(
+    last: Option<Instant>,
+    from: Instant,
+    max_interval: Duration,
+    now: Instant,
+) -> Option<bool> {
+    match last {
+        Some(beat) => Some(now.saturating_duration_since(beat) <= max_interval),
+        None if now.saturating_duration_since(from) <= max_interval => None,
+        None => Some(false),
+    }
+}
+
 /// The health a workload's verdicts add up to: its liveness probe's where it has one, and
 /// otherwise its readiness probe's; unknown where neither is judged, or there is neither.
 #[must_use]
@@ -178,6 +197,17 @@ mod tests {
         assert!(j.record(true), "and one success restores it");
         assert!(j.unknown() && j.verdict() == Verdict::Unjudged, "an unjudged attempt");
         assert!(!j.record(false), "and the failures before it are forgotten");
+    }
+
+    #[test]
+    fn a_heartbeat_fails_on_silence_longer_than_its_interval_and_not_before() {
+        let from = Instant::now();
+        let at = |s: u64| from + Duration::from_secs(s);
+        let max = Duration::from_secs(30);
+        assert_eq!(heard(None, from, max, at(20)), None, "still starting");
+        assert_eq!(heard(None, from, max, at(31)), Some(false), "never heard from");
+        assert_eq!(heard(Some(at(10)), from, max, at(35)), Some(true));
+        assert_eq!(heard(Some(at(10)), from, max, at(41)), Some(false), "silent since");
     }
 
     #[test]

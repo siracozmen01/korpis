@@ -1259,7 +1259,10 @@ supervisor relays to the control plane's API (§9.5 of `08-identity.md`; correct
 Finding 103 of `23-walkthroughs.md`, when it was an installed extension's alone). The same
 directory carries the workload's managed files in `config/`, rendered by the supervisor (§5.2 of
 `09-recipes.md`), so `/run/korpis` is everything the node gives a workload that the workload may
-read and not write.
+read and not write. A driver says whether it gives a workload the directory (`identity_dir`, §4.1
+of `04-runtimes.md`); the `firecracker` driver does not yet, since a guest's filesystem is its own
+and nothing carries the directory into it before the vsock channel of Phase 3 (Finding 154 of
+`23-walkthroughs.md`).
 
 The directory is mounted rather than the socket because a supervisor that restarts binds the
 socket again, as a new file, and a mount of the old file would keep pointing at nothing; the
