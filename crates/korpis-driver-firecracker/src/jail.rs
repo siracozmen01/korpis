@@ -39,7 +39,7 @@ pub struct Shape {
 }
 
 /// What the jail holds, by the host's paths.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Drives {
     /// The kernel.
     pub kernel: PathBuf,
@@ -86,7 +86,10 @@ fn link(from: &Path, root: &Path, name: &str) -> io::Result<()> {
         .map_err(|e| io::Error::new(e.kind(), format!("{} into the jail: {e}", from.display())))
 }
 
-/// Builds object `id`'s chroot from `drives`, configured as `shape` says.
+/// Builds object `id`'s chroot from `drives`, configured as `shape` says. It is built again for
+/// every run, with nothing kept from the last: the guest's Firecracker can write its chroot, so
+/// what one run left there is the guest's, and neither the jailer, which works in the chroot as
+/// root, nor the driver reads it.
 pub fn build(settings: &Settings, id: &str, drives: &Drives, shape: &Shape) -> io::Result<()> {
     let root = settings.chroot(id);
     std::fs::create_dir_all(&root)?;

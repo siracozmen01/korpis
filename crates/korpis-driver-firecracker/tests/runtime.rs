@@ -80,6 +80,16 @@ async fn a_guest_runs_as_its_user_within_its_memory_and_its_exit_status_is_inspe
     assert!(seen.starts_with("1000\n"), "as its user: {seen}");
     let kib: u64 = seen.split_whitespace().nth(2).unwrap().parse().unwrap();
     assert!(kib <= 128 * 1024 && kib > 64 * 1024, "within its 128 MiB: {kib} kB");
+    // A second run, in a jail built afresh: nothing the first left in its chroot is read.
+    rig.machine.start(&id).await.unwrap();
+    let again = until(
+        &rig.machine,
+        &id,
+        driver::RuntimeState::RUNTIME_STATE_STOPPED,
+        Duration::from_secs(30),
+    )
+    .await;
+    assert_eq!(again.exit_code, Some(7), "{again:?}");
     rig.machine.destroy(&id).await.unwrap();
     let s = rig.machine.settings();
     assert!(!s.object(&id).exists() && !s.jail(&id).exists() && !cgroup.exists());

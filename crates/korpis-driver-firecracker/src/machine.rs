@@ -26,6 +26,17 @@ pub const KILL_BOUND: Duration = Duration::from_secs(5);
 /// What the jailer said as it started the guest, in the object's directory.
 pub const START_LOG: &str = "start.log";
 
+/// The process id in the pid file at `file`, read without following a link.
+fn read_pid(file: &std::path::Path) -> Option<i32> {
+    use std::os::unix::fs::OpenOptionsExt as _;
+    let mut f = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(rustix::fs::OFlags::NOFOLLOW.bits().cast_signed())
+        .open(file)
+        .ok()?;
+    std::io::read_to_string(&mut f).ok()?.trim().parse().ok()
+}
+
 /// How long a kill waits between one Ctrl+Alt+Del and the next.
 const AGAIN: Duration = Duration::from_millis(250);
 
@@ -153,6 +164,10 @@ impl Machine {
             return Ok(());
         }
         let shape = crate::guest::shape(&object.spec);
+        let dir = self.dir(id)?;
+        let drives = Object::drives(&dir).map_err(failed)?;
+        jail::remove(&self.settings, id).map_err(failed)?;
+        jail::build(&self.settings, id, &drives, &shape).map_err(failed)?;
         let owner = (object.spec.uid_base, object.spec.uid_base);
         let mut command = jail::command(&self.settings, id, owner, &shape);
         // What the jailer says before it detaches is kept beside the object: once detached, its
@@ -169,7 +184,7 @@ impl Machine {
             Ok(Err(e)) => return Err(failed(e)),
             Err(_) => return Err(failed("the jailer did not detach in time")),
         }
-        let pid = self.vmm_pid(id).await?;
+        let pid = self.vmm_pid(id, owner.0).await?;
         let start_ticks = process::start_ticks(pid).unwrap_or(0);
         let vm = Vm { pid, start_ticks, started_at_ms: now_ms(), ended_at_ms: None };
         object.record(&self.dir(id)?, vm).map_err(failed)?;
@@ -178,22 +193,26 @@ impl Machine {
         Ok(())
     }
 
-    /// The process id of object `id`'s Firecracker, from the pid file its jailer leaves once it
-    /// has started it.
-    async fn vmm_pid(&self, id: &str) -> MachineResult<i32> {
+    /// The process id of object `id`'s Firecracker, running as `uid`, from the pid file its
+    /// jailer leaves once it has started it. The file is in the chroot, which that Firecracker
+    /// can write, so what it says is believed only of a process running as `uid` in the guest's
+    /// cgroup, which only root can move a process into: the driver kills what it records.
+    async fn vmm_pid(&self, id: &str, uid: u32) -> MachineResult<i32> {
         let file = jail::pid_file(&self.settings, id);
         let until = Instant::now() + JAILER_BOUND;
-        loop {
-            if let Ok(text) = std::fs::read_to_string(&file)
-                && let Ok(pid) = text.trim().parse::<i32>()
-            {
-                return Ok(pid);
+        let pid = loop {
+            if let Some(pid) = read_pid(&file) {
+                break pid;
             }
             if Instant::now() >= until {
                 return Err(failed("the jailer named no Firecracker process"));
             }
             tokio::time::sleep(Duration::from_millis(20)).await;
+        };
+        if process::in_cgroup(pid, &self.settings.cgroup_of(id)) && process::runs_as(pid, uid) {
+            return Ok(pid);
         }
+        Err(failed("the jailer's pid file names no process of this guest"))
     }
 
     /// Tells object `id`'s guest to stop, as the driver's graceful default, and kills it once

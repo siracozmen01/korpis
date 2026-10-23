@@ -18,6 +18,21 @@ pub fn start_ticks(pid: i32) -> Option<u64> {
     after.split_whitespace().nth(19)?.parse().ok()
 }
 
+/// Whether process `pid` runs as `uid`, by its real user id.
+#[must_use]
+pub fn runs_as(pid: i32, uid: u32) -> bool {
+    let Ok(status) = std::fs::read_to_string(format!("/proc/{pid}/status")) else { return false };
+    let real = status.lines().find_map(|l| l.strip_prefix("Uid:"));
+    real.and_then(|ids| ids.split_whitespace().next()).and_then(|r| r.parse().ok()) == Some(uid)
+}
+
+/// Whether process `pid` is in the cgroup at `cgroup`, which only root can move a process into.
+#[must_use]
+pub fn in_cgroup(pid: i32, cgroup: &std::path::Path) -> bool {
+    std::fs::read_to_string(cgroup.join("cgroup.procs"))
+        .is_ok_and(|procs| procs.lines().any(|p| p.trim().parse() == Ok(pid)))
+}
+
 /// Whether `vm` is still running.
 #[must_use]
 pub fn alive(vm: &Vm) -> bool {
@@ -59,5 +74,17 @@ mod tests {
         assert!(alive(&me) && descriptor(&me).is_some());
         let reused = Vm { start_ticks: ticks + 1, ..me };
         assert!(!alive(&reused) && descriptor(&reused).is_none(), "a pid used again");
+    }
+
+    #[test]
+    fn a_process_is_named_by_its_user_and_its_cgroup() {
+        let pid = i32::try_from(std::process::id()).unwrap();
+        let uid = rustix::process::getuid().as_raw();
+        assert!(runs_as(pid, uid) && !runs_as(pid, uid.wrapping_add(1)));
+        let own = std::fs::read_to_string("/proc/self/cgroup").unwrap();
+        let path = own.trim().strip_prefix("0::").unwrap().trim_start_matches('/');
+        let cgroup = std::path::Path::new("/sys/fs/cgroup").join(path);
+        assert!(in_cgroup(pid, &cgroup));
+        assert!(!in_cgroup(1, &cgroup) || cgroup == std::path::Path::new("/sys/fs/cgroup"));
     }
 }

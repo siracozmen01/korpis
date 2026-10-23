@@ -606,7 +606,14 @@ in a pid namespace and a cgroup of its own whose `memory.max`, `pids.max`, and `
 guest's shape, and it outlives the driver: a restarted driver finds every guest from the record
 it keeps per object, and watches each again by a descriptor of its process, so a process id
 reused is never mistaken for it. The jailer forks to do this, so the process the driver watches is
-the one the jailer names in its chroot, and never the one the driver started. It is proven by
+the one the jailer names in its chroot, and never the one the driver started. A guest's
+Firecracker can write its chroot, and a guest that escaped into it would write there whatever
+would mislead the driver, which is root; so nothing in a chroot is trusted (2026-10-23, from a
+review of the first build). The chroot is built afresh for every run, so neither the jailer nor
+the driver reads what an earlier run left; the process the jailer names is believed only if it
+runs as the workload's id in the guest's cgroup, which only root can move a process into, since
+the driver kills what it records; and the API socket is opened as itself, never through a link,
+so it cannot be made to name another socket on the host. It is proven by
 guests run, stopped, killed, and recovered (`crates/korpis-guest/tests/boot.rs`,
 `crates/korpis-image/tests/build.rs`, `crates/korpis-driver-firecracker/tests/`), the last through
 the agent with the `oci` driver beside it. What it does not do yet, stated: a guest has no

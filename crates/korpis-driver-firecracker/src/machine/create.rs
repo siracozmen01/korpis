@@ -134,5 +134,7 @@ fn build(
     std::os::unix::fs::chown(&config_drive, owner, owner).map_err(failed)?;
     let volumes = spec.mounts.iter().map(|m| (PathBuf::from(&m.source), m.read_only)).collect();
     let drives = Drives { kernel, boot, image, config: config_drive, volumes };
+    Object::keep_drives(dir, &drives).map_err(failed)?;
+    // Built here as well as at each start, so what would fail to build fails before anything runs.
     jail::build(settings, id, &drives, &crate::guest::shape(spec)).map_err(failed)
 }

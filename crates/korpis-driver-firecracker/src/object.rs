@@ -16,6 +16,8 @@ const SPEC: &str = "spec.binpb";
 
 /// The process, once started.
 const VM: &str = "vm.json";
+/// The drives its jail is built from, each run.
+const DRIVES: &str = "drives.json";
 /// Made when the guest is sent its stop, and removed as it is started again.
 const TOLD: &str = "told";
 
@@ -106,6 +108,16 @@ impl Object {
     #[must_use]
     pub fn config(dir: &Path) -> PathBuf {
         dir.join(CONFIG)
+    }
+
+    /// Keeps `drives`, which its jail is built from, in `dir`.
+    pub fn keep_drives(dir: &Path, drives: &crate::jail::Drives) -> io::Result<()> {
+        replace(&dir.join(DRIVES), &serde_json::to_vec(drives).map_err(invalid)?)
+    }
+
+    /// The drives its jail is built from, kept in `dir`.
+    pub fn drives(dir: &Path) -> io::Result<crate::jail::Drives> {
+        serde_json::from_slice(&std::fs::read(dir.join(DRIVES))?).map_err(invalid)
     }
 
     /// Marks that the guest in `dir` has been sent its stop in this run: false if it already had
