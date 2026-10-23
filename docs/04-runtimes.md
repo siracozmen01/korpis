@@ -639,7 +639,11 @@ refused: found 2026-10-23, when a start lost that race); and the API socket is o
 never through a link, so it cannot be made to name another socket on the host. It is proven by
 guests run, stopped, killed, recovered, and given a console (`crates/korpis-guest/tests/boot.rs`,
 `crates/korpis-image/tests/build.rs`, `crates/korpis-driver-firecracker/tests/`), the last through
-the agent with the `oci` driver beside it; the console is described in §3. A volume's drive is the
+the agent with the `oci` driver beside it, and end to end on a node joined to a control plane that
+runs both drivers, where a container and a guest are placed side by side, the guest's console is
+read with `korpis logs`, its endpoint answers through the node's port, its volume keeps what it
+wrote across a restart, and its kernel sees no more memory than its limit
+(`crates/korpis-e2e/tests/e2e/microvm.rs`); the console is described in §3. A volume's drive is the
 image the helper makes in it (§3.1 of `06-storage.md`), which is on the node's storage, where a
 hard link from the driver's state cannot reach: it is bound into the chroot instead, and unbound,
 without following a link, when the jail is removed. The driver takes nothing else under the volume

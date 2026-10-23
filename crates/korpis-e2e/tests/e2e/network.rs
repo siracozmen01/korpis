@@ -132,7 +132,7 @@ async fn a_workload_joins_its_own_routed_network_and_retiring_it_releases_it() {
 }
 
 /// What the server at `at` answers a request for its index, within two seconds.
-async fn served(at: std::net::SocketAddr) -> Option<String> {
+pub async fn served(at: std::net::SocketAddr) -> Option<String> {
     use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
     let ask = async {
         let mut s = tokio::net::TcpStream::connect(at).await.ok()?;

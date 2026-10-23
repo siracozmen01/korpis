@@ -12,6 +12,8 @@ use korpis_agent::host::node::NodeHost;
 use korpis_agent::host::privileged::HelperClient;
 use korpis_agent::join::{Join, join};
 use korpis_agent::run::{Agent, Options, Reserve, facts_of};
+use korpis_agent::runtime::Runtime;
+use korpis_agent::runtime::drivers::Drivers;
 use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::session::Event;
 use korpis_agent::state::StateDir;
@@ -46,6 +48,9 @@ pub struct Node {
     pub pool: ipnet::Ipv4Net,
     /// The node's own ports, so two nodes on this one machine never forward one port.
     pub ports: PortRange,
+    /// The `firecracker` driver's socket and the cgroup its guests run beneath, on a node that
+    /// runs it beside the `oci` driver.
+    microvms: Option<(PathBuf, PathBuf)>,
 }
 
 /// An address of this machine other than loopback: the one its traffic towards the internet
@@ -128,12 +133,12 @@ fn cgroups(state: &Path) -> PathBuf {
 }
 
 /// The stream writer, built where this test was if it is not already.
-fn writer() -> PathBuf {
+pub fn writer() -> PathBuf {
     built("korpis-stream", "korpis-stream-writer")
 }
 
 /// Binary `bin` of `package`, built where this test was if it is not already.
-fn built(package: &str, bin: &str) -> PathBuf {
+pub fn built(package: &str, bin: &str) -> PathBuf {
     let exe = std::env::current_exe().unwrap();
     let profile_dir = exe.parent().and_then(Path::parent).unwrap();
     let target = profile_dir.parent().unwrap();
@@ -225,7 +230,22 @@ impl Node {
             netns,
             pool: next_pool(),
             ports: next_ports(),
+            microvms: None,
         }
+    }
+
+    /// As [`Self::join`], the node running the `firecracker` driver beside the `oci` driver, as
+    /// `korpis-agent run --driver oci=... --driver firecracker=...` does; `None` where this
+    /// machine cannot run a guest.
+    pub async fn join_with_microvms(cp: &ControlPlane, name: &str) -> Option<Self> {
+        if !crate::guests::able() {
+            return None;
+        }
+        let mut node = Self::join(cp, name).await;
+        let dir = node.dir.path().to_owned();
+        let served = crate::guests::serve(&dir, &node.state, (&node.volumes, &node.netns));
+        node.microvms = Some(served);
+        Some(node)
     }
 
     /// The agent's runtime: the driver over its socket.
@@ -246,13 +266,22 @@ impl Node {
     }
 
     async fn agent_with(&self, ingress: bool) -> Agent {
+        match &self.microvms {
+            None => self.agent_over(self.runtime(), ingress).await,
+            Some((socket, _)) => {
+                let both = vec![self.runtime(), DriverRuntime::connect(socket)];
+                self.agent_over(Drivers::new(both).await.unwrap(), ingress).await
+            }
+        }
+    }
+
+    async fn agent_over<R: Runtime + Clone>(&self, runtime: R, ingress: bool) -> Agent {
         // As `--fetch-allow 127.0.0.0/8` would: the tests serve what installs fetch on loopback.
         let loopback = korpis_agent::content::Reach::with(vec!["127.0.0.0/8".parse().unwrap()]);
         let content = ContentStore::open(&self.state.root().join("content"), registries())
             .and_then(|c| c.reaching(loopback))
             .unwrap();
         let host = NodeHost::new(HelperClient::new(&self.helper), content);
-        let runtime = self.runtime();
         let identity = self.state.load().unwrap();
         let (server, id) = (identity.server, identity.node);
         // As `--advertise-address` with this machine's own address would: the test's control
@@ -282,6 +311,9 @@ impl Node {
 
 impl Drop for Node {
     fn drop(&mut self) {
+        if let Some((_, cgroup)) = &self.microvms {
+            crate::guests::end_guests(cgroup, &self.dir.path().join("firecracker"));
+        }
         let ctr = |args: &[&str]| Command::new("ctr").args(["-n", "korpis"]).args(args).output();
         for w in self.guarded.lock().map(|g| g.clone()).unwrap_or_default() {
             let filter = format!("labels.\"korpis.workload\"=={w}");

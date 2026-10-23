@@ -167,7 +167,7 @@ impl Rig {
 
 impl Drop for Rig {
     /// Ends whatever a failed test left running, so no guest outlives it: every process in the
-    /// rig's cgroups is killed, and the cgroups removed.
+    /// rig's cgroups is killed, the cgroups removed, and what its jails bound unbound.
     fn drop(&mut self) {
         let parent = self.machine.settings().cgroup_parent();
         let _ = std::fs::write(parent.join("cgroup.kill"), "1");
@@ -181,5 +181,13 @@ impl Drop for Rig {
             }
         }
         let _ = std::fs::remove_dir(parent);
+        // A guest the test did not destroy keeps its volumes bound in its jail.
+        let state = &self.machine.settings().state;
+        let mounts = std::fs::read_to_string("/proc/self/mountinfo").unwrap_or_default();
+        for at in mounts.lines().filter_map(|l| l.split(' ').nth(4)) {
+            if Path::new(at).starts_with(state) {
+                let _ = rustix::mount::unmount(at, rustix::mount::UnmountFlags::DETACH);
+            }
+        }
     }
 }
