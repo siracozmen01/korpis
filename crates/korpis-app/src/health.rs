@@ -116,7 +116,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Err(Unjudged::NotAQuery));
         };
         let reached = intent.body.endpoints.iter().find(|e| &e.name == endpoint);
-        let (Some(reached), true) = (reached, q.rounds.len() <= MAX_ROUNDS) else {
+        // No more rounds, nor larger ones, than a provider could have asked for: what a node
+        // reports is passed to the provider and kept with the call.
+        let bounded = q.rounds.len() <= MAX_ROUNDS && q.rounds.iter().all(Round::bounded);
+        let (Some(reached), true) = (reached, bounded) else {
             return Ok(Err(Unjudged::NotAQuery));
         };
         let workload = self.store.workload(q.workload).await?;

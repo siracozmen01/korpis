@@ -165,10 +165,16 @@ impl HelperClient {
         }
     }
 
-    /// A stream socket for probing `workload`, opened by the helper inside its network
-    /// namespace (§5 of docs/04-runtimes.md).
-    pub async fn open_probe(&self, workload: &str) -> Result<OwnedFd, HostError> {
-        let r = helper::OpenProbeRequest { workload: workload.to_owned(), ..Default::default() };
+    /// A socket for probing `workload`, a datagram socket if `udp` and a stream otherwise,
+    /// opened by the helper inside its network namespace (§5 of docs/04-runtimes.md).
+    pub async fn open_probe(&self, workload: &str, udp: bool) -> Result<OwnedFd, HostError> {
+        let transport =
+            if udp { helper::Transport::TRANSPORT_UDP } else { helper::Transport::TRANSPORT_TCP };
+        let r = helper::OpenProbeRequest {
+            workload: workload.to_owned(),
+            transport: transport.into(),
+            ..Default::default()
+        };
         match self.call_attached(Verb::OpenProbe(Box::new(r))).await? {
             (Answer::OpenProbe(a), mut fds) if a.attached == 1 && fds.len() == 1 => {
                 fds.pop().ok_or_else(|| failed("no socket"))

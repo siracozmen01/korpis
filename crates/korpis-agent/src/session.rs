@@ -64,6 +64,7 @@ pub struct Session {
     credentials: Arc<Credentials>,
     jobs: Arc<JobAccesses>,
     steps: Arc<crate::steps::StepAnswers>,
+    queries: Arc<crate::health::Queries>,
     offered: Arc<tokio::sync::Notify>,
     certificates: Arc<crate::ingress::Certificates>,
     /// What answers feasibility queries, when the agent drives a runtime that can (§2.1 of
@@ -114,6 +115,16 @@ async fn read(mut recv: Recv, out: mpsc::Sender<Result<agent::ControlMessage, En
     }
 }
 
+/// The assignment set kept in `state`, if it still verifies under `identity`'s keys; none
+/// otherwise.
+fn kept_set(state: &StateDir, identity: &Identity) -> HeldSet {
+    let kept = state.root().join("assignments.binpb");
+    HeldSet::load(&kept, &identity.keys.assignment_keys, &identity.node).unwrap_or_else(|e| {
+        tracing::warn!(error = %e, "the kept assignment set does not verify; holding none");
+        HeldSet::default()
+    })
+}
+
 impl Session {
     /// A session for `identity`, holding the set kept in `state` if it still verifies,
     /// reporting what `facts` says, and sending `journal`; and the link the rest of the agent
@@ -124,13 +135,7 @@ impl Session {
         facts: Arc<dyn Fn() -> Facts + Send + Sync>,
         journal: JournalHandle,
     ) -> (Self, Link) {
-        let kept = state.root().join("assignments.binpb");
-        let initial = HeldSet::load(&kept, &identity.keys.assignment_keys, &identity.node)
-            .unwrap_or_else(|e| {
-                tracing::warn!(error = %e, "the kept assignment set does not verify; holding none");
-                HeldSet::default()
-            });
-        let (held, held_rx) = watch::channel(initial);
+        let (held, held_rx) = watch::channel(kept_set(&state, &identity));
         let kept_keys = state.root().join("token_keys.binpb");
         let (token_keys, ring) = TokenKeys::load(kept_keys, &identity.keys.token_keys);
         let (revoked, revoked_rx) = Revoked::load(state.root().join("revoked.binpb"), ring.clone());
@@ -142,6 +147,7 @@ impl Session {
         let credentials = Credentials::new(outbound_tx.clone());
         let jobs = JobAccesses::new(outbound_tx.clone());
         let steps = crate::steps::StepAnswers::new(outbound_tx.clone());
+        let queries = crate::health::Queries::new(outbound_tx.clone());
         let offered = Arc::new(tokio::sync::Notify::new());
         let certificates = crate::ingress::Certificates::open(
             state.root().join("certificates"),
@@ -158,6 +164,7 @@ impl Session {
             credentials: credentials.clone(),
             jobs: jobs.clone(),
             steps: steps.clone(),
+            queries: Arc::clone(&queries),
             offered: Arc::clone(&offered),
             certificates: Arc::clone(&certificates),
             metering: metering_rx,
@@ -178,6 +185,7 @@ impl Session {
             credentials,
             jobs,
             steps,
+            queries,
             offered,
             certificates,
             answering: None,

@@ -317,6 +317,8 @@ impl Agent {
         let leases = Leases::new(journal.clone());
         let keeper =
             Keeper::new(leases.clone(), link.held.clone(), link.inbound, link.outbound.clone());
+        let sockets =
+            identity_sockets(state, options.identity_root, &link.credentials, control_plane);
         let wiring = Wiring {
             node,
             held: link.held.clone(),
@@ -329,17 +331,13 @@ impl Agent {
             runtimes,
             jobs: link.jobs.clone(),
             steps: link.steps.clone(),
+            queries: link.queries.clone(),
             inventory,
             network,
             ingress,
             certificates: link.certificates.clone(),
             driver_kinds,
-            identity: Some(identity_sockets(
-                state,
-                options.identity_root,
-                &link.credentials,
-                control_plane,
-            )),
+            identity: Some(sockets),
         };
         let offloader = offloader(state, &streams, (&journal, &link.jobs), options.period)?;
         let tasks = [

@@ -127,7 +127,8 @@ impl Helper {
                 }))
             }
             Verb::OpenProbe(r) => {
-                self.attached = self.network()?.open_probe(&r.workload)?;
+                let udp = r.transport.as_known() == Some(helper::Transport::TRANSPORT_UDP);
+                self.attached = self.network()?.open_probe(&r.workload, udp)?;
                 let attached = u32::try_from(self.attached.len()).unwrap_or(u32::MAX);
                 Answer::OpenProbe(Box::new(helper::OpenProbeResponse {
                     attached,

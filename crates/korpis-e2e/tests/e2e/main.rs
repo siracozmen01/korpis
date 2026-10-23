@@ -31,6 +31,7 @@ mod node;
 mod nodes;
 mod oci;
 mod programs;
+mod query;
 mod recipes;
 mod runs;
 mod sftp;

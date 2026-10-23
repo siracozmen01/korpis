@@ -47,8 +47,8 @@ extension:
     )
 }
 
-/// Installs the extension at `repo` into `project`, approving what it needs; its workload.
-async fn install(cp: &ControlPlane, repo: &str, project: &str) -> String {
+/// Installs the extension at `repo` into `project`, approving what it needs; the installation.
+pub async fn install(cp: &ControlPlane, repo: &str, project: &str) -> pb::Extension {
     let client = pb::ExtensionServiceClient::new(cp.http(), cp.config());
     let request = |name: &str| pb::InstallExtensionRequest {
         mutation: mutation(name).into(),
@@ -63,16 +63,17 @@ async fn install(cp: &ControlPlane, repo: &str, project: &str) -> String {
     let needs = shown.extension.into_option().unwrap().manifest.into_option().unwrap().needs;
     let approved = pb::InstallExtensionRequest { approved_needs: needs, ..request("install") };
     let done = client.install_extension(approved).await.unwrap().into_owned();
-    done.extension.into_option().unwrap().workload
+    done.extension.into_option().unwrap()
 }
 
-/// Pings the provider until it answers, for up to two minutes; its version.
-async fn pinged(cp: &ControlPlane) -> String {
+/// Pings the provider of `kind` named `name` until it answers, for up to two minutes; its
+/// version.
+pub async fn pinged_as(cp: &ControlPlane, kind: pb::ProviderType, name: &str) -> String {
     let client = pb::ProviderServiceClient::new(cp.http(), cp.config());
     let ping = pb::PingProviderRequest {
         organization: cp.root_org.clone(),
-        r#type: pb::ProviderType::PROVIDER_TYPE_DNS.into(),
-        name: "test".into(),
+        r#type: kind.into(),
+        name: name.into(),
         ..Default::default()
     };
     let mut last = String::new();
@@ -85,6 +86,11 @@ async fn pinged(cp: &ControlPlane) -> String {
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
     panic!("the extension never answered a ping: {last}");
+}
+
+/// Pings the test extension's DNS provider until it answers; its version.
+async fn pinged(cp: &ControlPlane) -> String {
+    pinged_as(cp, pb::ProviderType::PROVIDER_TYPE_DNS, "test").await
 }
 
 /// Waits for the extension's console to say `line`.
@@ -116,7 +122,7 @@ async fn an_extension_in_a_container_serves_and_consumes_through_its_node() {
     let registry = crate::recipes::test_registry();
     let image = push_image(&registry, TEST_EXTENSION).await;
     let repo = push("test-extension", document(&image)).await;
-    let workload = install(&cp, &repo, &project).await;
+    let workload = install(&cp, &repo, &project).await.workload;
     node.guard(&workload);
 
     assert_eq!(pinged(&cp).await, env!("CARGO_PKG_VERSION"), "registered and answering");

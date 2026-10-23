@@ -5181,4 +5181,8 @@ Steps 1, 2, 4, 5, and 7 are built: `crates/korpis-server/tests/api/health_query.
 provider of a test protocol written with the SDK, declares a workload that pins it and one that is
 refused for naming a protocol nothing answers, and plays the node, asking for each round and the
 verdict, and being refused for another workload's intent, for the recipe's own `tcp` probe, and
-once the provider is uninstalled. Steps 3 and 6, the node's half, follow in Phase 3.
+once the provider is uninstalled. Steps 3 and 6, the node's half, were built the same day:
+`crates/korpis-agent` runs the rounds against a stand-in control plane over TCP and UDP, and
+`crates/korpis-e2e/tests/e2e/query.rs` runs every step on a real node, the provider the SDK's test
+extension in a container there, judging a server that answers `pong` healthy, restarting it when
+it stops, and restarting nothing once the provider is uninstalled and its health is unknown.

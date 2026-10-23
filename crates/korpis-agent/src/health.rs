@@ -2,11 +2,18 @@
 
 //! One attempt of a health probe (§5 of docs/04-runtimes.md): a `tcp` probe passes when a
 //! connection to the endpoint's port is made, and an `http` probe when a `GET` of its path is
-//! answered with the status it expects, or any 2xx where it expects none. Each is made from a
-//! socket the helper opened inside the workload's network namespace, so it reaches the endpoint
-//! whatever the endpoint's own rules turn away, and the whole attempt, connecting included, is
-//! held to the probe's timeout. Whether the attempts add up to a verdict is decided elsewhere
-//! (`korpis_core::workload::health`).
+//! answered with the status it expects, or any 2xx where it expects none; a `query` probe is an
+//! exchange its health provider directs, round by round, through the control plane (§5 of
+//! docs/16-extensions.md). Each is made from a socket the helper opened inside the workload's
+//! network namespace, so it reaches the endpoint whatever the endpoint's own rules turn away, and
+//! what the workload is given, connecting included, is held to the probe's timeout. Whether the
+//! attempts add up to a verdict is decided elsewhere (`korpis_core::workload::health`).
+
+mod queries;
+mod query;
+
+pub use queries::Queries;
+pub use query::Query;
 
 use std::net::SocketAddr;
 use std::os::fd::OwnedFd;
@@ -30,6 +37,8 @@ pub enum Attempt {
         /// The status expected; zero for any 2xx.
         expect: u16,
     },
+    /// Runs the exchange the query probe's health provider directs.
+    Query(Query),
 }
 
 impl Attempt {
@@ -39,8 +48,27 @@ impl Attempt {
         match self {
             Self::Tcp(_) => "tcp",
             Self::Http { .. } => "http",
+            Self::Query(_) => "query",
         }
     }
+
+    /// Whether it is made from a datagram socket.
+    #[must_use]
+    pub const fn udp(&self) -> bool {
+        matches!(self, Self::Query(q) if q.udp)
+    }
+}
+
+/// What an attempt found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tried {
+    /// It passed.
+    Passed,
+    /// It failed, or the workload did not answer in time.
+    Failed,
+    /// It could not be judged: a query probe's health provider, or the control plane, did not
+    /// say (§5 of docs/16-extensions.md).
+    Unjudged,
 }
 
 /// The status an HTTP answer starts with, if it starts with one.
@@ -57,7 +85,7 @@ const fn expected(got: u16, expect: u16) -> bool {
     if expect == 0 { got >= 200 && got < 300 } else { got == expect }
 }
 
-/// Makes the attempt `what` from `socket`; whether it passed.
+/// Makes the `tcp` or `http` attempt `what` from `socket`; whether it passed.
 async fn tried(socket: OwnedFd, what: &Attempt) -> std::io::Result<bool> {
     let std = std::net::TcpStream::from(socket);
     std.set_nonblocking(true)?;
@@ -65,6 +93,8 @@ async fn tried(socket: OwnedFd, what: &Attempt) -> std::io::Result<bool> {
     let (at, asked) = match what {
         Attempt::Tcp(at) => (*at, None),
         Attempt::Http { at, path, expect } => (*at, Some((path, *expect))),
+        // Run by `query`, never here.
+        Attempt::Query(_) => return Ok(false),
     };
     let mut stream = socket.connect(at).await?;
     let Some((path, expect)) = asked else { return Ok(true) };
@@ -84,9 +114,9 @@ async fn tried(socket: OwnedFd, what: &Attempt) -> std::io::Result<bool> {
     Ok(status(&head).is_some_and(|got| expected(got, expect)))
 }
 
-/// Makes the attempt `what` from `socket` within `timeout`; whether it passed. One that fails,
-/// or does not finish in time, has not passed.
-pub async fn attempt(socket: OwnedFd, what: &Attempt, timeout: Duration) -> bool {
+/// Makes the `tcp` or `http` attempt `what` from `socket` within `timeout`; whether it passed.
+/// One that fails, or does not finish in time, has not passed.
+async fn passed(socket: OwnedFd, what: &Attempt, timeout: Duration) -> bool {
     match tokio::time::timeout(timeout, tried(socket, what)).await {
         Ok(Ok(passed)) => passed,
         Ok(Err(e)) => {
@@ -95,6 +125,20 @@ pub async fn attempt(socket: OwnedFd, what: &Attempt, timeout: Duration) -> bool
         }
         Err(_) => false,
     }
+}
+
+/// Makes the attempt `what` from `socket`, the workload given `timeout`; a query probe asks its
+/// rounds of the control plane through `queries`.
+pub async fn attempt(
+    socket: OwnedFd,
+    what: &Attempt,
+    timeout: Duration,
+    queries: &Queries,
+) -> Tried {
+    if let Attempt::Query(q) = what {
+        return query::exchange(socket, q, timeout, queries).await;
+    }
+    if passed(socket, what, timeout).await { Tried::Passed } else { Tried::Failed }
 }
 
 #[cfg(test)]
@@ -131,13 +175,13 @@ mod tests {
     async fn an_http_probe_passes_on_the_status_it_expects() {
         let second = Duration::from_secs(1);
         let ok = answering("HTTP/1.1 204 No Content\r\n\r\n").await;
-        assert!(attempt(socket(), &http(ok, 0), second).await, "any 2xx");
-        assert!(attempt(socket(), &http(ok, 204), second).await);
-        assert!(!attempt(socket(), &http(ok, 200), second).await, "not the one expected");
+        assert!(passed(socket(), &http(ok, 0), second).await, "any 2xx");
+        assert!(passed(socket(), &http(ok, 204), second).await);
+        assert!(!passed(socket(), &http(ok, 200), second).await, "not the one expected");
         let missing = answering("HTTP/1.0 404 Not Found\r\n\r\n").await;
-        assert!(!attempt(socket(), &http(missing, 0), second).await);
+        assert!(!passed(socket(), &http(missing, 0), second).await);
         let garbled = answering("hello\n").await;
-        assert!(!attempt(socket(), &http(garbled, 0), second).await, "not HTTP at all");
+        assert!(!passed(socket(), &http(garbled, 0), second).await, "not HTTP at all");
     }
 
     #[tokio::test]
@@ -145,15 +189,15 @@ mod tests {
         let second = Duration::from_millis(300);
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let open = listener.local_addr().unwrap();
-        assert!(attempt(socket(), &Attempt::Tcp(open), second).await);
+        assert!(passed(socket(), &Attempt::Tcp(open), second).await);
         drop(listener);
-        assert!(!attempt(socket(), &Attempt::Tcp(open), second).await, "nothing listens");
+        assert!(!passed(socket(), &Attempt::Tcp(open), second).await, "nothing listens");
 
         // Accepted and never answered: the HTTP probe is held to its timeout.
         let silent = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let at = silent.local_addr().unwrap();
         let started = std::time::Instant::now();
-        assert!(!attempt(socket(), &http(at, 0), second).await);
+        assert!(!passed(socket(), &http(at, 0), second).await);
         assert!(started.elapsed() < Duration::from_secs(2), "it gave up at its timeout");
     }
 }

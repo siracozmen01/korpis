@@ -147,6 +147,8 @@ pub struct Wiring {
     pub certificates: Arc<crate::ingress::Certificates>,
     /// What each of the node's drivers is: whether it takes block devices, and holds a tap.
     pub driver_kinds: DriverKinds,
+    /// Where query probes ask their health provider's rounds (§5 of docs/16-extensions.md).
+    pub queries: Arc<crate::health::Queries>,
 }
 
 /// The reconciler.

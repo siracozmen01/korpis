@@ -281,13 +281,12 @@ which issues a grant template's newer version to the holders of an older one (§
 `08-identity.md`), the one Operation of Phase 2's tenancy that needs this machinery. With edges,
 the count of a node's ports learns them: until then every `stable` endpoint reserves a port of its
 node, which one an edge serves does not use (§3 of `07-networking.md`). Application-level health
-(Rule K-16): the node runs a workload's probes and acts on their verdicts (§5 of
-`04-runtimes.md`), homed here 2026-10-23, when it was found that no phase named it while four
-documents described it (Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are
-built; the `query` probe through its protocol's provider extension, the `heartbeat` probe through
+(Rule K-16): the node runs a workload's probes and acts on their verdicts (§5 of `04-runtimes.md`),
+homed here 2026-10-23, when it was found that no phase named it while four documents described it
+(Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are built, and the `query` probe
+through its protocol's health provider (§5 of `16-extensions.md`); the `heartbeat` probe through
 the workload's identity socket, the `guest_agent` probe through a microVM's channel to its guest,
-and the `exec` probe through a driver that runs a command inside its workload follow in this
-phase.
+and the `exec` probe through a driver that runs a command inside its workload follow in this phase.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

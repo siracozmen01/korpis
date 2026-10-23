@@ -499,7 +499,8 @@ message HealthNext {
 message HealthSend {
   // At most 4 KiB; empty to read on without sending.
   bytes data = 1;
-  // At most 64 KiB.
+  // At most 64 KiB. Over TCP the node reads until it has this much, the workload closes the
+  // connection, or `wait` runs out; over UDP it reads the first datagram back, cut to this.
   uint32 read_at_most = 2;
   // At most ten seconds; the probe's own timeout bounds the whole exchange too.
   google.protobuf.Duration wait = 3;

@@ -529,9 +529,20 @@ with its crashes, and recorded as `node.restart` with the cause `unhealthy` and 
 under a lease that has expired, only where the workload keeps running (§4.6 of
 `02-architecture.md`).
 
-What it does not do yet. A `query` probe is an exchange the node runs and its protocol's health
-provider directs (§5 of `16-extensions.md`); the provider's calls and the control plane's half are
-built, and the node's half is not yet. A `heartbeat` probe needs the workload calling Korpis, and a
+A `query` probe is an exchange the node runs and its protocol's health provider directs (§5 of
+`16-extensions.md`): from a socket of the probe's endpoint's transport, opened as the others are,
+the node asks the control plane what to send, sends it, reads until it has what it was told to read
+at most, the workload closes the connection, or the round's wait runs out (over UDP, the first
+datagram back), and asks again with the round, until the provider's verdict. The probe's timeout
+bounds what the workload is given, connecting and every read together; a question the control plane
+does not answer within ten seconds, or answers as unjudged, leaves the attempt unjudged, which
+makes the probe's verdict unknown: the workload's health is `unknown`, a readiness probe is not
+passed, and nothing is restarted for it, since a provider that fails says nothing about the
+workload. A query probe is tried at most every five seconds, since each round is a call to its
+provider through the control plane's queue, and a probe is never attempted twice at once, since its
+rounds can take longer than its period.
+
+What it does not do yet. A `heartbeat` probe needs the workload calling Korpis, and a
 `guest_agent` probe the guest's channel to its agent. Each is built later in Phase 3 (§4 of
 `20-roadmap.md`), and until then such a probe is unjudged: the workload's health is `unknown` and
 its readiness is its object running, as before. An `exec` probe

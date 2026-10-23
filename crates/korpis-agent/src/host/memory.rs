@@ -253,10 +253,12 @@ impl Host for InMemoryHost {
     fn open_probe(
         &self,
         _workload: &str,
+        udp: bool,
     ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send {
-        let (inet, stream) = (rustix::net::AddressFamily::INET, rustix::net::SocketType::STREAM);
+        use rustix::net::{AddressFamily, SocketFlags, SocketType};
+        let kind = if udp { SocketType::DGRAM } else { SocketType::STREAM };
         let opened =
-            rustix::net::socket_with(inet, stream, rustix::net::SocketFlags::CLOEXEC, None);
+            rustix::net::socket_with(AddressFamily::INET, kind, SocketFlags::CLOEXEC, None);
         ready(opened.map_err(|e| HostError(e.to_string())))
     }
 

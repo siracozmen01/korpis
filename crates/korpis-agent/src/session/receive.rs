@@ -78,6 +78,10 @@ impl Session {
                 self.steps.answer(*answer);
                 Vec::new()
             }
+            Some(Down::HealthAnswer(answer)) => {
+                self.queries.answer(*answer);
+                Vec::new()
+            }
             Some(Down::FeasibilityQuery(q)) => {
                 self.answer(q);
                 Vec::new()

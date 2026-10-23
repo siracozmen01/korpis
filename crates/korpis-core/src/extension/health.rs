@@ -55,6 +55,16 @@ pub struct Round {
     pub closed: bool,
 }
 
+impl Round {
+    /// Whether it is a round a provider could have asked for: no more sent than [`MAX_SEND`],
+    /// and no more read than [`MAX_READ`]. A node reporting a larger one is not believed.
+    #[must_use]
+    pub fn bounded(&self) -> bool {
+        self.sent.len() <= MAX_SEND
+            && u32::try_from(self.received.len()).is_ok_and(|n| n <= MAX_READ)
+    }
+}
+
 /// One step of a query probe, as a health provider is asked it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HealthStep {
@@ -152,5 +162,13 @@ mod tests {
         };
         assert!(verdict(MAX_DETAIL).answers(&step(MAX_ROUNDS)));
         assert!(!verdict(MAX_DETAIL + 1).answers(&step(1)));
+        let round = |sent: usize, read: usize| Round {
+            sent: vec![0; sent],
+            received: vec![0; read],
+            closed: false,
+        };
+        let read = usize::try_from(MAX_READ).unwrap_or(usize::MAX);
+        assert!(round(MAX_SEND, read).bounded());
+        assert!(!round(MAX_SEND + 1, 0).bounded() && !round(0, read + 1).bounded());
     }
 }

@@ -87,10 +87,12 @@ restart policy can act on it.
 The same provider returns the player count, the map, and the version, which is what makes §6
 possible and what a host wants on a dashboard anyway.
 
-> Not yet as built, found 2026-10-23 (Finding 151 of `23-walkthroughs.md`). Nodes run `tcp` and
-> `http` probes (§5 of `04-runtimes.md`); a `query` probe is unjudged until its provider is called,
-> which Phase 3 builds (§4 of `20-roadmap.md`), so until then a Minecraft server that declares one
-> is reported with its health `unknown`, not as healthy. The block above is not the syntax a recipe
+> Found 2026-10-23 not to have been built (Finding 151 of `23-walkthroughs.md`), and built that
+> day: nodes run `tcp`, `http`, and `query` probes (§5 of `04-runtimes.md`), the query directed by
+> the protocol's health provider, which never reaches the server itself (§5 of
+> `16-extensions.md`). The Minecraft query extension is Phase 4's (§4 of `20-roadmap.md`); until
+> one is installed a Minecraft server cannot be declared with a query probe, since its protocol
+> names no provider. The block above is not the syntax a recipe
 > declares either: a recipe names the probe and the protocol, as `liveness: {kind: query, protocol:
 > korpis/minecraft, endpoint: query, failures: 3, period: 15s}` (§3 of `09-recipes.md`), and the
 > protocol, pinned at declaration, is what chooses the provider (§5 of `16-extensions.md`).

@@ -94,12 +94,12 @@ fn a_probe_s_socket_reaches_an_endpoint_whose_rules_turn_the_host_away() {
 
     let from_host = TcpStream::connect_timeout(&SocketAddr::V4(at), Duration::from_secs(2));
     assert!(from_host.is_err(), "the endpoint's rule turns the host away");
-    let mut sockets = network.open_probe(&workload).unwrap();
+    let mut sockets = network.open_probe(&workload, false).unwrap();
     assert_eq!(sockets.len(), 1);
     let socket = sockets.remove(0);
     rustix::net::connect(&socket, &at).expect("the probe's socket reaches it from inside");
     let mut said = String::new();
     TcpStream::from(socket).read_to_string(&mut said).unwrap();
     assert_eq!(said, "probed");
-    assert!(network.open_probe("no-such-workload").is_err(), "a workload with no network");
+    assert!(network.open_probe("no-such-workload", false).is_err(), "a workload with no network");
 }

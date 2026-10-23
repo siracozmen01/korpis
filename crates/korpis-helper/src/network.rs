@@ -203,14 +203,19 @@ impl Network {
         self.opened(workload, resolver::sockets)
     }
 
-    /// A stream socket for probing `workload` (§5 of docs/04-runtimes.md), opened inside its
-    /// network namespace, neither bound nor connected. Its network must have been made.
-    pub fn open_probe(&self, workload: &str) -> HelperResult<Vec<rustix::fd::OwnedFd>> {
+    /// A socket for probing `workload` (§5 of docs/04-runtimes.md), a datagram socket if
+    /// `datagram` and a stream otherwise, opened inside its network namespace, neither bound nor
+    /// connected. Its network must have been made.
+    pub fn open_probe(
+        &self,
+        workload: &str,
+        datagram: bool,
+    ) -> HelperResult<Vec<rustix::fd::OwnedFd>> {
+        use rustix::net::{AddressFamily, SocketFlags, SocketType};
+        let kind = if datagram { SocketType::DGRAM } else { SocketType::STREAM };
         self.opened(workload, || {
-            let (inet, stream) =
-                (rustix::net::AddressFamily::INET, rustix::net::SocketType::STREAM);
-            let flags = rustix::net::SocketFlags::CLOEXEC;
-            Ok(vec![rustix::net::socket_with(inet, stream, flags, None)?])
+            let flags = SocketFlags::CLOEXEC;
+            Ok(vec![rustix::net::socket_with(AddressFamily::INET, kind, flags, None)?])
         })
     }
 

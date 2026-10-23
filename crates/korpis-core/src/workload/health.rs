@@ -8,7 +8,7 @@
 //! liveness probe.
 
 use super::observation::Health;
-use super::spec::health::Probe;
+use super::spec::health::{Probe, ProbeKind};
 use std::time::Duration;
 
 /// How often a probe is tried when it does not say.
@@ -20,6 +20,10 @@ pub const FAILURES: u32 = 3;
 /// The shortest period: a probe that asks for less is tried every second, so that no recipe
 /// turns the node's prober into a load on the workload it judges.
 pub const SHORTEST_PERIOD: Duration = Duration::from_secs(1);
+/// The shortest period of a `query` probe: each of its rounds is a call to its health provider
+/// through the control plane's queue (§5 of docs/16-extensions.md), which a period of a second
+/// across a fleet would turn into the queue's main load.
+pub const SHORTEST_QUERY_PERIOD: Duration = Duration::from_secs(5);
 
 /// When a probe is tried, with its defaults filled in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,7 +49,11 @@ impl Timing {
     pub fn of(p: &Probe) -> Self {
         let timeout = given(p.timeout);
         let period = given(p.period).unwrap_or_else(|| PERIOD.max(timeout.unwrap_or_default()));
-        let period = period.max(SHORTEST_PERIOD);
+        let shortest = match p.kind {
+            ProbeKind::Query { .. } => SHORTEST_QUERY_PERIOD,
+            _ => SHORTEST_PERIOD,
+        };
+        let period = period.max(shortest);
         Self {
             period,
             timeout: timeout.unwrap_or(TIMEOUT).min(period),
@@ -89,6 +97,16 @@ impl Judge {
         self.verdict
     }
 
+    /// Records an attempt that could not be judged, its health provider having failed (§5 of
+    /// docs/16-extensions.md): the verdict is unknown, never failing, and the failures counted so
+    /// far are forgotten; whether the verdict changed.
+    pub fn unknown(&mut self) -> bool {
+        let before = self.verdict;
+        self.failed = 0;
+        self.verdict = Verdict::Unjudged;
+        before != self.verdict
+    }
+
     /// Records one attempt; whether the verdict changed.
     pub fn record(&mut self, passed: bool) -> bool {
         let before = self.verdict;
@@ -119,7 +137,6 @@ pub fn health(liveness: Option<Verdict>, readiness: Option<Verdict>) -> Health {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::workload::spec::health::ProbeKind;
 
     fn probe(period: u64, timeout: u64, failures: u32) -> Probe {
         let secs = |s| (s > 0).then(|| Duration::from_secs(s));
@@ -144,6 +161,8 @@ mod tests {
         let mut fast = probe(0, 0, 0);
         fast.period = Some(Duration::from_millis(10));
         assert_eq!(Timing::of(&fast).period, SHORTEST_PERIOD);
+        fast.kind = ProbeKind::Query { protocol: "korpis/minecraft".into(), endpoint: "e".into() };
+        assert_eq!(Timing::of(&fast).period, SHORTEST_QUERY_PERIOD, "a query asks a provider");
     }
 
     #[test]
@@ -157,6 +176,8 @@ mod tests {
         assert!(j.record(false));
         assert_eq!(j.verdict(), Verdict::Failing);
         assert!(j.record(true), "and one success restores it");
+        assert!(j.unknown() && j.verdict() == Verdict::Unjudged, "an unjudged attempt");
+        assert!(!j.record(false), "and the failures before it are forgotten");
     }
 
     #[test]

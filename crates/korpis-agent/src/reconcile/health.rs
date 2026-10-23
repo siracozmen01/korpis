@@ -1,27 +1,31 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A running workload's health probes, the node's half (Rule K-16, §5 of docs/04-runtimes.md).
-//! The node runs the `tcp` and `http` probes its intent declares, from sockets the helper opens
-//! in the workload's namespace, each on its own period and from its initial delay after the
-//! object started; a new start, or an object built from another intent, is judged afresh. Its
+//! The node runs the `tcp`, `http`, and `query` probes its intent declares, from sockets the
+//! helper opens in the workload's namespace, each on its own period and from its initial delay
+//! after the object started, never two attempts of one probe at once; a new start, or an object
+//! built from another intent, is judged afresh. Its
 //! readiness decides whether its endpoints are `ready` and whether a dependent waiting for it is
 //! created; its liveness, or its readiness where it declares no liveness probe, is the health it
 //! reports; and a liveness probe that fails restarts it, as a crash does, with the same backoff.
-//! A probe it declares that this node does not run (a `query`, `exec`, `guest_agent` or
-//! `heartbeat` probe, or any where the node gives the workload no address) is unjudged: its health
-//! is unknown, and readiness is held to the object running, as it was before probes ran.
+//! A query attempt its health provider could not judge leaves the verdict unknown (§5 of
+//! docs/16-extensions.md). A probe it declares that this node does not run (an `exec`,
+//! `guest_agent` or `heartbeat` probe, or any where the node gives the workload no address) is
+//! unjudged: its health is unknown, and readiness is held to the object running.
 
 use super::act::{Failure, running};
 use super::runs::has_runs;
 use super::workload::back_off;
 use super::{Reconciler, Tracked, effect, text};
-use crate::health::{Attempt, attempt};
+use crate::health::{Attempt, Query, Tried, attempt};
 use crate::host::Host;
 use crate::runtime::Runtime;
 use korpis_core::workload::health::{Judge, Timing, Verdict, health};
 use korpis_core::workload::observation::Health;
 use korpis_core::workload::spec::health::{Probe, ProbeKind};
 use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::v1 as pb;
+use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::mpsc;
 
@@ -42,7 +46,7 @@ pub(super) struct Outcome {
     workload: String,
     life: Life,
     which: Which,
-    passed: bool,
+    tried: Tried,
 }
 
 /// One probe this node runs.
@@ -53,6 +57,8 @@ struct Track {
     judge: Judge,
     /// When the next attempt is made.
     next: Instant,
+    /// Whether an attempt is under way, which a query's rounds can make longer than a period.
+    trying: bool,
 }
 
 /// One declared probe, as this node tends it.
@@ -117,11 +123,11 @@ impl Probing {
         }
     }
 
-    /// When each probe it runs is next attempted.
+    /// When each probe it runs and is not trying now is next attempted.
     fn due(&self) -> impl Iterator<Item = (Which, Instant)> + '_ {
         let of = |which, t: &Tended| match t {
-            Tended::Here(t) => Some((which, t.next)),
-            Tended::Undeclared | Tended::Elsewhere => None,
+            Tended::Here(t) if !t.trying => Some((which, t.next)),
+            Tended::Here(_) | Tended::Undeclared | Tended::Elsewhere => None,
         };
         of(Which::Readiness, &self.readiness).into_iter().chain(of(Which::Liveness, &self.liveness))
     }
@@ -142,15 +148,36 @@ impl Default for Outcomes {
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
-    /// What `a`'s probe `p` attempts from this node, if this node runs it: a `tcp` or `http`
-    /// probe, at the address the node gave the workload and the port of the endpoint it names.
-    fn attempt_of(&self, a: &agent::Assignment, p: &Probe) -> Option<Attempt> {
+    /// What `a`'s probe `p` attempts from this node, if this node runs it: a `tcp`, `http`, or
+    /// `query` probe, at the address the node gave the workload and the port of the endpoint it
+    /// names. A query names the intent its object was built from, and whether it is the liveness
+    /// probe, `asked`.
+    fn attempt_of(&self, a: &agent::Assignment, p: &Probe, asked: (&str, bool)) -> Option<Attempt> {
         let held = self.wiring.network.as_ref()?.addresses.of(&a.workload)?;
+        let endpoint = |name: &str| a.endpoints.iter().find(|e| e.name == name);
         let at = |name: &str| {
-            let e = a.endpoints.iter().find(|e| e.name == name)?;
+            let e = endpoint(name)?;
             Some((held.ipv4, u16::try_from(e.container_port).ok()?).into())
         };
         match &p.kind {
+            ProbeKind::Query { endpoint: name, .. } => {
+                let protocol = endpoint(name)?.protocol.as_known();
+                let udp = matches!(
+                    protocol,
+                    Some(
+                        pb::EndpointProtocol::ENDPOINT_PROTOCOL_UDP
+                            | pb::EndpointProtocol::ENDPOINT_PROTOCOL_QUIC
+                    )
+                );
+                let (intent, liveness) = asked;
+                Some(Attempt::Query(Query {
+                    at: at(name)?,
+                    udp,
+                    workload: a.workload.clone(),
+                    intent: intent.to_owned(),
+                    liveness,
+                }))
+            }
             ProbeKind::Tcp { endpoint } => Some(Attempt::Tcp(at(endpoint)?)),
             ProbeKind::Http { endpoint, path, expect_status } => Some(Attempt::Http {
                 at: at(endpoint)?,
@@ -161,13 +188,24 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// How this node tends `a`'s probe `p` in a life that started at `since`.
-    fn tend(&self, a: &agent::Assignment, p: Option<&Probe>, since: Instant) -> Tended {
+    /// How this node tends `a`'s probe `p`, its liveness probe if `liveness`, in the life
+    /// `life`.
+    fn tend(
+        &self,
+        a: &agent::Assignment,
+        p: Option<&Probe>,
+        life: &Life,
+        liveness: bool,
+    ) -> Tended {
         let Some(p) = p else { return Tended::Undeclared };
-        let Some(attempt) = self.attempt_of(a, p) else { return Tended::Elsewhere };
+        let (since, intent) = life;
+        let Some(attempt) = self.attempt_of(a, p, (intent, liveness)) else {
+            return Tended::Elsewhere;
+        };
         let timing = Timing::of(p);
-        let next = since + timing.initial_delay;
-        Tended::Here(Track { attempt, timing, judge: Judge::new(timing.failures), next })
+        let next = *since + timing.initial_delay;
+        let judge = Judge::new(timing.failures);
+        Tended::Here(Track { attempt, timing, judge, next, trying: false })
     }
 
     /// Aims `a`'s probes at the life its runtime object is in: kept while it is the same life,
@@ -179,7 +217,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if t.probing.life == life {
             return;
         }
-        let Some((since, intent)) = life else {
+        let Some(life) = life else {
             t.probing = Probing::default();
             return;
         };
@@ -187,9 +225,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let declared = body.and_then(|b| b.health.as_option());
         let h = korpis_wire::spec::health::health_from_pb("health", declared).unwrap_or_default();
         t.probing = Probing {
-            readiness: self.tend(a, h.readiness.as_ref(), since),
-            liveness: self.tend(a, h.liveness.as_ref(), since),
-            life: Some((since, intent)),
+            readiness: self.tend(a, h.readiness.as_ref(), &life, false),
+            liveness: self.tend(a, h.liveness.as_ref(), &life, true),
+            life: Some(life),
         };
     }
 
@@ -209,7 +247,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .map(|(w, which, _)| (w.clone(), which))
             .collect();
         for (workload, which) in due {
-            let socket = self.host.open_probe(&workload).await;
+            let udp = self.tracked.get_mut(&workload).and_then(|t| t.probing.track(which));
+            let udp = udp.is_some_and(|track| track.attempt.udp());
+            let socket = self.host.open_probe(&workload, udp).await;
             let Some(t) = self.tracked.get_mut(&workload) else { continue };
             let Some(life) = t.probing.life.clone() else { continue };
             let Some(track) = t.probing.track(which) else { continue };
@@ -221,11 +261,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                     continue;
                 }
             };
+            track.trying = true;
             let (what, timeout, tx) = (track.attempt.clone(), track.timing.timeout, self.probed());
+            let queries = Arc::clone(&self.wiring.queries);
             tokio::spawn(async move {
-                let passed = attempt(socket, &what, timeout).await;
+                let tried = attempt(socket, &what, timeout, &queries).await;
                 // A reconciler that is gone has nothing left to judge.
-                let _ = tx.send(Outcome { workload, life, which, passed }).await;
+                let _ = tx.send(Outcome { workload, life, which, tried }).await;
             });
         }
     }
@@ -242,7 +284,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if t.probing.life.as_ref() != Some(&o.life) {
             return false;
         }
-        t.probing.track(o.which).is_some_and(|track| track.judge.record(o.passed))
+        let Some(track) = t.probing.track(o.which) else { return false };
+        track.trying = false;
+        match o.tried {
+            Tried::Passed => track.judge.record(true),
+            Tried::Failed => track.judge.record(false),
+            Tried::Unjudged => track.judge.unknown(),
+        }
     }
 
     /// Restarts `a`'s workload when its liveness probe fails, as one that crashed is brought

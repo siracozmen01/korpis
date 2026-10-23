@@ -1618,7 +1618,8 @@ export type HealthSend = Message<"korpis.v1.HealthSend"> & {
   data: Uint8Array;
 
   /**
-   * At most 64 KiB.
+   * At most 64 KiB. Over TCP the node reads until it has this much, the workload closes the
+   * connection, or `wait` runs out; over UDP it reads the first datagram back, cut to this.
    *
    * @generated from field: uint32 read_at_most = 2;
    */

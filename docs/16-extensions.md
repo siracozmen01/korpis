@@ -515,7 +515,8 @@ the declaration. The control plane answers only the node the workload is placed 
 query probe of the intent the node names, and only through the installation that intent pinned:
 `health.not_assigned`, `health.not_a_query`, and `health.provider_changed` otherwise. Each of
 those, the provider's own failure, and an open breaker are answered as unjudged, which leaves the
-probe's verdict unknown, as the table above requires.
+probe's verdict unknown, as the table above requires. The node's half, the rounds it runs and
+what it makes of an unjudged attempt, is §5 of `04-runtimes.md`.
 
 Why not give the provider a way to the workload, a tunnel through the relay or the endpoint's
 public address? An operator's provider serves its customers' subtrees (§4.1), and a way to their

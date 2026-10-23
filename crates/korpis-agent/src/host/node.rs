@@ -171,8 +171,9 @@ impl Host for NodeHost {
     fn open_probe(
         &self,
         workload: &str,
+        udp: bool,
     ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send {
-        self.helper.open_probe(workload)
+        self.helper.open_probe(workload, udp)
     }
 
     fn open_ingress(

@@ -182,6 +182,9 @@ async fn a_node_asks_its_query_probe_s_rounds_and_verdict_of_the_provider_its_in
     assert_eq!(unjudged(tcp), "health.not_a_query", "its readiness probe is the recipe's tcp one");
     let elsewhere = (intent.workload.as_str(), "int_00000000000000000000000000000000", liveness.2);
     assert_eq!(unjudged(ask(&mut s, "q5", elsewhere, vec![]).await), "health.not_assigned");
+    let huge = vec![round(&[0; 5000], b"")];
+    let refused = unjudged(ask(&mut s, "q5b", liveness, huge).await);
+    assert_eq!(refused, "health.not_a_query", "a round larger than a provider could ask for");
 
     let gone = pb::UninstallExtensionRequest {
         mutation: mutation("u1").into(),
