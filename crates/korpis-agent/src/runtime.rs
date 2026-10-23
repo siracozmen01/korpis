@@ -12,6 +12,7 @@
 //! console input and resizing are here (§6 of docs/14-streams.md); exec and resource resizing
 //! arrive with the rest of Phase 1 (§4 of docs/20-roadmap.md).
 
+pub mod drivers;
 pub mod memory;
 pub mod process;
 
@@ -60,6 +61,11 @@ pub struct Sender<'a> {
 pub trait Runtime: Send + Sync + 'static {
     /// Its declared capabilities: asked, never inferred.
     fn describe(&self) -> impl Future<Output = RuntimeResult<pb::DriverInfo>> + Send;
+
+    /// Every driver it reaches, each as it declares itself: one, unless it is [`drivers`]'s.
+    fn drivers(&self) -> impl Future<Output = RuntimeResult<Vec<pb::DriverInfo>>> + Send {
+        async { Ok(vec![self.describe().await?]) }
+    }
 
     /// Validates and resolves `intent` for `workload`, changing nothing.
     fn prepare(

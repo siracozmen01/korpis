@@ -156,6 +156,7 @@ pub fn prepare(
         mounts: mounts(body),
         tier: pb::IsolationTier::ISOLATION_TIER_CONTAINER.into(),
         stream: stream.into(),
+        driver: NAME.to_owned(),
         ..Default::default()
     })
 }

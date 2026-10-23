@@ -102,6 +102,9 @@ message PreparedSpec {
   // network, and `user`, the user namespace that owns it, mapped to the uid range above. Empty
   // for a workload with no network beyond loopback, as on a node that offers none.
   string namespaces = 17;
+  // The driver that prepared it, by the name it describes itself with: a node with several
+  // drivers hands the spec's Create to that one (§3 of docs/04-runtimes.md).
+  string driver = 18;
 }
 
 // The console stream of a workload: its limits and the secret values it redacts, from Prepare;

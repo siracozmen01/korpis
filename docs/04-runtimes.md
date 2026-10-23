@@ -112,6 +112,22 @@ Three further properties come free: a driver crash does not take down the agent 
 supervises; a third party can ship a driver without being merged into Korpis; and a driver can be
 upgraded independently of the agent.
 
+**A node runs one process per driver, and the agent speaks to all of them as one runtime**
+(2026-10-23, as the second driver was begun). Each is asked its name and capabilities when the
+agent starts, and every one is reported on the node, which is what placement filters by (§2.1 of
+`05-scheduling.md`). A `Prepare` goes to the driver the intent's `runtime.driver` names, and is a
+rejection naming the missing driver where the node has none of that name; the prepared spec names
+the driver that prepared it, and its `Create` goes there. Every other verb goes to the driver that
+made the object, which the agent keeps in a table filled by `Create` and `Recover`, and asks each
+driver in turn for an identifier the table lacks. It never marks an identifier with its driver:
+each driver issues its own, and the agent's meter keys what it has read of each object by its
+identifier (§2 of `15-observability.md`), so an identifier that changed when a second driver was
+added would read as a new object and count its usage twice. What it costs: two drivers that
+issue the same identifier cannot both be routed, so the first to report it keeps it and the
+second's object is left out of adoption and said; Korpis's own drivers issue identifiers that
+cannot meet, and a third party's driver is asked to do the same. Two drivers declaring one name
+are refused when the agent starts, since an intent names its driver.
+
 ---
 
 ## 4. The interface

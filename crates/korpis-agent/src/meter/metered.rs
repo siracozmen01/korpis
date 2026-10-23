@@ -32,6 +32,10 @@ impl<R: Runtime> Runtime for Metered<R> {
         self.inner.describe()
     }
 
+    fn drivers(&self) -> impl Future<Output = RuntimeResult<Vec<pb::DriverInfo>>> + Send {
+        self.inner.drivers()
+    }
+
     fn prepare(
         &self,
         workload: &str,

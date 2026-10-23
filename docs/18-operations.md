@@ -287,9 +287,11 @@ because a node keeps doing its job from the set it holds (§4.6 of `02-architect
 told which driver to use and how much of the machine to keep back for the machine's own system
 (§2.1 of `05-scheduling.md`). Stopping it, for an upgrade or by `SIGTERM`, leaves every workload
 exactly as it is and writes what the journal still counts in memory; the next start adopts them
-(§4.4 of `02-architecture.md`). The driver is `oci` unless told otherwise, reached on
-`--driver-socket` (`/run/korpis/driver-oci.sock`), and the helper on `--helper-socket`
-(`/run/korpis/helper.sock`); `--driver memory` runs nothing, for trying the agent alone. The
+(§4.4 of `02-architecture.md`). Its drivers are processes reached on `--driver-socket`,
+repeatable, one for each driver the node runs (`/run/korpis/driver-oci.sock` unless told
+otherwise), each asked its name and capabilities as the agent starts and reported to the control
+plane, and the helper on `--helper-socket` (`/run/korpis/helper.sock`); `--driver memory` runs
+nothing, for trying the agent alone. The
 node's content store is under its state directory, in `content`, and a development registry spoken
 to over plain HTTP is named with `--plain-http`. A recipe's `fetch`, and a pull from a registry a
 recipe names, reach only the public internet (§4 of `09-recipes.md`, §3 of `17-security.md`); a

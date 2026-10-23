@@ -145,7 +145,7 @@ pub fn machine(reserve: Reserve) -> (pb::Resources, pb::Resources) {
     (capacity, allocatable)
 }
 
-/// The facts a node reports: its driver, as the driver declares itself, its storage, as the
+/// The facts a node reports: its drivers, each as it declares itself, its storage, as the
 /// helper declares it, this machine, and the bandwidth of its `uplinks` once the helper shapes
 /// them (§7 of docs/07-networking.md). A helper that cannot be reached leaves the node
 /// offering no storage class and no bandwidth rather than keeping it from starting.
@@ -155,7 +155,7 @@ pub async fn facts_of<R: Runtime, H: Host>(
     (reserve, uplinks): (Reserve, &[helper::Uplink]),
     advertise: Advertise,
 ) -> Result<Arc<dyn Fn() -> Facts + Send + Sync>, RuntimeError> {
-    let mut driver = runtime.describe().await?;
+    let mut drivers = runtime.drivers().await?;
     let storage_classes = host.storage().await.unwrap_or_else(|e| {
         tracing::warn!(error = %e, "the helper did not declare its storage; offering none");
         Vec::new()
@@ -167,12 +167,14 @@ pub async fn facts_of<R: Runtime, H: Host>(
     capacity.disk_bytes = storage_classes.iter().map(|c| c.capacity_bytes).sum();
     allocatable.disk_bytes = storage_classes.iter().map(|c| c.free_bytes).sum();
     let held = crate::shaping::held(host, uplinks).await;
-    crate::shaping::enforced(&mut driver, &held.kinds);
+    for driver in &mut drivers {
+        crate::shaping::enforced(driver, &held.kinds);
+    }
     if let Some((offered, link)) = held.bandwidth {
         (allocatable.bandwidth_bits_per_sec, capacity.bandwidth_bits_per_sec) = (offered, link);
     }
     let advertised = agent::Advertised::default();
-    let facts = Facts { drivers: vec![driver], storage_classes, capacity, allocatable, advertised };
+    let facts = Facts { drivers, storage_classes, capacity, allocatable, advertised };
     Ok(Arc::new(move || Facts { advertised: advertise.current(), ..facts.clone() }))
 }
 

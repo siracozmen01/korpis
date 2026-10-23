@@ -14,6 +14,7 @@ use korpis_agent::preflight::probe::{Asking, probe};
 use korpis_agent::preflight::{Machine, Offer, checks};
 use korpis_agent::run::{Agent, Options, Reserve, facts_of};
 use korpis_agent::runtime::Runtime;
+use korpis_agent::runtime::drivers::Drivers;
 use korpis_agent::runtime::memory::InMemory;
 use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::state::StateDir;
@@ -71,13 +72,15 @@ enum Command {
     },
     /// Run the node: hold the control stream, keep the journal, and reconcile.
     Run {
-        /// The runtime driver: `oci`, the container tier through the `korpis-driver-oci`
-        /// process, or `memory`, which runs nothing, for trying the agent without one.
+        /// The runtime: `oci`, the driver processes serving on `--driver-socket`, the container
+        /// tier's `korpis-driver-oci` by default, or `memory`, which runs nothing, for trying the
+        /// agent without one.
         #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "oci")]
         driver: String,
-        /// The oci driver's socket.
-        #[arg(long, default_value = "/run/korpis/driver-oci.sock")]
-        driver_socket: PathBuf,
+        /// A driver's socket; repeatable, one for each tier the node offers through its own
+        /// driver process (§3 of docs/04-runtimes.md).
+        #[arg(long, default_values = ["/run/korpis/driver-oci.sock"])]
+        driver_socket: Vec<PathBuf>,
         /// The privileged helper's socket.
         #[arg(long, default_value = "/run/korpis/helper.sock")]
         helper_socket: PathBuf,
@@ -147,7 +150,7 @@ async fn shutdown() {
 /// Where the node's runtime and host are, and what it keeps back and offers.
 struct Node {
     driver: String,
-    driver_socket: PathBuf,
+    driver_socket: Vec<PathBuf>,
     helper_socket: PathBuf,
     plain_http: Vec<String>,
     fetch_allow: Vec<IpNet>,
@@ -220,7 +223,14 @@ async fn run(state: &StateDir, node: Node) -> ExitCode {
                 }
             };
             let host = NodeHost::new(HelperClient::new(&node.helper_socket), content);
-            serve(state, DriverRuntime::connect(&node.driver_socket), host, &node).await
+            let sockets = node.driver_socket.iter().map(|s| DriverRuntime::connect(s)).collect();
+            match Drivers::new(sockets).await {
+                Ok(drivers) => serve(state, drivers, host, &node).await,
+                Err(e) => {
+                    tracing::error!(error = %e, "the drivers could not be described");
+                    ExitCode::FAILURE
+                }
+            }
         }
         other => {
             tracing::error!(driver = %other, "no such driver in this build");

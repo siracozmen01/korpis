@@ -50,11 +50,18 @@ pub struct InMemory {
     state: Arc<Mutex<State>>,
     changes: broadcast::Sender<String>,
     released: Arc<tokio::sync::Notify>,
+    /// The name it declares, and what its objects' identifiers begin with.
+    name: (&'static str, &'static str),
 }
 
 impl Default for InMemory {
     fn default() -> Self {
-        Self { state: Arc::default(), changes: broadcast::channel(64).0, released: Arc::default() }
+        Self {
+            state: Arc::default(),
+            changes: broadcast::channel(64).0,
+            released: Arc::default(),
+            name: (NAME, "mem"),
+        }
     }
 }
 
@@ -67,6 +74,13 @@ impl InMemory {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// An empty runtime declaring itself as `name`, its objects' identifiers beginning with
+    /// `ids`: one of several drivers on a node.
+    #[must_use]
+    pub fn named(name: &'static str, ids: &'static str) -> Self {
+        Self { name: (name, ids), ..Self::default() }
     }
 
     fn lock(&self) -> RuntimeResult<MutexGuard<'_, State>> {
@@ -94,9 +108,9 @@ impl InMemory {
     }
 }
 
-fn info() -> pb::DriverInfo {
+fn info(name: &str) -> pb::DriverInfo {
     pb::DriverInfo {
-        name: NAME.to_owned(),
+        name: name.to_owned(),
         version: env!("CARGO_PKG_VERSION").to_owned(),
         protocol: "korpis.driver.v1".to_owned(),
         healthy: true,
@@ -120,6 +134,7 @@ impl InMemory {
             rootfs: body.map(|b| b.recipe.digest.clone()).unwrap_or_default(),
             resources: body.and_then(|b| b.resources.as_option().cloned()).into(),
             stream: captured.then(driver::StreamCapture::default).into(),
+            driver: self.name.0.to_owned(),
             ..Default::default()
         })))
     }
@@ -136,7 +151,7 @@ impl InMemory {
             return Ok(id.clone());
         }
         s.next += 1;
-        let id = format!("mem-{}", s.next);
+        let id = format!("{}-{}", self.name.1, s.next);
         let created = state(driver::RuntimeState::RUNTIME_STATE_CREATED, None);
         let counters = driver::ObjectCounters::default();
         s.objects.insert(id.clone(), Object { spec: spec.clone(), status: created, counters });
@@ -227,7 +242,7 @@ impl InMemory {
 
 impl Runtime for InMemory {
     fn describe(&self) -> impl Future<Output = RuntimeResult<pb::DriverInfo>> + Send {
-        ready(Ok(info()))
+        ready(Ok(info(self.name.0)))
     }
 
     fn prepare(

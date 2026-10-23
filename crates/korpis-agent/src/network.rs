@@ -229,7 +229,7 @@ fn warn_closed(closed: &[String]) {
 }
 
 /// The pools this node's workloads get addresses from, if the node gives them networks: the
-/// helper must offer them and the driver must join a namespace it is given. `ipv6` is a prefix
+/// helper must offer them and a driver must join a namespace it is given. `ipv6` is a prefix
 /// routed to the node; without one the node's own unique local prefix serves.
 pub async fn offered<R: Runtime, H: Host>(
     runtime: &R,
@@ -237,12 +237,15 @@ pub async fn offered<R: Runtime, H: Host>(
     node: &str,
     (ipv4, ipv6): (Ipv4Net, Option<Ipv6Net>),
 ) -> Option<Pools> {
-    let joins = runtime.describe().await.is_ok_and(|d| {
-        let modes = d.capabilities.as_option().map(|c| c.network_modes.clone()).unwrap_or_default();
-        modes.iter().any(|m| m.as_known() == Some(pb::NetworkMode::NETWORK_MODE_VETH))
+    let joins = runtime.drivers().await.is_ok_and(|all| {
+        all.iter().any(|d| {
+            let caps = d.capabilities.as_option();
+            let modes = caps.map(|c| c.network_modes.as_slice()).unwrap_or_default();
+            modes.iter().any(|m| m.as_known() == Some(pb::NetworkMode::NETWORK_MODE_VETH))
+        })
     });
     if !joins {
-        tracing::info!("the driver joins no network namespace; workloads have loopback alone");
+        tracing::info!("no driver joins a network namespace; workloads have loopback alone");
         return None;
     }
     let described = match host.describe_network().await {
