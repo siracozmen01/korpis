@@ -294,8 +294,10 @@ dependencies' files sent as copies as they change, so a heartbeat probe runs on 
 are served inside its guest by the file worker its boot drive carries, and a stopped one's by the
 same worker in a service microVM, a guest of Korpis's own holding its volumes (§4.4 of
 `04-runtimes.md`), and so are installs into a stopped microVM's volume, by the helper's install job
-in such a guest (§4 of `09-recipes.md`); the browse and single-file restore of a block-device
-volume's backup (§5.4 of `06-storage.md`) follows through that guest in this phase.
+in such a guest (§4 of `09-recipes.md`); a block-device volume's backup is browsed and read inside
+its image by such a guest holding a copy restored for it, through `korpis backup ls` and `cat`
+(§5.4 of `06-storage.md`), and the single-file restore from it into the live volume follows in
+this phase.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

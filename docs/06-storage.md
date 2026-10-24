@@ -782,10 +782,13 @@ offers whole-image restore only, stated when the backup is taken (finding S40).
 > read holds that room beside the volume until its last session ends, and nothing reserves it, as
 > for a replacing restore (above); a session that ends while its image is still being restored
 > leaves the restore to finish, and the node's next sweep of its jobs discards it, as it does every
-> reading job left by a restart. What it does not do yet: `korpis backup ls` and `cat` and the
-> API's `BrowseBackup` and `ReadBackupFile` still read such a backup as its one image, so the
-> session is reached only by a client that opens it (§4 of `20-roadmap.md`), and the panel shows no
-> backup at all (question 7 of §10 of `11-surface-web.md`).
+> reading job left by a restart. `korpis backup ls` and `cat` open the session for such a backup,
+> and read it as the repository holds it with `--image` (§5 of `13-surface-cli.md`). What it does
+> not do: the API's `BrowseBackup` and `ReadBackupFile` read a backup as the repository holds it, a
+> block device's as its one image, which a client may download whole, and never inside it, since
+> the control plane parses nothing of a tenant's; the panel shows no backup at all (question 7 of
+> §10 of `11-surface-web.md`); and a single file is not yet restored from inside the image into the
+> live volume (§4 of `20-roadmap.md`).
 
 **Restores are verified.** A restore that completes without confirming the data is readable and the
 workload can start is not a restore, it is a hope. The verification is the same contract as

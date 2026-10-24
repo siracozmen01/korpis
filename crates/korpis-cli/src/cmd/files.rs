@@ -8,7 +8,7 @@
 
 mod remote;
 mod sync;
-mod transfer;
+pub(crate) mod transfer;
 
 use super::{Answer, json};
 use crate::connect::Connection;
@@ -18,7 +18,7 @@ use clap::Subcommand;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::file_request::Request;
 use korpis_proto::korpis::v1::__buffa::oneof::file_response::Response;
-use remote::Remote;
+pub(crate) use remote::Remote;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 
@@ -214,7 +214,7 @@ pub async fn files(c: &Connection, a: &FilesAction) -> Result<Answer, CliError> 
 }
 
 /// Every entry of directory `path`, page by page.
-async fn ls(r: &mut Remote, path: &str) -> Result<Answer, CliError> {
+pub(crate) async fn ls(r: &mut Remote, path: &str) -> Result<Answer, CliError> {
     let mut entries = Vec::new();
     let mut after = String::new();
     loop {

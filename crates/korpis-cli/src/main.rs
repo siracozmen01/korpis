@@ -237,8 +237,9 @@ async fn backups(cli: &Cli, action: &BackupAction) -> Result<(), CliError> {
             let c = cli.required().await?;
             answer(cli, Box::pin(clone::clone(&c, backup, (name, project.as_deref()))).await)
         }
-        BackupAction::Cat { backup, path, output } => {
-            backup::cat_to(&cli.required().await?, (backup, path), output.as_deref()).await
+        BackupAction::Cat { backup, path, output, image } => {
+            let c = cli.required().await?;
+            backup::cat_to(&c, (backup, path), output.as_deref(), *image).await
         }
         a => answer(cli, backup::backup(&cli.required().await?, a).await),
     }

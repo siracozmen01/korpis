@@ -285,7 +285,11 @@ The first repository of an organization or project also takes its workloads' con
 volume at once; `--replace` replaces the whole volume, a plan that waits for approval and stops
 the workload only for the exchange; `--volume vol_…` restores into another volume (§5.4 there).
 `korpis backup ls bkp_… [dir]` lists one directory of a backup without a byte of any file, and
-`korpis backup cat bkp_… <file> [-o out]` writes one file, each under its own action.
+`korpis backup cat bkp_… <file> [-o out]` writes one file, each under its own action. A block
+device's backup is listed and read inside its image: the command opens a session of
+`backup.browse` or `backup.read` through a relay, and a guest on the node holding the volume reads
+the image (§5.4 there); `--image` reads such a backup as the repository holds it, its one file
+the image.
 `korpis backup clone bkp_… --name <new>` declares a workload like the one the backup is of, its
 backed-up volume created holding the backup and every other volume created empty, which is how a
 restore is tested. `korpis backup prune <workload> --repository rep_…` proposes forgetting what the

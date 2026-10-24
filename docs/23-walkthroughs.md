@@ -5630,6 +5630,8 @@ untouched, a commit refused, discarded when forgotten and when the volume is del
 `crates/korpis-driver-firecracker/tests/image.rs` runs steps 7 and 8 in a live guest: an image
 flagged as needing its journal replayed is listed and read beside the workload's running guest, a
 write refused, two sessions sharing one guest; an image outside the volume root, one unmarked, one
-of another filesystem, and a short id range are refused with nothing booted. What is not built:
-`korpis backup ls` and `cat` reaching the session, and the end-to-end test on a real node (§4 of
-`20-roadmap.md`).
+of another filesystem, and a short id range are refused with nothing booted. `crates/korpis-e2e/
+tests/e2e/microvm_backup.rs` runs the trace on a real node with a real object store: a microVM's
+backup says it holds an `ext4` image, `korpis backup ls` lists and `korpis backup cat` reads what
+its guest wrote, inside the image, while the workload's own guest runs, `--image` lists the image
+itself, and the copy is gone once the sessions end.

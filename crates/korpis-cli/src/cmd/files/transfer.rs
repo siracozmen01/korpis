@@ -119,6 +119,21 @@ pub async fn download(
     }
     let mut file = options.open(to).await.map_err(|e| local(to, &e))?;
     let start = if resume { file.metadata().await.map_err(|e| local(to, &e))?.len() } else { 0 };
+    let done = download_into(r, (path, size, start), &mut file).await;
+    done.map_err(|e| e.unwrap_or_else(|e| local(to, &e)))
+}
+
+/// Reads `path`, of `size` bytes, from offset `start` into `out`, and flushes it; how many bytes
+/// were read.
+///
+/// # Errors
+/// `out` could not be written, its error given back for the caller to name; or the node refused
+/// a read, or the session ended.
+pub async fn download_into(
+    r: &mut Remote,
+    (path, size, start): (&str, u64, u64),
+    out: &mut (impl tokio::io::AsyncWrite + Unpin),
+) -> Result<u64, Result<CliError, std::io::Error>> {
     let (mut asked, mut done) = (start, 0u64);
     loop {
         while asked < size && r.ahead() < AHEAD {
@@ -128,21 +143,21 @@ pub async fn download(
                 length: u32::try_from(CHUNK).unwrap_or(u32::MAX),
                 ..Default::default()
             };
-            r.send(Request::Read(Box::new(read))).await?;
+            r.send(Request::Read(Box::new(read))).await.map_err(Ok)?;
             asked += CHUNK_U64;
         }
         if r.ahead() == 0 {
             break;
         }
-        let data = match r.answer(path).await? {
+        let data = match r.answer(path).await.map_err(Ok)? {
             Response::Data(d) => d,
-            other => return Err(CliError::Transport(format!("a read answered {other:?}"))),
+            other => return Err(Ok(CliError::Transport(format!("a read answered {other:?}")))),
         };
         // A file that shrank while it was read ends where it now ends; the reads still out are
         // answered empty and drained.
-        file.write_all(&data).await.map_err(|e| local(to, &e))?;
+        out.write_all(&data).await.map_err(Err)?;
         done += wide(data.len());
     }
-    file.flush().await.map_err(|e| local(to, &e))?;
+    out.flush().await.map_err(Err)?;
     Ok(done)
 }

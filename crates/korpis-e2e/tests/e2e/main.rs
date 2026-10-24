@@ -27,6 +27,7 @@ mod ingress;
 mod ingress_features;
 mod install;
 mod microvm;
+mod microvm_backup;
 mod microvm_exec;
 mod microvm_files;
 mod microvm_heartbeat;

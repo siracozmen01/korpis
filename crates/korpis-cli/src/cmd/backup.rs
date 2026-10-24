@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! `korpis backup …` (§5 of docs/06-storage.md): taking a backup of a volume into a repository,
-//! reading a workload's backups, and restoring one.
+//! reading a workload's backups, and restoring one. A block device's backup is read inside its
+//! image through a session ([`inside`]).
+
+pub mod inside;
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;
@@ -47,15 +50,20 @@ pub enum BackupAction {
         #[arg(long)]
         project: Option<String>,
     },
-    /// Lists one directory of a backup: names, kinds, and sizes, and no byte of any file.
+    /// Lists one directory of a backup: names, kinds, and sizes, and no byte of any file. A block
+    /// device's backup is listed inside its image, read by a guest on the node holding its volume.
     Ls {
         /// The backup, `bkp_…`.
         backup: String,
         /// A directory in it; the volume's root when not given.
         #[arg(default_value = "")]
         path: String,
+        /// List a block device's backup as the repository holds it: its one image.
+        #[arg(long)]
+        image: bool,
     },
-    /// Writes one file of a backup to standard output, or to `--output`.
+    /// Writes one file of a backup to standard output, or to `--output`. A block device's backup
+    /// is read inside its image, by a guest on the node holding its volume.
     Cat {
         /// The backup, `bkp_…`.
         backup: String,
@@ -64,6 +72,9 @@ pub enum BackupAction {
         /// Where to write it instead of standard output; it must not exist.
         #[arg(long, short)]
         output: Option<std::path::PathBuf>,
+        /// Read a block device's backup as the repository holds it, its image being the file.
+        #[arg(long)]
+        image: bool,
     },
     /// Restores a backup: into a new directory of a volume, which applies at once, or over the
     /// whole volume, which loses what it holds and waits for approval.
@@ -237,6 +248,22 @@ async fn prune(c: &Connection, workload: &str, repository: &str) -> Result<Answe
     Ok(Answer { human, json: json(&plan) })
 }
 
+/// Answers `korpis backup ls`: one directory of `backup`, inside a block device's image unless
+/// `image`, which lists such a backup as the repository holds it.
+async fn ls(c: &Connection, backup: &str, path: &str, image: bool) -> Result<Answer, CliError> {
+    if !image && let Some(workload) = inside::image_of(c, backup).await? {
+        return inside::ls(c, (&workload, backup), path).await;
+    }
+    let client = pb::BackupServiceClient::new(c.http(), c.config());
+    let r = pb::BrowseBackupRequest {
+        backup: backup.to_owned(),
+        path: path.to_owned(),
+        ..Default::default()
+    };
+    let entries = client.browse_backup(r).await?.into_owned().entries;
+    Ok(Answer { human: listing(&entries), json: json(&entries) })
+}
+
 /// Answers `korpis backup …`.
 pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, CliError> {
     let client = pb::BackupServiceClient::new(c.http(), c.config());
@@ -271,15 +298,7 @@ pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, Cli
             Answer { human: show::plan(&plan, &plan.workload), json: json(&plan) }
         }
         BackupAction::Prune { workload, repository } => prune(c, workload, repository).await?,
-        BackupAction::Ls { backup, path } => {
-            let r = pb::BrowseBackupRequest {
-                backup: backup.clone(),
-                path: path.clone(),
-                ..Default::default()
-            };
-            let entries = client.browse_backup(r).await?.into_owned().entries;
-            Answer { human: listing(&entries), json: json(&entries) }
-        }
+        BackupAction::Ls { backup, path, image } => ls(c, backup, path, *image).await?,
         BackupAction::Clone { .. } | BackupAction::Cat { .. } => {
             return Err(CliError::Local("answered by its own command".into()));
         }
@@ -298,13 +317,27 @@ pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, Cli
     })
 }
 
-/// `korpis backup cat`: the file's bytes to `output`, made new, or to standard output.
+/// `korpis backup cat`: the file's bytes to `output`, made new, or to standard output; read
+/// inside a block device's image unless `image`.
 pub async fn cat_to(
     c: &Connection,
-    file: (&str, &str),
+    (backup, path): (&str, &str),
     output: Option<&std::path::Path>,
+    image: bool,
 ) -> Result<(), CliError> {
     let local = |e: std::io::Error| CliError::Local(e.to_string());
+    if !image && let Some(workload) = inside::image_of(c, backup).await? {
+        let backup = (workload.as_str(), backup);
+        return match output {
+            Some(at) => {
+                let file = std::fs::File::create_new(at).map_err(local)?;
+                let mut file = tokio::fs::File::from_std(file);
+                inside::cat(c, backup, path, &mut file).await.map(|_| ())
+            }
+            None => inside::cat(c, backup, path, &mut tokio::io::stdout()).await.map(|_| ()),
+        };
+    }
+    let file = (backup, path);
     match output {
         Some(path) => {
             let mut f = std::fs::File::create_new(path).map_err(local)?;

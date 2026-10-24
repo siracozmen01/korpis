@@ -49,7 +49,7 @@ fn real(minio: &Minio) -> korpis_target_s3::S3Target {
 }
 
 /// Installs the target extension into `project`; its workload.
-async fn installed(cp: &ControlPlane, project: &str) -> String {
+pub(crate) async fn installed(cp: &ControlPlane, project: &str) -> String {
     let request = pb::InstallExtensionRequest {
         mutation: mutation("install-target").into(),
         artifact: push_target().await,
@@ -78,7 +78,7 @@ async fn exists(path: &Path) {
 }
 
 /// Serves the backup target as the extension's workload, from its identity socket at `socket`.
-async fn serve(socket: PathBuf, minio: &Minio) {
+pub(crate) async fn serve(socket: PathBuf, minio: &Minio) {
     exists(&socket).await;
     let connection = Arc::new(Connection::new(IdentitySocket::at(socket)));
     let registration = Registration {
@@ -178,7 +178,7 @@ async fn a_running_world_is_backed_up_read_cloned_and_pruned() {
     let b2 = wire(IdKind::Backup, kept);
 
     // One directory listed, one file read: from the repository, not from the node.
-    let ls = BackupAction::Ls { backup: b2.clone(), path: "saves".into() };
+    let ls = BackupAction::Ls { backup: b2.clone(), path: "saves".into(), image: false };
     assert!(backup(&operator, &ls).await.unwrap().human.contains("level.dat"));
     let mut read = Vec::new();
     korpis_cli::cmd::backup::cat(&operator, (&b2, "saves/level.dat"), &mut read).await.unwrap();

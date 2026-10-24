@@ -88,8 +88,23 @@ impl Remote {
         write: bool,
         at: Option<&str>,
     ) -> Result<Self, CliError> {
-        let minted = mint(c, workload, if write { WRITE } else { READ }).await?;
-        let session = open(&relay(c, at).await?, workload, &minted, Vec::new()).await?;
+        Self::opened(c, workload, (if write { WRITE } else { READ }, Vec::new()), at).await
+    }
+
+    /// A session of `action` on `workload` that carries file requests, opened with `params`, at
+    /// the relay `at` or the first the control plane names: a backup's, read inside its image
+    /// (§5.4 of docs/06-storage.md), is one.
+    ///
+    /// # Errors
+    /// The token could not be minted, or the session opened.
+    pub async fn opened(
+        c: &Connection,
+        workload: &str,
+        (action, params): (&'static str, Vec<u8>),
+        at: Option<&str>,
+    ) -> Result<Self, CliError> {
+        let minted = mint(c, workload, action).await?;
+        let session = open(&relay(c, at).await?, workload, &minted, params).await?;
         Ok(Self {
             c: c.clone(),
             workload: workload.to_owned(),

@@ -21,7 +21,7 @@ use korpis_proto::korpis::v1::__buffa::oneof::file_response::Response;
 const WRITE: &str = "workload.file.write";
 
 /// A guest that only sleeps, with a volume at `/data`.
-fn recipe() -> String {
+pub(crate) fn recipe() -> String {
     let busybox = busybox();
     format!(
         r#"apiVersion: korpis.dev/v1
@@ -45,7 +45,7 @@ preset:
 }
 
 /// Stops `w`, or starts it again if `start`, at its power's `version`, and waits until it has.
-async fn power(cp: &ControlPlane, w: &str, start: bool, version: u64) {
+pub(crate) async fn power(cp: &ControlPlane, w: &str, start: bool, version: u64) {
     let client = pb::WorkloadServiceClient::new(cp.http(), cp.config());
     let m =
         pb::Mutation { expected_version: Some(version), ..mutation(&format!("power-{version}")) };
