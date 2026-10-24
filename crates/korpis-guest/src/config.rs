@@ -50,6 +50,35 @@ pub struct Config {
     /// the workload's own socket on the host.
     #[serde(default)]
     pub identity: bool,
+    /// What the guest is for: the workload's own run, or a service guest of Korpis's own.
+    #[serde(default)]
+    pub role: Role,
+}
+
+/// What a guest is for.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Role {
+    /// The workload's own run: its image, its entry.
+    #[default]
+    Workload,
+    /// A service guest (§4.4 of docs/04-runtimes.md): it mounts no image and runs no entry,
+    /// holds the volumes at their paths in a root of nothing else, and serves file sessions on
+    /// its files port until it is stopped.
+    Files,
+    /// A service guest that also runs an install (§4 of docs/09-recipes.md): its image's drive is
+    /// the install's content drive (`korpis_image::content`), holding the install's spec and what
+    /// it reads, which it mounts read-only and runs `korpis-install-job` from once its root is
+    /// ready.
+    Install,
+}
+
+impl Role {
+    /// Whether the guest is a service guest, which runs no entry.
+    #[must_use]
+    pub const fn is_service(self) -> bool {
+        !matches!(self, Self::Workload)
+    }
 }
 
 /// The guest's one interface, `eth0`.
@@ -132,6 +161,7 @@ mod tests {
             volumes: vec![Volume { path: "/data".into(), read_only: false }],
             interactive: true,
             identity: true,
+            role: Role::Workload,
         }
     }
 

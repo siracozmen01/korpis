@@ -1400,6 +1400,9 @@ the same mechanism", and that is the price of having made core and extensions th
 | 152 | A dependent created by its plan did not wait for its dependencies | §60 | `07-networking.md` §5 |
 | 153 | A query protocol was named without its publisher, and nothing said which provider answered it or how one was pinned | §61 | `16-extensions.md` §4.1, §5; `09-recipes.md` §3; `22-first-party.md` §3 |
 | 154 | A microVM was given no `/run/korpis`, and nothing said so | §62 | `02-architecture.md` §6; `04-runtimes.md` §4.1, §5, §6; `05-scheduling.md` §2.1; `20-roadmap.md` §4 |
+| 155 | A guest's relay would have been a second door to a workload's identity, outside the identity root | §65 | `04-runtimes.md` §6; `17-security.md` §5 |
+| 156 | A workload whose stop could not be delivered was never killed | §62 | `02-architecture.md` §6 |
+| 157 | A command run as a microVM said it had started ran in its boot drive's root | §66 | `04-runtimes.md` §4.4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4937,6 +4940,9 @@ accounting, corrected there.
 > The node now opens a session through the driver for a workload whose driver declares a guest
 > worker, so step 7 is served while the guest runs (`crates/korpis-agent/tests/agent/files.rs`);
 > on a stopped guest it stays refused, and step 8's conversion with it, until the service microVM.
+>
+> Revisited again the same day: on a stopped guest, step 7 is served by a service microVM holding
+> its volume (trace 66); step 8's conversion still waits for an install through that guest.
 
 ---
 
@@ -5411,3 +5417,100 @@ workload's; `crates/korpis-driver-firecracker/tests/runtime.rs` has `Create` ref
 workload's directory and a volume over `/run/korpis`. Step 1 is the node's, as it is for a
 container. Step 5 through a real node is built with the rest of the directory: the heartbeat of
 trace 62's step 8 crosses the same relay to the node's socket.
+
+## 66. A world on a stopped microVM is edited, and its owner starts it mid-session
+
+Written 2026-10-24, as a stopped microVM's file sessions were given their service microVM (§4.4 of
+`04-runtimes.md`). Trace 57 ended where a stopped guest's files were refused; this one follows a
+customer through the gap it left, asking at each step which guest holds the volume, and what
+happens to a session when that changes. A customer's Minecraft server runs on the `microvm` tier.
+They stop it to replace its world, upload the new world in the panel's file manager while a friend
+fetches the old one with SFTP, and press Start with the file manager still open.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The customer stops the server; the node stops its object and keeps it, so it still names the object the workload runs as | `02-architecture.md` §6; `04-runtimes.md` §4.2 |
+| 2 | The file manager opens a session; the relay carries it to the node, which opens it through the driver, since the driver declares a guest worker | `02-architecture.md` §3.1; `04-runtimes.md` §4.1, §4.4 |
+| 3 | The driver finds the object stopped and boots a service guest: the boot drive, no image, the object's volumes, its config marked as a service guest with no network | `04-runtimes.md` §4.4 |
+| 4 | The service guest mounts a root of nothing but the volumes, enters it, and runs a worker for the session, which confines itself as on a host | `04-runtimes.md` §4.4; `17-security.md` §5 |
+| 5 | The friend's SFTP connection is a second session on the same object; the driver counts it on the same guest rather than boot a second one onto the same volume | `04-runtimes.md` §4.4; `06-storage.md` §3.1 |
+| 6 | The customer presses Start with both sessions open; the start ends the service guest first, which syncs the volume, and both sessions end | `04-runtimes.md` §4.4; `06-storage.md` §3.1 |
+| 7 | The file manager opens its session again by itself; the node opens it on the object's own guest, which has said it started but not yet entered its root ‡ | `11-surface-web.md` §8; `04-runtimes.md` §4.4 |
+| 8 | The server starts with the new world the session wrote | `06-storage.md` §3.1 |
+| 9 | The driver restarts while a service guest runs; it ends that guest, whose sessions ended with the driver before it | `04-runtimes.md` §4.4 |
+
+**One finding, at step 7** (‡).
+
+**FINDING 157: A command run as a microVM said it had started ran in its boot drive's root.
+`CONFIRMED`, by the driver's test of step 8**
+
+Found 2026-10-24, when that test, run beside another under load, read the session's file back
+with `cat` as soon as the guest ran, and was told there was no `/bin/cat`. The guest's agent
+listens before the run says it has started, so that a driver told it has can reach it at once
+(Finding 146), and the driver waits for that before it asks (§4.2 of `04-runtimes.md`); but the
+first process enters the workload's root only after it has said so and mounted the image and the
+volumes. A command the agent was asked for in between ran in the boot drive's root, where the
+program it named is not, and a file session opened in between was refused, the files port not yet
+listening. The `exec` probe of trace 63 asks exactly then, on a guest's first beat after a restart,
+so a microVM could fail its first liveness check for being fast.
+
+**Resolution.** The files port listens from the moment the agent does, and a command or a session
+asked for before the root is ready waits until the first process has entered it and, for a
+workload with an identity directory, its files have arrived, at most a minute, as the entry itself
+waits for them (§4.4 of `04-runtimes.md`). `crates/korpis-driver-firecracker/tests/files.rs` runs
+both of its guests at once again and reads the file. What it costs: a command asked of a guest
+still booting answers after its boot rather than at once, and one asked of a guest that never
+finishes it is refused after a minute.
+
+Steps 1 to 9 are built: `crates/korpis-driver-firecracker/tests/files.rs` has a stopped object's
+session list its volume and nothing else and write a file, a second session share its guest, the
+guest end with the last and the file stay, a start end the guest and its session, and the started
+workload read what was written; `crates/korpis-e2e/tests/e2e/microvm_files.rs` stops a real
+node's microVM, reads through the relay what was written while it ran, writes a file, starts it,
+and reads the file in its own guest. Step 9's sweep runs with the driver's recovery.
+
+## 67. A modded server on a microVM is installed, and upgraded while its owner browses it
+
+Written 2026-10-24, as installs into a block device were given to the driver (§4.4 of
+`04-runtimes.md`). Trace 66 followed a stopped microVM's file sessions; this one follows the other
+thing the helper could never do for a block device, the recipe's install, asking at each step who
+parses the guest's filesystem, with what, and what holds the volume. A host's customer declares a
+modded Minecraft server whose recipe targets the `microvm` tier and whose install fetches the
+server jar, writes its EULA, extracts a modpack, and renders `server.properties`. Later the
+customer upgrades the recipe while the panel's file manager is open on the server.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The plan creates the volume and installs into it before the workload has an object: pull, create the volume, install, create, start | `09-recipes.md` §4 |
+| 2 | The helper makes the volume a block device, formatted empty, which it never mounts | `06-storage.md` §3.1 |
+| 3 | The node fetches the jar by its declared hash and the recipe's files into its content store, as for any install | `09-recipes.md` §4; `06-storage.md` §6 |
+| 4 | The node sees the workload's driver takes block devices and asks that driver to run the install, never the helper | `09-recipes.md` §4; `04-runtimes.md` §4.4 |
+| 5 | The driver writes the install's spec and what it reads onto a content drive, and boots a service guest of the workload's with it and the volume | `04-runtimes.md` §4.4 |
+| 6 | The guest's first process enters a root of the volume and runs the install job, which builds its confined root from the guest's own ids and runs the actions | `04-runtimes.md` §4.4; `09-recipes.md` §4; `17-security.md` §5 |
+| 7 | The node asks after the install each pass; the driver answers from what the guest's agent says, decoding its result as the helper's is | `04-runtimes.md` §4.4; `17-security.md` §5 |
+| 8 | The install ends; the driver stops the guest, so the volume is synced, and the plan creates and starts the workload | `04-runtimes.md` §4.4 |
+| 9 | The upgrade stops the workload; the file manager's session ends with its guest, and opens again on a service guest | `04-runtimes.md` §4.4; `11-surface-web.md` §8 |
+| 10 | The upgrade's install ends that guest first, the file manager's session reopening on the install's own guest, which stays until the session ends | `04-runtimes.md` §4.4 |
+| 11 | The plan's start is refused while the install runs, and moves on once it has ended | `04-runtimes.md` §4.4 |
+| 12 | The driver restarts during an install; the node, told it knows no such install, starts it again from the progress it kept | `09-recipes.md` §4; `04-runtimes.md` §4.4 |
+
+**No finding.** Asking the algebra question of step 11 found its answer in a component that holds
+the information: the start is refused by the driver, which is the one that knows a service guest of
+the workload's holds the volume, rather than by the node, which knows only that a plan step is in
+flight. Step 12's answer is the helper's own: progress is kept by the node per install, so a driver
+that forgets loses at most the actions since the node last asked.
+
+Steps 1 to 12 are built. `crates/korpis-driver-firecracker/tests/install.rs` runs an install into a
+stopped guest's volume from a recipe file and literal text, sees the workload's start refused while
+it runs and its worker confined, starts a second install from a later action, and has the started
+workload read what both wrote; `crates/korpis-agent/tests/agent/reconcile.rs` routes a block-device
+workload's install to its driver and never to the helper; `crates/korpis-e2e/tests/e2e/
+microvm_install.rs` declares a recipe on the `microvm` tier on a real node, reads what its install
+wrote through the relay, and upgrades it, the install running again in the stopped guest. Two
+steps are built without a test of their own: step 10's session joining the install's guest takes
+the path trace 66's second session takes, and step 12's restart is the helper's lost worker, which
+`crates/korpis-agent` tests for the helper and not for a driver.

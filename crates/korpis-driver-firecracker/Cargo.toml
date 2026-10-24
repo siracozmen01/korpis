@@ -46,4 +46,7 @@ korpis-driver-oci = { path = "../korpis-driver-oci" }
 korpis-helper = { path = "../korpis-helper" }
 korpis-image = { path = "../korpis-image", features = ["testing"] }
 korpis-stream = { workspace = true }
+# An install's actions as a plan step carries them, and its recipe file kept by digest.
+korpis-wire = { workspace = true }
+sha2 = "0.10"
 tempfile = "3"

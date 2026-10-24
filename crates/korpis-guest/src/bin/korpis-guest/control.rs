@@ -129,7 +129,13 @@ fn answer(connection: OwnedFd, started: Instant, config: &Config) {
                 let refused = !crate::files::keep(&payload);
                 control::write(&mut stream, Kind::Kept, &[u8::from(refused)])
             }
-            Kind::Pong
+            // Asked only of a guest booted for an install.
+            Kind::InstallStatus if config.role == korpis_guest::config::Role::Install => {
+                control::write(&mut stream, Kind::Installing, &crate::install::status().encode())
+            }
+            Kind::InstallStatus
+            | Kind::Installing
+            | Kind::Pong
             | Kind::Signalled
             | Kind::Resized
             | Kind::Output

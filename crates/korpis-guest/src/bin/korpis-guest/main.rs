@@ -9,7 +9,8 @@
 //! has ended, it ends every other process, writes how the run ended on the config drive, and
 //! restarts the guest, which ends the microVM: Firecracker exits when its guest reboots. The first
 //! process must never return, so every failure ends the same way, with the reason on the console.
-//! While the entry runs, it answers the driver on the control port over vsock.
+//! While the entry runs, it answers the driver on the control port over vsock. A service guest
+//! mounts its volumes in a root of nothing else and serves file sessions, running no entry.
 //!
 //! It holds two `unsafe` blocks. In `run`, the entry's child clears the signal mask it inherits
 //! before exec, and an interactive entry takes its terminal as its controlling one, which only
@@ -21,12 +22,14 @@ mod exec;
 mod fileport;
 mod files;
 mod grow;
+mod install;
 mod mounts;
 mod net;
+mod ready;
 mod relay;
 mod run;
 
-use korpis_guest::config::Config;
+use korpis_guest::config::{Config, Role};
 use korpis_guest::drive;
 use korpis_guest::status::Ended;
 use nix::sys::reboot::{RebootMode, reboot, set_cad_enabled};
@@ -39,6 +42,8 @@ use std::time::Duration;
 const ROOT: &str = "/newroot";
 /// The file worker on the boot drive (§4.4 of docs/04-runtimes.md).
 const FILE_WORKER: &str = "/korpis-fsworker";
+/// The install job on the boot drive, which a service guest runs for an install.
+const INSTALL_JOB: &str = "/korpis-install-job";
 /// How long the entry waits for the workload's files once its identity socket is served: the
 /// driver sends them within a fraction of a second of being able to, so this is for a driver
 /// that is itself restarting.
@@ -90,14 +95,27 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     set_cad_enabled(false).map_err(failed("taking Ctrl+Alt+Del"))?;
     let mut signals = signals()?;
     let config = Config::read(drive).map_err(failed("reading the config drive"))?;
-    // Listening before the run says it has started, so a driver told it has can ask the agent.
+    // Listening before the run says it has started, so a driver told it has can ask the agent
+    // and open a session; each waits for the workload's root (`ready`). The file worker is on the
+    // boot drive, which the workload's root does not hold.
     if let Err(e) = control::serve(std::time::Instant::now(), std::sync::Arc::new(config.clone())) {
         say(&format!("{e}; the guest's agent will not answer"));
     }
+    let worker = File::open(FILE_WORKER).map_err(|e| format!("the file worker: {e}"));
+    let serving = worker.and_then(fileport::serve);
     // The serial port was opened for this process before it ran, and what is typed on it from
     // now on is kept for whoever reads it: the driver holds a console's input until it is told.
     if let Err(e) = korpis_guest::status::started(drive) {
         say(&format!("saying the run has started: {e}"));
+    }
+    // The install job is on the boot drive too.
+    let install_job = File::open(INSTALL_JOB).map_err(|e| format!("the install job: {e}"));
+    if config.role.is_service() {
+        serving?;
+        return service(&config, install_job, &mut signals);
+    }
+    if let Err(e) = serving {
+        say(&format!("{e}; the guest serves no file session"));
     }
     if !config.interactive {
         plain_output();
@@ -105,20 +123,38 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     nix::unistd::sethostname(&config.hostname).map_err(failed("setting the hostname"))?;
     mounts::root(ROOT, &config)?;
     net::configure(config.network.as_ref())?;
-    // The file worker is on the boot drive, which the workload's root does not hold.
-    let worker = File::open(FILE_WORKER);
     enter(ROOT).map_err(failed("entering the workload's root"))?;
-    match worker.map_err(|e| e.to_string()).and_then(fileport::serve) {
-        Ok(()) => {}
-        Err(e) => say(&format!("{e}; the guest serves no file session")),
-    }
     if config.identity {
         relay::serve()?;
         if !files::synced(FIRST_SYNC) {
             say("the workload's files did not arrive in time; its entry starts without them");
         }
     }
+    ready::set();
     run::run(&config, &mut signals)
+}
+
+/// A service guest's run (§4.4 of docs/04-runtimes.md): its volumes in a root of nothing else,
+/// file sessions served on the files port, an install run if it was booted for one, and no
+/// entry, until it is stopped. Without its worker it has nothing to do, so it ends at once.
+fn service(
+    config: &Config,
+    install_job: Result<File, String>,
+    signals: &mut SignalFd,
+) -> Result<Ended, String> {
+    mounts::service(ROOT, config)?;
+    enter(ROOT).map_err(failed("entering the service root"))?;
+    ready::set();
+    if config.role == Role::Install {
+        match install_job {
+            Ok(job) => install::start(&job),
+            Err(e) => {
+                say(&e);
+                install::start_failed();
+            }
+        }
+    }
+    run::idle(signals)
 }
 
 /// Makes `root` the root of the guest's mount namespace, as a container runtime does, and

@@ -134,6 +134,29 @@ impl<R: Runtime> Runtime for Metered<R> {
         self.inner.files(id, write)
     }
 
+    fn start_install(
+        &self,
+        asked: &driver::StartInstallRequest,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.inner.start_install(asked)
+    }
+
+    fn install_status(
+        &self,
+        driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<driver::InstallStatusResponse>> + Send {
+        self.inner.install_status(driver, job)
+    }
+
+    fn forget_install(
+        &self,
+        driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.inner.forget_install(driver, job)
+    }
+
     fn console_input(
         &self,
         id: &str,

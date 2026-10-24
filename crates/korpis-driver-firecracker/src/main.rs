@@ -34,6 +34,9 @@ struct Cli {
     /// `korpis-fsworker`, built static, which each guest's boot drive carries for file sessions.
     #[arg(long, default_value = "/usr/lib/korpis/korpis-fsworker")]
     fsworker: PathBuf,
+    /// `korpis-install-job`, built static, which each guest's boot drive carries for installs.
+    #[arg(long, default_value = "/usr/lib/korpis/korpis-install-job")]
+    install_job: PathBuf,
     /// `korpis-image-build`; by default the one installed beside this binary.
     #[arg(long)]
     image_build: Option<PathBuf>,
@@ -80,6 +83,7 @@ async fn run(cli: Cli) -> Result<(), String> {
         kernel: cli.kernel,
         guest: cli.guest,
         fsworker: cli.fsworker,
+        install_job: cli.install_job,
         image_build,
         writer,
         content: cli.content,

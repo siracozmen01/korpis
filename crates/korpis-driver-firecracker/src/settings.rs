@@ -23,6 +23,9 @@ pub struct Settings {
     /// `korpis-fsworker`, built static, which the boot drive carries for file sessions in a guest
     /// (§4.4 of docs/04-runtimes.md).
     pub fsworker: PathBuf,
+    /// `korpis-install-job`, built static, which the boot drive carries for an install in a
+    /// service guest (§4.4 of docs/04-runtimes.md).
+    pub install_job: PathBuf,
     /// `korpis-image-build`, which makes an image's drive.
     pub image_build: PathBuf,
     /// `korpis-stream-writer`, which writes a guest's console to its stream.
@@ -62,17 +65,28 @@ impl Settings {
         self.state.join("drives")
     }
 
+    /// The service guests' directories (§4.4 of docs/04-runtimes.md), each named by its jail.
+    #[must_use]
+    pub fn services(&self) -> PathBuf {
+        self.state.join("services")
+    }
+
     /// Where the jailer builds its chroots.
     #[must_use]
     pub fn jails(&self) -> PathBuf {
         self.state.join("jail")
     }
 
+    /// The jailer's directory of every jail it builds, named by Firecracker's file name.
+    #[must_use]
+    pub fn jails_of_firecracker(&self) -> PathBuf {
+        self.jails().join(self.firecracker.file_name().unwrap_or_default())
+    }
+
     /// The jail of object `id`, which the jailer names by Firecracker's file name and the id.
     #[must_use]
     pub fn jail(&self, id: &str) -> PathBuf {
-        let name = self.firecracker.file_name().unwrap_or_default();
-        self.jails().join(name).join(id)
+        self.jails_of_firecracker().join(id)
     }
 
     /// The root the guest's Firecracker sees.

@@ -21,11 +21,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
-const JAR: &[u8] = b"not really a jar\n";
-const MIB: u64 = 1 << 20;
+pub const JAR: &[u8] = b"not really a jar\n";
+pub const MIB: u64 = 1 << 20;
 
 /// Serves [`JAR`] on loopback, counting the requests; its URL and the count.
-async fn serve_jar() -> (String, Arc<AtomicUsize>) {
+pub async fn serve_jar() -> (String, Arc<AtomicUsize>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}/paper.jar", listener.local_addr().unwrap());
     let count = Arc::new(AtomicUsize::new(0));
@@ -63,8 +63,8 @@ fn archive(world: u64) -> Vec<u8> {
     b.into_inner().unwrap()
 }
 
-/// The installing recipe at `version`, fetching the jar from `url`, writing `eula`.
-fn document(version: &str, url: &str, eula: &str) -> String {
+/// The installing recipe at `version` for `tier`, fetching the jar from `url`, writing `eula`.
+pub fn document(tier: &str, version: &str, url: &str, eula: &str) -> String {
     let busybox = busybox();
     let sha = sha2::Sha256::digest(JAR).iter().fold(String::new(), |s, b| s + &format!("{b:02x}"));
     format!(
@@ -73,7 +73,7 @@ kind: Recipe
 metadata: {{name: installer, version: "{version}", description: installs, license: MIT}}
 runtime:
   targets:
-    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
+    - {{tier: {tier}, arch: [amd64, arm64], image: "{busybox}"}}
   entry: {{command: [/bin/sh, -c, "exec sleep 3600"]}}
 preset:
   lifecycle: persistent
@@ -101,7 +101,7 @@ templates:
 }
 
 /// Pushes `document` with its files to `repo` as `version`.
-async fn push(repo: &str, version: &str, document: String) {
+pub async fn push(repo: &str, version: &str, document: String) {
     let file = |path: &str, data: Vec<u8>| File {
         path: path.to_owned(),
         media_type: "application/octet-stream".to_owned(),
@@ -120,7 +120,7 @@ async fn push(repo: &str, version: &str, document: String) {
 
 /// A declaration of `version` of the recipe at `repo`, its volume `size` bytes: new as `name` in
 /// `project`, or for `workload` at intent `at`.
-fn declaration(
+pub fn declaration(
     (repo, version): (&str, &str),
     size: u64,
     target: Target,
@@ -157,7 +157,7 @@ fn declaration(
 
 /// Declares, approves the plan if it waits for a person, and waits for it to become `wanted`; the
 /// workload and the plan.
-async fn declared(
+pub async fn declared(
     cp: &ControlPlane,
     d: pb::DeclareIntentRequest,
     wanted: pb::PlanStatus,
@@ -177,8 +177,12 @@ async fn declared(
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    panic!("plan {} never became {wanted:?}", plan.id);
+    let said = cp.scalar::<Option<String>>(EFFECTS).await;
+    panic!("plan {} never became {wanted:?}; what the node said: {said:?}", plan.id);
 }
+
+/// What each step's effect said, for a plan that never ended as awaited.
+const EFFECTS: &str = "SELECT string_agg(action || ' ' || outcome || ' ' || coalesce(error::text, ''),                        '; ' ORDER BY at) FROM effect WHERE action LIKE 'step.%'";
 
 #[tokio::test]
 async fn a_recipe_installs_resumes_where_it_failed_and_installs_again_when_upgraded() {
@@ -193,7 +197,7 @@ async fn a_recipe_installs_resumes_where_it_failed_and_installs_again_when_upgra
     let registry =
         std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned());
     let repo = format!("{registry}/test/installer-{}", uuid::Uuid::now_v7().simple());
-    push(&repo, "1.0.0", document("1.0.0", &url, "eula=true\\n")).await;
+    push(&repo, "1.0.0", document("container", "1.0.0", &url, "eula=true\\n")).await;
 
     // Sixteen MiB will not hold a thirty-two MiB world: the extract fails, the two before it done.
     let new = Target::Create(Box::new(pb::NewWorkload {
@@ -228,7 +232,7 @@ async fn a_recipe_installs_resumes_where_it_failed_and_installs_again_when_upgra
     assert_eq!(std::fs::read_to_string(vol.join("server.properties")).unwrap(), "motd=hi\n");
 
     // A new version of the recipe: stopped, installed again, started.
-    push(&repo, "2.0.0", document("2.0.0", &url, "eula=true\\n# v2\\n")).await;
+    push(&repo, "2.0.0", document("container", "2.0.0", &url, "eula=true\\n# v2\\n")).await;
     let upgrade =
         declaration((&repo, "2.0.0"), 96 * MIB, Target::Workload(w.clone()), ("d3", Some(2)));
     let (_, plan) = declared(&cp, upgrade, pb::PlanStatus::PLAN_STATUS_APPLIED).await;

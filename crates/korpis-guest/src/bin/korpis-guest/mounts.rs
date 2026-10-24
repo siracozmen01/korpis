@@ -5,6 +5,7 @@
 //! read-only, as a container's root is (§2 of docs/04-runtimes.md). Beneath it, the kernel's
 //! filesystems, small tmpfs mounts at `/tmp`, `/run`, and `/dev/shm` so a read-only root is
 //! livable, the volumes, each its own drive's filesystem, and the resolver the guest is given.
+//! A service guest's root holds the volumes and no image.
 
 use crate::failed;
 use korpis_guest::config::Config;
@@ -115,6 +116,37 @@ fn system(root: &str) -> Result<(), String> {
 pub fn root(root: &str, config: &Config) -> Result<(), String> {
     overlay(root, config)?;
     system(root)?;
+    volumes(root, config)
+}
+
+/// A service guest's root at `root` (§4.4 of docs/04-runtimes.md): no image, only a small tmpfs
+/// holding the mount points, made read-only, then the kernel's filesystems and the volumes at
+/// their paths, which is all a file session's worker reaches; for an install, its content drive
+/// beneath `/run`.
+pub fn service(root: &str, config: &Config) -> Result<(), String> {
+    let tmpfs = MsFlags::MS_NOSUID | MsFlags::MS_NODEV;
+    mounted("tmpfs", Path::new(root), "tmpfs", tmpfs, Some("size=1m,mode=0755"))?;
+    let fixed = ["/proc", "/sys", "/dev", "/run", "/tmp"];
+    for d in fixed.into_iter().chain(config.volumes.iter().map(|v| v.path.as_str())) {
+        std::fs::create_dir_all(beneath(root, d)?).map_err(failed("a mount point"))?;
+    }
+    let readonly = MsFlags::MS_REMOUNT | MsFlags::MS_RDONLY | tmpfs;
+    mount(None::<&str>, root, None::<&str>, readonly, None::<&str>)
+        .map_err(failed("making the root read-only"))?;
+    system(root)?;
+    if config.role == korpis_guest::config::Role::Install {
+        // The install's content, which the host wrote from its own store, read-only.
+        let at = beneath(root, korpis_guest::drive::INSTALL_CONTENT)?;
+        std::fs::create_dir_all(&at).map_err(failed("the content drive's mount point"))?;
+        let flags =
+            MsFlags::MS_RDONLY | MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC;
+        mounted(drive::IMAGE, &at, "ext4", flags, None)?;
+    }
+    volumes(root, config)
+}
+
+/// The volumes beneath `root`, each its own drive's filesystem, grown to its drive.
+fn volumes(root: &str, config: &Config) -> Result<(), String> {
     for (index, volume) in config.volumes.iter().enumerate() {
         let mut flags = MsFlags::MS_NOSUID | MsFlags::MS_NODEV;
         if volume.read_only {

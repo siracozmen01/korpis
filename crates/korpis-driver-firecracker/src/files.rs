@@ -48,13 +48,15 @@ pub async fn up(mut requests: InboundStream<driver::FilesRequest>, mut to: Owned
     let _ = to.shutdown().await;
 }
 
-/// Each frame the worker at `from` writes, as a response, until it closes between two frames.
-pub fn down(
+/// Each frame the worker at `from` writes, as a response, until it closes between two frames;
+/// `held` is kept until then, or until the node lets the session go.
+pub fn down<H: Send + 'static>(
     from: OwnedReadHalf,
+    held: H,
 ) -> impl futures_util::Stream<Item = Result<driver::FilesResponse, ConnectError>> + Send + 'static
 {
-    futures_util::stream::unfold(Some(from), |from| async move {
-        let mut from = from?;
+    futures_util::stream::unfold(Some((from, held)), |state| async move {
+        let (mut from, held) = state?;
         let mut length = [0_u8; 4];
         if from.read_exact(&mut length).await.is_err() {
             return None;
@@ -69,6 +71,6 @@ pub fn down(
             let lost = ConnectError::new(ErrorCode::Unavailable, format!("the worker: {e}"));
             return Some((Err(lost), None));
         }
-        Some((Ok(driver::FilesResponse { frame, ..Default::default() }), Some(from)))
+        Some((Ok(driver::FilesResponse { frame, ..Default::default() }), Some((from, held))))
     })
 }

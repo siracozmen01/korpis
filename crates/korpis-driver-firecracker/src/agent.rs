@@ -10,7 +10,7 @@
 
 use crate::api::socket_at;
 use korpis_driver_kit::exec::{Command, Ran};
-use korpis_guest::control::{self, Exited, HEADER, Kind, Pong, Resized, Signalled};
+use korpis_guest::control::{self, Exited, HEADER, Installing, Kind, Pong, Resized, Signalled};
 use std::io;
 use std::path::Path;
 use std::time::Duration;
@@ -97,6 +97,20 @@ pub async fn ping(socket: &Path, within: Duration) -> io::Result<Pong> {
     tokio::time::timeout(within, pinged(socket))
         .await
         .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not answer"))?
+}
+
+/// Asks the agent of the service guest whose vsock device's socket is at `socket` how its
+/// install goes, within `within`.
+///
+/// # Errors
+/// It did not answer in time, its guest refused the connection, or it answered otherwise than
+/// this driver's protocol says.
+pub async fn install_status(socket: &Path, within: Duration) -> io::Result<Installing> {
+    let asked = ask(socket, (Kind::InstallStatus, &[]), (Kind::Installing, control::MOST));
+    let payload = tokio::time::timeout(within, asked).await.map_err(|_| {
+        io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not answer")
+    })??;
+    Installing::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))
 }
 
 /// Asks the agent of the guest whose vsock device's socket is at `socket` to send its entry the

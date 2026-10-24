@@ -18,6 +18,9 @@ use std::future::{Future, ready};
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 
+/// Why this driver runs no install: a container's are the helper's, on the host.
+const NO_INSTALLS: &str = "a container's installs run on its host; this driver has no guest";
+
 /// The grace a stop gets when the request names none.
 pub const DEFAULT_GRACE: Duration = Duration::from_secs(10);
 /// How many events a slow listener may fall behind by before it misses some.
@@ -301,6 +304,34 @@ impl driver::DriverService for Driver {
     ) -> impl Future<Output = ServiceResult<ServiceStream<driver::FilesResponse>>> + Send {
         let why = "a container's files are served on its host; this driver has no guest worker";
         ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, why)))
+    }
+
+    /// Refused: a container's installs are run on the host by the helper's install job; the
+    /// driver takes no volume as a block device.
+    fn start_install(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, driver::StartInstallRequest>,
+    ) -> impl Future<Output = ServiceResult<driver::StartInstallResponse>> + Send {
+        ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, NO_INSTALLS)))
+    }
+
+    /// Refused, as [`Self::start_install`] is.
+    fn install_status(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, driver::InstallStatusRequest>,
+    ) -> impl Future<Output = ServiceResult<driver::InstallStatusResponse>> + Send {
+        ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, NO_INSTALLS)))
+    }
+
+    /// Refused, as [`Self::start_install`] is.
+    fn forget_install(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, driver::ForgetInstallRequest>,
+    ) -> impl Future<Output = ServiceResult<driver::ForgetInstallResponse>> + Send {
+        ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, NO_INSTALLS)))
     }
 
     async fn signal(

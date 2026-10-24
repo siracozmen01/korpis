@@ -621,6 +621,12 @@ Primary:
   ([RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071.html), read from the
   advisory database `cargo deny` fetches, 2026-10-22). Why a relay's SSH host key is Ed25519 and
   never RSA (§7 of `../21-stack.md`).
+- **[V]** RUSTSEC-2026-0344, a decompression bomb in `ruzstd` before 0.9.1: "a crafted `.zst`
+  input under 128 KB can force `ruzstd` to allocate several gigabytes at once", since a block's
+  decompressed size was never checked against the format's maximum; denial of service only, fixed
+  in 0.9.1 ([RUSTSEC-2026-0344](https://rustsec.org/advisories/RUSTSEC-2026-0344), read from the
+  advisory database `cargo deny` fetches, 2026-10-24). Why the install job's zstd decoder is
+  `ruzstd` 0.9.1 and no earlier (§4 of `../09-recipes.md`).
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a

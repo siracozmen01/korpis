@@ -291,8 +291,11 @@ to its guest. A microVM's `/run/korpis` reaches its guest over that channel: its
 and API relay served there by its first process (trace 65 there), and its managed files and its
 dependencies' files sent as copies as they change, so a heartbeat probe runs on either tier
 (Finding 154 there, closed). A running microVM's file sessions, the panel's file manager and SFTP,
-are served inside its guest by the file worker its boot drive carries (§4.4 of `04-runtimes.md`);
-a stopped one's wait for the service microVM, which follows in this phase.
+are served inside its guest by the file worker its boot drive carries, and a stopped one's by the
+same worker in a service microVM, a guest of Korpis's own holding its volumes (§4.4 of
+`04-runtimes.md`), and so are installs into a stopped microVM's volume, by the helper's install job
+in such a guest (§4 of `09-recipes.md`); the browse and single-file restore of a block-device
+volume's backup (§5.4 of `06-storage.md`) follows through that guest in this phase.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -452,7 +455,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: sixty-five traces and their 156 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: sixty-seven traces and their 157 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

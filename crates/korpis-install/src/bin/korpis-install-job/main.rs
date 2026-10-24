@@ -105,10 +105,11 @@ fn first() -> Result<ExitCode, String> {
     Ok(if status.success() { ExitCode::SUCCESS } else { ExitCode::FAILURE })
 }
 
-/// Starts the worker with `spec`, its length first.
+/// Starts the worker with `spec`, its length first. The worker is this binary again, reached
+/// through `/proc/self/exe` rather than by its path: in a service guest the path is on the boot
+/// drive, which the root this runs in does not hold (§4.4 of docs/04-runtimes.md).
 fn spawn(spec: &[u8]) -> Result<Child, String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let mut child = Command::new(exe)
+    let mut child = Command::new("/proc/self/exe")
         .arg(WORKER)
         .env_clear()
         .envs(std::env::var_os("RUST_LOG").map(|v| ("RUST_LOG", v)))

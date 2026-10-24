@@ -327,24 +327,25 @@ agent is given as a second `--driver-socket`. It runs as root, because Firecrack
 the jailer makes each guest's chroot, cgroup, and pid namespace and then runs that guest's
 Firecracker as the workload's first id, so no guest runs as root. What does beside it is the
 guest's console writer, as a container's does under its shim, moved into the guest's cgroup. The
-driver reads Firecracker, the jailer, the guest kernel, `korpis-guest`, and the file worker every
-guest's boot drive carries, `korpis-fsworker` built static, from `/usr/lib/korpis`
-(`--firecracker`, `--jailer`, `--kernel`, `--guest`, `--fsworker`; §4.4 of `04-runtimes.md`), and
-starts `korpis-stream-writer` and `korpis-image-build` from beside its own binary
-(`--stream-writer`, `--image-build`); it reads images from the node's content store as the `oci`
-driver does, and volumes from beneath the volume root; it relays a guest's `/run/korpis` to the
-workload's own identity directory beneath `/var/lib/korpis-agent/identity` (`--identity-root`,
-which must be the agent's, as for the `oci` driver; §6 of `04-runtimes.md`); it keeps its objects,
-the drives guests share, and their jails in `/var/lib/korpis-driver-firecracker` (`--state-dir`),
-and each guest's cgroup beneath `korpis-firecracker` (`--cgroup`). Stopping it stops no guest and
-no console, and the next one reads the guests back with `Recover`. Installation writes its unit
-only where `/dev/kvm` opens and Firecracker, the jailer, `vmlinux`, `korpis-guest`, and
-`korpis-fsworker` are all in `--microvm-dir` (`/usr/lib/korpis`), and says otherwise why the node
-runs containers alone; `korpis-agent preflight`, given the drivers' sockets, asks each which tiers
-it offers, and where one offers `microvm` it reports KVM and the tun driver lacking, with their
-fix, rather than not needed. Until the signed agent package carries the five files (question 7 of
-§10, resolved there), `scripts/microvm-files.sh` puts them there from a checkout, built and pinned
-as §5 of `21-stack.md` says, and prints each one's digest. The unit runs it as root under
+driver reads Firecracker, the jailer, the guest kernel, `korpis-guest`, and what every guest's boot
+drive carries beside it, the file worker `korpis-fsworker` and the install job
+`korpis-install-job`, each built static, from `/usr/lib/korpis` (`--firecracker`, `--jailer`,
+`--kernel`, `--guest`, `--fsworker`, `--install-job`; §4.4 of `04-runtimes.md`), and starts
+`korpis-stream-writer` and `korpis-image-build` from beside its own binary (`--stream-writer`,
+`--image-build`); it reads images from the node's content store as the `oci` driver does, and
+volumes from beneath the volume root; it relays a guest's `/run/korpis` to the workload's own
+identity directory beneath `/var/lib/korpis-agent/identity` (`--identity-root`, which must be the
+agent's, as for the `oci` driver; §6 of `04-runtimes.md`); it keeps its objects, the drives guests
+share, and their jails in `/var/lib/korpis-driver-firecracker` (`--state-dir`), and each guest's
+cgroup beneath `korpis-firecracker` (`--cgroup`). Stopping it stops no guest and no console, and
+the next one reads the guests back with `Recover`. Installation writes its unit only where
+`/dev/kvm` opens and Firecracker, the jailer, `vmlinux`, `korpis-guest`, `korpis-fsworker`, and
+`korpis-install-job` are all in `--microvm-dir` (`/usr/lib/korpis`), and says otherwise why the
+node runs containers alone; `korpis-agent preflight`, given the drivers' sockets, asks each which
+tiers it offers, and where one offers `microvm` it reports KVM and the tun driver lacking, with
+their fix, rather than not needed. Until the signed agent package carries the six files (question 7
+of §10, resolved there), `scripts/microvm-files.sh` puts them there from a checkout, built and
+pinned as §5 of `21-stack.md` says, and prints each one's digest. The unit runs it as root under
 `ProtectSystem=strict`, with its state directory, the volume root, `/run/korpis`, and the cgroup
 hierarchy writable, and `KillMode=process`, since its guests outlive it; it is not held by
 `RestrictSUIDSGID`, because systemd refuses `openat2` and `fchmodat2` under it, which it cannot
@@ -899,8 +900,9 @@ plane requires outbound internet access, and telemetry is off by default (§6 of
    enrollment token, and Korpis never speaks a cloud API itself. → here
 7. **How a node gets the guest kernel and Firecracker. Resolved in §2** (2026-10-23, as the
    `firecracker` driver became a node component). The signed agent package carries Firecracker,
-   its jailer, and the guest kernel into `/usr/lib/korpis` beside `korpis-guest` and
-   `korpis-fsworker` (the latter added 2026-10-24, when a guest's file worker was built), built by
+   its jailer, and the guest kernel into `/usr/lib/korpis` beside `korpis-guest`,
+   `korpis-fsworker`, and `korpis-install-job` (the last two added 2026-10-24, when a guest's file
+   worker and its installs were built), built by
    the release pipeline from the pins of §5 of `21-stack.md` and verified, as every file of the
    package is, by its signature; installation runs the driver only where KVM opens and the files
    are there; and an upgrade reaches a running guest at its next boot, never while it runs (§6 of

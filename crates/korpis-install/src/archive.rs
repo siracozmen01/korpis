@@ -12,7 +12,7 @@ use super::beneath;
 use super::files;
 use rustix::fs::{AtFlags, linkat, symlinkat};
 use std::fs::File;
-use std::io::{Read, Seek as _, SeekFrom};
+use std::io::{BufReader, Read, Seek as _, SeekFrom};
 use std::os::fd::OwnedFd;
 
 /// How an archive is unpacked.
@@ -155,7 +155,7 @@ pub fn unpack(mut file: File, into: &OwnedFd, o: Options<'_>) -> Result<u64, Str
     match format(&mut file).map_err(io)? {
         Format::Zip => unzip(file, &mut sink, o)?,
         Format::Gzip => untar(flate2::read::MultiGzDecoder::new(file), &mut sink, o)?,
-        Format::Zstd => untar(zstd::stream::read::Decoder::new(file).map_err(io)?, &mut sink, o)?,
+        Format::Zstd => untar(crate::zstd::Frames::new(BufReader::new(file)), &mut sink, o)?,
         Format::Xz => unxz(file, &mut sink, o)?,
         Format::Tar => untar(file, &mut sink, o)?,
     }

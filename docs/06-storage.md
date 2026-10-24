@@ -273,12 +273,14 @@ workloads, which a volume of files allows, is refused for a block device. Snapsh
 whole-volume restores take the directory as they take any other, so they hold the image whole. A
 file session on a running guest's block device is served by the worker inside the guest (§4.4 of
 `04-runtimes.md`; added 2026-10-24, when this said file sessions were refused on a block device
-until that worker was built); on a stopped guest's, and an install into one, they are refused until
-the service microVM is. What it costs, beyond the table: a guest's disk usage as the class accounts
-it is the image's allocated blocks, which grow as the guest writes and do not shrink when it
-deletes. It is labelled as allocated wherever it is shown: the metering sample and record carry
-`disk_allocated`, and `korpis get usage` and the panel say "allocated" beside the figure (§2 of
-`15-observability.md`).
+until that worker was built), and on a stopped guest's by the same worker in a service microVM,
+which the guest's start ends first so the device is never attached twice (added the same day); and
+an install into a stopped guest's runs in a service microVM too, by the same install job the helper
+runs (§4 of `09-recipes.md`; added the same day, when this said an install was refused there). What
+it costs, beyond the table: a guest's disk usage as the class accounts it is the image's allocated
+blocks, which grow as the guest writes and do not shrink when it deletes. It is labelled as
+allocated wherever it is shown: the metering sample and record carry `disk_allocated`, and `korpis
+get usage` and the panel say "allocated" beside the figure (§2 of `15-observability.md`).
 
 ---
 

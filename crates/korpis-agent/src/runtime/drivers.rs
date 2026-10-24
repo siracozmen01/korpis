@@ -344,10 +344,34 @@ impl<R: Runtime> Runtime for Drivers<R> {
         self.files_on(id, write)
     }
 
+    fn start_install(
+        &self,
+        asked: &driver::StartInstallRequest,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.start_install_on(asked)
+    }
+
+    fn install_status(
+        &self,
+        driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<driver::InstallStatusResponse>> + Send {
+        self.install_status_on(driver, job)
+    }
+
+    fn forget_install(
+        &self,
+        driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.forget_install_on(driver, job)
+    }
+
     fn changes(&self) -> broadcast::Receiver<String> {
         self.changes.subscribe()
     }
 }
 
+mod install;
 #[cfg(test)]
 mod tests;

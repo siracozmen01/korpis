@@ -209,8 +209,10 @@ Firecracker's guest configuration, vendored in `guest/kernel/` with its own reco
 digest, stamped so the same compiler rebuilds the same bytes. And the guest's first process,
 `korpis-guest`, is Rust like every other program here, built static for the musl target that
 `rust-toolchain.toml` installs, since it runs on a root filesystem Korpis did not make, as is the
-file worker a guest's boot drive carries beside it, `korpis-fsworker`, the one the helper runs on a
-host (§4.4 of `04-runtimes.md`). What it costs: Firecracker's security releases and the kernel's
+file worker and the install job a guest's boot drive carries beside it, `korpis-fsworker` and
+`korpis-install-job`, the ones the helper runs on a host (§4.4 of `04-runtimes.md`); so that the
+install job builds static for musl with no C compiler, it decodes zstd with `ruzstd`, in Rust, the
+reference C decoder kept only to make its tests' archives. What it costs: Firecracker's security releases and the kernel's
 longterm updates reach Korpis only through a reviewed commit that moves a pin, so following them is
 a maintainer's chore no tool does; and until a release pipeline builds the kernel, a node's
 operator runs the scripts, and `scripts/microvm-files.sh` puts what they made where installation

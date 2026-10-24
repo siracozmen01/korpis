@@ -2,8 +2,8 @@
 
 //! The drives of a microVM, in the order its driver attaches them, so each has a name the guest
 //! can count on: the boot drive holding `korpis-guest`, which the kernel mounts as its root; the
-//! workload's image, read-only; the config drive; then each volume in the order the config lists
-//! them.
+//! workload's image, read-only, or a service guest's content drive in its place; the config
+//! drive; then each volume in the order the config lists them.
 
 /// The boot drive: `korpis-guest` and the directories it mounts on, shared by every guest of a
 /// node and mounted read-only.
@@ -14,6 +14,20 @@ pub const IMAGE: &str = "/dev/vdb";
 
 /// The config drive (`crate::config`), which also carries back how the run ended.
 pub const CONFIG: &str = "/dev/vdc";
+
+/// On a service guest that runs an install, the image's drive is the install's content drive,
+/// and this is the file on it holding the install's spec (`korpis_image::content::SPEC`).
+pub const INSTALL_SPEC: &str = "spec";
+
+/// Where a service guest mounts an install's content drive, beneath its root's `/run`; the
+/// install's spec names it as the job's content.
+pub const INSTALL_CONTENT: &str = "/run/.korpis-content";
+
+/// The install job's root, which it mounts its own on, and its output, where it writes its
+/// progress and result, in a service guest's `/run`.
+pub const INSTALL_ROOT: &str = "/run/.korpis-install/root";
+/// See [`INSTALL_ROOT`].
+pub const INSTALL_OUT: &str = "/run/.korpis-install/out";
 
 /// How many drives come before the first volume.
 const BEFORE_VOLUMES: usize = 3;

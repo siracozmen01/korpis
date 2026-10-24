@@ -29,10 +29,10 @@ pub fn quota_for(size: u64) -> u64 {
     size.saturating_add((size / 64).max(1 << 20))
 }
 
-/// `dir`, the volume `volume`'s directory, unless it holds a block device, whose files only its
-/// guest's kernel may parse (§4.4 of docs/04-runtimes.md): a file session or an install reaches
-/// them through a worker in the guest, which is not built yet, and is refused rather than shown
-/// the image.
+/// `dir`, the volume `volume`'s directory, unless it holds a block device, whose files only a
+/// guest's kernel may parse (§4.4 of docs/04-runtimes.md): a file session reaches them through
+/// the driver's worker in a guest, its own or a service guest, and one that reaches the helper
+/// instead, as an install still does, is refused rather than shown the image.
 pub fn files_of(volume: &str, dir: PathBuf) -> HelperResult<PathBuf> {
     if is_block(&dir) {
         let why = format!("volume {volume} is a block device: its files are reached in its guest");

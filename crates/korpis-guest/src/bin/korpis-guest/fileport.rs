@@ -24,14 +24,12 @@ const ROOT: &str = "/run/.korpis-files";
 /// `VMADDR_CID_ANY`: listen whatever the guest's address.
 const ANY_CID: u32 = u32::MAX;
 
-/// Listens on the files port, with `worker` the binary each session runs, in a thread of its own.
+/// Listens on the files port, with `worker` the binary each session runs, in a thread of its own;
+/// a session waits for the workload's root ([`crate::ready`]) before its worker starts.
 ///
 /// # Errors
-/// The worker's root or the port cannot be made.
+/// The port cannot be made.
 pub fn serve(worker: File) -> Result<(), String> {
-    std::fs::create_dir_all(ROOT).map_err(|e| format!("{ROOT}: {e}"))?;
-    std::fs::set_permissions(ROOT, std::fs::Permissions::from_mode(0o700))
-        .map_err(|e| format!("{ROOT}: {e}"))?;
     let listener = rustix::net::socket(AddressFamily::VSOCK, SocketType::STREAM, None)
         .map_err(|e| format!("a vsock socket: {e}"))?;
     let at = nix::sys::socket::VsockAddr::new(ANY_CID, control::FILES_PORT);
@@ -67,6 +65,11 @@ fn session(connection: OwnedFd, worker: &File) -> io::Result<()> {
     }
     let mut spec = vec![0; length];
     stream.read_exact(&mut spec)?;
+    if !crate::ready::wait() {
+        return Err(io::Error::other("the workload's root is not ready"));
+    }
+    std::fs::create_dir_all(ROOT)?;
+    std::fs::set_permissions(ROOT, std::fs::Permissions::from_mode(0o700))?;
     let program = format!("/proc/self/fd/{}", worker.as_raw_fd());
     let mut child = crate::exec::starting(|| {
         Command::new(&program)

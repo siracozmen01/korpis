@@ -128,6 +128,7 @@ pub fn settings(dir: &Path) -> Settings {
         kernel: tools.join("guest/vmlinux"),
         guest: built("korpis-guest", "korpis-guest", Some(MUSL)),
         fsworker: built("korpis-files", "korpis-fsworker", Some(MUSL)),
+        install_job: built("korpis-install", "korpis-install-job", Some(MUSL)),
         image_build: built("korpis-image", "korpis-image-build", None),
         writer: built("korpis-stream", "korpis-stream-writer", None),
         content: dir.join("content"),
@@ -256,4 +257,25 @@ impl Drop for Rig {
             }
         }
     }
+}
+
+/// Whether any service guest of `machine`'s runs: its jails are named `svc-`.
+pub fn service_guests(machine: &Machine) -> bool {
+    let jails = std::fs::read_dir(machine.settings().jails_of_firecracker());
+    jails
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|e| e.file_name().to_string_lossy().starts_with("svc-"))
+}
+
+/// Waits until no service guest of `machine`'s runs, within a bound.
+pub async fn no_service_guest(machine: &Machine) {
+    for _ in 0..300 {
+        if !service_guests(machine) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("a service guest still runs");
 }

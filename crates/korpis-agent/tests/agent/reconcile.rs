@@ -267,3 +267,44 @@ async fn an_agent_whose_driver_cannot_enumerate_waits_and_then_adopts() {
     adopted(&cp, &w, &runtime, before).await;
     drop(agent);
 }
+
+/// A workload whose driver takes its volumes as block devices has its install run by that driver,
+/// in a service guest, and never by the helper, whose worker would parse a filesystem a guest
+/// formatted (§4.4 of docs/04-runtimes.md); what the install reads is fetched as before.
+#[tokio::test]
+async fn a_block_device_workload_s_install_is_run_by_its_driver_and_not_the_helper() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    // Named as the driver the recipe's tier is placed on, which here takes block devices.
+    let (runtime, host) = (InMemory::named("oci", "blk"), InMemoryHost::new());
+    runtime.block_devices(true);
+    let (state, orphan) = node(&cp, &dir, &runtime).await;
+    // The node says so of its driver, as the driver declares itself.
+    let blocks = || {
+        let mut f = facts();
+        for d in &mut f.drivers {
+            let block = pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE;
+            let mut caps = d.capabilities.as_option().cloned().unwrap_or_default();
+            caps.volume_semantics = block.into();
+            d.capabilities = caps.into();
+        }
+        f
+    };
+    let options = Options { period: Duration::from_millis(200), ..Options::default() };
+    let agent = Agent::start(&state, runtime.clone(), host.clone(), Arc::new(blocks), options);
+    let agent = agent.unwrap();
+    let mut events = agent.events();
+    until(&mut events, |e| matches!(e, Event::Welcomed { .. })).await;
+    let w = cp.declare(&project, "mc").await;
+    converges(&cp, &w, &runtime, &orphan).await;
+    let installed =
+        "SELECT count(*) FROM effect WHERE action = 'step.install' AND outcome = 'succeeded'";
+    assert_eq!(effects(&cp, installed).await, 1, "installed once, before it was created");
+    let calls = runtime.calls();
+    let job =
+        calls.iter().find_map(|c| c.strip_prefix("start_install ")).expect("the driver ran it");
+    assert!(host.started(job).is_none(), "the helper never ran {job}");
+    assert_eq!(host.content().len(), 3, "what it reads was fetched: {:?}", host.content());
+    drop(agent);
+}

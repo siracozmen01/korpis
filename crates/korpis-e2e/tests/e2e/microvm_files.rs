@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A running microVM's files on a real node (§4.4 of docs/04-runtimes.md, §3.1 of
+//! A microVM's files on a real node (§4.4 of docs/04-runtimes.md, §3.1 of
 //! docs/06-storage.md): its volume is a block device the host never mounts, so a file session
 //! reaches it through the relay, the node, and the `firecracker` driver to the file worker inside
 //! the guest. The volume is listed as the guest mounts it, written, and read back; and OpenSSH's
-//! `sftp` puts a file there and gets it back whole, served the same way. Needs what the microVM
-//! test needs, and OpenSSH's client for the second half.
+//! `sftp` puts a file there and gets it back whole, served the same way. Stopped, its volume is
+//! served by a service guest: what was written while it ran is read, a file is written, and the
+//! workload started again finds it. Needs what the microVM test needs, and OpenSSH's client for
+//! the sftp half.
 
 use crate::files::open;
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, busybox, push};
 use crate::sftp::{have, person_with_key, run, serve_sftp};
-use crate::support::{ControlPlane, converged};
+use crate::support::{ControlPlane, converged, mutation};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::file_request::Request as File;
 use korpis_proto::korpis::v1::__buffa::oneof::file_response::Response;
@@ -42,8 +44,35 @@ preset:
     )
 }
 
+/// Stops `w`, or starts it again if `start`, at its power's `version`, and waits until it has.
+async fn power(cp: &ControlPlane, w: &str, start: bool, version: u64) {
+    let client = pb::WorkloadServiceClient::new(cp.http(), cp.config());
+    let m =
+        pb::Mutation { expected_version: Some(version), ..mutation(&format!("power-{version}")) };
+    let answer = if start {
+        let asked =
+            pb::StartRequest { mutation: m.into(), workload: w.into(), ..Default::default() };
+        client.start(asked).await
+    } else {
+        let asked =
+            pb::StopRequest { mutation: m.into(), workload: w.into(), ..Default::default() };
+        client.stop(asked).await
+    };
+    let plan = answer.unwrap().into_owned().plan.into_option().unwrap();
+    if plan.status.as_known() == Some(pb::PlanStatus::PLAN_STATUS_PROPOSED) {
+        cp.approve(&plan.id).await;
+    }
+    converged(cp, w).await;
+}
+
+/// What `path` holds, read in a session of `f`.
+async fn read(f: &mut crate::files::Files, path: &str) -> Response {
+    let read = pb::FileRead { path: path.into(), length: 64, ..Default::default() };
+    f.ask(File::Read(Box::new(read))).await
+}
+
 #[tokio::test]
-async fn a_running_microvm_s_files_are_reached_inside_its_guest_through_the_relay_and_sftp() {
+async fn a_microvm_s_files_are_reached_in_its_guest_and_stopped_in_a_service_guest() {
     if !live() {
         return;
     }
@@ -65,8 +94,7 @@ async fn a_running_microvm_s_files_are_reached_inside_its_guest_through_the_rela
     let names: Vec<&str> = top.entries.iter().map(|e| e.name.as_str()).collect();
     assert_eq!(names, ["data"], "the volume as the guest mounts it, and nothing of its image");
     assert_eq!(f.write("/data/hello.txt", 0, b"merhaba".to_vec()).await, Response::Written(7));
-    let read = pb::FileRead { path: "/data/hello.txt".into(), length: 64, ..Default::default() };
-    assert_eq!(f.ask(File::Read(Box::new(read))).await, Response::Data(b"merhaba".to_vec()));
+    assert_eq!(read(&mut f, "/data/hello.txt").await, Response::Data(b"merhaba".to_vec()));
     drop(f);
 
     if have("sftp") {
@@ -82,6 +110,17 @@ async fn a_running_microvm_s_files_are_reached_inside_its_guest_through_the_rela
         assert!(said.contains("hello.txt"), "listed beside the session's file: {said}");
         assert_eq!(std::fs::read(here.path().join("back.bin")).unwrap(), world, "whole");
     }
+
+    power(&cp, &w, false, 1).await;
+    let mut f = open(&editor, &w).await;
+    assert_eq!(read(&mut f, "/data/hello.txt").await, Response::Data(b"merhaba".to_vec()));
+    assert_eq!(f.write("/data/stopped.txt", 0, b"kept".to_vec()).await, Response::Written(4));
+    drop(f);
+    power(&cp, &w, true, 2).await;
+    let mut f = open(&editor, &w).await;
+    let kept = read(&mut f, "/data/stopped.txt").await;
+    assert_eq!(kept, Response::Data(b"kept".to_vec()), "written while it was stopped");
+    drop(f);
     cp.retire(&w).await;
     agent.stop().await;
 }

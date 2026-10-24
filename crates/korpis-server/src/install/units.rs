@@ -25,9 +25,8 @@ pub struct Layout {
     /// The control plane's backup target, which the daily backup writes to.
     pub backup_target: PathBuf,
     /// The directory holding what the microvm tier runs, Firecracker, its jailer, the guest
-    /// kernel, `korpis-guest`, and `korpis-fsworker`, where installation found the machine able
-    /// to run guests;
-    /// `None` where the node offers no microVMs.
+    /// kernel, `korpis-guest`, `korpis-fsworker`, and `korpis-install-job`, where installation
+    /// found the machine able to run guests; `None` where the node offers no microVMs.
     pub microvm: Option<PathBuf>,
 }
 
@@ -195,7 +194,8 @@ After=korpis-helper.socket
 Group=korpis-agent
 ExecStart={bin}/korpis-driver-firecracker --allow-uid {uid} --socket {FIRECRACKER_SOCKET} \\
   --firecracker {lib}/firecracker --jailer {lib}/jailer --kernel {lib}/vmlinux \\
-  --guest {lib}/korpis-guest --fsworker {lib}/korpis-fsworker --content {state}/content \\
+  --guest {lib}/korpis-guest --fsworker {lib}/korpis-fsworker \\
+  --install-job {lib}/korpis-install-job --content {state}/content \\
   --identity-root {state}/identity
 Restart=on-failure
 RestartSec=2

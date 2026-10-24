@@ -10,8 +10,8 @@
 //! reading anyway (§4.1 of docs/02-architecture.md); `changes`, the protocol's `Events`, only
 //! makes it look sooner, so a crash is seen when it happens. Of the capability-gated verbs,
 //! console input and resizing are here (§6 of docs/14-streams.md), and exec, which an `exec`
-//! probe runs (§5 of docs/04-runtimes.md); resource resizing is not yet (§4 of
-//! docs/20-roadmap.md).
+//! probe runs (§5 of docs/04-runtimes.md), file sessions and installs served inside a guest
+//! (§4.4 there); resource resizing is not yet (§4 of docs/20-roadmap.md).
 
 pub mod drivers;
 pub mod memory;
@@ -180,6 +180,29 @@ pub trait Runtime: Send + Sync + 'static {
         id: &str,
         write: bool,
     ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send;
+
+    /// Starts install `asked.job` into the block devices of the workload `asked.spec` describes,
+    /// run by the driver `asked.spec.driver` names in a service guest (§4.4 of
+    /// docs/04-runtimes.md), as the helper runs one beside a container. Capability-gated: a driver
+    /// whose volumes are block devices. A job already known is left as it is.
+    fn start_install(
+        &self,
+        asked: &driver::StartInstallRequest,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send;
+
+    /// How install `job`, started on the driver named `driver`, stands.
+    fn install_status(
+        &self,
+        driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<driver::InstallStatusResponse>> + Send;
+
+    /// Forgets install `job` on the driver named `driver`, ending it if it still runs.
+    fn forget_install(
+        &self,
+        driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send;
 
     /// The runtime objects whose status changes, by identifier, as the driver reports them: a
     /// reason to look sooner, never a reading, which `inspect` is.

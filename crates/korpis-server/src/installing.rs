@@ -77,8 +77,9 @@ pub struct InstallArgs {
     #[arg(long, default_value = "/var/lib/korpis-agent")]
     agent_state: PathBuf,
     /// The directory holding what the microvm tier runs: `firecracker`, `jailer`, `vmlinux`,
-    /// `korpis-guest`, and `korpis-fsworker` (`scripts/microvm-files.sh` puts them there). Where they are all there and
-    /// the machine has KVM, the node runs the `firecracker` driver beside the `oci` driver.
+    /// `korpis-guest`, `korpis-fsworker`, and `korpis-install-job` (`scripts/microvm-files.sh`
+    /// puts them there). Where they are all there and the machine has KVM, the node runs the
+    /// `firecracker` driver beside the `oci` driver.
     #[arg(long, default_value = "/usr/lib/korpis")]
     microvm_dir: PathBuf,
     /// Run preflight and print what would be written, changing nothing.
@@ -186,12 +187,16 @@ fn layout(args: &InstallArgs, bin: PathBuf, uid: u32) -> Layout {
     }
 }
 
+/// What the `firecracker` driver runs, in the directory `--microvm-dir` names.
+const MICROVM_FILES: [&str; 6] =
+    ["firecracker", "jailer", "vmlinux", "korpis-guest", "korpis-fsworker", "korpis-install-job"];
+
 /// `dir`, where this machine can run guests (§6 of docs/04-runtimes.md): KVM opens, and the
 /// files the `firecracker` driver runs are all in `dir`; otherwise why not.
 fn microvm_tier(dir: &Path) -> Result<PathBuf, String> {
     let kvm = std::fs::OpenOptions::new().read(true).write(true).open("/dev/kvm");
     kvm.map_err(|e| format!("/dev/kvm does not open: {e}"))?;
-    for file in ["firecracker", "jailer", "vmlinux", "korpis-guest", "korpis-fsworker"] {
+    for file in MICROVM_FILES {
         if !dir.join(file).is_file() {
             return Err(format!("{} is missing", dir.join(file).display()));
         }
@@ -352,6 +357,8 @@ mod tests {
         std::fs::write(dir.path().join("korpis-guest"), "").unwrap();
         assert!(microvm_tier(dir.path()).is_err(), "korpis-fsworker is missing");
         std::fs::write(dir.path().join("korpis-fsworker"), "").unwrap();
+        assert!(microvm_tier(dir.path()).is_err(), "korpis-install-job is missing");
+        std::fs::write(dir.path().join("korpis-install-job"), "").unwrap();
         assert_eq!(microvm_tier(dir.path()).is_ok(), kvm, "every file, and KVM");
     }
 }

@@ -177,6 +177,25 @@ pub fn run(config: &Config, signals: &mut SignalFd) -> Result<Ended, String> {
     }
 }
 
+/// Runs no entry, as a service guest (§4.4 of docs/04-runtimes.md): reaps whatever ends, a file
+/// session's worker or a command, until the first stop arrives on `signals`, which ends the run
+/// as an entry's clean exit would; the workers then end with every other process.
+pub fn idle(signals: &mut SignalFd) -> Result<Ended, String> {
+    // No process has the id zero, so every one that ends is reaped as a stranger's.
+    let none = Pid::from_raw(0);
+    loop {
+        reap(none)?;
+        let mut fds = [PollFd::new(signals.as_fd(), PollFlags::POLLIN)];
+        match poll(&mut fds, PollTimeout::NONE) {
+            Ok(_) | Err(Errno::EINTR) => {}
+            Err(e) => return Err(format!("waiting: {e}")),
+        }
+        if stops(signals)? > 0 {
+            return Ok(Ended::Exited(0));
+        }
+    }
+}
+
 /// Ends every process but this one and reaps them all.
 pub fn end_the_rest() {
     // -1 is every process this one may signal, which for the first process is all but itself.

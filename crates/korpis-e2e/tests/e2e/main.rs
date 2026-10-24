@@ -30,6 +30,7 @@ mod microvm;
 mod microvm_exec;
 mod microvm_files;
 mod microvm_heartbeat;
+mod microvm_install;
 mod network;
 mod nightly;
 mod node;

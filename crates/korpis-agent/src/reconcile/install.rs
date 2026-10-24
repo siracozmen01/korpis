@@ -4,7 +4,9 @@
 //! install runs; the node fetches what they read into its content store (each `fetch` by its hash,
 //! and the recipe's own files), then has the helper run them in a worker that sees nothing but the
 //! workload's volumes and that content. An install outlasts many passes of the loop, as a backup
-//! does: each pass asks the helper where its job is, and waits while it runs.
+//! does: each pass asks the helper where its job is, and waits while it runs. A workload whose
+//! driver takes its volumes as block devices has its installs run by that driver instead, in a
+//! service guest (§4.4 of docs/04-runtimes.md), asked after the same way.
 //!
 //! How far an install has come is kept per install, not per plan: a digest of the workload and its
 //! actions names it, and its job. A worker that fails, or is lost, has its progress kept and its job
@@ -24,6 +26,7 @@ use buffa::Message as _;
 use korpis_core::recipe::install::InstallStep;
 use korpis_core::recipe::installing::{InstallAction, detail};
 use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work;
 use korpis_proto::korpis::install::v1 as install;
@@ -68,6 +71,57 @@ pub(super) fn install_job(workload: &str, s: &pb::Step) -> Option<String> {
     Some(format!("ins-{}", digest_of(workload, actions).get(..32)?))
 }
 
+/// Who runs an install.
+enum Installer {
+    /// The helper, beside a container.
+    Helper,
+    /// The driver named, in a service guest.
+    Driver(String),
+}
+
+/// A driver's answer, as the helper's would be.
+fn as_job(s: driver::InstallStatusResponse) -> helper::JobStatusResponse {
+    use driver::InstallState as I;
+    use helper::JobState as J;
+    let state = match s.state.as_known() {
+        Some(I::INSTALL_STATE_RUNNING) => J::JOB_STATE_RUNNING,
+        Some(I::INSTALL_STATE_FINISHED) => J::JOB_STATE_FINISHED,
+        Some(I::INSTALL_STATE_LOST) => J::JOB_STATE_LOST,
+        _ => J::JOB_STATE_UNKNOWN,
+    };
+    helper::JobStatusResponse {
+        state: state.into(),
+        install: s.result,
+        progress: s.progress,
+        ..Default::default()
+    }
+}
+
+/// The driver's request for install `job` of `actions` from `from` into the volumes of the
+/// workload `spec` describes, its volumes placed: what the guest runs and nothing else, so the
+/// spec's console, network, and identity directory are left out.
+fn for_driver(
+    job: &str,
+    mut spec: driver::PreparedSpec,
+    (actions, from): (Vec<pb::Value>, u32),
+    files: std::collections::BTreeMap<String, String>,
+    fetched: Vec<String>,
+) -> driver::StartInstallRequest {
+    spec.stream = None.into();
+    spec.namespaces.clear();
+    spec.addresses.clear();
+    spec.identity_dir.clear();
+    driver::StartInstallRequest {
+        job: job.to_owned(),
+        spec: spec.into(),
+        actions,
+        from,
+        files,
+        fetched,
+        ..Default::default()
+    }
+}
+
 /// The actions decoded, to find what they read.
 fn decoded(actions: &[pb::Value]) -> Result<Vec<InstallAction>, Failure> {
     actions
@@ -102,7 +156,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let job = install_job(&a.workload, s).ok_or_else(|| failed("no install job"))?;
         let kept = self.progress.of(&a.workload).install.filter(|i| i.digest == digest);
         let mut at = kept.unwrap_or(Install { digest, done: 0, lost: 0 });
-        let status = self.host.job_status(&job).await?;
+        let by = self.installer(a, t).await?;
+        let status = self.job_status(&by, &job).await?;
         match status.state.as_known() {
             Some(helper::JobState::JOB_STATE_UNKNOWN) => {
                 let decoded = decoded(actions)?;
@@ -111,7 +166,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 };
                 let expanded = resolve::expand(actions, &decoded, &answers)?;
                 self.keep_install(&a.workload, at.clone())?;
-                self.start_install(a, t, (&job, at.done), expanded, &decoded).await?;
+                self.start_install(a, t, (&by, &job, at.done), expanded, &decoded).await?;
                 Ok(None)
             }
             Some(helper::JobState::JOB_STATE_RUNNING) => Ok(None),
@@ -128,14 +183,14 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                     after.insert("actions".into(), text(&at.done.to_string()));
                     return Ok(Some(after));
                 }
-                self.host.forget_job(&job).await?;
+                self.forget_job(&by, &job).await?;
                 Err(failed(format!("install action {}: {}", at.done, result.error)))
             }
             _ => {
                 at.done = at.done.max(status.progress);
                 at.lost = at.lost.saturating_add(1);
                 self.keep_install(&a.workload, at.clone())?;
-                self.host.forget_job(&job).await?;
+                self.forget_job(&by, &job).await?;
                 if at.lost >= LOST_AT_MOST {
                     return Err(failed(format!(
                         "the install's worker was lost {LOST_AT_MOST} times"
@@ -147,17 +202,53 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
+    /// Who runs the installs of `a`'s workload: its driver, in a service guest, when it takes
+    /// its volumes as block devices, whose files only a guest's kernel may parse (§4.4 of
+    /// docs/04-runtimes.md); the helper otherwise.
+    async fn installer(
+        &mut self,
+        a: &agent::Assignment,
+        t: &mut Tracked,
+    ) -> Result<Installer, Failure> {
+        let spec = self.prepare(a, t).await?;
+        Ok(if self.wiring.driver_kinds.block_device(&spec.driver) {
+            Installer::Driver(spec.driver)
+        } else {
+            Installer::Helper
+        })
+    }
+
+    /// How job `job` stands, as `by` says, in the helper's terms.
+    async fn job_status(
+        &self,
+        by: &Installer,
+        job: &str,
+    ) -> Result<helper::JobStatusResponse, Failure> {
+        match by {
+            Installer::Helper => Ok(self.host.job_status(job).await?),
+            Installer::Driver(name) => Ok(as_job(self.runtime.install_status(name, job).await?)),
+        }
+    }
+
+    /// Has `by` forget job `job`.
+    async fn forget_job(&self, by: &Installer, job: &str) -> Result<(), Failure> {
+        match by {
+            Installer::Helper => Ok(self.host.forget_job(job).await?),
+            Installer::Driver(name) => Ok(self.runtime.forget_install(name, job).await?),
+        }
+    }
+
     fn keep_install(&mut self, workload: &str, at: Install) -> Result<(), Failure> {
         self.progress.installed(workload, at).map_err(|e| failed(format!("install progress: {e}")))
     }
 
-    /// Fetches what the actions read, then starts the job at action `from` of `expanded`, the
-    /// step's actions, `decoded`, with its provider steps resolved.
+    /// Fetches what the actions read, then has `by` start the job at action `from` of
+    /// `expanded`, the step's actions, `decoded`, with its provider steps resolved.
     async fn start_install(
         &mut self,
         a: &agent::Assignment,
         t: &mut Tracked,
-        (job, from): (&str, u32),
+        (by, job, from): (&Installer, &str, u32),
         expanded: resolve::Expanded,
         decoded: &[InstallAction],
     ) -> Result<(), Failure> {
@@ -173,7 +264,17 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         } else {
             std::collections::BTreeMap::new()
         };
-        let spec = self.prepare(a, t).await?;
+        let mut spec = self.prepare(a, t).await?;
+        if let Installer::Driver(_) = by {
+            self.mount(a, &mut spec).await?;
+            // The workload's ids, which its guest runs as and its volumes are given to.
+            (spec.uid_base, spec.uid_count) = (a.uid_base, a.uid_count);
+            let fetched = expanded.fetches.iter().map(|(_, digest)| digest.clone()).collect();
+            let asked = for_driver(job, spec, (wire, from), files, fetched);
+            self.runtime.start_install(&asked).await?;
+            tracing::info!(%job, from, "install started in a service guest");
+            return Ok(());
+        }
         let volumes = spec
             .mounts
             .iter()

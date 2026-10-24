@@ -1,69 +1,62 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The boot drive every guest of a node shares (§6 of docs/04-runtimes.md): `korpis-guest`, the
-//! file worker it runs for a file session (`korpis-fsworker`, §4.4), and the directories it mounts
-//! on, as an ext4 filesystem the guest's kernel mounts read-only as its root. It is named by the
-//! digest of the two binaries it holds, so a node with a newer one makes a new drive, which guests
-//! take at their next boot, and one already running keeps its own. Nothing in it comes from a
-//! tenant, so it is made by the driver directly.
+//! file worker it runs for a file session (`korpis-fsworker`, §4.4), the install job a service
+//! guest runs (`korpis-install-job`), and the directories it mounts on, as an ext4 filesystem the
+//! guest's kernel mounts read-only as its root. It is named by the digest of the binaries it
+//! holds, so a node with a newer one makes a new drive, which guests take at their next boot, and
+//! one already running keeps its own. Nothing in it comes from a tenant, so it is made by the
+//! driver directly.
 
 use korpis_core::content::digest_of;
 use std::io;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 /// The directories `korpis-guest` mounts on: the kernel's `/dev`, the image, the overlay's
 /// layer, and the workload's root.
 const DIRS: [&str; 4] = ["dev", "lower", "upper", "newroot"];
 
-/// The boot drive for the `korpis-guest` at `guest` and the file worker at `worker`, in `dir`:
-/// made if the directory has none for those binaries.
-pub fn drive(guest: &Path, worker: &Path, dir: &Path) -> io::Result<PathBuf> {
-    let binary = std::fs::read(guest)?;
-    let files = std::fs::read(worker)?;
-    let named = format!("{}\n{}", digest_of(&binary), digest_of(&files));
-    let digest = digest_of(named.as_bytes());
+/// The programs a boot drive carries, each by where the node keeps it.
+#[derive(Debug, Clone, Copy)]
+pub struct Programs<'a> {
+    /// `korpis-guest`, the guest's first process.
+    pub guest: &'a Path,
+    /// `korpis-fsworker`, run for each file session.
+    pub fsworker: &'a Path,
+    /// `korpis-install-job`, run for an install in a service guest (§4 of docs/09-recipes.md).
+    pub install_job: &'a Path,
+}
+
+/// The boot drive for `programs`, in `dir`: made if the directory has none for those binaries.
+pub fn drive(programs: &Programs<'_>, dir: &Path) -> io::Result<PathBuf> {
+    let held = [
+        ("korpis-guest", std::fs::read(programs.guest)?),
+        ("korpis-fsworker", std::fs::read(programs.fsworker)?),
+        ("korpis-install-job", std::fs::read(programs.install_job)?),
+    ];
+    let named: Vec<String> = held.iter().map(|(_, bytes)| digest_of(bytes)).collect();
+    let digest = digest_of(named.join("\n").as_bytes());
     let out = dir.join(format!("boot-{}.ext4", digest.trim_start_matches("sha256:")));
     if out.is_file() {
         return Ok(out);
     }
-    let work = work_dir(dir)?;
+    let work = crate::ext4::work_dir(dir, "boot")?;
     let tree = work.join("tree");
     for d in DIRS {
         std::fs::create_dir_all(tree.join(d))?;
     }
-    for (name, bytes) in [("korpis-guest", &binary), ("korpis-fsworker", &files)] {
+    for (name, bytes) in &held {
         let at = tree.join(name);
         std::fs::write(&at, bytes)?;
         std::fs::set_permissions(&at, std::fs::Permissions::from_mode(0o755))?;
     }
     let made = work.join("boot.ext4");
-    let size_kib = (binary.len() + files.len()) / 1024 + 8 * 1024;
-    let status = Command::new("mke2fs")
-        .args(["-q", "-F", "-t", "ext4", "-O", "^has_journal", "-m", "0", "-L", "korpis-boot"])
-        .args(["-E", "root_owner=0:0", "-d"])
-        .arg(&tree)
-        .arg(&made)
-        .arg(format!("{size_kib}k"))
-        .stdout(std::process::Stdio::null())
-        .status();
-    let renamed = match status {
-        Ok(s) if s.success() => {
-            std::fs::set_permissions(&made, std::fs::Permissions::from_mode(0o444))?;
-            std::fs::rename(&made, &out)
-        }
-        Ok(s) => Err(io::Error::other(format!("mke2fs failed: {s}"))),
-        Err(e) => Err(e),
-    };
+    let size_kib = held.iter().map(|(_, b)| b.len()).sum::<usize>() / 1024 + 8 * 1024;
+    let renamed = crate::ext4::make(&tree, &made, size_kib, "korpis-boot").and_then(|()| {
+        std::fs::set_permissions(&made, std::fs::Permissions::from_mode(0o444))?;
+        std::fs::rename(&made, &out)
+    });
     let _ = std::fs::remove_dir_all(&work);
     renamed.map(|()| out)
-}
-
-/// A fresh directory in `dir` to make a drive in.
-fn work_dir(dir: &Path) -> io::Result<PathBuf> {
-    let work = dir.join(format!(".boot-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&work);
-    std::fs::create_dir_all(&work)?;
-    Ok(work)
 }

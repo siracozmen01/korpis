@@ -8,7 +8,7 @@
 //! killed past a bound.
 
 use super::{AGAIN, KILL_BOUND, Machine, MachineError, MachineResult, failed};
-use crate::object::Object;
+use crate::object::{Object, Vm};
 use crate::{agent, api, console, jail, process};
 use korpis_driver_kit::exec::{Command, Ran};
 use korpis_guest::control::{self, Resized, Signalled};
@@ -93,20 +93,7 @@ impl Machine {
     pub async fn kill(&self, id: &str) -> MachineResult<()> {
         let object = self.load(id)?;
         let Some(vm) = object.vm.filter(process::alive) else { return Ok(()) };
-        // Sent until the guest has ended: a kill with no stop before it is the guest's first, and
-        // a Ctrl+Alt+Del that arrives while the guest has not yet read the last one is absorbed by
-        // it, the kernel keeping one pending signal of a kind.
-        let socket = jail::api_socket(&self.settings, id);
-        let until = Instant::now() + KILL_BOUND;
-        while process::alive(&vm) && Instant::now() < until {
-            let _ = api::ctrl_alt_del(&socket).await;
-            tokio::time::sleep(AGAIN).await;
-        }
-        process::kill(&vm);
-        let until = Instant::now() + KILL_BOUND;
-        while process::alive(&vm) && Instant::now() < until {
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+        ended(&jail::api_socket(&self.settings, id), &vm).await;
         Ok(())
     }
 
@@ -153,5 +140,22 @@ impl Machine {
         agent::exec(&jail::vsock_socket(&self.settings, id), &c, &out)
             .await
             .map_err(|e| MachineError::Failed(format!("the guest's agent did not run it: {e}")))
+    }
+}
+
+/// Ends the guest `vm`, whose Firecracker's API socket is at `socket`: Ctrl+Alt+Del until it has
+/// ended, then its Firecracker killed past a bound. Sent again and again, since a kill with no
+/// stop before it is the guest's first, and a Ctrl+Alt+Del that arrives while the guest has not
+/// yet read the last one is absorbed by it, the kernel keeping one pending signal of a kind.
+pub(super) async fn ended(socket: &std::path::Path, vm: &Vm) {
+    let until = Instant::now() + KILL_BOUND;
+    while process::alive(vm) && Instant::now() < until {
+        let _ = api::ctrl_alt_del(socket).await;
+        tokio::time::sleep(AGAIN).await;
+    }
+    process::kill(vm);
+    let until = Instant::now() + KILL_BOUND;
+    while process::alive(vm) && Instant::now() < until {
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }

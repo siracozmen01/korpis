@@ -11,9 +11,11 @@
 
 mod answers;
 mod files;
+mod install;
 
 pub use answers::*;
 pub use files::{MOST_FILE, MOST_FILES, PART, Part, Place, keep, kept, plain};
+pub use install::Installing;
 use std::io::{self, Read, Write};
 
 /// The vsock port the guest's agent listens on.
@@ -77,6 +79,11 @@ pub enum Kind {
     Keep,
     /// The agent answers what a directory keeps: one byte, 0 done and 1 refused.
     Kept,
+    /// The host asks a service guest how its install goes (§4.4 of docs/04-runtimes.md); no
+    /// payload.
+    InstallStatus,
+    /// The agent answers: an [`Installing`].
+    Installing,
 }
 
 impl Kind {
@@ -89,6 +96,7 @@ impl Kind {
             Self::Relays => 5,
             Self::Put => 6,
             Self::Keep => 7,
+            Self::InstallStatus => 8,
             Self::Pong => 0x81,
             Self::Signalled => 0x82,
             Self::Resized => 0x83,
@@ -97,6 +105,7 @@ impl Kind {
             Self::Relayed => 0x86,
             Self::Stored => 0x87,
             Self::Kept => 0x88,
+            Self::Installing => 0x89,
         }
     }
 
@@ -109,6 +118,7 @@ impl Kind {
             5 => Some(Self::Relays),
             6 => Some(Self::Put),
             7 => Some(Self::Keep),
+            8 => Some(Self::InstallStatus),
             0x81 => Some(Self::Pong),
             0x82 => Some(Self::Signalled),
             0x83 => Some(Self::Resized),
@@ -117,6 +127,7 @@ impl Kind {
             0x86 => Some(Self::Relayed),
             0x87 => Some(Self::Stored),
             0x88 => Some(Self::Kept),
+            0x89 => Some(Self::Installing),
             _ => None,
         }
     }

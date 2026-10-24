@@ -263,6 +263,7 @@ mod tests {
             kernel: "/k".into(),
             guest: "/g".into(),
             fsworker: "/f".into(),
+            install_job: "/j".into(),
             image_build: "/b".into(),
             writer: "/w".into(),
             content: "/c".into(),

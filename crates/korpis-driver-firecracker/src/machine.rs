@@ -9,8 +9,14 @@
 
 mod create;
 mod files;
+mod install;
+mod service;
 mod status;
 mod stop;
+
+pub use files::Session;
+pub use install::{Install, InstallStatus};
+pub use service::Lease;
 
 use crate::object::{Object, Vm};
 use crate::relay::{Guest, Relays};
@@ -92,12 +98,14 @@ pub struct Machine {
     lock: Arc<tokio::sync::Mutex<()>>,
     /// The relays of `/run/korpis` each running guest is served.
     relays: Arc<Relays>,
+    /// The guests serving stopped objects' file sessions.
+    services: Arc<service::Services>,
 }
 
 impl Machine {
     /// The guests kept in `settings.state`, its directories and its cgroup made if missing.
     pub fn new(settings: Settings) -> std::io::Result<Self> {
-        for dir in [settings.objects(), settings.drives(), settings.jails()] {
+        for dir in [settings.objects(), settings.drives(), settings.jails(), settings.services()] {
             std::fs::create_dir_all(dir)?;
         }
         let parent = settings.cgroup_parent();
@@ -108,8 +116,8 @@ impl Machine {
         }
         let (events, _) = broadcast::channel(EVENT_BACKLOG);
         let lock = Arc::default();
-        let (watched, relays) = (Arc::default(), Arc::default());
-        Ok(Self { settings: Arc::new(settings), events, watched, lock, relays })
+        let (watched, relays, services) = (Arc::default(), Arc::default(), Arc::default());
+        Ok(Self { settings: Arc::new(settings), events, watched, lock, relays, services })
     }
 
     /// Its settings.
@@ -192,8 +200,11 @@ impl Machine {
         });
     }
 
-    /// Starts object `id`'s guest; one already running is left so.
+    /// Starts object `id`'s guest; one already running is left so. A guest serving its file
+    /// sessions while it was stopped is ended first.
     pub async fn start(&self, id: &str) -> MachineResult<()> {
+        let workload = self.load(id)?.spec.workload;
+        let _services = self.preempt(&workload, false).await?;
         let _held = self.lock.lock().await;
         let mut object = self.load(id)?;
         if object.vm.as_ref().is_some_and(process::alive) {
@@ -308,6 +319,8 @@ impl Machine {
             Err(e) => return Err(e),
         };
         self.kill(id).await?;
+        let workload = self.load(id)?.spec.workload;
+        let _services = self.preempt(&workload, true).await?;
         let _held = self.lock.lock().await;
         // A start that failed after its relays were served left them; nothing watched it end.
         self.relays.end(id);
@@ -322,6 +335,7 @@ impl Machine {
     #[must_use]
     pub fn recover(&self) -> Vec<driver::RuntimeObject> {
         let objects = Object::all(&self.settings.objects());
+        self.sweep();
         for o in &objects {
             let Some(vm) = o.vm.filter(process::alive) else { continue };
             self.watch(&o.id, vm);

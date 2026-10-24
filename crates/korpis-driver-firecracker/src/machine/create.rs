@@ -29,7 +29,7 @@ fn refused(why: impl Into<String>) -> MachineError {
 /// above the host's own, its network, if any, its workload's own namespaces, its console written
 /// to its own stream volume alone, its identity directory its own, and every volume beneath the
 /// volume root and mounted beside `/run/korpis`, never over it.
-fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()> {
+pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()> {
     if spec.tier.as_known() != Some(pb::IsolationTier::ISOLATION_TIER_MICROVM) {
         return Err(refused("the firecracker driver builds the microvm tier alone"));
     }
@@ -127,12 +127,21 @@ fn kernel(settings: &Settings) -> std::io::Result<PathBuf> {
     Ok(at)
 }
 
+/// The programs every guest's boot drive carries.
+fn programs(settings: &Settings) -> korpis_image::boot::Programs<'_> {
+    korpis_image::boot::Programs {
+        guest: &settings.guest,
+        fsworker: &settings.fsworker,
+        install_job: &settings.install_job,
+    }
+}
+
 /// `drives` with the node's kernel and boot drive as they are now, each made if missing, so what
 /// a guest boots is the node's at its start, whatever it was when its object was made: an
 /// upgraded kernel or `korpis-guest` reaches every guest at its next boot (Finding 150 of
 /// docs/23-walkthroughs.md). The image's drive and the volumes are the object's own.
 pub(super) fn current(settings: &Settings, drives: Drives) -> std::io::Result<Drives> {
-    let boot = korpis_image::boot::drive(&settings.guest, &settings.fsworker, &settings.drives())?;
+    let boot = korpis_image::boot::drive(&programs(settings), &settings.drives())?;
     Ok(Drives { kernel: kernel(settings)?, boot, ..drives })
 }
 
@@ -142,7 +151,7 @@ fn shared(
     settings: &Settings,
     spec: &driver::PreparedSpec,
 ) -> std::io::Result<(PathBuf, PathBuf, PathBuf, korpis_core::content::image::ImageConfig)> {
-    let boot = korpis_image::boot::drive(&settings.guest, &settings.fsworker, &settings.drives())?;
+    let boot = korpis_image::boot::drive(&programs(settings), &settings.drives())?;
     let source = korpis_image::source::resolve(&settings.content, &spec.rootfs)?;
     let image = settings.drives().join(file_name(&source.manifest));
     if !image.is_file() {

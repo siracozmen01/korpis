@@ -6,7 +6,7 @@
 //! size into a guest until its agent does (§6 of docs/04-runtimes.md).
 
 use crate::describe::info;
-use crate::machine::{Machine, MachineError};
+use crate::machine::{Install, Machine, MachineError};
 use crate::prepare::prepare;
 use connectrpc::{ConnectError, ErrorCode, RequestContext, Response, ServiceRequest};
 use connectrpc::{ServiceResult, ServiceStream};
@@ -252,10 +252,54 @@ impl driver::DriverService for Driver {
         mut requests: connectrpc::InboundStream<driver::FilesRequest>,
     ) -> ServiceResult<ServiceStream<driver::FilesResponse>> {
         let open = crate::files::opened(&mut requests).await?;
-        let worker = self.machine.files(&open.runtime_id, open.write).await.map_err(status)?;
-        let (from, to) = worker.into_split();
+        let session = self.machine.files(&open.runtime_id, open.write).await.map_err(status)?;
+        let (from, to) = session.stream.into_split();
         tokio::spawn(crate::files::up(requests, to));
-        Response::stream_ok(crate::files::down(from))
+        Response::stream_ok(crate::files::down(from, session.lease))
+    }
+
+    async fn start_install(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, driver::StartInstallRequest>,
+    ) -> ServiceResult<driver::StartInstallResponse> {
+        let r = request.to_owned_message();
+        let spec = r.spec.into_option().ok_or_else(|| {
+            ConnectError::new(ErrorCode::InvalidArgument, "an install names its workload's spec")
+        })?;
+        let asked = Install {
+            job: r.job,
+            spec,
+            actions: r.actions,
+            from: r.from,
+            files: r.files.into_iter().collect(),
+            fetched: r.fetched,
+        };
+        self.machine.start_install(asked).await.map_err(status)?;
+        Response::ok(driver::StartInstallResponse::default())
+    }
+
+    async fn install_status(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, driver::InstallStatusRequest>,
+    ) -> ServiceResult<driver::InstallStatusResponse> {
+        let s = self.machine.install_status(request.job).await;
+        Response::ok(driver::InstallStatusResponse {
+            state: s.state.into(),
+            result: s.result.into(),
+            progress: s.progress,
+            ..Default::default()
+        })
+    }
+
+    async fn forget_install(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, driver::ForgetInstallRequest>,
+    ) -> ServiceResult<driver::ForgetInstallResponse> {
+        self.machine.forget_install(request.job).await;
+        Response::ok(driver::ForgetInstallResponse::default())
     }
 
     async fn ping_guest(

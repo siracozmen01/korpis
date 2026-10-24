@@ -56,6 +56,24 @@ fn running() -> MutexGuard<'static, BTreeMap<i32, Option<u32>>> {
     RUNNING.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
+/// Starts a child with `start`, registered before the reaper could see it end, so its status is
+/// kept for [`status_of`]; its process id.
+///
+/// # Errors
+/// What `start` returns.
+pub fn tracked(start: impl FnOnce() -> io::Result<std::process::Child>) -> io::Result<i32> {
+    let mut running = running();
+    let child = starting(start)?;
+    let pid = i32::try_from(child.id()).map_err(io::Error::other)?;
+    running.insert(pid, None);
+    Ok(pid)
+}
+
+/// The status of the child [`tracked`] started as `pid` once it has ended, `None` while it runs.
+pub fn status_of(pid: i32) -> Option<u32> {
+    running().get(&pid).copied().flatten()
+}
+
 /// Keeps `status`, which the first process reaped, for the command it ended, if it is one.
 pub fn reaped(status: WaitStatus) {
     let (pid, code) = match status {
@@ -85,6 +103,9 @@ fn bounded(asked: &Exec) -> bool {
 pub fn exec(stream: &mut File, payload: &[u8], config: &Config) -> io::Result<()> {
     let asked = serde_json::from_slice::<Exec>(payload).ok().filter(bounded);
     let Some(asked) = asked else { return refused(stream, "not a command this agent runs") };
+    if !crate::ready::wait() {
+        return refused(stream, "the workload's root is not ready");
+    }
     let (reader, writer) = rustix::pipe::pipe_with(rustix::pipe::PipeFlags::CLOEXEC)?;
     let pid = {
         // Held across the spawn, so the reaper finds the command registered whenever it ends.

@@ -11,6 +11,8 @@ package korpis.driver.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "korpis/install/v1/install.proto";
+import "korpis/v1/common.proto";
 import "korpis/v1/placement.proto";
 import "korpis/v1/workload.proto";
 import "korpis/v1/workload_spec.proto";
@@ -58,11 +60,23 @@ service DriverService {
   // (§5 of docs/04-runtimes.md). Capability-gated: a driver that declares `guest_agent`. An
   // object that does not run is an error, not a guest that did not answer.
   rpc PingGuest(PingGuestRequest) returns (PingGuestResponse);
-  // A file session on a running object's volumes, served inside it by the file worker its guest
-  // carries (§4.4 of docs/04-runtimes.md). Capability-gated: a driver whose `file_access` is
-  // `GUEST_WORKER`. The first request opens it; each later one is a frame of the session, and each
-  // response a frame back, which the driver passes on unread.
+  // A file session on an object's volumes, served inside its guest while it runs, and inside a
+  // service guest holding them while it does not, by the file worker the guest carries (§4.4 of
+  // docs/04-runtimes.md). Capability-gated: a driver whose `file_access` is `GUEST_WORKER`. The
+  // first request opens it; each later one is a frame of the session, and each response a frame
+  // back, which the driver passes on unread.
   rpc Files(stream FilesRequest) returns (stream FilesResponse);
+  // An install into the volumes of a workload whose driver takes them as block devices, run in a
+  // service guest by the install job its boot drive carries (§4.4 of docs/04-runtimes.md, §4 of
+  // docs/09-recipes.md), as the node's helper runs one beside a container: started, asked after,
+  // and forgotten as the helper's jobs are. Capability-gated as `Files` is. A start of a job
+  // already known is answered as done; an install runs while the workload does not.
+  rpc StartInstall(StartInstallRequest) returns (StartInstallResponse);
+  rpc InstallStatus(InstallStatusRequest) returns (InstallStatusResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Forgets an install that ended; one still running is ended first.
+  rpc ForgetInstall(ForgetInstallRequest) returns (ForgetInstallResponse);
 }
 
 message DescribeRequest {}
@@ -379,3 +393,51 @@ message FilesOpen {
 message FilesResponse {
   bytes frame = 1;
 }
+
+message StartInstallRequest {
+  // The job, as the node names it.
+  string job = 1;
+  // The workload's spec as `Prepare` made it: its volumes, its ids, and its resources, which the
+  // service guest is given as its object would be.
+  PreparedSpec spec = 2;
+  // The install's actions, in order, as the plan step carries them.
+  repeated korpis.v1.Value actions = 3;
+  // The first action to run, counting from zero: where an interrupted install resumes.
+  uint32 from = 4;
+  // The recipe's files, by their path in the artifact, and each one's digest, in the node's
+  // content store.
+  map<string, string> files = 5;
+  // What the install's fetches downloaded, by digest, in the node's content store.
+  repeated string fetched = 6;
+}
+
+message StartInstallResponse {}
+
+message InstallStatusRequest {
+  string job = 1;
+}
+
+message InstallStatusResponse {
+  InstallState state = 1;
+  // Once it finished: what the install job wrote.
+  korpis.install.v1.InstallResult result = 2;
+  // However it stands: how many of its actions have run, counting from the start of the install,
+  // as it last recorded. An install lost part way resumes here.
+  uint32 progress = 3;
+}
+
+enum InstallState {
+  INSTALL_STATE_UNSPECIFIED = 0;
+  INSTALL_STATE_RUNNING = 1;
+  INSTALL_STATE_FINISHED = 2;
+  // It ended without writing a result: its guest ended under it, or the driver restarted.
+  INSTALL_STATE_LOST = 3;
+  // No install of that job is known.
+  INSTALL_STATE_UNKNOWN = 4;
+}
+
+message ForgetInstallRequest {
+  string job = 1;
+}
+
+message ForgetInstallResponse {}

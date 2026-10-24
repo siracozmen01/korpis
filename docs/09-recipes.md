@@ -394,6 +394,22 @@ step fails; a later plan carrying the same install starts at the action that fai
 that is lost, killed or taken down with its node, is started again by the same step at the action
 it did not finish, and three losses in a row fail the step rather than looping.
 
+**An install into a block device, as built 2026-10-24.** A workload whose driver takes its volumes
+as block devices (the `microvm` tier, §3.1 of `06-storage.md`) has filesystems only a guest's
+kernel may parse, so the helper cannot run its install. The node has the driver run it instead, in
+a service guest (§4.4 of `04-runtimes.md`), with the same worker binary, started, asked after, and
+forgotten as the helper's jobs are, and resumed as they are; it fetches what the actions read into
+its content store first, as for any install. The driver puts what the install reads, and nothing
+else of the store, on a content drive the guest mounts read-only, and the worker builds the same
+confined root inside the guest, from the guest's own ids, which are the workload's. An install runs
+while the workload is stopped, which every plan that carries one already arranges by stopping it
+first, and the workload's start is refused until it has ended. What it costs: an install into a
+guest waits for the guest to boot and for its content drive to be written, a copy of what it reads
+where the store is on another filesystem; and its archives are decoded by the worker in Rust alone,
+its zstd decoder (`ruzstd` 0.9.1, the first release that bounds what one block decodes to,
+RUSTSEC-2026-0344) refusing, as the reference decoder does by default, a frame that asks a window
+of more than 128 MiB.
+
 **Everything an install writes lands in a volume.** Every path a verb or a template writes must be
 one of the workload's volumes or beneath one, and a declaration whose volumes leave one outside is
 refused, naming the step. The worker that writes sees the workload's volumes and nothing else

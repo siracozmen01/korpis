@@ -152,12 +152,21 @@ user cannot borrow a workload's identity through them. (Corrected 2026-10-24: th
 listened on no vsock port, which was true until the relays of a guest's `/run/korpis` were built.)
 What it does not stop: a bug in Firecracker's vsock device is a hypervisor vulnerability, in the
 row above; and the agent answers for the workload, which is root of its guest and can answer in its
-place, so its answer is evidence of liveness and of nothing else. A file session in a guest
-(§4.4 of `04-runtimes.md`) is the one place the node decodes what a guest wrote as a structure:
-each frame the guest's worker answers is a `FileResponse`, bounded in length before it is read and
-decoded by the same memory-safe decoder that reads a host worker's, and passed on to the client.
-A workload that is root of its guest can answer in its worker's place, so what a session in a
-guest says of its files is the workload's word for them, which is all a session's answer ever was.
+place, so its answer is evidence of liveness and of nothing else. A file session in a guest (§4.4
+of `04-runtimes.md`) is one of the two places the node decodes what a guest wrote as a structure
+(corrected 2026-10-24: this said the one place, until installs ran in a guest): each frame the
+guest's worker answers is a `FileResponse`, bounded in length before it is read and decoded by the
+same memory-safe decoder that reads a host worker's, and passed on to the client. A workload that
+is root of its guest can answer in its worker's place, so what a session in a guest says of its
+files is the workload's word for them, which is all a session's answer ever was. A stopped
+microVM's session is served by a service guest that runs nothing of the workload's, booted from
+Korpis's own boot drive with no image; its kernel still parses a filesystem the tenant formatted,
+which is the point of putting that parse behind the hypervisor, so a volume crafted to attack a
+guest kernel reaches a guest that holds only that tenant's own volumes. An install there (§4 of
+`09-recipes.md`) is the other place the node decodes a structure from a guest: the install job's
+`InstallResult`, bounded by the agent's frame and decoded as a host install's is, and its progress,
+a number of fixed layout; what the install reads reaches the guest on a drive the host made from
+its own store, holding only what that install names.
 
 **A shared-kernel tier does not survive a kernel privilege-escalation vulnerability.** That is true
 of every container platform, it is true here, and it is why the tier is an operator choice rather

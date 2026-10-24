@@ -435,7 +435,7 @@ recipe edits, and single-file restore had no mechanism for half the tiers.
 | running, `microvm` | inside the workload's own guest, started by `korpis-guest` | vsock |
 | running, `vm`, with `korpis-guest` installed | inside the guest | virtio-serial or vsock |
 | running, `vm`, without it | nowhere: no file access while running, and the interface says so | none |
-| stopped, any block-device tier | inside a **service microVM**: a disposable Korpis-built guest that attaches the volume read-write, runs the worker, and is destroyed when the session ends | vsock |
+| stopped, any block-device tier | inside a **service microVM**: a disposable Korpis-built guest that attaches the volume read-write, runs the worker, and is destroyed when its last session ends | vsock |
 
 - **`korpis-guest` is the in-guest component**, a small static binary that Korpis places in every
   `microvm` it builds, because Korpis builds the microVM's root filesystem and init from the
@@ -475,9 +475,63 @@ is: it is root only of its own user namespace, and holds no privilege over the g
 volumes. The `firecracker` driver declares `file_access` `guest_worker` (§4.1), and the node opens
 a session on a workload whose driver declares it through the driver, on the object it runs, rather
 than through the helper; SFTP becomes a file session at the relay, so it is served the same way.
-What it does not give yet: a session opened in the moment between an object's start and the node
-naming it goes to the helper, which refuses a block device and is asked again; and a stopped
-microVM's files wait for its service microVM (§4 of `20-roadmap.md`).
+What it does not give: a session opened in the moment between an object's start and the node
+naming it goes to the helper, which refuses a block device and is asked again. The guest's agent
+listens from before its first process has entered the workload's root, so that a driver told the
+run has started can reach it at once, and a command or a session asked for meanwhile waits until
+the root is entered and, for a workload with an identity directory, its files have arrived, at most
+a minute; before that wait, a command run as soon as the guest said it had started ran in the boot
+drive's root and failed to find its program (Finding 157 of `23-walkthroughs.md`).
+
+**How a stopped microVM's files are served** (2026-10-24). The service microVM is a guest of
+Korpis's own: the `firecracker` driver boots it from the same boot drive, with no image (the boot
+drive stands in the image's place and is never mounted), the object's volumes attached as its own
+guest attaches them, its config drive written afresh, its volumes at their paths and nothing to
+run, with no network, identity directory, or terminal, and its shape the object's own, its network
+namespace left out. Its first process mounts a 1 MiB tmpfs as the root, holding only the mount
+points, makes it read-only, mounts the kernel's filesystems and each volume at its path, enters it
+with `pivot_root`, and runs no entry: it serves the files port, with the worker and spec a running
+guest uses, until it is stopped. There is one service guest per workload at a time, keyed by the
+workload rather than its object, since a first install runs before the workload has an object at
+all. It serves every session on its workload while any is open, counted by the driver, and is
+stopped with the last, as a guest is stopped, so its volumes are synced; a session's hold is
+dropped when its stream ends, however it ends. The table's row above said the service microVM was
+destroyed when "the session" ended; with two sessions on one object, the panel's file manager and
+SFTP, that would have attached the volume to two guests at once, which corrupts it (§3.1 of
+`06-storage.md`), so it is corrected in place to the last session. A block device is attached to
+one guest at a time, so the object's start ends its service guest first, which ends its sessions;
+the panel reopens a session that ended, and the node opens the new one on the object's own guest.
+The alternative, refusing the start while a session is open, would let a file manager left open in
+a browser hold a workload from starting, with nothing to say why. A driver that restarts ends any
+service guest the one before it left, since the sessions it served ended with it. What it costs: a
+session on a stopped microVM waits for a guest to boot before its first answer; the service guest
+uses the object's own memory and CPU while it runs, which its reservation already holds, since the
+object is stopped; the driver boots or stops one object's service guest at a time, so another
+stopped object's first session waits behind it; and a workload whose object the node has not yet
+created, one never started, has no object to serve, so a session on it goes to the helper, which
+refuses a block device. The browse and single-file restore of a block-device volume's backups (§5.4
+of `06-storage.md`) follow through the same guest (§4 of `20-roadmap.md`).
+
+**How an install runs in a service guest** (2026-10-24). A workload whose volumes are block devices
+has its installs (§4 of `09-recipes.md`) run by its driver, in a service guest booted for the
+install, the one guest of its workload at a time. The driver writes the install's spec, naming the
+guest's own paths, and what it reads from the node's content store, the recipe's files and what its
+fetches downloaded, each by digest and nothing else, on a content drive: an ext4 filesystem the
+host makes from its own files with `mke2fs`, which the guest mounts read-only in the image's place.
+The guest's first process enters a root of the volumes, as for file sessions, and runs the install
+job its boot drive carries, `korpis-install-job`, the helper's, which confines itself as it does on
+a host, its ids the guest's own from 0; it re-executes itself through `/proc/self/exe`, its path
+being on the boot drive outside that root. The driver asks the guest's agent on the control port
+how it goes, a progress and the job's `InstallResult` once written, decoded by the host as the
+helper's is; keeps how it ended; and stops the guest, its volumes synced, unless a file session
+still holds it. A file session opened meanwhile is served by the same guest; one serving files when
+an install starts is ended first; and the workload's start is refused while an install runs, since
+ending one part way would only make it resume. What it costs: an install waits for a guest to boot
+and for its content to be copied onto a drive where the store is on another filesystem; and what
+the driver keeps of an install is in memory, so a driver that restarts knows none, and the node
+starts it again from the progress it kept, as for a helper's lost worker. What a guest is for is
+its config's role (`korpis_guest::config::Role`): the workload's own run, a service guest serving
+files, or one running an install.
 
 ### 4.5 A uid on disk must mean the same thing everywhere
 
@@ -761,7 +815,9 @@ kernel has no vsock boots all the same and says so on its console, and its `gues
 fails. A command the agent runs (`Exec`, §4.2) is the guest's first process's child, which reaps
 every child: so the command's status is kept for the thread that ran it, and while a command is
 being started only the entry is reaped, since the standard library waits itself for a child whose
-exec failed and must find it there.
+exec failed and must find it there. A command asked for before the first process has entered the
+workload's root waits until it has, as a file session does (§4.4; Finding 157 of
+`23-walkthroughs.md`).
 
 **A guest's `/run/korpis`** (corrected 2026-10-24: until the vsock channel was built, a guest
 had none, and its identity socket and API relay reached nothing inside it). When the spec names the

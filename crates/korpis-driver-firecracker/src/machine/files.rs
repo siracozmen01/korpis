@@ -6,8 +6,9 @@
 //! frame. The spec names each volume at the path the guest mounts it at, which is where the worker
 //! finds it, and maps the guest's own ids, which are the workload's; the worker builds its root
 //! on an empty directory of the guest's `/run`. The driver reads nothing of the session after.
+//! A stopped object's session is served the same way by a service guest ([`super::service`]).
 
-use super::{Machine, MachineError, MachineResult, failed};
+use super::{Machine, MachineResult, failed};
 use crate::{agent, jail, process};
 use buffa::Message as _;
 use korpis_proto::korpis::driver::v1 as driver;
@@ -17,20 +18,35 @@ use tokio::net::UnixStream;
 /// Where the worker builds its root, in its own mount namespace in the guest.
 const ROOT: &str = "/run/.korpis-files";
 
+/// A file session: the connection to its worker, and for a stopped object the hold on the guest
+/// serving it, which is to be kept until the session ends.
+#[derive(Debug)]
+pub struct Session {
+    /// The worker's end, its spec sent.
+    pub stream: UnixStream,
+    /// The hold on the service guest, for an object that does not run.
+    pub lease: Option<super::service::Lease>,
+}
+
 impl Machine {
-    /// A file session on the volumes of object `id`'s running guest, writing those the workload
-    /// writes if `write`: the connection to its worker, the spec sent.
+    /// A file session on the volumes of object `id`, writing those the workload writes if
+    /// `write`: in its own guest while it runs, and in a service guest while it does not.
     ///
     /// # Errors
-    /// The guest does not run, has not started, or its files port did not take the session.
-    pub async fn files(&self, id: &str, write: bool) -> MachineResult<UnixStream> {
+    /// The guest has not started, its files port did not take the session, or a service guest
+    /// could not be booted.
+    pub async fn files(&self, id: &str, write: bool) -> MachineResult<Session> {
         let object = self.load(id)?;
-        if !object.vm.as_ref().is_some_and(process::alive) {
-            return Err(MachineError::Refused(format!("{id} does not run")));
-        }
-        self.until_started(id).await?;
         let spec = spec(&object.spec, write).encode_to_vec();
-        agent::files(&jail::vsock_socket(&self.settings, id), &spec).await.map_err(failed)
+        if object.vm.as_ref().is_some_and(process::alive) {
+            self.until_started(id).await?;
+            let socket = jail::vsock_socket(&self.settings, id);
+            let stream = agent::files(&socket, &spec).await.map_err(failed)?;
+            return Ok(Session { stream, lease: None });
+        }
+        let (socket, lease) = self.service(id).await?;
+        let stream = agent::files(&socket, &spec).await.map_err(failed)?;
+        Ok(Session { stream, lease: Some(lease) })
     }
 }
 

@@ -137,6 +137,7 @@ impl DriverRuntime {
 }
 
 mod files;
+mod install;
 mod verbs;
 
 impl Runtime for DriverRuntime {
@@ -246,6 +247,29 @@ impl Runtime for DriverRuntime {
         write: bool,
     ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
         self.files_call(id, write)
+    }
+
+    fn start_install(
+        &self,
+        asked: &driver::StartInstallRequest,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.start_install_call(asked)
+    }
+
+    fn install_status(
+        &self,
+        _driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<driver::InstallStatusResponse>> + Send {
+        self.install_status_call(job)
+    }
+
+    fn forget_install(
+        &self,
+        _driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.forget_install_call(job)
     }
 
     fn changes(&self) -> broadcast::Receiver<String> {

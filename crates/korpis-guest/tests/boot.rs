@@ -101,9 +101,17 @@ fn ext4(dir: &Path, image: &Path, size: u32, owner: &str) {
 fn drives(dir: &Path, script: &str) -> [PathBuf; 4] {
     let empty = dir.join("empty");
     std::fs::create_dir_all(&empty).unwrap();
-    let (guest, worker) =
-        (musl("korpis-guest", "korpis-guest"), musl("korpis-files", "korpis-fsworker"));
-    let boot = korpis_image::boot::drive(&guest, &worker, dir).unwrap();
+    let (guest, fsworker, install_job) = (
+        musl("korpis-guest", "korpis-guest"),
+        musl("korpis-files", "korpis-fsworker"),
+        musl("korpis-install", "korpis-install-job"),
+    );
+    let programs = korpis_image::boot::Programs {
+        guest: &guest,
+        fsworker: &fsworker,
+        install_job: &install_job,
+    };
+    let boot = korpis_image::boot::drive(&programs, dir).unwrap();
     let paths = [boot, dir.join("image.ext4"), dir.join("config"), dir.join("data.ext4")];
     image_drive(dir, &paths[1]);
     ext4(&empty, &paths[3], 16, "1000:1000");
@@ -121,6 +129,7 @@ fn drives(dir: &Path, script: &str) -> [PathBuf; 4] {
         volumes: vec![Volume { path: "/data".into(), read_only: false }],
         interactive: false,
         identity: false,
+        role: korpis_guest::config::Role::Workload,
     };
     config.write(&mut std::fs::File::create(&paths[2]).unwrap()).unwrap();
     paths

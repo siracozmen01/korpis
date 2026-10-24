@@ -16,6 +16,8 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 
 mod files;
+mod guest;
+mod install;
 mod knobs;
 
 /// The driver name it declares.
@@ -50,6 +52,10 @@ struct State {
     silent: bool,
     /// The directory its objects' file sessions are served over inside them, if any.
     guest_files: Option<std::path::PathBuf>,
+    /// Whether it declares its volumes block devices, whose installs it runs.
+    block_devices: bool,
+    /// The installs it was asked for, each with how many actions it has.
+    installs: BTreeMap<String, u32>,
 }
 
 /// The in-memory runtime; clones share it.
@@ -212,45 +218,11 @@ impl InMemory {
         let s = self.call(verb, &format!("{id} {what}"))?;
         s.objects.get(id).map(|_| ()).ok_or_else(|| RuntimeError::NotFound(id.into()))
     }
-
-    /// What a stop hook writes (the session `pre_stop`) stops a running object, as the software
-    /// a recipe's hook is written for exits on it, unless the runtime was made to ignore it.
-    fn heed(&self, id: &str, session: &str) -> RuntimeResult<()> {
-        let mut s = self.lock()?;
-        let unheeding = s.unheeding;
-        let Some(o) = s.objects.get_mut(id) else { return Ok(()) };
-        let running =
-            o.status.state.as_known() == Some(driver::RuntimeState::RUNTIME_STATE_RUNNING);
-        if session != "pre_stop" || unheeding || !running {
-            return Ok(());
-        }
-        o.status = state(driver::RuntimeState::RUNTIME_STATE_STOPPED, Some(0));
-        drop(s);
-        let _ = self.changes.send(id.to_owned());
-        Ok(())
-    }
-
-    /// A terminating signal stops a running object, as a process that handles it by exiting
-    /// does, unless the runtime was made to ignore it; any other is only recorded.
-    fn signal_now(&self, id: &str, signal: &str) -> RuntimeResult<()> {
-        let mut s = self.call("signal", id)?;
-        let deaf = s.deaf;
-        let o = s.objects.get_mut(id).ok_or_else(|| RuntimeError::NotFound(id.into()))?;
-        let running =
-            o.status.state.as_known() == Some(driver::RuntimeState::RUNTIME_STATE_RUNNING);
-        if !matches!(signal, "" | "SIGTERM" | "SIGINT") || deaf || !running {
-            return Ok(());
-        }
-        o.status = state(driver::RuntimeState::RUNTIME_STATE_STOPPED, Some(0));
-        drop(s);
-        let _ = self.changes.send(id.to_owned());
-        Ok(())
-    }
 }
 
 impl Runtime for InMemory {
     fn describe(&self) -> impl Future<Output = RuntimeResult<pb::DriverInfo>> + Send {
-        ready(Ok(info(self.name.0)))
+        ready(self.describe_now())
     }
 
     fn prepare(
@@ -332,14 +304,7 @@ impl Runtime for InMemory {
         _timeout: Duration,
         _output_limit: u32,
     ) -> impl Future<Output = RuntimeResult<Executed>> + Send {
-        let ran = self.call("exec", id).and_then(|s| {
-            let o = s.objects.get(id).ok_or_else(|| RuntimeError::NotFound(id.into()))?;
-            if o.status.state.as_known() != Some(driver::RuntimeState::RUNTIME_STATE_RUNNING) {
-                return Err(RuntimeError::Failed(format!("{id} does not run")));
-            }
-            Ok(Executed { status: s.exec_status, ..Executed::default() })
-        });
-        ready(ran)
+        ready(self.exec_now(id))
     }
 
     /// Answers as [`InMemory::guest_silent`] says, for an object that runs.
@@ -348,14 +313,7 @@ impl Runtime for InMemory {
         id: &str,
         _within: Duration,
     ) -> impl Future<Output = RuntimeResult<bool>> + Send {
-        let answered = self.call("ping_guest", id).and_then(|s| {
-            let o = s.objects.get(id).ok_or_else(|| RuntimeError::NotFound(id.into()))?;
-            if o.status.state.as_known() != Some(driver::RuntimeState::RUNTIME_STATE_RUNNING) {
-                return Err(RuntimeError::Failed(format!("{id} does not run")));
-            }
-            Ok(!s.silent)
-        });
-        ready(answered)
+        ready(self.ping_now(id))
     }
 
     fn console_input(
@@ -389,6 +347,29 @@ impl Runtime for InMemory {
         write: bool,
     ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
         ready(self.files_now(id, write))
+    }
+
+    fn start_install(
+        &self,
+        asked: &driver::StartInstallRequest,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        ready(self.start_install_now(asked))
+    }
+
+    fn install_status(
+        &self,
+        _driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<driver::InstallStatusResponse>> + Send {
+        ready(self.install_status_now(job))
+    }
+
+    fn forget_install(
+        &self,
+        _driver: &str,
+        job: &str,
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        ready(self.forget_install_now(job))
     }
 
     fn changes(&self) -> broadcast::Receiver<String> {

@@ -67,7 +67,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     }
 
     /// Ensures each volume the spec mounts, filling in where the helper put it.
-    async fn mount(
+    pub(super) async fn mount(
         &self,
         a: &agent::Assignment,
         spec: &mut driver::PreparedSpec,

@@ -16,6 +16,7 @@ pub mod archive;
 pub mod beneath;
 mod files;
 pub mod run;
+mod zstd;
 
 pub use beneath::Volumes;
 pub use run::{Content, Failed, run};

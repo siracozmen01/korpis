@@ -56,6 +56,7 @@ pub fn serve(dir: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) -> 
         kernel: tools.join("guest/vmlinux"),
         guest: musl("korpis-guest", "korpis-guest"),
         fsworker: musl("korpis-files", "korpis-fsworker"),
+        install_job: musl("korpis-install", "korpis-install-job"),
         image_build: built("korpis-image", "korpis-image-build"),
         writer: writer(),
         content: state.root().join("content"),

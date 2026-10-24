@@ -3,8 +3,8 @@
 # Puts what the microvm tier runs where `korpis-server install` looks for it (§2 of
 # docs/18-operations.md): Firecracker and its jailer, the release scripts/tools.sh pins by its
 # published digest; the guest kernel, built by scripts/guest-kernel.sh from the release it pins;
-# and korpis-guest and korpis-fsworker, built static for the musl target, which every guest's boot
-# drive carries. Each is installed root's, and its SHA-256 printed, so what a node runs can be
+# and korpis-guest, korpis-fsworker, and korpis-install-job, built static for the musl target, which
+# every guest's boot drive carries. Each is installed root's, and its SHA-256 printed, so what a node runs can be
 # compared with what another built.
 #
 #   scripts/microvm-files.sh [DIR]    (default: /usr/lib/korpis)
@@ -31,6 +31,7 @@ kernel=$(sed -n 's/^VERSION=//p' scripts/guest-kernel.sh)
 
 cargo build --quiet --locked --release -p korpis-guest --bin korpis-guest --target "$TRIPLE"
 cargo build --quiet --locked --release -p korpis-files --bin korpis-fsworker --target "$TRIPLE"
+cargo build --quiet --locked --release -p korpis-install --bin korpis-install-job --target "$TRIPLE"
 
 install -d -m 0755 "$DIR"
 install -m 0755 "$REPO/.tools/bin/firecracker" "$DIR/firecracker"
@@ -38,4 +39,5 @@ install -m 0755 "$REPO/.tools/bin/jailer" "$DIR/jailer"
 install -m 0644 "$REPO/.tools/guest/vmlinux-$kernel" "$DIR/vmlinux"
 install -m 0755 "$REPO/target/$TRIPLE/release/korpis-guest" "$DIR/korpis-guest"
 install -m 0755 "$REPO/target/$TRIPLE/release/korpis-fsworker" "$DIR/korpis-fsworker"
-(cd "$DIR" && sha256sum firecracker jailer vmlinux korpis-guest korpis-fsworker)
+install -m 0755 "$REPO/target/$TRIPLE/release/korpis-install-job" "$DIR/korpis-install-job"
+(cd "$DIR" && sha256sum firecracker jailer vmlinux korpis-guest korpis-fsworker korpis-install-job)

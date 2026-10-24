@@ -14,6 +14,8 @@
 
 pub mod boot;
 pub mod build;
+pub mod content;
+pub mod ext4;
 pub mod layer;
 pub mod source;
 pub mod stream;
