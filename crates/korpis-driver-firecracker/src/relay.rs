@@ -6,11 +6,9 @@
 //! chroot (`vsock.socket_<port>`), and is relayed, byte for byte, to the workload's own socket of
 //! that name in the directory the agent serves it: the driver reads nothing that crosses, and the
 //! host's socket is the workload's identity, as for a container. The workload's socket is opened as
-//! the API socket is, never through a link. A task beside them tells the guest's agent whether
-//! the API relay is served, which the agent's directory says, as it changes. At most sixteen
-//! connections are relayed at once for each guest.
+//! the API socket is, never through a link. A task beside them keeps the guest's agent told of the
+//! rest of the directory (`sync`). At most sixteen connections are relayed at once for each guest.
 
-use crate::agent;
 use crate::api::socket_at;
 use korpis_guest::control;
 use std::collections::HashMap;
@@ -19,7 +17,6 @@ use std::os::fd::AsRawFd as _;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::Duration;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
@@ -30,10 +27,6 @@ const IDENTITY: &str = "identity.sock";
 const API: &str = "api.sock";
 /// The most connections relayed at once for one guest.
 const MOST_RELAYED: usize = 16;
-/// How often the agent's directory is looked at for the API relay.
-const LOOK: Duration = Duration::from_secs(2);
-/// How long a guest's agent is given to take what it is told.
-const TELL: Duration = Duration::from_secs(5);
 
 /// The relays of the guests that run, by object.
 #[derive(Debug, Default)]
@@ -70,7 +63,7 @@ impl Relays {
             let to = guest.identity.join(name);
             tasks.push(tokio::spawn(accepting(listener, to, Arc::clone(&limit))));
         }
-        tasks.push(tokio::spawn(telling(guest.vsock.clone(), guest.identity.join(API))));
+        tasks.push(tokio::spawn(crate::sync::keeping(guest.vsock.clone(), guest.identity.clone())));
         self.lock().insert(id.to_owned(), tasks);
         Ok(())
     }
@@ -128,18 +121,4 @@ async fn relayed(mut guest: UnixStream, to: &Path) -> io::Result<()> {
     drop(fd);
     tokio::io::copy_bidirectional(&mut guest, &mut host).await?;
     Ok(())
-}
-
-/// Tells the guest's agent, through `vsock`, whether the API relay at `api` is served, whenever
-/// that changes from what the agent last said it serves; an agent that has not yet entered the
-/// workload's root, or did not answer, is told again.
-async fn telling(vsock: PathBuf, api: PathBuf) {
-    let mut serves = None;
-    loop {
-        let wanted = control::Relays { api: api.exists() };
-        if serves != Some(wanted) {
-            serves = agent::relays(&vsock, wanted, TELL).await.ok();
-        }
-        tokio::time::sleep(LOOK).await;
-    }
 }

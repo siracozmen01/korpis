@@ -76,6 +76,9 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         guest_agent: true,
         // A command runs inside a guest through its agent (§4.2 of docs/04-runtimes.md).
         exec: true,
+        // A guest's /run/korpis: its identity socket and API relay relayed over vsock, and its
+        // files sent as they change (§6 of docs/04-runtimes.md).
+        identity_dir: true,
         config_schema: r#"{"type":"object","additionalProperties":false}"#.into(),
         ..Default::default()
     };
@@ -101,6 +104,7 @@ mod tests {
         assert_eq!(tiers, [Some(pb::IsolationTier::ISOLATION_TIER_MICROVM)]);
         // Finding 144 kept this empty until a guest's agent could carry a signal's name.
         assert!(caps.signals.iter().any(|s| s == "SIGHUP"), "named signals, through the agent");
+        assert!(caps.identity_dir, "a guest's /run/korpis, over vsock");
         assert!(!caps.enforcement["pids"].enforced && caps.enforcement["memory"].enforced);
         let modes: Vec<_> = caps.network_modes.iter().map(buffa::EnumValue::as_known).collect();
         assert_eq!(modes[0], Some(pb::NetworkMode::NETWORK_MODE_TAP), "a guest holds a tap");

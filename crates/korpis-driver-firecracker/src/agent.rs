@@ -146,6 +146,24 @@ pub async fn relays(
     control::Relays::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))
 }
 
+/// Sends the agent of the guest whose vsock device's socket is at `socket` each of `frames` over
+/// one connection, a part of a file or what a directory keeps, each answered with one byte that
+/// says it was taken.
+///
+/// # Errors
+/// It could not be reached, refused one, or answered otherwise than this driver's protocol says.
+pub async fn store(socket: &Path, frames: &[(Kind, Vec<u8>)]) -> io::Result<()> {
+    let mut stream = connect(socket).await?;
+    for (kind, payload) in frames {
+        let answer = if *kind == Kind::Put { Kind::Stored } else { Kind::Kept };
+        stream.write_all(&control::frame(*kind, payload)?).await?;
+        if frame(&mut stream, answer, 1).await? != [0] {
+            return Err(io::Error::other("the guest's agent refused a file"));
+        }
+    }
+    Ok(())
+}
+
 /// Asks the agent of the guest whose vsock device's socket is at `socket` to run `c` as its entry
 /// runs, sending what it writes, at most its limit, and then how it ended on `out`. The guest
 /// bounds the output too; what it sends past the limit is read and dropped here as well.

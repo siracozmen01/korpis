@@ -1204,6 +1204,15 @@ period late (two seconds by default). What it costs: a stop is no longer one cal
 but a signal, a kill, and a look on each pass, and an agent that restarts in the middle of one
 forgets how far it was and signals the object again, which starts its grace again.
 
+> Corrected 2026-10-24. A signal the driver could not deliver failed the pass and was asked
+> again on the next, so the object was never killed: a microVM whose Firecracker had stopped
+> answering, the hung guest a liveness probe exists to restart, could be sent neither its stop
+> through its agent nor Ctrl+Alt+Del, and stayed. A signal that cannot be delivered is now said
+> and not asked again, and the stop goes on to its kill at the grace's end as for an object that
+> ignored it; the `firecracker` driver's own `Stop` schedules its kill before it signals, for the
+> same reason. What it costs: an object the driver cannot reach for a moment is not signalled
+> again once the moment passes, and is killed at the grace's end instead of being told twice.
+
 > Added 2026-10-20. A retirement's last call, destroying the object, is left for a later pass
 > in the same way when the driver does not answer it in time or cannot be reached, rather than
 > failing the retirement: nothing then says the object is not gone or going, and destroying it
@@ -1260,12 +1269,12 @@ Finding 103 of `23-walkthroughs.md`, when it was an installed extension's alone)
 directory carries the workload's managed files in `config/`, rendered by the supervisor (§5.2 of
 `09-recipes.md`), so `/run/korpis` is everything the node gives a workload that the workload may
 read and not write. A driver says whether it gives a workload the directory (`identity_dir`, §4.1
-of `04-runtimes.md`); the `firecracker` driver does not yet, since a guest's filesystem is its own
-and nothing carries the directory into it before the vsock channel of Phase 3 (Finding 154 of
-`23-walkthroughs.md`). Since 2026-10-24 that channel carries the identity socket and the API relay
-into a guest, served there by its first process at the same paths (§6 of `04-runtimes.md`); the
-managed files and the dependencies' files do not reach it yet, and the driver declares the
-directory once the whole of it does.
+of `04-runtimes.md`); the `firecracker` driver did not until 2026-10-24, since a guest's
+filesystem is its own and nothing carried the directory into it before the vsock channel of Phase
+3 (Finding 154 of `23-walkthroughs.md`). That channel now carries it: the identity socket and the
+API relay are served in the guest by its first process at the same paths, and the managed files
+and the dependencies' files are sent as copies as they change, so the `firecracker` driver
+declares it too (§6 of `04-runtimes.md`).
 
 The directory is mounted rather than the socket because a supervisor that restarts binds the
 socket again, as a new file, and a mount of the old file would keep pointing at nothing; the

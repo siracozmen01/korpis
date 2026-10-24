@@ -20,16 +20,15 @@ const ASK: Duration = Duration::from_secs(5);
 
 impl Machine {
     /// Tells object `id`'s guest to stop, as the driver's graceful default, and kills it once
-    /// `grace` has passed if it has not ended.
+    /// `grace` has passed if it has not ended: the kill is scheduled first, so a guest the stop
+    /// cannot reach, its hypervisor no longer answering, is ended all the same.
     pub async fn stop(&self, id: &str, signal: &str, grace: Duration) -> MachineResult<()> {
-        self.signal(id, signal).await?;
-        let machine = self.clone();
-        let id = id.to_owned();
+        let (machine, owned) = (self.clone(), id.to_owned());
         tokio::spawn(async move {
             tokio::time::sleep(grace).await;
-            let _ = machine.kill(&id).await;
+            let _ = machine.kill(&owned).await;
         });
-        Ok(())
+        self.signal(id, signal).await
     }
 
     /// Sends the entry of object `id`'s guest the signal `signal` names, `SIGTERM` where it names

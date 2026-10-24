@@ -26,4 +26,5 @@ pub mod process;
 pub mod relay;
 pub mod service;
 pub mod settings;
+pub mod sync;
 pub mod volume;

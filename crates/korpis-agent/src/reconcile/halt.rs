@@ -11,7 +11,7 @@
 //! A stop asks first when the recipe says how (§3 of docs/09-recipes.md): its `pre_stop` hook's
 //! data is written to the console as korpis's input, recorded in the stream as the reconciler's,
 //! and the process is given the hook's `wait_for_exit` to exit by itself. Only then is it
-//! signalled, and killed once its grace is over.
+//! signalled, and killed once its grace is over, whether or not the signal could be delivered.
 
 use super::act::{Failure, running};
 use super::{Reconciler, Tracked, effect, text};
@@ -70,14 +70,14 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             (Some((workload, Hook::ConsoleWrite { data, .. })), None, None) => {
                 h.asked = Some(now);
                 if !self.ask(workload, id, data).await {
-                    self.runtime.signal(id, "").await?;
+                    self.told(id).await;
                     h.signalled = Some(now);
                 }
             }
             (Some((_, Hook::ConsoleWrite { wait_for_exit, .. })), Some(at), None)
                 if at.elapsed() < *wait_for_exit => {}
             (_, _, None) => {
-                self.runtime.signal(id, "").await?;
+                self.told(id).await;
                 h.signalled = Some(now);
             }
             (_, _, Some(at)) if at.elapsed() >= self.wiring.grace => self.runtime.kill(id).await?,
@@ -89,6 +89,16 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             *h = Halting::default();
         }
         Ok(stopped)
+    }
+
+    /// Signals `id` to stop with its driver's graceful default. A signal the driver could not
+    /// deliver, as to a guest whose hypervisor has stopped answering, is said and not asked
+    /// again: the stop goes on to its kill at the grace's end as for a process that ignored it,
+    /// since a workload whose stop cannot reach it is the one a kill exists for.
+    async fn told(&self, id: &str) {
+        if let Err(e) = self.runtime.signal(id, "").await {
+            tracing::warn!(%id, error = %e, "the stop could not be delivered; it is killed at the grace's end");
+        }
     }
 
     /// Writes the hook's `data` to `id`'s console as the reconciler's input, and journals that

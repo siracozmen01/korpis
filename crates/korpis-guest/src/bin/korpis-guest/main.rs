@@ -18,6 +18,7 @@
 
 mod control;
 mod exec;
+mod files;
 mod grow;
 mod mounts;
 mod net;
@@ -35,6 +36,10 @@ use std::time::Duration;
 
 /// Where the workload's root is assembled, on the boot drive.
 const ROOT: &str = "/newroot";
+/// How long the entry waits for the workload's files once its identity socket is served: the
+/// driver sends them within a fraction of a second of being able to, so this is for a driver
+/// that is itself restarting.
+const FIRST_SYNC: Duration = Duration::from_secs(30);
 
 /// A step that failed, with what it was.
 fn failed<E: std::fmt::Display>(what: &'static str) -> impl FnOnce(E) -> String {
@@ -101,6 +106,9 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     nix::unistd::chdir("/").map_err(failed("entering the workload's root"))?;
     if config.identity {
         relay::serve()?;
+        if !files::synced(FIRST_SYNC) {
+            say("the workload's files did not arrive in time; its entry starts without them");
+        }
     }
     run::run(&config, &mut signals)
 }

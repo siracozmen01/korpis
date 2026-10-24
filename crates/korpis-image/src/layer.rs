@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! One layer of an OCI image applied to the tree its lower layers made, as the image layer
-//! specification says: an entry replaces whatever was at its path, `.wh.NAME` removes the `NAME`
-//! a lower layer made, and `.wh..wh..opq` removes what the lower layers put in its directory. Files, directories,
-//! symlinks, hard links, and FIFOs keep the owner and mode the layer records, which must be one
-//! of the workload's 65,536 ids; a device is skipped and counted, since the guest's `/dev` is the
-//! kernel's own (§6 of docs/04-runtimes.md). Every path is resolved beneath the tree
+//! specification says: an entry replaces whatever was at its path, `.wh.NAME` removes the `NAME` a
+//! lower layer made, and `.wh..wh..opq` removes what the lower layers put in its directory. Files,
+//! directories, symlinks, hard links, and FIFOs keep the owner and mode the layer records, which
+//! must be one of the workload's 65,536 ids; a device is skipped and counted, since the guest's
+//! `/dev` is the kernel's own (§6 of docs/04-runtimes.md). Every path is resolved beneath the tree
 //! ([`crate::tree`]).
 
 use crate::tree;
@@ -32,9 +32,18 @@ fn invalid(why: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, why.into())
 }
 
+/// A numeric field of a header, `raw`, read by `read` unless it holds nothing but NULs and spaces,
+/// when it is zero, as Go's `archive/tar` reads it: containerd unpacks a container's layers with
+/// that, so a layer the container tier runs is one a guest's drive is built from too.
+fn numeric(raw: &[u8], read: impl FnOnce() -> io::Result<u64>) -> io::Result<u64> {
+    if raw.iter().all(|b| *b == 0 || *b == b' ') { Ok(0) } else { read() }
+}
+
 /// The owner a header records, refused unless it is one of the workload's ids.
 fn owner(header: &tar::Header) -> io::Result<(Uid, Gid)> {
-    let (uid, gid) = (header.uid()?, header.gid()?);
+    let old = header.as_old();
+    let uid = numeric(&old.uid, || header.uid())?;
+    let gid = numeric(&old.gid, || header.gid())?;
     if uid >= IDS || gid >= IDS {
         return Err(invalid(format!("an entry owned by {uid}:{gid}, outside the 65536 ids")));
     }
@@ -43,7 +52,8 @@ fn owner(header: &tar::Header) -> io::Result<(Uid, Gid)> {
 }
 
 fn mode(header: &tar::Header) -> io::Result<Mode> {
-    Ok(Mode::from_raw_mode(header.mode()? & 0o7777))
+    let mode = numeric(&header.as_old().mode, || header.mode().map(u64::from))?;
+    Ok(Mode::from_raw_mode(u32::try_from(mode & 0o7777).unwrap_or(0)))
 }
 
 /// A file's contents, owner, mode, and modification time, at `name` in `dir`.
@@ -57,7 +67,8 @@ fn file(dir: &OwnedFd, name: &Path, entry: &mut tar::Entry<'_, impl Read>) -> io
     // The owner first: changing it clears the set-id bits, which the mode then sets.
     fchown(&out, Some(uid), Some(gid))?;
     fchmod(&out, mode(header)?)?;
-    let when = Timespec { tv_sec: i64::try_from(header.mtime()?).unwrap_or(0), tv_nsec: 0 };
+    let mtime = numeric(&header.as_old().mtime, || header.mtime())?;
+    let when = Timespec { tv_sec: i64::try_from(mtime).unwrap_or(0), tv_nsec: 0 };
     futimens(&out, &Timestamps { last_access: when, last_modification: when })?;
     Ok(())
 }

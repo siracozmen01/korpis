@@ -303,6 +303,24 @@ impl Node {
         agent
     }
 
+    /// The process ids of the Firecracker processes running the node's guests, each beneath the
+    /// cgroup of its object.
+    pub fn firecrackers(&self) -> Vec<u32> {
+        let Some((_, cgroup)) = &self.microvms else { return Vec::new() };
+        let objects: Vec<PathBuf> = std::fs::read_dir(cgroup)
+            .map(|d| d.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect())
+            .unwrap_or_default();
+        let comm = |p: &u32| std::fs::read_to_string(format!("/proc/{p}/comm"));
+        objects
+            .iter()
+            .flat_map(|o| {
+                let procs = std::fs::read_to_string(o.join("cgroup.procs")).unwrap_or_default();
+                procs.lines().filter_map(|l| l.parse().ok()).collect::<Vec<u32>>()
+            })
+            .filter(|p| comm(p).is_ok_and(|c| c.trim() == "firecracker"))
+            .collect()
+    }
+
     /// Removes `workload`'s containers when the node is dropped, if the test did not.
     pub fn guard(&self, workload: &str) {
         self.guarded.lock().unwrap().push(workload.to_owned());

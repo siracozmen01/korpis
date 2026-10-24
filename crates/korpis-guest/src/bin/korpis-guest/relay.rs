@@ -50,6 +50,12 @@ pub fn serve() -> Result<(), String> {
     Ok(())
 }
 
+/// Whether the identity socket is served in the workload's root, so `/run/korpis` there is the
+/// workload's and what is written into it lands inside its root.
+pub fn served() -> bool {
+    SERVED.load(Ordering::Acquire)
+}
+
 /// Serves the relays `wanted`, as the host says, and stops serving the others; what is served
 /// after, which is less than asked if the API relay's socket could not be made.
 pub fn relays(wanted: control::Relays) -> control::Relays {

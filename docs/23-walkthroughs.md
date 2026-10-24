@@ -5219,7 +5219,7 @@ beside the bot, and later the customer asks for it on the `microvm` tier.
 | 7 | The bot hangs and its beats stop; after the minute and its failures the probe fails, and the node restarts it, recorded with its cause; a beat from before the restart does not count for the new life | `04-runtimes.md` §5 |
 | 8 | The customer asks for the bot on the `microvm` tier ‡ | `04-runtimes.md` §6; `05-scheduling.md` §2.1 |
 
-**One finding, at step 8** (‡).
+**One finding, at step 8** (‡), and a second when step 8 was built (Finding 156, below).
 
 **FINDING 154: A microVM was given no `/run/korpis`, and nothing said so. `CONFIRMED`, by reading
 the code**
@@ -5247,12 +5247,40 @@ then a microVM holds no credential, and a recipe that relies on its files does n
 > credential. The managed files and the dependencies' files do not reach it yet, so the driver
 > still declares no `identity_dir` and a heartbeat probe still keeps a workload off it.
 
+> Closed 2026-10-24: the managed files and the dependencies' files are sent into a guest as
+> copies as they change, and its entry waits for the first sync (§6 of `04-runtimes.md`), so the
+> `firecracker` driver declares `identity_dir` and step 8 now places the bot on a microVM, where it
+> beats through the relayed socket. What it costs is stated there: a change reaches a guest up to
+> two seconds after a container, and the copies are read-only by their mode alone.
+
 Steps 1 to 5 and 7 are built: `crates/korpis-agent/tests/agent/heartbeat.rs` beats through the
 SDK on an agent's identity socket, stops, and sees the workload unhealthy, restarted, and healthy
 again; `crates/korpis-e2e/tests/e2e/heartbeat.rs` runs `korpis heartbeat --every 1s` in a
 container on a real node, stops its process from the host, and sees the same; and
 `crates/korpis-core` refuses a heartbeat probe at placement on a driver without the directory.
-Step 6 follows from step 4, since nothing in a beat reaches the control plane.
+Step 6 follows from step 4, since nothing in a beat reaches the control plane. Step 8 is built
+since Finding 154 was closed: `crates/korpis-e2e/tests/e2e/microvm_heartbeat.rs` runs `korpis
+heartbeat --every 1s` in a microVM on a real node, stops its Firecracker from the host as a hung
+guest, and sees it unhealthy, restarted, and healthy again in a new guest.
+
+**FINDING 156: A workload whose stop could not be delivered was never killed. `CONFIRMED`, by the
+end-to-end test of step 8**
+
+Found 2026-10-24, when that test's hung guest was judged unhealthy and never restarted. The node's
+stop (§6 of `02-architecture.md`) signals the object, then kills it once its grace is over; but a
+signal the driver could not deliver failed the pass, and the next pass signalled again, so the
+grace never began. A guest whose Firecracker has stopped answering can be sent neither its stop
+through its agent nor Ctrl+Alt+Del, so the hung guest a liveness probe exists to restart was the
+one workload the node could not restart. The `firecracker` driver's own `Stop` had the same shape:
+it scheduled its kill only after a signal that succeeded.
+
+**Resolution.** A signal that cannot be delivered is said and not asked again, and the stop goes on
+to its kill at the grace's end as for an object that ignored it; the driver's `Stop` schedules its
+kill before it signals. Recorded as a correction in §6 of `02-architecture.md`.
+`crates/korpis-agent/tests/agent/halting.rs` fails a stop's signal and sees the object killed
+once, past its grace, and retired; the end-to-end test above restarts the hung guest. What it
+costs: an object the driver could not reach for a moment is killed at the grace's end rather than
+told again.
 
 ## 63. A database judged by its own client, inside its container
 
@@ -5372,6 +5400,5 @@ socket, sees `api.sock` served inside once it is served on the host and withdraw
 the driver and is answered again, and has a start refused once the directory resolves to another
 workload's; `crates/korpis-driver-firecracker/tests/runtime.rs` has `Create` refuse another
 workload's directory and a volume over `/run/korpis`. Step 1 is the node's, as it is for a
-container. The bot's credential through a real node on the `microvm` tier is traced end to end
-once the rest of the directory reaches a guest and the driver declares `identity_dir` (§4 of
-`20-roadmap.md`).
+container. Step 5 through a real node is built with the rest of the directory: the heartbeat of
+trace 62's step 8 crosses the same relay to the node's socket.

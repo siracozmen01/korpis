@@ -579,12 +579,13 @@ probe's, so a workload is judged failing after `max_interval` and its failures l
 silence. A beat before the object last started is not counted, so a workload restarted for its
 silence is judged on its new life alone. A heartbeat needs the directory its node serves the
 workload, which only a driver declaring `identity_dir` (§4.1) gives it, so a node whose driver does
-not is refused at placement by the `probe` check of §2.1 of `05-scheduling.md`. The `oci` driver
-declares it; the `firecracker` driver does not yet, since nothing carries the directory into a
-guest (Finding 154 of `23-walkthroughs.md`). What it costs: a heartbeat says that the process
-calling it runs, not that the workload works, which is what the workload chose to mean by it; and a
-workload whose beat is a thread of its own reports healthy while the rest of it is stuck, which is
-why a probe from outside is preferred wherever the workload has an endpoint to reach.
+not is refused at placement by the `probe` check of §2.1 of `05-scheduling.md`. Both drivers
+declare it, the `firecracker` driver since 2026-10-24, when the directory reached a guest over its
+vsock channel (§6; until then it did not, Finding 154 of `23-walkthroughs.md`). What it costs: a
+heartbeat says that the process calling it runs, not that the workload works, which is what the
+workload chose to mean by it; and a workload whose beat is a thread of its own reports healthy
+while the rest of it is stuck, which is why a probe from outside is preferred wherever the workload
+has an endpoint to reach.
 
 An `exec` probe runs its command inside the workload through its driver's `Exec` (§4.2), which the
 agent asks on the probe's period, in a task of its own so that a slow command holds up nothing
@@ -750,13 +751,29 @@ in the guest's chroot (`vsock.socket_<port>`), and the driver relays it on to th
 socket on the host, opened as the API socket is. Neither end reads what crosses, and the socket on
 the host is the workload's identity, as it is for a container: a request made inside a guest names
 the workload its node made the socket for, and nothing the guest chose. Each end relays at most
-sixteen connections of a guest at once, and no volume is mounted over `/run/korpis`. What it does
-not give yet: the managed files in `config/` and the dependencies' files are still on the host
-alone, so the driver still declares no `identity_dir` (§4.1) and a heartbeat probe still keeps a
-workload off it (Finding 154 of `23-walkthroughs.md`). A recipe whose configuration is delivered as
-files, or whose dependencies are, is not refused on a microVM, because placement does not read the
-recipe and the driver cannot tell which files the node will render: such a workload starts without
-them, and is said here to. The files follow over the same channel (§4 of `20-roadmap.md`).
+sixteen connections of a guest at once, and no volume is mounted over `/run/korpis`.
+
+**A guest's files** (corrected 2026-10-24: when the sockets alone reached a guest, this section
+said the managed files and the dependencies' files stayed on the host, so the driver declared no
+`identity_dir` and a recipe whose configuration or dependencies are delivered as files started on a
+microVM without them). The workload's managed files in `config/` and its dependencies' files in
+`deps/` are sent into the guest as copies, since a guest's filesystem is its own and no host
+directory can be mounted into it. The driver looks at the workload's directory on the host every
+two seconds and sends each file that changed, in parts of at most 60 KiB, then what each directory
+keeps, the rest removed; the guest writes a file under a hidden name as its parts arrive and
+renames it into place, read-only, once the last has, so the workload reads a whole file or the one
+before it, and the entry waits for the first sync, at most thirty seconds, so it starts with its
+files as a container does. A file is read on the host through no link and only if it is a regular
+one; a directory is sent at most 200 files, a file at most a mebibyte, and a guest at most eight
+mebibytes in all, since its `/run` is a tmpfs of sixteen, and what is past those is left out and
+logged by the driver. So the driver declares `identity_dir` (§4.1), and a heartbeat probe runs on a
+microVM (Finding 154 of `23-walkthroughs.md`, closed). What it costs and does not give: a change
+reaches a guest up to two seconds after it reaches a container; a guest's entry starts a second or
+two after its object runs, once the guest has booted and taken its files, which a heartbeat probe's
+initial delay should allow; an entry whose driver is restarting as it boots may start without its
+files, after thirty seconds, and its console says so; and the copies are read-only by their mode,
+not by a read-only mount, so a workload that is root of its guest can change them, which only it
+sees, and they are sent again only when the node changes them.
 
 **How a `microvm`'s image drive is made** (2026-10-23). With no containerd to unpack for it, the
 driver has the image's layers applied by `korpis-image-build`, and the layers are a publisher's
@@ -770,17 +787,20 @@ layer specification says (§5 of `research/evidence.md`): an entry replaces what
 `.wh.NAME` removes the `NAME` a lower layer made, `.wh..wh..opq` hides what lower layers put in its
 directory, and every path is resolved by the kernel as if the tree were the root
 (`RESOLVE_IN_ROOT`), so an earlier layer's link, absolute or climbing, is followed within the tree
-and never out of it. Then it runs `mke2fs -d` on the tree in the same namespace, so the drive's
-files are owned by the workload's ids from 0, as they are for the container tier on disk (§4.5),
-and the first makes the drive root's, read-only, and named by the manifest's digest, which a later
-workload of the same image reuses. The boot drive is made the same way minus the worker, since
-nothing in it comes from a tenant, and is named by the digest of the `korpis-guest` it holds. What
-it costs: a node holds each image twice, its layers in the content store and its drive beside them,
-and builds the drive once before the image's first guest can start; an entry owned by an id beyond
-the workload's 65,536 refuses the image, as the container tier's id mapping would; device nodes in
-a layer are skipped and counted, since the guest's `/dev` is its kernel's; and extended attributes
-are not kept, so a binary that relies on a file capability (`ping`, in some images) runs without it
-in this tier.
+and never out of it. A header's owner, mode, or time left blank is read as zero, as Go's
+`archive/tar`, which containerd unpacks a container's layers with, reads it, so an image the
+container tier runs builds a guest's drive too (added 2026-10-24, when a layer written without them
+ran as a container and was refused for a microVM). Then it runs `mke2fs -d` on the tree in the same
+namespace, so the drive's files are owned by the workload's ids from 0, as they are for the
+container tier on disk (§4.5), and the first makes the drive root's, read-only, and named by the
+manifest's digest, which a later workload of the same image reuses. The boot drive is made the same
+way minus the worker, since nothing in it comes from a tenant, and is named by the digest of the
+`korpis-guest` it holds. What it costs: a node holds each image twice, its layers in the content
+store and its drive beside them, and builds the drive once before the image's first guest can
+start; an entry owned by an id beyond the workload's 65,536 refuses the image, as the container
+tier's id mapping would; device nodes in a layer are skipped and counted, since the guest's `/dev`
+is its kernel's; and extended attributes are not kept, so a binary that relies on a file capability
+(`ping`, in some images) runs without it in this tier.
 
 Built so far (Phase 3): the kernel, `korpis-guest`, the config drive's format, the image and boot
 drives, and the `firecracker` driver as a process of its own. Each guest's Firecracker is started

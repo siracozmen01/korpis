@@ -100,6 +100,26 @@ fn entries_keep_their_owners_and_modes_and_links_resolve_within_the_tree() {
 }
 
 #[test]
+fn a_header_whose_owner_and_time_are_left_blank_is_read_as_go_reads_it() {
+    if !is_root() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let root = root_of(dir.path());
+    // As a layer written with a header's numbers left unset: containerd unpacks it, owned by 0.
+    let mut h = tar::Header::new_gnu();
+    h.set_path("bin/tool").unwrap();
+    h.set_size(1);
+    h.set_mode(0o755);
+    h.set_cksum();
+    let mut b = tar::Builder::new(Vec::new());
+    b.append(&h, b"x".as_slice()).unwrap();
+    apply(&root, b.into_inner().unwrap().as_slice()).unwrap();
+    let tool = std::fs::metadata(dir.path().join("bin/tool")).unwrap();
+    assert_eq!((tool.uid(), tool.gid(), tool.mode() & 0o7777, tool.mtime()), (0, 0, 0o755, 0));
+}
+
+#[test]
 fn a_whiteout_removes_and_an_opaque_directory_hides_what_lower_layers_put_there() {
     if !is_root() {
         return;

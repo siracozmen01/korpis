@@ -5,10 +5,11 @@
 //! once, each answering frames until the host closes it or is silent for half a minute. A ping is
 //! answered with the protocol's version and how long the agent has run; a signal named is sent to
 //! the entry's process group, if it is one the driver declares; a resize sets an interactive
-//! entry's terminal to the size asked; a command is run as the entry runs (`exec`); and the relays
-//! beside the workload's identity socket are served as the host says (`relay`). A guest whose
-//! kernel has no vsock, or whose device is missing, boots all the same, and says so: its
-//! `guest_agent` probe then fails, which is what such a guest is.
+//! entry's terminal to the size asked; a command is run as the entry runs (`exec`); the relays
+//! beside the workload's identity socket are served as the host says (`relay`); and the workload's
+//! files are written as the host sends them (`files`). A guest whose kernel has no vsock, or whose
+//! device is missing, boots all the same, and says so: its `guest_agent` probe then fails, which
+//! is what such a guest is.
 
 use korpis_guest::config::Config;
 use korpis_guest::control::{self, Kind, Pong, Resized, Signalled};
@@ -120,12 +121,22 @@ fn answer(connection: OwnedFd, started: Instant, config: &Config) {
                 let served = crate::relay::relays(wanted);
                 control::write(&mut stream, Kind::Relayed, &served.encode())
             }
+            Kind::Put => {
+                let refused = !crate::files::put(&payload);
+                control::write(&mut stream, Kind::Stored, &[u8::from(refused)])
+            }
+            Kind::Keep => {
+                let refused = !crate::files::keep(&payload);
+                control::write(&mut stream, Kind::Kept, &[u8::from(refused)])
+            }
             Kind::Pong
             | Kind::Signalled
             | Kind::Resized
             | Kind::Output
             | Kind::Exited
-            | Kind::Relayed => return,
+            | Kind::Relayed
+            | Kind::Stored
+            | Kind::Kept => return,
         };
         if answered.is_err() {
             return;

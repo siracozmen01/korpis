@@ -31,6 +31,15 @@ ignore = [
     # private key is ever held. Revisit when rsa releases a constant-time version, and at once
     # if anything here ever signs with RSA. Found by cargo-deny on 2026-10-22.
     { id = "RUSTSEC-2023-0071", reason = "rsa verifies client keys only; the host key is Ed25519" },
+    # crypto-bigint's arithmetic could branch on secret values. Its 0.7 line is patched, and
+    # Cargo.lock holds 0.7.6. Its 0.5 line has no patched release, and reaches Korpis only through
+    # elliptic-curve 0.13, which biscuit-auth 6.0.0, its latest, uses for P-256 tokens. Korpis
+    # signs every token with Ed25519 (korpis_core::authz::token), whose arithmetic is
+    # curve25519-dalek's, so no secret ever passes through crypto-bigint; a P-256 block, if one
+    # came, is only verified, an operation on public values with nothing secret to time. Revisit
+    # when biscuit-auth moves to elliptic-curve 0.14, and at once if anything here ever signs with
+    # P-256. Found by cargo-deny on 2026-10-24.
+    { id = "RUSTSEC-2026-0387", reason = "0.5 only verifies P-256; Korpis signs tokens Ed25519" },
 ]
 
 [licenses]

@@ -10,8 +10,10 @@
 //! its own guest can stop the agent or answer in its place.
 
 mod answers;
+mod files;
 
 pub use answers::*;
+pub use files::{MOST_FILE, MOST_FILES, PART, Part, Place, keep, kept, plain};
 use std::io::{self, Read, Write};
 
 /// The vsock port the guest's agent listens on.
@@ -61,6 +63,15 @@ pub enum Kind {
     Relays,
     /// The agent answers a relays frame with what it now serves: one byte, a [`Relays`].
     Relayed,
+    /// The host sends a part of one of the workload's files: a [`Part`].
+    Put,
+    /// The agent answers a part: one byte, 0 kept and 1 refused.
+    Stored,
+    /// The host says which files one of the workload's directories keeps, the rest removed:
+    /// [`keep`]. The last of a sync is the `deps` directory's.
+    Keep,
+    /// The agent answers what a directory keeps: one byte, 0 done and 1 refused.
+    Kept,
 }
 
 impl Kind {
@@ -71,12 +82,16 @@ impl Kind {
             Self::Resize => 3,
             Self::Exec => 4,
             Self::Relays => 5,
+            Self::Put => 6,
+            Self::Keep => 7,
             Self::Pong => 0x81,
             Self::Signalled => 0x82,
             Self::Resized => 0x83,
             Self::Output => 0x84,
             Self::Exited => 0x85,
             Self::Relayed => 0x86,
+            Self::Stored => 0x87,
+            Self::Kept => 0x88,
         }
     }
 
@@ -87,12 +102,16 @@ impl Kind {
             3 => Some(Self::Resize),
             4 => Some(Self::Exec),
             5 => Some(Self::Relays),
+            6 => Some(Self::Put),
+            7 => Some(Self::Keep),
             0x81 => Some(Self::Pong),
             0x82 => Some(Self::Signalled),
             0x83 => Some(Self::Resized),
             0x84 => Some(Self::Output),
             0x85 => Some(Self::Exited),
             0x86 => Some(Self::Relayed),
+            0x87 => Some(Self::Stored),
+            0x88 => Some(Self::Kept),
             _ => None,
         }
     }
@@ -166,7 +185,7 @@ mod tests {
         let mut long = [0x81, 0, 0, 0, 0];
         long[1..].copy_from_slice(&(u32::try_from(MOST).unwrap() + 1).to_le_bytes());
         assert!(header(long).is_err(), "past the most");
-        assert!(header([7, 0, 0, 0, 0]).is_err(), "an unknown kind");
+        assert!(header([9, 0, 0, 0, 0]).is_err(), "an unknown kind");
         assert!(frame(Kind::Ping, &vec![0; MOST + 1]).is_err());
     }
 }

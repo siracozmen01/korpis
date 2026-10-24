@@ -4,7 +4,8 @@
 //! it asks first, as the recipe's `pre_stop` hook says, by writing the hook's data to the console
 //! as the reconciler's input, and software that heeds it exits without a signal; software that
 //! does not is signalled once the hook's wait is over, and killed once its grace is, if it
-//! ignores the signal too, as a container's first process with no handler does. None of it holds
+//! ignores the signal too, as a container's first process with no handler does, or if the signal
+//! cannot reach it, as a guest whose hypervisor has stopped answering. None of it holds
 //! up the node's other workloads, and whatever needed the stop, a retirement or a run's
 //! cancellation, completes once it has.
 
@@ -244,5 +245,29 @@ async fn a_retirement_the_driver_does_not_answer_is_asked_again_rather_than_fail
     let failed = "SELECT count(*) FROM effect WHERE action = 'step.retire' AND outcome = 'failed'";
     assert_eq!(cp.scalar::<i64>(failed).await, 0, "a moment of the driver's fails nothing");
     runtime.unreachable("destroy", false);
+    counted(&cp, RETIRED, 1).await;
+}
+
+#[tokio::test]
+async fn an_object_whose_stop_cannot_be_delivered_is_killed_past_its_grace() {
+    // As a guest whose hypervisor has stopped answering: no signal reaches it, and the stop is
+    // not asked again forever, it ends as one that ignored its signal does.
+    let grace = Duration::from_secs(3);
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = InMemory::new();
+    let _agent = node(&cp, &dir, &runtime, grace).await;
+    let w = declare(&cp, &project, "hung", push_paper_waiting("1s").await, false).await;
+    let id = object(&runtime, &w).await;
+    runtime.ignore_hooks(true);
+    runtime.fail("signal", true);
+    let retiring = Instant::now();
+    cp.retire(&w).await;
+    called(&runtime, &format!("signal {id}")).await;
+    called(&runtime, &format!("kill {id}")).await;
+    assert!(retiring.elapsed() >= grace, "it is still given its grace");
+    let signalled = runtime.calls().iter().filter(|c| *c == &format!("signal {id}")).count();
+    assert_eq!(signalled, 1, "told once, not asked again on every pass");
     counted(&cp, RETIRED, 1).await;
 }
