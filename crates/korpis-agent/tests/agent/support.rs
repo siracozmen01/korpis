@@ -4,7 +4,6 @@
 
 use connectrpc::client::{ClientConfig, HttpClient};
 use korpis_proto::korpis::v1 as pb;
-use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 use korpis_server::ServeConfig;
 use korpis_server::data::DataDir;
 use korpis_store::testing::TestDb;
@@ -14,13 +13,14 @@ use std::time::Duration;
 
 mod authority;
 mod contended;
+mod declare;
 mod person;
 mod recipe;
 mod relay;
 mod served;
 
 use contended::contended;
-pub use recipe::{push_paper, push_paper_waiting};
+pub use recipe::{push_paper, push_paper_on_microvm, push_paper_waiting};
 pub use relay::Relay;
 
 pub struct ControlPlane {
@@ -194,51 +194,6 @@ impl ControlPlane {
             .unwrap()
             .into_owned();
         created.project.as_option().unwrap().id.clone()
-    }
-
-    /// Declares workload `name` from the example recipe in `project`; its wire id.
-    pub async fn declare(&self, project: &str, name: &str) -> String {
-        self.declare_with(project, name, Vec::new()).await
-    }
-
-    /// Declares workload `name` as [`Self::declare`] does, with `volumes` declared.
-    pub async fn declare_with(
-        &self,
-        project: &str,
-        name: &str,
-        volumes: Vec<pb::VolumeSpec>,
-    ) -> String {
-        // The recipe's game endpoint is `stable`, which without an edge tier needs a node
-        // reachable on its own address (§3 of docs/07-networking.md). The test nodes advertise
-        // the loopback address, which the control plane's prober reaches; wait until it has.
-        self.measured().await;
-        let repo = push_paper().await;
-        let declared = self
-            .workloads()
-            .declare_intent(pb::DeclareIntentRequest {
-                mutation: mutation(&format!("declare-{name}")).into(),
-                target: Some(Target::Create(Box::new(pb::NewWorkload {
-                    project: project.to_owned(),
-                    name: name.to_owned(),
-                    ..Default::default()
-                }))),
-                body: pb::IntentBody {
-                    recipe: pb::RecipeRef {
-                        name: repo,
-                        version: "1.21.4".into(),
-                        ..Default::default()
-                    }
-                    .into(),
-                    volumes,
-                    ..Default::default()
-                }
-                .into(),
-                ..Default::default()
-            })
-            .await
-            .unwrap()
-            .into_owned();
-        declared.workload.as_option().unwrap().id.clone()
     }
 
     /// What the control plane says of a workload.

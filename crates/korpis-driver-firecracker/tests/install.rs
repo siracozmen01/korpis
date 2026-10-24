@@ -76,6 +76,7 @@ async fn an_install_writes_into_a_stopped_guest_s_volume_confined_and_resumes() 
         from: 0,
         files: [("motd.txt".to_owned(), motd)].into(),
         fetched: Vec::new(),
+        restore: None,
     };
     // Made first, since making it builds the image's drive, which outlasts a short install.
     let id = rig.machine.create(spec.clone()).await.unwrap();
@@ -100,6 +101,7 @@ async fn an_install_writes_into_a_stopped_guest_s_volume_confined_and_resumes() 
         from: 1,
         files: BTreeMap::default(),
         fetched: Vec::new(),
+        restore: None,
     };
     rig.machine.start_install(resumed).await.unwrap();
     let s = ended(&rig.machine, "ins-resumed").await;

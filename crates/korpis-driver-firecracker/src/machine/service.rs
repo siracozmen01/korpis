@@ -104,14 +104,15 @@ pub(super) fn service_id(key: &str) -> String {
 }
 
 /// What a service guest is booted for: what it is held by, the workload's spec, its role, an
-/// install's content drive, and whether its one volume is a staged copy rather than the
-/// workload's own.
+/// install's content drive, the source of a volume that is a staged copy of a backup's image,
+/// attached writable so its journal can be replayed, and a job's spec given in its config.
 pub(super) struct Wanted<'a> {
     pub(super) key: &'a str,
     pub(super) spec: &'a driver::PreparedSpec,
     pub(super) role: Role,
     pub(super) content: Option<PathBuf>,
-    pub(super) copy: bool,
+    pub(super) copy: Option<&'a str>,
+    pub(super) job_spec: Option<Vec<u8>>,
 }
 
 impl<'a> Wanted<'a> {
@@ -121,7 +122,12 @@ impl<'a> Wanted<'a> {
         role: Role,
         content: Option<PathBuf>,
     ) -> Self {
-        Self { key: &spec.workload, spec, role, content, copy: false }
+        Self { key: &spec.workload, spec, role, content, copy: None, job_spec: None }
+    }
+
+    /// Whether it holds the workload's own volumes, rather than a copy alone.
+    fn holds_volumes(&self) -> bool {
+        self.key == self.spec.workload
     }
 }
 
@@ -185,14 +191,14 @@ impl Machine {
     }
 
     /// Boots the service guest `wanted` asks for, once no object of its workload runs, unless
-    /// what it holds is a copy.
+    /// what it holds is a copy alone.
     pub(super) async fn boot(&self, wanted: &Wanted<'_>) -> MachineResult<Vm> {
         let _held = self.lock.lock().await;
         let spec = wanted.spec;
         let runs = |o: &Object| {
             o.spec.workload == spec.workload && o.vm.is_some_and(|v| process::alive(&v))
         };
-        if !wanted.copy && Object::all(&self.settings.objects()).iter().any(runs) {
+        if wanted.holds_volumes() && Object::all(&self.settings.objects()).iter().any(runs) {
             let why = format!("{} runs: its own guest holds its volumes", spec.workload);
             return Err(MachineError::Refused(why));
         }
@@ -231,7 +237,7 @@ impl Machine {
         for m in &wanted.spec.mounts {
             let source = PathBuf::from(&m.source);
             crate::volume::give(&source, wanted.spec.uid_base).map_err(failed)?;
-            volumes.push((source, m.read_only && !wanted.copy));
+            volumes.push((source, m.read_only && wanted.copy != Some(m.source.as_str())));
         }
         let unset = Drives {
             kernel: PathBuf::new(),
@@ -318,6 +324,7 @@ fn configured(dir: &Path, wanted: &Wanted<'_>) -> MachineResult<PathBuf> {
         volumes,
         interactive: false,
         identity: false,
+        job_spec: wanted.job_spec.clone(),
         role: wanted.role,
     };
     let config = dir.join(CONFIG);

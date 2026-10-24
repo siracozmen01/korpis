@@ -4,7 +4,8 @@
 //! service guest (§4.4 of docs/04-runtimes.md): where a test has said it takes block devices,
 //! which its declaration then says, each install it is asked for has finished at once, every
 //! action counted as run, once its spec names the workload's ids and its volumes' places, as a
-//! driver's does. One it is not asked for is unknown, and one forgotten is again.
+//! driver's does; a restore's request is recorded among its calls. One it is not asked for is
+//! unknown, and one forgotten is again.
 
 use super::{InMemory, info};
 use crate::runtime::{RuntimeError, RuntimeResult};
@@ -44,7 +45,19 @@ impl InMemory {
         if spec.uid_count == 0 || spec.mounts.iter().any(|m| m.source.is_empty()) {
             return Err(RuntimeError::Failed("an install names its ids and its volumes".into()));
         }
-        let actions = u32::try_from(asked.actions.len()).unwrap_or(u32::MAX);
+        // A restore names its image and what it copies, which the call records.
+        let restore = (asked.restore_image.as_option(), asked.restore.as_option());
+        let actions = match restore {
+            (Some(image), Some(tree)) => {
+                let (from, at, into) = (&tree.from, &tree.volume, &tree.into);
+                let said =
+                    format!("restore {} {from} {at}/{into} {}", image.image, image.filesystem);
+                s.calls.push(said);
+                1
+            }
+            (None, None) => u32::try_from(asked.actions.len()).unwrap_or(u32::MAX),
+            _ => return Err(RuntimeError::Failed("a restore names its image and its tree".into())),
+        };
         s.installs.entry(asked.job.clone()).or_insert(actions);
         Ok(())
     }

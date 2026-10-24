@@ -635,6 +635,13 @@ Primary:
   `debugfs` flagged `needs_recovery`, 2026-10-24). Why a block device's backup is read from a
   staged copy attached writable and mounted read-only, rather than attached read-only (§4.4 of
   `../04-runtimes.md`); `noload` would mount it without the journal's last transactions.
+- **[V]** `copy_file_range(2)` between two ext4 filesystems fails with `EXDEV` (Cross-device link,
+  os error 18). The manual page as installed: "EXDEV (since Linux 5.19) The files referred to by
+  fd_in and fd_out are not on the same filesystem, and the source and target filesystems are not
+  of the same type, or do not support cross-filesystem copy"; ext4 is of the same type and does
+  not support it. Met 2026-10-24 by the guest's restore, copying from a backup's image to a
+  volume. Why a restore's copy reads and writes each data run itself (§4.4 of
+  `../04-runtimes.md`).
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a

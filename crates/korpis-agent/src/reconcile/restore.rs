@@ -49,6 +49,21 @@ fn ended(result: &backup::JobResult) -> Result<After, Failure> {
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
+    /// Moves a backup's or a restore's step `s` of plan `plan` on, whichever it is.
+    pub(super) async fn data_step(
+        &mut self,
+        (a, plan): (&agent::Assignment, &str),
+        s: &pb::Step,
+        t: &mut super::Tracked,
+    ) -> Result<Option<After>, Failure> {
+        match s.action.as_str() {
+            "backup_volume" => self.backup_step(a, plan, s).await,
+            "replace_volume" => self.replace_step(s).await.map(Some),
+            "apply_restore" => self.apply_step(a, s, t).await,
+            _ => self.restore_step(a, plan, s).await,
+        }
+    }
+
     /// Moves restore step `s` of plan `plan` on; its result once the job ended, `None` while it
     /// has not.
     pub(super) async fn restore_step(
@@ -93,12 +108,17 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             Some(id) => id.to_owned(),
             None => volume_id(a, detail(s, "volume").unwrap_or_default()),
         };
+        // A block device's path is copied from its image in a guest by a later step: this one
+        // stages the image beside the volume, for reading (§5.4 of docs/06-storage.md).
+        let reading = detail(s, "image_filesystem").is_some_and(|f| !f.is_empty());
+        let unless_reading = |key| if reading { "" } else { detail(s, key).unwrap_or_default() };
         let work = helper::RestoreVolume {
             volume,
             backup: detail(s, "backup").unwrap_or_default().to_owned(),
-            path: detail(s, "path").unwrap_or_default().to_owned(),
-            into: detail(s, "into").unwrap_or_default().to_owned(),
+            path: unless_reading("path").to_owned(),
+            into: unless_reading("into").to_owned(),
             replace: flag(s, "replace"),
+            reading,
             ..Default::default()
         };
         let request = helper::StartJobRequest {

@@ -27,7 +27,9 @@ const REAP_EVERY: u32 = 30;
 pub(super) fn job_of(s: &pb::Step) -> Option<String> {
     match s.action.as_str() {
         "backup_volume" => detail(s, "backup").map(|b| format!("bkp-{b}")),
-        "restore_volume" | "replace_volume" => detail(s, "job").map(|j| format!("rst-{j}")),
+        "restore_volume" | "replace_volume" | "apply_restore" => {
+            detail(s, "job").map(|j| format!("rst-{j}"))
+        }
         _ => None,
     }
 }

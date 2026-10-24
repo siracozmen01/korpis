@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// The node's facts, its one driver taking block devices, as a microVM's driver declares.
-fn blocks() -> korpis_agent::session::Facts {
+pub(crate) fn blocks() -> korpis_agent::session::Facts {
     let mut f = facts();
     for d in &mut f.drivers {
         let mut caps = d.capabilities.as_option().cloned().unwrap_or_default();

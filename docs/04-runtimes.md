@@ -511,8 +511,8 @@ uses the object's own memory and CPU while it runs, which its reservation alread
 object is stopped; the driver boots or stops one object's service guest at a time, so another
 stopped object's first session waits behind it; and a workload whose object the node has not yet
 created, one never started, has no object to serve, so a session on it goes to the helper, which
-refuses a block device. The browse and single-file restore of a block-device volume's backups (§5.4
-of `06-storage.md`) follow through the same guest (§4 of `20-roadmap.md`).
+refuses a block device. A block-device volume's backups are browsed and a path of them restored
+(§5.4 of `06-storage.md`) through such guests too, as the paragraphs on each below say.
 
 **How an install runs in a service guest** (2026-10-24). A workload whose volumes are block devices
 has its installs (§4 of `09-recipes.md`) run by its driver, in a service guest booted for the
@@ -557,6 +557,21 @@ data less its holes, and for a guest to boot; the staging place takes that room 
 until the session ends; and a write in the session is refused by the worker and the mount, never
 reaching the copy, but the copy itself is not byte for byte the backup once its journal is
 replayed, which is why it is discarded and never restored from.
+
+**How a path of a block device's backup is restored into its volume** (2026-10-24). The node's plan
+stages the backup's image as a browse does, beside the volume, while the workload runs; once the
+workload is stopped, the node asks the driver for an install whose work is a restore
+(`StartInstall` with the staged image and what to copy), and the driver boots a service guest of
+the workload's holding its volumes and the copy, the copy as a volume of the guest's own attached
+writable and mounted read-only at `/.korpis-backup`, at the top of the guest's root since its
+`/run` is mounted over, and the install job's spec given in the guest's config, since the content
+drive's place is not taken. The job copies the path into a new directory of the volume, confined as
+an install is, and the driver keeps how it ended as it keeps an install's; a file session on that
+guest reaches the workload's volumes and never the copy, since its worker is given those alone. The
+copy reads and writes each file's data, keeping its holes, rather than offloading it to the kernel,
+which refuses a copy between two filesystems (`research/evidence.md`). What it costs: the workload
+is down for the copy, and a backup's path restored into a running workload's block device cannot
+avoid that, since a block device is attached to one guest at a time.
 
 ### 4.5 A uid on disk must mean the same thing everywhere
 

@@ -23,6 +23,10 @@ pub const INSTALL_SPEC: &str = "spec";
 /// install's spec names it as the job's content.
 pub const INSTALL_CONTENT: &str = "/run/.korpis-content";
 
+/// Where a restore's backup image, one of the guest's volumes, is mounted read-only: at the
+/// service root's top, since `/run` is mounted over once the volumes' mount points are made.
+pub const RESTORE_IMAGE: &str = "/.korpis-backup";
+
 /// The install job's root, which it mounts its own on, and its output, where it writes its
 /// progress and result, in a service guest's `/run`.
 pub const INSTALL_ROOT: &str = "/run/.korpis-install/root";

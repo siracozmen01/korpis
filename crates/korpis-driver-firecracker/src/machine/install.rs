@@ -51,6 +51,19 @@ pub struct Install {
     pub files: BTreeMap<String, String>,
     /// What its fetches downloaded, by digest.
     pub fetched: Vec<String>,
+    /// Set instead of the actions: a path of a backup's image restored into the volume.
+    pub restore: Option<Restore>,
+}
+
+/// A path of a block device's backup restored into its live volume (§5.4 of
+/// docs/06-storage.md): the image the node staged is the guest's content, mounted read-only, and
+/// the install job copies the path from it into a new directory of the volume.
+#[derive(Debug, Clone)]
+pub struct Restore {
+    /// The backup's image, as the node staged it.
+    pub image: driver::StagedImage,
+    /// What is copied, and where to.
+    pub tree: pb::RestoreTree,
 }
 
 /// What the driver says of an install.
@@ -79,13 +92,18 @@ fn spec_of(asked: &Install) -> pb::InstallSpec {
             ..Default::default()
         })
         .collect();
+    let content = match asked.restore {
+        Some(_) => korpis_guest::drive::RESTORE_IMAGE,
+        None => korpis_guest::drive::INSTALL_CONTENT,
+    };
     pb::InstallSpec {
         id: asked.job.clone(),
         actions: asked.actions.clone(),
         from: asked.from,
         volumes,
         files: asked.files.clone(),
-        content: korpis_guest::drive::INSTALL_CONTENT.into(),
+        restore: asked.restore.as_ref().map(|r| r.tree.clone()).into(),
+        content: content.into(),
         out: korpis_guest::drive::INSTALL_OUT.into(),
         root: korpis_guest::drive::INSTALL_ROOT.into(),
         id_base: 0,
@@ -114,13 +132,51 @@ impl Machine {
         if let Some(held) = running.held.remove(&workload) {
             self.halt(&workload, &held.vm).await;
         }
-        let content = self.content(&asked).await?;
-        let vm = self.boot(&Wanted::own(&asked.spec, Role::Install, Some(content))).await?;
+        let vm = match &asked.restore {
+            None => {
+                let content = self.content(&asked).await?;
+                self.boot(&Wanted::own(&asked.spec, Role::Install, Some(content))).await?
+            }
+            Some(r) => {
+                let spec = self.restoring(&asked.spec, r)?;
+                let wanted = Wanted {
+                    key: &workload,
+                    spec: &spec,
+                    role: Role::Install,
+                    content: None,
+                    copy: Some(&r.image.image),
+                    job_spec: Some(spec_of(&asked).encode_to_vec()),
+                };
+                self.boot(&wanted).await?
+            }
+        };
         let number = running.hold(&workload, vm, 0, Some(asked.job.clone()));
         let started = Outcome::Running { workload: workload.clone(), progress: asked.from };
         running.installs.insert(asked.job.clone(), started);
         tokio::spawn(self.clone().watch_install(workload, asked.job, number));
         Ok(())
+    }
+
+    /// The spec of the service guest restoring `r` into the volumes `spec` gives its workload:
+    /// those, and the backup's staged image, checked as a browse checks it and the workload's
+    /// own, read-only where the guest's restore reads it.
+    fn restoring(
+        &self,
+        spec: &driver::PreparedSpec,
+        r: &Restore,
+    ) -> MachineResult<driver::PreparedSpec> {
+        super::image::checked(&self.settings, &r.image)?;
+        if r.image.workload != spec.workload {
+            return Err(MachineError::Refused("a backup is restored into its own workload".into()));
+        }
+        let mut spec = spec.clone();
+        spec.mounts.push(driver::Mount {
+            source: r.image.image.clone(),
+            destination: korpis_guest::drive::RESTORE_IMAGE.into(),
+            read_only: true,
+            ..Default::default()
+        });
+        Ok(spec)
     }
 
     /// Makes the content drive of `asked`, given to its guest's own id, readable by it alone.

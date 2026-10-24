@@ -6,7 +6,7 @@
 //! size into a guest until its agent does (§6 of docs/04-runtimes.md).
 
 use crate::describe::info;
-use crate::machine::{Install, Machine, MachineError};
+use crate::machine::{Install, Machine, MachineError, Restore};
 use crate::prepare::prepare;
 use connectrpc::{ConnectError, ErrorCode, RequestContext, Response, ServiceRequest};
 use connectrpc::{ServiceResult, ServiceStream};
@@ -275,6 +275,14 @@ impl driver::DriverService for Driver {
         let spec = r.spec.into_option().ok_or_else(|| {
             ConnectError::new(ErrorCode::InvalidArgument, "an install names its workload's spec")
         })?;
+        let restore = match (r.restore_image.into_option(), r.restore.into_option()) {
+            (Some(image), Some(tree)) => Some(Restore { image, tree }),
+            (None, None) => None,
+            _ => {
+                let why = "a restore names both its image and what it copies";
+                return Err(ConnectError::new(ErrorCode::InvalidArgument, why));
+            }
+        };
         let asked = Install {
             job: r.job,
             spec,
@@ -282,6 +290,7 @@ impl driver::DriverService for Driver {
             from: r.from,
             files: r.files.into_iter().collect(),
             fetched: r.fetched,
+            restore,
         };
         self.machine.start_install(asked).await.map_err(status)?;
         Response::ok(driver::StartInstallResponse::default())

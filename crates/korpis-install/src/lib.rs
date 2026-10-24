@@ -16,6 +16,7 @@ pub mod archive;
 pub mod beneath;
 mod files;
 pub mod run;
+pub mod tree;
 mod zstd;
 
 pub use beneath::Volumes;

@@ -433,6 +433,12 @@ message StartInstallRequest {
   map<string, string> files = 5;
   // What the install's fetches downloaded, by digest, in the node's content store.
   repeated string fetched = 6;
+  // Set instead of the actions: a path of a block device's backup restored into the workload's
+  // volume (§5.4 of docs/06-storage.md), from the image the node staged, which the service guest
+  // holds beside the volumes, attached writable and mounted read-only, as a browse's guest does.
+  StagedImage restore_image = 7;
+  // What the restore copies, and where to.
+  korpis.install.v1.RestoreTree restore = 8;
 }
 
 message StartInstallResponse {}

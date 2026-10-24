@@ -6,8 +6,9 @@
 //! back into that workload is `backup.restore` there; putting it into another workload's volume
 //! hands its contents to that workload's holders, so it takes `backup.read` on the backup's
 //! workload and `workload.file.write` on the other. A block device's files are its guest's to
-//! parse, so a restore into a new directory of one is refused, and the whole volume is replaced or
-//! the backup cloned instead (Finding 158 of docs/23-walkthroughs.md).
+//! parse, so a path of its backup is restored into a new directory of it by a copy inside a guest
+//! from the backup's image, staged on the node, while the workload is stopped (Finding 158 of
+//! docs/23-walkthroughs.md); all of it, only by replacing the volume or cloning the backup.
 
 use crate::App;
 use crate::caller::Caller;
@@ -44,6 +45,22 @@ fn directory_name(name: &str) -> Result<(), AppError> {
         && !name.starts_with('.')
         && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'));
     if ok { Ok(()) } else { Err(AppError::invalid("into", "a plain directory name")) }
+}
+
+/// The filesystem `b`'s image holds, for a path of it restored into a new directory of a block
+/// device: one path, copied from the image in a guest, since a block device's restore of all of it
+/// is a replacing one.
+fn image_of(b: &korpis_core::backup::Backup, path: &str) -> Result<String, AppError> {
+    if path.is_empty() {
+        let why = "a block device's backup restores one path into a new directory; replace the \
+                   volume to restore all of it";
+        return Err(AppError::invalid("path", why));
+    }
+    b.image_filesystem.clone().ok_or_else(|| {
+        let why = "the backup says of no image a guest reads: replace the volume, or clone the \
+                   backup into a new workload";
+        AppError::invalid("into", why)
+    })
 }
 
 /// That `path` is a relative path in a backup, never leaving it.
@@ -83,13 +100,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ));
         }
         let target = holder(&v);
-        if ask.into.is_some() && self.block_devices(target).await? {
-            return Err(AppError::invalid(
-                "into",
-                "a block device's files are its guest's to parse: replace the volume, or clone \
-                 the backup into a new workload",
-            ));
-        }
+        let image_filesystem = match ask.into {
+            Some(_) if self.block_devices(target).await? => Some(image_of(&b, ask.path)?),
+            _ => None,
+        };
         let source = ObjectRef::new(Kind::Workload, b.workload);
         let action = if target == b.workload {
             "backup.restore"
@@ -97,8 +111,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.authorize(caller, "backup.read", source).await?;
             "workload.file.write"
         };
-        let restore =
-            RestoreStep { job: Uuid::now_v7(), backup: b.id, path: ask.path, into: ask.into };
+        let restore = RestoreStep {
+            job: Uuid::now_v7(),
+            backup: b.id,
+            path: ask.path,
+            into: ask.into,
+            image_filesystem: image_filesystem.as_deref(),
+        };
         let request = Ask {
             volume: v,
             op: VolumeOp::Restore,

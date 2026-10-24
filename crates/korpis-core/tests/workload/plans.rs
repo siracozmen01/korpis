@@ -149,3 +149,44 @@ fn the_override_chain_only_raises_below_the_operator_and_never_below_the_floor()
     };
     assert!(c.classify(StepAction::DeleteVolume, &[]).0, "the floor cannot be relaxed");
 }
+
+#[test]
+fn a_path_of_a_block_device_s_backup_is_staged_running_and_copied_stopped() {
+    use korpis_core::workload::plan::compute::{RestoreStep, restore_steps};
+    use korpis_core::workload::volume::{Volume, VolumeKind};
+    let (driver, recipe) = (DriverClass::default(), Disruption::default());
+    let v = Volume {
+        id: Uuid::now_v7(),
+        project: Uuid::now_v7(),
+        created_by: Uuid::now_v7(),
+        attached_to: None,
+        name: "data".into(),
+        kind: VolumeKind::Declared,
+        node: Uuid::now_v7(),
+        helper_id: "wl_1.data".into(),
+        storage_class: String::new(),
+        size_bytes: GIB,
+        quota_enforced: true,
+        created: std::time::SystemTime::now(),
+        detached_at: None,
+        deleted_at: None,
+        snapshots: Vec::new(),
+    };
+    let r = |image_filesystem| RestoreStep {
+        job: Uuid::now_v7(),
+        backup: Uuid::now_v7(),
+        path: "saves/world",
+        into: Some("restored"),
+        image_filesystem,
+    };
+    let c = classifier(&driver, &recipe);
+    let files = restore_steps(Uuid::now_v7(), &v, r(None), true, c);
+    assert_eq!(actions(&files), [A::RestoreVolume], "a volume of files, at once");
+    let block = restore_steps(Uuid::now_v7(), &v, r(Some("ext4")), true, c);
+    let wanted = [A::RestoreVolume, A::Stop, A::ApplyRestore, A::Start];
+    assert_eq!(actions(&block), wanted, "staged while it runs, copied while it is stopped");
+    assert!(block.iter().all(|s| s.reversible), "nothing it does loses anything");
+    assert_eq!(block[2].detail.get("image_filesystem"), Some(&Value::String("ext4".into())));
+    let stopped = restore_steps(Uuid::now_v7(), &v, r(Some("ext4")), false, c);
+    assert_eq!(actions(&stopped), [A::RestoreVolume, A::ApplyRestore], "a stopped one stays so");
+}

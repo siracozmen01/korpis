@@ -147,7 +147,7 @@ fn service(
     ready::set();
     if config.role == Role::Install {
         match install_job {
-            Ok(job) => install::start(&job),
+            Ok(job) => install::start(&job, config.job_spec.as_deref()),
             Err(e) => {
                 say(&e);
                 install::start_failed();

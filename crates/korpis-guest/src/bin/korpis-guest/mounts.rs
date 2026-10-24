@@ -134,7 +134,8 @@ pub fn service(root: &str, config: &Config) -> Result<(), String> {
     mount(None::<&str>, root, None::<&str>, readonly, None::<&str>)
         .map_err(failed("making the root read-only"))?;
     system(root)?;
-    if config.role == korpis_guest::config::Role::Install {
+    // A restore's content is the backup's image, one of its volumes, and its spec the config's.
+    if config.role == korpis_guest::config::Role::Install && config.job_spec.is_none() {
         // The install's content, which the host wrote from its own store, read-only.
         let at = beneath(root, korpis_guest::drive::INSTALL_CONTENT)?;
         std::fs::create_dir_all(&at).map_err(failed("the content drive's mount point"))?;

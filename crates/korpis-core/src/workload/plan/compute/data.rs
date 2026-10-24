@@ -55,12 +55,18 @@ pub struct RestoreStep<'a> {
     pub path: &'a str,
     /// The new directory of the volume restored into, or `None` to replace the volume.
     pub into: Option<&'a str>,
+    /// For a block device, the filesystem its backup's image holds: a path is then copied from
+    /// the image inside a guest (§5.4 of docs/06-storage.md).
+    pub image_filesystem: Option<&'a str>,
 }
 
 /// The steps of a plan restoring into `v`: into a new directory of it, one step that loses
 /// nothing; or replacing it, the backup restored into a staging place while the workload runs,
 /// then the workload stopped when it runs (`running`), the volume replaced, and the workload
-/// started again, so it is down only for the exchange.
+/// started again, so it is down only for the exchange. A path of a block device's backup goes
+/// into a new directory the same way: its image staged while the workload runs, then the path
+/// copied from it in a guest while the workload is stopped, since a block device is attached to
+/// one guest at a time.
 #[must_use]
 pub fn restore_steps(
     workload: Uuid,
@@ -77,15 +83,22 @@ pub fn restore_steps(
     detail.insert("path".into(), text(r.path));
     detail.insert("into".into(), text(r.into.unwrap_or_default()));
     detail.insert("replace".into(), Value::Bool(r.into.is_none()));
-    if r.into.is_some() {
-        b.push(StepAction::RestoreVolume, detail, &[]);
-        return b.steps;
+    if let Some(fs) = r.image_filesystem {
+        detail.insert("image_filesystem".into(), text(fs));
     }
+    let applied = match (r.into, r.image_filesystem) {
+        (Some(_), None) => {
+            b.push(StepAction::RestoreVolume, detail, &[]);
+            return b.steps;
+        }
+        (Some(_), Some(_)) => StepAction::ApplyRestore,
+        (None, _) => StepAction::ReplaceVolume,
+    };
     b.push(StepAction::RestoreVolume, detail.clone(), &[]);
     if running {
         b.push(StepAction::Stop, ValueMap::new(), &[]);
     }
-    b.push(StepAction::ReplaceVolume, detail, &[]);
+    b.push(applied, detail, &[]);
     if running {
         b.push(StepAction::Start, ValueMap::new(), &[]);
     }

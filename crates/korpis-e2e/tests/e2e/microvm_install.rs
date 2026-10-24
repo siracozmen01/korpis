@@ -21,7 +21,7 @@ use std::sync::atomic::Ordering;
 const WRITE: &str = "workload.file.write";
 
 /// What `path` holds, at most a mebibyte, read in the session `f`.
-async fn read(f: &mut Files, path: &str) -> Vec<u8> {
+pub(crate) async fn read(f: &mut Files, path: &str) -> Vec<u8> {
     let read = pb::FileRead { path: path.into(), length: 1 << 20, ..Default::default() };
     let Response::Data(data) = f.ask(File::Read(Box::new(read))).await else {
         panic!("{path} is read");

@@ -15,6 +15,7 @@ pub(crate) mod act;
 pub(crate) use act::volume_id;
 pub(crate) use volume::driver_of;
 mod adopt;
+mod apply;
 mod backup;
 mod content;
 mod deps;

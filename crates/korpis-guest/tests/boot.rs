@@ -129,6 +129,7 @@ fn drives(dir: &Path, script: &str) -> [PathBuf; 4] {
         volumes: vec![Volume { path: "/data".into(), read_only: false }],
         interactive: false,
         identity: false,
+        job_spec: None,
         role: korpis_guest::config::Role::Workload,
     };
     config.write(&mut std::fs::File::create(&paths[2]).unwrap()).unwrap();

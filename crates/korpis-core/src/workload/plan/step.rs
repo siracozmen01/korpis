@@ -37,6 +37,9 @@ pub enum StepAction {
     RestoreVolume,
     /// Make a volume what its staged restore holds; what it held is lost.
     ReplaceVolume,
+    /// Copy a path of a block device's staged backup into a new directory of its volume, in a
+    /// guest while the workload is stopped (§5.4 of docs/06-storage.md); nothing is lost.
+    ApplyRestore,
     /// Forget the backups a retention policy no longer keeps, and mark what only they held for
     /// deletion (§5.3 of docs/06-storage.md).
     PruneBackups,
@@ -79,6 +82,7 @@ impl StepAction {
             Self::BackupVolume => "backup_volume",
             Self::RestoreVolume => "restore_volume",
             Self::ReplaceVolume => "replace_volume",
+            Self::ApplyRestore => "apply_restore",
             Self::PruneBackups => "prune_backups",
             Self::Install => "install",
             Self::Create => "create",
@@ -93,7 +97,7 @@ impl StepAction {
         }
     }
 
-    const ALL: [Self; 22] = [
+    const ALL: [Self; 23] = [
         Self::PullRecipe,
         Self::CreateVolume,
         Self::AttachVolume,
@@ -105,6 +109,7 @@ impl StepAction {
         Self::BackupVolume,
         Self::RestoreVolume,
         Self::ReplaceVolume,
+        Self::ApplyRestore,
         Self::PruneBackups,
         Self::Install,
         Self::Create,

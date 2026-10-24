@@ -42,6 +42,26 @@ fn prepared(image: &driver::StagedImage) -> driver::PreparedSpec {
     }
 }
 
+/// That `image` is one this driver's guests read: a filesystem they mount, a block device's
+/// image beneath the volume root, and a workload's whole range of ids.
+pub(super) fn checked(
+    settings: &crate::settings::Settings,
+    image: &driver::StagedImage,
+) -> MachineResult<()> {
+    if !crate::describe::GUEST_FILESYSTEMS.contains(&image.filesystem.as_str()) {
+        let why = format!(
+            "its guests mount {:?} alone, and the image holds {:?}: its backup is restored whole",
+            crate::describe::GUEST_FILESYSTEMS,
+            image.filesystem
+        );
+        return Err(super::MachineError::Refused(why));
+    }
+    super::create::ids(image.uid_base, image.uid_count)?;
+    let root = settings.volume_root.canonicalize().map_err(failed)?;
+    crate::volume::checked(&root, &image.image).map_err(super::MachineError::Refused)?;
+    Ok(())
+}
+
 impl Machine {
     /// A read-only file session on the staged backup image `image`.
     ///
@@ -50,17 +70,7 @@ impl Machine {
     /// volume root, or its ids are not a workload's; or its service guest could not be booted or
     /// did not take the session.
     pub async fn image_files(&self, image: &driver::StagedImage) -> MachineResult<Session> {
-        if !crate::describe::GUEST_FILESYSTEMS.contains(&image.filesystem.as_str()) {
-            let why = format!(
-                "its guests mount {:?} alone, and the image holds {:?}: its backup is restored whole",
-                crate::describe::GUEST_FILESYSTEMS,
-                image.filesystem
-            );
-            return Err(super::MachineError::Refused(why));
-        }
-        super::create::ids(image.uid_base, image.uid_count)?;
-        let root = self.settings.volume_root.canonicalize().map_err(failed)?;
-        crate::volume::checked(&root, &image.image).map_err(super::MachineError::Refused)?;
+        checked(&self.settings, image)?;
         let prepared = prepared(image);
         let key = key(&image.image);
         let mut running = self.services.0.lock().await;
@@ -68,8 +78,14 @@ impl Machine {
             held.sessions += 1;
             held.number
         } else {
-            let wanted =
-                Wanted { key: &key, spec: &prepared, role: Role::Files, content: None, copy: true };
+            let wanted = Wanted {
+                key: &key,
+                spec: &prepared,
+                role: Role::Files,
+                content: None,
+                copy: Some(&image.image),
+                job_spec: None,
+            };
             let vm = self.boot(&wanted).await?;
             running.hold(&key, vm, 1, None)
         };

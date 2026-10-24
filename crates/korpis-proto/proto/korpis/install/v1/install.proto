@@ -38,6 +38,21 @@ message InstallSpec {
   string root = 9;
   // The first of the 65536 host ids the workload's ids are, which the worker runs as.
   uint32 id_base = 10;
+  // Set instead of the actions: a path of a block device's backup restored into the volume, its
+  // image mounted as the content (§5.4 of docs/06-storage.md). The result's `done` is 1 once it
+  // has been copied.
+  RestoreTree restore = 11;
+}
+
+// A path of a backup's image copied under its own name into a new directory at a volume's root,
+// with its modes, owners, links, and times, as a restore of a volume of files lays it out.
+message RestoreTree {
+  // The path in the image, `/`-separated from its root; never the root itself.
+  string from = 1;
+  // The volume restored into, by the absolute path the workload sees it at.
+  string volume = 2;
+  // The new directory at the volume's root, one name, which must not exist.
+  string into = 3;
 }
 
 message InstallVolume {

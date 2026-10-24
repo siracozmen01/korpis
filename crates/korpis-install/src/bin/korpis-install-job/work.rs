@@ -42,8 +42,36 @@ fn actions(spec: &pb::InstallSpec) -> Result<Vec<InstallAction>, String> {
         .collect()
 }
 
-/// Runs the install `spec` describes; how many actions have run, and why the rest did not.
+/// Copies the path of the backup's image `r` names into its new directory, as job `spec.id`;
+/// 1 once it is copied, and why not otherwise.
+fn restore(spec: &pb::InstallSpec, r: &pb::RestoreTree) -> (u32, Result<(), String>) {
+    let mounts: Vec<(String, &Path)> =
+        spec.volumes.iter().map(|v| (v.path.clone(), Path::new(v.path.as_str()))).collect();
+    let flags = OFlags::PATH | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let copied = Volumes::open(&mounts).map_err(|e| format!("the volumes: {e}")).and_then(|v| {
+        let (_, volume, rest) = v.locate(&r.volume)?;
+        if !rest.is_empty() {
+            return Err(format!("{} is no volume's root", r.volume));
+        }
+        let image = rustix::fs::open(CONTENT, flags, Mode::empty())
+            .map_err(|e| format!("the backup's image: {e}"))?;
+        korpis_install::tree::copy_tree((&image, &r.from), (volume, &r.into), &spec.id)
+    });
+    match copied {
+        Ok(c) => {
+            tracing::info!(entries = c.entries, bytes = c.bytes, "restored");
+            (1, Ok(()))
+        }
+        Err(e) => (0, Err(e)),
+    }
+}
+
+/// Runs the install `spec` describes, or its restore; how many actions have run, and why the rest
+/// did not.
 pub fn install(spec: &pb::InstallSpec, out: &OwnedFd) -> (u32, Result<(), String>) {
+    if let Some(r) = spec.restore.as_option() {
+        return restore(spec, r);
+    }
     let from = spec.from;
     let failed = |e: String| (from, Err(e));
     let actions = match actions(spec) {

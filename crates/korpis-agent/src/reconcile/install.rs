@@ -100,7 +100,7 @@ fn as_job(s: driver::InstallStatusResponse) -> helper::JobStatusResponse {
 /// The driver's request for install `job` of `actions` from `from` into the volumes of the
 /// workload `spec` describes, its volumes placed: what the guest runs and nothing else, so the
 /// spec's console, network, and identity directory are left out.
-fn for_driver(
+pub(super) fn for_driver(
     job: &str,
     mut spec: driver::PreparedSpec,
     (actions, from): (Vec<pb::Value>, u32),

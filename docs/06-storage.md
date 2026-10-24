@@ -717,6 +717,21 @@ guest and browses such a backup (below, and §4 of `20-roadmap.md`): a single fi
 comes back only by cloning the whole backup into a new workload and copying it across with the file
 manager.
 
+> Since built, 2026-10-24: a path of a block device's backup is restored into a new directory of
+> its volume, and the control plane's refusal above holds only for the whole backup, which a
+> replacing restore serves. The plan stages the backup's image beside the volume while the
+> workload runs, as a browse does (below), stops the workload, has its driver copy the path from
+> the image into the new directory inside a service guest holding both (`apply_restore`, §4.4 of
+> `04-runtimes.md`), and starts it again. The copy is the install job's, confined as an install
+> is: the path is laid out as a restore of a volume of files lays it out, under its own name,
+> with its modes, owners within the workload's ids, links never followed, times, and holes; a
+> device, a fifo, or a socket in it is refused by name; it is made in a fresh directory renamed
+> into place last, which says which job made it, so a copy asked again finds its own work and
+> one that failed leaves nothing. What it costs: the workload is down for the copy, which the
+> plan says, where a volume of files takes its path at once while it runs; the staged image takes
+> its room beside the volume until the plan has left the node; a file linked twice in the backup
+> is copied twice.
+
 **Replacing a volume needs room for two copies of it.** Until the exchange, the node's filesystem
 holds the live volume and the staging place in full, and nothing reserves that room: a restore
 that runs out of it fails, and the volume is left as it was. A restore into a directory needs the
@@ -786,9 +801,9 @@ offers whole-image restore only, stated when the backup is taken (finding S40).
 > and read it as the repository holds it with `--image` (§5 of `13-surface-cli.md`). What it does
 > not do: the API's `BrowseBackup` and `ReadBackupFile` read a backup as the repository holds it, a
 > block device's as its one image, which a client may download whole, and never inside it, since
-> the control plane parses nothing of a tenant's; the panel shows no backup at all (question 7 of
-> §10 of `11-surface-web.md`); and a single file is not yet restored from inside the image into the
-> live volume (§4 of `20-roadmap.md`).
+> the control plane parses nothing of a tenant's; and the panel shows no backup at all (question 7
+> of §10 of `11-surface-web.md`). A path restored from inside the image into the live volume is the
+> note above.
 
 **Restores are verified.** A restore that completes without confirming the data is readable and the
 workload can start is not a restore, it is a hope. The verification is the same contract as

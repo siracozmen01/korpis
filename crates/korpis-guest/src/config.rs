@@ -50,6 +50,11 @@ pub struct Config {
     /// the workload's own socket on the host.
     #[serde(default)]
     pub identity: bool,
+    /// An install job's spec given here rather than on the content drive, for a guest whose
+    /// content drive holds something else: a restore's (§5.4 of docs/06-storage.md), whose
+    /// content drive is the backup's image. The bytes are the job's to decode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job_spec: Option<Vec<u8>>,
     /// What the guest is for: the workload's own run, or a service guest of Korpis's own.
     #[serde(default)]
     pub role: Role,
@@ -69,7 +74,8 @@ pub enum Role {
     /// A service guest that also runs an install (§4 of docs/09-recipes.md): its image's drive is
     /// the install's content drive (`korpis_image::content`), holding the install's spec and what
     /// it reads, which it mounts read-only and runs `korpis-install-job` from once its root is
-    /// ready.
+    /// ready. A restore into a block device runs the same job, its content drive the backup's
+    /// image and its spec the config's `job_spec`.
     Install,
 }
 
@@ -161,6 +167,7 @@ mod tests {
             volumes: vec![Volume { path: "/data".into(), read_only: false }],
             interactive: true,
             identity: true,
+            job_spec: None,
             role: Role::Workload,
         }
     }

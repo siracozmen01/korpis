@@ -5635,3 +5635,51 @@ tests/e2e/microvm_backup.rs` runs the trace on a real node with a real object st
 backup says it holds an `ext4` image, `korpis backup ls` lists and `korpis backup cat` reads what
 its guest wrote, inside the image, while the workload's own guest runs, `--image` lists the image
 itself, and the copy is gone once the sessions end.
+
+## 69. A region file comes back from last night's backup into a microVM's world
+
+Written 2026-10-24, as a path of a block device's backup was restored into its live volume (§5.4
+of `06-storage.md`, §4.4 of `04-runtimes.md`). Trace 68 read inside such a backup; this one writes
+what it read back into the volume, which Finding 158 left possible only by cloning the whole
+backup. It asks at each step who holds the volume, who parses what the tenant wrote, and what the
+plan tells the person approving it. The owner of the world of trace 68 finds a region corrupted
+and restores `saves/world/region` from last night's backup into a new directory, `restored`.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis backup restore bkp_… --into restored --path saves/world/region` reaches the control plane, which finds the workload's volumes are block devices and the backup an `ext4` image | `06-storage.md` §5.4; `13-surface-cli.md` §5 |
+| 2 | The plan is `restore_volume`, `stop`, `apply_restore`, `start`, each said with what it does; nothing in it loses data | `06-storage.md` §5.4; `01-model.md` §3.3 |
+| 3 | The node's restore step asks for the job's access as any restore step does, and the helper stages the image beside the volume for reading while the world runs | `06-storage.md` §5.4, §5.5 |
+| 4 | The world is stopped, so its volume is free of its guest | `04-runtimes.md` §4.4 |
+| 5 | The node asks the workload's driver for a restore: the staged image, the path, the volume, and the new directory | `04-runtimes.md` §4.4 |
+| 6 | The driver checks the image and its filesystem, and boots a service guest holding the world's volume and the copy, the copy attached writable and mounted read-only | `04-runtimes.md` §4.1, §4.4 |
+| 7 | The install job, confined as an install is, copies the path under its own name into a fresh directory, renamed into place last and marked with its job | `04-runtimes.md` §4.4; `09-recipes.md` §4; `17-security.md` §5 |
+| 8 | The node asks after the copy each pass; the driver answers as for an install, and the step completes | `04-runtimes.md` §4.4 |
+| 9 | The world starts again and reads `restored/region` | `06-storage.md` §5.4 |
+| 10 | The driver restarts during the copy: the node, told it knows no such copy, asks again, and the job finds its own finished work or starts over | `04-runtimes.md` §4.4 |
+
+**No finding.** Step 2's question was who tells the approver the world goes down: the plan's own
+`stop` and `start` steps, the same ones a replacing restore shows, rather than a non-destructive
+step that hides one; a `replace_volume` step was the obvious reuse and would have shown an
+approver a step that loses data where none does, so the copy is a step of its own. Step 6's answer
+is the driver's alone: it is the component that knows which filesystems its guests mount and
+whether the workload's own guest holds the volume. Step 10's answer is the copy's mark: a
+directory that says which job made it is the only thing that tells a finished copy from a tenant's
+own directory of the same name.
+
+Steps 1 to 9 are built, and step 10 by the copy's mark. `crates/korpis-core/tests/workload/
+plans.rs` computes the plan of step 2, with and without a running workload, and a volume of files'
+single step. `crates/korpis-agent/tests/agent/backup_restore.rs` runs steps 1 to 5 and 8 to 9
+against a real control plane with the in-memory runtime and helper: the whole backup refused into
+a directory, the plan's four steps, the helper's reading restore, the driver asked to copy from the
+staged image after the stop, and the workload running again. `crates/korpis-driver-firecracker/
+tests/restore.rs` runs steps 6 to 8 and 10 in a live guest: a path of an image needing its journal
+replayed copied into a stopped guest's volume, confined, asked again and found done, and read by
+the started workload. `crates/korpis-install/tests/tree.rs` runs step 7's copy between two real
+trees: data, holes, modes, owners, times, links, a fifo refused leaving nothing, and a directory
+already there refused. `crates/korpis-e2e/tests/e2e/microvm_restore.rs` runs every step on a real
+node with MinIO and the first-party S3 target: a microVM's world backed up, written over, a path of
+the backup restored beside it while the guest reads both, and then the whole volume replaced,
+approved, and started on, the test Finding 159 said this phase would add.

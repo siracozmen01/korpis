@@ -190,7 +190,7 @@ pub(crate) async fn backed_up(cp: &ControlPlane, project: &str) -> (String, Stri
 }
 
 /// Waits for `plan` to be applied.
-async fn applied(cp: &ControlPlane, plan: &str) {
+pub(crate) async fn applied(cp: &ControlPlane, plan: &str) {
     let mut status = cp.plan(plan).await.status.as_known();
     for _ in 0..150 {
         if status == Some(pb::PlanStatus::PLAN_STATUS_APPLIED) {
@@ -214,7 +214,7 @@ async fn no_jobs(host: &InMemoryHost) {
 }
 
 /// Restores backup `id` as `target` asks; the plan.
-async fn restored(cp: &ControlPlane, key: &str, id: &str, target: Target) -> pb::Plan {
+pub(crate) async fn restored(cp: &ControlPlane, key: &str, id: &str, target: Target) -> pb::Plan {
     let r = pb::RestoreBackupRequest {
         mutation: mutation(key).into(),
         backup: id.into(),

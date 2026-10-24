@@ -19,6 +19,7 @@ mod files;
 mod guest;
 mod install;
 mod knobs;
+mod prepare;
 
 /// The driver name it declares.
 pub const NAME: &str = "memory";
@@ -134,25 +135,6 @@ fn info(name: &str) -> pb::DriverInfo {
 
 /// The verbs, answered at once.
 impl InMemory {
-    fn prepare_now(&self, workload: &str, intent: &pb::Intent) -> RuntimeResult<Prepared> {
-        let s = self.call("prepare", workload)?;
-        if let Some(r) = s.rejecting.clone() {
-            return Ok(Prepared::Rejected(r));
-        }
-        let body = intent.body.as_option();
-        let console = body.and_then(|b| b.console.as_known());
-        let captured = s.capturing && console != Some(pb::ConsoleMode::CONSOLE_MODE_NONE);
-        Ok(Prepared::Spec(Box::new(driver::PreparedSpec {
-            workload: workload.to_owned(),
-            intent: intent.id.clone(),
-            rootfs: body.map(|b| b.recipe.digest.clone()).unwrap_or_default(),
-            resources: body.and_then(|b| b.resources.as_option().cloned()).into(),
-            stream: captured.then(driver::StreamCapture::default).into(),
-            driver: self.name.0.to_owned(),
-            ..Default::default()
-        })))
-    }
-
     fn create_now(&self, spec: &driver::PreparedSpec) -> RuntimeResult<String> {
         let mut s = self.call("create", &spec.workload)?;
         let run = |s: &driver::PreparedSpec| s.labels.as_option().map(|l| l.run.clone());

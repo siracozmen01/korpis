@@ -21,14 +21,17 @@ use std::sync::atomic::{AtomicI32, Ordering};
 
 /// The most of a result read back, leaving the frame its fixed part.
 const MOST_RESULT: u64 = 60 * 1024;
+/// The largest spec given in the config: what a pipe holds unread.
+const MOST_GIVEN: usize = 60 * 1024;
 
 /// The install job's process id once started, zero before, below zero if it could not start.
 static JOB: AtomicI32 = AtomicI32::new(0);
 
-/// Starts the install job at `job`, the boot drive's binary held open, with the content drive's
-/// spec as its input. One that cannot be started is said on the console and reported as ended.
-pub fn start(job: &File) {
-    if let Err(e) = started(job) {
+/// Starts the install job at `job`, the boot drive's binary held open, with `spec` as its input,
+/// or else the content drive's. One that cannot be started is said on the console and reported as
+/// ended.
+pub fn start(job: &File, spec: Option<&[u8]>) {
+    if let Err(e) = started(job, spec) {
         crate::say(&format!("the install job: {e}"));
         start_failed();
     }
@@ -39,17 +42,28 @@ pub fn start_failed() {
     JOB.store(-1, Ordering::Release);
 }
 
-fn started(job: &File) -> std::io::Result<()> {
+fn started(job: &File, given: Option<&[u8]>) -> std::io::Result<()> {
     for dir in [INSTALL_ROOT, INSTALL_OUT] {
         std::fs::DirBuilder::new().mode(0o700).recursive(true).create(dir)?;
     }
-    let spec = File::open(Path::new(INSTALL_CONTENT).join(INSTALL_SPEC))?;
+    let input = match given {
+        // Written into a pipe before the job reads it, so no larger than a pipe holds.
+        Some(bytes) if bytes.len() > MOST_GIVEN => {
+            return Err(std::io::Error::other("a job's spec larger than a pipe holds"));
+        }
+        Some(bytes) => {
+            let (read, write) = rustix::pipe::pipe()?;
+            std::io::Write::write_all(&mut File::from(write), bytes)?;
+            Stdio::from(read)
+        }
+        None => Stdio::from(File::open(Path::new(INSTALL_CONTENT).join(INSTALL_SPEC))?),
+    };
     let program = format!("/proc/self/fd/{}", job.as_raw_fd());
     let pid = crate::exec::tracked(|| {
         Command::new(&program)
             .env_clear()
             .env("RUST_LOG", "info")
-            .stdin(Stdio::from(spec))
+            .stdin(input)
             .stdout(Stdio::null())
             .spawn()
     })?;

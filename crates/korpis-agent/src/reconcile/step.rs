@@ -135,9 +135,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     ) -> Result<Option<After>, Failure> {
         let mut after = After::new();
         match s.action.as_str() {
-            "backup_volume" => return self.backup_step(a, plan, s).await,
-            "restore_volume" => return self.restore_step(a, plan, s).await,
-            "replace_volume" => return self.replace_step(s).await.map(Some),
+            "backup_volume" | "restore_volume" | "replace_volume" | "apply_restore" => {
+                return self.data_step((a, plan), s, t).await;
+            }
             "install" => return self.install_step(a, plan, s, t).await,
             "pull_recipe" => {
                 let spec = self.prepare(a, t).await?;

@@ -284,6 +284,8 @@ The first repository of an organization or project also takes its workloads' con
 `korpis backup restore bkp_… --into <dir> [--path <p>]` restores it into a new directory of the
 volume at once; `--replace` replaces the whole volume, a plan that waits for approval and stops
 the workload only for the exchange; `--volume vol_…` restores into another volume (§5.4 there).
+Into a block device, `--into` takes one `--path`, and its plan stops the workload while a guest
+copies the path from the backup's image, then starts it again.
 `korpis backup ls bkp_… [dir]` lists one directory of a backup without a byte of any file, and
 `korpis backup cat bkp_… <file> [-o out]` writes one file, each under its own action. A block
 device's backup is listed and read inside its image: the command opens a session of

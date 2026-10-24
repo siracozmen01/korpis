@@ -17,7 +17,7 @@ mod stop;
 
 pub use files::Session;
 pub use image::AT as IMAGE_AT;
-pub use install::{Install, InstallStatus};
+pub use install::{Install, InstallStatus, Restore};
 pub use service::Lease;
 
 use crate::object::{Object, Vm};

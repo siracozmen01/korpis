@@ -21,6 +21,19 @@ pub async fn push_paper_waiting(wait: &str) -> String {
     push_document(&PAPER.replace(hook, &format!("wait_for_exit: {wait}"))).await
 }
 
+/// Pushes the example recipe with a microVM target first, the tier a workload declared from it
+/// runs at, whose volumes are block devices; the repository.
+pub async fn push_paper_on_microvm() -> String {
+    let targets = "  targets:\n    - tier: container\n";
+    assert!(PAPER.contains(targets), "the example recipe's targets");
+    let image = "      image: docker.io/library/eclipse-temurin@sha256:";
+    let microvm = format!(
+        "  targets:\n    - tier: microvm\n      arch: [amd64, arm64]\n{image}{}\n",
+        "0".repeat(64)
+    );
+    push_document(&PAPER.replacen("  targets:\n", &microvm, 1)).await
+}
+
 async fn push_document(document: &str) -> String {
     let registry =
         std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned());
