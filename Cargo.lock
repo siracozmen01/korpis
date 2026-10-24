@@ -3102,6 +3102,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-conformance-probe"
+version = "0.0.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "korpis-containerd"
 version = "0.0.0"
 dependencies = [
@@ -3138,6 +3145,23 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "korpis-driver-conformance"
+version = "0.0.0"
+dependencies = [
+ "buffa",
+ "buffa-types",
+ "connectrpc",
+ "http",
+ "korpis-proto",
+ "rustix",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "tokio",
  "uuid",
 ]
 
@@ -3244,6 +3268,7 @@ dependencies = [
  "korpis-backup",
  "korpis-cli",
  "korpis-core",
+ "korpis-driver-conformance",
  "korpis-driver-firecracker",
  "korpis-driver-kit",
  "korpis-driver-oci",

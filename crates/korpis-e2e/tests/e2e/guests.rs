@@ -27,7 +27,7 @@ pub fn able() -> bool {
 }
 
 /// `package`'s `bin`, built static for the guest where this test was.
-fn musl(package: &str, bin: &str) -> PathBuf {
+pub(crate) fn musl(package: &str, bin: &str) -> PathBuf {
     const TRIPLE: &str = "x86_64-unknown-linux-musl";
     let exe = std::env::current_exe().unwrap();
     let profile_dir = exe.parent().and_then(Path::parent).unwrap();

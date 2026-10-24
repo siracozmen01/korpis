@@ -1,0 +1,17 @@
+[package]
+name = "korpis-conformance-probe"
+description = "The program the driver conformance suite runs inside a driver's objects"
+license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Built static for an image of its own, so it depends on as little as it can: a signal is waited
+# for on a runtime of one thread.
+tokio = { version = "1", default-features = false, features = ["rt", "signal"] }
+
+[lints]
+workspace = true

@@ -80,7 +80,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.told(id).await;
                 h.signalled = Some(now);
             }
-            (_, _, Some(at)) if at.elapsed() >= self.wiring.grace => self.runtime.kill(id).await?,
+            (_, _, Some(at)) if at.elapsed() >= self.wiring.grace => {
+                // An object gone meanwhile has stopped, which is what the kill wants.
+                match self.runtime.kill(id).await {
+                    Ok(()) | Err(RuntimeError::NotFound(_)) => {}
+                    Err(e) => return Err(e.into()),
+                }
+            }
             (_, _, Some(_)) => {}
         }
         // A process that exits on what it was told has stopped in this same pass.

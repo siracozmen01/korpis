@@ -14,7 +14,7 @@ use buffa_types::google::protobuf::Any;
 use korpis_containerd::containerd::services::containers::v1 as containers;
 use korpis_containerd::containerd::services::snapshots::v1 as snapshots;
 use korpis_containerd::containerd::services::tasks::v1 as tasks;
-use korpis_containerd::containerd::v1::types::Status;
+use korpis_containerd::containerd::v1::types::{Process, Status};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
@@ -45,6 +45,13 @@ pub(crate) fn container_id(workload: &str, intent: &str, run: &str) -> String {
     let digest = korpis_core::content::digest_of(named.as_bytes());
     let hex = digest.trim_start_matches("sha256:");
     format!("korpis-{}", hex.get(..40).unwrap_or(hex))
+}
+
+/// Whether `id` is named as [`container_id`] names a container.
+fn is_container_id(id: &str) -> bool {
+    id.strip_prefix("korpis-").is_some_and(|hex| {
+        hex.len() == 40 && hex.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    })
 }
 
 /// A driver-declared signal name, as a number.
@@ -215,14 +222,17 @@ impl Containerd {
 
     /// The status of the task on `id`, if there is one.
     pub(crate) async fn task(&self, id: &str) -> DriverResult<Option<(Status, u32, u32)>> {
+        Ok(self
+            .process(id)
+            .await?
+            .map(|p| (p.status.as_known().unwrap_or(Status::UNKNOWN), p.exit_status, p.pid)))
+    }
+
+    /// The process of the task on `id`, if there is a task.
+    pub(crate) async fn process(&self, id: &str) -> DriverResult<Option<Process>> {
         let request = tasks::GetRequest { container_id: id.to_owned(), ..Default::default() };
         match self.tasks().get(request).await {
-            Ok(r) => {
-                let r = r.into_owned();
-                let p = r.process.as_option().cloned().unwrap_or_default();
-                let status = p.status.as_known().unwrap_or(Status::UNKNOWN);
-                Ok(Some((status, p.exit_status, p.pid)))
-            }
+            Ok(r) => Ok(Some(r.into_owned().process.into_option().unwrap_or_default())),
             Err(e) if e.code == connectrpc::ErrorCode::NotFound => Ok(None),
             Err(e) => Err(e.into()),
         }
@@ -268,6 +278,7 @@ impl Containerd {
             ..Default::default()
         };
         self.tasks().create(create).await?;
+        self.mark_started(id).await?;
         let start = tasks::StartRequest { container_id: id.to_owned(), ..Default::default() };
         self.tasks().start(start).await?;
         Ok(())
@@ -275,6 +286,22 @@ impl Containerd {
 
     /// Sends `signal` to every process of `id`.
     pub async fn signal(&self, id: &str, signal: u32) -> DriverResult<()> {
+        self.held(id).await?;
+        self.signal_task(id, signal).await
+    }
+
+    /// That the driver holds the container `id`: every verb naming one it does not is answered
+    /// `NotFound` (§4.2 of docs/04-runtimes.md).
+    async fn held(&self, id: &str) -> DriverResult<()> {
+        if self.container_exists(id).await? {
+            Ok(())
+        } else {
+            Err(DriverError::NotFound(id.to_owned()))
+        }
+    }
+
+    /// Sends the task on `id`, if there is one, `signal`.
+    async fn signal_task(&self, id: &str, signal: u32) -> DriverResult<()> {
         let request = tasks::KillRequest {
             container_id: id.to_owned(),
             signal,
@@ -302,10 +329,11 @@ impl Containerd {
 
     /// Stops `id` with `signal`, killing it if it outlives `grace`.
     pub async fn stop(&self, id: &str, signal: u32, grace: Duration) -> DriverResult<()> {
+        self.held(id).await?;
         if !matches!(self.task(id).await?, Some((Status::RUNNING | Status::PAUSED, _, _))) {
             return Ok(());
         }
-        self.signal(id, signal).await?;
+        self.signal_task(id, signal).await?;
         if self.stopped_within(id, grace).await? {
             return Ok(());
         }
@@ -314,7 +342,8 @@ impl Containerd {
 
     /// Kills `id` at once.
     pub async fn kill(&self, id: &str) -> DriverResult<()> {
-        self.signal(id, 9).await?;
+        self.held(id).await?;
+        self.signal_task(id, 9).await?;
         if self.stopped_within(id, KILL_WAIT).await? {
             Ok(())
         } else {
@@ -322,23 +351,31 @@ impl Containerd {
         }
     }
 
-    /// Releases everything `id` holds: its task, its record, and its snapshot.
+    /// Releases everything `id` holds: its task, its record, and its snapshot. A container the
+    /// driver does not hold is `NotFound`, after what a destroy that stopped part way left of it,
+    /// its record gone and its snapshot not, is removed all the same.
     pub async fn destroy(&self, id: &str) -> DriverResult<()> {
-        self.kill(id).await?;
-        self.delete_task(id).await?;
-        let request =
-            containers::DeleteContainerRequest { id: id.to_owned(), ..Default::default() };
-        match self.containers().delete(request).await {
-            Ok(_) => {}
-            Err(e) if e.code == connectrpc::ErrorCode::NotFound => {}
-            Err(e) => return Err(e.into()),
+        let held = self.held(id).await;
+        if held.is_ok() {
+            self.kill(id).await?;
+            self.delete_task(id).await?;
+            let request =
+                containers::DeleteContainerRequest { id: id.to_owned(), ..Default::default() };
+            match self.containers().delete(request).await {
+                Ok(_) => {}
+                Err(e) if e.code == connectrpc::ErrorCode::NotFound => {}
+                Err(e) => return Err(e.into()),
+            }
         }
-        self.remove_snapshot(id).await?;
-        self.forget_sample(id);
-        if let Some(streams) = &self.streams {
-            streams.forget(id)?;
+        // Only a container's own snapshot and stream state are named as its container is.
+        if held.is_ok() || is_container_id(id) {
+            self.remove_snapshot(id).await?;
+            self.forget_sample(id);
+            if let Some(streams) = &self.streams {
+                streams.forget(id)?;
+            }
         }
-        Ok(())
+        held
     }
 
     /// Every container in the namespace, with its labels.

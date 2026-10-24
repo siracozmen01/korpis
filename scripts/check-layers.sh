@@ -20,6 +20,11 @@ rules=(
     # The SDK is Apache-2.0 (§2 of docs/19-governance.md): it may link the wire contract and
     # nothing of ours that is AGPL, or every extension would inherit the AGPL.
     "korpis-extension||korpis-core korpis-app korpis-wire korpis-store korpis-recipe korpis-server korpis-agent sqlx"
+    # The driver conformance suite and its probe are Apache-2.0 too (§2 of docs/19-governance.md),
+    # and test a driver through the protocol alone (§8 of docs/04-runtimes.md): the wire contract,
+    # and nothing of ours that is AGPL, least of all a driver.
+    "korpis-driver-conformance||korpis-core korpis-app korpis-wire korpis-store korpis-recipe korpis-server korpis-agent korpis-driver-kit korpis-driver-oci korpis-driver-firecracker korpis-image korpis-guest sqlx"
+    "korpis-conformance-probe||korpis-core korpis-proto connectrpc hyper sqlx"
     # Trust bootstrap is TLS alone: nothing of ours, no RPC stack, no runtime.
     "korpis-tls||korpis-core korpis-app korpis-wire korpis-store korpis-proto connectrpc tokio sqlx"
     # The stream format runs beside every workload, spawned by its shim: nothing of ours, no RPC

@@ -1,0 +1,30 @@
+[package]
+name = "korpis-driver-conformance"
+description = "The driver conformance suite: what a Korpis runtime driver must do, tested through its protocol"
+license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# Part of the separately published Apache-2.0 artifact (§11 of docs/10-api.md): it speaks the
+# driver protocol and nothing else of Korpis's, so it depends on no AGPL crate.
+[dependencies]
+buffa = { version = "=0.9.2" }
+buffa-types = { version = "=0.9.2" }
+connectrpc = { version = "=0.9.1", default-features = false, features = ["client"] }
+http = "1"
+korpis-proto = { workspace = true, features = ["client"] }
+# A block device's directory is marked, and a volume given to its workload's first id.
+rustix = { version = "1", features = ["fs", "process"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

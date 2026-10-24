@@ -297,7 +297,10 @@ same worker in a service microVM, a guest of Korpis's own holding its volumes (�
 in such a guest (§4 of `09-recipes.md`); a block-device volume's backup is browsed and read inside
 its image by such a guest holding a copy restored for it, through `korpis backup ls` and `cat`
 (§5.4 of `06-storage.md`), and a path of it is restored into a new directory of the live volume
-by a copy in such a guest while the workload is stopped.
+by a copy in such a guest while the workload is stopped. The driver conformance suite (§8 of
+`04-runtimes.md`) is built for the lifecycle, Apache-2.0 and speaking the driver protocol alone,
+and both drivers conform to it; its cases of recovery, of enforcement and capability honesty, of
+isolation and `Exec`, and the runner a third party starts on its own, follow in this phase.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -457,7 +460,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: sixty-nine traces and their 159 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy traces and their 162 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

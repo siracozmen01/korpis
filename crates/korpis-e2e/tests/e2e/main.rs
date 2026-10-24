@@ -13,6 +13,7 @@
 )]
 
 mod backups;
+mod conformance;
 mod console;
 mod dependencies;
 mod exec_probe;

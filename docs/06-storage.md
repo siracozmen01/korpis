@@ -264,7 +264,9 @@ larger size extends the image, and the guest's kernel grows the filesystem to fi
 holds. A block device needs a size, the quota its directory is given leaves the image room for its
 own extent blocks, and the bound the answer reports as enforced is the image's size, whatever the
 class. A volume's kind is written in an extended attribute in the `trusted` namespace, which no
-workload can set, and a volume of one kind is never made the other: a workload moved from
+workload can set, `trusted.korpis.volume` valued `block_device` on a block device's directory (named
+here 2026-10-24, when the driver conformance suite had to make one as the helper does, §8 of
+`04-runtimes.md`), and a volume of one kind is never made the other: a workload moved from
 `container` to `microvm` keeps its files where they are and is refused the block device, which a
 conversion through the guest (§4.4 of `04-runtimes.md`) is what would give it. A block device is
 attached to one workload at a time, since two kernels mounting one filesystem corrupt it: the

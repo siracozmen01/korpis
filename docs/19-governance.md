@@ -38,10 +38,16 @@ Settled in §5 of `00-overview.md` and restated because this is where it belongs
 
 | Layer | License | Text |
 |---|---|---|
-| Protocol definitions, client SDKs, recipe format, agent protocol | **Apache-2.0** | `LICENSE-APACHE` |
+| Protocol definitions, client SDKs, recipe format, agent protocol, conformance suites | **Apache-2.0** | `LICENSE-APACHE` |
 | Control plane, node agent, relay, web/chat/CLI clients | **AGPL-3.0-or-later** | `LICENSE-AGPL` |
 | The documents in this repository, this one included | **CC BY 4.0** | `LICENSE-CC-BY` |
 | Recipes, extensions, themes | Author's choice, including proprietary | |
+
+> Corrected 2026-10-24: the first row named the protocol definitions, the SDKs, the recipe format,
+> and the agent protocol, and left out the conformance suites, which §11 of `10-api.md` had always
+> put in the same Apache-2.0 artifact. A third party runs a suite against what it wrote, so the
+> suite has to be as free to use as the protocol it tests; the driver suite, the first one built,
+> is Apache-2.0 (§8 of `04-runtimes.md`), and so is the program it runs inside a driver's objects.
 
 The relay is named because it is a separate tier (§3.1 of `02-architecture.md`), deployable on
 its own machines, and should not be left for a reader to place.

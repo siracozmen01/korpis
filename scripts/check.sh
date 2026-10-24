@@ -35,7 +35,8 @@ spdx=$(git ls-files --cached --others --exclude-standard \
     | while read -r f; do
         [ -e "$f" ] || continue
         case "$f" in
-            crates/korpis-proto/*|crates/korpis-containerd/*|crates/korpis-extension/*|web/src/gen/*)
+            crates/korpis-proto/*|crates/korpis-containerd/*|crates/korpis-extension/*|\
+            crates/korpis-driver-conformance/*|crates/korpis-conformance-probe/*|web/src/gen/*)
                 want=Apache-2.0 ;;
             *) want=AGPL-3.0-or-later ;;
         esac

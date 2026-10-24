@@ -1405,6 +1405,9 @@ the same mechanism", and that is the price of having made core and extensions th
 | 157 | A command run as a microVM said it had started ran in its boot drive's root | §66 | `04-runtimes.md` §4.4 |
 | 158 | A restore into a block device put its files beside the image | §57 | `06-storage.md` §5.4 |
 | 159 | A replacing restore of a block device left a volume of files | §57 | `06-storage.md` §5.4 |
+| 160 | A stop sent to a microVM while its guest made the workload's root was lost | §70 | `04-runtimes.md` §6 |
+| 161 | A verb naming an object a driver did not hold was answered differently by each verb and each driver | §70 | `04-runtimes.md` §4.2 |
+| 162 | The `oci` driver did not say when an object started, so an adopted run's timeout began again | §70 | `04-runtimes.md` §4.2; `05-scheduling.md` §4.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -5683,3 +5686,103 @@ already there refused. `crates/korpis-e2e/tests/e2e/microvm_restore.rs` runs eve
 node with MinIO and the first-party S3 target: a microVM's world backed up, written over, a path of
 the backup restored beside it while the guest reads both, and then the whole volume replaced,
 approved, and started on, the test Finding 159 said this phase would add.
+
+---
+
+## 70. A third party's driver is put to the conformance suite, and Korpis's two go first
+
+Written 2026-10-24, as the driver conformance suite was built (§8 of `04-runtimes.md`). Rule K-7
+and §8 of `19-governance.md` make the suite the gate a driver passes to be accepted, so this trace
+follows a third party who has written a driver and has only the published artifact: the protocol,
+the suite, and these documents. At each step it asks the algebra question of what the suite needs:
+what tells it that, and could a third party have learned it without reading Korpis's code? Korpis's
+own two drivers are run first, as the third party's would be.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The driver is started on a socket of its own, over a content store and a volume root made for the run | `04-runtimes.md` §3, §8 |
+| 2 | The suite asks `Describe`, and runs its objects at the first tier the driver declares | `04-runtimes.md` §4.1, §8 |
+| 3 | It lays its probe's image into the content store, each blob under its digest, as the agent lays one it fetched | `04-runtimes.md` §6 |
+| 4 | It prepares an intent of a recipe naming the image at that tier, and is answered a spec, or a rejection that says why | `04-runtimes.md` §4.2; `09-recipes.md` §2 |
+| 5 | It makes each volume as the helper does: a directory given to the workload's first id, or a marked block device | `06-storage.md` §3.1 |
+| 6 | It fills in the labels adoption matches, an id range, and each volume's source, as the agent does before `Create` | `02-architecture.md` §4.4; `04-runtimes.md` §4.5 |
+| 7 | `Create`, `Start`, `Stop`, `Kill`, an exit, and `Destroy`, each asked twice | `04-runtimes.md` §4.2 |
+| 8 | A stop reaches a microVM while its guest is making the workload's root | `04-runtimes.md` §6 |
+| 9 | A verb names an object the driver does not hold | `04-runtimes.md` §4.2 |
+| 10 | An agent that restarted adopts a run, and counts its timeout from when the driver says it started | `05-scheduling.md` §4.2; `04-runtimes.md` §4.2 |
+| 11 | No case failed, so the driver conforms; a case the driver declares nothing for is not applicable, and passes nothing | `04-runtimes.md` §8; `19-governance.md` §8 |
+
+Step 3's answer was in §6, which says the store's blobs are named by digest and written whole.
+Step 5's was not anywhere a third party reads: §3.1 of `06-storage.md` said a block device's
+directory says what it is in an attribute of the `trusted` namespace, and did not name it, so a
+driver written from the documents could not have known which directories the node made for it.
+It is named there now, and the suite's contract is written out in §8 of `04-runtimes.md`, which is
+where a third party starts. Step 6 asks what the agent fills in that the driver does not prepare,
+and the answer is three things, all of which the suite fills. Steps 8 to 10 each failed on the
+suite's first run against Korpis's own drivers.
+
+**FINDING 160: A stop sent to a microVM while its guest made the workload's root was lost.
+`CONFIRMED`, by the suite**
+
+Found 2026-10-24, on the suite's first run against the `firecracker` driver. A guest says its run
+has started once its serial port is open, before it mounts the workload's root and starts the
+entry, and the driver holds a signal until the run has said so (§6 of `04-runtimes.md`). A stop
+that arrived in between was asked of the guest's agent, which answered that no entry ran; the
+driver took that answer as the signal having nowhere to go, as it is once an entry has ended, and
+answered the stop as done. The entry then started and ran until the supervisor's kill at the end
+of its grace, thirty seconds later by default. A stop sent as Ctrl+Alt+Del in the same window was
+kept, because the guest reads it from a queue once the entry runs; the agent's way, built later,
+kept nothing. The suite stops an object as soon as it is seen running, which is the window.
+
+**Resolution.** A stop that reaches the guest's agent before the entry has started is kept for
+it: the agent sends it to the guest's first process as Ctrl+Alt+Del's would be, and the run passes
+it to the entry's group once the entry has started, which is what a container's runtime does with a
+stop sent just after its start. Any other signal sent then is still answered as one with no entry
+to reach. §6 of `04-runtimes.md` says so. The suite's case
+`stop_reaches_the_entry_and_again_changes_nothing` passes against the driver. What it costs: an
+entry that starts with a stop waiting is sent it before it can install a handler for it, and ends
+as the signal's default says, as a container's would.
+
+**FINDING 161: A verb naming an object a driver did not hold was answered success by some verbs
+and `NotFound` by others, differently in each driver. `CONFIRMED`, by the suite**
+
+Found 2026-10-24, on the suite's first run. The `oci` driver answered a `Stop`, a `Kill`, a
+`Destroy`, and a `Signal` of an object it did not hold with success, and a `Start`, an `Inspect`,
+and a `Stats` with `NotFound`; the `firecracker` driver answered a `Destroy` with success and every
+other verb with `NotFound`. Nothing in §4.2 of `04-runtimes.md` said which was right, so a third
+party had two answers to copy, and the node had been written to take either from a `Destroy`. The
+cost of leaving it was a contract no third party could be tested against.
+
+**Resolution.** Every verb naming an object the driver does not hold answers `NotFound`, and a verb
+asked of an object already where it asks succeeds and changes nothing (§4.2 of `04-runtimes.md`).
+Both drivers answer so; the `oci` driver still removes what a `Destroy` that stopped part way left
+of a container, its snapshot, before it answers `NotFound`, and the node takes `NotFound` from a
+`Kill` at the end of a stop's grace as done, as it already did from a `Destroy`. The suite's cases
+`an_object_it_does_not_hold_is_not_found` and `destroy_releases_it_and_again_is_not_found` pass
+against both drivers. What it costs: nothing at run time.
+
+**FINDING 162: The `oci` driver did not say when an object started, so an adopted run's timeout
+began again at its adoption. `CONFIRMED`, by the suite**
+
+Found 2026-10-24, on the suite's first run. §4.2 of `05-scheduling.md` says an agent that restarts
+counts each adopted run's timeout from when its process started, as the driver says; the
+`firecracker` driver says it, and the `oci` driver never filled `started_at` or `finished_at`. The
+agent then counted the timeout from the adoption, so a run on a container outlived its timeout by
+however long its agent had been away, and a run whose agent kept restarting was never stopped by
+it.
+
+**Resolution.** `Inspect` says when an object last started and when it ended (§4.2 of
+`04-runtimes.md`). containerd keeps when a task exited but not when it started, so the `oci` driver
+records each start in a label of the container just before it starts the task, and reads both
+back; `Recover` answers the same. The suite's cases `start_runs_it_and_again_changes_nothing` and
+`an_exit_is_inspected_with_its_status_and_sent_as_an_event` pass against both drivers. What it
+costs: one more containerd call each start, and a start time that may be a few milliseconds early.
+
+Steps 1 to 9 and 11 are built, and step 10 by the driver saying it. `crates/korpis-e2e/tests/e2e/
+conformance.rs` starts each of Korpis's drivers as its own process over a directory of its own and
+runs the suite against it, and both conform. What the suite does not test yet is the rest of §8:
+`Recover` after a driver killed, an object killed for its memory, and a host restarted; the limits
+a driver says it enforces, against the kernel's; escapes for each tier; `Exec`; and the runner a
+third party starts without a test harness. Each follows in this phase (§4 of `20-roadmap.md`).

@@ -87,6 +87,8 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-guest` | its own program, guest | AGPL-3.0 | the first process of every microVM, built static, and the drive order and config drive format its driver writes and it reads (§6 of `04-runtimes.md`) |
 | `korpis-containerd` | third-party wire contract | Apache-2.0 | containerd's API, vendored and generated (§6 of `21-stack.md`) |
 | `korpis-extension` | client SDK | Apache-2.0 | what an extension is written with: identity, events, provider stream, and the request signing a backup target that speaks to or serves an S3-compatible store needs |
+| `korpis-driver-conformance` | conformance suite | Apache-2.0 | the driver conformance suite: what a runtime driver must do, tested through the driver protocol alone against a driver's socket, the suite standing in for the node (§8 of `04-runtimes.md`) |
+| `korpis-conformance-probe` | its own program, test | Apache-2.0 | the program the suite runs as a driver's object, built static into an image of its own |
 | `korpis-tls` | driving adapter, shared | AGPL-3.0 | trust bootstrap: the installation CA pinned by fingerprint, then trusted alone, for the agent and a relay |
 | `korpis-stream` | driven adapter, shared | AGPL-3.0 | streams on disk: records, segment files, redaction, rate limits, read by the agent; and `korpis-stream-writer`, the binary a containerd shim starts beside each workload to write its stream (`14-streams.md`) |
 | `korpis-backup` | driven adapter, shared | AGPL-3.0 | backups: content-defined chunks and directory trees sealed under a workload's data key, written to and read from an object store (§5 of `06-storage.md`); and `korpis-backup-job`, the binary the helper starts for each backup or restore, which confines itself before it reads anything (§5.5 there) |
@@ -131,6 +133,8 @@ cannot disagree about what a valid recipe is.
 | `korpis-store` | `korpis-core`, `korpis-app` | `connectrpc`, `korpis-proto` |
 | `korpis-recipe` | `korpis-core`, `korpis-app` | `sqlx`, `connectrpc`, `korpis-proto` |
 | `korpis-extension` | `korpis-proto` | every AGPL crate of ours, and `sqlx` |
+| `korpis-driver-conformance` | `korpis-proto` | every AGPL crate of ours, the drivers above all, and `sqlx` |
+| `korpis-conformance-probe` | nothing of ours | every crate of ours, `connectrpc`, `hyper`, `sqlx` |
 | `korpis-tls` | nothing | every other crate of ours, `connectrpc`, `tokio`, `sqlx` |
 | `korpis-stream` | nothing | every other crate of ours, `connectrpc`, `tokio`, `hyper`, `sqlx` |
 | `korpis-backup` | `korpis-proto` (its messages, not its services) | every other crate of ours, `connectrpc`, `sqlx` |

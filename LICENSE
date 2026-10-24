@@ -7,7 +7,8 @@ Korpis is not licensed under a single licence. It is split by layer, deliberatel
 for the reasons argued in section 5 of docs/00-overview.md and restated in section
 2 of docs/19-governance.md.
 
-  Protocol definitions, client SDKs, recipe format, agent protocol
+  Protocol definitions, client SDKs, recipe format, agent protocol,
+  conformance suites
       Apache-2.0                            full text in LICENSE-APACHE
 
   Control plane, node agent, relay, web / CLI / chat clients
@@ -25,7 +26,8 @@ WHY THE SPLIT
 Anything a third party must implement to interoperate (the wire protocol, the recipe
 format, the agent contract) is Apache-2.0, because Rule K-7 requires that someone
 else be able to write a conforming agent without friction, and a copyleft protocol
-definition would defeat that. Apache-2.0 also carries an explicit patent grant. The
+definition would defeat that. So are the conformance suites that say what conforming
+means, which a third party runs against what it wrote. Apache-2.0 also carries an explicit patent grant. The
 platform itself is AGPL, because running it for other people is exactly the case
 AGPL exists to cover.
 

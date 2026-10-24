@@ -157,7 +157,7 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Security policy: [`SECURITY.md`](./S
 
 | Layer | License |
 |---|---|
-| Protocol definitions, client SDKs, recipe format, agent protocol | **Apache-2.0** |
+| Protocol definitions, client SDKs, recipe format, agent protocol, conformance suites | **Apache-2.0** |
 | Control plane, node agent, relay, web / CLI / chat clients | **AGPL-3.0-or-later** |
 | These documents | **CC BY 4.0** |
 | Recipes, extensions, themes | Author's choice, proprietary included |

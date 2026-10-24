@@ -229,10 +229,13 @@ evidence points in two opposite directions:
 
 | Layer | License | Reasoning |
 |---|---|---|
-| Protocol definitions, client SDKs, recipe format, agent protocol | **Apache-2.0** | These must be implementable by anyone, including commercial products, with no friction. Rule K-7 requires that a third party be able to write a conforming agent; a copyleft protocol definition would undermine that. Apache-2.0 also carries an explicit patent grant. |
+| Protocol definitions, client SDKs, recipe format, agent protocol, conformance suites | **Apache-2.0** | These must be implementable by anyone, including commercial products, with no friction. Rule K-7 requires that a third party be able to write a conforming agent; a copyleft protocol definition would undermine that. Apache-2.0 also carries an explicit patent grant. |
 | Control plane, node agent, relay, web client, chat clients, CLI | **AGPL-3.0-or-later** | The platform itself cannot be taken closed. Hosting Korpis for others is exactly the case AGPL exists to cover, and it is the case Pterodactyl lost to. |
 | The documents in this repository | **CC BY 4.0** | The specification is the work until code exists, and it should be quotable and buildable-on by anyone, with attribution. |
 | Recipes, extensions, themes | **Author's choice** | Extensions are separate processes speaking a published contract (P8), not derivative works. Anything else would poison the ecosystem before it exists. |
+
+> Corrected 2026-10-24: the conformance suites are in the first row, as §11 of `10-api.md` always
+> had them; the correction and its reason are in §2 of `19-governance.md`.
 
 The AGPL objection is real: it is what drove commercial hosts away from Pelican. The counter is
 that those hosts were differentiating on modifications they never intended to return, and P10 means

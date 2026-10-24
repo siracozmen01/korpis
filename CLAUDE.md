@@ -13,9 +13,10 @@ lines, functions under 60, no panics outside tests, every public item documented
 passes `scripts/check.sh` (formatting, clippy with warnings denied, the layer rule, file length,
 licence lines, tests, the supply-chain policy of `deny.toml`, and the text checks below). Every
 source file starts with its SPDX licence line: `Apache-2.0` in `korpis-proto` and
-`korpis-containerd` (wire contracts: Korpis's own, and containerd's vendored API) and in
-`korpis-extension` (the client SDK extensions link), `AGPL-3.0-or-later` everywhere else (§2 of
-`docs/19-governance.md`).
+`korpis-containerd` (wire contracts: Korpis's own, and containerd's vendored API), in
+`korpis-extension` (the client SDK extensions link), and in `korpis-driver-conformance` and
+`korpis-conformance-probe` (the driver conformance suite and the program it runs),
+`AGPL-3.0-or-later` everywhere else (§2 of `docs/19-governance.md`).
 
 ## Hard rules
 

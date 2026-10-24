@@ -6,7 +6,8 @@
 //! there, so the terminal's line discipline does for it what a container's terminal does. The
 //! first process reaps every process that ends, its own child or an orphan the entry left, until
 //! the entry itself has ended; a stop sends the entry's group `SIGTERM`, and a second ends every
-//! process. While the entry runs, its process id is where the control port sends a signal named.
+//! process. While the entry runs, its process id is where the control port sends a signal named;
+//! a stop the port is sent before the entry starts is kept for it (see `control.rs`).
 
 use crate::failed;
 use korpis_guest::config::Config;
@@ -22,12 +23,22 @@ use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
 
-/// The entry's process id while it runs, zero otherwise: what the control port signals by name.
+/// The entry's process id while it runs, what the control port signals by name: zero before it
+/// starts, and [`NONE`] once it has ended or when the run starts none.
 static ENTRY: AtomicI32 = AtomicI32::new(0);
+
+/// No entry runs, and none will.
+const NONE: i32 = -1;
 
 /// The entry's process group while it runs.
 pub fn entry() -> Option<Pid> {
     Some(ENTRY.load(Ordering::Acquire)).filter(|p| *p > 0).map(Pid::from_raw)
+}
+
+/// Whether the entry is still to start: the guest has said its run started, and the workload's
+/// root is being made ready for it.
+pub fn to_come() -> bool {
+    ENTRY.load(Ordering::Acquire) == 0
 }
 
 #[expect(clippy::as_conversions, reason = "a signal's number, which the record carries")]
@@ -157,7 +168,7 @@ pub fn run(config: &Config, signals: &mut SignalFd) -> Result<Ended, String> {
     let mut stopped = 0;
     loop {
         if let Some(ended) = reap(entry)? {
-            ENTRY.store(0, Ordering::Release);
+            ENTRY.store(NONE, Ordering::Release);
             return Ok(ended);
         }
         let mut fds = [PollFd::new(signals.as_fd(), PollFlags::POLLIN)];
@@ -181,6 +192,7 @@ pub fn run(config: &Config, signals: &mut SignalFd) -> Result<Ended, String> {
 /// session's worker or a command, until the first stop arrives on `signals`, which ends the run
 /// as an entry's clean exit would; the workers then end with every other process.
 pub fn idle(signals: &mut SignalFd) -> Result<Ended, String> {
+    ENTRY.store(NONE, Ordering::Release);
     // No process has the id zero, so every one that ends is reaped as a stranger's.
     let none = Pid::from_raw(0);
     loop {

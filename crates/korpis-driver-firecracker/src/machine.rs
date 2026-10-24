@@ -315,11 +315,8 @@ impl Machine {
 
     /// Removes object `id`: its guest killed, its jail, cgroup, and record removed.
     pub async fn destroy(&self, id: &str) -> MachineResult<()> {
-        let dir = match self.dir(id) {
-            Ok(d) => d,
-            Err(MachineError::NotFound(_)) => return Ok(()),
-            Err(e) => return Err(e),
-        };
+        // An object is not held once its directory is gone, which its destroy removes last.
+        let dir = self.dir(id)?;
         self.kill(id).await?;
         let workload = self.load(id)?.spec.workload;
         let _services = self.preempt(&workload, true).await?;

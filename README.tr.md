@@ -163,7 +163,7 @@ Bkz. [`CONTRIBUTING.md`](./CONTRIBUTING.md). Güvenlik politikası: [`SECURITY.m
 
 | Katman | Lisans |
 |---|---|
-| Protokol tanımları, istemci SDK'ları, tarif formatı, ajan protokolü | **Apache-2.0** |
+| Protokol tanımları, istemci SDK'ları, tarif formatı, ajan protokolü, uyumluluk testleri | **Apache-2.0** |
 | Kontrol düzlemi, düğüm ajanı, aktarıcı (relay), web / CLI / sohbet istemcileri | **AGPL-3.0-or-later** |
 | Bu dokümanlar | **CC BY 4.0** |
 | Tarifler, eklentiler, temalar | Yazarın seçimi, tescilli dahil |

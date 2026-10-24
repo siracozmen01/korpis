@@ -394,6 +394,32 @@ attached before anything executes. This makes failures happen at a point where n
 yet, and it is a prerequisite for Windows, where creating a job object and starting a process in it
 are genuinely distinct operations.
 
+**What every verb answers when asked twice, and of an object the driver does not hold**
+(2026-10-24, from the conformance suite, §8; Finding 161 of `23-walkthroughs.md`). A verb asked of
+an object already where it asks leaves it there and succeeds: `Create` of a spec already made
+answers the same object, which its workload, intent, and run name; `Start` of a running object,
+and `Stop` or `Kill` of a stopped one, change nothing. Every verb naming an object the driver does
+not hold answers `NotFound`, `Destroy` included, and the node takes `NotFound` from `Stop`, `Kill`,
+and `Destroy` as done, since what it asked for, an object that does not run, holds. Answering
+success instead would gain the node nothing and lose it the difference between an object it
+removed and one that was never there. Before the suite, the `oci` driver answered a `Stop`, a
+`Kill`, a `Destroy`, and a `Signal` of an object it did not hold with success, and the
+`firecracker` driver a `Destroy`, while both answered the other verbs `NotFound`. What it costs: a
+`Destroy` asked again after one that stopped part way is `NotFound`, so a driver removes the
+record that says it holds an object last, as the `firecracker` driver removes an object's
+directory, or clears what such a destroy left before it answers, as the `oci` driver removes a
+container's snapshot when the container's record is already gone.
+
+**`Inspect` says when an object last started and when it ended** (2026-10-24, Finding 162 of
+`23-walkthroughs.md`): `started_at` while it runs and after, `finished_at` once it has stopped.
+An agent that restarts counts an adopted run's timeout from `started_at` (§4.2 of
+`05-scheduling.md`), and one that is not said is counted from the adoption, which runs the run
+longer than its timeout by however long the agent was away. containerd keeps when a task exited
+but not when it started, so the `oci` driver records each start in the container's label
+`korpis.started_at` just before it starts the task, and the `firecracker` driver in the object's
+record beside its guest. What it costs: a label written before the task starts can name an instant
+a few milliseconds earlier than the process's own, which a run's timeout counts against it.
+
 ### 4.3 What the interface must never assume
 
 This list exists because these assumptions are invisible until they are load-bearing, and each one
@@ -834,7 +860,14 @@ declares the signals the `oci` driver does, and a guest's agent sends only those
 process group, or answers that no entry runs; a signal other than a stop that the agent does not
 take is an error, never Ctrl+Alt+Del. The agent listens before the run says it has started, and the
 driver holds a signal, as it holds an input, until the run has said so, within ten seconds, so one
-sent as a guest boots is not refused for arriving early. Added 2026-10-24, when the control port
+sent as a guest boots is not refused for arriving early. A stop that arrives after the run has said
+so and before the entry has started, while the guest makes the workload's root, is kept for the
+entry: the agent sends it to the guest's first process as Ctrl+Alt+Del's would be, and the run
+passes it to the entry's group once the entry has started, as a container's runtime delivers a
+stop sent just after its start; any other signal sent then is still answered as one with no entry
+to reach. Corrected 2026-10-24 (Finding 160 of `23-walkthroughs.md`): the agent answered such a
+stop that no entry ran, the driver took that as delivered, and the workload ran until its kill at
+the grace's end. Added 2026-10-24, when the control port
 was built, revisiting Finding 144 of `23-walkthroughs.md`, whose cost was that this tier could
 declare no signal names and so could not serve a recipe that reloads on `SIGHUP`. The host reads
 back sixteen bytes of fixed layout, the exit status or the signal, and never a filesystem the guest
@@ -1008,6 +1041,40 @@ A published **conformance suite** defines what a driver must do:
 
 A driver is conforming if it passes. That is the whole gate. This is how an ecosystem of drivers
 exists instead of a series of forks.
+
+**As built** (2026-10-24, Phase 3). The suite is `korpis-driver-conformance`, Apache-2.0 as the
+protocol it tests is (§2 of `19-governance.md`, §11 of `10-api.md`): it speaks `korpis.driver.v1`
+over the driver's socket and links nothing else of Korpis's, so a driver written in any language
+is tested as a node uses it. It stands in for the node, and what it is given is what a driver's
+node gives it: the driver's socket, and the paths the driver was started with. One is the content
+store, whose blobs are files named by their digest under `blobs/sha256/`, written whole and
+renamed into place (§6); the suite writes it, and the driver only reads it. The other is the volume
+root, under which each volume is a directory given to its workload's first id, or, for a driver
+that declares block devices, a directory holding `block.ext4`, an image made sparse and formatted
+empty as ext4, which says what it is in the extended attribute `trusted.korpis.volume`, valued
+`block_device` (§3.1 of `06-storage.md`). Into each object it fills in what the agent would: the
+labels adoption matches, an id range of its own, and each volume's source. Its objects run a static
+program of its own, `korpis-conformance-probe`, packed into a one-layer image the suite lays into
+the store and names in a recipe at the driver's first declared tier. Each case ends in a pass, a
+failure saying what was seen, or not applicable, naming the capability the driver does not
+declare, which never counts as a pass of it; a driver conforms when no case fails.
+
+The first cases are the lifecycle's (§4.2): `Describe` says a name, a protocol, a tier, and its
+health; `Prepare` changes nothing and answers the same twice, and rejects, rather than fails, a
+tier the driver does not declare and an intent naming another driver; `Create` runs nothing, makes
+one object however often it is asked, and refuses a volume outside the volume root, leaving
+nothing behind (§6.1 of `02-architecture.md`); `Start` runs it and says when, and again changes
+nothing; a `Stop` reaches the entry well within its grace and kills one that ignores it only once
+the grace is over; `Kill` ends it; an entry's exit is inspected with its status and when, and sent
+as an event; `Destroy` releases it; and each verb naming an object the driver does not hold is
+`NotFound`. Both of Korpis's drivers conform to them, each started as its own process by
+`crates/korpis-e2e/tests/e2e/conformance.rs`, and the suite found three defects on its first run
+against them (Findings 160 to 162 of `23-walkthroughs.md`). What is not built yet, and follows in
+this phase (§4 of `20-roadmap.md`): the cases of `Recover` after the kills above, of enforcement
+and capability honesty, of isolation and `Exec`, and the runner a third party starts on its own.
+What it costs: the suite runs as root, since it marks block devices with a `trusted` attribute
+and gives volumes to ids, needs `mke2fs` for a driver that declares block devices, and makes and
+destroys objects through the driver it tests, so it is run against a node that holds nothing else.
 
 ---
 

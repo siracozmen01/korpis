@@ -208,9 +208,9 @@ does not, on its own, make Korpis impossible to take open-core; §2 of
 which are policy.
 
 A contribution is licensed like the layer it lands in: documents under CC BY 4.0, protocol
-definitions and SDKs under Apache-2.0, and the platform under AGPL-3.0-or-later. See
-[`LICENSE`](./LICENSE).
+definitions, SDKs, and conformance suites under Apache-2.0, and the platform under
+AGPL-3.0-or-later. See [`LICENSE`](./LICENSE).
 
-Licensing is split by layer: protocol and SDK material is Apache-2.0, the platform is AGPL-3.0. The
-document you are editing tells you which side of that line it describes; when in doubt, ask in the
-issue first.
+Licensing is split by layer: protocol, SDK, and conformance material is Apache-2.0, the platform
+is AGPL-3.0. The document you are editing tells you which side of that line it describes; when in
+doubt, ask in the issue first.

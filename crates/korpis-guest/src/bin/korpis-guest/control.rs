@@ -70,11 +70,27 @@ fn signal(name: &[u8]) -> Signalled {
     else {
         return Signalled::Unknown;
     };
-    let Some(entry) = crate::run::entry() else { return Signalled::NoEntry };
+    let Some(entry) = crate::run::entry() else { return kept(signal) };
     match nix::sys::signal::killpg(entry, signal) {
         Ok(()) => Signalled::Sent,
         Err(_) => Signalled::NoEntry,
     }
+}
+
+/// A stop that arrives after the guest said its run started but before the entry has, kept for
+/// the entry: sent to this process as the stop Ctrl+Alt+Del is, which the run reads once the
+/// entry has started and passes on to its group, so a stop is never lost to the moment it
+/// arrived in. Any other signal, and any once the entry has ended, has no one to reach.
+fn kept(signal: nix::sys::signal::Signal) -> Signalled {
+    use nix::sys::signal::Signal;
+    let stop = matches!(signal, Signal::SIGTERM | Signal::SIGINT);
+    if stop
+        && crate::run::to_come()
+        && nix::sys::signal::kill(nix::unistd::Pid::this(), Signal::SIGINT).is_ok()
+    {
+        return Signalled::Sent;
+    }
+    Signalled::NoEntry
 }
 
 /// Sets the console's size to the columns and rows `payload` holds, for an interactive entry,
