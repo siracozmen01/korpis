@@ -51,7 +51,7 @@ impl Machine {
 }
 
 /// The worker's spec for a guest made from `prepared`.
-fn spec(prepared: &driver::PreparedSpec, write: bool) -> helper::FileWorkerSpec {
+pub(super) fn spec(prepared: &driver::PreparedSpec, write: bool) -> helper::FileWorkerSpec {
     let volumes = prepared
         .mounts
         .iter()

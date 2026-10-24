@@ -28,7 +28,7 @@ pub(super) enum Why {
 }
 
 /// The driver `a`'s target names, empty when it names none.
-pub(super) fn driver_of(a: &agent::Assignment) -> &str {
+pub(crate) fn driver_of(a: &agent::Assignment) -> &str {
     let body = a.target.as_option().and_then(|t| t.body.as_option());
     body.and_then(|b| b.runtime.as_option()).map_or("", |r| r.driver.as_str())
 }

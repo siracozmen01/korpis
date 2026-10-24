@@ -143,3 +143,14 @@ enum FileErrorCode {
   // the file changed since.
   FILE_ERROR_CODE_MOVED = 10;
 }
+
+// The params of a session of `backup.browse` or `backup.read` on the data path (§5.4 of
+// docs/06-storage.md): which backup of the session's workload it reads, a block device's, whose
+// image only a guest's kernel parses. The session then carries FileRequest and FileResponse as a
+// file session does, read-only, with the image's files at /backup. A `backup.browse` session ends
+// at the first FileRead it sends: browsing is names, kinds, sizes, and times, and never a file's
+// bytes.
+message BackupFiles {
+  // The backup, `bkp_…`.
+  string backup = 1;
+}

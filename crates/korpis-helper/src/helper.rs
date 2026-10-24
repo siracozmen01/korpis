@@ -188,7 +188,7 @@ impl Helper {
                     ..Default::default()
                 }))
             }
-            Verb::JobStatus(r) => Answer::JobStatus(Box::new(self.jobs()?.status(&r.job)?)),
+            Verb::JobStatus(r) => Answer::JobStatus(Box::new(self.job_status(&r.job)?)),
             Verb::CancelJob(r) => {
                 let cancelled = self.jobs()?.cancel(&r.job)?;
                 Answer::CancelJob(Box::new(helper::CancelJobResponse {
@@ -238,8 +238,8 @@ impl Helper {
     }
 
     /// Releases what `job` keeps: its snapshot deleted, or its staging place committed when
-    /// `commit` and discarded otherwise; whether it kept a staging place. A volume gone took
-    /// both with it.
+    /// `commit` and discarded otherwise, or its reading place discarded unless `commit`; whether
+    /// it kept a staging place to exchange. A volume gone took all of them with it.
     fn release(&mut self, job: &str, commit: bool) -> HelperResult<bool> {
         let Some(kept) = self.jobs()?.kept_of(job)? else { return Ok(false) };
         let Ok(class) = self.holding(kept.volume()) else { return Ok(false) };
@@ -247,12 +247,25 @@ impl Helper {
             class.settle(&s, commit)?;
             return Ok(true);
         }
-        if let Kept::Snapshot { volume, name } = &kept
-            && !commit
-        {
-            class.delete_snapshot(volume, name)?;
+        match &kept {
+            Kept::Snapshot { volume, name } if !commit => {
+                class.delete_snapshot(volume, name)?;
+            }
+            // A reading place is never made the volume, and a commit leaves it for ForgetJob.
+            Kept::Reading { volume, job } if !commit => class.discard_reading(volume, job)?,
+            _ => {}
         }
         Ok(false)
+    }
+
+    /// How job `job` stands, and for a reading restore the image it restores into.
+    fn job_status(&mut self, job: &str) -> HelperResult<helper::JobStatusResponse> {
+        let mut status = self.jobs()?.status(job)?;
+        if let Some(Kept::Reading { volume, job }) = self.jobs()?.kept_of(job)? {
+            let image = self.holding(&volume)?.reading_image(&volume, &job);
+            status.image = image.to_string_lossy().into_owned();
+        }
+        Ok(status)
     }
 
     /// The class that holds `volume`, if any does.

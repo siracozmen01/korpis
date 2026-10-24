@@ -15,7 +15,7 @@
 //! opening on record, and its end is journaled with what it changed ([`tally`]), failed when it
 //! did not end cleanly. Reads are not recorded one by one.
 
-mod tally;
+pub(super) mod tally;
 
 use super::console_write::Runtimes;
 use super::handler::{Ended, Handler, Io, Opened, Serving};
@@ -43,7 +43,7 @@ pub const WRITE: &str = "workload.file.write";
 const AHEAD: usize = 16;
 
 /// A worker's end of a session, whichever serves it.
-trait Worker: AsyncRead + AsyncWrite + Send + Unpin {}
+pub(super) trait Worker: AsyncRead + AsyncWrite + Send + Unpin {}
 
 impl<T: AsyncRead + AsyncWrite + Send + Unpin> Worker for T {}
 
@@ -77,11 +77,11 @@ impl<H: Host + Clone + Send + Sync + 'static, R: Runtime + Clone> Handler for Fi
     }
 }
 
-fn ended(code: &str, message: impl Into<String>) -> Ended {
+pub(super) fn ended(code: &str, message: impl Into<String>) -> Ended {
     Ended { code: code.to_owned(), message: message.into() }
 }
 
-fn text(s: &str) -> pb::Value {
+pub(super) fn text(s: &str) -> pb::Value {
     pb::Value { kind: Some(pb::value::Kind::StringValue(s.to_owned())), ..Default::default() }
 }
 
@@ -117,46 +117,46 @@ fn request(held: &HeldSet, opened: &Opened) -> Result<(helper::OpenFilesRequest,
     Ok((r, a.uid_count))
 }
 
-impl<H: Host, R: Runtime> FileSessions<H, R> {
-    /// Journals the session's `event`, with `fields`, as `opened`'s subject's act.
-    async fn record(
-        &self,
-        opened: &Opened,
-        actor: &Principal,
-        (event, fields, error): (&str, BTreeMap<String, pb::Value>, Option<&Ended>),
-    ) -> Result<(), Ended> {
-        let mut after = fields;
-        after.insert("session".to_owned(), text(&opened.session));
-        after.insert("event".to_owned(), text(event));
-        let outcome = if error.is_some() {
-            pb::EffectOutcome::EFFECT_OUTCOME_FAILED
-        } else {
-            pb::EffectOutcome::EFFECT_OUTCOME_SUCCEEDED
-        };
-        let error = error.map(|e| pb::Error {
-            reason: format!("file.{}", e.code),
-            message: e.message.clone(),
-            ..Default::default()
-        });
-        let e = pb::Effect {
-            workload: Some(opened.workload.clone()),
-            action: opened.action.clone(),
-            outcome: outcome.into(),
-            actor: korpis_wire::principal::to_pb(actor).into(),
-            grant: opened
-                .chain
-                .first()
-                .map(|g| korpis_wire::wire_id(korpis_core::id::IdKind::Grant, *g)),
-            error: error.into(),
-            after,
-            ..Default::default()
-        };
-        self.journal
-            .append(Body::Effect(Box::new(e)))
-            .await
-            .map(|_| ())
-            .map_err(|e| ended("unavailable", format!("the session could not be recorded: {e}")))
-    }
+/// Journals session `opened`'s `event`, with `fields`, as `actor`'s act under the grant its token
+/// was minted from, failed with `error` if it ended in one.
+pub(super) async fn record(
+    journal: &JournalHandle,
+    (opened, actor): (&Opened, &Principal),
+    (event, fields, error): (&str, BTreeMap<String, pb::Value>, Option<&Ended>),
+) -> Result<(), Ended> {
+    let mut after = fields;
+    after.insert("session".to_owned(), text(&opened.session));
+    after.insert("event".to_owned(), text(event));
+    let outcome = if error.is_some() {
+        pb::EffectOutcome::EFFECT_OUTCOME_FAILED
+    } else {
+        pb::EffectOutcome::EFFECT_OUTCOME_SUCCEEDED
+    };
+    // A backup's session's reasons are the backup's, a file session's the file's.
+    let family = if opened.action.starts_with("backup.") { "backup" } else { "file" };
+    let error = error.map(|e| pb::Error {
+        reason: format!("{family}.{}", e.code),
+        message: e.message.clone(),
+        ..Default::default()
+    });
+    let e = pb::Effect {
+        workload: Some(opened.workload.clone()),
+        action: opened.action.clone(),
+        outcome: outcome.into(),
+        actor: korpis_wire::principal::to_pb(actor).into(),
+        grant: opened
+            .chain
+            .first()
+            .map(|g| korpis_wire::wire_id(korpis_core::id::IdKind::Grant, *g)),
+        error: error.into(),
+        after,
+        ..Default::default()
+    };
+    journal
+        .append(Body::Effect(Box::new(e)))
+        .await
+        .map(|_| ())
+        .map_err(|e| ended("unavailable", format!("the session could not be recorded: {e}")))
 }
 
 async fn serve<H: Host, R: Runtime>(
@@ -167,10 +167,11 @@ async fn serve<H: Host, R: Runtime>(
     let actor = Principal::from_key(&opened.subject)
         .map_err(|e| ended("refused", format!("the session's subject: {e}")))?;
     let (r, count) = request(&files.held.borrow(), &opened)?;
-    files.record(&opened, &actor, ("opened", BTreeMap::new(), None)).await?;
+    record(&files.journal, (&opened, &actor), ("opened", BTreeMap::new(), None)).await?;
     let mut tally = Tally::default();
     let carried = carry(&files, (&r, count), io, &mut tally).await;
-    files.record(&opened, &actor, ("ended", tally.fields(), carried.as_ref().err())).await?;
+    let fields = tally.fields();
+    record(&files.journal, (&opened, &actor), ("ended", fields, carried.as_ref().err())).await?;
     carried
 }
 
@@ -205,9 +206,20 @@ async fn carry<H: Host, R: Runtime>(
     io: Io,
     tally: &mut Tally,
 ) -> Result<(), Ended> {
-    let (from_worker, to_worker) = tokio::io::split(open(files, (r, count)).await?);
+    carried(open(files, (r, count)).await?, io, tally, |_| Ok(())).await
+}
+
+/// Carries the session to `worker` until either side ends, each request the client sends asked
+/// of `allowed` first, whose refusal ends the session.
+pub(super) async fn carried(
+    worker: impl Worker,
+    io: Io,
+    tally: &mut Tally,
+    allowed: fn(&pb::FileRequest) -> Result<(), Ended>,
+) -> Result<(), Ended> {
+    let (from_worker, to_worker) = tokio::io::split(worker);
     let (ahead, answered) = mpsc::channel(AHEAD);
-    let forward = forward(io.incoming, to_worker, ahead);
+    let forward = forward(io.incoming, to_worker, ahead, allowed);
     let back = back(from_worker, io.outgoing, answered, tally);
     tokio::pin!(forward, back);
     let mut forwarding = true;
@@ -228,6 +240,7 @@ async fn forward(
     mut incoming: mpsc::Receiver<Vec<u8>>,
     mut to: impl AsyncWrite + Unpin,
     ahead: mpsc::Sender<Pending>,
+    allowed: fn(&pb::FileRequest) -> Result<(), Ended>,
 ) -> Result<(), Ended> {
     let lost = |e: std::io::Error| ended("unavailable", format!("the worker: {e}"));
     while let Some(bytes) = incoming.recv().await {
@@ -235,6 +248,7 @@ async fn forward(
             .ok()
             .filter(|_| bytes.len() <= LIMIT)
             .ok_or_else(|| ended("invalid", "a frame is not a FileRequest"))?;
+        allowed(&request)?;
         if ahead.send(Pending::of(&request)).await.is_err() {
             return Ok(());
         }

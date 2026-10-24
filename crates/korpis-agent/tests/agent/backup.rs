@@ -84,7 +84,7 @@ async fn push_target() -> String {
 }
 
 /// Installs the target in `project` and serves it from its socket under `root`, once running.
-async fn serve_target(cp: &ControlPlane, project: &str, root: &Path) {
+pub(crate) async fn serve_target(cp: &ControlPlane, project: &str, root: &Path) {
     let artifact = push_target().await;
     let extensions = cp.client(pb::ExtensionServiceClient::new);
     let install = |key: &str| pb::InstallExtensionRequest {
@@ -123,11 +123,13 @@ async fn serve_target(cp: &ControlPlane, project: &str, root: &Path) {
     registered.wait_for(Option::is_some).await.unwrap();
 }
 
-async fn start(
+/// An agent joined as `fra-4` with the node's `facts`, running `runtime` and `host`; and where
+/// its workloads' identity sockets are.
+pub(crate) async fn start(
     cp: &ControlPlane,
     dir: &Path,
-    runtime: &InMemory,
-    host: &InMemoryHost,
+    (runtime, host): (&InMemory, &InMemoryHost),
+    facts: Arc<dyn Fn() -> korpis_agent::session::Facts + Send + Sync>,
 ) -> (Agent, PathBuf) {
     let (token, ca) = cp.token("fra-4").await;
     let state = StateDir::new(dir.join("agent"));
@@ -140,8 +142,7 @@ async fn start(
         identity_root: Some(root.clone()),
         ..Options::default()
     };
-    let agent =
-        Agent::start(&state, runtime.clone(), host.clone(), Arc::new(facts), options).unwrap();
+    let agent = Agent::start(&state, runtime.clone(), host.clone(), facts, options).unwrap();
     until(&mut agent.events(), |e| matches!(e, Event::Welcomed { .. })).await;
     (agent, root)
 }
@@ -154,7 +155,7 @@ async fn backup(cp: &ControlPlane, id: &str) -> pb::Backup {
 
 /// A repository `nightly` at the target, and a backup of `project`'s volume `data` into it:
 /// the backup and its plan.
-async fn backed_up(cp: &ControlPlane, project: &str) -> (String, String) {
+pub(crate) async fn backed_up(cp: &ControlPlane, project: &str) -> (String, String) {
     let volume = cp.volume_named(project, "data").await;
     let repository = pb::CreateRepositoryRequest {
         mutation: mutation("repo").into(),
@@ -225,7 +226,7 @@ async fn restored(cp: &ControlPlane, key: &str, id: &str, target: Target) -> pb:
 }
 
 /// The backup, once it is no longer pending.
-async fn settled(cp: &ControlPlane, id: &str) -> pb::Backup {
+pub(crate) async fn settled(cp: &ControlPlane, id: &str) -> pb::Backup {
     let mut taken = backup(cp, id).await;
     for _ in 0..200 {
         if taken.status.as_known() != Some(pb::BackupStatus::BACKUP_STATUS_PENDING) {
@@ -243,7 +244,7 @@ async fn the_agent_takes_a_backup_with_the_access_it_is_granted_and_reports_it()
     let project = cp.project().await;
     let dir = tempfile::tempdir().unwrap();
     let (runtime, host) = (InMemory::new(), InMemoryHost::new());
-    let (agent, root) = start(&cp, dir.path(), &runtime, &host).await;
+    let (agent, root) = start(&cp, dir.path(), (&runtime, &host), Arc::new(facts)).await;
     serve_target(&cp, &project, &root).await;
     // The jar the recipe's install fetches, as the node's content store holds it.
     let jar = format!("sha256:{}", "1".repeat(64));
@@ -273,7 +274,7 @@ async fn the_agent_restores_into_a_directory_and_over_the_volume_once_approved()
     let project = cp.project().await;
     let dir = tempfile::tempdir().unwrap();
     let (runtime, host) = (InMemory::new(), InMemoryHost::new());
-    let (agent, root) = start(&cp, dir.path(), &runtime, &host).await;
+    let (agent, root) = start(&cp, dir.path(), (&runtime, &host), Arc::new(facts)).await;
     serve_target(&cp, &project, &root).await;
     cp.declare(&project, "mc").await;
     let (id, plan) = backed_up(&cp, &project).await;
@@ -300,7 +301,7 @@ async fn a_new_workload_is_created_holding_a_backup_before_it_first_runs() {
     let project = cp.project().await;
     let dir = tempfile::tempdir().unwrap();
     let (runtime, host) = (InMemory::new(), InMemoryHost::new());
-    let (agent, root) = start(&cp, dir.path(), &runtime, &host).await;
+    let (agent, root) = start(&cp, dir.path(), (&runtime, &host), Arc::new(facts)).await;
     serve_target(&cp, &project, &root).await;
     cp.declare(&project, "mc").await;
     let (id, plan) = backed_up(&cp, &project).await;

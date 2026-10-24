@@ -142,6 +142,25 @@ message JobAccessRequest {
   // A one-time X25519 public key the job made: under tenant custody the data key is sealed to it
   // (§5.5 of docs/06-storage.md) and the answer's sealed_data_key set instead of data_key.
   bytes recipient = 5;
+  // Set instead of the plan and step: a `backup.browse` or `backup.read` session the node
+  // accepted on a block device's backup (§5.4 of docs/06-storage.md). Answered to a node holding
+  // the lease of the session's workload, once the control plane has verified the session's token
+  // again and recorded the read under it, with read access to the workload's prefix and the
+  // volume the image is staged beside; refused where the backup is not the workload's, or holds
+  // no image a guest of this node reads.
+  BackupRead backup_read = 6;
+}
+
+// A session reading a block device's backup, as the node accepted it.
+message BackupRead {
+  // The backup, `bkp_…`.
+  string backup = 1;
+  // The session's token, as its client presented it.
+  string token = 2;
+  // The session's action: `backup.browse` or `backup.read`.
+  string action = 3;
+  // The workload the session is on, `wl_…`.
+  string workload = 4;
 }
 
 message JobAccess {
@@ -269,6 +288,10 @@ message JobGrant {
   // `store`: write for a backup, read for a restore (§5.2 of docs/06-storage.md). Absent for an
   // offload.
   korpis.v1.S3Access content_store = 7;
+  // For a backup read: the volume its image is staged beside, by the helper's identifier.
+  string volume = 8;
+  // For a backup read: the filesystem its image holds, as the backup records it.
+  string image_filesystem = 9;
 }
 
 // A backup job ended on the node: what its result says.

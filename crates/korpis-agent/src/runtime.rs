@@ -181,6 +181,16 @@ pub trait Runtime: Send + Sync + 'static {
         write: bool,
     ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send;
 
+    /// A read-only file session on `image`, a block device's backup the helper restored for
+    /// reading, served by the driver named `driver` from a service guest of the image's own (§5.4
+    /// of docs/06-storage.md), at `/backup`: a stream as [`Runtime::files`] gives. Capability-
+    /// gated: a driver whose volumes are block devices.
+    fn image_files(
+        &self,
+        driver: &str,
+        image: &driver::StagedImage,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send;
+
     /// Starts install `asked.job` into the block devices of the workload `asked.spec` describes,
     /// run by the driver `asked.spec.driver` names in a service guest (§4.4 of
     /// docs/04-runtimes.md), as the helper runs one beside a container. Capability-gated: a driver

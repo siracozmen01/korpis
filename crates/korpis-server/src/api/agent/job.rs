@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's request for what a backup or restore job needs, and its answer on the same stream
-//! (§5.5 of docs/06-storage.md). Granting access calls the repository's backup target, which may
+//! A node's request for what a backup or restore job needs, or a session reading a block
+//! device's backup, and its answer on the same stream (§5.5 and §5.4 of docs/06-storage.md). Granting access calls the repository's backup target, which may
 //! take seconds, so each request is answered from a task of its own and the session goes on
 //! meanwhile. The answer always comes, echoing the request.
 
@@ -10,12 +10,15 @@ use crate::api::wire::{id, timestamp};
 use korpis_app::AppError;
 use korpis_app::backup::job::{JobGrant, JobRefusal};
 use korpis_app::backup::keys::JobKey;
+use korpis_app::backup::read::ReadFor;
+use korpis_app::backup::session::{BackupSession, SessionGrant};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::job_access::Outcome;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::object_access::Protocol;
+use korpis_wire::WireError;
 use korpis_wire::backup::access_to_pb;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
@@ -35,9 +38,9 @@ fn refused(reason: &str, retryable: bool) -> Box<pb::Error> {
     })
 }
 
-fn outcome(granted: Result<JobGrant, JobRefusal>) -> Outcome {
+fn outcome(granted: Result<SessionGrant, JobRefusal>) -> Outcome {
     match granted {
-        Ok(g) => {
+        Ok(SessionGrant { grant: g, volume, image_filesystem }) => {
             let s3 = |a: &korpis_core::extension::ObjectAccess| match access_to_pb(a).protocol {
                 Some(Protocol::S3(s)) => Some(*s),
                 _ => None,
@@ -56,6 +59,8 @@ fn outcome(granted: Result<JobGrant, JobRefusal>) -> Outcome {
                 expires_at: timestamp(g.access.expires_at).into(),
                 repository: korpis_wire::wire_id(IdKind::Repository, g.repository),
                 workload: korpis_wire::wire_id(IdKind::Workload, g.workload),
+                volume,
+                image_filesystem,
                 ..Default::default()
             }))
         }
@@ -84,6 +89,38 @@ fn failed(e: &AppError, node: Uuid) -> Outcome {
     }
 }
 
+type Asked = Result<Result<Result<SessionGrant, JobRefusal>, AppError>, WireError>;
+
+/// What `r` from `node` is granted: a step's job, an offload, or a session's backup read, with
+/// the volume a session's image is staged beside and what it holds.
+async fn asked(app: &ServerApp, node: Uuid, r: &agent::JobAccessRequest) -> Asked {
+    let no_volume = |g: Result<Result<JobGrant, JobRefusal>, AppError>| {
+        let alone =
+            |grant| SessionGrant { grant, volume: String::new(), image_filesystem: String::new() };
+        g.map(|judged| judged.map(alone))
+    };
+    if let Some(read) = r.backup_read.as_option() {
+        let session = BackupSession {
+            backup: id(IdKind::Backup, "backup", &read.backup)?,
+            workload: id(IdKind::Workload, "workload", &read.workload)?,
+            what: match read.action.as_str() {
+                "backup.browse" => ReadFor::Browse,
+                "backup.read" => ReadFor::Read,
+                _ => return Err(korpis_wire::invalid("action", "a backup's read")),
+            },
+            token: read.token.clone(),
+        };
+        return Ok(app.grant_backup_session(node, &session, &r.recipient).await);
+    }
+    if r.offload.is_empty() {
+        let plan = id(IdKind::Plan, "plan", &r.plan)?;
+        Ok(no_volume(app.grant_job_access(node, (plan, r.step), &r.recipient).await))
+    } else {
+        let workload = id(IdKind::Workload, "offload", &r.offload)?;
+        Ok(no_volume(app.grant_offload_access(node, workload, &r.recipient).await))
+    }
+}
+
 /// Answers `r` from `node` on `tx`, from a task of its own.
 pub(super) fn answer(
     app: &Arc<ServerApp>,
@@ -93,18 +130,7 @@ pub(super) fn answer(
 ) {
     let app = Arc::clone(app);
     tokio::spawn(async move {
-        let asked = if r.offload.is_empty() {
-            match id(IdKind::Plan, "plan", &r.plan) {
-                Err(e) => Err(e),
-                Ok(plan) => Ok(app.grant_job_access(node, (plan, r.step), &r.recipient).await),
-            }
-        } else {
-            match id(IdKind::Workload, "offload", &r.offload) {
-                Err(e) => Err(e),
-                Ok(workload) => Ok(app.grant_offload_access(node, workload, &r.recipient).await),
-            }
-        };
-        let outcome = match asked {
+        let outcome = match asked(&app, node, &r).await {
             Err(e) => Outcome::Refused(refused(&e.message, false)),
             Ok(Ok(granted)) => outcome(granted),
             Ok(Err(e)) => failed(&e, node),

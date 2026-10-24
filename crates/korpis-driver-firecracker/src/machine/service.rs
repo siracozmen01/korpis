@@ -6,7 +6,9 @@
 //! stopped, its volumes synced, when the last ends; one booted for an install also runs the
 //! install job ([`super::install`]) and stays while it runs. There is one per workload at a time,
 //! since a block device is attached to one guest at a time, so it is keyed by workload, not by
-//! object: a first install runs before the workload has an object at all. The object's start ends
+//! object: a first install runs before the workload has an object at all. One serving a backup's
+//! staged image ([`super::image`]) holds a copy and not the workload's volume, so it is keyed by
+//! the image and runs beside the workload's own guest. The object's start ends
 //! a service guest serving files first, which ends its sessions, so a file manager left open does
 //! not hold a workload from starting, and is refused while an install runs. The services' lock is
 //! taken before the verbs' lock, never after.
@@ -25,15 +27,15 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// What a service guest's jail is named by: this, then a digest of its workload's name, which
-/// no object's identifier begins with.
+/// What a service guest's jail is named by: this, then a digest of what it is held by, its
+/// workload's name or a staged image's, which no object's identifier begins with.
 const PREFIX: &str = "svc-";
 /// Its config drive, in its directory.
 const CONFIG: &str = "config";
 /// What its jailer and Firecracker say of themselves.
 const LOG: &str = "guest.log";
 
-/// The service guests running, by workload, and the installs known, by job.
+/// The service guests running, by workload or staged image, and the installs known, by job.
 #[derive(Debug, Default)]
 pub struct Services(pub(super) tokio::sync::Mutex<Running>);
 
@@ -55,36 +57,36 @@ pub(super) struct Held {
 }
 
 impl Running {
-    /// Holds `vm`, `workload`'s service guest just booted, for `sessions` and `install`; its
-    /// number.
+    /// Holds `vm`, the service guest of `key`, a workload or a staged image, just booted, for
+    /// `sessions` and `install`; its number.
     pub(super) fn hold(
         &mut self,
-        workload: &str,
+        key: &str,
         vm: Vm,
         sessions: usize,
         install: Option<String>,
     ) -> u64 {
         self.booted += 1;
         let number = self.booted;
-        self.held.insert(workload.to_owned(), Held { number, sessions, vm, install });
+        self.held.insert(key.to_owned(), Held { number, sessions, vm, install });
         number
     }
 }
 
-/// A file session's hold on its workload's service guest, given up when it is dropped.
+/// A file session's hold on the service guest serving it, given up when it is dropped.
 #[derive(Debug)]
 pub struct Lease {
     machine: Machine,
-    workload: String,
+    key: String,
     number: u64,
 }
 
 impl Drop for Lease {
     fn drop(&mut self) {
         let (machine, number) = (self.machine.clone(), self.number);
-        let workload = std::mem::take(&mut self.workload);
+        let key = std::mem::take(&mut self.key);
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            runtime.spawn(async move { machine.release(&workload, number).await });
+            runtime.spawn(async move { machine.release(&key, number).await });
         }
     }
 }
@@ -94,19 +96,33 @@ pub(super) fn content_of(settings: &crate::settings::Settings, sid: &str) -> Pat
     settings.services().join(format!("{sid}.content"))
 }
 
-/// The jail of `workload`'s service guest.
-pub(super) fn service_id(workload: &str) -> String {
-    let digest = korpis_core::content::digest_of(workload.as_bytes());
+/// The jail of the service guest held by `key`, a workload or a staged image.
+pub(super) fn service_id(key: &str) -> String {
+    let digest = korpis_core::content::digest_of(key.as_bytes());
     let hex = digest.trim_start_matches("sha256:");
     format!("{PREFIX}{}", hex.get(..32).unwrap_or(hex))
 }
 
-/// What a service guest is booted for: the workload's spec, its role, and an install's content
-/// drive.
+/// What a service guest is booted for: what it is held by, the workload's spec, its role, an
+/// install's content drive, and whether its one volume is a staged copy rather than the
+/// workload's own.
 pub(super) struct Wanted<'a> {
+    pub(super) key: &'a str,
     pub(super) spec: &'a driver::PreparedSpec,
     pub(super) role: Role,
     pub(super) content: Option<PathBuf>,
+    pub(super) copy: bool,
+}
+
+impl<'a> Wanted<'a> {
+    /// A service guest of `spec`'s workload's own volumes, held by the workload.
+    pub(super) fn own(
+        spec: &'a driver::PreparedSpec,
+        role: Role,
+        content: Option<PathBuf>,
+    ) -> Self {
+        Self { key: &spec.workload, spec, role, content, copy: false }
+    }
 }
 
 impl Machine {
@@ -121,27 +137,31 @@ impl Machine {
             held.sessions += 1;
             held.number
         } else {
-            let wanted = Wanted { spec: &object.spec, role: Role::Files, content: None };
-            let vm = self.boot(&wanted).await?;
+            let vm = self.boot(&Wanted::own(&object.spec, Role::Files, None)).await?;
             running.hold(&workload, vm, 1, None)
         };
-        Ok((socket, Lease { machine: self.clone(), workload, number }))
+        Ok((socket, Lease { machine: self.clone(), key: workload, number }))
     }
 
-    /// Gives up one hold on service guest `number` of `workload`, stopped with the last unless
-    /// it still runs an install.
-    async fn release(&self, workload: &str, number: u64) {
+    /// Gives up one hold on service guest `number` of `key`, stopped with the last unless it
+    /// still runs an install.
+    async fn release(&self, key: &str, number: u64) {
         let mut running = self.services.0.lock().await;
-        let Some(held) = running.held.get_mut(workload).filter(|h| h.number == number) else {
+        let Some(held) = running.held.get_mut(key).filter(|h| h.number == number) else {
             return;
         };
         held.sessions = held.sessions.saturating_sub(1);
         if held.sessions == 0
             && held.install.is_none()
-            && let Some(held) = running.held.remove(workload)
+            && let Some(held) = running.held.remove(key)
         {
-            self.halt(workload, &held.vm).await;
+            self.halt(key, &held.vm).await;
         }
+    }
+
+    /// A lease on service guest `number` of `key`, for a session that has taken it.
+    pub(super) fn lease(&self, key: &str, number: u64) -> Lease {
+        Lease { machine: self.clone(), key: key.to_owned(), number }
     }
 
     /// Ends `workload`'s service guest, if one serves files, before its own guest takes its
@@ -164,18 +184,19 @@ impl Machine {
         Ok(running)
     }
 
-    /// Boots the service guest `wanted` asks for, once no object of its workload runs.
+    /// Boots the service guest `wanted` asks for, once no object of its workload runs, unless
+    /// what it holds is a copy.
     pub(super) async fn boot(&self, wanted: &Wanted<'_>) -> MachineResult<Vm> {
         let _held = self.lock.lock().await;
         let spec = wanted.spec;
         let runs = |o: &Object| {
             o.spec.workload == spec.workload && o.vm.is_some_and(|v| process::alive(&v))
         };
-        if Object::all(&self.settings.objects()).iter().any(runs) {
+        if !wanted.copy && Object::all(&self.settings.objects()).iter().any(runs) {
             let why = format!("{} runs: its own guest holds its volumes", spec.workload);
             return Err(MachineError::Refused(why));
         }
-        let sid = service_id(&spec.workload);
+        let sid = service_id(wanted.key);
         let dir = self.settings.services().join(&sid);
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::DirBuilder::new().mode(0o700).create(&dir).map_err(failed)?;
@@ -203,13 +224,14 @@ impl Machine {
 
     /// The drives of the service guest `wanted` asks for: the node's kernel and boot drive, the
     /// boot drive again or the content drive in the image's place, its config drive, and the
-    /// workload's volumes, each given to its guest's own id.
+    /// workload's volumes, each given to its guest's own id; a copy is attached writable, so its
+    /// journal can be replayed into it, and mounted as the spec says.
     async fn drives(&self, wanted: &Wanted<'_>, config: PathBuf) -> MachineResult<Drives> {
         let mut volumes = Vec::new();
         for m in &wanted.spec.mounts {
             let source = PathBuf::from(&m.source);
             crate::volume::give(&source, wanted.spec.uid_base).map_err(failed)?;
-            volumes.push((source, m.read_only));
+            volumes.push((source, m.read_only && !wanted.copy));
         }
         let unset = Drives {
             kernel: PathBuf::new(),
@@ -243,13 +265,13 @@ impl Machine {
         Ok(Vm { pid, start_ticks, started_at_ms: now_ms(), ended_at_ms: None })
     }
 
-    /// Stops `workload`'s service guest `vm` as a guest is stopped, so its volumes are synced,
-    /// then removes its jail and its directory.
-    pub(super) async fn halt(&self, workload: &str, vm: &Vm) {
-        let sid = service_id(workload);
+    /// Stops `key`'s service guest `vm` as a guest is stopped, so its volumes are synced, then
+    /// removes its jail and its directory.
+    pub(super) async fn halt(&self, key: &str, vm: &Vm) {
+        let sid = service_id(key);
         ended(&jail::api_socket(&self.settings, &sid), vm).await;
         if let Err(e) = jail::remove(&self.settings, &sid) {
-            tracing::warn!(%workload, error = %e, "a service guest's jail could not be removed");
+            tracing::warn!(%key, error = %e, "a service guest's jail could not be removed");
         }
         let _ = std::fs::remove_dir_all(self.settings.services().join(&sid));
         let _ = std::fs::remove_file(content_of(&self.settings, &sid));

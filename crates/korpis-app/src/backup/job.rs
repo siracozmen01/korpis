@@ -62,6 +62,10 @@ pub enum JobRefusal {
     Store(String),
     /// No repository takes the workload's streams.
     NoTarget,
+    /// The backup a session reads is not a block device's image, which the API reads itself.
+    NotAnImage,
+    /// The session's token is not one this control plane would honour now.
+    Unverified,
 }
 
 impl JobRefusal {
@@ -75,16 +79,18 @@ impl JobRefusal {
             Self::Gone => "job.backup_gone".into(),
             Self::Store(reason) => reason.clone(),
             Self::NoTarget => "offload.none".into(),
+            Self::NotAnImage => "backup.not_image".into(),
+            Self::Unverified => "job.token_refused".into(),
         }
     }
 }
 
 /// Where a job reads or writes: a workload's prefix in a repository, and the backup it reads.
-struct JobTarget {
-    repo: Repository,
-    workload: Uuid,
-    mode: AccessMode,
-    backup: Option<Uuid>,
+pub(super) struct JobTarget {
+    pub(super) repo: Repository,
+    pub(super) workload: Uuid,
+    pub(super) mode: AccessMode,
+    pub(super) backup: Option<Uuid>,
 }
 
 fn uuid_in(s: &Step, key: &str) -> Option<Uuid> {
@@ -94,7 +100,7 @@ fn uuid_in(s: &Step, key: &str) -> Option<Uuid> {
     }
 }
 
-type Judged<T> = Result<Result<T, JobRefusal>, AppError>;
+pub(super) type Judged<T> = Result<Result<T, JobRefusal>, AppError>;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The key and access step `step` of plan `plan` needs, for `node`.
@@ -117,10 +123,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             StepAction::RestoreVolume => self.restore_job(node, &p, s).await?,
             _ => Err(JobRefusal::NotAJob),
         };
-        let t = match judged {
-            Ok(t) => t,
-            Err(refused) => return Ok(Err(refused)),
-        };
+        match judged {
+            Ok(t) => self.granted(node, t, recipient).await,
+            Err(refused) => Ok(Err(refused)),
+        }
+    }
+
+    /// The key and access to `t` for a job on `node`, its key sealed to `recipient` under tenant
+    /// custody, recorded before it is asked of the target.
+    pub(super) async fn granted(
+        &self,
+        node: Uuid,
+        t: JobTarget,
+        recipient: &[u8],
+    ) -> Judged<JobGrant> {
         let make = t.mode == AccessMode::Write;
         let data_key = self.job_key((&t.repo, t.workload), make, recipient).await?;
         let target = CallTarget {
@@ -166,7 +182,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(v.is_some_and(|v| v.node == node && v.deleted_at.is_none()))
     }
 
-    async fn repository_of(&self, id: Uuid) -> Result<Repository, AppError> {
+    pub(super) async fn repository_of(&self, id: Uuid) -> Result<Repository, AppError> {
         let repo = self.store.repository(id).await?;
         repo.ok_or(AppError::NotFound { kind: "repository" })
     }

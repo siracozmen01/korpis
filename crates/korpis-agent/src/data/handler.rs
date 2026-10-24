@@ -27,6 +27,8 @@ pub struct Opened {
     pub params: Vec<u8>,
     /// Who opened it: the token's subject, which effects name.
     pub subject: String,
+    /// The token it was opened with, for a handler that has the control plane verify it again.
+    pub token: String,
     /// The grant chain the token was minted from, leaf first.
     pub chain: Vec<Uuid>,
     /// When the token stops carrying the session unless renewed.

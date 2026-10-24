@@ -609,6 +609,11 @@ message RestoreVolume {
   // volume and ForgetJob otherwise discards; `path` and `into` are then empty. The volume is not
   // touched until the commit, so the workload may run while the job does.
   bool replace = 5;
+  // Restore the whole backup of a block device into a staging place of the job's own beside the
+  // volume, for its image to be read in a service guest (§5.4 of docs/06-storage.md), never made
+  // the volume: CommitJob refuses it, and ForgetJob discards it. `path`, `into`, and `replace`
+  // are then unset.
+  bool reading = 6;
 }
 
 // A recipe's install actions, run beneath a workload's volumes by a worker that sees nothing else
@@ -644,6 +649,10 @@ message JobStatusResponse {
   // For an install job however it stands: how many of its actions have run, counting from the
   // start of the install, as it last recorded. A job lost part way resumes here.
   uint32 progress = 4;
+  // For a reading restore however it stands: the image it restores into,
+  // `<volume root>/<staging place>/block.ext4`, which a driver's file session reads once the job
+  // has finished whole.
+  string image = 5;
 }
 
 enum JobState {

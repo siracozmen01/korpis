@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A file session through the driver (§4.4 of docs/04-runtimes.md): the driver's `Files` stream,
-//! opened on the object and bridged to an in-memory stream that carries the session's frames as a
+//! opened on the object, or on a block device's backup staged for reading (§5.4 of
+//! docs/06-storage.md), and bridged to an in-memory stream that carries the session's frames as a
 //! host worker's socket does, so the node's file sessions read and write one kind of stream
 //! whichever worker serves them. Each frame is bounded as the worker bounds it.
 
@@ -28,9 +29,22 @@ impl DriverRuntime {
     }
 
     pub(super) async fn files_call(&self, id: &str, write: bool) -> RuntimeResult<DuplexStream> {
+        let open = driver::FilesOpen { runtime_id: id.to_owned(), write, ..Default::default() };
+        self.opened(open).await
+    }
+
+    pub(super) async fn image_files_call(
+        &self,
+        image: &driver::StagedImage,
+    ) -> RuntimeResult<DuplexStream> {
+        let open = driver::FilesOpen { image: image.clone().into(), ..Default::default() };
+        self.opened(open).await
+    }
+
+    /// The session `open` opens, bridged.
+    async fn opened(&self, open: driver::FilesOpen) -> RuntimeResult<DuplexStream> {
         let stream = self.client.files().await.map_err(error)?;
         let (mut send, recv) = stream.into_split();
-        let open = driver::FilesOpen { runtime_id: id.to_owned(), write, ..Default::default() };
         let first = driver::FilesRequest {
             message: Some(Message::Open(Box::new(open))),
             ..Default::default()

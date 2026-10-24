@@ -290,8 +290,9 @@ impl Agent {
         let (runtimes, _) = tokio::sync::watch::channel(std::collections::BTreeMap::new());
         let sessions = (&streams, sampler.watch());
         let handlers = consoles(options.handlers, sessions, (&runtime, &runtimes), &journal);
+        let (reading, held) = (crate::data::backup::Reading::default(), (&runtimes, &link.held));
         let handlers =
-            file_sessions(handlers, (&host, &runtime), (&runtimes, &link.held), &journal);
+            file_sessions(handlers, (&host, &runtime), held, (&journal, &link.jobs, &reading));
         let data = data_link(data, &link, handlers);
         let leases = Leases::new(journal.clone());
         let keeper =
@@ -317,6 +318,7 @@ impl Agent {
             certificates: link.certificates.clone(),
             driver_kinds,
             identity: Some(sockets),
+            reading,
         };
         let offloader = offloader(state, &streams, (&journal, &link.jobs), options.period)?;
         let tasks = [

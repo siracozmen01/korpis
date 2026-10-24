@@ -252,7 +252,15 @@ impl driver::DriverService for Driver {
         mut requests: connectrpc::InboundStream<driver::FilesRequest>,
     ) -> ServiceResult<ServiceStream<driver::FilesResponse>> {
         let open = crate::files::opened(&mut requests).await?;
-        let session = self.machine.files(&open.runtime_id, open.write).await.map_err(status)?;
+        let session = match open.image.as_option() {
+            Some(_) if open.write || !open.runtime_id.is_empty() => {
+                let why = "a staged image is opened alone, and read-only";
+                return Err(ConnectError::new(ErrorCode::InvalidArgument, why));
+            }
+            Some(image) => self.machine.image_files(image).await,
+            None => self.machine.files(&open.runtime_id, open.write).await,
+        };
+        let session = session.map_err(status)?;
         let (from, to) = session.stream.into_split();
         tokio::spawn(crate::files::up(requests, to));
         Response::stream_ok(crate::files::down(from, session.lease))

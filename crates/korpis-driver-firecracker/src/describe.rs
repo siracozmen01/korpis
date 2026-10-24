@@ -9,6 +9,10 @@
 use crate::prepare::NAME;
 use korpis_proto::korpis::v1 as pb;
 
+/// The filesystems its guests mount: korpis-guest mounts a volume as ext4 alone, which the helper
+/// formats it as, so a backup's image is read in a guest only when it holds one of these.
+pub const GUEST_FILESYSTEMS: &[&str] = &["ext4"];
+
 /// The driver protocol it speaks.
 pub const PROTOCOL: &str = "korpis.driver.v1";
 
@@ -76,8 +80,7 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         // carries (§4.4 of docs/04-runtimes.md).
         file_access: pb::FileAccess::FILE_ACCESS_GUEST_WORKER.into(),
         guest_agent: true,
-        // korpis-guest mounts a volume as ext4 alone, which the helper formats it as.
-        guest_filesystems: vec!["ext4".into()],
+        guest_filesystems: GUEST_FILESYSTEMS.iter().map(|f| (*f).to_owned()).collect(),
         // A command runs inside a guest through its agent (§4.2 of docs/04-runtimes.md).
         exec: true,
         // A guest's /run/korpis: its identity socket and API relay relayed over vsock, and its

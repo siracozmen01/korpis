@@ -13,6 +13,7 @@
 
 pub(crate) mod act;
 pub(crate) use act::volume_id;
+pub(crate) use volume::driver_of;
 mod adopt;
 mod backup;
 mod content;
@@ -149,6 +150,8 @@ pub struct Wiring {
     pub driver_kinds: DriverKinds,
     /// Where query probes ask their health provider's rounds (§5 of docs/16-extensions.md).
     pub queries: Arc<crate::health::Queries>,
+    /// The reading jobs live backup sessions hold, which are not forgotten under them.
+    pub reading: crate::data::backup::Reading,
 }
 
 /// The reconciler.

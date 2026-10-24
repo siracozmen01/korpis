@@ -115,8 +115,7 @@ impl Machine {
             self.halt(&workload, &held.vm).await;
         }
         let content = self.content(&asked).await?;
-        let wanted = Wanted { spec: &asked.spec, role: Role::Install, content: Some(content) };
-        let vm = self.boot(&wanted).await?;
+        let vm = self.boot(&Wanted::own(&asked.spec, Role::Install, Some(content))).await?;
         let number = running.hold(&workload, vm, 0, Some(asked.job.clone()));
         let started = Outcome::Running { workload: workload.clone(), progress: asked.from };
         running.installs.insert(asked.job.clone(), started);

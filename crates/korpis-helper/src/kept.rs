@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a job leaves on a volume until it is forgotten: the snapshot a backup read, or the
-//! staging place of a replacing restore. It is recorded in the job's directory when the job
+//! What a job leaves on a volume until it is forgotten: the snapshot a backup read, the staging
+//! place of a replacing restore, or the one a reading restore made. It is recorded in the job's directory when the job
 //! starts, so a helper restarted since still knows what to release.
 
 use crate::error::{HelperError, HelperResult};
@@ -26,6 +26,13 @@ pub enum Kept {
         /// The volume's limits when it was made.
         limits: (u64, u64),
     },
+    /// A staging place made beside a block device for its backup to be read, the job's own.
+    Reading {
+        /// The volume.
+        volume: String,
+        /// The job.
+        job: String,
+    },
 }
 
 impl Kept {
@@ -37,6 +44,7 @@ impl Kept {
             Self::Staging { volume, identity, limits: (bytes, inodes) } => {
                 format!("staging {volume} {identity} {bytes} {inodes}")
             }
+            Self::Reading { volume, job } => format!("reading {volume} {job}"),
         }
     }
 
@@ -58,6 +66,10 @@ impl Kept {
                 let limits = (number(words.next())?, number(words.next())?);
                 Ok(Self::Staging { volume: volume.to_owned(), identity, limits })
             }
+            (Some("reading"), Some(volume)) => {
+                let job = words.next().ok_or_else(bad)?;
+                Ok(Self::Reading { volume: volume.to_owned(), job: job.to_owned() })
+            }
             _ => Err(bad()),
         }
     }
@@ -66,7 +78,9 @@ impl Kept {
     #[must_use]
     pub fn volume(&self) -> &str {
         match self {
-            Self::Snapshot { volume, .. } | Self::Staging { volume, .. } => volume,
+            Self::Snapshot { volume, .. }
+            | Self::Staging { volume, .. }
+            | Self::Reading { volume, .. } => volume,
         }
     }
 
@@ -77,7 +91,7 @@ impl Kept {
             Self::Staging { volume, identity, limits } => {
                 Some(Staging { volume, identity: *identity, limits: *limits })
             }
-            Self::Snapshot { .. } => None,
+            Self::Snapshot { .. } | Self::Reading { .. } => None,
         }
     }
 }
@@ -91,10 +105,13 @@ mod tests {
         for kept in [
             Kept::Snapshot { volume: "wl_1.data".into(), name: "job-bkp-1".into() },
             Kept::Staging { volume: "wl_1.data".into(), identity: 257, limits: (1 << 30, 0) },
+            Kept::Reading { volume: "wl_1.disk".into(), job: "browse-1".into() },
         ] {
             assert_eq!(Kept::from_line(&kept.to_line()).unwrap(), kept);
         }
-        for bad in ["", "staging wl_1.data x 1 2", "snapshot wl_1.data", "other a b"] {
+        let bad =
+            ["", "staging wl_1.data x 1 2", "snapshot wl_1.data", "reading wl_1.disk", "other"];
+        for bad in bad {
             assert!(Kept::from_line(bad).is_err(), "{bad:?}");
         }
     }

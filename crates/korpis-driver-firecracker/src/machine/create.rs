@@ -35,9 +35,7 @@ pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> Mach
     }
     let digest = spec.rootfs.rsplit_once('@').map_or("", |(_, d)| d);
     korpis_core::content::hex_of(digest).map_err(|_| refused("an image by its digest"))?;
-    if spec.uid_count != IDS || spec.uid_base < IDS || spec.uid_base.checked_add(IDS).is_none() {
-        return Err(refused("a range of 65536 ids above the host's own"));
-    }
+    ids(spec.uid_base, spec.uid_count)?;
     joined(spec, settings)?;
     identity(spec, settings)?;
     if !korpis_driver_kit::console::own_dir(spec, &settings.volume_root) {
@@ -57,6 +55,14 @@ pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> Mach
         if Path::new(&m.destination).starts_with(IDENTITY_MOUNT) {
             return Err(refused(format!("volume {:?} is mounted over {IDENTITY_MOUNT}", m.volume)));
         }
+    }
+    Ok(())
+}
+
+/// That `base` and `count` are a whole range of a workload's ids above the host's own.
+pub(super) fn ids(base: u32, count: u32) -> MachineResult<()> {
+    if count != IDS || base < IDS || base.checked_add(IDS).is_none() {
+        return Err(refused("a range of 65536 ids above the host's own"));
     }
     Ok(())
 }

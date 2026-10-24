@@ -5576,3 +5576,60 @@ wrote through the relay, and upgrades it, the install running again in the stopp
 steps are built without a test of their own: step 10's session joining the install's guest takes
 the path trace 66's second session takes, and step 12's restart is the helper's lost worker, which
 `crates/korpis-agent` tests for the helper and not for a driver.
+
+## 68. A world on a microVM is browsed in last night's backup, and a file read out of it
+
+Written 2026-10-24, as reading inside a block device's backup was built (§5.4 of `06-storage.md`,
+§4.4 of `04-runtimes.md`). Trace 57 followed a block device's backup being taken and restored
+whole; this one follows the read that a single-file restore begins with, asking at each step who
+holds what the step needs and who parses what the tenant's guest wrote. A host's customer runs a
+Minecraft world on the `microvm` tier, backed up nightly; their moderator holds `backup.browse` on
+the workload and wants to see which region files last night's backup holds, and the owner, holding
+`backup.read`, reads `level.dat` out of it while the moderator is still looking.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The backup was taken of the volume's image, and its record says it holds an `ext4` image | `06-storage.md` §5.4 |
+| 2 | The moderator's client mints a token for `backup.browse` on the workload and opens a session through the relay, its params naming the backup | `08-identity.md` §6; `02-architecture.md` §3.1 |
+| 3 | The node verifies the token offline, that it holds the workload, and that it serves the action | `02-architecture.md` §3.1 |
+| 4 | The node asks the control plane for the job's access, naming the backup and passing the token | `06-storage.md` §5.4, §5.5 |
+| 5 | The control plane verifies the token again through its grant as the grant stands, checks that the backup is the workload's, whole, an image, and of a volume this node holds, records the read, and grants read access, the volume, and the image's filesystem | `06-storage.md` §5.4; `08-identity.md` §6; `15-observability.md` §4 |
+| 6 | The helper restores the image into a reading place beside the volume, one per backup on the node, never exchanged with it | `06-storage.md` §5.4 |
+| 7 | The driver refuses a filesystem its guests do not mount, and boots a service guest holding the copy alone, beside the world's own running guest | `04-runtimes.md` §4.1, §4.4 |
+| 8 | The guest's kernel replays the image's journal into the copy and mounts it read-only; the worker serves it read-only at `/backup` | `04-runtimes.md` §4.4; `17-security.md` §5 |
+| 9 | The moderator lists the regions; a read of a file's bytes in the browse session ends it | `06-storage.md` §5.4 |
+| 10 | The owner's `backup.read` session, opened meanwhile, reads `level.dat` from the same copy and the same guest | `06-storage.md` §5.4; `04-runtimes.md` §4.4 |
+| 11 | The last session ends: the node forgets the job, discarding the copy, and the guest ends with its last session | `06-storage.md` §5.4; `04-runtimes.md` §4.4 |
+| 12 | The node restarts during a session: the session ends with it, and the node's next sweep of its jobs discards the copy no session holds | `06-storage.md` §5.4 |
+
+**No finding in the documents; one in the design before it was built.** Step 4's question has an
+answer only in the control plane: the node holds neither the repository's credentials nor the
+backup's record, so it cannot tell that the backup named in the session's params is the
+workload's, and a node trusted to say so would hand any tenant's backup to whoever opened a session
+on a workload that node holds. Step 5's revocation check is the control plane's too, against its
+grants as they stand, since the node's revocation list may lag by its horizon. Asking step 6 what
+bounds the room it takes found the first design staging a copy per session, so a holder of
+`backup.browse` opening sessions in a loop would have filled the node's disk with copies of one
+backup; the copy is one per backup on the node, held by a count of its sessions, and what is left
+unbounded, one copy per backup being read and no room reserved for it, is the cost §5.4 of
+`06-storage.md` states, as the replacing restore's is. Step 8's answer is the copy's: a kernel
+refuses to mount from a read-only drive a filesystem whose journal needs recovery, which an image
+taken from a running guest may, so the copy is attached writable, mounted read-only, and discarded
+(`research/evidence.md`).
+
+Steps 1 to 11 are built, and step 12 by the node's job sweep. `crates/korpis-agent/tests/agent/
+backup_read.rs` runs steps 1 to 5 and 9 to 11 against a real control plane with the in-memory
+runtime and helper: a browse session and a read session share one reading job and one copy, a
+browse ends at its first read, each read is recorded by the control plane as it granted it, the
+job is forgotten when the last session ends, and a session naming another workload's backup is
+refused with nothing staged. `crates/korpis-helper/tests/reading.rs` runs step 6 with the real job
+binary and store: the backup's image restored whole beside the volume, marked, the live volume
+untouched, a commit refused, discarded when forgotten and when the volume is deleted.
+`crates/korpis-driver-firecracker/tests/image.rs` runs steps 7 and 8 in a live guest: an image
+flagged as needing its journal replayed is listed and read beside the workload's running guest, a
+write refused, two sessions sharing one guest; an image outside the volume root, one unmarked, one
+of another filesystem, and a short id range are refused with nothing booted. What is not built:
+`korpis backup ls` and `cat` reaching the session, and the end-to-end test on a real node (§4 of
+`20-roadmap.md`).

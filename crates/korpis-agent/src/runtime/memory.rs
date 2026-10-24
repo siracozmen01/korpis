@@ -349,6 +349,14 @@ impl Runtime for InMemory {
         ready(self.files_now(id, write))
     }
 
+    fn image_files(
+        &self,
+        _driver: &str,
+        image: &driver::StagedImage,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
+        ready(self.image_files_now(image))
+    }
+
     fn start_install(
         &self,
         asked: &driver::StartInstallRequest,

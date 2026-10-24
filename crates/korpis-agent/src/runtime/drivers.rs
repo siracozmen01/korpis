@@ -344,6 +344,14 @@ impl<R: Runtime> Runtime for Drivers<R> {
         self.files_on(id, write)
     }
 
+    fn image_files(
+        &self,
+        driver: &str,
+        image: &driver::StagedImage,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
+        self.image_files_on(driver, image)
+    }
+
     fn start_install(
         &self,
         asked: &driver::StartInstallRequest,

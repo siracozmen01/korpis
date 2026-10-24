@@ -42,7 +42,7 @@ impl ReadFor {
         }
     }
 
-    const fn action(self) -> &'static str {
+    pub(crate) const fn action(self) -> &'static str {
         match self {
             Self::Browse => "backup.browse",
             Self::Read => "backup.read",

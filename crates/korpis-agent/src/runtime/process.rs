@@ -249,6 +249,14 @@ impl Runtime for DriverRuntime {
         self.files_call(id, write)
     }
 
+    fn image_files(
+        &self,
+        _driver: &str,
+        image: &driver::StagedImage,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
+        self.image_files_call(image)
+    }
+
     fn start_install(
         &self,
         asked: &driver::StartInstallRequest,

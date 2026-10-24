@@ -757,6 +757,35 @@ offers whole-image restore only, stated when the backup is taken (finding S40).
 > is whole-image restore only. `korpis backup ls` lists such a backup as the one image it is, and
 > `korpis backup list` says it holds an `ext4` image rather than files. What it does not do yet:
 > browse inside the image, which a service guest does in this phase (§4 of `20-roadmap.md`).
+> (Since built, the node's and the control plane's half: the next note.)
+
+> As built, 2026-10-24, reading inside the image. A block device's backup is read on the data path
+> (§3.1 of `02-architecture.md`), in a session of `backup.browse` or `backup.read` on its workload
+> whose params name the backup (`BackupFiles`), and the session is a file session, read-only, the
+> image's files at `/backup`. The node holds neither the repository's credentials nor what says
+> which workload a backup is of, so it asks the control plane for the job's access as a restore
+> step does, passing the session's token. The control plane verifies the token again with its own
+> keys and through the grant it was minted from as that grant stands now, so a revocation, expiry,
+> or suspension since the token was minted is honoured without waiting for a revocation list;
+> checks that the backup is the workload's, whole, an image, and of a volume that node holds;
+> records the read as the session's subject's act under that grant before anything is read, as the
+> API's browse and read are recorded; and grants read access to the workload's prefix, with the
+> volume's identifier on the node and the filesystem the image holds. The helper restores the image
+> into a reading place beside the volume (`.<volume>.read+<job>`, marked a block device's, bounded
+> as the volume is, never exchanged with it), one per backup on the node however many sessions read
+> it, and the workload's driver serves it from a service guest of the copy's own, refusing a
+> filesystem its guests do not mount (§4.4 of `04-runtimes.md`). A `backup.browse` session ends at
+> its first read of a file's bytes, which the node refuses, since browsing is names, kinds, sizes,
+> and times. When the last session reading it ends the node forgets the job, which discards the
+> copy, and the volume's deletion takes any copy left with it. What it costs: a browse waits for
+> the image to be restored, its data less its holes, and for a guest to boot; each backup being
+> read holds that room beside the volume until its last session ends, and nothing reserves it, as
+> for a replacing restore (above); a session that ends while its image is still being restored
+> leaves the restore to finish, and the node's next sweep of its jobs discards it, as it does every
+> reading job left by a restart. What it does not do yet: `korpis backup ls` and `cat` and the
+> API's `BrowseBackup` and `ReadBackupFile` still read such a backup as its one image, so the
+> session is reached only by a client that opens it (§4 of `20-roadmap.md`), and the panel shows no
+> backup at all (question 7 of §10 of `11-surface-web.md`).
 
 **Restores are verified.** A restore that completes without confirming the data is readable and the
 workload can start is not a restore, it is a hope. The verification is the same contract as

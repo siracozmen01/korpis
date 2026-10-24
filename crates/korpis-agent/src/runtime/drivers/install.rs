@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Installs, each sent to the driver its workload's spec names: an install runs before the
-//! workload has an object, so no object says which driver owns it.
+//! workload has an object, so no object says which driver owns it; and a block device's backup
+//! staged for reading, which is no object's either, read through the driver named.
 
 use super::Drivers;
 use crate::runtime::{Runtime, RuntimeError, RuntimeResult};
@@ -32,5 +33,13 @@ impl<R: Runtime> Drivers<R> {
 
     pub(super) async fn forget_install_on(&self, name: &str, job: &str) -> RuntimeResult<()> {
         self.installer(name)?.forget_install(name, job).await
+    }
+
+    pub(super) async fn image_files_on(
+        &self,
+        name: &str,
+        image: &driver::StagedImage,
+    ) -> RuntimeResult<tokio::io::DuplexStream> {
+        self.installer(name)?.image_files(name, image).await
     }
 }

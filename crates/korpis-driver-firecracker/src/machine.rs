@@ -9,12 +9,14 @@
 
 mod create;
 mod files;
+mod image;
 mod install;
 mod service;
 mod status;
 mod stop;
 
 pub use files::Session;
+pub use image::AT as IMAGE_AT;
 pub use install::{Install, InstallStatus};
 pub use service::Lease;
 

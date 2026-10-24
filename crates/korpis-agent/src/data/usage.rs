@@ -87,6 +87,7 @@ mod tests {
             action: ACTION.into(),
             params,
             subject: "user:x".into(),
+            token: String::new(),
             chain: Vec::new(),
             expires_at: SystemTime::now() + Duration::from_secs(60),
             stream_range: None,

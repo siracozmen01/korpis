@@ -535,6 +535,29 @@ starts it again from the progress it kept, as for a helper's lost worker. What a
 its config's role (`korpis_guest::config::Role`): the workload's own run, a service guest serving
 files, or one running an install.
 
+**How a block device's backup is read in a service guest** (2026-10-24). A backup of a block device
+is its image (§5.4 of `06-storage.md`), and reading inside it is parsing a filesystem the tenant's
+guest wrote, which the host never does. The node, serving a session of `backup.browse` or
+`backup.read` with the access the control plane grants it (§5.4 of `06-storage.md`), has the helper
+restore the image into a staging place of its own beside the volume, never exchanged with it, and
+opens the driver's `Files` stream on that staged image rather than on an object. The driver checks
+it as it checks a volume, an image named `block.ext4` with no link on the way in a directory
+beneath the volume root marked as a block device's, the ids a workload's whole range, and the
+filesystem the backup records the image holding one its guests mount (`guest_filesystems`, §4.1),
+refusing any other as whole-image restore only; and it boots a service guest holding the copy
+alone, at `/backup` in the session, with nothing to run and no network, identity, or terminal. That
+guest holds a copy and not the workload's volume, so it is keyed by the image rather than by the
+workload and runs whether or not the workload's own guest or its other service guest does; sessions
+on the same copy share it, and it ends with the last. The copy is attached writable and mounted
+read-only: an image restored from a running guest's backup is crash-consistent and its journal may
+still need replaying, and a kernel refuses to mount such a filesystem from a read-only drive, so
+the guest's kernel replays it into the copy, which nothing reads afterwards. The worker serves it
+read-only. What it costs: a browse waits for the image to be restored, which is its whole size in
+data less its holes, and for a guest to boot; the staging place takes that room beside the volume
+until the session ends; and a write in the session is refused by the worker and the mount, never
+reaching the copy, but the copy itself is not byte for byte the backup once its journal is
+replayed, which is why it is discarded and never restored from.
+
 ### 4.5 A uid on disk must mean the same thing everywhere
 
 > Second external review, finding S50.

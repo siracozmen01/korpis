@@ -6,7 +6,8 @@
 //! step never forgets its own, because doing it again after a crash must find the job it began,
 //! and a replacing restore's staging place outlives the step that made it. Once the plan has left
 //! the set, the helper is asked to forget the job, which releases what it keeps on the volume. A
-//! job still running is never touched, and nothing is forgotten before a set has been held.
+//! job still running is never touched, nor one a live session reading a backup holds, and nothing
+//! is forgotten before a set has been held.
 
 use super::Reconciler;
 use super::install::install_job;
@@ -62,7 +63,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let ended = |j: &&helper::JobSummary| {
             j.state.as_known() != Some(helper::JobState::JOB_STATE_RUNNING)
         };
-        for j in jobs.iter().filter(ended).filter(|j| !named.contains(&j.job)) {
+        let unheld = |j: &&helper::JobSummary| !self.wiring.reading.holds(&j.job);
+        for j in jobs.iter().filter(ended).filter(|j| !named.contains(&j.job)).filter(unheld) {
             match self.host.forget_job(&j.job).await {
                 Ok(()) => tracing::info!(job = %j.job, "a job no plan names was forgotten"),
                 Err(e) => tracing::warn!(job = %j.job, error = %e, "a job could not be forgotten"),

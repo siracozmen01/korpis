@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Where a job works (§5 of docs/06-storage.md): a backup in its volume or a snapshot of it, a
-//! replacing restore in a staging place, any other restore in its volume or a new directory of
-//! it, and an install in the volumes its spec names, each found from the identifiers the request
-//! names and nothing it says of paths.
+//! replacing restore in a staging place, a reading one in a place of its own, any other restore
+//! in its volume or a new directory of it, and an install in the volumes its spec names, each
+//! found from the identifiers the request names and nothing it says of paths.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};
@@ -46,6 +46,19 @@ impl Helper {
             Some(R::Backup(b)) => {
                 crate::error::identifier("job", &r.job)?;
                 self.place_backup(&r.job, b)
+            }
+            Some(R::Restore(w)) if w.reading => {
+                if w.replace || !(w.path.is_empty() && w.into.is_empty()) {
+                    return Err(HelperError::Refused("a reading restore is whole".into()));
+                }
+                let directory = self.holding(&w.volume)?.stage_reading(&w.volume, &r.job)?;
+                let kept = Kept::Reading { volume: w.volume.clone(), job: r.job.clone() };
+                let work = pb::RestoreWork { backup: w.backup.clone(), ..Default::default() };
+                Ok(Placed::Data(DataJob {
+                    directory,
+                    work: W::Restore(Box::new(work)),
+                    kept: Some(kept),
+                }))
             }
             Some(R::Restore(w)) if w.replace => {
                 if !(w.path.is_empty() && w.into.is_empty()) {

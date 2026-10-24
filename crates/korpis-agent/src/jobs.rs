@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What a backup or restore job is given (§5.5 of docs/06-storage.md): asked of the control plane
-//! up the session when the step begins, naming the plan and the step, and handed to the helper,
-//! which hands it to the job. The agent keeps none of it once the job has it.
+//! up the session when the step begins, naming the plan and the step, or the session reading a
+//! block device's backup, and handed to the helper, which hands it to the job. The agent keeps
+//! none of it once the job has it.
 //!
 //! Each question names a one-time recipient whose secret stays in this process: under tenant
 //! custody the data key comes sealed to it, and is opened here, as the answer arrives, for the
@@ -76,6 +77,20 @@ impl JobAccesses {
     pub fn poll_offload(&self, workload: &str) -> Option<Result<agent::JobGrant, NoAccess>> {
         let up = agent::JobAccessRequest { offload: workload.to_owned(), ..Default::default() };
         self.ask((format!("offload/{workload}"), u32::MAX), up)
+    }
+
+    /// As [`poll`](Self::poll), for session `session` reading a block device's backup (§5.4 of
+    /// docs/06-storage.md).
+    ///
+    /// # Errors
+    /// As [`poll`](Self::poll).
+    pub fn poll_backup_read(
+        &self,
+        session: &str,
+        read: agent::BackupRead,
+    ) -> Option<Result<agent::JobGrant, NoAccess>> {
+        let up = agent::JobAccessRequest { backup_read: read.into(), ..Default::default() };
+        self.ask((format!("read/{session}"), u32::MAX), up)
     }
 
     fn ask(

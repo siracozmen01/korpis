@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The data path's handlers `korpis-agent run` serves: the console's, a workload's usage now, and
-//! its file sessions.
+//! The data path's handlers `korpis-agent run` serves: the console's, a workload's usage now, its
+//! file sessions, and reading its block devices' backups.
 
+use crate::data::backup::{self, BackupSessions, Reading};
 use crate::data::console::{self, ConsoleRead};
 use crate::data::console_write::{self, ConsoleWrite};
 use crate::data::files::{self, FileSessions};
@@ -34,15 +35,23 @@ pub(super) fn consoles<R: Runtime + Clone>(
 }
 
 /// The data path's handlers, with the file session's: through `host`'s helper, or through
-/// `runtime` on the object `runtimes` names where its driver serves files inside it.
+/// `runtime` on the object `runtimes` names where its driver serves files inside it; and reading
+/// a block device's backup, its job's access asked of `jobs` and the job held in `reading`.
 pub(super) fn file_sessions<R: Runtime + Clone, H: Host + Clone>(
     handlers: Handlers,
     (host, runtime): (&H, &R),
     (runtimes, held): (&Sender<BTreeMap<String, String>>, &Receiver<crate::held::HeldSet>),
-    journal: &JournalHandle,
+    (journal, jobs, reading): (&JournalHandle, &Arc<crate::jobs::JobAccesses>, &Reading),
 ) -> Handlers {
     let both = (host.clone(), runtime.clone());
     let files =
-        Arc::new(FileSessions::new(both, runtimes.subscribe(), held.clone(), journal.clone()));
-    handlers.with(files::READ, files.clone()).with(files::WRITE, files)
+        FileSessions::new(both.clone(), runtimes.subscribe(), held.clone(), journal.clone());
+    let files = Arc::new(files);
+    let access = (Arc::clone(jobs), reading.clone());
+    let backups = Arc::new(BackupSessions::new(both, held.clone(), journal.clone(), access));
+    handlers
+        .with(files::READ, files.clone())
+        .with(files::WRITE, files)
+        .with(backup::BROWSE, backups.clone())
+        .with(backup::READ, backups)
 }

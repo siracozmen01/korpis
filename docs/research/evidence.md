@@ -627,6 +627,14 @@ Primary:
   in 0.9.1 ([RUSTSEC-2026-0344](https://rustsec.org/advisories/RUSTSEC-2026-0344), read from the
   advisory database `cargo deny` fetches, 2026-10-24). Why the install job's zstd decoder is
   `ruzstd` 0.9.1 and no earlier (§4 of `../09-recipes.md`).
+- **[V]** Linux's ext4 will not mount a filesystem whose journal needs recovery from a read-only
+  device, even read-only: it logs "INFO: recovery required on readonly filesystem" and "write
+  access unavailable, cannot proceed (try mounting with noload)", while from a writable device
+  the same read-only mount logs "write access will be enabled during recovery" and replays the
+  journal into it (`ext4_load_journal` in `fs/ext4/super.c`; reproduced on 6.8 with an image
+  `debugfs` flagged `needs_recovery`, 2026-10-24). Why a block device's backup is read from a
+  staged copy attached writable and mounted read-only, rather than attached read-only (§4.4 of
+  `../04-runtimes.md`); `noload` would mount it without the journal's last transactions.
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a

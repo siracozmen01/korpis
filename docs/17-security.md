@@ -162,7 +162,10 @@ files is the workload's word for them, which is all a session's answer ever was.
 microVM's session is served by a service guest that runs nothing of the workload's, booted from
 Korpis's own boot drive with no image; its kernel still parses a filesystem the tenant formatted,
 which is the point of putting that parse behind the hypervisor, so a volume crafted to attack a
-guest kernel reaches a guest that holds only that tenant's own volumes. An install there (§4 of
+guest kernel reaches a guest that holds only that tenant's own volumes. A block device's backup is
+browsed the same way (§5.4 of `06-storage.md`): a service guest of its own holds a copy of that
+tenant's image restored for the session and nothing else, and its sessions are file sessions,
+decoded as above. An install there (§4 of
 `09-recipes.md`) is the other place the node decodes a structure from a guest: the install job's
 `InstallResult`, bounded by the agent's frame and decoded as a host install's is, and its progress,
 a number of fixed layout; what the install reads reaches the guest on a drive the host made from

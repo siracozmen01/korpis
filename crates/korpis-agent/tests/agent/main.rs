@@ -12,6 +12,7 @@
 )]
 
 mod backup;
+mod backup_read;
 mod console;
 mod console_read;
 mod console_write;

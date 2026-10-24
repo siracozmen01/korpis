@@ -134,6 +134,14 @@ impl<R: Runtime> Runtime for Metered<R> {
         self.inner.files(id, write)
     }
 
+    fn image_files(
+        &self,
+        driver: &str,
+        image: &driver::StagedImage,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
+        self.inner.image_files(driver, image)
+    }
+
     fn start_install(
         &self,
         asked: &driver::StartInstallRequest,

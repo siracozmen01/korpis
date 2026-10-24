@@ -64,7 +64,8 @@ service DriverService {
   // service guest holding them while it does not, by the file worker the guest carries (§4.4 of
   // docs/04-runtimes.md). Capability-gated: a driver whose `file_access` is `GUEST_WORKER`. The
   // first request opens it; each later one is a frame of the session, and each response a frame
-  // back, which the driver passes on unread.
+  // back, which the driver passes on unread. Opened on a staged image instead, it serves a
+  // block device's backup, read-only, from a service guest of that image's own.
   rpc Files(stream FilesRequest) returns (stream FilesResponse);
   // An install into the volumes of a workload whose driver takes them as block devices, run in a
   // service guest by the install job its boot drive carries (§4.4 of docs/04-runtimes.md, §4 of
@@ -386,6 +387,29 @@ message FilesRequest {
 message FilesOpen {
   string runtime_id = 1;
   bool write = 2;
+  // Set instead of runtime_id: a block device's backup the node restored for reading, served
+  // read-only and never with `write`.
+  StagedImage image = 3;
+}
+
+// A block device's backup restored for reading (§5.4 of docs/06-storage.md): its image, restored
+// by the helper into a staging place of its own beside the volume, which is never exchanged. The
+// driver serves it from a service guest of its own, beside whatever guest holds the workload's
+// volume, at /backup in the session; the image is attached writable, since it is a copy and a
+// crash-consistent image's journal is replayed by the guest's kernel into it, and is mounted
+// read-only.
+message StagedImage {
+  // The image, named as a Mount's source is: `<volume root>/<staging place>/block.ext4`, in a
+  // directory marked as a block device's.
+  string image = 1;
+  // The workload whose backup it is, `wl_…`.
+  string workload = 2;
+  // The workload's ids, as a PreparedSpec's: the guest runs as its first, as its own does.
+  uint32 uid_base = 3;
+  uint32 uid_count = 4;
+  // The filesystem the image holds, as its backup records it; one the driver's guests do not
+  // mount (`guest_filesystems`) is refused, its backup being whole-image restore only.
+  string filesystem = 5;
 }
 
 // A frame of a file session back from the worker: the `FileResponse` answering the request sent

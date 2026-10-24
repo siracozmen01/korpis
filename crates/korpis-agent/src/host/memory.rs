@@ -10,6 +10,7 @@ use std::future::{Future, ready};
 use std::sync::{Arc, Mutex};
 
 mod files;
+mod finish;
 mod knobs;
 
 #[derive(Debug, Default)]
@@ -21,6 +22,8 @@ struct Kept {
     /// Content held, by digest, as a test offered it.
     blobs: BTreeMap<String, Vec<u8>>,
     ids: BTreeMap<String, (u32, u32)>,
+    /// The volumes ensured as block devices.
+    blocks: BTreeSet<String>,
     snapshots: BTreeSet<(String, String)>,
     jobs: BTreeMap<String, helper::JobStatusResponse>,
     /// What each job was started with.
@@ -67,6 +70,9 @@ impl Host for InMemoryHost {
     ) -> impl Future<Output = Result<helper::EnsureVolumeResponse, HostError>> + Send {
         let volume = request.volume.clone();
         ready(self.with(|k| {
+            if request.block_device {
+                k.blocks.insert(volume.clone());
+            }
             let created = !k.volumes.contains_key(&volume);
             let path = k.volumes.entry(volume.clone()).or_insert(format!("/memory/{volume}"));
             helper::EnsureVolumeResponse {
@@ -176,8 +182,8 @@ impl Host for InMemoryHost {
         &self,
         request: &helper::StartJobRequest,
     ) -> impl Future<Output = Result<bool, HostError>> + Send {
-        let finished = finished_at_once(request);
         ready(self.with(|k| {
+            let finished = finish::at_once(request, &k.blocks);
             let started = !k.jobs.contains_key(&request.job);
             k.jobs.entry(request.job.clone()).or_insert(finished);
             k.started.insert(request.job.clone(), request.clone());
@@ -339,48 +345,5 @@ impl Host for InMemoryHost {
             counters: k.counters.clone(),
             ..Default::default()
         }))
-    }
-}
-
-/// The status of `request`'s job once it finished as the in-memory host finishes jobs.
-fn finished_at_once(request: &helper::StartJobRequest) -> helper::JobStatusResponse {
-    use korpis_proto::korpis::backup::v1 as backup;
-    use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work;
-    let mut result = backup::JobResult { ok: true, ..Default::default() };
-    match &request.work {
-        Some(Work::Backup(b)) => {
-            let stats = backup::BackupStats { files: 1, ..Default::default() };
-            result.backup = backup::Backup {
-                id: b.backup.clone(),
-                consistent: b.take_snapshot || !b.snapshot.is_empty(),
-                stats: stats.into(),
-                ..Default::default()
-            }
-            .into();
-        }
-        Some(Work::Restore(_)) => {
-            result.restored = backup::Restored { verified: true, ..Default::default() }.into();
-        }
-        Some(Work::Install(w)) => {
-            // Every action runs, and nothing is written: the in-memory host has no files.
-            let done = u32::try_from(w.actions.len()).unwrap_or(u32::MAX);
-            let install = korpis_proto::korpis::install::v1::InstallResult {
-                ok: true,
-                done,
-                ..Default::default()
-            };
-            return helper::JobStatusResponse {
-                state: helper::JobState::JOB_STATE_FINISHED.into(),
-                install: install.into(),
-                progress: done,
-                ..Default::default()
-            };
-        }
-        None => result.ok = false,
-    }
-    helper::JobStatusResponse {
-        state: helper::JobState::JOB_STATE_FINISHED.into(),
-        result: result.into(),
-        ..Default::default()
     }
 }

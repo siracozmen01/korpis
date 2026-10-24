@@ -7,6 +7,7 @@
 //! node holds; the workload, against the set the node holds; the action, against the handlers
 //! the node runs. A node never sees the client's address, and never evaluates it.
 
+pub mod backup;
 mod carry;
 pub mod console;
 pub mod console_write;
@@ -123,6 +124,7 @@ impl Judged {
             action: open.action.clone(),
             params: open.params.clone(),
             subject: verified.subject,
+            token: open.token.clone(),
             chain: verified.chain,
             expires_at: verified.expires_at,
             stream_range: verified.stream_range,

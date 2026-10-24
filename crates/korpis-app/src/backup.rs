@@ -11,5 +11,6 @@ pub mod prune;
 pub mod read;
 pub mod repository;
 pub mod restore;
+pub mod session;
 pub mod sweep;
 pub mod take;
