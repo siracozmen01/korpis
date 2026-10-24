@@ -1412,6 +1412,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 164 | Neither driver ever said that its kernel had ended an object for want of memory | §70 | `04-runtimes.md` §4.2, §6 |
 | 165 | A stop whose driver did not answer in time failed the retirement it was part of | §70 | `02-architecture.md` §6 |
 | 166 | The interface listed a verb to resize an object while it runs, and the protocol has none | §70 | `04-runtimes.md` §4.2, §9 |
+| 167 | Dedicated cores were accepted and stored as asked, and nothing held them | §71 | `05-scheduling.md` §5.2; `17-security.md` §5, §13; `20-roadmap.md` §4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -5895,3 +5896,68 @@ of a running workload's resources recreates its object.
 > the paragraph after Finding 162 said the suite did not test yet, `Exec` it now tests; the
 > escapes for each tier are held for the maintainer's design (§4 of `20-roadmap.md`), and the
 > report of every run names them as not tested.
+
+---
+
+## 71. A host that runs its customers' code picks `microvm`, and asks what it stops
+
+Written 2026-10-25, as the second driver's validation of the interface was recorded (§4.6 of
+`04-runtimes.md`) and the `microvm` row of §5 of `17-security.md` was read against the
+implementation. A host sells build servers that run code its customers wrote, so it reads the tier
+table, picks `microvm`, and asks for dedicated cores, since the row says the tier stops the leaks
+between SMT siblings only when its cores are dedicated. The trace asks the algebra question of each
+promise the row makes: what holds it, where, and with what information? The trace was chosen by
+the task rather than by coverage: the row had been argued from the design and never read against
+the driver that now implements it.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The host reads what each tier stops and does not, and picks `microvm` for code it did not write | `17-security.md` §5 |
+| 2 | It declares the build server at `microvm` with `cpu.isolation: dedicated_cores` | `05-scheduling.md` §5.2 |
+| 3 | The declaration is accepted only if some node of this release can hold what it asks | `05-scheduling.md` §5.2; `20-roadmap.md` §4 |
+| 4 | Placement keeps a node only if its driver declares every limit the intent sets enforced | `05-scheduling.md` §2.1; `04-runtimes.md` §4.1 |
+| 5 | The `firecracker` driver starts the guest under Firecracker's jailer, as the workload's own id | `04-runtimes.md` §6; `17-security.md` §5 |
+| 6 | What the guest says to its host is read as data of fixed layout, and relayed unread | `17-security.md` §5; `04-runtimes.md` §6 |
+| 7 | The host asks whether the driver has been shown to hold the row, and reads the conformance report | `04-runtimes.md` §8 |
+| 8 | A third party writing a driver for the same tier asks what the first two changed in the interface | `04-runtimes.md` §4.3, §4.6 |
+
+Step 1's answer is the row, and step 5's is the jailer's command line, which §5 of
+`17-security.md` now describes as built: a chroot built again for every run, the workload's own id,
+a pid namespace of its own, the guest's limits in a cgroup, the workload's network namespace, and
+Firecracker's own seccomp filters left on. Step 6 was settled when the guest's channels were built.
+Step 2 asks what holds dedicated cores, and step 3 who would have said no.
+
+**FINDING 167: Dedicated cores were accepted and stored as asked, and nothing held them.
+`CONFIRMED`, by reading the code**
+
+Found 2026-10-25. §5.2 of `05-scheduling.md` says dedicated cores are held by a `cpuset` and by the
+scheduler accounting whole cores with their siblings, and §5 and §13 of `17-security.md` sell them
+as the one defence against the leaks between SMT siblings, in any tier and with `microvm` the
+strongest isolation Korpis offers. The schema accepted `cpu.isolation: dedicated_cores` from its
+first version and validated that it asked for whole cores; after that, nothing read it. No driver
+set a `cpuset`, the scheduler's limits did not name it, no phase of `20-roadmap.md` built it, and
+nothing refused it. The host of this trace would have read its build server's intent back with
+dedicated cores, been placed on shared ones, and been left exposed to exactly the leak it paid to
+close: Rule K-3's lie in a text field, on the claim the security document leans on hardest.
+
+**Resolution.** Dedicated cores are homed in Phase 3 (§4 of `20-roadmap.md`). Until they are built,
+a declaration asking for them is refused, naming that phase, as a dedicated address is; and
+placement treats them as a limit like any other, keeping a node only where its driver declares
+`dedicated_cores` enforced, so the day a driver holds them it says so and nothing else changes.
+§5.2 of `05-scheduling.md` records the correction; §5 of `17-security.md` says that a `microvm`
+workload today runs on shared cores, and §13 there that the question's resolution is designed and
+not built. `crates/korpis-app/src/workload/declare/enforced/tests.rs` and
+`crates/korpis-core/src/schedule/tests/cores.rs` test both. What it costs: a host that needs the
+defence cannot have it from this release, and is told so at declaration rather than after.
+
+Step 7 found the report saying what it should: every case of the lifecycle, of `Recover`, of the
+limits the driver declares, and of `Exec` passed, and isolation not tested, in a line of its own,
+because its cases are held for the maintainer's design. A host reading it learns that the row is
+argued from the implementation and not yet tested against it, which §5 of `17-security.md` now
+says too. Step 8's answer is §4.6 of `04-runtimes.md`: the lifecycle did not change, and what was
+added was what a separate kernel with its own filesystem needs, every row of it foreseen by §4.3
+there but one, the workload's addresses, which that list now names, corrected in place.
+
+All eight steps are built or recorded, and step 2's is refused as the resolution says.

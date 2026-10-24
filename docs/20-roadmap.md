@@ -274,6 +274,11 @@ the move (§3.1 of `07-networking.md`). The overlay (§9 of `07-networking.md`),
 cross nodes. Dedicated addresses (§3 there), routed to whichever node a workload runs on. HTTP/3 at
 the ingress, on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6
 there), which only reaching workloads on other nodes makes necessary. Devices, including GPU.
+Dedicated cores (§5.2 of `05-scheduling.md`): a `cpuset` per driver and the scheduler's
+accounting of whole cores with their siblings, which the schema accepted from Phase 0 while
+nothing held them; homed here 2026-10-25, when it was found that no phase named them and that a
+workload asking for them ran on shared cores (Finding 167 of `23-walkthroughs.md`), and refused
+at declaration until then.
 `AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads for the difference to be
 measured. Drain and evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since
 draining a node is migrating its workloads off it; and the `template_rollout` Operation there,
@@ -301,10 +306,13 @@ by a copy in such a guest while the workload is stopped. The driver conformance 
 `04-runtimes.md`) is built for the lifecycle, for `Recover` after a driver's crash, a kill for
 memory, and a host's restart, for every limit a driver declares enforced, and for `Exec` as it says
 it runs a command, Apache-2.0 and speaking the driver protocol alone, and both drivers conform to
-it; the runner a third party starts on its own follows in this phase. Its isolation cases, the
-escape attempts §8 there requires, stay in this phase and are held for the maintainer's design
-(2026-10-24): until they are built, a driver's conformance says nothing of its isolation, and the
-suite's report says so.
+it, run by the program a third party starts on its own, from a fixture file, which prints each
+verdict and writes the report as JSON. Rule D's validation of the driver interface is recorded in
+§4.6 of `04-runtimes.md`: the second driver left the lifecycle as it was and added what a
+separate kernel with its own filesystem needs, each foreseen by §4.3 there but the workload's
+addresses. The suite's isolation cases, the escape attempts §8 there requires, stay in this phase
+and are held for the maintainer's design (2026-10-24): until they are built, a driver's
+conformance says nothing of its isolation, and the suite's report says so.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -464,7 +472,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy traces and their 166 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-one traces and their 167 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

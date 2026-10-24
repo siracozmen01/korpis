@@ -1188,6 +1188,15 @@ consumes four cores and their siblings from `allocatable`. It is the only config
 against the cross-core side channels of §5 of `17-security.md`, in any tier, and its density cost is
 stated in the plan that requests it.
 
+> Corrected 2026-10-25 (Finding 167 of `23-walkthroughs.md`): the paragraph above says what
+> enforces dedicated cores, and nothing did. The schema took `cpu.isolation: dedicated_cores` from
+> its first version, while no driver set a `cpuset`, the scheduler accounted no whole cores, and
+> no phase of `20-roadmap.md` named the work; a workload asking for them was placed on shared
+> cores and stored as asking for them. They are now homed in Phase 3 (§4 there). Until they are
+> built, a declaration asking for them is refused, naming that phase, and placement treats them as
+> a limit like any other: a node is a candidate only where its driver declares `dedicated_cores`
+> enforced (§4.1 of `04-runtimes.md`), which no driver of this release does.
+
 **I/O is ceilings and shares, never a reservation.** `io.limit` sets `io.max` (bytes and operations
 per second, read and write). `io.share` sets `io.weight`, which is a proportional share of the
 device under contention and does nothing at all unless the node runs the `io.cost` controller; a

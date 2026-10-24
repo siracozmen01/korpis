@@ -660,6 +660,11 @@ Primary:
   `CapEff`, `CapPrm`, and `CapBnd` equal to its entry's with the field removed from the `oci`
   driver's exec spec. Why that removal was not kept as the break that shows the suite's `Exec`
   identity case fails (trace 70 of `../23-walkthroughs.md`).
+- **[V]** Firecracker v1.17.0 filters its own system calls with seccomp unless it is started with
+  `--no-seccomp`, which its help calls "Not recommended", or given another filter with
+  `--seccomp-filter` (`firecracker --help` as installed, read 2026-10-25). The `firecracker`
+  driver passes neither. Why §5 of `../17-security.md` counts the filters in the `microvm` row as
+  built.
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a

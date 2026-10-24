@@ -136,6 +136,22 @@ claims more than anywhere else.
 > what the tier stops on its own and what it stops only with dedicated cores (§5.2 of
 > `05-scheduling.md`), and §13 question 1 is resolved by offering exactly that.
 
+**The `microvm` row as built** (2026-10-25, from the `firecracker` driver). Each guest's
+Firecracker runs under Firecracker's jailer, in a chroot the driver builds again for every run,
+holding hard links to the kernel and the drives and the workload's volumes bound in; dropped to the
+first id of the workload's own range; in a pid namespace of its own; in a cgroup holding the
+guest's limits; and in the workload's network namespace, whose tap is the guest's one interface (§6
+of `04-runtimes.md`). Firecracker applies its own seccomp filters, which the driver never turns off
+(§5 of `research/evidence.md`). The guest's kernel is Korpis's own build of a longterm release with
+Firecracker's guest configuration (§5 of `21-stack.md`), booted with no PCI bus and its root the
+read-only boot drive. What the row's "when its cores are dedicated" does not yet mean: dedicated
+cores are not built (Finding 167 of `23-walkthroughs.md`), a declaration asking for them is
+refused, and every guest runs on cores it shares, so a `microvm` workload today does not stop the
+leaks between SMT siblings the row names, and a tenant who needs that waits for Phase 3 (§5.2 of
+`05-scheduling.md`). The conformance suite's isolation cases, which would test this row with escape
+attempts, are held for the maintainer (§8 of `04-runtimes.md`), so the row is argued from the
+implementation and not yet tested against it.
+
 **What a guest says to its host is read as data of fixed layout.** Added 2026-10-24, when the
 driver first asked a running guest anything (§6 of `04-runtimes.md`). The `firecracker` driver is
 root, and a guest is the tenant's kernel, so the channels between them are as narrow as the work
@@ -504,16 +520,18 @@ publish vague ones.
 ## 13. Open questions
 
 1. **CPU side channels between tenants in shared tiers. Resolved here: dedicated cores are offered,
-   and they are what defends against them.** Not defended against by default; §5 says so plainly.
-   Whether Korpis offers core pinning and sibling-thread exclusion as a declared workload property
-   (with the density cost stated) was unresolved, and the default advice was to pick `microvm`,
-   which on its own does not stop the sibling leaks (finding S46).
+   and they are what defends against them** (designed; built in Phase 3, and refused until then,
+   corrected 2026-10-25 by Finding 167 of `23-walkthroughs.md`). Not defended against by default;
+   §5 says so plainly. Whether Korpis offers core pinning and sibling-thread exclusion as a
+   declared workload property (with the density cost stated) was unresolved, and the default
+   advice was to pick `microvm`, which on its own does not stop the sibling leaks (finding S46).
 
 `cpu.isolation: dedicated_cores` (§5.2 of `05-scheduling.md`) pins a workload to whole physical
 cores and keeps every other tenant off their SMT siblings. It is honest on both counts: it is the
 only configuration that defends against the cross-core leak classes, in any tier, and it costs the
 whole core, which the scheduler accounts and the meter bills. Combined with `microvm` it is the
-strongest isolation Korpis offers; neither alone is.
+strongest isolation Korpis offers; neither alone is. (Until Phase 3 builds it, this release offers
+neither; see the `microvm` row as built in §5.)
 2. **Hardware attestation.** Verifying that a node runs the kernel and agent it claims would raise
    compromised-node detection substantially and drags in TPM, measured boot, and a key-management
    story disproportionate to a single-operator install. → `18-operations.md`

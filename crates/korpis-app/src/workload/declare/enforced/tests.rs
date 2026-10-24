@@ -92,3 +92,11 @@ fn a_workload_s_own_limits_lower_the_default_and_never_raise_it() {
     let raised = ConntrackLimits { new_per_sec: DEFAULT_NEW_PER_SEC + 1, ..lowered };
     assert_eq!(why(limits(raised)), "body.egress.limits");
 }
+
+#[test]
+fn dedicated_cores_are_refused_until_a_driver_holds_them() {
+    let mut r = ResourceSpec::default();
+    assert!(resources(&r).is_ok());
+    r.cpu.isolation = CpuIsolation::DedicatedCores;
+    assert_eq!(why(resources(&r)), "dedicated cores in phase 3");
+}

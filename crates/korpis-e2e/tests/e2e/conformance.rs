@@ -4,7 +4,8 @@
 //! each started by the suite as its own process serving its socket, as a node starts it, and
 //! killed and started again by it, over a content store, a volume root, and state of the test's
 //! own; a restart of the host is what this machine can do without restarting containerd, which
-//! other services share. Every case's verdict is printed, and no case may fail. The `oci` driver
+//! other services share. The suite is run by its runner, as a third party runs it, from a
+//! fixture file; every case's verdict is printed, and no case may fail. The `oci` driver
 //! needs root and the machine's containerd; the `firecracker` driver needs what the microVM tests
 //! need. A driver this machine cannot run is not run.
 
@@ -13,6 +14,7 @@ use crate::node::{built, live, writer};
 use korpis_driver_conformance::{Fixture, Launch};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Each object's ids, as a node gives a workload.
 const IDS: u32 = 65_536;
@@ -68,13 +70,28 @@ fn args(pairs: &[(&str, &Path)]) -> Vec<OsString> {
     pairs.iter().flat_map(|(o, v)| [OsString::from(o), v.as_os_str().to_owned()]).collect()
 }
 
-/// The suite's report of the driver `fixture` names.
-async fn report(fixture: Fixture) -> korpis_driver_conformance::Report {
-    korpis_driver_conformance::run(fixture).await.unwrap()
+/// Runs the suite's runner as a third party does, from a fixture file in `dir`, against the
+/// driver named `name`; and finds it conforming to every case, isolation named as not tested.
+fn conforms(dir: &Path, fixture: &Fixture, name: &str) {
+    let (file, json) = (dir.join("fixture.json"), dir.join("report.json"));
+    std::fs::write(&file, fixture.to_json().unwrap()).unwrap();
+    let status = Command::new(built("korpis-driver-conformance", "korpis-driver-conformance"))
+        .arg("--fixture")
+        .arg(&file)
+        .arg("--json")
+        .arg(&json)
+        .status()
+        .unwrap();
+    let report: serde_json::Value = serde_json::from_slice(&std::fs::read(&json).unwrap()).unwrap();
+    assert!(status.success(), "{name} does not conform: {report:#}");
+    assert_eq!((report["driver"].as_str(), report["conforms"].as_bool()), (Some(name), Some(true)));
+    let outcomes = report["outcomes"].as_array().unwrap();
+    assert!(outcomes.len() >= 26 && outcomes.iter().all(|o| o["verdict"] != "fail"), "{report:#}");
+    assert!(report["untested"][0]["requirement"].as_str().unwrap().starts_with("isolation"));
 }
 
-#[tokio::test]
-async fn the_oci_driver_conforms() {
+#[test]
+fn the_oci_driver_conforms() {
     if !live() {
         return;
     }
@@ -97,13 +114,11 @@ async fn the_oci_driver_conforms() {
         ]),
     };
     let fixture = fixture(&d, (driver, socket), shell(CONTAINERS_RESTART), 26_000 * IDS);
-    let report = report(fixture).await;
-    eprintln!("{report}");
-    assert!(report.conforms(), "{report}");
+    conforms(&d, &fixture, "oci");
 }
 
-#[tokio::test]
-async fn the_firecracker_driver_conforms() {
+#[test]
+fn the_firecracker_driver_conforms() {
     if !live() || !able() {
         eprintln!("this machine cannot run a guest: not run");
         return;
@@ -142,7 +157,5 @@ async fn the_firecracker_driver_conforms() {
     };
     let _guests = Guests(Path::new("/sys/fs/cgroup").join(&cgroup), d.join("state"));
     let fixture = fixture(&d, (driver, socket), shell(GUESTS_RESTART), 27_000 * IDS);
-    let report = report(fixture).await;
-    eprintln!("{report}");
-    assert!(report.conforms(), "{report}");
+    conforms(&d, &fixture, "firecracker");
 }

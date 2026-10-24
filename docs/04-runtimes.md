@@ -463,6 +463,11 @@ would silently close a tier. Rule K-9 is satisfied by this list, not by intent.
 | the agent shares a filesystem with the workload | file access goes through the workload's own worker, on the host or in a guest (§4.4, §6 of `02-architecture.md`) | microVMs, VMs, Windows |
 | a uid on disk means the same thing on every node | workload-relative ids, mapped at mount (§4.5) | migration, every tier with user namespaces |
 | stdout/stderr are the output | console mode is declared; serial and VNC are console modes | VMs |
+| the node sets a workload's addresses from outside it | the driver is given the addresses, and a guest sets its own (§6) | microVMs, VMs |
+
+> The last row was added 2026-10-25, when Rule D's validation was recorded (§4.6): the
+> `firecracker` driver had needed the workload's addresses on its spec (2026-10-23), an
+> assumption of the first version this list did not name.
 
 The file-access and output rows are the ones that quietly fail. An agent that reads a workload's
 files by opening a host path works perfectly for containers and is impossible for a microVM, and by
@@ -662,6 +667,53 @@ nobody, on the destination.
   them (ext4, XFS, btrfs, and ZFS from OpenZFS 2.2), and a declared, slower fallback (ownership
   shifted at copy time) where it does not. A storage class that supports neither cannot host
   user-namespaced workloads that migrate, and the scheduler knows it.
+
+### 4.6 What the second driver changed
+
+**As built** (2026-10-25, Phase 3). Rule D of §2 of `20-roadmap.md` makes the second
+implementation of an interface its test, and the `firecracker` driver is this interface's second,
+chosen as the most different one available: a separate kernel, no shared filesystem, no shared
+process namespace. What it changed, in `korpis.driver.v1` and in the capabilities of §4.1, read
+from the protocol's history between the end of Phase 2 and the conformance suite's last case (§8),
+is the measure of how well the interface was drawn.
+
+What it did not change is the lifecycle of §4.2: every verb and state, `Recover` and the labels
+adoption matches, `Stats` and its counters, signals by name, the content store (§6), and the
+spec's resources and mounts. A microVM is prepared, created, started, stopped, killed, inspected,
+adopted, and metered through the same calls as a container, with no field added for it. Nor did it
+change how files are reached: `file_access` named a worker inside a guest from the schema's first
+version, and the driver declares it. What it added, each because a guest is a separate kernel with
+a filesystem of its own:
+
+| Added | Why a guest needed it | Where |
+|---|---|---|
+| `addresses` on the spec | a container's addresses are set on its namespace from outside it; a guest sets its own, so its driver is told them | §6 |
+| `Files` | a running guest's files cannot be opened from the host, so its sessions are served inside it | §4.4 |
+| `StartInstall`, `InstallStatus`, `ForgetInstall`, a staged image | the host never parses a filesystem a tenant's guest wrote, so installs into a stopped microVM's volume, and a block device's backup read or restored by path, run in a service guest | §4.4; §5.4 of `06-storage.md` |
+| `guest_filesystems` | such a backup is read by path only in a filesystem its guests mount | §4.1, §4.4 |
+| `identity_dir`, `guest_agent`, `PingGuest` | `/run/korpis` reaches a guest over a channel, and whether a guest's agent answers is a probe of its own | §5 |
+
+Two more were added in the same phase for both drivers rather than for a guest: `Exec`, for `exec`
+probes (§5), and `driver` on the spec, since a node with two drivers sends each object's verbs to
+the one that made it. Every addition is a new verb, field, or capability, and none changed one the
+`oci` driver already answered: the `oci` driver refuses the guest's verbs as a driver that declares
+no guest worker, no guest agent, and no block devices. All but the first row are ones §4.3
+predicted: its file-access row named the file manager, the backup system, and the recipe installer
+as where the assumption of a shared filesystem would spread, and those are the three that moved
+behind the driver, while its liveness row is why a guest's agent is asked rather than seen. The
+first row it did not predict: §4.3 had no row for a network, and the first version assumed that
+the node sets a workload's addresses from outside it, which a guest's own kernel does not allow;
+the row is added there, corrected in place.
+The conformance suite then found the contract both drivers share under-specified in four
+places, each now stated in §4.2: what a verb on an unknown object answers, when a run started, why
+the kernel ended one, and a verb listed that the protocol did not have (Findings 161, 162, 164, and
+166 of `23-walkthroughs.md`).
+
+What it does not validate. Both drivers are Linux on a Linux host, so the rows of §4.3 marked
+Windows, signals by name and an opaque security context among them, are held by no implementation
+yet and remain claims, until the `winjob` or `winsilo` driver of §3 is built. And a second
+driver validates the interface only as far as Korpis's own node uses it: a verb no node calls is
+tested by the conformance suite alone.
 
 ---
 
@@ -1153,8 +1205,32 @@ the guest's view of the two.
 The isolation cases, which this section requires as escape attempts fitting each tier, are not
 built: their design is held for the maintainer (2026-10-24, §4 of `20-roadmap.md`). Until they are
 built, a driver's conformance says nothing of its isolation, and every report of the suite says so
-in a line of its own, naming the requirement it did not test. What else follows in this phase is
-the runner a third party starts on its own.
+in a line of its own, naming the requirement it did not test.
+
+**The runner** (2026-10-25). A third party runs the suite with the program
+`korpis-driver-conformance`, as root, given a fixture file in JSON: `driver`, the program that
+starts it and its arguments; `socket`; `host_restart`, which may be left out, the same shape, given
+each object's process id as a further argument; `content`; `volume_root`; `probe`, the path of
+`korpis-conformance-probe` built static for the machine; `uid_base`; and `uid_count` and
+`objects`, which default to 65,536 and 64. A field it does not know is refused, so a misspelt one
+is never silently a default. It prints each verdict, writes the report as JSON where `--json` says
+(the suite's version, the protocol, the driver, whether it conforms, each case with its section,
+its verdict, and what was seen, and each requirement not tested), and exits 0 when the driver
+conforms, 1 when a case failed, and 2 when the suite could not run. Korpis's own drivers are run by
+it, from fixture files the end-to-end test writes, as a third party's are. Their results, as of
+2026-10-25:
+
+| Cases | `oci` | `firecracker` |
+|---|---|---|
+| the lifecycle (14) | pass | pass |
+| `Recover` (3) | pass | pass |
+| memory, processor time | pass | pass |
+| processes | pass | not applicable: declared not enforced |
+| disk | not applicable: declared not enforced | pass |
+| a resource resized while it runs | not applicable: none declared | not applicable: none declared |
+| `Exec` (3) | pass | pass |
+| `Exec` refused when not declared | not applicable: declares `exec` | not applicable: declares `exec` |
+| isolation | not tested | not tested |
 
 ---
 

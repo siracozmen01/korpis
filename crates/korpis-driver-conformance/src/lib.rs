@@ -9,7 +9,9 @@
 //! [`Verdict`], and a driver conforms when none fails.
 //!
 //! It is part of the separately published Apache-2.0 artifact (§11 of docs/10-api.md), and
-//! depends on nothing of Korpis's but the protocol's definitions.
+//! depends on nothing of Korpis's but the protocol's definitions. Its runner, the program of the
+//! same name, runs it from a fixture file and writes the report as JSON
+//! ([`Fixture::from_json`], [`Report::to_json`]).
 
 pub mod case;
 mod cases;

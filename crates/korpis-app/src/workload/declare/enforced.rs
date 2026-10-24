@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a declaration may ask of the network that a node of this release enforces (Rule K-3).
-//! A field nothing would enforce is refused when it is declared, naming the phase that builds it
-//! or why it is not one a packet filter can hold, rather than accepted, stored, and shown as if it
-//! held (§6 and §7 of docs/07-networking.md, §4 of docs/20-roadmap.md).
+//! What a declaration may ask of the network, and of its resources, that a node of this release
+//! enforces (Rule K-3). A field nothing would enforce is refused when it is declared, naming the
+//! phase that builds it or why it is not one a packet filter can hold, rather than accepted,
+//! stored, and shown as if it held (§6 and §7 of docs/07-networking.md, §5.2 of
+//! docs/05-scheduling.md, §4 of docs/20-roadmap.md).
 
 use crate::error::AppError;
 use korpis_core::workload::IntentBody;
+use korpis_core::workload::spec::ResourceSpec;
 use korpis_core::workload::spec::egress::{DEFAULT_MAX_CONNECTIONS, DEFAULT_NEW_PER_SEC};
 use korpis_core::workload::spec::endpoints::{
     ConntrackLimits, EndpointSpec, Exposure, NetworkRule, Peer,
 };
+use korpis_core::workload::spec::resources::CpuIsolation;
 
 /// Refuses what no node of this release would enforce in `body`: its endpoints' and its own.
 pub(super) fn refuse_unenforced(body: &IntentBody) -> Result<(), AppError> {
@@ -20,7 +23,17 @@ pub(super) fn refuse_unenforced(body: &IntentBody) -> Result<(), AppError> {
     for (j, r) in body.egress.rules.iter().enumerate() {
         peer(&format!("body.egress.rules[{j}]"), r)?;
     }
-    limits(body.egress.limits)
+    limits(body.egress.limits)?;
+    resources(&body.resources)
+}
+
+/// Refuses resources no node of this release holds: whole cores pinned need a cpuset and the
+/// scheduler's accounting of whole cores, siblings included, which no driver declares yet.
+fn resources(r: &ResourceSpec) -> Result<(), AppError> {
+    if r.cpu.isolation == CpuIsolation::DedicatedCores {
+        return Err(AppError::NotYet { what: "dedicated cores", phase: 3 });
+    }
+    Ok(())
 }
 
 /// Refuses a workload's own limits that raise the default's.

@@ -12,6 +12,7 @@ use crate::workload::spec::ConsoleMode;
 use crate::workload::spec::endpoints::Exposure;
 use crate::workload::spec::health::ProbeKind;
 use crate::workload::spec::placement::AffinityRule;
+use crate::workload::spec::resources::CpuIsolation;
 use uuid::Uuid;
 
 type Refusal = (Check, String);
@@ -97,6 +98,8 @@ fn limited(req: &Request<'_>) -> Vec<&'static str> {
     [
         ("memory", r.memory.effective() > 0),
         ("cpu", cpu > 0),
+        // Whole cores pinned, held by a cpuset (§5.2 of docs/05-scheduling.md).
+        ("dedicated_cores", r.cpu.isolation == CpuIsolation::DedicatedCores),
         ("disk", r.disk.effective() > 0),
         (
             "io",

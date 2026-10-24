@@ -3154,10 +3154,12 @@ version = "0.0.0"
 dependencies = [
  "buffa",
  "buffa-types",
+ "clap",
  "connectrpc",
  "http",
  "korpis-proto",
  "rustix",
+ "serde",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",

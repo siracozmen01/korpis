@@ -18,6 +18,9 @@ http = "1"
 korpis-proto = { workspace = true, features = ["client"] }
 # A block device's directory is marked, and a volume given to its workload's first id.
 rustix = { version = "1", features = ["fs", "process"] }
+# The runner reads its fixture from a file, and writes its report as JSON.
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 tokio = { workspace = true }
