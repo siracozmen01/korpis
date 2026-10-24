@@ -103,8 +103,8 @@ pub enum Output {
     Pipe(std::os::fd::OwnedFd),
 }
 
-/// Starts `command_line` as the entry runs: its user and group, its environment and nothing else, its
-/// working directory, a process group of its own, and the signal mask cleared, writing to
+/// Starts `command_line` as the entry runs: its user and group, its environment and nothing else,
+/// its working directory, a process group of its own, and the signal mask cleared, writing to
 /// `output`.
 pub fn spawn(command_line: &[String], config: &Config, output: Output) -> Result<Pid, String> {
     let (program, args) = command_line.split_first().ok_or("nothing to run")?;

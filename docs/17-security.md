@@ -142,10 +142,17 @@ root, and a guest is the tenant's kernel, so the channels between them are as na
 allows: the run's record on the config drive is sixteen bytes, and the guest's agent on the vsock
 control port answers in frames whose kind and length are checked before anything else is read and
 whose answers are numbers of fixed layout; nothing a guest writes is parsed as a structure by the
-host, and the host listens on no vsock port, so a guest opens no connection to it. What it does
-not stop: a bug in Firecracker's vsock device is a hypervisor vulnerability, in the row above; and
-the agent answers for the workload, which is root of its guest and can answer in its place, so its
-answer is evidence of liveness and of nothing else.
+host. The host listens on two vsock ports of a guest whose workload has an identity directory, and
+on none of any other: what a guest opens on them is relayed, byte for byte and unread, to that
+workload's own identity socket and API relay on the host (§6 of `04-runtimes.md`), which are what a
+container reaches through its mount, so a guest reaches nothing on its host that its workload could
+not reach as a container. The sockets Firecracker hands those connections to are its own user's
+alone, made where the guest's Firecracker cannot write and moved into its chroot, so another local
+user cannot borrow a workload's identity through them. (Corrected 2026-10-24: this said the host
+listened on no vsock port, which was true until the relays of a guest's `/run/korpis` were built.)
+What it does not stop: a bug in Firecracker's vsock device is a hypervisor vulnerability, in the
+row above; and the agent answers for the workload, which is root of its guest and can answer in its
+place, so its answer is evidence of liveness and of nothing else.
 
 **A shared-kernel tier does not survive a kernel privilege-escalation vulnerability.** That is true
 of every container platform, it is true here, and it is why the tier is an operator choice rather

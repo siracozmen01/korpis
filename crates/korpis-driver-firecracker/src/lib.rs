@@ -23,6 +23,7 @@ pub mod machine;
 pub mod object;
 pub mod prepare;
 pub mod process;
+pub mod relay;
 pub mod service;
 pub mod settings;
 pub mod volume;

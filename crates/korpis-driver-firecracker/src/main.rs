@@ -47,6 +47,10 @@ struct Cli {
     /// The directory the helper binds workloads' network namespaces under.
     #[arg(long, default_value = "/run/korpis/netns")]
     netns_root: PathBuf,
+    /// The directory the agent makes workload identity sockets under, to which a guest's
+    /// `/run/korpis` is relayed.
+    #[arg(long, default_value = "/var/lib/korpis-agent/identity")]
+    identity_root: PathBuf,
     /// The driver's own state: its objects, the drives its guests share, and their jails.
     #[arg(long, default_value = "/var/lib/korpis-driver-firecracker")]
     state_dir: PathBuf,
@@ -77,6 +81,7 @@ async fn run(cli: Cli) -> Result<(), String> {
         content: cli.content,
         volume_root: cli.volume_root,
         netns_root: cli.netns_root,
+        identity_root: cli.identity_root,
         state: cli.state_dir,
         cgroup: cli.cgroup,
     };

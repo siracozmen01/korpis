@@ -287,9 +287,9 @@ homed here 2026-10-23, when it was found that no phase named it while four docum
 through its protocol's health provider (§5 of `16-extensions.md`), the `heartbeat` probe through
 the workload's identity socket, the `exec` probe through either driver's `Exec`, the `firecracker`
 driver's through the guest's agent, and the `guest_agent` probe through a microVM's vsock channel
-to its guest. A microVM's `/run/korpis`, its identity socket, relay, and files, carried into its
-guest over that channel (Finding 154 there), follows in this phase; without it a microVM holds no
-credential and reads no managed file.
+to its guest. A microVM's identity socket and API relay reach its guest over that channel, served
+there by its first process (trace 65 there); its managed files and its dependencies' files follow
+in this phase (Finding 154 there), and until they do a microVM reads no managed file.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -449,7 +449,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: sixty-one traces and their 154 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: sixty-five traces and their 155 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

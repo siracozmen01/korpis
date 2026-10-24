@@ -6,8 +6,9 @@
 
 #![allow(dead_code, reason = "each test file uses what it needs")]
 
-use korpis_driver_firecracker::machine::Machine;
+use korpis_driver_firecracker::machine::{Machine, START_LOG};
 use korpis_driver_firecracker::settings::Settings;
+use korpis_driver_kit::exec::{Command as ExecCommand, Ran};
 use korpis_image::source::Packing;
 use korpis_image::testing::{Entry, image, layer};
 use korpis_proto::korpis::driver::v1 as driver;
@@ -15,10 +16,13 @@ use korpis_proto::korpis::v1 as pb;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::{Duration, Instant};
 
 /// Ranges of ids for this test process's guests, above any a host's users take.
 pub const IDS: u32 = 1_800_000_000;
 pub const MIB: u64 = 1 << 20;
+/// The target a guest's programs are built for.
+pub const MUSL: &str = "x86_64-unknown-linux-musl";
 
 pub fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -43,6 +47,25 @@ pub fn target() -> PathBuf {
     exe.parent().and_then(Path::parent).and_then(Path::parent).unwrap().to_owned()
 }
 
+/// `package`'s example `name`, linked static so a guest's image needs nothing beside it, into the
+/// target directory the end-to-end tests build their static programs in, since its flags are not
+/// the workspace's. An example builds with its package's dev-dependencies, some of which compile C,
+/// so it is built for the host's C library rather than for musl, whose compiler a host may lack.
+pub fn example(package: &str, name: &str) -> PathBuf {
+    let triple = format!("{}-unknown-linux-gnu", std::env::consts::ARCH);
+    let static_target = repo().join("target/static");
+    let flags = ["-C", "target-feature=+crt-static", "-C", "debuginfo=0", "-C", "strip=symbols"];
+    let mut c = Command::new(env!("CARGO"));
+    c.current_dir(repo())
+        .args(["build", "-q", "--locked", "-p", package, "--example", name, "--target", &triple])
+        .arg("--target-dir")
+        .arg(&static_target)
+        .env_remove("RUSTFLAGS")
+        .env("CARGO_ENCODED_RUSTFLAGS", flags.join("\x1f"));
+    ok(&mut c);
+    static_target.join(triple).join("debug/examples").join(name)
+}
+
 /// `package`'s `bin`, built where this test was, for `triple` if one is named.
 pub fn built(package: &str, bin: &str, triple: Option<&str>) -> PathBuf {
     let mut c = Command::new(env!("CARGO"));
@@ -52,6 +75,41 @@ pub fn built(package: &str, bin: &str, triple: Option<&str>) -> PathBuf {
     }
     ok(&mut c);
     triple.map_or_else(|| target().join("debug"), |t| target().join(t).join("debug")).join(bin)
+}
+
+/// The state of object `id`, once it is `state`, within `limit`.
+pub async fn until(
+    m: &Machine,
+    id: &str,
+    state: driver::RuntimeState,
+    limit: Duration,
+) -> driver::RuntimeStatus {
+    let start = Instant::now();
+    loop {
+        let s = m.inspect(id).unwrap();
+        if s.state.as_known() == Some(state) {
+            return s;
+        }
+        let said = std::fs::read_to_string(m.settings().object(id).join(START_LOG));
+        assert!(start.elapsed() < limit, "{id} never reached {state:?}: {s:?}, {said:?}");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+/// What `argv` run in `id`'s guest wrote, and how it ended.
+pub async fn ran(machine: &Machine, id: &str, argv: &[&str]) -> (String, Ran) {
+    let argv = argv.iter().map(|a| (*a).to_owned()).collect();
+    let command = ExecCommand::checked(argv, Duration::from_secs(10), 1024).unwrap();
+    let (tx, mut rx) = tokio::sync::mpsc::channel(64);
+    machine.exec(id, command, tx).await.unwrap();
+    let (mut said, mut end) = (Vec::new(), None);
+    while let Some(r) = rx.recv().await {
+        match r {
+            Ran::Output(data) => said.extend(data),
+            exit @ Ran::Exit { .. } => end = Some(exit),
+        }
+    }
+    (String::from_utf8(said).unwrap(), end.expect("how it ended"))
 }
 
 /// A driver over a directory of its own, and the directories it reads.
@@ -68,12 +126,13 @@ pub fn settings(dir: &Path) -> Settings {
         firecracker: tools.join("bin/firecracker"),
         jailer: tools.join("bin/jailer"),
         kernel: tools.join("guest/vmlinux"),
-        guest: built("korpis-guest", "korpis-guest", Some("x86_64-unknown-linux-musl")),
+        guest: built("korpis-guest", "korpis-guest", Some(MUSL)),
         image_build: built("korpis-image", "korpis-image-build", None),
         writer: built("korpis-stream", "korpis-stream-writer", None),
         content: dir.join("content"),
         volume_root: dir.join("volumes"),
         netns_root: dir.join("netns"),
+        identity_root: dir.join("identity"),
         state: dir.join("state"),
         cgroup: format!("korpis-test-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)),
     }
@@ -81,6 +140,11 @@ pub fn settings(dir: &Path) -> Settings {
 
 impl Rig {
     pub fn new() -> Self {
+        Self::with(&[])
+    }
+
+    /// A rig whose image holds `extra` beside busybox, each an executable file at its path.
+    pub fn with(extra: &[(&str, &[u8])]) -> Self {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("volumes")).unwrap();
         let busybox = std::fs::read("/bin/busybox").unwrap();
@@ -88,6 +152,7 @@ impl Rig {
             .map(|a| format!("bin/{a}"));
         let mut entries = vec![Entry::File("bin/busybox", &busybox, (0, 0), 0o755)];
         entries.extend(names.iter().map(|n| Entry::Symlink(n, "busybox")));
+        entries.extend(extra.iter().map(|(at, bytes)| Entry::File(at, bytes, (0, 0), 0o755)));
         let layers = [(layer(&entries).unwrap(), Packing::Gzip)];
         let image = image(&dir.path().join("content"), &layers, "1000:1000").unwrap();
         let machine = Machine::new(settings(dir.path())).unwrap();

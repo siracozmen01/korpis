@@ -127,6 +127,25 @@ pub async fn resize(
     Resized::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))
 }
 
+/// Tells the agent of the guest whose vsock device's socket is at `socket` which relays to serve
+/// beside the workload's identity socket, within `within`; which it serves after.
+///
+/// # Errors
+/// It did not answer in time, its guest refused the connection, or it answered otherwise than
+/// this driver's protocol says.
+pub async fn relays(
+    socket: &Path,
+    wanted: control::Relays,
+    within: Duration,
+) -> io::Result<control::Relays> {
+    let flags = wanted.encode();
+    let asked = ask(socket, (Kind::Relays, &flags), (Kind::Relayed, 1));
+    let payload = tokio::time::timeout(within, asked).await.map_err(|_| {
+        io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not answer")
+    })??;
+    control::Relays::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))
+}
+
 /// Asks the agent of the guest whose vsock device's socket is at `socket` to run `c` as its entry
 /// runs, sending what it writes, at most its limit, and then how it ended on `out`. The guest
 /// bounds the output too; what it sends past the limit is read and dropped here as well.

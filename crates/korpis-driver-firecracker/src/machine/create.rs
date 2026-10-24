@@ -13,6 +13,8 @@ use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::path::{Path, PathBuf};
 
+/// Where a guest's workload finds its identity socket, which no volume is mounted over.
+const IDENTITY_MOUNT: &str = "/run/korpis";
 /// The ids a workload's range holds.
 const IDS: u32 = 65_536;
 /// The most secret values a console redacts, and the longest name and value together.
@@ -25,7 +27,8 @@ fn refused(why: impl Into<String>) -> MachineError {
 
 /// That `spec` is one this driver builds: its tier, its image by digest, its ids a whole range
 /// above the host's own, its network, if any, its workload's own namespaces, its console written
-/// to its own stream volume alone, and every volume beneath the volume root.
+/// to its own stream volume alone, its identity directory its own, and every volume beneath the
+/// volume root and mounted beside `/run/korpis`, never over it.
 fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()> {
     if spec.tier.as_known() != Some(pb::IsolationTier::ISOLATION_TIER_MICROVM) {
         return Err(refused("the firecracker driver builds the microvm tier alone"));
@@ -36,6 +39,7 @@ fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<(
         return Err(refused("a range of 65536 ids above the host's own"));
     }
     joined(spec, settings)?;
+    identity(spec, settings)?;
     if !korpis_driver_kit::console::own_dir(spec, &settings.volume_root) {
         return Err(refused("only the workload's own stream volume is written to"));
     }
@@ -49,6 +53,9 @@ fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<(
         crate::volume::checked(&root, &m.source).map_err(refused)?;
         if !m.destination.starts_with('/') {
             return Err(refused(format!("volume {:?} is mounted at no absolute path", m.volume)));
+        }
+        if Path::new(&m.destination).starts_with(IDENTITY_MOUNT) {
+            return Err(refused(format!("volume {:?} is mounted over {IDENTITY_MOUNT}", m.volume)));
         }
     }
     Ok(())
@@ -70,6 +77,21 @@ fn joined(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()>
         return Err(refused("only the workload's own namespaces are joined"));
     }
     crate::guest::network(spec).map_err(refused)?;
+    Ok(())
+}
+
+/// That the identity directory, if any, is the one the agent made for this workload: exactly the
+/// workload's directory under the identity root, so no guest is relayed another's socket. Its
+/// start checks again that it resolves there ([`Machine`]'s relays).
+fn identity(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()> {
+    if spec.identity_dir.is_empty() {
+        return Ok(());
+    }
+    let plain = !spec.workload.is_empty()
+        && spec.workload.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_');
+    if !plain || Path::new(&spec.identity_dir) != settings.identity_root.join(&spec.workload) {
+        return Err(refused("only the workload's own identity directory is relayed"));
+    }
     Ok(())
 }
 

@@ -21,6 +21,7 @@ mod exec;
 mod grow;
 mod mounts;
 mod net;
+mod relay;
 mod run;
 
 use korpis_guest::config::Config;
@@ -98,6 +99,9 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     net::configure(config.network.as_ref())?;
     std::os::unix::fs::chroot(ROOT).map_err(failed("entering the workload's root"))?;
     nix::unistd::chdir("/").map_err(failed("entering the workload's root"))?;
+    if config.identity {
+        relay::serve()?;
+    }
     run::run(&config, &mut signals)
 }
 

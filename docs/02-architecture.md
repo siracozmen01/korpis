@@ -1262,7 +1262,10 @@ directory carries the workload's managed files in `config/`, rendered by the sup
 read and not write. A driver says whether it gives a workload the directory (`identity_dir`, §4.1
 of `04-runtimes.md`); the `firecracker` driver does not yet, since a guest's filesystem is its own
 and nothing carries the directory into it before the vsock channel of Phase 3 (Finding 154 of
-`23-walkthroughs.md`).
+`23-walkthroughs.md`). Since 2026-10-24 that channel carries the identity socket and the API relay
+into a guest, served there by its first process at the same paths (§6 of `04-runtimes.md`); the
+managed files and the dependencies' files do not reach it yet, and the driver declares the
+directory once the whole of it does.
 
 The directory is mounted rather than the socket because a supervisor that restarts binds the
 socket again, as a new file, and a mount of the old file would keep pointing at nothing; the

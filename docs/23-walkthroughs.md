@@ -5242,6 +5242,11 @@ since placement does not read the recipe, and starts without them. Carrying the 
 guest over its vsock channel is homed in Phase 3 (§4 of `20-roadmap.md`). What it costs: until
 then a microVM holds no credential, and a recipe that relies on its files does not work in one.
 
+> Revisited 2026-10-24 (trace 65): the identity socket and the API relay now reach a guest over
+> its vsock channel, served by its first process at the same paths, so a microVM can obtain its
+> credential. The managed files and the dependencies' files do not reach it yet, so the driver
+> still declares no `identity_dir` and a heartbeat probe still keeps a workload off it.
+
 Steps 1 to 5 and 7 are built: `crates/korpis-agent/tests/agent/heartbeat.rs` beats through the
 SDK on an agent's identity socket, stops, and sees the workload unhealthy, restarted, and healthy
 again; `crates/korpis-e2e/tests/e2e/heartbeat.rs` runs `korpis heartbeat --every 1s` in a
@@ -5316,3 +5321,57 @@ and refuses another version, silence, and a refused connection; `crates/korpis-g
 bounds what crosses; `crates/korpis-core` refuses a `guest_agent` probe on a driver without it;
 `crates/korpis-agent` judges the in-memory runtime's guests; and `crates/korpis-e2e` judges a real
 microVM's guest by its agent. Steps 5 and 6 follow from the restart every liveness probe makes.
+
+## 65. A bot in a microVM asks its node who it is
+
+Written 2026-10-24, as a microVM's identity socket and API relay were carried into its guest (§6 of
+`04-runtimes.md`). Trace 62 ended where a microVM had no `/run/korpis` (Finding 154); this one
+follows the first part of it to arrive, asking at each step what holds the connection, as whom,
+and what proves which workload made it. A customer's bot runs on the `microvm` tier and obtains its
+credential from its identity socket through the SDK; later the customer issues it a grant, so its
+node serves it the API relay too.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The node makes the bot's directory under its identity root, with its identity socket, and names it in the create request | `02-architecture.md` §6; `08-identity.md` §9.5 |
+| 2 | The driver's `Create` refuses a directory other than exactly the workload's own under its `--identity-root`, and a volume mounted over `/run/korpis` | `04-runtimes.md` §6 |
+| 3 | Each start checks again that the directory resolves there through no link, and serves the guest's relays: a socket for each of two host ports, which Firecracker hands a guest's connections to | `04-runtimes.md` §6 |
+| 4 | The guest's first process enters the workload's root and serves `/run/korpis/identity.sock` before the entry starts | `04-runtimes.md` §6 |
+| 5 | The bot connects; the guest relays the connection over vsock to port 1025, the driver relays it to the workload's socket on the host, and the node forwards the request naming the workload it made the socket for | `08-identity.md` §9.5; `02-architecture.md` §6 |
+| 6 | The customer issues the bot a grant; its node serves `api.sock` on the host; within two seconds the driver tells the guest's agent, which serves it inside | `08-identity.md` §9.5; `04-runtimes.md` §6 |
+| 7 | The driver restarts while the bot runs; it finds the guest again and serves its relays again | `04-runtimes.md` §6 |
+| 8 | Another local user of the host reaches for the guest's relay socket in its chroot ‡ | `17-security.md` §5; `02-architecture.md` §6 |
+
+**One finding, at step 8** (‡).
+
+**FINDING 155: A guest's relay would have been a second door to a workload's identity, outside the
+identity root. `CONFIRMED`, by the algebra question**
+
+Found 2026-10-24 asking step 8's question of the relay as first drawn: who may connect to its host
+end? §6 of `02-architecture.md` keeps the identity root readable by the supervisor's user and group
+alone, so that no other local user can connect to a workload's socket and obtain its credential.
+The relay's host end is a socket in the guest's chroot that Firecracker connects to, and Firecracker
+runs as the workload's first id, so the first draft made it connectable by anyone; and a connection
+on it reaches the workload's identity socket as the driver, which is root. The identity root's mode
+would have been bypassed by a path anyone could open, and the chroot is writable by the guest's
+Firecracker, so a socket given its owner and mode there by path could be swapped for a link first.
+
+**Resolution.** Each relay socket is bound in the object's own directory, which only the driver
+reaches, given the guest's Firecracker's user and group and mode `0600` there, and renamed into the
+chroot, which replaces whatever is in its place without following it (§6 of `04-runtimes.md`). §5
+of `17-security.md` states it, and corrects in place its statement that the host listened on no
+vsock port. What it costs: a relay socket is made in two steps rather than one, and an object's
+directory must be on the same filesystem as the jails, which the driver's one state directory
+already ensures.
+
+Steps 2 to 8 are built: `crates/korpis-driver-firecracker/tests/identity.rs` runs a guest whose
+test client says a line on `/run/korpis/identity.sock` and is answered by a stand-in for the node's
+socket, sees `api.sock` served inside once it is served on the host and withdrawn with it, restarts
+the driver and is answered again, and has a start refused once the directory resolves to another
+workload's; `crates/korpis-driver-firecracker/tests/runtime.rs` has `Create` refuse another
+workload's directory and a volume over `/run/korpis`. Step 1 is the node's, as it is for a
+container. The bot's credential through a real node on the `microvm` tier is traced end to end
+once the rest of the directory reaches a guest and the driver declares `identity_dir` (§4 of
+`20-roadmap.md`).

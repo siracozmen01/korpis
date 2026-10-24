@@ -12,6 +12,7 @@ mod status;
 mod stop;
 
 use crate::object::{Object, Vm};
+use crate::relay::{Guest, Relays};
 use crate::settings::Settings;
 use crate::{console, jail, process};
 use korpis_proto::korpis::driver::v1 as driver;
@@ -88,6 +89,8 @@ pub struct Machine {
     watched: Arc<Mutex<HashSet<String>>>,
     /// One verb that changes an object at a time.
     lock: Arc<tokio::sync::Mutex<()>>,
+    /// The relays of `/run/korpis` each running guest is served.
+    relays: Arc<Relays>,
 }
 
 impl Machine {
@@ -104,7 +107,8 @@ impl Machine {
         }
         let (events, _) = broadcast::channel(EVENT_BACKLOG);
         let lock = Arc::default();
-        Ok(Self { settings: Arc::new(settings), events, watched: Arc::default(), lock })
+        let (watched, relays) = (Arc::default(), Arc::default());
+        Ok(Self { settings: Arc::new(settings), events, watched, lock, relays })
     }
 
     /// Its settings.
@@ -143,6 +147,29 @@ impl Machine {
         let _ = self.events.send(event);
     }
 
+    /// Serves object `id`'s guest the relays of `/run/korpis`, if `spec` names the workload's
+    /// directory, which must resolve to the workload's own under the identity root, not through a
+    /// link to another workload's (§9.5 of docs/08-identity.md).
+    fn relay(&self, id: &str, spec: &driver::PreparedSpec) -> MachineResult<()> {
+        if spec.identity_dir.is_empty() {
+            return Ok(());
+        }
+        let root = std::fs::canonicalize(&self.settings.identity_root).map_err(failed)?;
+        let real = std::fs::canonicalize(&spec.identity_dir)
+            .map_err(|e| MachineError::Refused(format!("the identity directory: {e}")))?;
+        if real != root.join(&spec.workload) || !real.is_dir() {
+            return Err(MachineError::Refused("only the workload's own identity directory".into()));
+        }
+        let guest = Guest {
+            chroot: self.settings.chroot(id),
+            vsock: jail::vsock_socket(&self.settings, id),
+            identity: real,
+            owner: (spec.uid_base, spec.uid_base),
+            private: self.settings.object(id),
+        };
+        self.relays.serve(id, &guest).map_err(failed)
+    }
+
     /// Watches `vm`, object `id`'s Firecracker, until it ends, then records and says so.
     fn watch(&self, id: &str, vm: Vm) {
         let fresh = self.watched.lock().is_ok_and(|mut w| w.insert(id.to_owned()));
@@ -159,6 +186,7 @@ impl Machine {
             if let Ok(mut w) = machine.watched.lock() {
                 w.remove(&id);
             }
+            machine.relays.end(&id);
             machine.changed(&id);
         });
     }
@@ -179,6 +207,7 @@ impl Machine {
         Object::keep_drives(&dir, &drives).map_err(failed)?;
         jail::remove(&self.settings, id).map_err(failed)?;
         jail::build(&self.settings, id, &drives, &shape).map_err(failed)?;
+        self.relay(id, &object.spec)?;
         let owner = (object.spec.uid_base, object.spec.uid_base);
         let mut command = jail::command(&self.settings, id, owner, &shape);
         // What the jailer and the guest's Firecracker say of themselves is kept beside the
@@ -279,6 +308,8 @@ impl Machine {
         };
         self.kill(id).await?;
         let _held = self.lock.lock().await;
+        // A start that failed after its relays were served left them; nothing watched it end.
+        self.relays.end(id);
         jail::remove(&self.settings, id).map_err(failed)?;
         std::fs::remove_dir_all(dir).map_err(failed)?;
         self.changed(id);
@@ -291,8 +322,10 @@ impl Machine {
     pub fn recover(&self) -> Vec<driver::RuntimeObject> {
         let objects = Object::all(&self.settings.objects());
         for o in &objects {
-            if let Some(vm) = o.vm.filter(process::alive) {
-                self.watch(&o.id, vm);
+            let Some(vm) = o.vm.filter(process::alive) else { continue };
+            self.watch(&o.id, vm);
+            if let Err(e) = self.relay(&o.id, &o.spec) {
+                tracing::warn!(id = %o.id, error = %e, "a guest's relays could not be served");
             }
         }
         objects

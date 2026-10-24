@@ -267,6 +267,7 @@ mod tests {
             content: "/c".into(),
             volume_root: "/v".into(),
             netns_root: "/run/korpis/netns".into(),
+            identity_root: "/i".into(),
             state: "/s".into(),
             cgroup: "korpis".into(),
         };

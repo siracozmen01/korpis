@@ -335,7 +335,9 @@ driver reads Firecracker, the jailer, the guest kernel, and `korpis-guest` from 
 (`--firecracker`, `--jailer`, `--kernel`, `--guest`), and starts `korpis-stream-writer` and
 `korpis-image-build` from beside its own binary (`--stream-writer`, `--image-build`); it reads
 images from the node's content store as the `oci` driver does, and volumes from beneath the volume
-root; it keeps its objects, the drives guests share, and their jails in
+root; it relays a guest's `/run/korpis` to the workload's own identity directory beneath
+`/var/lib/korpis-agent/identity` (`--identity-root`, which must be the agent's, as for the `oci`
+driver; §6 of `04-runtimes.md`); it keeps its objects, the drives guests share, and their jails in
 `/var/lib/korpis-driver-firecracker` (`--state-dir`), and each guest's cgroup beneath
 `korpis-firecracker` (`--cgroup`). Stopping it stops no guest and no console, and the next one
 reads the guests back with `Recover`. Installation writes its unit only where `/dev/kvm` opens and

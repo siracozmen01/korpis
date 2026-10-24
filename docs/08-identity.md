@@ -1653,11 +1653,15 @@ session, it says so and keeps the credential in a file readable by its user alon
 
 The agent serves each workload it runs a Unix socket of its own, whose directory the driver mounts
 read-only into the workload at `/run/korpis`, so the socket is `/run/korpis/identity.sock` (§6 of
-`02-architecture.md`). A process in the workload asks it for
-a credential. The agent forwards the request over its stream, naming the workload the socket
-belongs to, and the control plane issues the credential only if the workload is assigned to that
-node, authoritatively, under a lease that has not expired. The workload is then authenticated as
-itself: `workload:<id>` for an ordinary workload, `extension:<id>` for an extension's (§3.2 of
+`02-architecture.md`). A microVM's guest has its own filesystem, so there the guest's first process
+serves the socket at the same path and relays each connection, byte for byte, over the guest's
+vsock device to the driver, which relays it on to the workload's socket on the host (§6 of
+`04-runtimes.md`; added 2026-10-24): the socket on the host is still the one the agent made for
+that workload, so what a call on it proves is the same on either tier. A process in the workload
+asks it for a credential. The agent forwards the request over its stream, naming the workload the
+socket belongs to, and the control plane issues the credential only if the workload is assigned to
+that node, authoritatively, under a lease that has not expired. The workload is then authenticated
+as itself: `workload:<id>` for an ordinary workload, `extension:<id>` for an extension's (§3.2 of
 `01-model.md`), and it holds exactly the grants issued to that subject.
 
 The credential is a bearer secret of 256 bits that expires after fifteen minutes. The control

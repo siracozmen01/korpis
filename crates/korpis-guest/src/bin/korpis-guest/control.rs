@@ -5,9 +5,10 @@
 //! once, each answering frames until the host closes it or is silent for half a minute. A ping is
 //! answered with the protocol's version and how long the agent has run; a signal named is sent to
 //! the entry's process group, if it is one the driver declares; a resize sets an interactive
-//! entry's terminal to the size asked; and a command is run as the entry runs (`exec`). A guest whose kernel has no vsock, or whose device is
-//! missing, boots all the same, and says so: its `guest_agent` probe then fails, which is what
-//! such a guest is.
+//! entry's terminal to the size asked; a command is run as the entry runs (`exec`); and the relays
+//! beside the workload's identity socket are served as the host says (`relay`). A guest whose
+//! kernel has no vsock, or whose device is missing, boots all the same, and says so: its
+//! `guest_agent` probe then fails, which is what such a guest is.
 
 use korpis_guest::config::Config;
 use korpis_guest::control::{self, Kind, Pong, Resized, Signalled};
@@ -114,7 +115,17 @@ fn answer(connection: OwnedFd, started: Instant, config: &Config) {
                 control::write(&mut stream, Kind::Resized, &outcome.encode())
             }
             Kind::Exec => crate::exec::exec(&mut stream, &payload, config),
-            Kind::Pong | Kind::Signalled | Kind::Resized | Kind::Output | Kind::Exited => return,
+            Kind::Relays => {
+                let Some(wanted) = control::Relays::decode(&payload) else { return };
+                let served = crate::relay::relays(wanted);
+                control::write(&mut stream, Kind::Relayed, &served.encode())
+            }
+            Kind::Pong
+            | Kind::Signalled
+            | Kind::Resized
+            | Kind::Output
+            | Kind::Exited
+            | Kind::Relayed => return,
         };
         if answered.is_err() {
             return;

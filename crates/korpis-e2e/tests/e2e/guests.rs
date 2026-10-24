@@ -60,6 +60,7 @@ pub fn serve(dir: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) -> 
         content: state.root().join("content"),
         volume_root: volumes.to_owned(),
         netns_root: netns.to_owned(),
+        identity_root: state.root().join("identity"),
         state: dir.join("firecracker"),
         cgroup: format!("korpis-e2e-{}-{name}-firecracker", std::process::id()),
     };

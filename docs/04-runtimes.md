@@ -735,14 +735,28 @@ kernel has no vsock boots all the same and says so on its console, and its `gues
 fails. A command the agent runs (`Exec`, §4.2) is the guest's first process's child, which reaps
 every child: so the command's status is kept for the thread that ran it, and while a command is
 being started only the entry is reaped, since the standard library waits itself for a child whose
-exec failed and must find it there. Nor does the guest have `/run/korpis` yet: its identity socket,
-the API relay, its managed files, and its dependencies' files are served on the host for it and
-reach nothing inside the guest, so the driver declares no `identity_dir` (§4.1) and a heartbeat
-probe keeps a workload off it (Finding 154 of `23-walkthroughs.md`). A recipe whose configuration
-is delivered as files, or whose dependencies are, is not refused on a microVM, because placement
-does not read the recipe and the driver cannot tell which files the node will render: such a
-workload starts without them, and is said here to. The vsock channel of Phase 3 carries the
-directory in (§4 of `20-roadmap.md`).
+exec failed and must find it there.
+
+**A guest's `/run/korpis`** (corrected 2026-10-24: until the vsock channel was built, a guest
+had none, and its identity socket and API relay reached nothing inside it). When the spec names the
+workload's identity directory, which `Create` checks is exactly the workload's own under the
+driver's `--identity-root`, as the `oci` driver does, and each start checks again resolves there
+through no link, the guest's first process serves `/run/korpis/identity.sock` in the workload's
+root before the entry starts, and `/run/korpis/api.sock` while the node serves the API relay on the
+host, which the driver looks for every two seconds and tells the agent of. Each connection on
+either is relayed, byte for byte, over the vsock device to a port of the host (1025 for the
+identity socket, 1026 for the API relay), which Firecracker hands to a socket the driver listens on
+in the guest's chroot (`vsock.socket_<port>`), and the driver relays it on to the workload's own
+socket on the host, opened as the API socket is. Neither end reads what crosses, and the socket on
+the host is the workload's identity, as it is for a container: a request made inside a guest names
+the workload its node made the socket for, and nothing the guest chose. Each end relays at most
+sixteen connections of a guest at once, and no volume is mounted over `/run/korpis`. What it does
+not give yet: the managed files in `config/` and the dependencies' files are still on the host
+alone, so the driver still declares no `identity_dir` (§4.1) and a heartbeat probe still keeps a
+workload off it (Finding 154 of `23-walkthroughs.md`). A recipe whose configuration is delivered as
+files, or whose dependencies are, is not refused on a microVM, because placement does not read the
+recipe and the driver cannot tell which files the node will render: such a workload starts without
+them, and is said here to. The files follow over the same channel (§4 of `20-roadmap.md`).
 
 **How a `microvm`'s image drive is made** (2026-10-23). With no containerd to unpack for it, the
 driver has the image's layers applied by `korpis-image-build`, and the layers are a publisher's

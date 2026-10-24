@@ -45,6 +45,11 @@ pub struct Config {
     /// empty and its output reaches the console as it wrote it.
     #[serde(default)]
     pub interactive: bool,
+    /// The workload has an identity directory (§9.5 of docs/08-identity.md): the first process
+    /// serves `/run/korpis/identity.sock` before the entry starts, each connection relayed to
+    /// the workload's own socket on the host.
+    #[serde(default)]
+    pub identity: bool,
 }
 
 /// The guest's one interface, `eth0`.
@@ -126,6 +131,7 @@ mod tests {
             }),
             volumes: vec![Volume { path: "/data".into(), read_only: false }],
             interactive: true,
+            identity: true,
         }
     }
 

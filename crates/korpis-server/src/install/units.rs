@@ -194,7 +194,7 @@ After=korpis-helper.socket
 Group=korpis-agent
 ExecStart={bin}/korpis-driver-firecracker --allow-uid {uid} --socket {FIRECRACKER_SOCKET} \\
   --firecracker {lib}/firecracker --jailer {lib}/jailer --kernel {lib}/vmlinux \\
-  --guest {lib}/korpis-guest --content {state}/content
+  --guest {lib}/korpis-guest --content {state}/content --identity-root {state}/identity
 Restart=on-failure
 RestartSec=2
 KillMode=process
@@ -364,6 +364,8 @@ mod tests {
         let (_, fc) = all.iter().find(|(n, _)| *n == "korpis-driver-firecracker.service").unwrap();
         assert!(fc.contains("--kernel /usr/lib/korpis/vmlinux") && fc.contains("--allow-uid 991"));
         assert!(fc.contains("KillMode=process"), "its guests outlive it");
+        let identity = "--identity-root /var/lib/korpis-agent/identity";
+        assert!(fc.contains(identity), "the agent's identity root, whose sockets it relays");
         assert!(!fc.contains("RestrictSUIDSGID"), "the image build's openat2 would be refused");
         assert!(fc.contains("ReadWritePaths=/run/korpis /sys/fs/cgroup /var/lib/korpis"));
         let a = agent(&all);

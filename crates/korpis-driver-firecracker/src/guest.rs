@@ -113,6 +113,7 @@ pub fn config(spec: &driver::PreparedSpec, image: &ImageConfig) -> Result<Config
         network: network(spec)?,
         volumes,
         interactive: spec.stream.as_option().is_some_and(|s| s.input),
+        identity: !spec.identity_dir.is_empty(),
     })
 }
 

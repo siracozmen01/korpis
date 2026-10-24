@@ -16,34 +16,15 @@
 )]
 
 use korpis_driver_firecracker::machine::{Machine, MachineError, START_LOG};
-use korpis_driver_kit::exec::{Command as ExecCommand, Ran};
+use korpis_driver_kit::exec::Ran;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::process::Command;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 mod support;
 
-use support::{MIB, Rig, live};
-
-/// The state of object `id`, once it is `state`, within `limit`.
-async fn until(
-    m: &Machine,
-    id: &str,
-    state: driver::RuntimeState,
-    limit: Duration,
-) -> driver::RuntimeStatus {
-    let start = Instant::now();
-    loop {
-        let s = m.inspect(id).unwrap();
-        if s.state.as_known() == Some(state) {
-            return s;
-        }
-        let said = std::fs::read_to_string(m.settings().object(id).join(START_LOG));
-        assert!(start.elapsed() < limit, "{id} never reached {state:?}: {s:?}, {said:?}");
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-}
+use support::{MIB, Rig, live, ran, until};
 
 fn debugfs(drive: &str, request: &str) -> String {
     let out = Command::new("debugfs").args(["-R", request, drive]).output().unwrap();
@@ -94,22 +75,6 @@ async fn a_guest_runs_as_its_user_within_its_memory_and_its_exit_status_is_inspe
     rig.machine.destroy(&id).await.unwrap();
     let s = rig.machine.settings();
     assert!(!s.object(&id).exists() && !s.jail(&id).exists() && !cgroup.exists());
-}
-
-/// What `argv` run in `id`'s guest wrote, and how it ended.
-async fn ran(machine: &Machine, id: &str, argv: &[&str]) -> (String, Ran) {
-    let argv = argv.iter().map(|a| (*a).to_owned()).collect();
-    let command = ExecCommand::checked(argv, Duration::from_secs(10), 1024).unwrap();
-    let (tx, mut rx) = tokio::sync::mpsc::channel(64);
-    machine.exec(id, command, tx).await.unwrap();
-    let (mut said, mut end) = (Vec::new(), None);
-    while let Some(r) = rx.recv().await {
-        match r {
-            Ran::Output(data) => said.extend(data),
-            exit @ Ran::Exit { .. } => end = Some(exit),
-        }
-    }
-    (String::from_utf8(said).unwrap(), end.expect("how it ended"))
 }
 
 #[tokio::test]
@@ -199,11 +164,14 @@ async fn a_restarted_driver_finds_its_guests_and_a_spec_outside_its_tier_is_refu
         s
     };
     let base = rig.spec("wl_refused", "true");
-    let cases: [&dyn Fn(&mut driver::PreparedSpec); 4] = [
+    let other = rig.machine.settings().identity_root.join("wl_other");
+    let cases: [&dyn Fn(&mut driver::PreparedSpec); 6] = [
         &|s| s.tier = pb::IsolationTier::ISOLATION_TIER_CONTAINER.into(),
         &|s| s.uid_base = 0,
         &|s| s.namespaces = "/run/korpis/netns/x".into(),
         &|s| s.mounts[0].source = "/etc/passwd".into(),
+        &|s| s.identity_dir = other.to_string_lossy().into_owned(),
+        &|s| s.mounts[0].destination = "/run/korpis/config".into(),
     ];
     for how in cases {
         let made = rig.machine.create(refused(base.clone(), how)).await;

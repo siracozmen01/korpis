@@ -31,6 +31,9 @@ pub struct Settings {
     /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
     /// docs/07-networking.md): the only namespaces a guest's Firecracker joins.
     pub netns_root: PathBuf,
+    /// The directory the agent makes workloads' identity directories under (§9.5 of
+    /// docs/08-identity.md), whose sockets a guest's are relayed to.
+    pub identity_root: PathBuf,
     /// The driver's own directory.
     pub state: PathBuf,
     /// The cgroup, from the unified hierarchy's root, beneath which each guest's is made.
