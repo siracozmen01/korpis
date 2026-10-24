@@ -127,6 +127,7 @@ pub fn settings(dir: &Path) -> Settings {
         jailer: tools.join("bin/jailer"),
         kernel: tools.join("guest/vmlinux"),
         guest: built("korpis-guest", "korpis-guest", Some(MUSL)),
+        fsworker: built("korpis-files", "korpis-fsworker", Some(MUSL)),
         image_build: built("korpis-image", "korpis-image-build", None),
         writer: built("korpis-stream", "korpis-stream-writer", None),
         content: dir.join("content"),

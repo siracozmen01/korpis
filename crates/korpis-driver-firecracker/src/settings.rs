@@ -20,6 +20,9 @@ pub struct Settings {
     pub kernel: PathBuf,
     /// `korpis-guest`, static, for the boot drive.
     pub guest: PathBuf,
+    /// `korpis-fsworker`, built static, which the boot drive carries for file sessions in a guest
+    /// (§4.4 of docs/04-runtimes.md).
+    pub fsworker: PathBuf,
     /// `korpis-image-build`, which makes an image's drive.
     pub image_build: PathBuf,
     /// `korpis-stream-writer`, which writes a guest's console to its stream.

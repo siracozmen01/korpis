@@ -26,19 +26,19 @@ const WRITE: &str = "workload.file.write";
 const MIB: usize = 1 << 20;
 
 /// A file session on `w`, as whoever `c` signs in as.
-async fn open(c: &korpis_cli::connect::Connection, w: &str) -> Files {
+pub async fn open(c: &korpis_cli::connect::Connection, w: &str) -> Files {
     let minted = session::mint(c, w, WRITE).await.unwrap();
     let at = session::relay(c, None).await.unwrap();
     Files { session: session::open(&at, w, &minted, Vec::new()).await.unwrap(), next: 0 }
 }
 
-struct Files {
+pub struct Files {
     session: Session,
     next: u64,
 }
 
 impl Files {
-    async fn ask(&mut self, request: File) -> Response {
+    pub async fn ask(&mut self, request: File) -> Response {
         self.next += 1;
         let r = pb::FileRequest { id: self.next, request: Some(request), ..Default::default() };
         self.session.send(session::frame(Frame::Data(r.encode_to_vec()))).await.unwrap();
@@ -54,7 +54,7 @@ impl Files {
         answer.response.unwrap()
     }
 
-    async fn write(&mut self, path: &str, offset: u64, data: Vec<u8>) -> Response {
+    pub async fn write(&mut self, path: &str, offset: u64, data: Vec<u8>) -> Response {
         let w =
             pb::FileWrite { path: path.into(), offset, data, create: true, ..Default::default() };
         self.ask(File::Write(Box::new(w))).await

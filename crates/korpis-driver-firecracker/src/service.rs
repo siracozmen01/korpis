@@ -246,6 +246,18 @@ impl driver::DriverService for Driver {
         Response::ok(driver::SignalResponse::default())
     }
 
+    async fn files(
+        &self,
+        _ctx: RequestContext,
+        mut requests: connectrpc::InboundStream<driver::FilesRequest>,
+    ) -> ServiceResult<ServiceStream<driver::FilesResponse>> {
+        let open = crate::files::opened(&mut requests).await?;
+        let worker = self.machine.files(&open.runtime_id, open.write).await.map_err(status)?;
+        let (from, to) = worker.into_split();
+        tokio::spawn(crate::files::up(requests, to));
+        Response::stream_ok(crate::files::down(from))
+    }
+
     async fn ping_guest(
         &self,
         _ctx: RequestContext,

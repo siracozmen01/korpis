@@ -8,6 +8,7 @@
 //! Firecracker is watched through a process descriptor, which is what `Events` reports.
 
 mod create;
+mod files;
 mod status;
 mod stop;
 

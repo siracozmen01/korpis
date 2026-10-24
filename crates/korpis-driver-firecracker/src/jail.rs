@@ -262,6 +262,7 @@ mod tests {
             jailer: "/jailer".into(),
             kernel: "/k".into(),
             guest: "/g".into(),
+            fsworker: "/f".into(),
             image_build: "/b".into(),
             writer: "/w".into(),
             content: "/c".into(),

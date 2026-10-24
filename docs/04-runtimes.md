@@ -454,6 +454,31 @@ recipe edits, and single-file restore had no mechanism for half the tiers.
   kernel lacks) offers whole-image operations only, which the driver declares at creation rather
   than the user discovering at restore time.
 
+**How a running microVM's worker is built** (2026-10-24). The worker is the one the helper runs
+beside a container, `korpis-fsworker`, built static and carried on every guest's boot drive, so one
+program parses a session's requests on either tier. The guest's first process holds it open from
+before it enters the workload's root, which does not hold the boot drive, and runs one for each
+connection the host opens on the guest's files port (1027), with the connection as its session. The
+driver opens a session through its `Files` stream and sends the worker's spec as the session's
+first frame: each volume at the path the guest mounts it at, read-only where the workload mounts it
+so, and whether the session writes. The worker then does what it does on a host: it makes its own
+user, mount, network, and IPC namespaces, its ids mapped to the guest's own, 0 to 65,535, which are
+the workload's; builds its root on an empty directory of the guest's `/run`, a read-only tmpfs
+holding each volume, idmapped, at its path and nothing of the image; confines itself with Landlock;
+and answers until the session closes. The guest kernel has every namespace and Landlock the worker
+needs, and the first process enters the workload's root with `pivot_root` rather than `chroot`,
+since the kernel refuses a user namespace to a process in a chroot, as a container runtime does;
+the boot drive is detached beneath it, the worker's binary held open across. The driver passes the
+session's frames on unread, each bounded as the worker bounds them. So the bullet above that says
+the worker "runs as an unprivileged user inside the guest" is exact in the sense the host's worker
+is: it is root only of its own user namespace, and holds no privilege over the guest beyond its
+volumes. The `firecracker` driver declares `file_access` `guest_worker` (§4.1), and the node opens
+a session on a workload whose driver declares it through the driver, on the object it runs, rather
+than through the helper; SFTP becomes a file session at the relay, so it is served the same way.
+What it does not give yet: a session opened in the moment between an object's start and the node
+naming it goes to the helper, which refuses a block device and is asked again; and a stopped
+microVM's files wait for its service microVM (§4 of `20-roadmap.md`).
+
 ### 4.5 A uid on disk must mean the same thing everywhere
 
 > Second external review, finding S50.

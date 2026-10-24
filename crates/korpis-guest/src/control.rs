@@ -29,6 +29,11 @@ pub const IDENTITY_PORT: u32 = 1025;
 /// The host port a guest's connections to the API relay are relayed to, where its node relays
 /// the API to the workload.
 pub const API_PORT: u32 = 1026;
+/// The vsock port the guest serves file sessions on (§4.4 of docs/04-runtimes.md): the host's
+/// first frame is the worker's spec, then each frame of the session goes to the worker and back.
+pub const FILES_PORT: u32 = 1027;
+/// The longest spec the host sends a file session's worker.
+pub const MOST_SPEC: usize = 64 * 1024;
 /// The version of this protocol a guest speaks, which it says in every answer to a ping.
 pub const VERSION: u32 = 1;
 /// The longest a frame's payload may be.

@@ -27,11 +27,16 @@ const LONGEST_ANSWER: usize = 32;
 
 /// A connection to the guest's control port through the device's socket at `socket`.
 async fn connect(socket: &Path) -> io::Result<UnixStream> {
+    connect_to(socket, control::PORT).await
+}
+
+/// A connection to the guest's `port` through the device's socket at `socket`.
+async fn connect_to(socket: &Path, port: u32) -> io::Result<UnixStream> {
     use std::os::fd::AsRawFd as _;
     let fd = socket_at(socket)?;
     let mut stream = UnixStream::connect(format!("/proc/self/fd/{}", fd.as_raw_fd())).await?;
     drop(fd);
-    stream.write_all(format!("CONNECT {}\n", control::PORT).as_bytes()).await?;
+    stream.write_all(format!("CONNECT {port}\n").as_bytes()).await?;
     let mut line = Vec::with_capacity(LONGEST_ANSWER);
     let mut byte = [0_u8; 1];
     while line.len() < LONGEST_ANSWER {
@@ -144,6 +149,20 @@ pub async fn relays(
         io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not answer")
     })??;
     control::Relays::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))
+}
+
+/// A file session with the guest whose vsock device's socket is at `socket`: a connection to its
+/// files port, the worker's `spec` sent as its first frame, then the session's frames.
+///
+/// # Errors
+/// The guest did not take the connection, or the spec is longer than it reads.
+pub async fn files(socket: &Path, spec: &[u8]) -> io::Result<UnixStream> {
+    let length = u32::try_from(spec.len()).ok().filter(|_| spec.len() <= control::MOST_SPEC);
+    let length = length.ok_or_else(|| io::Error::other("a spec longer than a guest reads"))?;
+    let mut stream = connect_to(socket, control::FILES_PORT).await?;
+    stream.write_all(&length.to_le_bytes()).await?;
+    stream.write_all(spec).await?;
+    Ok(stream)
 }
 
 /// Sends the agent of the guest whose vsock device's socket is at `socket` each of `frames` over

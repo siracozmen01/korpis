@@ -31,6 +31,9 @@ struct Cli {
     /// `korpis-guest`, built static.
     #[arg(long, default_value = "/usr/lib/korpis/korpis-guest")]
     guest: PathBuf,
+    /// `korpis-fsworker`, built static, which each guest's boot drive carries for file sessions.
+    #[arg(long, default_value = "/usr/lib/korpis/korpis-fsworker")]
+    fsworker: PathBuf,
     /// `korpis-image-build`; by default the one installed beside this binary.
     #[arg(long)]
     image_build: Option<PathBuf>,
@@ -76,6 +79,7 @@ async fn run(cli: Cli) -> Result<(), String> {
         jailer: cli.jailer,
         kernel: cli.kernel,
         guest: cli.guest,
+        fsworker: cli.fsworker,
         image_build,
         writer,
         content: cli.content,

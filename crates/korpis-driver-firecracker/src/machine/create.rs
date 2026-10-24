@@ -132,7 +132,7 @@ fn kernel(settings: &Settings) -> std::io::Result<PathBuf> {
 /// upgraded kernel or `korpis-guest` reaches every guest at its next boot (Finding 150 of
 /// docs/23-walkthroughs.md). The image's drive and the volumes are the object's own.
 pub(super) fn current(settings: &Settings, drives: Drives) -> std::io::Result<Drives> {
-    let boot = korpis_image::boot::drive(&settings.guest, &settings.drives())?;
+    let boot = korpis_image::boot::drive(&settings.guest, &settings.fsworker, &settings.drives())?;
     Ok(Drives { kernel: kernel(settings)?, boot, ..drives })
 }
 
@@ -142,7 +142,7 @@ fn shared(
     settings: &Settings,
     spec: &driver::PreparedSpec,
 ) -> std::io::Result<(PathBuf, PathBuf, PathBuf, korpis_core::content::image::ImageConfig)> {
-    let boot = korpis_image::boot::drive(&settings.guest, &settings.drives())?;
+    let boot = korpis_image::boot::drive(&settings.guest, &settings.fsworker, &settings.drives())?;
     let source = korpis_image::source::resolve(&settings.content, &spec.rootfs)?;
     let image = settings.drives().join(file_name(&source.manifest));
     if !image.is_file() {

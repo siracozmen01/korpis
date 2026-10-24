@@ -18,6 +18,7 @@
 
 mod control;
 mod exec;
+mod fileport;
 mod files;
 mod grow;
 mod mounts;
@@ -36,6 +37,8 @@ use std::time::Duration;
 
 /// Where the workload's root is assembled, on the boot drive.
 const ROOT: &str = "/newroot";
+/// The file worker on the boot drive (§4.4 of docs/04-runtimes.md).
+const FILE_WORKER: &str = "/korpis-fsworker";
 /// How long the entry waits for the workload's files once its identity socket is served: the
 /// driver sends them within a fraction of a second of being able to, so this is for a driver
 /// that is itself restarting.
@@ -102,8 +105,13 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     nix::unistd::sethostname(&config.hostname).map_err(failed("setting the hostname"))?;
     mounts::root(ROOT, &config)?;
     net::configure(config.network.as_ref())?;
-    std::os::unix::fs::chroot(ROOT).map_err(failed("entering the workload's root"))?;
-    nix::unistd::chdir("/").map_err(failed("entering the workload's root"))?;
+    // The file worker is on the boot drive, which the workload's root does not hold.
+    let worker = File::open(FILE_WORKER);
+    enter(ROOT).map_err(failed("entering the workload's root"))?;
+    match worker.map_err(|e| e.to_string()).and_then(fileport::serve) {
+        Ok(()) => {}
+        Err(e) => say(&format!("{e}; the guest serves no file session")),
+    }
     if config.identity {
         relay::serve()?;
         if !files::synced(FIRST_SYNC) {
@@ -111,6 +119,20 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
         }
     }
     run::run(&config, &mut signals)
+}
+
+/// Makes `root` the root of the guest's mount namespace, as a container runtime does, and
+/// detaches the boot drive beneath it: every process from here on, the entry's and a file
+/// session's worker, is in that root and in no chroot, which the kernel would refuse a worker's
+/// user namespace in (§4.4 of docs/04-runtimes.md).
+fn enter(root: &str) -> nix::Result<()> {
+    use nix::mount::{MntFlags, MsFlags};
+    let private = MsFlags::MS_REC | MsFlags::MS_PRIVATE;
+    nix::mount::mount(None::<&str>, "/", None::<&str>, private, None::<&str>)?;
+    nix::unistd::chdir(root)?;
+    nix::unistd::pivot_root(".", ".")?;
+    nix::mount::umount2(".", MntFlags::MNT_DETACH)?;
+    nix::unistd::chdir("/")
 }
 
 /// Ends the guest: every other process, how the run ended on the drive, the volumes synced,

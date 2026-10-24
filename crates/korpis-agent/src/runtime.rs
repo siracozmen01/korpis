@@ -166,6 +166,21 @@ pub trait Runtime: Send + Sync + 'static {
         within: Duration,
     ) -> impl Future<Output = RuntimeResult<bool>> + Send;
 
+    /// Whether the driver of object `id` serves its file sessions inside it, its `file_access`
+    /// being `GUEST_WORKER` (§4.4 of docs/04-runtimes.md), rather than leaving them to the
+    /// helper's worker on the host.
+    fn serves_files(&self, id: &str) -> impl Future<Output = RuntimeResult<bool>> + Send;
+
+    /// A file session on running object `id`'s volumes, writing them if `write`, served inside
+    /// it: a stream carrying the session's frames as a host worker's socket does, four bytes of
+    /// little-endian length and a message each way. Capability-gated: see
+    /// [`Runtime::serves_files`].
+    fn files(
+        &self,
+        id: &str,
+        write: bool,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send;
+
     /// The runtime objects whose status changes, by identifier, as the driver reports them: a
     /// reason to look sooner, never a reading, which `inspect` is.
     fn changes(&self) -> broadcast::Receiver<String>;

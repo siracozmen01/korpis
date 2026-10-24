@@ -270,13 +270,15 @@ conversion through the guest (§4.4 of `04-runtimes.md`) is what would give it. 
 attached to one workload at a time, since two kernels mounting one filesystem corrupt it: the
 driver refuses a guest a block device another workload's guest holds, so sharing a volume between
 workloads, which a volume of files allows, is refused for a block device. Snapshots, backups, and
-whole-volume restores take the directory as they take any other, so they hold the image whole; file
-sessions and installs are refused on a block device, whose files only a worker in its guest may
-reach, until that worker is built. What it costs, beyond the table: a guest's disk usage as the
-class accounts it is the image's allocated blocks, which grow as the guest writes and do not shrink
-when it deletes. It is labelled as allocated wherever it is shown: the metering sample and record
-carry `disk_allocated`, and `korpis get usage` and the panel say "allocated" beside the figure (§2
-of `15-observability.md`).
+whole-volume restores take the directory as they take any other, so they hold the image whole. A
+file session on a running guest's block device is served by the worker inside the guest (§4.4 of
+`04-runtimes.md`; added 2026-10-24, when this said file sessions were refused on a block device
+until that worker was built); on a stopped guest's, and an install into one, they are refused until
+the service microVM is. What it costs, beyond the table: a guest's disk usage as the class accounts
+it is the image's allocated blocks, which grow as the guest writes and do not shrink when it
+deletes. It is labelled as allocated wherever it is shown: the metering sample and record carry
+`disk_allocated`, and `korpis get usage` and the panel say "allocated" beside the figure (§2 of
+`15-observability.md`).
 
 ---
 

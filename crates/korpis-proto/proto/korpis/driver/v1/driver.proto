@@ -58,6 +58,11 @@ service DriverService {
   // (§5 of docs/04-runtimes.md). Capability-gated: a driver that declares `guest_agent`. An
   // object that does not run is an error, not a guest that did not answer.
   rpc PingGuest(PingGuestRequest) returns (PingGuestResponse);
+  // A file session on a running object's volumes, served inside it by the file worker its guest
+  // carries (§4.4 of docs/04-runtimes.md). Capability-gated: a driver whose `file_access` is
+  // `GUEST_WORKER`. The first request opens it; each later one is a frame of the session, and each
+  // response a frame back, which the driver passes on unread.
+  rpc Files(stream FilesRequest) returns (stream FilesResponse);
 }
 
 message DescribeRequest {}
@@ -351,4 +356,26 @@ message PingGuestResponse {
   bool answered = 1;
   // Why it did not, for the node's log.
   string detail = 2;
+}
+
+// What a file session sends the driver: first the object and how it is opened, then the
+// session's frames, each a `FileRequest` as the client sent it.
+message FilesRequest {
+  oneof message {
+    FilesOpen open = 1;
+    bytes frame = 2;
+  }
+}
+
+// Which object's volumes a file session is on, and whether it may write them. A volume the
+// workload mounts read-only is read-only in any session.
+message FilesOpen {
+  string runtime_id = 1;
+  bool write = 2;
+}
+
+// A frame of a file session back from the worker: the `FileResponse` answering the request sent
+// in the same place in order.
+message FilesResponse {
+  bytes frame = 1;
 }

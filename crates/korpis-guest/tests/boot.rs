@@ -57,13 +57,13 @@ fn target() -> PathBuf {
 }
 
 /// `korpis-guest`, built static where this test was built.
-fn guest() -> PathBuf {
+fn musl(package: &str, bin: &str) -> PathBuf {
     let triple = "x86_64-unknown-linux-musl";
     ok(Command::new(env!("CARGO"))
-        .args(["build", "-q", "-p", "korpis-guest", "--bin", "korpis-guest", "--target", triple])
+        .args(["build", "-q", "-p", package, "--bin", bin, "--target", triple])
         .arg("--target-dir")
         .arg(target()));
-    target().join(triple).join("debug/korpis-guest")
+    target().join(triple).join("debug").join(bin)
 }
 
 /// The image drive a driver would build for an image of busybox and its applets: a layer
@@ -101,7 +101,9 @@ fn ext4(dir: &Path, image: &Path, size: u32, owner: &str) {
 fn drives(dir: &Path, script: &str) -> [PathBuf; 4] {
     let empty = dir.join("empty");
     std::fs::create_dir_all(&empty).unwrap();
-    let boot = korpis_image::boot::drive(&guest(), dir).unwrap();
+    let (guest, worker) =
+        (musl("korpis-guest", "korpis-guest"), musl("korpis-files", "korpis-fsworker"));
+    let boot = korpis_image::boot::drive(&guest, &worker, dir).unwrap();
     let paths = [boot, dir.join("image.ext4"), dir.join("config"), dir.join("data.ext4")];
     image_drive(dir, &paths[1]);
     ext4(&empty, &paths[3], 16, "1000:1000");

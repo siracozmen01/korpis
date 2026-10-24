@@ -220,6 +220,14 @@ impl<R: Runtime> Drivers<R> {
     async fn resize_on(&self, id: &str, from: Sender<'_>, size: (u16, u16)) -> RuntimeResult<()> {
         self.owner(id).await?.resize_console(id, from, size).await
     }
+
+    async fn serves_on(&self, id: &str) -> RuntimeResult<bool> {
+        self.owner(id).await?.serves_files(id).await
+    }
+
+    async fn files_on(&self, id: &str, write: bool) -> RuntimeResult<tokio::io::DuplexStream> {
+        self.owner(id).await?.files(id, write).await
+    }
 }
 
 impl<R: Runtime> Runtime for Drivers<R> {
@@ -322,6 +330,18 @@ impl<R: Runtime> Runtime for Drivers<R> {
         size: (u16, u16),
     ) -> impl Future<Output = RuntimeResult<()>> + Send {
         self.resize_on(id, from, size)
+    }
+
+    fn serves_files(&self, id: &str) -> impl Future<Output = RuntimeResult<bool>> + Send {
+        self.serves_on(id)
+    }
+
+    fn files(
+        &self,
+        id: &str,
+        write: bool,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
+        self.files_on(id, write)
     }
 
     fn changes(&self) -> broadcast::Receiver<String> {

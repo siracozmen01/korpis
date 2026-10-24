@@ -22,13 +22,13 @@ use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 const WRITE: &str = "workload.file.write";
 const MIB: usize = 1 << 20;
 
-fn have(program: &str) -> bool {
+pub fn have(program: &str) -> bool {
     std::process::Command::new(program).arg("-?").output().is_ok()
 }
 
 /// SFTP served by `cp`'s own relay role on a port of its own; the port, with the `known_hosts`
 /// line `ServerInfo` names written in `dir`.
-async fn serve_sftp(cp: &ControlPlane, dir: &Path) -> u16 {
+pub async fn serve_sftp(cp: &ControlPlane, dir: &Path) -> u16 {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let key = korpis_server::sftp::host_key::host_key(&dir.join("sftp_host_key")).unwrap();
@@ -69,7 +69,7 @@ async fn person(cp: &ControlPlane, action: &str) -> uuid::Uuid {
 
 /// A person granted `workload.file.write` on the root organization, holding the key made at
 /// `path`, which is written to the store as the profile registers one.
-async fn person_with_key(cp: &ControlPlane, path: &Path) {
+pub async fn person_with_key(cp: &ControlPlane, path: &Path) {
     let made = tokio::process::Command::new("ssh-keygen")
         .args(["-q", "-t", "ed25519", "-N", "", "-f"])
         .arg(path)
@@ -114,7 +114,7 @@ fn sftp(dir: &Path, (w, port): (&str, u16), key: &Path) -> tokio::process::Child
 }
 
 /// `batch` run by OpenSSH's client; whether it succeeded, and what it said.
-async fn run(dir: &Path, at: (&str, u16), key: &Path, batch: &str) -> (bool, String) {
+pub async fn run(dir: &Path, at: (&str, u16), key: &Path, batch: &str) -> (bool, String) {
     let mut child = sftp(dir, at, key);
     child.stdin.take().unwrap().write_all(batch.as_bytes()).await.unwrap();
     let out = child.wait_with_output().await.unwrap();

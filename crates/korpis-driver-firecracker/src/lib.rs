@@ -17,6 +17,7 @@ pub mod agent;
 pub mod api;
 pub mod console;
 pub mod describe;
+pub mod files;
 pub mod guest;
 pub mod jail;
 pub mod machine;

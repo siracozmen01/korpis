@@ -3155,6 +3155,7 @@ dependencies = [
  "korpis-core",
  "korpis-driver-kit",
  "korpis-driver-oci",
+ "korpis-files",
  "korpis-guest",
  "korpis-helper",
  "korpis-image",

@@ -3,8 +3,10 @@
 //! A workload's files over the data path: the handler of `workload.file.read` and
 //! `workload.file.write`, which implies it (§3.2 of docs/06-storage.md). The node names the
 //! workload's volumes from the assignment it holds, each at the path the workload mounts it at and
-//! read-only where the workload mounts it so, has the helper start a worker confined to them, and
-//! carries the session's frames to the worker's socket and back unchanged: every frame up is one
+//! read-only where the workload mounts it so, has the helper start a worker confined to them, or,
+//! where the workload's driver serves file sessions inside its object, as a microVM's does (§4.4 of
+//! docs/04-runtimes.md), opens the session through the driver, and carries the session's frames to
+//! the worker and back unchanged: every frame up is one
 //! `FileRequest`, every frame down the `FileResponse` answering it, in order. A client may send
 //! requests ahead of the answers; the node holds at most [`AHEAD`] unanswered.
 //!
@@ -15,10 +17,12 @@
 
 mod tally;
 
+use super::console_write::Runtimes;
 use super::handler::{Ended, Handler, Io, Opened, Serving};
 use crate::held::HeldSet;
 use crate::host::Host;
 use crate::journal::JournalHandle;
+use crate::runtime::Runtime;
 use buffa::Message as _;
 use korpis_core::principal::Principal;
 use korpis_files::frame::LIMIT;
@@ -27,8 +31,7 @@ use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeMap;
 use tally::{Pending, Tally};
-use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
-use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tokio::sync::{mpsc, watch};
 
 /// The action that reads.
@@ -39,23 +42,36 @@ pub const WRITE: &str = "workload.file.write";
 /// The most requests a client has sent that the worker has not answered.
 const AHEAD: usize = 16;
 
-/// Serves file sessions through the node's helper.
+/// A worker's end of a session, whichever serves it.
+trait Worker: AsyncRead + AsyncWrite + Send + Unpin {}
+
+impl<T: AsyncRead + AsyncWrite + Send + Unpin> Worker for T {}
+
+/// Serves file sessions through the node's helper, or the workload's driver.
 #[derive(Debug, Clone)]
-pub struct FileSessions<H> {
+pub struct FileSessions<H, R> {
     host: H,
+    runtime: R,
+    runtimes: Runtimes,
     held: watch::Receiver<HeldSet>,
     journal: JournalHandle,
 }
 
-impl<H: Host + Clone + Send + Sync + 'static> FileSessions<H> {
-    /// Opens sessions on the workloads `held` names through `host`, journaling each.
+impl<H: Host + Clone + Send + Sync + 'static, R: Runtime + Clone> FileSessions<H, R> {
+    /// Opens sessions on the workloads `held` names through `host`, or through `runtime` on the
+    /// object `runtimes` names where its driver serves them, journaling each.
     #[must_use]
-    pub const fn new(host: H, held: watch::Receiver<HeldSet>, journal: JournalHandle) -> Self {
-        Self { host, held, journal }
+    pub fn new(
+        (host, runtime): (H, R),
+        runtimes: Runtimes,
+        held: watch::Receiver<HeldSet>,
+        journal: JournalHandle,
+    ) -> Self {
+        Self { host, runtime, runtimes, held, journal }
     }
 }
 
-impl<H: Host + Clone + Send + Sync + 'static> Handler for FileSessions<H> {
+impl<H: Host + Clone + Send + Sync + 'static, R: Runtime + Clone> Handler for FileSessions<H, R> {
     fn serve(&self, opened: Opened, io: Io) -> Serving {
         Box::pin(serve(self.clone(), opened, io))
     }
@@ -101,7 +117,7 @@ fn request(held: &HeldSet, opened: &Opened) -> Result<(helper::OpenFilesRequest,
     Ok((r, a.uid_count))
 }
 
-impl<H: Host> FileSessions<H> {
+impl<H: Host, R: Runtime> FileSessions<H, R> {
     /// Journals the session's `event`, with `fields`, as `opened`'s subject's act.
     async fn record(
         &self,
@@ -143,7 +159,11 @@ impl<H: Host> FileSessions<H> {
     }
 }
 
-async fn serve<H: Host>(files: FileSessions<H>, opened: Opened, io: Io) -> Result<(), Ended> {
+async fn serve<H: Host, R: Runtime>(
+    files: FileSessions<H, R>,
+    opened: Opened,
+    io: Io,
+) -> Result<(), Ended> {
     let actor = Principal::from_key(&opened.subject)
         .map_err(|e| ended("refused", format!("the session's subject: {e}")))?;
     let (r, count) = request(&files.held.borrow(), &opened)?;
@@ -154,22 +174,38 @@ async fn serve<H: Host>(files: FileSessions<H>, opened: Opened, io: Io) -> Resul
     carried
 }
 
-/// Opens the worker for `r` and carries the session to it until either side ends.
-async fn carry<H: Host>(
-    files: &FileSessions<H>,
+/// The worker serving `r`: inside the workload's object where its driver serves file sessions
+/// there, and otherwise the helper's, on the host.
+async fn open<H: Host, R: Runtime>(
+    files: &FileSessions<H, R>,
     (r, count): (&helper::OpenFilesRequest, u32),
-    io: Io,
-    tally: &mut Tally,
-) -> Result<(), Ended> {
-    let unavailable = |e: crate::host::HostError| ended("unavailable", e.to_string());
-    files.host.ensure_ids(&r.workload, r.id_base, count).await.map_err(unavailable)?;
-    let socket = files.host.open_files(r).await.map_err(unavailable)?;
+) -> Result<Box<dyn Worker>, Ended> {
+    let unavailable = |e: &dyn std::fmt::Display| ended("unavailable", e.to_string());
+    let object = files.runtimes.borrow().get(&r.workload).cloned();
+    if let Some(id) = object
+        && files.runtime.serves_files(&id).await.map_err(|e| unavailable(&e))?
+    {
+        let stream = files.runtime.files(&id, r.write).await.map_err(|e| unavailable(&e))?;
+        return Ok(Box::new(stream));
+    }
+    files.host.ensure_ids(&r.workload, r.id_base, count).await.map_err(|e| unavailable(&e))?;
+    let socket = files.host.open_files(r).await.map_err(|e| unavailable(&e))?;
     let socket = std::os::unix::net::UnixStream::from(socket);
     let worker = socket
         .set_nonblocking(true)
         .and_then(|()| tokio::net::UnixStream::from_std(socket))
         .map_err(|e| ended("unavailable", format!("the worker's socket: {e}")))?;
-    let (from_worker, to_worker) = worker.into_split();
+    Ok(Box::new(worker))
+}
+
+/// Opens the worker for `r` and carries the session to it until either side ends.
+async fn carry<H: Host, R: Runtime>(
+    files: &FileSessions<H, R>,
+    (r, count): (&helper::OpenFilesRequest, u32),
+    io: Io,
+    tally: &mut Tally,
+) -> Result<(), Ended> {
+    let (from_worker, to_worker) = tokio::io::split(open(files, (r, count)).await?);
     let (ahead, answered) = mpsc::channel(AHEAD);
     let forward = forward(io.incoming, to_worker, ahead);
     let back = back(from_worker, io.outgoing, answered, tally);
@@ -190,7 +226,7 @@ async fn carry<H: Host>(
 /// is done, closes the worker's input, so it answers what it holds and ends.
 async fn forward(
     mut incoming: mpsc::Receiver<Vec<u8>>,
-    mut to: OwnedWriteHalf,
+    mut to: impl AsyncWrite + Unpin,
     ahead: mpsc::Sender<Pending>,
 ) -> Result<(), Ended> {
     let lost = |e: std::io::Error| ended("unavailable", format!("the worker: {e}"));
@@ -210,7 +246,7 @@ async fn forward(
 }
 
 /// The worker's next frame; none once it ended between two.
-async fn frame(from: &mut OwnedReadHalf) -> std::io::Result<Option<Vec<u8>>> {
+async fn frame(from: &mut (impl AsyncRead + Unpin)) -> std::io::Result<Option<Vec<u8>>> {
     let mut len = [0u8; 4];
     match from.read_exact(&mut len).await {
         Ok(_) => {}
@@ -231,7 +267,7 @@ async fn frame(from: &mut OwnedReadHalf) -> std::io::Result<Option<Vec<u8>>> {
 
 /// Sends each answer the worker gives to the client, counting what it changed.
 async fn back(
-    mut from: OwnedReadHalf,
+    mut from: impl AsyncRead + Unpin,
     outgoing: mpsc::Sender<Vec<u8>>,
     mut answered: mpsc::Receiver<Pending>,
     tally: &mut Tally,

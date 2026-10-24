@@ -31,6 +31,16 @@ pub fn spawning() -> bool {
     SPAWNING.load(Ordering::Acquire) > 0
 }
 
+/// Runs `start`, which starts a child, as one being started: the first process reaps nothing but
+/// the entry meanwhile, then reaps whatever ended.
+pub fn starting<T>(start: impl FnOnce() -> T) -> T {
+    SPAWNING.fetch_add(1, Ordering::AcqRel);
+    let started = start();
+    SPAWNING.fetch_sub(1, Ordering::AcqRel);
+    let _ = nix::sys::signal::kill(Pid::this(), Signal::SIGCHLD);
+    started
+}
+
 /// The commands running, by process id, each with its status once reaped.
 static RUNNING: Mutex<BTreeMap<i32, Option<u32>>> = Mutex::new(BTreeMap::new());
 /// The longest a command may run.

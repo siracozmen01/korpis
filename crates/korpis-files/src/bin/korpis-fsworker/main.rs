@@ -111,11 +111,12 @@ fn first() -> Result<(), String> {
     if status.success() { Ok(()) } else { Err(format!("the worker ended: {status}")) }
 }
 
-/// Starts the worker on the session, with `control` to this process as its standard output.
+/// Starts the worker on the session, with `control` to this process as its standard output. It
+/// is this binary, reached through `/proc/self/exe` rather than by its path: in a guest, the boot
+/// drive that holds it is outside the root this process runs in (§4.4 of docs/04-runtimes.md).
 fn spawn(control: UnixStream) -> Result<Child, String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let session = std::io::stdout().as_fd().try_clone_to_owned().map_err(|e| e.to_string())?;
-    Command::new(exe)
+    Command::new("/proc/self/exe")
         .arg(WORKER)
         .env_clear()
         .envs(std::env::var_os("RUST_LOG").map(|v| ("RUST_LOG", v)))

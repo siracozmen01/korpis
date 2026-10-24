@@ -72,7 +72,9 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         ],
         enforcement: enforcement().into_iter().collect(),
         volume_semantics: pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE.into(),
-        file_access: pb::FileAccess::FILE_ACCESS_NONE.into(),
+        // A running guest's file sessions are served inside it, by the worker its boot drive
+        // carries (§4.4 of docs/04-runtimes.md).
+        file_access: pb::FileAccess::FILE_ACCESS_GUEST_WORKER.into(),
         guest_agent: true,
         // A command runs inside a guest through its agent (§4.2 of docs/04-runtimes.md).
         exec: true,
@@ -105,6 +107,8 @@ mod tests {
         // Finding 144 kept this empty until a guest's agent could carry a signal's name.
         assert!(caps.signals.iter().any(|s| s == "SIGHUP"), "named signals, through the agent");
         assert!(caps.identity_dir, "a guest's /run/korpis, over vsock");
+        let guest = Some(pb::FileAccess::FILE_ACCESS_GUEST_WORKER);
+        assert_eq!(caps.file_access.as_known(), guest, "its files, inside it");
         assert!(!caps.enforcement["pids"].enforced && caps.enforcement["memory"].enforced);
         let modes: Vec<_> = caps.network_modes.iter().map(buffa::EnumValue::as_known).collect();
         assert_eq!(modes[0], Some(pb::NetworkMode::NETWORK_MODE_TAP), "a guest holds a tap");

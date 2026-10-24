@@ -122,6 +122,18 @@ impl<R: Runtime> Runtime for Metered<R> {
         self.inner.ping_guest(id, within)
     }
 
+    fn serves_files(&self, id: &str) -> impl Future<Output = RuntimeResult<bool>> + Send {
+        self.inner.serves_files(id)
+    }
+
+    fn files(
+        &self,
+        id: &str,
+        write: bool,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
+        self.inner.files(id, write)
+    }
+
     fn console_input(
         &self,
         id: &str,

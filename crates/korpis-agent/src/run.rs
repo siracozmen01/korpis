@@ -7,18 +7,13 @@
 //! journal still holds in memory before the process exits.
 
 use crate::advertise::Advertise;
-use crate::data::console::{self, ConsoleRead};
-use crate::data::console_write::{self, ConsoleWrite};
-use crate::data::files::{self, FileSessions};
 use crate::data::handler::Handlers;
-use crate::data::usage::{self, UsageRead};
 use crate::data::{DataLink, Judged};
 use crate::host::Host;
 use crate::identity::{ControlPlane, IdentitySockets};
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
 use crate::meter::Metering;
-use crate::meter::now::Readings;
 use crate::network::Pools;
 use crate::offload::Offloader;
 use crate::reconcile::streams::Streams;
@@ -29,15 +24,15 @@ use crate::state::{StateDir, StateError};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use tokio::sync::watch::Receiver;
 use tokio::task::JoinHandle;
 
+mod handlers;
 mod kept;
 
+use handlers::{consoles, file_sessions};
 use kept::Kept;
 
 /// Why the agent could not start.
@@ -267,22 +262,6 @@ fn meter<R: Runtime + Clone, H: Host + Clone>(
         .map_err(|source| RunError::Io { what: "the meter", source })
 }
 
-/// The data path's handlers, with the console's own: reading the streams the node holds, and
-/// writing to the runtime object each workload runs as; and what a workload uses now, from the
-/// meter's `readings`.
-fn consoles<R: Runtime + Clone>(
-    handlers: Handlers,
-    (streams, readings): (&Streams, Receiver<Readings>),
-    (runtime, runtimes): (&R, &tokio::sync::watch::Sender<BTreeMap<String, String>>),
-    journal: &JournalHandle,
-) -> Handlers {
-    let write = ConsoleWrite::new(runtime.clone(), runtimes.subscribe(), journal.clone());
-    handlers
-        .with(console::ACTION, Arc::new(ConsoleRead::new(streams.located(), journal.clone())))
-        .with(console_write::ACTION, Arc::new(write))
-        .with(usage::ACTION, Arc::new(UsageRead::new(readings)))
-}
-
 impl Agent {
     /// Starts the agent of the node that joined into `state`, driving `runtime` and `host`;
     /// called inside a Tokio runtime, whose tasks it spawns.
@@ -311,8 +290,8 @@ impl Agent {
         let (runtimes, _) = tokio::sync::watch::channel(std::collections::BTreeMap::new());
         let sessions = (&streams, sampler.watch());
         let handlers = consoles(options.handlers, sessions, (&runtime, &runtimes), &journal);
-        let files = Arc::new(FileSessions::new(host.clone(), link.held.clone(), journal.clone()));
-        let handlers = handlers.with(files::READ, files.clone()).with(files::WRITE, files);
+        let handlers =
+            file_sessions(handlers, (&host, &runtime), (&runtimes, &link.held), &journal);
         let data = data_link(data, &link, handlers);
         let leases = Leases::new(journal.clone());
         let keeper =

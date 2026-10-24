@@ -26,8 +26,8 @@ pub fn able() -> bool {
     kvm && ["bin/firecracker", "bin/jailer", "guest/vmlinux"].iter().all(|p| tools.join(p).exists())
 }
 
-/// `korpis-guest`, built static for the guest where this test was.
-fn guest() -> PathBuf {
+/// `package`'s `bin`, built static for the guest where this test was.
+fn musl(package: &str, bin: &str) -> PathBuf {
     const TRIPLE: &str = "x86_64-unknown-linux-musl";
     let exe = std::env::current_exe().unwrap();
     let profile_dir = exe.parent().and_then(Path::parent).unwrap();
@@ -35,13 +35,13 @@ fn guest() -> PathBuf {
     let name = profile_dir.file_name().unwrap().to_str().unwrap();
     let profile = if name == "debug" { "dev" } else { name };
     let made = Command::new(env!("CARGO"))
-        .args(["build", "-q", "-p", "korpis-guest", "--bin", "korpis-guest", "--target", TRIPLE])
+        .args(["build", "-q", "-p", package, "--bin", bin, "--target", TRIPLE])
         .args(["--profile", profile, "--target-dir"])
         .arg(target)
         .status()
         .unwrap();
-    assert!(made.success(), "korpis-guest did not build");
-    target.join(TRIPLE).join(name).join("korpis-guest")
+    assert!(made.success(), "{bin} did not build");
+    target.join(TRIPLE).join(name).join(bin)
 }
 
 /// The `firecracker` driver, serving in `dir` for the rest of the test as a node's would, reading
@@ -54,7 +54,8 @@ pub fn serve(dir: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) -> 
         firecracker: tools.join("bin/firecracker"),
         jailer: tools.join("bin/jailer"),
         kernel: tools.join("guest/vmlinux"),
-        guest: guest(),
+        guest: musl("korpis-guest", "korpis-guest"),
+        fsworker: musl("korpis-files", "korpis-fsworker"),
         image_build: built("korpis-image", "korpis-image-build"),
         writer: writer(),
         content: state.root().join("content"),

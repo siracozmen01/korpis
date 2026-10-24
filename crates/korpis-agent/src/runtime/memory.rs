@@ -15,6 +15,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+mod files;
 mod knobs;
 
 /// The driver name it declares.
@@ -47,6 +48,8 @@ struct State {
     exec_status: u32,
     /// Whether a guest's agent is silent.
     silent: bool,
+    /// The directory its objects' file sessions are served over inside them, if any.
+    guest_files: Option<std::path::PathBuf>,
 }
 
 /// The in-memory runtime; clones share it.
@@ -374,6 +377,18 @@ impl Runtime for InMemory {
         (cols, rows): (u16, u16),
     ) -> impl Future<Output = RuntimeResult<()>> + Send {
         ready(self.console_now("resize_console", id, &format!("{} {cols}x{rows}", from.by)))
+    }
+
+    fn serves_files(&self, id: &str) -> impl Future<Output = RuntimeResult<bool>> + Send {
+        ready(self.serves_now(id))
+    }
+
+    fn files(
+        &self,
+        id: &str,
+        write: bool,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
+        ready(self.files_now(id, write))
     }
 
     fn changes(&self) -> broadcast::Receiver<String> {

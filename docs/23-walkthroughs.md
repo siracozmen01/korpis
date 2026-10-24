@@ -4929,6 +4929,15 @@ the backup of §5, which takes the directory as it takes any other. Asking step 
 question also found §2 of `15-observability.md` naming `statfs` where the helper reads the quota
 accounting, corrected there.
 
+> Revisited 2026-10-24: step 7's worker now runs in the guest. The driver opens a session through
+> its `Files` stream on the guest's files port, and the guest runs the file worker its boot drive
+> carries (§4.4 of `04-runtimes.md`); `crates/korpis-driver-firecracker/tests/files.rs` lists a
+> running guest's volumes and nothing of its image, writes a file its workload reads, and is
+> refused a read-only volume, a path beyond the volumes, and a write in a session opened to read.
+> The node now opens a session through the driver for a workload whose driver declares a guest
+> worker, so step 7 is served while the guest runs (`crates/korpis-agent/tests/agent/files.rs`);
+> on a stopped guest it stays refused, and step 8's conversion with it, until the service microVM.
+
 ---
 
 ## 58. A microVM serves its players, and asks its resolver

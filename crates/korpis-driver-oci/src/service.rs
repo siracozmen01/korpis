@@ -292,6 +292,17 @@ impl driver::DriverService for Driver {
         ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, why)))
     }
 
+    /// Refused: a container's files are served on the host by the helper's worker; the driver
+    /// declares `file_access` `HOST_WORKER`, not `GUEST_WORKER`.
+    fn files(
+        &self,
+        _ctx: RequestContext,
+        _requests: connectrpc::InboundStream<driver::FilesRequest>,
+    ) -> impl Future<Output = ServiceResult<ServiceStream<driver::FilesResponse>>> + Send {
+        let why = "a container's files are served on its host; this driver has no guest worker";
+        ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, why)))
+    }
+
     async fn signal(
         &self,
         _ctx: RequestContext,

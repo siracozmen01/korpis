@@ -290,7 +290,9 @@ driver's through the guest's agent, and the `guest_agent` probe through a microV
 to its guest. A microVM's `/run/korpis` reaches its guest over that channel: its identity socket
 and API relay served there by its first process (trace 65 there), and its managed files and its
 dependencies' files sent as copies as they change, so a heartbeat probe runs on either tier
-(Finding 154 there, closed).
+(Finding 154 there, closed). A running microVM's file sessions, the panel's file manager and SFTP,
+are served inside its guest by the file worker its boot drive carries (§4.4 of `04-runtimes.md`);
+a stopped one's wait for the service microVM, which follows in this phase.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

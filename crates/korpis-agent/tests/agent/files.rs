@@ -4,7 +4,9 @@
 //! wires it, with the in-memory host serving the worker's verbs: the session asks for the
 //! workload's volumes as its assignment declares them, its frames are carried both ways in order
 //! with several requests sent ahead, what it changed is journaled at its end, and the control plane
-//! records its opening and its end as the act of the session's subject under that subject's grant.
+//! records its opening and its end as the act of the session's subject under that subject's grant;
+//! and where the workload's driver serves its files inside its object, as a microVM's does, the
+//! session goes through the driver and the helper is never asked.
 
 use crate::data::{data, end_code, frame, open, opened};
 use crate::session::until;
@@ -145,5 +147,54 @@ async fn a_file_session_reaches_the_workload_s_volumes_and_is_recorded_as_its_ho
     assert!(matches!(refused.response, Some(Response::Error(_))), "{refused:?}");
     r.send(data(b"not a FileRequest at all, not even close")).await.unwrap();
     assert_eq!(end_code(frame(&mut r).await), "invalid");
+    agent.stop().await;
+}
+
+#[tokio::test]
+async fn a_session_whose_workload_s_driver_serves_files_inside_it_goes_through_the_driver() {
+    let cp = ControlPlane::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (token, ca) = cp.token("fra-13").await;
+    let state = StateDir::new(dir.path().join("agent"));
+    let request =
+        Join { server: cp.url.clone(), token, ca_fingerprint: ca, hostname: String::new() };
+    join(&state, &request).await.unwrap();
+    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
+    host.serve_files_from(&dir.path().join("files"));
+    // As a microVM's driver: the object's own worker serves its volume.
+    let inside = dir.path().join("guest");
+    std::fs::create_dir_all(inside.join("data")).unwrap();
+    runtime.guest_files(Some(inside.clone()));
+    let options = Options { period: Duration::from_millis(200), ..Options::default() };
+    let agent = Agent::start(&state, runtime.clone(), host.clone(), Arc::new(facts), options);
+    let agent = agent.unwrap();
+    until(&mut agent.events(), |e| matches!(e, Event::Welcomed { .. })).await;
+    let volume = pb::VolumeSpec { name: "data".into(), path: "/data".into(), ..Default::default() };
+    let w = cp.declare_with(&cp.project().await, "guest", vec![volume]).await;
+    let id = loop {
+        let running = runtime.objects().into_iter().find(|(_, (o, run))| o == &w && *run);
+        if let Some((id, _)) = running {
+            break id;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    };
+    // The reconciler names the object once it has started it.
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let (_, secret) = cp.grant_to_new_token("editor", &[WRITE]).await;
+    let mut s = session(&cp, &secret, &w, WRITE).await;
+    let write = pb::FileWrite {
+        path: "/data/hello.txt".into(),
+        data: b"merhaba".to_vec(),
+        create: true,
+        ..Default::default()
+    };
+    s.send(ask(1, File::Write(Box::new(write)))).await.unwrap();
+    assert_eq!(answer(&mut s).await.response, Some(Response::Written(7)));
+    s.close_send();
+    drop(s);
+    assert_eq!(std::fs::read(inside.join("data/hello.txt")).unwrap(), b"merhaba");
+    assert!(runtime.calls().contains(&format!("files {id}")), "through the driver");
+    assert!(host.opened_files().is_empty(), "the helper is never asked for a worker");
     agent.stop().await;
 }

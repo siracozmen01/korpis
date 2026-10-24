@@ -76,8 +76,8 @@ pub struct InstallArgs {
     /// The node agent's state directory.
     #[arg(long, default_value = "/var/lib/korpis-agent")]
     agent_state: PathBuf,
-    /// The directory holding what the microvm tier runs: `firecracker`, `jailer`, `vmlinux`, and
-    /// `korpis-guest` (`scripts/microvm-files.sh` puts them there). Where they are all there and
+    /// The directory holding what the microvm tier runs: `firecracker`, `jailer`, `vmlinux`,
+    /// `korpis-guest`, and `korpis-fsworker` (`scripts/microvm-files.sh` puts them there). Where they are all there and
     /// the machine has KVM, the node runs the `firecracker` driver beside the `oci` driver.
     #[arg(long, default_value = "/usr/lib/korpis")]
     microvm_dir: PathBuf,
@@ -191,7 +191,7 @@ fn layout(args: &InstallArgs, bin: PathBuf, uid: u32) -> Layout {
 fn microvm_tier(dir: &Path) -> Result<PathBuf, String> {
     let kvm = std::fs::OpenOptions::new().read(true).write(true).open("/dev/kvm");
     kvm.map_err(|e| format!("/dev/kvm does not open: {e}"))?;
-    for file in ["firecracker", "jailer", "vmlinux", "korpis-guest"] {
+    for file in ["firecracker", "jailer", "vmlinux", "korpis-guest", "korpis-fsworker"] {
         if !dir.join(file).is_file() {
             return Err(format!("{} is missing", dir.join(file).display()));
         }
@@ -350,6 +350,8 @@ mod tests {
         }
         assert!(microvm_tier(dir.path()).is_err(), "korpis-guest is missing");
         std::fs::write(dir.path().join("korpis-guest"), "").unwrap();
+        assert!(microvm_tier(dir.path()).is_err(), "korpis-fsworker is missing");
+        std::fs::write(dir.path().join("korpis-fsworker"), "").unwrap();
         assert_eq!(microvm_tier(dir.path()).is_ok(), kvm, "every file, and KVM");
     }
 }

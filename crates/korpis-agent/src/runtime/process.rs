@@ -136,6 +136,7 @@ impl DriverRuntime {
     }
 }
 
+mod files;
 mod verbs;
 
 impl Runtime for DriverRuntime {
@@ -233,6 +234,18 @@ impl Runtime for DriverRuntime {
         size: (u16, u16),
     ) -> impl Future<Output = RuntimeResult<()>> + Send {
         self.resize_call(id, from, size)
+    }
+
+    fn serves_files(&self, _id: &str) -> impl Future<Output = RuntimeResult<bool>> + Send {
+        self.serves_files_call()
+    }
+
+    fn files(
+        &self,
+        id: &str,
+        write: bool,
+    ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send {
+        self.files_call(id, write)
     }
 
     fn changes(&self) -> broadcast::Receiver<String> {
