@@ -10,10 +10,11 @@ use crate::machine::{Machine, MachineError};
 use crate::prepare::prepare;
 use connectrpc::{ConnectError, ErrorCode, RequestContext, Response, ServiceRequest};
 use connectrpc::{ServiceResult, ServiceStream};
+use korpis_driver_kit::exec::{Command, Ran, response};
 use korpis_proto::korpis::driver::v1 as driver;
 use std::future::{Future, ready};
 use std::time::Duration;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 
 /// The grace a stop gets when the request names none.
 pub const DEFAULT_GRACE: Duration = Duration::from_secs(10);
@@ -70,6 +71,24 @@ async fn next_event(
             Err(broadcast::error::RecvError::Closed) => return None,
         }
     }
+}
+
+/// What a command's run sends while it runs, then how it ended; or, if it could not be run, why.
+fn exec_stream(
+    ran: mpsc::Receiver<Ran>,
+    running: tokio::task::JoinHandle<Result<(), MachineError>>,
+) -> impl futures_util::Stream<Item = Result<driver::ExecResponse, ConnectError>> + Send + 'static {
+    futures_util::stream::unfold(Some((ran, running)), |state| async move {
+        let (mut ran, running) = state?;
+        if let Some(r) = ran.recv().await {
+            return Some((Ok(response(r)), Some((ran, running))));
+        }
+        match running.await {
+            Ok(Ok(())) => None,
+            Ok(Err(e)) => Some((Err(status(e)), None)),
+            Err(e) => Some((Err(ConnectError::new(ErrorCode::Internal, e.to_string())), None)),
+        }
+    })
 }
 
 fn grace_of(d: Option<&buffa_types::google::protobuf::Duration>) -> Duration {
@@ -245,14 +264,21 @@ impl driver::DriverService for Driver {
         Response::ok(answer)
     }
 
-    /// Refused: nothing runs a command in a guest until its agent is reached over vsock, and the
-    /// driver declares no `exec` meanwhile (§5 of docs/04-runtimes.md).
     fn exec(
         &self,
         _ctx: RequestContext,
-        _request: ServiceRequest<'_, driver::ExecRequest>,
+        request: ServiceRequest<'_, driver::ExecRequest>,
     ) -> impl Future<Output = ServiceResult<ServiceStream<driver::ExecResponse>>> + Send {
-        let why = "this driver runs no command inside a guest; it declares no exec";
-        ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, why)))
+        let r = request.to_owned_message();
+        let timeout = r.timeout.as_option().map_or(Duration::ZERO, |d| grace_of(Some(d)));
+        let checked = Command::checked(r.command, timeout, r.output_limit)
+            .map_err(|why| ConnectError::new(ErrorCode::FailedPrecondition, why));
+        let machine = self.machine.clone();
+        ready(checked.and_then(|c| {
+            let (tx, rx) = mpsc::channel(16);
+            let id = r.runtime_id;
+            let running = tokio::spawn(async move { machine.exec(&id, c, tx).await });
+            Response::stream_ok(exec_stream(rx, running))
+        }))
     }
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Stopping, signalling, killing, and asking a guest (§6 of docs/04-runtimes.md). A signal named
+//! Stopping, signalling, killing, and asking a guest (§6 of docs/04-runtimes.md): whether its
+//! agent answers, a terminal's size, and a command to run. A signal named
 //! reaches the entry through the guest's agent on the control port, and a stop the agent does not
 //! take reaches it as Ctrl+Alt+Del, which the guest's first process turns into `SIGTERM` for the
 //! entry's group; a kill is Ctrl+Alt+Del sent until the guest has ended, then its Firecracker
@@ -9,8 +10,10 @@
 use super::{AGAIN, KILL_BOUND, Machine, MachineError, MachineResult, failed};
 use crate::object::Object;
 use crate::{agent, api, console, jail, process};
+use korpis_driver_kit::exec::{Command, Ran};
 use korpis_guest::control::{self, Resized, Signalled};
 use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
 
 /// How long a guest's agent is given to take a signal.
 const ASK: Duration = Duration::from_secs(5);
@@ -138,5 +141,18 @@ impl Machine {
             }
             Err(e) => Err(MachineError::Failed(format!("the guest's agent did not take it: {e}"))),
         }
+    }
+
+    /// Runs `c` inside object `id`'s guest through its agent, as its entry runs, sending what it
+    /// writes and how it ended on `out` (§4.2 of docs/04-runtimes.md). A guest that does not run
+    /// is refused, and one still booting is waited for, within a bound.
+    pub async fn exec(&self, id: &str, c: Command, out: mpsc::Sender<Ran>) -> MachineResult<()> {
+        if !self.load(id)?.vm.as_ref().is_some_and(process::alive) {
+            return Err(MachineError::Refused(format!("{id} does not run")));
+        }
+        self.until_started(id).await?;
+        agent::exec(&jail::vsock_socket(&self.settings, id), &c, &out)
+            .await
+            .map_err(|e| MachineError::Failed(format!("the guest's agent did not run it: {e}")))
     }
 }

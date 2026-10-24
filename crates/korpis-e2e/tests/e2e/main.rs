@@ -27,6 +27,7 @@ mod ingress;
 mod ingress_features;
 mod install;
 mod microvm;
+mod microvm_exec;
 mod network;
 mod nightly;
 mod node;

@@ -17,6 +17,7 @@
 //! has no safe form.
 
 mod control;
+mod exec;
 mod grow;
 mod mounts;
 mod net;
@@ -81,7 +82,7 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     let mut signals = signals()?;
     let config = Config::read(drive).map_err(failed("reading the config drive"))?;
     // Listening before the run says it has started, so a driver told it has can ask the agent.
-    if let Err(e) = control::serve(std::time::Instant::now(), config.interactive) {
+    if let Err(e) = control::serve(std::time::Instant::now(), std::sync::Arc::new(config.clone())) {
         say(&format!("{e}; the guest's agent will not answer"));
     }
     // The serial port was opened for this process before it ran, and what is typed on it from

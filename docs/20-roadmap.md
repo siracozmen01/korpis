@@ -285,11 +285,11 @@ node, which one an edge serves does not use (§3 of `07-networking.md`). Applica
 homed here 2026-10-23, when it was found that no phase named it while four documents described it
 (Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are built, the `query` probe
 through its protocol's health provider (§5 of `16-extensions.md`), the `heartbeat` probe through
-the workload's identity socket, the `exec` probe through the `oci` driver's `Exec`, and the
-`guest_agent` probe through a microVM's vsock channel to its guest; an `exec` probe in a microVM,
-through the same channel, follows in this phase. So does a microVM's `/run/korpis`, its identity
-socket, relay, and files, carried into its guest over that channel (Finding 154 there), without
-which a microVM holds no credential and reads no managed file.
+the workload's identity socket, the `exec` probe through either driver's `Exec`, the `firecracker`
+driver's through the guest's agent, and the `guest_agent` probe through a microVM's vsock channel
+to its guest. A microVM's `/run/korpis`, its identity socket, relay, and files, carried into its
+guest over that channel (Finding 154 there), follows in this phase; without it a microVM holds no
+credential and reads no managed file.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

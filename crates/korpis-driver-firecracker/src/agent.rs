@@ -9,12 +9,18 @@
 //! before it is read and given a deadline, since the guest is the tenant's.
 
 use crate::api::socket_at;
-use korpis_guest::control::{self, HEADER, Kind, Pong, Resized, Signalled};
+use korpis_driver_kit::exec::{Command, Ran};
+use korpis_guest::control::{self, Exited, HEADER, Kind, Pong, Resized, Signalled};
 use std::io;
 use std::path::Path;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::UnixStream;
+use tokio::sync::mpsc;
+
+/// How long past a command's own timeout its connection is given: the guest kills it at its
+/// timeout and drains a while after.
+const EXEC_MARGIN: Duration = Duration::from_secs(15);
 
 /// The longest line Firecracker answers a `CONNECT` with.
 const LONGEST_ANSWER: usize = 32;
@@ -119,6 +125,59 @@ pub async fn resize(
         io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not answer")
     })??;
     Resized::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))
+}
+
+/// Asks the agent of the guest whose vsock device's socket is at `socket` to run `c` as its entry
+/// runs, sending what it writes, at most its limit, and then how it ended on `out`. The guest
+/// bounds the output too; what it sends past the limit is read and dropped here as well.
+///
+/// # Errors
+/// It did not end in time, its guest refused the connection, or it answered otherwise than this
+/// driver's protocol says.
+pub async fn exec(socket: &Path, c: &Command, out: &mpsc::Sender<Ran>) -> io::Result<()> {
+    let ran = tokio::time::timeout(c.timeout() + EXEC_MARGIN, run(socket, c, out)).await;
+    ran.map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not end it"))?
+}
+
+async fn run(socket: &Path, c: &Command, out: &mpsc::Sender<Ran>) -> io::Result<()> {
+    let asked = control::Exec {
+        argv: c.argv().to_vec(),
+        timeout_ms: u64::try_from(c.timeout().as_millis()).unwrap_or(u64::MAX),
+        output_limit: u32::try_from(c.output_limit()).unwrap_or(0),
+    };
+    let payload = serde_json::to_vec(&asked).map_err(io::Error::other)?;
+    let mut stream = connect(socket).await?;
+    stream.write_all(&control::frame(Kind::Exec, &payload)?).await?;
+    let (mut left, mut dropped) = (c.output_limit(), false);
+    loop {
+        let mut head = [0_u8; HEADER];
+        stream.read_exact(&mut head).await?;
+        let (kind, length) = control::header(head)?;
+        let mut payload = vec![0; length];
+        stream.read_exact(&mut payload).await?;
+        match kind {
+            Kind::Output => {
+                let sent = payload.get(..length.min(left)).unwrap_or_default();
+                dropped |= sent.len() < length;
+                left -= sent.len();
+                if !sent.is_empty() {
+                    let _ = out.send(Ran::Output(sent.to_vec())).await;
+                }
+            }
+            Kind::Exited => {
+                let e =
+                    Exited::decode(&payload).ok_or_else(|| io::Error::other("a malformed end"))?;
+                let exit = Ran::Exit {
+                    status: e.status,
+                    timed_out: e.timed_out,
+                    truncated: e.truncated || dropped,
+                };
+                let _ = out.send(exit).await;
+                return Ok(());
+            }
+            _ => return Err(io::Error::other("the guest's agent answered out of turn")),
+        }
+    }
 }
 
 #[cfg(test)]

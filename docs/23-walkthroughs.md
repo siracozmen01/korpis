@@ -5268,7 +5268,7 @@ inside the container; one night the server stops accepting connections with its 
 | 5 | The server stops accepting: `pg_isready` exits non-zero for its failures in a row, and the database is unhealthy and restarted, recorded with the probe's kind | `04-runtimes.md` §5 |
 | 6 | Another night the command hangs: the driver kills it at its timeout, and the attempt fails | `04-runtimes.md` §4.2, §5 |
 | 7 | The node's driver is restarting as an attempt is made: the agent cannot reach it, the attempt judges nothing, and the database is not restarted for it | `04-runtimes.md` §5 |
-| 8 | The customer asks for the database on the `microvm` tier, and placement refuses it, the `firecracker` driver declaring no `exec` | `05-scheduling.md` §2.1; `04-runtimes.md` §5 |
+| 8 | The customer asks for the database on the `microvm` tier, and placement refuses it, the `firecracker` driver declaring no `exec` (since 2026-10-24 it declares it, and the command runs through the guest's agent) | `05-scheduling.md` §2.1; `04-runtimes.md` §4.2, §5 |
 
 **No finding.** Each step's question had an answer with an owner: the driver runs the command
 because only it reaches the object's namespaces, and the agent judges the status because it holds

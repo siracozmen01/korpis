@@ -16,6 +16,7 @@
 )]
 
 use korpis_driver_firecracker::machine::{Machine, MachineError, START_LOG};
+use korpis_driver_kit::exec::{Command as ExecCommand, Ran};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::process::Command;
@@ -95,6 +96,22 @@ async fn a_guest_runs_as_its_user_within_its_memory_and_its_exit_status_is_inspe
     assert!(!s.object(&id).exists() && !s.jail(&id).exists() && !cgroup.exists());
 }
 
+/// What `argv` run in `id`'s guest wrote, and how it ended.
+async fn ran(machine: &Machine, id: &str, argv: &[&str]) -> (String, Ran) {
+    let argv = argv.iter().map(|a| (*a).to_owned()).collect();
+    let command = ExecCommand::checked(argv, Duration::from_secs(10), 1024).unwrap();
+    let (tx, mut rx) = tokio::sync::mpsc::channel(64);
+    machine.exec(id, command, tx).await.unwrap();
+    let (mut said, mut end) = (Vec::new(), None);
+    while let Some(r) = rx.recv().await {
+        match r {
+            Ran::Output(data) => said.extend(data),
+            exit @ Ran::Exit { .. } => end = Some(exit),
+        }
+    }
+    (String::from_utf8(said).unwrap(), end.expect("how it ended"))
+}
+
 #[tokio::test]
 async fn a_stop_and_a_signal_named_reach_the_entry_and_a_kill_ends_one_that_ignores_a_stop() {
     if !live() {
@@ -115,6 +132,11 @@ async fn a_stop_and_a_signal_named_reach_the_entry_and_a_kill_ends_one_that_igno
     tokio::time::sleep(Duration::from_secs(3)).await;
     let answered = rig.machine.ping_guest(&a, Duration::from_secs(5)).await.unwrap();
     assert_eq!(answered, Ok(()), "the guest's agent answers on its control port");
+    let (said, end) = ran(&rig.machine, &a, &["/bin/sh", "-c", "id -u; exit 2"]).await;
+    assert_eq!(
+        (said.as_str(), end),
+        ("1000\n", Ran::Exit { status: 2, timed_out: false, truncated: false })
+    );
     rig.machine.stop(&a, "", Duration::from_secs(30)).await.unwrap();
     tokio::time::sleep(Duration::from_millis(500)).await;
     // As an agent restarted in the middle of a stop asks again: still its stop, not its kill.

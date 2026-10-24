@@ -289,10 +289,14 @@ ended it, and whether it was killed for outliving its timeout, at most ten minut
 dropped. What is written past the limit is read and dropped, so a command never blocks on a full
 pipe and the driver holds no more of it than the limit. The `oci` driver runs it through
 containerd's task exec, from a FIFO in its own state directory that it opens before the process
-starts. The command is not validated against the intent, which the driver does not see at that
-point: a supervisor that asks for another command could run it in any workload it runs, which is no
-more than it can already do with the objects it creates. The interface has no input to a command
-yet; an interactive `workload.exec` (§3.3 of `08-identity.md`) is not built.
+starts. The `firecracker` driver asks the guest's agent on its control port (§6), which runs it as
+the entry runs, its user, environment, and working directory in the workload's root, and sends its
+output in frames the driver passes on without reading, bounded on both sides of the channel, then
+its end in six bytes of fixed layout (2026-10-24). The command is not validated against the intent,
+which the driver does not see at that point: a supervisor that asks for another command could run
+it in any workload it runs, which is no more than it can already do with the objects it creates.
+The interface has no input to a command yet; an interactive `workload.exec` (§3.3 of
+`08-identity.md`) is not built.
 
 Three of these carry more weight than the rest.
 
@@ -604,13 +608,14 @@ does not stop: the workload is root of its own guest where its image's user is 0
 the agent, or answer in its place, which can only misreport its own health.
 
 What it does not do yet. A node whose driver does not declare `exec` refuses a workload with an
-`exec` probe at placement (the `probe` check of §2.1 of `05-scheduling.md`), and the `firecracker`
-driver declares none until its guest's agent runs commands, later in Phase 3; that is said rather
-than a probe nobody runs. Where a node gives its workloads no network, it runs no probe from a
-socket, and where it serves no identity sockets, no heartbeat. What it costs: one connection a
-period for each probe of each running workload, and a call to the helper for each socket; and a
-workload whose liveness probe fails a minute after each start is restarted every minute and never
-backs off further, as one that crashes a minute after each start is.
+`exec` probe at placement (the `probe` check of §2.1 of `05-scheduling.md`); that is said rather
+than a probe nobody runs. Both drivers declare it: the `firecracker` driver since 2026-10-24, when
+its guest's agent was given commands to run, and refused such a workload until then. Where a node
+gives its workloads no network, it runs no probe from a socket, and where it serves no identity
+sockets, no heartbeat. What it costs: one connection a period for each probe of each running
+workload, and a call to the helper for each socket; and a workload whose liveness probe fails a
+minute after each start is restarted every minute and never backs off further, as one that crashes
+a minute after each start is.
 
 ---
 
@@ -727,13 +732,17 @@ socket, never through a link, and asks. What a guest's agent answers is read as 
 is: a frame's kind and length, bounded before anything else is read, then numbers of fixed layout,
 so the root driver parses nothing the guest could shape (`korpis_guest::control`). A guest whose
 kernel has no vsock boots all the same and says so on its console, and its `guest_agent` probe
-fails. Nor does the guest have `/run/korpis` yet: its identity socket, the API relay, its managed
-files, and its dependencies' files are served on the host for it and reach nothing inside the
-guest, so the driver declares no `identity_dir` (§4.1) and a heartbeat probe keeps a workload off
-it (Finding 154 of `23-walkthroughs.md`). A recipe whose configuration is delivered as files, or
-whose dependencies are, is not refused on a microVM, because placement does not read the recipe and
-the driver cannot tell which files the node will render: such a workload starts without them, and
-is said here to. The vsock channel of Phase 3 carries the directory in (§4 of `20-roadmap.md`).
+fails. A command the agent runs (`Exec`, §4.2) is the guest's first process's child, which reaps
+every child: so the command's status is kept for the thread that ran it, and while a command is
+being started only the entry is reaped, since the standard library waits itself for a child whose
+exec failed and must find it there. Nor does the guest have `/run/korpis` yet: its identity socket,
+the API relay, its managed files, and its dependencies' files are served on the host for it and
+reach nothing inside the guest, so the driver declares no `identity_dir` (§4.1) and a heartbeat
+probe keeps a workload off it (Finding 154 of `23-walkthroughs.md`). A recipe whose configuration
+is delivered as files, or whose dependencies are, is not refused on a microVM, because placement
+does not read the recipe and the driver cannot tell which files the node will render: such a
+workload starts without them, and is said here to. The vsock channel of Phase 3 carries the
+directory in (§4 of `20-roadmap.md`).
 
 **How a `microvm`'s image drive is made** (2026-10-23). With no containerd to unpack for it, the
 driver has the image's layers applied by `korpis-image-build`, and the layers are a publisher's

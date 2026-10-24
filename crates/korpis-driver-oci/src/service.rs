@@ -4,7 +4,6 @@
 //! of §4.2 of docs/04-runtimes.md mapped onto [`Containerd`], every spec validated again at
 //! `Create` whatever `Prepare` said, and every failure given the code the agent branches on.
 
-use crate::containerd::exec::{Command, Ran};
 use crate::containerd::{Containerd, Sender, signal_number};
 use crate::describe::info;
 use crate::error::DriverError;
@@ -12,6 +11,7 @@ use crate::prepare::prepare;
 use crate::validate::{Policy, validate};
 use connectrpc::{ConnectError, ErrorCode, RequestContext, Response, ServiceRequest};
 use connectrpc::{ServiceResult, ServiceStream};
+use korpis_driver_kit::exec::{Command, Ran, response};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::future::{Future, ready};
@@ -79,19 +79,6 @@ fn duration_of(d: Option<(i64, i32)>) -> Duration {
     })
 }
 
-/// One event of a command's run, as the protocol sends it.
-fn exec_response(ran: Ran) -> driver::ExecResponse {
-    use driver::__buffa::oneof::exec_response::Event;
-    let event = match ran {
-        Ran::Output(data) => Event::Output(data),
-        Ran::Exit { status, timed_out, truncated } => {
-            let exit = driver::ExecExit { status, timed_out, truncated, ..Default::default() };
-            Event::Exit(Box::new(exit))
-        }
-    };
-    driver::ExecResponse { event: Some(event), ..Default::default() }
-}
-
 /// What a command's run sends while it runs, then how it ended; or, if it could not be run, why.
 fn exec_stream(
     ran: mpsc::Receiver<Ran>,
@@ -100,7 +87,7 @@ fn exec_stream(
     futures_util::stream::unfold(Some((ran, running)), |state| async move {
         let (mut ran, running) = state?;
         if let Some(r) = ran.recv().await {
-            return Some((Ok(exec_response(r)), Some((ran, running))));
+            return Some((Ok(response(r)), Some((ran, running))));
         }
         match running.await {
             Ok(Ok(())) => None,
@@ -285,7 +272,8 @@ impl driver::DriverService for Driver {
     ) -> impl Future<Output = ServiceResult<ServiceStream<driver::ExecResponse>>> + Send {
         let argv = request.command.iter().map(|a| (*a).to_owned()).collect();
         let timeout = duration_of(request.timeout.as_option().map(|d| (d.seconds, d.nanos)));
-        let checked = Command::checked(argv, timeout, request.output_limit);
+        let checked =
+            Command::checked(argv, timeout, request.output_limit).map_err(DriverError::Rejected);
         let (id, containerd) = (request.runtime_id.to_owned(), self.containerd.clone());
         ready(checked.map_err(status).and_then(|c| {
             let (tx, rx) = mpsc::channel(16);

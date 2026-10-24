@@ -90,26 +90,40 @@ export function FileManager(props: { readonly id: string; readonly writes: boole
   useEffect(() => {
     shown.current = listing;
   }, [listing]);
+  // The directory last asked for, until it is shown: one asked for while no session is open, or
+  // whose listing lost the session, is shown once another opens rather than dropped, and a
+  // listing that arrives after another directory was asked for is not shown over it.
+  const asked = useRef<string>(undefined);
   const show = useCallback(
     (s: FileSession, path: string, after = "") => {
-      read(s, path, after).then((page) => {
-        setListing((l) => ({
-          path,
-          entries: after === "" ? page.entries : [...l.entries, ...page.entries],
-          next: page.next,
-        }));
-      }, failed);
+      read(s, path, after).then(
+        (page) => {
+          if (asked.current !== undefined && asked.current !== path) return;
+          asked.current = undefined;
+          setListing((l) => ({
+            path,
+            entries: after === "" ? page.entries : [...l.entries, ...page.entries],
+            next: page.next,
+          }));
+        },
+        (e: unknown) => {
+          // Refused, it is not asked again; lost, it is, once another session opens.
+          if (!(e instanceof Ended) && asked.current === path) asked.current = undefined;
+          failed(e);
+        },
+      );
     },
     [failed],
   );
   const go = (path: string) => {
-    if (fs === undefined) return;
+    asked.current = path;
     setError(undefined);
-    show(fs, path);
+    if (fs !== undefined) show(fs, path);
   };
-  // The listing is read again whenever a session opens, at the directory last shown.
+  // The listing is read again whenever a session opens, at the directory asked for or else the
+  // one last shown.
   useEffect(() => {
-    if (fs !== undefined) show(fs, shown.current.path);
+    if (fs !== undefined) show(fs, asked.current ?? shown.current.path);
   }, [fs, show]);
   const fetchFile = (e: FileEntry) => {
     if (fs === undefined) return;

@@ -37,6 +37,13 @@ pub enum Kind {
     Resize,
     /// The agent answers a resize: one byte, a [`Resized`].
     Resized,
+    /// The host asks the agent to run a command as the entry runs: an [`Exec`], as JSON, which
+    /// the guest reads and the host writes.
+    Exec,
+    /// What the command wrote, stdout and stderr together: bytes the host passes on.
+    Output,
+    /// How the command ended, after its output: an [`Exited`], fixed layout.
+    Exited,
 }
 
 impl Kind {
@@ -45,9 +52,12 @@ impl Kind {
             Self::Ping => 1,
             Self::Signal => 2,
             Self::Resize => 3,
+            Self::Exec => 4,
             Self::Pong => 0x81,
             Self::Signalled => 0x82,
             Self::Resized => 0x83,
+            Self::Output => 0x84,
+            Self::Exited => 0x85,
         }
     }
 
@@ -56,9 +66,12 @@ impl Kind {
             1 => Some(Self::Ping),
             2 => Some(Self::Signal),
             3 => Some(Self::Resize),
+            4 => Some(Self::Exec),
             0x81 => Some(Self::Pong),
             0x82 => Some(Self::Signalled),
             0x83 => Some(Self::Resized),
+            0x84 => Some(Self::Output),
+            0x85 => Some(Self::Exited),
             _ => None,
         }
     }
@@ -210,6 +223,58 @@ impl Resized {
     }
 }
 
+/// A command the host asks the agent to run inside the guest, as the entry runs: its user, its
+/// environment, its working directory, in the workload's root (§4.2 of docs/04-runtimes.md).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Exec {
+    /// The command and its arguments.
+    pub argv: Vec<String>,
+    /// How long it may run before it is killed, in milliseconds.
+    pub timeout_ms: u64,
+    /// The most of its output sent.
+    pub output_limit: u32,
+}
+
+/// How a command the agent ran ended: six bytes, its status and two flags.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Exited {
+    /// Its exit status; 128 and the signal's number for one a signal ended; 127 for one that
+    /// could not be started, whose output says why.
+    pub status: u32,
+    /// Killed for outliving its timeout.
+    pub timed_out: bool,
+    /// Output past its limit was dropped.
+    pub truncated: bool,
+}
+
+impl Exited {
+    /// Its payload.
+    #[must_use]
+    pub fn encode(self) -> [u8; 6] {
+        let mut out = [0; 6];
+        let (status, flags) = out.split_at_mut(4);
+        status.copy_from_slice(&self.status.to_le_bytes());
+        flags.copy_from_slice(&[u8::from(self.timed_out), u8::from(self.truncated)]);
+        out
+    }
+
+    /// The ending `payload` holds, if it is six bytes whose flags are flags.
+    #[must_use]
+    pub fn decode(payload: &[u8]) -> Option<Self> {
+        let [s0, s1, s2, s3, timed_out, truncated] = <[u8; 6]>::try_from(payload).ok()?;
+        let flag = |b: u8| match b {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        };
+        Some(Self {
+            status: u32::from_le_bytes([s0, s1, s2, s3]),
+            timed_out: flag(timed_out)?,
+            truncated: flag(truncated)?,
+        })
+    }
+}
+
 /// The agent's answer to a ping: the protocol it speaks, and how long its guest has been up.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pong {
@@ -269,5 +334,8 @@ mod tests {
         assert_eq!(Resized::decode(&Resized::NoTerminal.encode()), Some(Resized::NoTerminal));
         assert_eq!(size_of(&size(132, 43)), Some((132, 43)));
         assert_eq!(size_of(&[1, 0, 2]), None, "four bytes or nothing");
+        let exited = Exited { status: 137, timed_out: true, truncated: false };
+        assert_eq!(Exited::decode(&exited.encode()), Some(exited));
+        assert_eq!(Exited::decode(&[0, 0, 0, 0, 2, 0]), None, "a flag is a flag");
     }
 }

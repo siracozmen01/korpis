@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { create, fromBinary, toBinary, type MessageInitShape } from "@bufbuild/protobuf";
-import { createClient, createRouterTransport } from "@connectrpc/connect";
+import { Code, ConnectError, createClient, createRouterTransport } from "@connectrpc/connect";
 import { fireEvent, render, screen, waitFor, within as inside } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { clientsOver, ReachProvider } from "../clients";
@@ -81,7 +81,10 @@ function answer(files: Map<string, Node>, r: FileRequest): Answer {
   }
 }
 
-function setup(writes: boolean, files: Map<string, Node>) {
+/** The file manager over `files`, writing if `writes`; the first request `lose` matches is lost
+ * on its way to the relay, as on a network that drops it. */
+function setup(writes: boolean, files: Map<string, Node>, lose?: (r: FileRequest) => boolean) {
+  let lost = false;
   const seen: { requests: FileRequest[]; minted: string[] } = { requests: [], minted: [] };
   const answers: Uint8Array[] = [];
   let wake: (() => void) | undefined;
@@ -110,6 +113,10 @@ function setup(writes: boolean, files: Map<string, Node>) {
         for (const f of r.frames) {
           if (f.frame.case !== "data") continue;
           const request = fromBinary(FileRequestSchema, f.frame.value);
+          if (!lost && lose?.(request) === true) {
+            lost = true;
+            throw new ConnectError("the network dropped it", Code.Unavailable);
+          }
           seen.requests.push(request);
           const response = create(FileResponseSchema, {
             id: request.id,
@@ -169,6 +176,25 @@ test("a directory is listed, entered, and a file in it downloaded as it streams"
   expect(screen.queryByText("Upload files")).toBeNull();
   expect(screen.queryByRole("button", { name: "Remove eula.txt" })).toBeNull();
 });
+
+test("a directory opened as its session is lost is shown once another opens", async () => {
+  const files = new Map<string, Node>([
+    ["/data", "dir"],
+    ["/data/eula.txt", bytesOf("eula=true")],
+  ]);
+  setup(false, files, (r) => r.request.case === "list" && r.request.value.path === "/data");
+  fireEvent.click(await screen.findByRole("button", { name: "Open data" }));
+  // The session that lost the request is closed, and the next opens after its pause.
+  const entered = await screen.findByRole(
+    "button",
+    { name: "Download eula.txt" },
+    {
+      timeout: 8_000,
+    },
+  );
+  expect(entered).toBeDefined();
+  expect(screen.getByRole("navigation", { name: "Path" }).textContent).toContain("data");
+}, 10_000);
 
 test("an upload onto a smaller file of its name resumes from what is there", async () => {
   const files = new Map<string, Node>([["/world.zip", bytesOf("012")]]);

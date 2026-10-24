@@ -13,5 +13,6 @@
 pub mod console;
 pub mod counters;
 pub mod entry;
+pub mod exec;
 pub mod prepare;
 pub mod serve;

@@ -38,6 +38,10 @@ function world(): Buffer {
 async function uploadResumed(page: Page): Promise<void> {
   const files = page.getByRole("region", { name: "Files" });
   await files.getByRole("button", { name: "Open data" }).click();
+  // Uploaded where the listing is: not before it is the volume's, or the upload is refused as
+  // outside the workload's volumes.
+  const path = files.getByRole("navigation", { name: "Path" });
+  await expect(path.getByRole("button", { name: "data" })).toBeVisible();
   const file = { name: "world.bin", mimeType: "application/octet-stream", buffer: world() };
   // The stat and two chunks reach the relay; every request after them is lost, as on a train
   // going into a tunnel, its retries included.

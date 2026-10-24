@@ -17,7 +17,7 @@
 )]
 
 use korpis_guest::config::{Config, Volume};
-use korpis_guest::control::{self, Kind, Pong, Resized, Signalled};
+use korpis_guest::control::{self, Exec, Exited, Kind, Pong, Resized, Signalled};
 use korpis_guest::status::Ended;
 use korpis_image::build::Request;
 use korpis_image::source::Packing;
@@ -250,9 +250,9 @@ fn a_second_stop_ends_an_entry_that_ignores_the_first() {
     assert_eq!(ended, Some(Ended::Signalled(9)), "{out}");
 }
 
-/// One frame sent to the guest's agent through its vsock device's socket at `vsock`, as the
-/// driver sends it; the answer.
-fn ask(vsock: &Path, kind: Kind, payload: &[u8]) -> std::io::Result<(Kind, Vec<u8>)> {
+/// A connection to the guest's agent through its vsock device's socket at `vsock`, as the driver
+/// makes one.
+fn connect(vsock: &Path) -> std::io::Result<std::os::unix::net::UnixStream> {
     let mut s = std::os::unix::net::UnixStream::connect(vsock)?;
     s.set_read_timeout(Some(Duration::from_secs(10)))?;
     s.write_all(format!("CONNECT {}\n", control::PORT).as_bytes())?;
@@ -265,8 +265,32 @@ fn ask(vsock: &Path, kind: Kind, payload: &[u8]) -> std::io::Result<(Kind, Vec<u
     if !line.starts_with(b"OK ") {
         return Err(std::io::Error::other("not accepted"));
     }
+    Ok(s)
+}
+
+/// One frame sent to the guest's agent; its answer.
+fn ask(vsock: &Path, kind: Kind, payload: &[u8]) -> std::io::Result<(Kind, Vec<u8>)> {
+    let mut s = connect(vsock)?;
     control::write(&mut s, kind, payload)?;
     control::read(&mut s)
+}
+
+/// Runs `argv` in the guest through its agent for at most `timeout_ms`: what it wrote, and how it
+/// ended.
+fn exec(vsock: &Path, argv: &[&str], timeout_ms: u64) -> (Vec<u8>, Exited) {
+    let argv = argv.iter().map(|a| (*a).to_owned()).collect();
+    let asked = serde_json::to_vec(&Exec { argv, timeout_ms, output_limit: 1024 }).unwrap();
+    let mut s = connect(vsock).unwrap();
+    s.set_read_timeout(Some(Duration::from_secs(30))).unwrap();
+    control::write(&mut s, Kind::Exec, &asked).unwrap();
+    let mut output = Vec::new();
+    loop {
+        match control::read(&mut s).unwrap() {
+            (Kind::Output, bytes) => output.extend_from_slice(&bytes),
+            (Kind::Exited, end) => return (output, Exited::decode(&end).unwrap()),
+            other => panic!("out of turn: {other:?}"),
+        }
+    }
 }
 
 #[test]
@@ -288,6 +312,13 @@ fn the_agent_answers_on_its_control_port_and_sends_the_entry_a_signal_named() {
     };
     assert_eq!(pong.version, control::VERSION);
     std::thread::sleep(Duration::from_secs(1));
+    let (said, end) = exec(&vsock, &["/bin/sh", "-c", "id -u; echo oops >&2; exit 3"], 5000);
+    assert_eq!(String::from_utf8_lossy(&said), "1000\noops\n", "as the entry's user");
+    assert_eq!((end.status, end.timed_out), (3, false));
+    let (_, end) = exec(&vsock, &["sleep", "30"], 1000);
+    assert_eq!((end.status, end.timed_out), (137, true), "killed for its timeout");
+    let (said, end) = exec(&vsock, &["/nonexistent"], 1000);
+    assert_eq!(end.status, 127, "not started: {}", String::from_utf8_lossy(&said));
     let (_, resized) = ask(&vsock, Kind::Resize, &control::size(80, 24)).unwrap();
     assert_eq!(Resized::decode(&resized), Some(Resized::NoTerminal), "a console of logs");
     let (_, unknown) = ask(&vsock, Kind::Signal, b"SIGSEGV").unwrap();

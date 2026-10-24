@@ -4,11 +4,12 @@
 //! of docs/04-runtimes.md): a thread that accepts, and one for each connection, at most eight at
 //! once, each answering frames until the host closes it or is silent for half a minute. A ping is
 //! answered with the protocol's version and how long the agent has run; a signal named is sent to
-//! the entry's process group, if it is one the driver declares; and a resize sets an interactive
-//! entry's terminal to the size asked. A guest whose kernel has no vsock, or whose device is
+//! the entry's process group, if it is one the driver declares; a resize sets an interactive
+//! entry's terminal to the size asked; and a command is run as the entry runs (`exec`). A guest whose kernel has no vsock, or whose device is
 //! missing, boots all the same, and says so: its `guest_agent` probe then fails, which is what
 //! such a guest is.
 
+use korpis_guest::config::Config;
 use korpis_guest::control::{self, Kind, Pong, Resized, Signalled};
 use rustix::net::{AddressFamily, SocketType};
 use std::os::fd::{AsRawFd as _, OwnedFd};
@@ -28,20 +29,20 @@ const ANY_CID: u32 = u32::MAX;
 ///
 /// # Errors
 /// The port cannot be listened on: no vsock in the guest's kernel, or no device.
-pub fn serve(started: Instant, interactive: bool) -> Result<(), String> {
+pub fn serve(started: Instant, config: Arc<Config>) -> Result<(), String> {
     let listener = rustix::net::socket(AddressFamily::VSOCK, SocketType::STREAM, None)
         .map_err(|e| format!("a vsock socket: {e}"))?;
     let at = nix::sys::socket::VsockAddr::new(ANY_CID, control::PORT);
     nix::sys::socket::bind(listener.as_raw_fd(), &at)
         .map_err(|e| format!("the control port: {e}"))?;
     rustix::net::listen(&listener, 16).map_err(|e| format!("the control port: {e}"))?;
-    std::thread::spawn(move || accepting(&listener, started, interactive));
+    std::thread::spawn(move || accepting(&listener, started, &config));
     Ok(())
 }
 
-/// Accepts connections on `listener` for as long as the guest runs; `interactive` is whether the
-/// entry has the console as its terminal.
-fn accepting(listener: &OwnedFd, started: Instant, interactive: bool) {
+/// Accepts connections on `listener` for as long as the guest runs; `config` is what the guest
+/// runs, whose entry a command is run as.
+fn accepting(listener: &OwnedFd, started: Instant, config: &Arc<Config>) {
     let open = Arc::new(AtomicUsize::new(0));
     loop {
         while open.load(Ordering::Acquire) >= MOST_CONNECTIONS {
@@ -49,9 +50,9 @@ fn accepting(listener: &OwnedFd, started: Instant, interactive: bool) {
         }
         let Ok(connection) = rustix::net::accept(listener) else { continue };
         open.fetch_add(1, Ordering::AcqRel);
-        let open = Arc::clone(&open);
+        let (open, config) = (Arc::clone(&open), Arc::clone(config));
         std::thread::spawn(move || {
-            answer(connection, started, interactive);
+            answer(connection, started, &config);
             open.fetch_sub(1, Ordering::AcqRel);
         });
     }
@@ -91,7 +92,7 @@ fn resize(payload: &[u8], interactive: bool) -> Resized {
 
 /// Answers the frames on `connection` until it ends, is silent too long, or sends what this
 /// agent does not take.
-fn answer(connection: OwnedFd, started: Instant, interactive: bool) {
+fn answer(connection: OwnedFd, started: Instant, config: &Config) {
     use rustix::net::sockopt::{Timeout, set_socket_timeout};
     if set_socket_timeout(&connection, Timeout::Recv, Some(IDLE)).is_err() {
         return;
@@ -109,10 +110,11 @@ fn answer(connection: OwnedFd, started: Instant, interactive: bool) {
                 control::write(&mut stream, Kind::Signalled, &outcome.encode())
             }
             Kind::Resize => {
-                let outcome = resize(&payload, interactive);
+                let outcome = resize(&payload, config.interactive);
                 control::write(&mut stream, Kind::Resized, &outcome.encode())
             }
-            Kind::Pong | Kind::Signalled | Kind::Resized => return,
+            Kind::Exec => crate::exec::exec(&mut stream, &payload, config),
+            Kind::Pong | Kind::Signalled | Kind::Resized | Kind::Output | Kind::Exited => return,
         };
         if answered.is_err() {
             return;
