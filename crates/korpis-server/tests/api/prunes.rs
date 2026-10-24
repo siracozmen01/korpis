@@ -100,6 +100,7 @@ async fn backed_up(
         parent: parent.map(bare),
         content: Content::default(),
         concurrency: 4,
+        image_filesystem: String::new(),
     };
     backup(&repo, &bare(&id), options).await.unwrap();
     send(&mut w.s, vec![ended(w.next, &w.workload, &bare(&id), true)]).await;

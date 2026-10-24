@@ -102,6 +102,7 @@ pub(super) struct BackupRow {
     pub(super) created_at: Time,
     pub(super) finished_at: Option<Time>,
     pub(super) deleted_at: Option<Time>,
+    pub(super) image_filesystem: Option<String>,
 }
 
 pub(super) fn unsigned(v: i64) -> u64 {
@@ -139,6 +140,7 @@ impl BackupRow {
             created: to_time(self.created_at),
             finished: self.finished_at.map(to_time),
             deleted_at: self.deleted_at.map(to_time),
+            image_filesystem: self.image_filesystem,
         })
     }
 }

@@ -166,6 +166,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         b.status = if r.ok { BackupStatus::Succeeded } else { BackupStatus::Failed };
         (b.consistent, b.stats, b.error) = (r.consistent, r.stats.clone(), r.error.clone());
+        b.image_filesystem.clone_from(&r.image_filesystem);
         b.finished = Some(self.clock.now());
         if !tx.finish_backup(&b).await? {
             return Ok(rejected("the backup had already ended", action));

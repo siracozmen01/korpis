@@ -40,6 +40,7 @@ fn options(source: &Path, parent: Option<&str>) -> Options {
         parent: parent.map(str::to_owned),
         content: Content::default(),
         concurrency: 4,
+        image_filesystem: String::new(),
     }
 }
 
@@ -69,6 +70,7 @@ async fn a_volume_comes_back_as_it_was_and_a_second_backup_stores_what_changed()
     let store = MemoryStore::default();
     let r = repo(&store);
     let first = backup(&r, "b1", options(src.path(), None)).await.unwrap();
+    assert_eq!(first.image_filesystem, "", "a volume of files holds no image");
     let stats = first.stats.as_option().unwrap();
     assert_eq!(stats.files_unchanged, 0);
     assert!(stats.skipped.is_empty(), "{:?}", stats.skipped);
@@ -112,6 +114,21 @@ async fn a_volume_comes_back_as_it_was_and_a_second_backup_stores_what_changed()
     std::fs::write(dst.path().join("world/region/r.0.0.mca"), b"griefed").unwrap();
     let e = verify(&r, "b1", "", dst.path().to_owned()).await.unwrap_err();
     assert!(matches!(e, Error::Mismatch(_)), "{e}");
+}
+
+#[tokio::test]
+async fn a_block_device_s_backup_says_what_its_image_holds() {
+    let src = scratch();
+    std::fs::write(src.path().join("block.ext4"), vec![0u8; 1 << 16]).unwrap();
+    let store = MemoryStore::default();
+    let r = repo(&store);
+    let image = Options { image_filesystem: "ext4".into(), ..options(src.path(), None) };
+    assert_eq!(backup(&r, "b1", image).await.unwrap().image_filesystem, "ext4");
+    assert_eq!(
+        r.backup("b1").await.unwrap().image_filesystem,
+        "ext4",
+        "as the repository keeps it"
+    );
 }
 
 #[tokio::test]

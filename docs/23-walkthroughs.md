@@ -1403,6 +1403,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 155 | A guest's relay would have been a second door to a workload's identity, outside the identity root | §65 | `04-runtimes.md` §6; `17-security.md` §5 |
 | 156 | A workload whose stop could not be delivered was never killed | §62 | `02-architecture.md` §6 |
 | 157 | A command run as a microVM said it had started ran in its boot drive's root | §66 | `04-runtimes.md` §4.4 |
+| 158 | A restore into a block device put its files beside the image | §57 | `06-storage.md` §5.4 |
+| 159 | A replacing restore of a block device left a volume of files | §57 | `06-storage.md` §5.4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4943,6 +4945,66 @@ accounting, corrected there.
 >
 > Revisited again the same day: on a stopped guest, step 7 is served by a service microVM holding
 > its volume (trace 66); step 8's conversion still waits for an install through that guest.
+
+> Revisited a third time the same day, asking step 9's question in reverse: when the customer
+> restores last week's world from that backup, what decides where its bytes land, and with what
+> information? Finding 158.
+
+**FINDING 158: A restore into a block device put its files beside the image. `CONFIRMED`, by
+reading the helper against step 9**
+
+Found 2026-10-24. §5.4 of `06-storage.md` restores a backup, or a path in it, into a new directory
+at a volume's root, and the helper made that directory in the volume's own directory, as for a
+volume of files. A block device's directory holds its image and nothing the guest sees: a directory
+made beside the image is invisible to the workload, a path of a block device's backup names nothing
+but the image, and a whole restore into the volume itself, which only a declaration's `from_backup`
+asks for, rewrites the image under whatever guest holds it. Nothing failed, so a customer told
+their world was restored would find the old one.
+
+**Resolution.** The helper refuses a path and a new directory on a block device, saying why and
+naming what serves it, and the control plane refuses a restore into a new directory of a workload
+on a tier whose volumes are block devices before it plans one; a whole backup into the volume a
+declaration has just made, and a replacing restore, staged and exchanged while the workload is
+stopped, are what they were (§5.4 of `06-storage.md`); the second was not right as it was, which
+Finding 159 below corrects. A path restored inside the guest, and
+browsing a block device's backup at all, are built through a service guest in this phase (§4 of
+`20-roadmap.md`). `crates/korpis-helper/tests/block.rs` refuses each of the three on a block device
+and allows the whole image; the control plane's refusal is not tested on its own, since no test
+control plane holds a workload on the `microvm` tier with a backup. What it costs: until the
+service guest's restore is built, a block device's single file comes back only by cloning the whole
+backup into a new workload and copying the file across with the file manager.
+
+> Revisited a fourth time the same day: step 9's backup now says what it holds. Its record in the
+> repository and the control plane's carry the filesystem its image holds, `ext4`, which the
+> helper gives the backup job from what it formatted, and the `firecracker` driver declares the
+> filesystems its guests mount, the list a backup's image is browsed from (§5.4 of
+> `06-storage.md`, §4.1 of `04-runtimes.md`). `crates/korpis-backup/tests/roundtrip` keeps the
+> statement in the repository's record.
+
+> Revisited a fifth time the same day, asking what the replacing restore Finding 158 left
+> standing hands the guest once it is committed: Finding 159.
+
+**FINDING 159: A replacing restore of a block device left a volume of files. `CONFIRMED`, by a
+test that failed**
+
+Found 2026-10-24, while the staging place a backup's image is browsed from was being designed. A
+replacing restore is made in a staging place beside the volume and exchanged with it (§5.4 of
+`06-storage.md`), and the helper made the staging place a plain directory. A block device's
+directory says what it is in an attribute (§3.1 of `06-storage.md`), so after the exchange the
+volume's name held the restored image in a directory that said nothing. The node's next mount of
+it asks the helper for a block device, and the helper refuses to take a volume of files for one,
+so the restored workload no longer started; and the helper's refusals that keep a block device's
+image from the host, Finding 158's and a file session's (§4.4 of `04-runtimes.md`), read the
+same attribute, so they no longer covered it. Finding 158's resolution said the replacing restore
+was right as it was; nothing had tried one on a block device.
+
+**Resolution.** The helper marks a staging place as a block device's when its volume is one, so
+the directory that takes the volume's name is one too. `crates/korpis-helper/tests/block.rs`
+stages a block device, finds the staging place marked, commits a restored image, and finds the
+volume still a block device, found as one when asked again. What it costs: nothing at run time.
+What it does not do: test a replacing restore of a microVM's volume end to end, whose absence is
+how this stood unseen; that test is added to this phase's single-file restore of a block device
+(§4 of `20-roadmap.md`).
 
 ---
 

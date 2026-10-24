@@ -15,6 +15,10 @@ use std::io;
 use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Path, PathBuf};
 
+/// The filesystem the helper formats an image with, and the only one a guest mounts a volume as:
+/// what a block device's backup says its image holds (§5.4 of docs/06-storage.md).
+pub const FILESYSTEM: &str = "ext4";
+
 /// The image, in its volume's directory.
 pub const IMAGE: &str = korpis_core::workload::volume::BLOCK_IMAGE;
 
@@ -41,6 +45,23 @@ pub fn files_of(volume: &str, dir: PathBuf) -> HelperResult<PathBuf> {
     Ok(dir)
 }
 
+/// That a restore that replaces nothing, of `path` of a backup into the directory `into` of the
+/// volume `volume` at `dir`, is one the helper can make: anything into a volume of files, and into
+/// a block device only the whole backup, its image, over the volume a declaration has just made
+/// (`from_backup`), since anything else would put files beside the image, where its guest never
+/// sees them (Finding 158 of docs/23-walkthroughs.md). A block device's live image is replaced
+/// staged and exchanged while its guest is stopped, as any replacing restore is.
+pub fn restorable(volume: &str, dir: &Path, (path, into): (&str, &str)) -> HelperResult<()> {
+    if is_block(dir) && !(path.is_empty() && into.is_empty()) {
+        let why = format!(
+            "volume {volume} is a block device: a path of a backup restores inside its guest, \
+             not beside its image; replace the volume, or clone the backup"
+        );
+        return Err(HelperError::Refused(why));
+    }
+    Ok(())
+}
+
 /// Whether the volume directory at `dir` holds a block device.
 #[must_use]
 pub fn is_block(dir: &Path) -> bool {
@@ -59,7 +80,7 @@ pub fn make(dir: &Path, size: u64) -> HelperResult<PathBuf> {
     let file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&image)?;
     file.set_len(size)?;
     let made = std::process::Command::new("mke2fs")
-        .args(["-q", "-F", "-t", "ext4", "-m", "0", "-E", "root_owner=0:0"])
+        .args(["-q", "-F", "-t", FILESYSTEM, "-m", "0", "-E", "root_owner=0:0"])
         .arg(&image)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
@@ -69,9 +90,14 @@ pub fn make(dir: &Path, size: u64) -> HelperResult<PathBuf> {
         return Err(HelperError::Failed(format!("formatting {}: {said}", image.display())));
     }
     file.sync_all()?;
-    rustix::fs::setxattr(dir, KIND, BLOCK, rustix::fs::XattrFlags::CREATE)
-        .map_err(io::Error::from)?;
+    mark(dir)?;
     Ok(image)
+}
+
+/// Says that the new directory `dir` holds a block device: a volume's, made, or a staging place
+/// beside one, which becomes the volume when a replacing restore is committed.
+pub fn mark(dir: &Path) -> io::Result<()> {
+    rustix::fs::setxattr(dir, KIND, BLOCK, rustix::fs::XattrFlags::CREATE).map_err(io::Error::from)
 }
 
 /// The image in the block-device volume at `dir`, grown to `size` if that is larger; a smaller

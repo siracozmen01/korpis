@@ -112,6 +112,10 @@ message Backup {
   BackupStats stats = 6;
   // The volume's root directory itself: its mode, owner, attributes, and times.
   Entry root_entry = 7;
+  // For a block device's backup, the filesystem its image holds: its files are browsed and
+  // read in a guest, never by the host or the control plane (§5.4 of docs/06-storage.md). Empty
+  // for a volume of files.
+  string image_filesystem = 8;
 }
 
 message BackupStats {
@@ -174,6 +178,10 @@ message BackupWork {
   bool consistent = 3;
   // Recipe content a file may be recorded by reference to.
   repeated RecipeContent content = 4;
+  // The filesystem the volume's one file, a block device's image, holds, which its guest's
+  // kernel formatted and only a guest's kernel reads (§3.1 and §5.4 of docs/06-storage.md);
+  // empty for a volume of files. Recorded in the backup as it is given.
+  string image_filesystem = 5;
 }
 
 message RecipeContent {

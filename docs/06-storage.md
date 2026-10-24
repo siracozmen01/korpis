@@ -704,6 +704,19 @@ that content fail its check and its restore refuse it, an availability loss and 
 byte. A copy that fails to be kept leaves the backup whole and restorable wherever the content is
 held, and the next backup tries again.
 
+**A block device is restored whole** (corrected 2026-10-24, Finding 158 of `23-walkthroughs.md`).
+The restores above that make a new directory at a volume's root, of a whole backup or a path in it,
+made it in the volume's own directory, which for a block device holds its image and nothing its
+guest sees, so what they restored was invisible to the workload. Into a block device, the helper
+now takes only a whole backup over the volume a declaration has just made (`from_backup`) or a
+replacing restore, staged and exchanged while the workload is stopped, its staging place marked a
+block device's as its volume is, so what takes the volume's name is one (Finding 159), and the
+control plane refuses a restore into a new directory of a workload on a tier whose volumes are
+block devices before it plans one. What it costs until a service guest restores a path inside the
+guest and browses such a backup (below, and §4 of `20-roadmap.md`): a single file of a block device
+comes back only by cloning the whole backup into a new workload and copying it across with the file
+manager.
+
 **Replacing a volume needs room for two copies of it.** Until the exchange, the node's filesystem
 holds the live volume and the staging place in full, and nothing reserves that room: a restore
 that runs out of it fails, and the volume is left as it was. A restore into a directory needs the
@@ -732,6 +745,18 @@ filesystem, and the host never does: the browse and the fetch run in a disposabl
 that attaches the restored image read-only, the same mechanism that gives such volumes file access
 when they are stopped (§4.4 of `04-runtimes.md`). A filesystem the service microVM cannot read
 offers whole-image restore only, stated when the backup is taken (finding S40).
+
+> As built, 2026-10-24, the statement. A backup of a block device says so in its own record in the
+> repository, and in the control plane's: `image_filesystem`, the filesystem its one file, the
+> image, holds, which the helper gives the backup job from what it formatted the volume as. That
+> is `ext4` for every block device Korpis has, by construction: the helper formats an image as
+> `ext4`, and `korpis-guest` mounts a volume as `ext4` alone, so a guest that reformatted its
+> volume as anything else would not start again, and no backup of it could hold another. A driver
+> declares the filesystems its guests mount (`guest_filesystems`, §4.1 of `04-runtimes.md`), the
+> list a backup's image is browsed from; a filesystem outside it, should a driver ever mount one,
+> is whole-image restore only. `korpis backup ls` lists such a backup as the one image it is, and
+> `korpis backup list` says it holds an `ext4` image rather than files. What it does not do yet:
+> browse inside the image, which a service guest does in this phase (§4 of `20-roadmap.md`).
 
 **Restores are verified.** A restore that completes without confirming the data is readable and the
 workload can start is not a restore, it is a hope. The verification is the same contract as

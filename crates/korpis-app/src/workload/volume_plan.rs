@@ -68,6 +68,7 @@ fn pending(
         created: now,
         finished: None,
         deleted_at: None,
+        image_filesystem: None,
     }
 }
 

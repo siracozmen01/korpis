@@ -173,6 +173,7 @@ async fn a_backup_is_browsed_and_read_through_the_control_plane_each_under_its_o
         parent: None,
         content: Content::default(),
         concurrency: 4,
+        image_filesystem: String::new(),
     };
     backup(&repo_of(&g), &bare(&id), options).await.unwrap();
     send(&mut s, vec![ended(next, &workload, &bare(&id), true)]).await;

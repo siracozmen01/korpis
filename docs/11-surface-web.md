@@ -846,3 +846,13 @@ by the control plane with the recipe they came in, so the panel needs no second 
    reason added by a newer control plane would show untranslated anyway; carrying the viewer's
    locale to the control plane would put catalogues in the server. Which, and whether a recipe's
    refusals join it, is decided before a second catalogue ships. → here
+7. **Backups in the panel.** The panel shows no backup: a workload's backups, browsing one and
+   reading a file out of it, and a restore are the CLI's alone (§5 of `13-surface-cli.md`),
+   though the API answers every one of them (§5.4 of `06-storage.md`). Found 2026-10-24, when a
+   block device's backup was made to say that it holds one image: the plan said the panel would
+   show that too, and there was no screen to show it on. A game host's customer restores a world
+   from the panel, not from a terminal, so the screen is wanted. What it is (a workload's
+   backups listed with what each holds and what it did not read, a browser over one, a restore
+   shown as the Plan it is) and what a confined customer sees of it are decided before Phase 4's
+   done-when, the phase in which Korpis is to be a credible game panel (§4 of `20-roadmap.md`).
+   → here

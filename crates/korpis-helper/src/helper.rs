@@ -8,7 +8,7 @@
 use crate::error::{HelperError, HelperResult};
 use crate::ids::Ledger;
 use crate::ingress::Ingress;
-use crate::job::{DataJob, JobConfig, Jobs, Placed, make_into};
+use crate::job::{JobConfig, Jobs};
 use crate::kept::Kept;
 use crate::network::Network;
 use crate::storage::Class;
@@ -18,6 +18,7 @@ use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::helper_request::Verb;
 use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
 
+mod placing;
 mod sessions;
 mod snapshots;
 
@@ -169,67 +170,6 @@ impl Helper {
 
     fn jobs(&mut self) -> HelperResult<&mut Jobs> {
         self.jobs.as_mut().ok_or_else(|| HelperError::Refused("this helper runs no jobs".into()))
-    }
-
-    /// What job `r` works in, from the identifiers it names.
-    fn place(&mut self, r: &helper::StartJobRequest) -> HelperResult<Placed> {
-        use korpis_proto::korpis::backup::v1 as pb;
-        use korpis_proto::korpis::backup::v1::__buffa::oneof::job_spec::Work as W;
-        use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work as R;
-        match &r.work {
-            Some(R::Backup(b)) => {
-                crate::error::identifier("job", &r.job)?;
-                let (directory, taken) = self
-                    .holding(&b.volume)?
-                    .backup_source((&b.volume, &b.snapshot), (&r.job, b.take_snapshot))?;
-                let kept = taken.map(|(volume, name)| Kept::Snapshot { volume, name });
-                let work = pb::BackupWork {
-                    backup: b.backup.clone(),
-                    parent: b.parent.clone(),
-                    consistent: !b.snapshot.is_empty() || b.take_snapshot,
-                    content: b.content.clone(),
-                    ..Default::default()
-                };
-                Ok(Placed::Data(DataJob { directory, work: W::Backup(Box::new(work)), kept }))
-            }
-            Some(R::Restore(w)) if w.replace => {
-                if !(w.path.is_empty() && w.into.is_empty()) {
-                    return Err(HelperError::Refused("a replacing restore is whole".into()));
-                }
-                let (directory, identity, limits) = self.holding(&w.volume)?.stage(&w.volume)?;
-                let kept = Kept::Staging { volume: w.volume.clone(), identity, limits };
-                let work = pb::RestoreWork { backup: w.backup.clone(), ..Default::default() };
-                Ok(Placed::Data(DataJob {
-                    directory,
-                    work: W::Restore(Box::new(work)),
-                    kept: Some(kept),
-                }))
-            }
-            Some(R::Restore(w)) => {
-                let volume = self.holding(&w.volume)?.path_of(&w.volume);
-                let directory =
-                    if w.into.is_empty() { volume } else { make_into(&volume, &w.into)? };
-                let work = pb::RestoreWork {
-                    backup: w.backup.clone(),
-                    path: w.path.clone(),
-                    ..Default::default()
-                };
-                Ok(Placed::Data(DataJob {
-                    directory,
-                    work: W::Restore(Box::new(work)),
-                    kept: None,
-                }))
-            }
-            Some(R::Install(w)) => {
-                crate::error::identifier("job", &r.job)?;
-                crate::job::install::check_ids(&self.ledger, &w.workload, w.id_base)?;
-                let spec = crate::job::install::place(w, |volume| {
-                    crate::block::files_of(volume, self.holding(volume)?.path_of(volume))
-                })?;
-                Ok(Placed::Install(Box::new(spec)))
-            }
-            None => Err(HelperError::Refused("a job names its work".into())),
-        }
     }
 
     /// The answer to a job verb.

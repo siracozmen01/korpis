@@ -305,7 +305,7 @@ impl BackupWrite for PgTx {
             "UPDATE backup SET status = $2, consistent = $3, files = $4, directories = $5,
                                bytes = $6, chunks_new = $7, bytes_new = $8, stored_bytes = $9,
                                files_unchanged = $10, skipped = $11, error = $12,
-                               finished_at = $13
+                               finished_at = $13, image_filesystem = $14
               WHERE id = $1 AND status = 'pending'",
             b.id,
             b.status.as_str(),
@@ -319,7 +319,8 @@ impl BackupWrite for PgTx {
             signed(s.files_unchanged),
             &s.skipped,
             b.error,
-            b.finished.map(from_time)
+            b.finished.map(from_time),
+            b.image_filesystem
         )
         .execute(&mut *self.tx)
         .await

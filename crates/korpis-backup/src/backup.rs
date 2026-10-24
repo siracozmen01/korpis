@@ -34,6 +34,8 @@ pub struct Options {
     pub content: Content,
     /// How many objects are sealed and written at once.
     pub concurrency: usize,
+    /// The filesystem a block device's image holds, recorded as given; empty for files.
+    pub image_filesystem: String,
 }
 
 fn timestamp(t: SystemTime) -> buffa_types::google::protobuf::Timestamp {
@@ -94,6 +96,7 @@ pub async fn backup<S: ObjectStore + 'static>(
         consistent,
         stats: stats.into(),
         root_entry: entry.into(),
+        image_filesystem: options.image_filesystem.clone(),
         ..Default::default()
     };
     repo.put_backup(&record).await?;

@@ -267,6 +267,7 @@ async fn a_tenant_s_key_is_sealed_to_whoever_uses_it_and_revoking_it_ends_every_
         parent: None,
         content: Content::default(),
         concurrency: 4,
+        image_filesystem: String::new(),
     };
     backup(&repo_of(&g, &key), &bare(&id), options).await.unwrap();
     send(&mut s, vec![ended(next, &workload, &bare(&id), true)]).await;

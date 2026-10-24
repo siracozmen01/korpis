@@ -122,6 +122,7 @@ pub fn backup_to_pb(b: &Backup) -> pb::Backup {
         created: timestamp(b.created).into(),
         finished: b.finished.map(timestamp).into(),
         deleted_at: b.deleted_at.map(timestamp).into(),
+        image_filesystem: b.image_filesystem.clone().unwrap_or_default(),
         ..Default::default()
     }
 }
@@ -152,5 +153,6 @@ pub fn reported_backup_from_pb(field: &str, e: &agent::BackupEvent) -> Result<Re
         error: (!result.error.is_empty()).then(|| result.error.clone()),
         consistent: record.is_some_and(|b| b.consistent),
         stats: stats.unwrap_or_default(),
+        image_filesystem: record.map(|b| b.image_filesystem.clone()).filter(|f| !f.is_empty()),
     })
 }

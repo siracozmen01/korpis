@@ -76,6 +76,8 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         // carries (§4.4 of docs/04-runtimes.md).
         file_access: pb::FileAccess::FILE_ACCESS_GUEST_WORKER.into(),
         guest_agent: true,
+        // korpis-guest mounts a volume as ext4 alone, which the helper formats it as.
+        guest_filesystems: vec!["ext4".into()],
         // A command runs inside a guest through its agent (§4.2 of docs/04-runtimes.md).
         exec: true,
         // A guest's /run/korpis: its identity socket and API relay relayed over vsock, and its

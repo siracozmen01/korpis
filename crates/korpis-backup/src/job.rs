@@ -178,6 +178,7 @@ pub async fn run(spec: &pb::JobSpec) -> Result<pb::JobResult, Error> {
                 parent,
                 content,
                 concurrency,
+                image_filesystem: b.image_filesystem.clone(),
             };
             result.backup = backup(&r, &b.backup, options).await?.into();
             if let Some(kept) = kept(spec)? {

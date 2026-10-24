@@ -5,7 +5,9 @@
 //! for a person. Either is a plan of the workload holding the volume. Putting a workload's backup
 //! back into that workload is `backup.restore` there; putting it into another workload's volume
 //! hands its contents to that workload's holders, so it takes `backup.read` on the backup's
-//! workload and `workload.file.write` on the other.
+//! workload and `workload.file.write` on the other. A block device's files are its guest's to
+//! parse, so a restore into a new directory of one is refused, and the whole volume is replaced or
+//! the backup cloned instead (Finding 158 of docs/23-walkthroughs.md).
 
 use crate::App;
 use crate::caller::Caller;
@@ -18,6 +20,7 @@ use korpis_core::object::{Kind, ObjectRef};
 use korpis_core::workload::Plan;
 use korpis_core::workload::plan::VolumeOp;
 use korpis_core::workload::plan::compute::RestoreStep;
+use korpis_core::workload::spec::IsolationTier;
 use korpis_core::workload::volume::VolumeKind;
 use uuid::Uuid;
 
@@ -80,6 +83,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ));
         }
         let target = holder(&v);
+        if ask.into.is_some() && self.block_devices(target).await? {
+            return Err(AppError::invalid(
+                "into",
+                "a block device's files are its guest's to parse: replace the volume, or clone \
+                 the backup into a new workload",
+            ));
+        }
         let source = ObjectRef::new(Kind::Workload, b.workload);
         let action = if target == b.workload {
             "backup.restore"
@@ -99,5 +109,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             restore: Some(restore),
         };
         self.propose_on_volume(caller, idem, request).await
+    }
+
+    /// Whether `workload`'s volumes are block devices, as they are on a tier that runs a guest
+    /// kernel (§3.1 of docs/06-storage.md): its approved intent's, or its head's before one is.
+    async fn block_devices(&self, workload: Uuid) -> Result<bool, AppError> {
+        let Some(w) = self.store.workload(workload).await? else { return Ok(false) };
+        let intent = self.store.intent(w.target.unwrap_or(w.intent)).await?;
+        Ok(intent.is_some_and(|i| i.body.runtime.tier >= IsolationTier::MicroVm))
     }
 }

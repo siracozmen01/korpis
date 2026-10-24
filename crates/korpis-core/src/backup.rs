@@ -234,6 +234,9 @@ pub struct Backup {
     pub finished: Option<SystemTime>,
     /// When it was pruned.
     pub deleted_at: Option<SystemTime>,
+    /// For a block device's backup, the filesystem its image holds, whose files only a guest's
+    /// kernel reads (§5.4 of docs/06-storage.md); `None` for a volume of files.
+    pub image_filesystem: Option<String>,
 }
 
 /// How a backup ended, as the node that ran its job reports it.
@@ -251,4 +254,6 @@ pub struct ReportedBackup {
     pub consistent: bool,
     /// What it read and stored.
     pub stats: BackupStats,
+    /// For a block device's backup, the filesystem its image holds, as its record says.
+    pub image_filesystem: Option<String>,
 }

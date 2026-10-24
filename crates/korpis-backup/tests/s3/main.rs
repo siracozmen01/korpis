@@ -45,6 +45,7 @@ async fn a_volume_is_backed_up_restored_and_verified_through_a_bucket() {
         parent: None,
         content: Content::default(),
         concurrency: 8,
+        image_filesystem: String::new(),
     };
     backup(&r, "b1", options).await.unwrap();
     let what = Restore {

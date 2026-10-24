@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One backup ($1), or a workload's ($2) backups, newest first after a cursor ($4), at most $5;\n-- pruned ones only when $3. A backup still pending whose plan ended without it is failed: the\n-- plan was cancelled, refused, or failed before its node reported, and nothing will.\nSELECT b.id, b.repository_id, b.workload_id, b.volume_id, b.plan_id, b.parent_id,\n       CASE WHEN b.status = 'pending'\n                 AND p.status IN ('applied', 'failed', 'cancelled', 'rejected', 'expired',\n                                  'superseded')\n            THEN 'failed' ELSE b.status END AS \"status!\",\n       b.consistent, b.files, b.directories, b.bytes, b.chunks_new, b.bytes_new,\n       b.stored_bytes, b.files_unchanged, b.skipped,\n       COALESCE(b.error,\n                CASE WHEN b.status = 'pending'\n                          AND p.status IN ('applied', 'failed', 'cancelled', 'rejected',\n                                           'expired', 'superseded')\n                     THEN 'its plan ended without it' END) AS error,\n       b.created_at, b.finished_at, b.deleted_at\n  FROM backup b JOIN plan p ON p.id = b.plan_id\n WHERE ($1::uuid IS NULL OR b.id = $1)\n   AND ($2::uuid IS NULL OR b.workload_id = $2)\n   AND ($3 OR b.deleted_at IS NULL)\n   AND ($4::uuid IS NULL OR b.id < $4)\n ORDER BY b.id DESC\n LIMIT $5\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One backup ($1), or a workload's ($2) backups, newest first after a cursor ($4), at most $5;\n-- pruned ones only when $3. A backup still pending whose plan ended without it is failed: the\n-- plan was cancelled, refused, or failed before its node reported, and nothing will.\nSELECT b.id, b.repository_id, b.workload_id, b.volume_id, b.plan_id, b.parent_id,\n       CASE WHEN b.status = 'pending'\n                 AND p.status IN ('applied', 'failed', 'cancelled', 'rejected', 'expired',\n                                  'superseded')\n            THEN 'failed' ELSE b.status END AS \"status!\",\n       b.consistent, b.files, b.directories, b.bytes, b.chunks_new, b.bytes_new,\n       b.stored_bytes, b.files_unchanged, b.skipped,\n       COALESCE(b.error,\n                CASE WHEN b.status = 'pending'\n                          AND p.status IN ('applied', 'failed', 'cancelled', 'rejected',\n                                           'expired', 'superseded')\n                     THEN 'its plan ended without it' END) AS error,\n       b.created_at, b.finished_at, b.deleted_at, b.image_filesystem\n  FROM backup b JOIN plan p ON p.id = b.plan_id\n WHERE ($1::uuid IS NULL OR b.id = $1)\n   AND ($2::uuid IS NULL OR b.workload_id = $2)\n   AND ($3 OR b.deleted_at IS NULL)\n   AND ($4::uuid IS NULL OR b.id < $4)\n ORDER BY b.id DESC\n LIMIT $5\n",
   "describe": {
     "columns": [
       {
@@ -212,6 +212,17 @@
             "name": "deleted_at"
           }
         }
+      },
+      {
+        "ordinal": 20,
+        "name": "image_filesystem",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "image_filesystem"
+          }
+        }
       }
     ],
     "parameters": {
@@ -243,8 +254,9 @@
       null,
       false,
       true,
+      true,
       true
     ]
   },
-  "hash": "acd5b0df87242546ef053f44f55898847b3d6f6831070422b6657bfc913654a3"
+  "hash": "0d4500dfd9f8da262bdabeb59544123adbcb543f05f768f78a42d4ec3aa9594b"
 }

@@ -228,6 +228,10 @@ message Backup {
   google.protobuf.Timestamp created = 18;
   google.protobuf.Timestamp finished = 19;
   google.protobuf.Timestamp deleted_at = 20;
+  // For a block device's backup, the filesystem its image holds (`ext4`): the backup is that
+  // one image, and its files are browsed and read inside a guest, never by the control plane
+  // (§5.4 of docs/06-storage.md). Empty for a volume of files.
+  string image_filesystem = 21;
 }
 
 enum BackupStatus {

@@ -129,9 +129,17 @@ fn pruned(plan: &pb::Plan) -> String {
     lines.join("\n")
 }
 
+/// What `b` holds: a volume's files, or a block device's image, whose files are read in a guest.
+fn holds(b: &pb::Backup) -> String {
+    match b.image_filesystem.as_str() {
+        "" => "files".into(),
+        fs => format!("{fs} image"),
+    }
+}
+
 fn rows(list: &[pb::Backup]) -> String {
     let mut all = vec![
-        ["ID", "VOLUME", "STATUS", "CONSISTENT", "BYTES", "STORED", "TAKEN"]
+        ["ID", "VOLUME", "HOLDS", "STATUS", "CONSISTENT", "BYTES", "STORED", "TAKEN"]
             .map(str::to_owned)
             .to_vec(),
     ];
@@ -139,6 +147,7 @@ fn rows(list: &[pb::Backup]) -> String {
         vec![
             b.id.clone(),
             b.volume.clone(),
+            holds(b),
             short(b.status, "BACKUP_STATUS_").to_lowercase(),
             if b.consistent { "snapshot".into() } else { "live".into() },
             show::bytes(b.bytes),

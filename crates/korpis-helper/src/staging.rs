@@ -100,6 +100,11 @@ impl Class {
         }
         std::os::unix::fs::chown(&path, Some(0), Some(0))?;
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
+        // A block device's restore is its image, and what takes the volume's name is one too
+        // (Finding 159 of docs/23-walkthroughs.md).
+        if crate::block::is_block(&self.path_of(volume)) {
+            crate::block::mark(&path)?;
+        }
         let limits = self.limits_of(volume)?;
         if matches!(self.backend(), Backend::Ext4Project | Backend::XfsProject) {
             let project = self.projects.ensure(&staged)?;

@@ -159,6 +159,8 @@ Capabilities
   identity_dir         bool               gives each workload its node's directory at
                                           /run/korpis (§6 of 02-architecture.md)
   guest_agent          bool               asks a guest's own agent whether it answers (§5)
+  guest_filesystems    []text             for block devices: what its guests mount a volume
+                                          as, so what a backup is browsed from (§4.4)
 
 EnforcementDecl
   enforced      bool

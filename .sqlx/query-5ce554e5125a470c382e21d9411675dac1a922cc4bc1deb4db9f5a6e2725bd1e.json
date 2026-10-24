@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE backup SET status = $2, consistent = $3, files = $4, directories = $5,\n                               bytes = $6, chunks_new = $7, bytes_new = $8, stored_bytes = $9,\n                               files_unchanged = $10, skipped = $11, error = $12,\n                               finished_at = $13, image_filesystem = $14\n              WHERE id = $1 AND status = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bool",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "TextArray",
+        "Text",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5ce554e5125a470c382e21d9411675dac1a922cc4bc1deb4db9f5a6e2725bd1e"
+}
