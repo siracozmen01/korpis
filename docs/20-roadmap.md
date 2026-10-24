@@ -299,9 +299,12 @@ its image by such a guest holding a copy restored for it, through `korpis backup
 (§5.4 of `06-storage.md`), and a path of it is restored into a new directory of the live volume
 by a copy in such a guest while the workload is stopped. The driver conformance suite (§8 of
 `04-runtimes.md`) is built for the lifecycle, for `Recover` after a driver's crash, a kill for
-memory, and a host's restart, and for every limit a driver declares enforced, Apache-2.0 and
-speaking the driver protocol alone, and both drivers conform to it; its cases of isolation and
-`Exec`, and the runner a third party starts on its own, follow in this phase.
+memory, and a host's restart, for every limit a driver declares enforced, and for `Exec` as it says
+it runs a command, Apache-2.0 and speaking the driver protocol alone, and both drivers conform to
+it; the runner a third party starts on its own follows in this phase. Its isolation cases, the
+escape attempts §8 there requires, stay in this phase and are held for the maintainer's design
+(2026-10-24): until they are built, a driver's conformance says nothing of its isolation, and the
+suite's report says so.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

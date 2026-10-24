@@ -60,8 +60,11 @@ async fn a_path_of_a_block_device_s_backup_is_copied_in_a_guest_while_the_worklo
     serve_target(&cp, &project, &root).await;
     host.offer_content(&format!("sha256:{}", "1".repeat(64)), b"a jar");
     let w = cp.declare_from(&project, "mc", push_paper_on_microvm().await, Vec::new()).await;
-    let (backup, _) = backed_up(&cp, &project).await;
+    let (backup, backing_up) = backed_up(&cp, &project).await;
     assert_eq!(settled(&cp, &backup).await.image_filesystem, "ext4");
+    // The backup settles before its plan closes, and a restore is refused while a plan is open
+    // on the volume.
+    applied(&cp, &backing_up).await;
 
     let whole = restore(&cp, "whole", (&backup, ""), "restored").await.unwrap_err();
     assert!(whole.message.unwrap_or_default().contains("one path"), "all of it is a replace");

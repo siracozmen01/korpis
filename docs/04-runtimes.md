@@ -1128,12 +1128,33 @@ resource resized while it runs fails, since the protocol has no verb to ask it (
 Both drivers hold memory and processor time; the `oci` driver holds processes and declares disk not
 enforced, which the helper keeps per volume, and the `firecracker` driver holds disk and declares
 processes not enforced, a guest's own kernel counting them; neither declares input and output, a
-link's shaping, or a resize. What is not built yet, and follows in this phase (§4 of
-`20-roadmap.md`): the cases of isolation and of `Exec` itself, and the runner a third party starts
-on its own. What the enforcement cases do not do: a limit met through `Exec` is a driver that
-declares `exec`, and one that does not is not applicable for memory, processes, and disk; and the
-bounds are loose enough to pass a limit enforced a little high, which is what a quota kept per
-period and a guest's own kernel make of every limit.
+link's shaping, or a resize. What the enforcement cases do not do: a limit met through `Exec` is
+a driver that declares `exec`, and one that does not is not applicable for memory, processes, and
+disk; and the bounds are loose enough to pass a limit enforced a little high, which is what a quota
+kept per period and a guest's own kernel make of every limit.
+
+`Exec` is then tested as §4.2 says it runs a command. The probe running as the entry writes who it
+is once it has taken the terminating signal: its user and groups, its capabilities, whether it may
+gain privileges, its seccomp mode, the namespaces it is in, its security module's label, its
+cgroup, its resource limits, its working directory, and its environment. A command run through
+`Exec` says the same of itself, and the two must be equal line for line. A command that ignores
+the terminating signal is ended within ten seconds of a two-second timeout, says it timed out, and
+is no longer running. What a command writes within its limit arrives whole; past it, exactly the
+limit arrives, said to be truncated, and the command still ends of itself; a limit past the
+protocol's 64 KiB is refused or held to it. A driver that does not declare `exec` must refuse it.
+Both drivers pass, and each case was seen to fail against the `oci` driver broken on purpose: a
+command run as another user, and an exit that never said it timed out or truncated. What these
+cases do not do: they compare what a process can read of itself in `/proc`, so a difference the
+kernel does not show there is not seen, and a driver whose objects have no `/proc` fails the first
+case rather than being compared. A microVM's guest keeps no cgroup of its own, its limits being
+the host's outside it, so there the entry and the command both say none, and what is compared is
+the guest's view of the two.
+
+The isolation cases, which this section requires as escape attempts fitting each tier, are not
+built: their design is held for the maintainer (2026-10-24, §4 of `20-roadmap.md`). Until they are
+built, a driver's conformance says nothing of its isolation, and every report of the suite says so
+in a line of its own, naming the requirement it did not test. What else follows in this phase is
+the runner a third party starts on its own.
 
 ---
 

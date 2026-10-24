@@ -5878,3 +5878,20 @@ yet; the documents asserted an operation their own protocol cannot express.
 what adding it needs. The suite fails a driver that declares `hot_resize`, since no case could
 exercise it, and finds neither of Korpis's does. What it costs: until the verb exists, any change
 of a running workload's resources recreates its object.
+
+> Revisited a third time the same day, as the suite's cases of `Exec` were built. Step 7's
+> question asked of a command rather than an object: what tells the suite that a command ran as
+> the entry runs? Only the two processes themselves, so the probe running as the entry writes who
+> it is, and a command run beside it says the same of itself (§8 of `04-runtimes.md`). Both
+> drivers passed on the first run, and a pass that comes first is not trusted until it is seen to
+> fail: each case failed against the `oci` driver broken on purpose, a command run as another user
+> and an exit that never said it timed out or truncated. One break was not a break: an `Exec`
+> naming no capabilities runs with the container's, since runc takes the container's own where a
+> process names none (§5 of `research/evidence.md`), so it was not kept as the test of the
+> case. The suite was then wrong once itself: a guard added after that run, that the entry could
+> read each line of who it is, demanded a cgroup, and a microVM's guest keeps none of its own, so
+> the full check failed the `firecracker` driver on the suite's mistake. The probe now says none,
+> and only what every Linux process can read is demanded. No finding against a driver. Of what
+> the paragraph after Finding 162 said the suite did not test yet, `Exec` it now tests; the
+> escapes for each tier are held for the maintainer's design (§4 of `20-roadmap.md`), and the
+> report of every run names them as not tested.

@@ -36,6 +36,8 @@ pub async fn run(fixture: Fixture) -> Result<Report, String> {
     Box::pin(cases::lifecycle(&suite, &mut report)).await;
     Box::pin(cases::recover(&suite, &mut report)).await;
     Box::pin(cases::limits(&suite, &mut report)).await;
+    Box::pin(cases::exec(&suite, &mut report)).await;
+    report.untested.extend(cases::UNTESTED);
     suite.clean().await;
     suite.end();
     Ok(report)

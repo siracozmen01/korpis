@@ -26,3 +26,19 @@ pub const SPIN: [&str; 3] = ["/probe", "spin", "4"];
 
 /// Exits 0 once a `SERVE` or a `STUBBORN` beside it takes the terminating signal.
 pub const SERVING: [&str; 2] = ["/probe", "serving"];
+
+/// Says who it runs as: its ids, capabilities, namespaces, cgroup, limits, working directory, and
+/// environment, one line each.
+pub const WHOAMI: [&str; 2] = ["/probe", "whoami"];
+
+/// Says who a `SERVE` or a `STUBBORN` beside it runs as, as `WHOAMI` would have said it.
+pub const ENTRY: [&str; 2] = ["/probe", "entry"];
+
+/// Says how many processes it sees running `STUBBORN`.
+pub const COUNT_STUBBORN: [&str; 3] = ["/probe", "count", "stubborn"];
+
+/// Writes `bytes` bytes, then exits 0.
+#[must_use]
+pub fn write(bytes: &str) -> [&str; 3] {
+    ["/probe", "write", bytes]
+}

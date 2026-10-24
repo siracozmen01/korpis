@@ -7,10 +7,16 @@ use crate::case::{Report, Verdict};
 use crate::suite::Suite;
 
 mod ending;
+mod exec;
 mod limits;
 mod objects;
 mod prepare;
 mod recover;
+
+/// What §8 of docs/04-runtimes.md requires and no case tests yet: isolation's cases are held
+/// for the maintainer (§4 of docs/20-roadmap.md), so a run says they were not run.
+pub const UNTESTED: [(&str, &str); 1] =
+    [("isolation: tier-appropriate escape attempts fail", "04 §8")];
 
 /// What a case that stopped short says.
 type Stopped = String;
@@ -74,4 +80,17 @@ pub async fn limits(s: &Suite, report: &mut Report) {
         ("a_resource_it_declares_resized_live_can_be_asked_for", "04 §4.2"),
         limits::hot_resize(s),
     );
+}
+
+/// `Exec` as it says it runs a command: as the object's own process, within its timeout and its
+/// output limit; and refused by a driver that does not declare it.
+pub async fn exec(s: &Suite, report: &mut Report) {
+    let runs = verdict(exec::as_the_entry_runs(s).await);
+    report.add(("a_command_runs_as_the_entry_runs", "04 §4.2"), runs);
+    let timed = verdict(exec::killed_at_its_timeout(s).await);
+    report.add(("a_command_is_killed_at_its_timeout_and_says_so", "04 §4.2"), timed);
+    let limited = verdict(exec::sends_no_more_than_its_limit(s).await);
+    report.add(("a_command_sends_no_more_than_its_limit_and_says_so", "04 §4.2"), limited);
+    let refused = verdict(exec::undeclared_is_refused(s).await);
+    report.add(("exec_it_does_not_declare_is_refused", "04 §4.1"), refused);
 }

@@ -8,6 +8,12 @@
 //! - `stubborn`: takes the terminating signal and goes on running, so only a kill ends it;
 //! - `serving`: exits 0 if a `serve` or a `stubborn` beside it has taken the terminating signal,
 //!   and 1 otherwise;
+//! - `whoami`: says who it runs as: its ids, capabilities, namespaces, cgroup, limits, working
+//!   directory, and environment;
+//! - `entry`: says who the `serve` or `stubborn` beside it runs as, as `whoami` would have said it
+//!   once it took the terminating signal, and exits 1 if none has;
+//! - `write <bytes>`: writes that many bytes and exits 0;
+//! - `count <command>`: says how many processes it sees running the probe's `command`;
 //! - `exit <status>`: exits with that status at once;
 //! - `alloc`: takes memory a mebibyte at a time, writing each and saying how much it holds, until
 //!   the kernel ends it;
@@ -18,6 +24,7 @@
 use std::io::Write as _;
 use std::process::ExitCode;
 
+mod identity;
 mod limits;
 
 /// The file `serve` and `stubborn` write once they take the terminating signal.
@@ -43,8 +50,12 @@ fn until_terminated(stubborn: bool) -> ExitCode {
             say("probe: the terminating signal cannot be taken");
             return ExitCode::FAILURE;
         };
-        // Said once the signal is taken, so a stop from now on reaches this handler.
-        let _ = std::fs::write(SERVING, b"");
+        // Said once the signal is taken, so a stop from now on reaches this handler; written
+        // whole and renamed, so `serving` and `entry` never see half of it.
+        let partial = format!("{SERVING}.partial");
+        if std::fs::write(&partial, identity::identity()).is_ok() {
+            let _ = std::fs::rename(&partial, SERVING);
+        }
         say("probe: running");
         loop {
             terminated.recv().await;
@@ -69,14 +80,17 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         }
+        ["whoami"] => identity::whoami(),
+        ["entry"] => identity::entry(SERVING),
+        ["write", bytes] => identity::write(bytes),
+        ["count", command] => identity::count(command),
         ["alloc"] => limits::alloc(),
         ["threads"] => limits::threads(),
         ["fill", dir] => limits::fill(dir),
         ["spin", threads] => limits::spin(threads),
         _ => {
-            say(
-                "probe: serve, stubborn, serving, exit <status>, alloc, threads, fill <dir>, spin <n>",
-            );
+            say("probe: serve, stubborn, serving, exit <status>, whoami, entry, write <bytes>, \
+                 count <command>, alloc, threads, fill <dir>, spin <n>");
             ExitCode::from(2)
         }
     }

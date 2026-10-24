@@ -49,6 +49,9 @@ pub struct Report {
     pub driver: String,
     /// Every case, in the order it ran.
     pub outcomes: Vec<Outcome>,
+    /// What §8 of docs/04-runtimes.md requires that the suite does not test yet, each with
+    /// where it is stated: a driver's conformance says nothing of it.
+    pub untested: Vec<(&'static str, &'static str)>,
 }
 
 impl Report {
@@ -80,7 +83,17 @@ impl fmt::Display for Report {
             };
             writeln!(f, "  {mark}  {:<52} {}  {why}", o.case, o.section)?;
         }
-        let verdict = if self.conforms() { "conforms" } else { "does not conform" };
+        for (requirement, section) in &self.untested {
+            writeln!(f, "  ----  {requirement:<52} {section}  not tested yet")?;
+        }
+        let verdict = match (self.conforms(), self.untested.len()) {
+            (false, _) => "does not conform".to_owned(),
+            (true, 0) => "conforms".to_owned(),
+            (true, 1) => "conforms to every case built, and 1 requirement is not tested".to_owned(),
+            (true, n) => {
+                format!("conforms to every case built, and {n} requirements are not tested")
+            }
+        };
         write!(f, "{} {verdict}", self.driver)
     }
 }

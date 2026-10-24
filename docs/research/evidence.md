@@ -654,6 +654,12 @@ Primary:
   (**[R]** as a match for this case: it describes a removed bundle, not a timed-out delete). Why
   the `oci` driver finishes the cleanup itself before it starts a task (§4.2 of
   `../04-runtimes.md`).
+- **[V]** runc 1.5.2 (commit 29dd3dc2), run by containerd v2.4.2, gives a process added to a
+  container (`runc exec --process`) whose spec names no `capabilities` the container's own sets,
+  not none: seen 2026-10-24 on this machine, the probe of the driver conformance suite reading
+  `CapEff`, `CapPrm`, and `CapBnd` equal to its entry's with the field removed from the `oci`
+  driver's exec spec. Why that removal was not kept as the break that shows the suite's `Exec`
+  identity case fails (trace 70 of `../23-walkthroughs.md`).
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a
