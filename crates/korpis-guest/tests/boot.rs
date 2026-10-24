@@ -2,9 +2,10 @@
 
 //! A microVM booted as its driver will boot one (§6 of docs/04-runtimes.md): the node's guest
 //! kernel (scripts/guest-kernel.sh), a boot drive holding nothing but `korpis-guest`, an image
-//! drive built from an image's layer by `korpis-image-build`, the config drive, and a volume. The entry runs as its user with its environment, writes
-//! its volume, and its exit status comes back on the config drive; a stop sent as Ctrl+Alt+Del
-//! reaches it as `SIGTERM`. Needs root, /dev/kvm, Firecracker (scripts/tools.sh), the guest
+//! drive built from an image's layer by `korpis-image-build`, the config drive, a volume, and a
+//! vsock device. The entry runs as its user with its environment, writes its volume, and its exit
+//! status comes back on the config drive; a stop sent as Ctrl+Alt+Del reaches it as `SIGTERM`;
+//! and the guest's agent answers on its control port and sends the entry a signal named. Needs root, /dev/kvm, Firecracker (scripts/tools.sh), the guest
 //! kernel, and mkfs.ext4 and debugfs, and is skipped without them.
 
 #![allow(
@@ -16,12 +17,13 @@
 )]
 
 use korpis_guest::config::{Config, Volume};
+use korpis_guest::control::{self, Kind, Pong, Resized, Signalled};
 use korpis_guest::status::Ended;
 use korpis_image::build::Request;
 use korpis_image::source::Packing;
 use korpis_image::testing::Entry;
 use std::collections::BTreeMap;
-use std::io::Read as _;
+use std::io::{Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -121,8 +123,8 @@ fn drives(dir: &Path, script: &str) -> [PathBuf; 4] {
     paths
 }
 
-/// Firecracker's configuration for `drives` and `kernel`.
-fn vm(kernel: &Path, drives: &[PathBuf; 4]) -> String {
+/// Firecracker's configuration for `drives` and `kernel`, its vsock device's socket at `vsock`.
+fn vm(kernel: &Path, drives: &[PathBuf; 4], vsock: &Path) -> String {
     let drive = |id: &str, path: &Path, root: bool, ro: bool| {
         serde_json::json!({"drive_id": id, "path_on_host": path, "is_root_device": root,
                            "is_read_only": ro})
@@ -140,6 +142,7 @@ fn vm(kernel: &Path, drives: &[PathBuf; 4]) -> String {
             drive("data", &drives[3], false, false),
         ],
         "machine-config": {"vcpu_count": 1, "mem_size_mib": 128},
+        "vsock": {"guest_cid": control::GUEST_CID, "uds_path": vsock},
     })
     .to_string()
 }
@@ -149,7 +152,7 @@ fn boot(dir: &Path, script: &str, api: &Path) -> (std::process::Child, [PathBuf;
     let (firecracker, kernel) = machine().unwrap();
     let drives = drives(dir, script);
     let config = dir.join("vm.json");
-    std::fs::write(&config, vm(&kernel, &drives)).unwrap();
+    std::fs::write(&config, vm(&kernel, &drives, &dir.join("vsock.sock"))).unwrap();
     let child = Command::new(firecracker)
         .arg("--api-sock")
         .arg(api)
@@ -245,4 +248,53 @@ fn a_second_stop_ends_an_entry_that_ignores_the_first() {
     let script = "trap '' TERM; echo ready; while true; do sleep 1; done";
     let (out, ended) = stopped(script, 2);
     assert_eq!(ended, Some(Ended::Signalled(9)), "{out}");
+}
+
+/// One frame sent to the guest's agent through its vsock device's socket at `vsock`, as the
+/// driver sends it; the answer.
+fn ask(vsock: &Path, kind: Kind, payload: &[u8]) -> std::io::Result<(Kind, Vec<u8>)> {
+    let mut s = std::os::unix::net::UnixStream::connect(vsock)?;
+    s.set_read_timeout(Some(Duration::from_secs(10)))?;
+    s.write_all(format!("CONNECT {}\n", control::PORT).as_bytes())?;
+    let mut line = Vec::new();
+    let mut byte = [0_u8; 1];
+    while byte != *b"\n" {
+        s.read_exact(&mut byte)?;
+        line.push(byte[0]);
+    }
+    if !line.starts_with(b"OK ") {
+        return Err(std::io::Error::other("not accepted"));
+    }
+    control::write(&mut s, kind, payload)?;
+    control::read(&mut s)
+}
+
+#[test]
+fn the_agent_answers_on_its_control_port_and_sends_the_entry_a_signal_named() {
+    if machine().is_none() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let script = "trap 'echo hup; exit 4' HUP; echo ready; while true; do sleep 1; done";
+    let (mut child, drives) = boot(dir.path(), script, &dir.path().join("api.sock"));
+    let vsock = dir.path().join("vsock.sock");
+    let start = Instant::now();
+    let pong = loop {
+        if let Ok((Kind::Pong, payload)) = ask(&vsock, Kind::Ping, &[]) {
+            break Pong::decode(&payload).unwrap();
+        }
+        assert!(start.elapsed() < Duration::from_secs(30), "the agent never answered");
+        std::thread::sleep(Duration::from_millis(200));
+    };
+    assert_eq!(pong.version, control::VERSION);
+    std::thread::sleep(Duration::from_secs(1));
+    let (_, resized) = ask(&vsock, Kind::Resize, &control::size(80, 24)).unwrap();
+    assert_eq!(Resized::decode(&resized), Some(Resized::NoTerminal), "a console of logs");
+    let (_, unknown) = ask(&vsock, Kind::Signal, b"SIGSEGV").unwrap();
+    assert_eq!(Signalled::decode(&unknown), Some(Signalled::Unknown), "not one it sends");
+    let (kind, payload) = ask(&vsock, Kind::Signal, b"SIGHUP").unwrap();
+    assert_eq!((kind, Signalled::decode(&payload)), (Kind::Signalled, Some(Signalled::Sent)));
+    let out = console(&mut child, Duration::from_secs(30));
+    assert!(out.contains("hup"), "{out}");
+    assert_eq!(ended(&drives[2]), Some(Ended::Exited(4)), "{out}");
 }

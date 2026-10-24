@@ -80,6 +80,10 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     set_cad_enabled(false).map_err(failed("taking Ctrl+Alt+Del"))?;
     let mut signals = signals()?;
     let config = Config::read(drive).map_err(failed("reading the config drive"))?;
+    // Listening before the run says it has started, so a driver told it has can ask the agent.
+    if let Err(e) = control::serve(std::time::Instant::now(), config.interactive) {
+        say(&format!("{e}; the guest's agent will not answer"));
+    }
     // The serial port was opened for this process before it ran, and what is typed on it from
     // now on is kept for whoever reads it: the driver holds a console's input until it is told.
     if let Err(e) = korpis_guest::status::started(drive) {
@@ -87,9 +91,6 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     }
     if !config.interactive {
         plain_output();
-    }
-    if let Err(e) = control::serve(std::time::Instant::now()) {
-        say(&format!("{e}; the guest's agent will not answer"));
     }
     nix::unistd::sethostname(&config.hostname).map_err(failed("setting the hostname"))?;
     mounts::root(ROOT, &config)?;

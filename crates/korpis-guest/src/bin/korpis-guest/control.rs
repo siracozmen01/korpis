@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control port, which the first process serves the driver over the microVM's vsock device
-//! (§6 of docs/04-runtimes.md): a thread that accepts, and one for each connection, at most
-//! eight at once, each answering frames until the host closes it or is silent for half a minute.
-//! A ping is answered with the protocol's version and how long the agent has run. A guest whose
-//! kernel has no vsock, or whose device is missing, boots all the same, and says so: its
-//! `guest_agent` probe then fails, which is what such a guest is.
+//! The control port, which the first process serves the driver over the microVM's vsock device (§6
+//! of docs/04-runtimes.md): a thread that accepts, and one for each connection, at most eight at
+//! once, each answering frames until the host closes it or is silent for half a minute. A ping is
+//! answered with the protocol's version and how long the agent has run; a signal named is sent to
+//! the entry's process group, if it is one the driver declares; and a resize sets an interactive
+//! entry's terminal to the size asked. A guest whose kernel has no vsock, or whose device is
+//! missing, boots all the same, and says so: its `guest_agent` probe then fails, which is what
+//! such a guest is.
 
-use korpis_guest::control::{self, Kind, Pong};
+use korpis_guest::control::{self, Kind, Pong, Resized, Signalled};
 use rustix::net::{AddressFamily, SocketType};
 use std::os::fd::{AsRawFd as _, OwnedFd};
 use std::sync::Arc;
@@ -26,19 +28,20 @@ const ANY_CID: u32 = u32::MAX;
 ///
 /// # Errors
 /// The port cannot be listened on: no vsock in the guest's kernel, or no device.
-pub fn serve(started: Instant) -> Result<(), String> {
+pub fn serve(started: Instant, interactive: bool) -> Result<(), String> {
     let listener = rustix::net::socket(AddressFamily::VSOCK, SocketType::STREAM, None)
         .map_err(|e| format!("a vsock socket: {e}"))?;
     let at = nix::sys::socket::VsockAddr::new(ANY_CID, control::PORT);
     nix::sys::socket::bind(listener.as_raw_fd(), &at)
         .map_err(|e| format!("the control port: {e}"))?;
     rustix::net::listen(&listener, 16).map_err(|e| format!("the control port: {e}"))?;
-    std::thread::spawn(move || accepting(&listener, started));
+    std::thread::spawn(move || accepting(&listener, started, interactive));
     Ok(())
 }
 
-/// Accepts connections on `listener` for as long as the guest runs.
-fn accepting(listener: &OwnedFd, started: Instant) {
+/// Accepts connections on `listener` for as long as the guest runs; `interactive` is whether the
+/// entry has the console as its terminal.
+fn accepting(listener: &OwnedFd, started: Instant, interactive: bool) {
     let open = Arc::new(AtomicUsize::new(0));
     loop {
         while open.load(Ordering::Acquire) >= MOST_CONNECTIONS {
@@ -48,28 +51,68 @@ fn accepting(listener: &OwnedFd, started: Instant) {
         open.fetch_add(1, Ordering::AcqRel);
         let open = Arc::clone(&open);
         std::thread::spawn(move || {
-            answer(connection, started);
+            answer(connection, started, interactive);
             open.fetch_sub(1, Ordering::AcqRel);
         });
     }
 }
 
+/// Sends the entry's process group the signal `name` names, if it is one of [`control::SIGNALS`].
+fn signal(name: &[u8]) -> Signalled {
+    use std::str::FromStr as _;
+    let name = std::str::from_utf8(name).ok().filter(|n| n.len() <= control::LONGEST_SIGNAL);
+    let Some(signal) = name
+        .filter(|n| control::SIGNALS.contains(n))
+        .and_then(|n| nix::sys::signal::Signal::from_str(n).ok())
+    else {
+        return Signalled::Unknown;
+    };
+    let Some(entry) = crate::run::entry() else { return Signalled::NoEntry };
+    match nix::sys::signal::killpg(entry, signal) {
+        Ok(()) => Signalled::Sent,
+        Err(_) => Signalled::NoEntry,
+    }
+}
+
+/// Sets the console's size to the columns and rows `payload` holds, for an interactive entry,
+/// whose terminal it is: the first process's own output is the same terminal, and the kernel tells
+/// the entry's group with `SIGWINCH`.
+fn resize(payload: &[u8], interactive: bool) -> Resized {
+    let Some((cols, rows)) = control::size_of(payload) else { return Resized::Failed };
+    if !interactive {
+        return Resized::NoTerminal;
+    }
+    let size = rustix::termios::Winsize { ws_row: rows, ws_col: cols, ws_xpixel: 0, ws_ypixel: 0 };
+    match rustix::termios::tcsetwinsize(std::io::stdout(), size) {
+        Ok(()) => Resized::Set,
+        Err(_) => Resized::Failed,
+    }
+}
+
 /// Answers the frames on `connection` until it ends, is silent too long, or sends what this
 /// agent does not take.
-fn answer(connection: OwnedFd, started: Instant) {
+fn answer(connection: OwnedFd, started: Instant, interactive: bool) {
     use rustix::net::sockopt::{Timeout, set_socket_timeout};
     if set_socket_timeout(&connection, Timeout::Recv, Some(IDLE)).is_err() {
         return;
     }
     let mut stream = std::fs::File::from(connection);
-    while let Ok((kind, _)) = control::read(&mut stream) {
+    while let Ok((kind, payload)) = control::read(&mut stream) {
         let answered = match kind {
             Kind::Ping => {
                 let uptime_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
                 let pong = Pong { version: control::VERSION, uptime_ms };
                 control::write(&mut stream, Kind::Pong, &pong.encode())
             }
-            Kind::Pong => return,
+            Kind::Signal => {
+                let outcome = signal(&payload);
+                control::write(&mut stream, Kind::Signalled, &outcome.encode())
+            }
+            Kind::Resize => {
+                let outcome = resize(&payload, interactive);
+                control::write(&mut stream, Kind::Resized, &outcome.encode())
+            }
+            Kind::Pong | Kind::Signalled | Kind::Resized => return,
         };
         if answered.is_err() {
             return;

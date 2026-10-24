@@ -4755,6 +4755,13 @@ guest reads them arrive as one, which the driver's bound on a guest's exit cover
 > nothing. Two stops that arrive as one are now a kill the driver sends until the guest has ended,
 > and a stop asked twice is sent once.
 
+> Revisited 2026-10-24, when the guest's control port over vsock was built (§6 of
+> `04-runtimes.md`). The channel this finding waited for exists: a signal named, and a stop,
+> reach the entry through the guest's agent, which sends its process group the signal by name,
+> and the `firecracker` driver declares the signal names the `oci` driver does. Ctrl+Alt+Del
+> remains the stop for a guest whose agent does not take one, so the costs above now hold only
+> for such a guest: a signal other than a stop cannot reach it, and is an error.
+
 Steps 2 to 9 are built and tested against the guest alone, the driver's part done by the test:
 `crates/korpis-guest/tests/boot.rs` boots the kernel and the drives, runs an entry as its user,
 reads its exit status back, and stops a guest once and twice.
@@ -4776,7 +4783,7 @@ stopped, and a build is destroyed while it runs. The trace was chosen by the bui
 | 1 | The agent is given two driver sockets; each driver is asked its name and capabilities, and both are reported on the node, which is what placement filters by | `04-runtimes.md` §3; `18-operations.md` §3; `05-scheduling.md` §2.1 |
 | 2 | The build's intent names `runtime.driver: firecracker`; its `Prepare` goes there, and the prepared spec names the driver its `Create` goes to | `04-runtimes.md` §3, §4.2 |
 | 3 | The driver builds the drives and the jail; the jailer starts the guest's Firecracker as the workload's first id, forks, and detaches, and the driver watches the process the jailer names | `04-runtimes.md` §6; `18-operations.md` §3 |
-| 4 | The customer stops the build; the supervisor's stop is the guest's first Ctrl+Alt+Del | `02-architecture.md` §6; `04-runtimes.md` §4.2, §6 |
+| 4 | The customer stops the build; the supervisor's stop is the guest's first Ctrl+Alt+Del (since 2026-10-24 asked of the guest's agent first, and Ctrl+Alt+Del where the agent does not take it) | `02-architecture.md` §6; `04-runtimes.md` §4.2, §6 |
 | 5 | The agent restarts in the middle of the stop, adopts the guest through the driver's `Recover`, and signals it again ‡ | `02-architecture.md` §4.4, §6; `04-runtimes.md` §3 |
 | 6 | Another build, running, is destroyed: the driver kills it with no stop before it ‡ | `02-architecture.md` §6; `04-runtimes.md` §6 |
 | 7 | Each guest writes how its run ended, and the driver reads it; the agent's meter keeps reading each object by the identifier its driver issued | `04-runtimes.md` §6; `15-observability.md` §2 |
@@ -4835,7 +4842,7 @@ resizes the terminal, and the build ends.
 | 4 | The customer's line arrives while the guest is still booting ‡ | `14-streams.md` §6; `04-runtimes.md` §3 |
 | 5 | The guest's kernel opens the port; `korpis-guest` says the run has started, and runs the entry in a session whose controlling terminal is the port | `04-runtimes.md` §3, §6 |
 | 6 | The writer records the line with who typed it, and the entry's answer reaches the stream | `14-streams.md` §6 |
-| 7 | The customer resizes the terminal, and is refused, as stated | `04-runtimes.md` §3, §4.4 |
+| 7 | The customer resizes the terminal, and is refused, as stated (since 2026-10-24 recorded and set through the guest's agent) | `04-runtimes.md` §3, §6 |
 | 8 | The build ends; the writer seals what it read and leaves the cgroup, and the driver reads how the run ended from the record the run wrote ‡ | `14-streams.md` §4; `04-runtimes.md` §6 |
 
 **One finding, at steps 4 and 8** (‡).
@@ -4863,9 +4870,11 @@ booting guest, and one sent to a guest that never starts is sent when the bound 
 as the guest is; the writer's record says what was typed, not what was read, as it does for a
 container.
 
-Steps 1 to 8 are built and tested: `crates/korpis-driver-firecracker/tests/console.rs` runs a
-guest of logs, which takes no input and whose lines hold no carriage return, and an interactive
-one; `tests/protocol.rs` asks for a resize through the agent and is refused.
+Steps 1 to 8 are built and tested: `crates/korpis-driver-firecracker/tests/console.rs` runs a guest
+of logs, which takes no input and whose lines hold no carriage return, and an interactive one;
+`tests/protocol.rs` asks for a resize through the agent and is refused. Revisited 2026-10-24: the
+console test resizes the interactive guest's terminal and reads the size back from inside it, and
+the protocol test's guest, a console of logs, is refused for having no terminal.
 
 ## 57. A world on a microVM grows, and its owner reaches for its files
 

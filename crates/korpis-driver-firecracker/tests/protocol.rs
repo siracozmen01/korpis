@@ -127,12 +127,11 @@ async fn the_agent_routes_each_verb_to_the_driver_that_serves_it() {
     assert_eq!(heard.unwrap().unwrap(), id, "a guest's change reaches the agent");
     let alex = Sender { by: "user:alex", session: "s1" };
     let resized = node.resize_console(&id, alex, (80, 24)).await;
-    assert!(resized.is_err(), "nothing carries a size into a guest yet: {resized:?}");
-    let signalled = node.signal(&id, "SIGHUP").await;
-    assert!(
-        matches!(signalled, Err(RuntimeError::Failed(_))),
-        "a guest is sent no named signal: {signalled:?}"
-    );
+    assert!(resized.is_err(), "a console of logs has no terminal to resize: {resized:?}");
+    // Routed to the driver, and through it to the guest's agent, which sends it by name.
+    node.signal(&id, "SIGWINCH").await.unwrap();
+    let signalled = node.signal(&id, "SIGSEGV").await;
+    assert!(matches!(signalled, Err(RuntimeError::Failed(_))), "undeclared: {signalled:?}");
 
     let again = Drivers::new(vec![
         DriverRuntime::connect(&rig.dir.path().join("oci.sock")),

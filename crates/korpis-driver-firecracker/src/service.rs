@@ -79,11 +79,6 @@ fn grace_of(d: Option<&buffa_types::google::protobuf::Duration>) -> Duration {
     })
 }
 
-fn no_resize() -> ConnectError {
-    let why = "a guest's terminal cannot be resized: nothing carries its size into the guest yet";
-    ConnectError::new(ErrorCode::FailedPrecondition, why)
-}
-
 #[expect(refining_impl_trait, reason = "async fn handlers for the generated trait")]
 impl driver::DriverService for Driver {
     fn describe(
@@ -206,12 +201,21 @@ impl driver::DriverService for Driver {
         Response::ok(driver::ConsoleInputResponse::default())
     }
 
-    fn resize_console(
+    async fn resize_console(
         &self,
         _ctx: RequestContext,
-        _request: ServiceRequest<'_, driver::ResizeConsoleRequest>,
-    ) -> impl Future<Output = ServiceResult<driver::ResizeConsoleResponse>> + Send {
-        ready(Err(no_resize()))
+        request: ServiceRequest<'_, driver::ResizeConsoleRequest>,
+    ) -> ServiceResult<driver::ResizeConsoleResponse> {
+        let size = |n: u32| {
+            u16::try_from(n).map_err(|_| {
+                let why = "a terminal is at most 65535 columns or rows";
+                ConnectError::new(ErrorCode::InvalidArgument, why)
+            })
+        };
+        let size = (size(request.cols)?, size(request.rows)?);
+        let from = (request.by, request.session);
+        self.machine.resize_console(request.runtime_id, from, size).await.map_err(status)?;
+        Response::ok(driver::ResizeConsoleResponse::default())
     }
 
     async fn signal(

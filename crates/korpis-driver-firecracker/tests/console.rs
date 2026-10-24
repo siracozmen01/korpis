@@ -71,7 +71,7 @@ async fn an_interactive_console_takes_input_through_the_guest_s_terminal() {
         return;
     }
     let rig = Rig::new();
-    let script = "while read line; do echo got $line; done";
+    let script = "while read line; do echo got $line $(stty size); done";
     let (spec, dir) = rig.console(rig.spec("wl_talks", script), true);
     let id = rig.machine.create(spec).await.unwrap();
     rig.machine.start(&id).await.unwrap();
@@ -84,6 +84,12 @@ async fn an_interactive_console_takes_input_through_the_guest_s_terminal() {
         (typed["by"].as_str(), typed["text"].as_str()),
         (Some("user:alex"), Some("hello\n"))
     );
+    // A resize is recorded with who made it, and the entry's terminal has the size.
+    rig.machine.resize_console(&id, ("user:alex", "s1"), (100, 30)).await.unwrap();
+    rig.machine.console_input(&id, ("user:alex", "s1"), b"again\n").await.unwrap();
+    let said = bodies_until(&dir, |b| b.iter().any(|l| l.contains("got again"))).await;
+    assert!(said.iter().any(|l| l.contains("got again 30 100")), "the size it was given: {said:?}");
+    assert!(said.iter().any(|b| b.contains("\"resize\":[100,30]")), "recorded: {said:?}");
     rig.machine.kill(&id).await.unwrap();
     until(&rig.machine, &id, driver::RuntimeState::RUNTIME_STATE_STOPPED).await;
     rig.machine.destroy(&id).await.unwrap();

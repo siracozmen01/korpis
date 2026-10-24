@@ -9,7 +9,7 @@
 //! before it is read and given a deadline, since the guest is the tenant's.
 
 use crate::api::socket_at;
-use korpis_guest::control::{self, HEADER, Kind, Pong};
+use korpis_guest::control::{self, HEADER, Kind, Pong, Resized, Signalled};
 use std::io;
 use std::path::Path;
 use std::time::Duration;
@@ -54,10 +54,20 @@ async fn frame(stream: &mut UnixStream, want: Kind, most: usize) -> io::Result<V
     Ok(payload)
 }
 
-async fn pinged(socket: &Path) -> io::Result<Pong> {
+/// Sends one frame of `kind` holding `payload` and reads the answer of `want`, at most `most`
+/// bytes long.
+async fn ask(
+    socket: &Path,
+    (kind, payload): (Kind, &[u8]),
+    (want, most): (Kind, usize),
+) -> io::Result<Vec<u8>> {
     let mut stream = connect(socket).await?;
-    stream.write_all(&control::frame(Kind::Ping, &[])?).await?;
-    let payload = frame(&mut stream, Kind::Pong, 12).await?;
+    stream.write_all(&control::frame(kind, payload)?).await?;
+    frame(&mut stream, want, most).await
+}
+
+async fn pinged(socket: &Path) -> io::Result<Pong> {
+    let payload = ask(socket, (Kind::Ping, &[]), (Kind::Pong, 12)).await?;
     let pong = Pong::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))?;
     if pong.version != control::VERSION {
         let why = format!("the guest's agent speaks version {}", pong.version);
@@ -78,6 +88,39 @@ pub async fn ping(socket: &Path, within: Duration) -> io::Result<Pong> {
         .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not answer"))?
 }
 
+/// Asks the agent of the guest whose vsock device's socket is at `socket` to send its entry the
+/// signal `name`, within `within`; what became of it.
+///
+/// # Errors
+/// It did not answer in time, its guest refused the connection, or it answered otherwise than
+/// this driver's protocol says.
+pub async fn signal(socket: &Path, name: &str, within: Duration) -> io::Result<Signalled> {
+    let asked = ask(socket, (Kind::Signal, name.as_bytes()), (Kind::Signalled, 1));
+    let payload = tokio::time::timeout(within, asked).await.map_err(|_| {
+        io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not answer")
+    })??;
+    Signalled::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))
+}
+
+/// Asks the agent of the guest whose vsock device's socket is at `socket` to set its interactive
+/// entry's terminal to `(cols, rows)`, within `within`; what became of it.
+///
+/// # Errors
+/// It did not answer in time, its guest refused the connection, or it answered otherwise than
+/// this driver's protocol says.
+pub async fn resize(
+    socket: &Path,
+    (cols, rows): (u16, u16),
+    within: Duration,
+) -> io::Result<Resized> {
+    let size = control::size(cols, rows);
+    let asked = ask(socket, (Kind::Resize, &size), (Kind::Resized, 1));
+    let payload = tokio::time::timeout(within, asked).await.map_err(|_| {
+        io::Error::new(io::ErrorKind::TimedOut, "the guest's agent did not answer")
+    })??;
+    Resized::decode(&payload).ok_or_else(|| io::Error::other("a malformed answer"))
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
@@ -86,7 +129,7 @@ mod tests {
     use tokio::net::UnixListener;
 
     /// Plays Firecracker's side of the device and a guest's agent, answering `answer` after the
-    /// handshake; the socket's path.
+    /// handshake and the host's frame; the socket's path.
     fn device(dir: &Path, handshake: &'static [u8], answer: Vec<u8>) -> std::path::PathBuf {
         let path = dir.join("vsock.socket");
         let listener = UnixListener::bind(&path).unwrap();
@@ -96,8 +139,11 @@ mod tests {
             s.read_exact(&mut asked).await.unwrap();
             assert_eq!(&asked, b"CONNECT 1024\n");
             s.write_all(handshake).await.unwrap();
-            let mut ping = [0_u8; HEADER];
-            s.read_exact(&mut ping).await.unwrap();
+            let mut head = [0_u8; HEADER];
+            s.read_exact(&mut head).await.unwrap();
+            let (_, length) = control::header(head).unwrap();
+            let mut payload = vec![0_u8; length];
+            s.read_exact(&mut payload).await.unwrap();
             s.write_all(&answer).await.unwrap();
             tokio::time::sleep(Duration::from_secs(5)).await;
         });
@@ -124,5 +170,18 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let socket = device(dir.path(), b"NOPE\n", Vec::new());
         assert!(ping(&socket, second).await.is_err(), "a connection the guest refused");
+    }
+
+    #[tokio::test]
+    async fn a_signal_s_outcome_is_read_as_the_one_byte_it_is() {
+        let second = Duration::from_secs(1);
+        let sent = control::frame(Kind::Signalled, &Signalled::Sent.encode()).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let socket = device(dir.path(), b"OK 5\n", sent);
+        assert_eq!(signal(&socket, "SIGHUP", second).await.unwrap(), Signalled::Sent);
+        let long = control::frame(Kind::Signalled, &[0, 0]).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let socket = device(dir.path(), b"OK 5\n", long);
+        assert!(signal(&socket, "SIGHUP", second).await.is_err(), "longer than an outcome");
     }
 }

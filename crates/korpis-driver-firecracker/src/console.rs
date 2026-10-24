@@ -146,3 +146,19 @@ pub fn send(
     }
     Ok(())
 }
+
+/// Records in the console of the object in `dir`, written to `stream`, that `by` in `session`
+/// resized its terminal to `(cols, rows)`, as a container's resize is recorded: a refusal if it
+/// takes no input, and otherwise what failed.
+pub fn record_resize(
+    dir: &Path,
+    stream: Option<&driver::StreamCapture>,
+    (by, session): (&str, &str),
+    (cols, rows): (u16, u16),
+) -> Result<(), (bool, String)> {
+    if !stream.is_some_and(|s| s.input) {
+        return Err((true, "this console takes no input".into()));
+    }
+    let frame = console::resize_frame(by, session, cols, rows);
+    console::send(&dir.join(INPUT), &frame).map_err(|e| (false, e))
+}

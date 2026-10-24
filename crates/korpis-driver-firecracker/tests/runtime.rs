@@ -96,13 +96,16 @@ async fn a_guest_runs_as_its_user_within_its_memory_and_its_exit_status_is_inspe
 }
 
 #[tokio::test]
-async fn a_stop_reaches_the_entry_and_a_kill_ends_one_that_ignores_it() {
+async fn a_stop_and_a_signal_named_reach_the_entry_and_a_kill_ends_one_that_ignores_a_stop() {
     if !live() {
         return;
     }
     let rig = Rig::new();
     let heeds = rig.spec("wl_heeds", "trap 'sleep 2; exit 3' TERM; while true; do sleep 1; done");
-    let ignores = rig.spec("wl_ignores", "trap '' TERM; while true; do sleep 1; done");
+    let ignores = rig.spec(
+        "wl_ignores",
+        "trap '' TERM; trap 'touch /tmp/hup' HUP; while true; do sleep 1; done",
+    );
     let (a, b) =
         (rig.machine.create(heeds).await.unwrap(), rig.machine.create(ignores).await.unwrap());
     let mut events = rig.machine.events();
@@ -110,6 +113,8 @@ async fn a_stop_reaches_the_entry_and_a_kill_ends_one_that_ignores_it() {
         rig.machine.start(id).await.unwrap();
     }
     tokio::time::sleep(Duration::from_secs(3)).await;
+    let answered = rig.machine.ping_guest(&a, Duration::from_secs(5)).await.unwrap();
+    assert_eq!(answered, Ok(()), "the guest's agent answers on its control port");
     rig.machine.stop(&a, "", Duration::from_secs(30)).await.unwrap();
     tokio::time::sleep(Duration::from_millis(500)).await;
     // As an agent restarted in the middle of a stop asks again: still its stop, not its kill.
@@ -122,8 +127,9 @@ async fn a_stop_reaches_the_entry_and_a_kill_ends_one_that_ignores_it() {
     )
     .await;
     assert_eq!(s.exit_code, Some(3), "the entry's own exit, on SIGTERM, asked twice: {s:?}");
-    let named = rig.machine.signal(&b, "SIGHUP").await;
-    assert!(matches!(named, Err(MachineError::Refused(_))), "a guest is sent no named signal");
+    rig.machine.signal(&b, "SIGHUP").await.unwrap();
+    let unknown = rig.machine.signal(&b, "SIGSEGV").await;
+    assert!(matches!(unknown, Err(MachineError::Refused(_))), "only the signals it declares");
     rig.machine.kill(&b).await.unwrap();
     let s = until(
         &rig.machine,

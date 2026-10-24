@@ -3,9 +3,10 @@
 //! The entry, run as the config says: its own process group, its environment and nothing else,
 //! its user and group, the console as its output; and for an interactive console, a session of
 //! its own whose controlling terminal is the serial port, its input, output, and errors all
-//! there, so the terminal's line discipline does for it what a container's terminal does. The first process reaps every process that
-//! ends, its own child or an orphan the entry left, until the entry itself has ended; a stop
-//! sends the entry's group `SIGTERM`, and a second ends every process.
+//! there, so the terminal's line discipline does for it what a container's terminal does. The
+//! first process reaps every process that ends, its own child or an orphan the entry left, until
+//! the entry itself has ended; a stop sends the entry's group `SIGTERM`, and a second ends every
+//! process. While the entry runs, its process id is where the control port sends a signal named.
 
 use crate::failed;
 use korpis_guest::config::Config;
@@ -19,6 +20,15 @@ use nix::unistd::Pid;
 use std::os::fd::AsFd;
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicI32, Ordering};
+
+/// The entry's process id while it runs, zero otherwise: what the control port signals by name.
+static ENTRY: AtomicI32 = AtomicI32::new(0);
+
+/// The entry's process group while it runs.
+pub fn entry() -> Option<Pid> {
+    Some(ENTRY.load(Ordering::Acquire)).filter(|p| *p > 0).map(Pid::from_raw)
+}
 
 #[expect(clippy::as_conversions, reason = "a signal's number, which the record carries")]
 fn number(signal: Signal) -> i32 {
@@ -105,9 +115,11 @@ fn spawn(config: &Config) -> Result<Pid, String> {
 /// sends the second when its own runs out (§6 of docs/04-runtimes.md), so the guest keeps none.
 pub fn run(config: &Config, signals: &mut SignalFd) -> Result<Ended, String> {
     let entry = spawn(config)?;
+    ENTRY.store(entry.as_raw(), Ordering::Release);
     let mut stopped = 0;
     loop {
         if let Some(ended) = reap(entry)? {
+            ENTRY.store(0, Ordering::Release);
             return Ok(ended);
         }
         let mut fds = [PollFd::new(signals.as_fd(), PollFlags::POLLIN)];

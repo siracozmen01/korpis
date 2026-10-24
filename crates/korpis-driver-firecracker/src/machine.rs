@@ -9,10 +9,11 @@
 
 mod create;
 mod status;
+mod stop;
 
 use crate::object::{Object, Vm};
 use crate::settings::Settings;
-use crate::{agent, api, console, jail, process};
+use crate::{console, jail, process};
 use korpis_proto::korpis::driver::v1 as driver;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -237,6 +238,21 @@ impl Machine {
         }))
     }
 
+    /// Waits until object `id`'s run has said it started, within a bound: its serial port is open
+    /// and its agent listens from then (Finding 146 of docs/23-walkthroughs.md).
+    pub(super) async fn until_started(&self, id: &str) -> MachineResult<()> {
+        let dir = self.dir(id)?;
+        let until = Instant::now() + JAILER_BOUND;
+        let started = || {
+            let drive = std::fs::File::open(Object::config(&dir));
+            drive.and_then(|mut d| korpis_guest::status::has_started(&mut d)).unwrap_or(false)
+        };
+        while !started() && Instant::now() < until {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        Ok(())
+    }
+
     /// Sends `data`, typed by `from` (who, and in which session), to object `id`'s console, once
     /// its guest has started: what reaches the serial port before the guest's kernel has opened
     /// it is lost, so an input sent as a guest boots waits for it, within a bound.
@@ -248,85 +264,10 @@ impl Machine {
     ) -> MachineResult<()> {
         let object = self.load(id)?;
         let dir = self.dir(id)?;
-        let until = Instant::now() + JAILER_BOUND;
-        let started = || {
-            let drive = std::fs::File::open(Object::config(&dir));
-            drive.and_then(|mut d| korpis_guest::status::has_started(&mut d)).unwrap_or(false)
-        };
-        while !started() && Instant::now() < until {
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+        self.until_started(id).await?;
         console::send(&dir, object.spec.stream.as_option(), from, data).map_err(|(refused, why)| {
             if refused { MachineError::Refused(why) } else { MachineError::Failed(why) }
         })
-    }
-
-    /// Tells object `id`'s guest to stop, as the driver's graceful default, and kills it once
-    /// `grace` has passed if it has not ended.
-    pub async fn stop(&self, id: &str, signal: &str, grace: Duration) -> MachineResult<()> {
-        self.signal(id, signal).await?;
-        let machine = self.clone();
-        let id = id.to_owned();
-        tokio::spawn(async move {
-            tokio::time::sleep(grace).await;
-            let _ = machine.kill(&id).await;
-        });
-        Ok(())
-    }
-
-    /// Sends object `id`'s guest Ctrl+Alt+Del, the one signal it can be sent (§4.2 of
-    /// docs/04-runtimes.md), once in a run; a guest not running has nothing to stop.
-    pub async fn signal(&self, id: &str, signal: &str) -> MachineResult<()> {
-        if !signal.is_empty() && signal != "SIGTERM" {
-            let why = format!("{signal}: a guest is sent no named signals, only a stop");
-            return Err(MachineError::Refused(why));
-        }
-        let object = self.load(id)?;
-        let dir = self.dir(id)?;
-        if !object.vm.as_ref().is_some_and(process::alive) || !Object::tell(&dir).map_err(failed)? {
-            return Ok(());
-        }
-        let told = api::ctrl_alt_del(&jail::api_socket(&self.settings, id)).await;
-        if told.is_err() {
-            let _ = Object::untell(&dir);
-        }
-        told.map_err(failed)
-    }
-
-    /// Asks the agent of object `id`'s guest whether it answers within `within`; why not, where it
-    /// does not. A guest that does not run has no agent to ask, and is refused.
-    pub async fn ping_guest(
-        &self,
-        id: &str,
-        within: Duration,
-    ) -> MachineResult<Result<(), String>> {
-        if !self.load(id)?.vm.as_ref().is_some_and(process::alive) {
-            return Err(MachineError::Refused(format!("{id} does not run")));
-        }
-        let pinged = agent::ping(&jail::vsock_socket(&self.settings, id), within).await;
-        Ok(pinged.map(drop).map_err(|e| e.to_string()))
-    }
-
-    /// Kills object `id`'s guest: a second Ctrl+Alt+Del, which ends every process and has the
-    /// guest sync and restart, then its Firecracker if it has not ended within [`KILL_BOUND`].
-    pub async fn kill(&self, id: &str) -> MachineResult<()> {
-        let object = self.load(id)?;
-        let Some(vm) = object.vm.filter(process::alive) else { return Ok(()) };
-        // Sent until the guest has ended: a kill with no stop before it is the guest's first, and
-        // a Ctrl+Alt+Del that arrives while the guest has not yet read the last one is absorbed by
-        // it, the kernel keeping one pending signal of a kind.
-        let socket = jail::api_socket(&self.settings, id);
-        let until = Instant::now() + KILL_BOUND;
-        while process::alive(&vm) && Instant::now() < until {
-            let _ = api::ctrl_alt_del(&socket).await;
-            tokio::time::sleep(AGAIN).await;
-        }
-        process::kill(&vm);
-        let until = Instant::now() + KILL_BOUND;
-        while process::alive(&vm) && Instant::now() < until {
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
-        Ok(())
     }
 
     /// Removes object `id`: its guest killed, its jail, cgroup, and record removed.

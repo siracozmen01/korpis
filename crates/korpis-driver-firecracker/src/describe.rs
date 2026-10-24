@@ -61,6 +61,9 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         ]
         .map(Into::into)
         .into(),
+        // Named signals reach a guest's entry through its agent on the control port (§6 of
+        // docs/04-runtimes.md).
+        signals: korpis_guest::control::SIGNALS.iter().map(|s| (*s).to_owned()).collect(),
         gpu: vec![pb::GpuMode::GPU_MODE_NONE.into()],
         rootfs_sources: vec![pb::RootfsSource::ROOTFS_SOURCE_OCI_IMAGE.into()],
         network_modes: vec![
@@ -94,7 +97,8 @@ mod tests {
         let caps = i.capabilities.as_option().unwrap();
         let tiers: Vec<_> = caps.tiers.iter().map(buffa::EnumValue::as_known).collect();
         assert_eq!(tiers, [Some(pb::IsolationTier::ISOLATION_TIER_MICROVM)]);
-        assert!(caps.signals.is_empty(), "a guest is sent no named signal (Finding 144)");
+        // Finding 144 kept this empty until a guest's agent could carry a signal's name.
+        assert!(caps.signals.iter().any(|s| s == "SIGHUP"), "named signals, through the agent");
         assert!(!caps.enforcement["pids"].enforced && caps.enforcement["memory"].enforced);
         let modes: Vec<_> = caps.network_modes.iter().map(buffa::EnumValue::as_known).collect();
         assert_eq!(modes[0], Some(pb::NetworkMode::NETWORK_MODE_TAP), "a guest holds a tap");

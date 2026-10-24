@@ -338,20 +338,22 @@ reading, is refused or recorded as dropped, never left to stall the call.
 console a guest has, its serial port, which is its Firecracker's standard input and output. The
 driver has no shim to start the writer, so it starts `korpis-stream-writer` itself for each run,
 before the guest, handing it the guest's output on the descriptors containerd's shim would; once
-the jailer has made the guest's cgroup the writer is moved into it, so it is counted with its
-guest and outlives a restart of the driver, and it seals and exits when the guest's Firecracker
-does. It refuses the same stream directories, and the same secrets, as the `oci` driver; what both
-share of a console is one module of `korpis-driver-kit`. Inside the guest, `korpis-guest` gives a
-console of logs the port's output as the entry writes it, with the terminal's output processing
-off, so a line holds no carriage return a container's would not; an interactive entry runs in a
-session of its own whose controlling terminal is the port, as a container's runs under its
-terminal. A guest's kernel clears the port when it opens it at boot, so what is typed before then
-is lost: `korpis-guest` says on the config drive that the run has started once the port is open,
-and the driver holds an input until it has, within ten seconds (Finding 146 of
-`23-walkthroughs.md`). What it does not do, stated: `ResizeConsole` is refused, since nothing
-carries a terminal's size into a guest until its agent does (§4.4), so a full-screen program in an
-interactive guest sees the port's default size; and the console carries what the guest kernel
-prints at its quiet level (§6).
+the jailer has made the guest's cgroup the writer is moved into it, so it is counted with its guest
+and outlives a restart of the driver, and it seals and exits when the guest's Firecracker does. It
+refuses the same stream directories, and the same secrets, as the `oci` driver; what both share of
+a console is one module of `korpis-driver-kit`. Inside the guest, `korpis-guest` gives a console of
+logs the port's output as the entry writes it, with the terminal's output processing off, so a line
+holds no carriage return a container's would not; an interactive entry runs in a session of its own
+whose controlling terminal is the port, as a container's runs under its terminal. A guest's kernel
+clears the port when it opens it at boot, so what is typed before then is lost: `korpis-guest` says
+on the config drive that the run has started once the port is open, and the driver holds an input
+until it has, within ten seconds (Finding 146 of `23-walkthroughs.md`). `ResizeConsole` is recorded
+in the stream with who sent it, as a container's is, and then asked of the guest's agent on its
+control port (§6), which sets the size of the entry's terminal, the port, so the kernel tells the
+entry with `SIGWINCH`; a console of logs has no terminal, and its resize is refused. Corrected
+2026-10-24: until the agent was reached, `ResizeConsole` was refused on this tier, and a
+full-screen program in an interactive guest saw the port's default size. What it does not do,
+stated: the console carries what the guest kernel prints at its quiet level (§6).
 
 **`Wait` is a stream of events.** The protocol carries it as `Events`: for every task of the
 driver's objects that starts, exits, pauses, resumes, is deleted, or runs out of memory, the status
@@ -674,36 +676,45 @@ operator; a newer kernel reaches a guest at its next boot, never while it runs; 
 whose software needs a different kernel is outside this tier.
 
 The first process is `korpis-guest`, a static binary on a **boot drive** that holds nothing else
-and is shared, read-only, by every guest of the node. The drives are attached in a fixed order,
-so the guest can count on their names: the boot drive, which the kernel mounts as its root; the
-image, read-only; the **config drive**, on which the driver writes what to run (the entry, its
-environment, its user and group as numbers, its working directory, and its addresses and
-gateways); then each volume. `korpis-guest` assembles the workload's root as the
-container tier's is (§2): the image beneath a small tmpfs, in an overlay, so the mount points the
-image lacks can be made, and then the overlay read-only, with `/tmp`, `/run`, and `/dev/shm` as
-small tmpfs mounts. It mounts each volume's filesystem, sets `eth0`, and runs the entry as its
-user in a process group of its own, reaping whatever the entry's children leave. When the entry
-ends, it ends every other process and writes how the run ended in the config drive's last block,
-then restarts the guest, which ends the microVM: on x86 Firecracker exits when its guest resets
-the CPU, and has no power-off to offer (§5 of `research/evidence.md`). A **stop** is
-Ctrl+Alt+Del, which Firecracker injects through the same keyboard controller; the guest's first
-process receives it as `SIGINT` and sends the entry's group `SIGTERM`, and a second Ctrl+Alt+Del
-ends every process at once. The guest keeps no grace of its own: the grace is the supervisor's
-(§6 of `02-architecture.md`), whose stop signals the object with the driver's graceful default and
-kills it once the grace is over, so the driver's default is the first Ctrl+Alt+Del and its kill
-the second, after which the guest syncs its volumes and restarts. Since a guest counts what it is
-sent, the driver keeps the count honest at both ends (Finding 145 of `23-walkthroughs.md`). A stop
-is sent once in a run: an agent restarted in the middle of a stop asks for it again (§6 of
+and is shared, read-only, by every guest of the node. The drives are attached in a fixed order, so
+the guest can count on their names: the boot drive, which the kernel mounts as its root; the image,
+read-only; the **config drive**, on which the driver writes what to run (the entry, its
+environment, its user and group as numbers, its working directory, and its addresses and gateways);
+then each volume. `korpis-guest` assembles the workload's root as the container tier's is (§2): the
+image beneath a small tmpfs, in an overlay, so the mount points the image lacks can be made, and
+then the overlay read-only, with `/tmp`, `/run`, and `/dev/shm` as small tmpfs mounts. It mounts
+each volume's filesystem, sets `eth0`, and runs the entry as its user in a process group of its
+own, reaping whatever the entry's children leave. When the entry ends, it ends every other process
+and writes how the run ended in the config drive's last block, then restarts the guest, which ends
+the microVM: on x86 Firecracker exits when its guest resets the CPU, and has no power-off to offer
+(§5 of `research/evidence.md`). A **stop** is asked of the guest's agent on its control port, which
+sends the entry's group the signal the stop names, `SIGTERM` by default, as a container's runtime
+would (2026-10-24, below); where the agent does not take it, a stop is Ctrl+Alt+Del, which
+Firecracker injects through the same keyboard controller; the guest's first process receives it as
+`SIGINT` and sends the entry's group `SIGTERM`, and a second Ctrl+Alt+Del ends every process at
+once. The guest keeps no grace of its own: the grace is the supervisor's (§6 of
+`02-architecture.md`), whose stop signals the object with the driver's graceful default and kills
+it once the grace is over, so the driver's default is the first Ctrl+Alt+Del and its kill the
+second, after which the guest syncs its volumes and restarts. Since a guest counts what it is sent,
+the driver keeps the count honest at both ends (Finding 145 of `23-walkthroughs.md`). A stop is
+sent once in a run: an agent restarted in the middle of a stop asks for it again (§6 of
 `02-architecture.md`), and a second Ctrl+Alt+Del would be read as the kill, so the driver marks
-beside the object that its guest has been told, and clears the mark when it starts the guest
-again. A kill sends Ctrl+Alt+Del every quarter second until the guest has ended, because a kill may
-come with no stop before it, as a destroy's does, and because one that arrives before the guest
-has read the last is absorbed by it (the kernel keeps one pending signal of a kind); a guest that
-has not exited within a bound of five seconds is ended with its Firecracker process. The host
-reads back sixteen bytes of fixed layout, the exit status or the signal, and never a filesystem
-the guest has written (§4.4). The driver clears them before every run, and the guest first writes
-there that the run has started, once its serial port is open (§3; Finding 146 of
-`23-walkthroughs.md`).
+beside the object that its guest has been told, and clears the mark when it starts the guest again.
+A kill sends Ctrl+Alt+Del every quarter second until the guest has ended, because a kill may come
+with no stop before it, as a destroy's does, and because one that arrives before the guest has read
+the last is absorbed by it (the kernel keeps one pending signal of a kind); a guest that has not
+exited within a bound of five seconds is ended with its Firecracker process. **A signal named**
+(`Signal`, and a stop that names one) reaches the entry the same way, through the agent: the driver
+declares the signals the `oci` driver does, and a guest's agent sends only those, to the entry's
+process group, or answers that no entry runs; a signal other than a stop that the agent does not
+take is an error, never Ctrl+Alt+Del. The agent listens before the run says it has started, and the
+driver holds a signal, as it holds an input, until the run has said so, within ten seconds, so one
+sent as a guest boots is not refused for arriving early. Added 2026-10-24, when the control port
+was built, revisiting Finding 144 of `23-walkthroughs.md`, whose cost was that this tier could
+declare no signal names and so could not serve a recipe that reloads on `SIGHUP`. The host reads
+back sixteen bytes of fixed layout, the exit status or the signal, and never a filesystem the guest
+has written (§4.4). The driver clears them before every run, and the guest first writes there that
+the run has started, once its serial port is open (§3; Finding 146 of `23-walkthroughs.md`).
 
 What the guest does not give, stated: inside it the entry runs as its user with no user namespace,
 so the image's uid 0 is root of a kernel that runs nothing but this workload, which is the boundary
