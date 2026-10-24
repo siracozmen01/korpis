@@ -10,6 +10,8 @@
 use crate::client::Driver;
 use crate::fixture::Fixture;
 use crate::image;
+use crate::probe;
+use crate::process::Process;
 use crate::volume::{self, Kind};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
@@ -18,19 +20,21 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant};
 
 /// The size of each object's volume.
-const VOLUME: u64 = 64 << 20;
-/// What each object reserves and may use.
-const MEMORY: (u64, u64) = (64 << 20, 128 << 20);
+pub const VOLUME: u64 = 64 << 20;
+/// What memory each object reserves and may use.
+pub const MEMORY: (u64, u64) = (64 << 20, 128 << 20);
+/// What processor time each object reserves and may use, in thousandths of a processor.
+pub const CPU: (u64, u64) = (100, 500);
 /// How many processes each object may run.
-const PIDS: u64 = 64;
+pub const PIDS: u64 = 64;
 
 /// A suite of cases against one driver.
 #[derive(Debug)]
 pub struct Suite {
     /// What it was given.
     pub fixture: Fixture,
-    /// The driver.
-    pub driver: Driver,
+    process: Process,
+    driver: Mutex<Driver>,
     /// What the driver says it is.
     pub info: pb::DriverInfo,
     /// The probe's image, by reference.
@@ -87,7 +91,8 @@ pub fn intent(workload: &str, (driver, tier): (&str, pb::IsolationTier)) -> pb::
     let reserved =
         |reservation, limit| pb::ReservedLimit { reservation, limit, ..Default::default() };
     let resources = pb::ResourceSpec {
-        cpu: pb::CpuSpec { reservation_millis: 100, ..Default::default() }.into(),
+        cpu: pb::CpuSpec { reservation_millis: CPU.0, limit_millis: CPU.1, ..Default::default() }
+            .into(),
         memory: reserved(MEMORY.0, MEMORY.1).into(),
         pids: pb::PidsSpec { limit: PIDS, ..Default::default() }.into(),
         ..Default::default()
@@ -127,11 +132,47 @@ impl Suite {
     /// # Errors
     /// The driver did not describe itself, or the image could not be laid.
     pub async fn new(fixture: Fixture) -> Result<Self, String> {
+        let process = Process::default();
+        process.start(&fixture).await?;
         let driver = Driver::connect(&fixture.socket);
         let info = driver.describe().await.map_err(|e| format!("Describe: {e}"))?;
         let image = image::lay(&fixture.content, &fixture.probe)
             .map_err(|e| format!("the probe's image: {e}"))?;
-        Ok(Self { fixture, driver, info, image, next: AtomicU32::new(0), made: Mutex::default() })
+        let driver = Mutex::new(driver);
+        let next = AtomicU32::new(0);
+        Ok(Self { fixture, process, driver, info, image, next, made: Mutex::default() })
+    }
+
+    /// The driver, as it serves now.
+    #[must_use]
+    pub fn driver(&self) -> Driver {
+        match self.driver.lock() {
+            Ok(d) => d.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        }
+    }
+
+    /// Kills the driver with `SIGKILL`, as a crash ends it; restarts the host as the fixture says
+    /// for the objects whose processes are `host`, when there are any; and starts the driver again.
+    ///
+    /// # Errors
+    /// The driver could not be killed or started again, or the host's restart failed.
+    pub async fn restart(&self, host: Option<&[u32]>) -> Result<(), String> {
+        self.process.kill()?;
+        if let (Some(pids), Some(restart)) = (host, &self.fixture.host_restart) {
+            Process::restart_host(restart, pids)?;
+        }
+        self.process.start(&self.fixture).await?;
+        let driver = Driver::connect(&self.fixture.socket);
+        if let Ok(mut held) = self.driver.lock() {
+            *held = driver;
+        }
+        Ok(())
+    }
+
+    /// Kills the driver once the run is done with it.
+    pub fn end(&self) {
+        let _ = self.process.kill();
     }
 
     /// The driver's declared capabilities.
@@ -180,7 +221,7 @@ impl Suite {
     pub async fn prepared(&self, command: &[&str]) -> Result<driver::PreparedSpec, String> {
         use driver::prepare_response::Result as R;
         let (workload, intent) = self.workload();
-        let answer = self.driver.prepare(&workload, &intent, &self.recipe(command)).await;
+        let answer = self.driver().prepare(&workload, &intent, &self.recipe(command)).await;
         let mut spec = match answer.map_err(|e| format!("Prepare: {e}"))?.result {
             Some(R::Prepared(spec)) => *spec,
             Some(R::Rejection(r)) => return Err(format!("Prepare rejected it: {}", r.detail)),
@@ -215,7 +256,7 @@ impl Suite {
         command: &[&str],
     ) -> Result<(String, driver::PreparedSpec), String> {
         let spec = self.prepared(command).await?;
-        let id = self.driver.create(&spec).await.map_err(|e| format!("Create: {e}"))?;
+        let id = self.driver().create(&spec).await.map_err(|e| format!("Create: {e}"))?;
         self.keep(id.clone(), String::new());
         Ok((id, spec))
     }
@@ -229,9 +270,34 @@ impl Suite {
         command: &[&str],
     ) -> Result<(String, driver::PreparedSpec), String> {
         let (id, spec) = self.created(command).await?;
-        self.driver.start(&id).await.map_err(|e| format!("Start: {e}"))?;
-        self.until(&id, Duration::from_secs(120), |s| state(s) == RUNNING).await?;
+        self.driver().start(&id).await.map_err(|e| format!("Start: {e}"))?;
+        self.serving(&id, command).await?;
         Ok((id, spec))
+    }
+
+    /// Waits until `id`, started running the probe's `command`, runs: for `SERVE` and `STUBBORN`,
+    /// until the probe has taken the terminating signal, which a driver that declares `exec` is
+    /// asked, since an object may be running before its entry is (a guest boots first).
+    ///
+    /// # Errors
+    /// It was not seen running, or the probe did not take the signal, within two minutes.
+    pub async fn serving(&self, id: &str, command: &[&str]) -> Result<(), String> {
+        let within = Duration::from_secs(120);
+        self.until(id, within, |s| state(s) == RUNNING).await?;
+        let waits = command == probe::SERVE || command == probe::STUBBORN;
+        if !waits || !self.capabilities().exec {
+            return Ok(());
+        }
+        let deadline = Instant::now() + within;
+        let quick = (Duration::from_secs(10), 0);
+        while Instant::now() < deadline {
+            let asked = self.driver().exec(id, &probe::SERVING, quick).await;
+            if asked.is_ok_and(|(_, exit)| exit.status == 0) {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        Err(format!("the probe in {id} never took the terminating signal"))
     }
 
     /// Keeps an object's id, or a volume's name, to be cleaned away at the end.
@@ -253,7 +319,7 @@ impl Suite {
     ) -> Result<driver::RuntimeStatus, String> {
         let deadline = Instant::now() + within;
         loop {
-            let status = self.driver.inspect(id).await.map_err(|e| format!("Inspect: {e}"))?;
+            let status = self.driver().inspect(id).await.map_err(|e| format!("Inspect: {e}"))?;
             if wanted(&status) {
                 return Ok(status);
             }
@@ -268,8 +334,8 @@ impl Suite {
     pub async fn clean(&self) {
         let made = self.made.lock().map(|mut m| std::mem::take(&mut *m)).unwrap_or_default();
         for (id, _) in made.iter().filter(|(id, _)| !id.is_empty()) {
-            let _ = self.driver.kill(id).await;
-            let _ = self.driver.destroy(id).await;
+            let _ = self.driver().kill(id).await;
+            let _ = self.driver().destroy(id).await;
         }
         for (_, name) in made.iter().filter(|(_, v)| !v.is_empty()) {
             let _ = volume::remove(&self.fixture.volume_root, name);

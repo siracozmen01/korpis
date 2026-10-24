@@ -255,9 +255,7 @@ impl Containerd {
             Some(_) => self.delete_task(id).await?,
             None => {}
         }
-        if !self.container_exists(id).await? {
-            return Err(DriverError::NotFound(id.to_owned()));
-        }
+        self.held(id).await?;
         let mounts = snapshots::MountsRequest {
             snapshotter: SNAPSHOTTER.into(),
             key: id.to_owned(),
@@ -277,7 +275,7 @@ impl Containerd {
             terminal,
             ..Default::default()
         };
-        self.tasks().create(create).await?;
+        self.create_task(create).await?;
         self.mark_started(id).await?;
         let start = tasks::StartRequest { container_id: id.to_owned(), ..Default::default() };
         self.tasks().start(start).await?;

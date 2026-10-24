@@ -5,7 +5,7 @@
 //! lease, so the content and snapshots it is assembling are not collected half way.
 
 mod console;
-
+mod dead;
 mod events;
 pub mod exec;
 mod import;
@@ -32,6 +32,8 @@ pub const NAMESPACE: &str = "korpis";
 pub const SNAPSHOTTER: &str = "overlayfs";
 /// The runtime containerd runs containers with.
 pub const RUNTIME: &str = "io.containerd.runc.v2";
+/// containerd's state directory, as it is by default.
+pub const STATE: &str = "/run/containerd";
 /// How long a lease protects a create that died before it could remove the lease.
 const LEASE_EXPIRY: Duration = Duration::from_secs(3600);
 
@@ -51,6 +53,10 @@ pub struct Containerd {
     /// The stream writer and the driver's state, once configured; a container with a stream is
     /// refused without them.
     streams: Option<stream::Streams>,
+    /// containerd's socket, which a shim it starts is told.
+    socket: PathBuf,
+    /// containerd's state directory, where its runtime keeps each task's bundle.
+    state: PathBuf,
 }
 
 impl std::fmt::Debug for Containerd {
@@ -76,9 +82,19 @@ impl Containerd {
             cgroup_parent: format!("/{NAMESPACE}"),
             samples: std::sync::Arc::default(),
             streams: None,
+            socket: socket.to_owned(),
+            state: PathBuf::from(STATE),
         };
         this.namespace().await?;
         Ok(this)
+    }
+
+    /// Reads containerd's runtime state from `state`, its `state` setting, rather than
+    /// [`STATE`].
+    #[must_use]
+    pub fn with_state(mut self, state: &Path) -> Self {
+        state.clone_into(&mut self.state);
+        self
     }
 
     /// Writes consoles with `streams`.

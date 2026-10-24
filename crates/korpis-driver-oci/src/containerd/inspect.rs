@@ -33,10 +33,13 @@ pub struct Usage {
 }
 
 /// The status of a container whose labels are `labels` and whose task's process is `process`:
-/// when it last started while it has a task, and when it ended once it has.
+/// when it last started while it has a task, and when it ended once it has; and, when `oom` says
+/// its cgroup's kernel killed a process of it for want of memory and its entry ended by
+/// `SIGKILL`, that it was killed for that.
 fn status_of(
     process: Option<&Process>,
     labels: &BTreeMap<String, String>,
+    oom: bool,
 ) -> driver::RuntimeStatus {
     let task =
         process.map(|p| (p.status.as_known().unwrap_or(Status::UNKNOWN), p.exit_status, p.pid));
@@ -55,12 +58,14 @@ fn status_of(
     let started = process.and(labels.get(LABEL_STARTED)).and_then(|v| started_at(v));
     let stopped = state == driver::RuntimeState::RUNTIME_STATE_STOPPED;
     let finished = process.filter(|_| stopped).and_then(|p| p.exited_at.as_option().cloned());
+    let killed_for_memory = stopped && oom && exit_code == Some(137);
     driver::RuntimeStatus {
         state: state.into(),
         exit_code,
         pid,
         started_at: started.into(),
         finished_at: finished.into(),
+        reason: if killed_for_memory { "oom_killed".into() } else { String::new() },
         ..Default::default()
     }
 }
@@ -81,7 +86,7 @@ impl Containerd {
         let Some(labels) = self.labels_of(id).await? else {
             return Err(crate::error::DriverError::NotFound(id.to_owned()));
         };
-        Ok(status_of(self.process(id).await?.as_ref(), &labels))
+        Ok(status_of(self.process(id).await?.as_ref(), &labels, self.oom_killed(id)))
     }
 
     /// Every container the driver created, with its labels and status.
@@ -104,11 +109,27 @@ impl Containerd {
             out.push(driver::RuntimeObject {
                 runtime_id: c.id.clone(),
                 labels: labels.into(),
-                status: status_of(self.process(&c.id).await?.as_ref(), &kept).into(),
+                status: status_of(
+                    self.process(&c.id).await?.as_ref(),
+                    &kept,
+                    self.oom_killed(&c.id),
+                )
+                .into(),
                 ..Default::default()
             });
         }
         Ok(out)
+    }
+
+    /// Whether the kernel has killed a process of `id` for want of memory, as its cgroup counts
+    /// it: the cgroup stays until the task is deleted, which a start of a new one does, so the
+    /// count is the task's.
+    fn oom_killed(&self, id: &str) -> bool {
+        let dir =
+            std::path::Path::new("/sys/fs/cgroup").join(self.cgroup(id).trim_start_matches('/'));
+        let events = std::fs::read_to_string(dir.join("memory.events")).unwrap_or_default();
+        let kills = events.lines().find_map(|l| l.strip_prefix("oom_kill ")).and_then(number);
+        kills.is_some_and(|n| n > 0)
     }
 
     /// What `id` uses now.

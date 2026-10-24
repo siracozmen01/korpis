@@ -17,6 +17,7 @@ fn ended(record: Option<Ended>) -> (Option<i32>, &'static str) {
     match record {
         Some(Ended::Exited(code)) => (Some(code), ""),
         Some(Ended::Signalled(signal)) => (Some(128 + signal), ""),
+        Some(Ended::OutOfMemory) => (Some(137), "oom_killed"),
         Some(Ended::Failed) => (None, "the guest's first process failed; its console says why"),
         None => (None, "the guest ended without saying how"),
     }
@@ -88,6 +89,7 @@ mod tests {
     fn an_ending_is_a_status_or_a_reason() {
         assert_eq!(ended(Some(Ended::Exited(3))), (Some(3), ""));
         assert_eq!(ended(Some(Ended::Signalled(9))), (Some(137), ""), "as a shell reports it");
+        assert_eq!(ended(Some(Ended::OutOfMemory)), (Some(137), "oom_killed"), "and why");
         assert!(ended(Some(Ended::Failed)).0.is_none() && ended(None).0.is_none());
     }
 }

@@ -7,8 +7,10 @@ use crate::case::{Report, Verdict};
 use crate::suite::Suite;
 
 mod ending;
+mod limits;
 mod objects;
 mod prepare;
+mod recover;
 
 /// What a case that stopped short says.
 type Stopped = String;
@@ -45,4 +47,31 @@ pub async fn lifecycle(s: &Suite, report: &mut Report) {
     report.add(("an_exit_is_inspected_with_its_status_and_sent_as_an_event", "04 §4.2"), exited);
     let destroyed = verdict(ending::destroy_releases(s).await);
     report.add(("destroy_releases_it_and_again_is_not_found", "04 §4.2"), destroyed);
+}
+
+/// `Recover` after the kills §8 of docs/04-runtimes.md names: the driver's, the kernel's for
+/// memory, and a restart of the host.
+pub async fn recover(s: &Suite, report: &mut Report) {
+    let adopted = verdict(recover::adopts_after_a_kill(s).await);
+    report.add(("recover_adopts_every_object_after_the_driver_is_killed", "04 §4.2"), adopted);
+    let oom = verdict(recover::says_its_memory_ended_it(s).await);
+    report.add(("an_object_killed_for_its_memory_says_so_and_is_adopted_stopped", "04 §8"), oom);
+    let host = verdict(recover::a_restarted_host_runs_none(s).await);
+    report.add(("after_the_host_restarts_nothing_runs_and_each_starts_again", "04 §8"), host);
+}
+
+/// Every limit the driver declares enforced, met and found held; and a capability declared that
+/// the protocol can exercise.
+pub async fn limits(s: &Suite, report: &mut Report) {
+    report
+        .add(("the_memory_limit_it_declares_is_held", "04 §4.1"), verdict(limits::memory(s).await));
+    report
+        .add(("the_process_limit_it_declares_is_held", "04 §4.1"), verdict(limits::pids(s).await));
+    report.add(("the_disk_limit_it_declares_is_held", "04 §4.1"), verdict(limits::disk(s).await));
+    report
+        .add(("the_processor_limit_it_declares_is_held", "04 §4.1"), verdict(limits::cpu(s).await));
+    report.add(
+        ("a_resource_it_declares_resized_live_can_be_asked_for", "04 §4.2"),
+        limits::hot_resize(s),
+    );
 }

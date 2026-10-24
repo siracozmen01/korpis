@@ -317,9 +317,10 @@ none is named, to its own user only; it reads images from the node's content sto
 `/var/lib/korpis-agent/identity`, which the agent keeps at mode `0750` (§6 of
 `02-architecture.md`); `--socket`, `--content`, `--volume-root`, `--identity-root`, and
 `--containerd` move them, and an agent given another state directory needs the driver told the
-same identity root. Stopping
-the driver stops nothing that runs: the containers are containerd's, and the next driver reads
-them back with `Recover`.
+same identity root. A containerd whose `state` setting is not `/run/containerd` needs the driver
+told it with `--containerd-state`, where it finishes containerd's cleanup after a container's shim
+died (§4.2 of `04-runtimes.md`; added 2026-10-24). Stopping the driver stops nothing that runs:
+the containers are containerd's, and the next driver reads them back with `Recover`.
 
 The `microvm` tier is another process, `korpis-driver-firecracker`, which serves the driver
 protocol on `/run/korpis/driver-firecracker.sock` to the users `--allow-uid` names, and which the

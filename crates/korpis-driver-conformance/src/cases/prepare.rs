@@ -28,7 +28,7 @@ pub fn describes_itself(s: &Suite) -> Verdict {
 
 /// The objects it holds, by id.
 async fn held(s: &Suite) -> Result<Vec<String>, Stopped> {
-    let objects = s.driver.recover().await.map_err(|e| format!("Recover: {e}"))?;
+    let objects = s.driver().recover().await.map_err(|e| format!("Recover: {e}"))?;
     let mut ids: Vec<String> = objects.into_iter().map(|o| o.runtime_id).collect();
     ids.sort();
     Ok(ids)
@@ -39,8 +39,9 @@ pub async fn pure(s: &Suite) -> Result<Verdict, Stopped> {
     let before = held(s).await?;
     let (workload, intent) = s.workload();
     let recipe = s.recipe(&probe::SERVE);
-    let first = s.driver.prepare(&workload, &intent, &recipe).await.map_err(|e| e.to_string())?;
-    let second = s.driver.prepare(&workload, &intent, &recipe).await.map_err(|e| e.to_string())?;
+    let first = s.driver().prepare(&workload, &intent, &recipe).await.map_err(|e| e.to_string())?;
+    let second =
+        s.driver().prepare(&workload, &intent, &recipe).await.map_err(|e| e.to_string())?;
     if !matches!(first.result, Some(driver::prepare_response::Result::Prepared(_))) {
         return Ok(Verdict::fail(format!("the probe was not prepared: {first:?}")));
     }
@@ -80,7 +81,7 @@ pub async fn refuses_another_tier(s: &Suite) -> Result<Verdict, Stopped> {
     if let Some(r) = intent.body.as_option_mut().and_then(|b| b.runtime.as_option_mut()) {
         r.tier = other.into();
     }
-    let answer = s.driver.prepare(&workload, &intent, &s.recipe(&probe::SERVE)).await;
+    let answer = s.driver().prepare(&workload, &intent, &s.recipe(&probe::SERVE)).await;
     Ok(rejected(answer.map_err(|e| format!("Prepare answered an error: {e}"))?))
 }
 
@@ -90,6 +91,6 @@ pub async fn refuses_another_driver(s: &Suite) -> Result<Verdict, Stopped> {
     if let Some(r) = intent.body.as_option_mut().and_then(|b| b.runtime.as_option_mut()) {
         r.driver = format!("not-{}", s.info.name);
     }
-    let answer = s.driver.prepare(&workload, &intent, &s.recipe(&probe::SERVE)).await;
+    let answer = s.driver().prepare(&workload, &intent, &s.recipe(&probe::SERVE)).await;
     Ok(rejected(answer.map_err(|e| format!("Prepare answered an error: {e}"))?))
 }

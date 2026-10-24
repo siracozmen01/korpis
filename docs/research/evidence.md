@@ -642,6 +642,18 @@ Primary:
   not support it. Met 2026-10-24 by the guest's restore, copying from a backup's image to a
   volume. Why a restore's copy reads and writes each data run itself (§4.4 of
   `../04-runtimes.md`).
+- **[V]** containerd v2.4.2 (revision b7a25261), when a container's shim dies, logs "cleaning up
+  dead shim", runs the shim's `delete` in the task's bundle, kills it after five seconds ("failed
+  to delete dead shim" error="signal: killed"; "failed to clean up after shim disconnected"
+  error="shim killed after context deadline exceeded"), and leaves the bundle under
+  `/run/containerd/io.containerd.runtime.v2.task/<namespace>/<id>`, so a new task of the
+  container is refused with "mkdir ...: file exists" until containerd restarts. Seen on every
+  try on this machine, 2026-10-24, in containerd's own journal; the same `delete` run by hand in
+  the bundle ends at once and removes runc's state. A related race in the same cleanup, leaking
+  runc's state, is [containerd#14416](https://github.com/containerd/containerd/issues/14416)
+  (**[R]** as a match for this case: it describes a removed bundle, not a timed-out delete). Why
+  the `oci` driver finishes the cleanup itself before it starts a task (§4.2 of
+  `../04-runtimes.md`).
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a

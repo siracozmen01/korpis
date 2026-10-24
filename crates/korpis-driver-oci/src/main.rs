@@ -21,6 +21,10 @@ struct Cli {
     /// containerd's socket.
     #[arg(long, default_value = "/run/containerd/containerd.sock")]
     containerd: PathBuf,
+    /// containerd's state directory, its `state` setting, where its runtime keeps each task's
+    /// bundle: what the driver cleans up after a shim that died (§4.2 of docs/04-runtimes.md).
+    #[arg(long, default_value = korpis_driver_oci::containerd::STATE)]
+    containerd_state: PathBuf,
     /// The node's content store, which the agent fills and the driver only reads.
     #[arg(long, default_value = "/var/lib/korpis-agent/content")]
     content: PathBuf,
@@ -73,7 +77,8 @@ async fn run(cli: Cli) -> Result<(), String> {
     let containerd = Containerd::connect(&cli.containerd, &cli.content)
         .await
         .map_err(|e| format!("containerd at {}: {e}", cli.containerd.display()))?
-        .with_streams(streams);
+        .with_streams(streams)
+        .with_state(&cli.containerd_state);
     let listener = bind(&cli.socket).map_err(|e| format!("{}: {e}", cli.socket.display()))?;
     let (driver, watcher) = Driver::new(
         containerd,

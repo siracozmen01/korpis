@@ -64,11 +64,22 @@ pub fn duration(d: Duration) -> buffa_types::google::protobuf::Duration {
     }
 }
 
+/// Ends the task following events when the last clone of the client goes.
+#[derive(Debug)]
+struct Watcher(tokio::task::JoinHandle<()>);
+
+impl Drop for Watcher {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
 /// The driver under test.
 #[derive(Clone)]
 pub struct Driver {
     client: Client,
     events: Arc<Mutex<Vec<Event>>>,
+    _watcher: Arc<Watcher>,
 }
 
 impl fmt::Debug for Driver {
@@ -97,8 +108,8 @@ async fn follow(client: Client, kept: Arc<Mutex<Vec<Event>>>) {
 }
 
 impl Driver {
-    /// The driver serving on `socket`, its events followed from now on. Must be called inside
-    /// a Tokio runtime; the task following events ends with the runtime.
+    /// The driver serving on `socket`, its events followed from now on, until the last clone of
+    /// it goes. Must be called inside a Tokio runtime.
     #[must_use]
     pub fn connect(socket: &Path) -> Self {
         let authority = http::Uri::from_static("http://localhost");
@@ -106,8 +117,8 @@ impl Driver {
         let config = ClientConfig::new(authority).with_protocol(Protocol::Grpc);
         let client = driver::DriverServiceClient::new(conn, config);
         let events = Arc::new(Mutex::new(Vec::new()));
-        tokio::spawn(follow(client.clone(), events.clone()));
-        Self { client, events }
+        let watcher = Watcher(tokio::spawn(follow(client.clone(), events.clone())));
+        Self { client, events, _watcher: Arc::new(watcher) }
     }
 
     /// Every event the driver has sent for `id` so far.
@@ -207,5 +218,35 @@ impl Driver {
         };
         self.client.signal_with_options(request, within(QUICK)).await?;
         Ok(())
+    }
+
+    /// `Exec` of `command` in `id`, for at most `timeout`, keeping at most `limit` bytes of what
+    /// it writes: what it wrote, and how it ended.
+    pub async fn exec(
+        &self,
+        id: &str,
+        command: &[&str],
+        (timeout, limit): (Duration, u32),
+    ) -> Answer<(Vec<u8>, driver::ExecExit)> {
+        use driver::__buffa::oneof::exec_response::Event as E;
+        let request = driver::ExecRequest {
+            runtime_id: id.to_owned(),
+            command: command.iter().map(|c| (*c).to_owned()).collect(),
+            timeout: duration(timeout).into(),
+            output_limit: limit,
+            ..Default::default()
+        };
+        let options = within(timeout.saturating_add(QUICK));
+        let mut stream = self.client.exec_with_options(request, options).await?;
+        let mut output = Vec::new();
+        while let Some(m) = stream.message::<driver::ExecResponse>().await? {
+            match m.to_owned_message().event {
+                Some(E::Output(data)) => output.extend(data),
+                Some(E::Exit(exit)) => return Ok((output, *exit)),
+                None => {}
+            }
+        }
+        let message = "the stream ended without the command's exit".to_owned();
+        Err(Refused { code: ErrorCode::DataLoss, message })
     }
 }

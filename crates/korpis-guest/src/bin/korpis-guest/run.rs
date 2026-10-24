@@ -80,6 +80,23 @@ fn reap(entry: Pid) -> Result<Option<Ended>, String> {
     Ok(None)
 }
 
+/// How many processes the guest's kernel has killed for want of memory, as it counts them.
+fn oom_kills() -> Option<u64> {
+    let vmstat = std::fs::read_to_string("/proc/vmstat").ok()?;
+    vmstat.lines().find_map(|l| l.strip_prefix("oom_kill ")).and_then(|n| n.trim().parse().ok())
+}
+
+/// How the entry ended, `ended` as it was reaped: one killed with `SIGKILL` while the kernel
+/// killed a process for want of memory, which it had not done by `before`, was killed for that.
+fn why(ended: Ended, before: Option<u64>) -> Ended {
+    let killed = ended == Ended::Signalled(number(Signal::SIGKILL));
+    if killed && oom_kills().zip(before).is_some_and(|(now, then)| now > then) {
+        Ended::OutOfMemory
+    } else {
+        ended
+    }
+}
+
 /// How many stops arrived among the signals waiting on `signals`.
 fn stops(signals: &mut SignalFd) -> Result<usize, String> {
     let mut asked = 0;
@@ -163,13 +180,14 @@ pub fn spawn(command_line: &[String], config: &Config, output: Output) -> Result
 /// sends the second when its own runs out (§6 of docs/04-runtimes.md), so the guest keeps none.
 pub fn run(config: &Config, signals: &mut SignalFd) -> Result<Ended, String> {
     let output = if config.interactive { Output::Terminal } else { Output::Console };
+    let kills = oom_kills();
     let entry = spawn(&config.argv, config, output)?;
     ENTRY.store(entry.as_raw(), Ordering::Release);
     let mut stopped = 0;
     loop {
         if let Some(ended) = reap(entry)? {
             ENTRY.store(NONE, Ordering::Release);
-            return Ok(ended);
+            return Ok(why(ended, kills));
         }
         let mut fds = [PollFd::new(signals.as_fd(), PollFlags::POLLIN)];
         match poll(&mut fds, PollTimeout::NONE) {

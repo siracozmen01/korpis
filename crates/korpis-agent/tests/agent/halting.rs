@@ -249,6 +249,26 @@ async fn a_retirement_the_driver_does_not_answer_is_asked_again_rather_than_fail
 }
 
 #[tokio::test]
+async fn a_stop_whose_object_the_driver_does_not_answer_for_is_asked_again_rather_than_failed() {
+    // As containerd answers a task's state late while its shim is busy (Finding 165).
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = InMemory::new();
+    let _agent = node(&cp, &dir, &runtime, Duration::from_secs(30)).await;
+    let w = declare(&cp, &project, "busy", push_paper().await, false).await;
+    let id = object(&runtime, &w).await;
+    runtime.unreachable("inspect", true);
+    cp.retire(&w).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert!(runtime.objects().contains_key(&id), "not destroyed while its state is unknown");
+    let failed = "SELECT count(*) FROM effect WHERE action = 'step.retire' AND outcome = 'failed'";
+    assert_eq!(cp.scalar::<i64>(failed).await, 0, "a late answer fails nothing");
+    runtime.unreachable("inspect", false);
+    counted(&cp, RETIRED, 1).await;
+}
+
+#[tokio::test]
 async fn an_object_whose_stop_cannot_be_delivered_is_killed_past_its_grace() {
     // As a guest whose hypervisor has stopped answering: no signal reaches it, and the stop is
     // not asked again forever, it ends as one that ignored its signal does.

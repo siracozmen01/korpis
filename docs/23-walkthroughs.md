@@ -1408,6 +1408,10 @@ the same mechanism", and that is the price of having made core and extensions th
 | 160 | A stop sent to a microVM while its guest made the workload's root was lost | §70 | `04-runtimes.md` §6 |
 | 161 | A verb naming an object a driver did not hold was answered differently by each verb and each driver | §70 | `04-runtimes.md` §4.2 |
 | 162 | The `oci` driver did not say when an object started, so an adopted run's timeout began again | §70 | `04-runtimes.md` §4.2; `05-scheduling.md` §4.2 |
+| 163 | A container whose shim died could not be started again until containerd itself restarted | §70 | `04-runtimes.md` §4.2 |
+| 164 | Neither driver ever said that its kernel had ended an object for want of memory | §70 | `04-runtimes.md` §4.2, §6 |
+| 165 | A stop whose driver did not answer in time failed the retirement it was part of | §70 | `02-architecture.md` §6 |
+| 166 | The interface listed a verb to resize an object while it runs, and the protocol has none | §70 | `04-runtimes.md` §4.2, §9 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -5786,3 +5790,91 @@ runs the suite against it, and both conform. What the suite does not test yet is
 `Recover` after a driver killed, an object killed for its memory, and a host restarted; the limits
 a driver says it enforces, against the kernel's; escapes for each tier; `Exec`; and the runner a
 third party starts without a test harness. Each follows in this phase (§4 of `20-roadmap.md`).
+
+> Revisited the same day, as the suite's `Recover` cases were built: the suite now starts the
+> driver itself, from how the fixture says it is started, so it can kill it as a crash does, and a
+> third party gives it a program for what a restart of its host does to its objects. Step 10's
+> question, asked of a driver that was killed, of an object its kernel killed, and of a host that
+> restarted, found Findings 163 and 164. Of what the paragraph above says the suite does not test
+> yet, `Recover` after those three kills it now tests, and both drivers pass.
+
+**FINDING 163: A container whose shim died could not be started again until containerd itself
+restarted. `CONFIRMED`, by the suite**
+
+Found 2026-10-24, by the suite's restart of the host against the `oci` driver, which on this
+machine kills a container's process and its shim and leaves containerd running. containerd forgot
+the task, so the driver inspected the container as created, and a `Start` was refused: the task's
+bundle was still there. containerd's journal said why: it cleans up after a dead shim by running
+the shim's `delete` in the bundle and removing the bundle, and it killed that `delete` after five
+seconds, every time, leaving both (§5 of `research/evidence.md`). A real reboot empties `/run`,
+where the bundle is, but a shim that crashes or is killed for its memory is not a reboot, and the
+workload on it would have stayed down until an operator restarted containerd.
+
+**Resolution.** Creating a task on a container it holds and containerd knows no task of, the `oci`
+driver asks again while containerd's cleanup still holds the task's place, and once containerd has
+given up, finishes the cleanup it did not: the shim's `delete` in the bundle, then the bundle, in
+its own namespace and for that container alone (§4.2 of `04-runtimes.md`), from containerd's state
+directory, which it is now told. The first try found a start that came inside containerd's five
+seconds refused as existing, which is why it waits. The suite's case
+`after_the_host_restarts_nothing_runs_and_each_starts_again` passes against both drivers. What it
+costs: the driver depends on where containerd keeps a task's bundle, its documented layout under
+its `state` setting, and a containerd that changed it would leave the case failing rather than the
+workload silently down.
+
+**FINDING 164: Neither driver ever said that its kernel had ended an object for want of memory.
+`CONFIRMED`, by the suite**
+
+Found 2026-10-24, by the suite's case of an object that takes memory past its limit. The protocol
+names `oom_killed` as the example of a status's reason, and its events as carrying out-of-memory
+kills, and both drivers reported such an object as exited 137 with no reason, which is a
+`SIGKILL` from anyone. A limit the kernel enforces and a crash then look the same to the person
+whose workload it is, which Rule K-3 exists to keep apart.
+
+**Resolution.** An object ended for want of memory says `oom_killed` (§4.2 of `04-runtimes.md`).
+The `oci` driver reads it from the container's cgroup, which counts the kernel's out-of-memory
+kills until the task is deleted; a guest's first process compares the guest kernel's count of
+them from when the entry started and says so in the record it leaves the host, which gains a
+kind for it (§6 there). Both survive a restart of the driver. The suite's case
+`an_object_killed_for_its_memory_says_so_and_is_adopted_stopped` passes against both drivers. What
+it costs: the reason says the kernel killed for memory while the entry was killed, not that it
+chose the entry, so an entry killed otherwise just after a child was killed for memory is said to
+have been killed for memory.
+
+> Revisited a second time the same day, as the suite's enforcement cases were built, and when
+> the full check that carried the `Recover` cases failed three end-to-end tests that had never
+> failed: Findings 165 and 166.
+
+**FINDING 165: A stop whose driver did not answer in time failed the retirement it was part of.
+`CONFIRMED`, by a full check, and by a test that failed without the fix**
+
+Found 2026-10-24. The full check that first carried the suite's `Recover` cases failed three
+retirements on a container, each with "the driver is unavailable: containerd: context deadline
+exceeded". Run beside the `firecracker` driver's suite, which boots and kills guests on the same
+machine, containerd answered a task's state late while its shim was busy, past the call's thirty
+seconds. §6 of `02-architecture.md` had left a retirement's destroy for a later pass when the
+driver does not answer in time, so that a moment of the driver's fails nothing, and had not done
+the same for the stop before it: asking whether the object still ran, and killing it at the
+grace's end, failed the stop on such an answer, and the retirement with it. The workload was left
+neither running nor retired, the case the earlier note was written to close.
+
+**Resolution.** An object whose state the driver did not answer for in time is not known to have
+stopped, so its stop goes on and the next pass asks again, and a kill not answered is sent again
+(§6 of `02-architecture.md`). `crates/korpis-agent/tests/agent/halting.rs` makes the in-memory
+runtime's `Inspect` unreachable during a retirement and finds no step failed and the workload
+retired once it answers; with the fix removed, it fails. What it costs: a driver that never
+answers leaves the stop waiting rather than failed.
+
+**FINDING 166: The interface listed a verb to resize an object while it runs, and the protocol has
+none. `CONFIRMED`, by reading both**
+
+Found 2026-10-24, writing the suite's case for §8's "a driver claiming `hot_resize` is tested
+resizing under load". §4.2 of `04-runtimes.md` lists `Resize` as capability-gated and §4.1 the
+`hot_resize` capability it is gated on, and `korpis.driver.v1` has no such verb, so nothing could
+ask a driver to resize anything, and a driver declaring `hot_resize` would declare a capability
+no node could use. Neither driver declares one, and the planner reads none, so nothing was lying
+yet; the documents asserted an operation their own protocol cannot express.
+
+**Resolution.** §4.2 says the verb is not built, and question 8 of §9 of `04-runtimes.md` holds
+what adding it needs. The suite fails a driver that declares `hot_resize`, since no case could
+exercise it, and finds neither of Korpis's does. What it costs: until the verb exists, any change
+of a running workload's resources recreates its object.

@@ -17,11 +17,12 @@ pub mod client;
 pub mod fixture;
 pub mod image;
 pub mod probe;
+pub mod process;
 pub mod suite;
 pub mod volume;
 
 pub use case::{Outcome, Report, Verdict};
-pub use fixture::Fixture;
+pub use fixture::{Fixture, Launch};
 
 /// Runs every case against the driver `fixture` names, then destroys what the run made.
 ///
@@ -31,7 +32,11 @@ pub use fixture::Fixture;
 pub async fn run(fixture: Fixture) -> Result<Report, String> {
     let suite = suite::Suite::new(fixture).await?;
     let mut report = Report { driver: suite.info.name.clone(), ..Report::default() };
-    cases::lifecycle(&suite, &mut report).await;
+    // Each group of cases is a large future, held on the heap rather than the caller's stack.
+    Box::pin(cases::lifecycle(&suite, &mut report)).await;
+    Box::pin(cases::recover(&suite, &mut report)).await;
+    Box::pin(cases::limits(&suite, &mut report)).await;
     suite.clean().await;
+    suite.end();
     Ok(report)
 }

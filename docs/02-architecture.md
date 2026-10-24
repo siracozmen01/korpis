@@ -1222,6 +1222,15 @@ forgets how far it was and signals the object again, which starts its grace agai
 > driver that never answers leaves the retirement waiting rather than failed, and the plan says
 > so only by not finishing.
 
+> Corrected 2026-10-24 (Finding 165 of `23-walkthroughs.md`). The 2026-10-20 note left the
+> destroy for a later pass and not the stop before it: asking whether the object still ran, and
+> killing it at the grace's end, failed the stop when the driver did not answer in time, and with
+> it the retirement, which the note above had meant to keep from failing. containerd answers a
+> task's state late while its shim is busy, which a loaded machine makes common. Each is now asked
+> again on the next pass in the same way: an object whose state was not answered is not known to
+> have stopped, so its stop goes on, and a kill not answered is sent again. What it costs: the
+> same as above, a driver that never answers leaves the stop waiting rather than failed.
+
 Three properties follow from this structure:
 
 **No component both holds privilege and accepts tenant input.** The supervisor accepts

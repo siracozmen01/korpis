@@ -16,7 +16,7 @@ use std::time::Duration;
 /// A created object has not started.
 pub async fn create_runs_nothing(s: &Suite) -> Result<Verdict, Stopped> {
     let (id, _) = s.created(&probe::SERVE).await?;
-    let status = s.driver.inspect(&id).await.map_err(|e| format!("Inspect: {e}"))?;
+    let status = s.driver().inspect(&id).await.map_err(|e| format!("Inspect: {e}"))?;
     if state(&status) != CREATED {
         return Ok(Verdict::fail(format!("created, it is {status:?}")));
     }
@@ -26,11 +26,11 @@ pub async fn create_runs_nothing(s: &Suite) -> Result<Verdict, Stopped> {
 /// A second `Create` of the same spec answers the same object, and makes no other.
 pub async fn create_again_is_the_same(s: &Suite) -> Result<Verdict, Stopped> {
     let (id, spec) = s.created(&probe::SERVE).await?;
-    let again = s.driver.create(&spec).await.map_err(|e| format!("the second Create: {e}"))?;
+    let again = s.driver().create(&spec).await.map_err(|e| format!("the second Create: {e}"))?;
     if again != id {
         return Ok(Verdict::fail(format!("a second object, {again}, beside {id}")));
     }
-    let objects = s.driver.recover().await.map_err(|e| format!("Recover: {e}"))?;
+    let objects = s.driver().recover().await.map_err(|e| format!("Recover: {e}"))?;
     let workload = spec.labels.as_option().map(|l| l.workload.clone()).unwrap_or_default();
     let of =
         objects.iter().filter(|o| o.labels.as_option().is_some_and(|l| l.workload == workload));
@@ -44,11 +44,11 @@ pub async fn refuses_a_volume_outside(s: &Suite) -> Result<Verdict, Stopped> {
         return Ok(Verdict::fail("the probe's volume was not prepared as a mount"));
     };
     mount.source = "/etc".into();
-    if let Ok(id) = s.driver.create(&spec).await {
-        let _ = s.driver.destroy(&id).await;
+    if let Ok(id) = s.driver().create(&spec).await {
+        let _ = s.driver().destroy(&id).await;
         return Ok(Verdict::fail("an object was made over /etc"));
     }
-    let objects = s.driver.recover().await.map_err(|e| format!("Recover: {e}"))?;
+    let objects = s.driver().recover().await.map_err(|e| format!("Recover: {e}"))?;
     let workload = spec.labels.as_option().map(|l| l.workload.clone()).unwrap_or_default();
     let left = objects.iter().any(|o| o.labels.as_option().is_some_and(|l| l.workload == workload));
     Ok(Verdict::check(!left, "the refused spec left an object behind"))
@@ -57,15 +57,15 @@ pub async fn refuses_a_volume_outside(s: &Suite) -> Result<Verdict, Stopped> {
 /// A started object runs, says when it started, and a second `Start` leaves it running.
 pub async fn start_runs_it(s: &Suite) -> Result<Verdict, Stopped> {
     let (id, _) = s.running(&probe::SERVE).await?;
-    let status = s.driver.inspect(&id).await.map_err(|e| format!("Inspect: {e}"))?;
+    let status = s.driver().inspect(&id).await.map_err(|e| format!("Inspect: {e}"))?;
     if status.started_at.is_unset() {
         return Ok(Verdict::fail(format!("running, it does not say when it started: {status:?}")));
     }
-    if let Err(e) = s.driver.start(&id).await {
+    if let Err(e) = s.driver().start(&id).await {
         return Ok(Verdict::fail(format!("a second Start: {e}")));
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
-    let after = s.driver.inspect(&id).await.map_err(|e| format!("Inspect: {e}"))?;
+    let after = s.driver().inspect(&id).await.map_err(|e| format!("Inspect: {e}"))?;
     if state(&after) != RUNNING || after.started_at != status.started_at {
         return Ok(Verdict::fail(format!("a second Start changed it: {after:?}")));
     }
@@ -75,7 +75,7 @@ pub async fn start_runs_it(s: &Suite) -> Result<Verdict, Stopped> {
 /// Every verb naming an object the driver does not hold is answered `NotFound`.
 pub async fn unknown_is_not_found(s: &Suite) -> Result<Verdict, Stopped> {
     let none = "conformance-no-such-object";
-    let d = &s.driver;
+    let d = &s.driver();
     let answers = [
         ("Start", d.start(none).await.err()),
         ("Stop", d.stop(none, Duration::from_secs(1)).await.err()),

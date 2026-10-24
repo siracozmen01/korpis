@@ -23,12 +23,18 @@ pub enum Ended {
     Exited(i32),
     /// A signal ended it.
     Signalled(i32),
+    /// The guest's kernel killed it for want of memory: `SIGKILL`, from its out-of-memory killer.
+    OutOfMemory,
     /// The guest's init failed before or while running it; its console says why.
     Failed,
 }
 
 /// The record's kind for a run that has started and not ended.
 const STARTED: u8 = 4;
+
+/// The record's kind for an entry the kernel killed for want of memory, which came after
+/// [`STARTED`] and so is numbered after it.
+const OUT_OF_MEMORY: u8 = 5;
 
 fn encode(kind: u8, value: i32) -> [u8; 16] {
     let mut record = [0; 16];
@@ -69,7 +75,7 @@ pub fn started(drive: &mut std::fs::File) -> std::io::Result<()> {
 
 /// Whether the guest on `drive` has started its run, ended or not.
 pub fn has_started(drive: &mut (impl Read + Seek)) -> std::io::Result<bool> {
-    Ok(get(drive)?.is_some_and(|(kind, _)| (1..=STARTED).contains(&kind)))
+    Ok(get(drive)?.is_some_and(|(kind, _)| (1..=OUT_OF_MEMORY).contains(&kind)))
 }
 
 /// Clears the record on `drive`, before a run.
@@ -83,6 +89,7 @@ impl Ended {
             Self::Exited(code) => (1, code),
             Self::Signalled(signal) => (2, signal),
             Self::Failed => (3, 0),
+            Self::OutOfMemory => (OUT_OF_MEMORY, 9),
         }
     }
 
@@ -91,6 +98,7 @@ impl Ended {
             1 => Some(Self::Exited(value)),
             2 => Some(Self::Signalled(value)),
             3 => Some(Self::Failed),
+            OUT_OF_MEMORY => Some(Self::OutOfMemory),
             _ => None,
         }
     }
@@ -116,7 +124,14 @@ mod tests {
         let mut drive = tempfile::tempfile().unwrap();
         drive.set_len(crate::config::SIZE).unwrap();
         assert_eq!(Ended::read(&mut drive).unwrap(), None, "nothing written yet");
-        for ended in [Ended::Exited(0), Ended::Exited(-3), Ended::Signalled(9), Ended::Failed] {
+        let endings = [
+            Ended::Exited(0),
+            Ended::Exited(-3),
+            Ended::Signalled(9),
+            Ended::Failed,
+            Ended::OutOfMemory,
+        ];
+        for ended in endings {
             ended.write(&mut drive).unwrap();
             assert_eq!(Ended::read(&mut drive).unwrap(), Some(ended));
         }

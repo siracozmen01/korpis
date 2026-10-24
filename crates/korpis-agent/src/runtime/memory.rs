@@ -184,8 +184,13 @@ impl InMemory {
             .collect())
     }
 
+    /// Not recorded as a call, since the reconciler inspects on every pass; it answers as a
+    /// driver that cannot be reached when `inspect` was made so.
     fn inspect_now(&self, id: &str) -> RuntimeResult<driver::RuntimeStatus> {
         let s = self.lock()?;
+        if s.unreachable.contains("inspect") {
+            return Err(RuntimeError::Unavailable("inspect was made unreachable".into()));
+        }
         s.objects.get(id).map(|o| o.status.clone()).ok_or_else(|| RuntimeError::NotFound(id.into()))
     }
 

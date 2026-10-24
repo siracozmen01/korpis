@@ -279,7 +279,7 @@ Signal(RuntimeID, SignalName)
 Exec(RuntimeID, Command, timeout, limit) → Stream      // capability-gated
 PingGuest(RuntimeID, timeout) → answered               // capability-gated
 AttachConsole(RuntimeID) → Stream                      // capability-gated
-Resize(RuntimeID, Resources)                           // capability-gated
+Resize(RuntimeID, Resources)                           // not built (§9, question 8)
 ```
 
 **`Exec` as built** (2026-10-23, for `exec` probes). It runs a command inside a running object, in
@@ -419,6 +419,32 @@ but not when it started, so the `oci` driver records each start in the container
 `korpis.started_at` just before it starts the task, and the `firecracker` driver in the object's
 record beside its guest. What it costs: a label written before the task starts can name an instant
 a few milliseconds earlier than the process's own, which a run's timeout counts against it.
+
+**An object its kernel ended for want of memory says `oom_killed`** (2026-10-24, Finding 164 of
+`23-walkthroughs.md`), the reason the protocol had always named as its example and neither driver
+had ever said: its exit is then 137, as a shell reports `SIGKILL`, and the reason is what tells a
+limit enforced (Rule K-3) from a crash. The `oci` driver says it of a container whose entry ended
+by `SIGKILL` while its cgroup counts an out-of-memory kill in `memory.events`, which stays until
+the task is deleted, so it is the task's own count and survives a restart of the driver. In a
+guest the kernel that kills is the guest's, so the guest's first process compares the kernel's own
+count of such kills, from `/proc/vmstat`, when the entry was started and when it was killed, and
+says so in the record it leaves the host (§6). What it does not do: tell which process the kernel
+chose. An entry whose child was killed for memory and which was then killed by something else is
+said to have been killed for memory, in either tier.
+
+**A container whose shim died is started again** (2026-10-24, Finding 163 of
+`23-walkthroughs.md`). When a container's shim dies, containerd forgets the task and cleans up
+after it, running the shim's `delete` in the task's bundle and removing the bundle; on this
+machine its containerd killed that cleanup after five seconds every time and left the bundle, and
+every later task of the container was refused as existing until containerd restarted (§5 of
+`research/evidence.md`). So the `oci` driver, creating a task on a container it holds and
+containerd knows no task of, asks again while containerd's cleanup still holds the task's place,
+for up to twenty seconds, and once containerd has given up and only the bundle is left, finishes
+the cleanup as containerd would have: the shim's `delete` in the bundle, which removes runc's
+state, then the bundle. What it costs: a start just after a shim died waits out containerd's own
+cleanup, about five seconds; and the driver reaches into containerd's state directory, which it is
+told (`--containerd-state`), for one container of its own namespace; nothing else there is read or
+written, and a containerd that cleaned up in time leaves nothing for it to do.
 
 ### 4.3 What the interface must never assume
 
@@ -870,8 +896,9 @@ stop that no entry ran, the driver took that as delivered, and the workload ran 
 the grace's end. Added 2026-10-24, when the control port
 was built, revisiting Finding 144 of `23-walkthroughs.md`, whose cost was that this tier could
 declare no signal names and so could not serve a recipe that reloads on `SIGHUP`. The host reads
-back sixteen bytes of fixed layout, the exit status or the signal, and never a filesystem the guest
-has written (§4.4). The driver clears them before every run, and the guest first writes there that
+back sixteen bytes of fixed layout, the exit status or the signal, or that the guest's kernel
+killed the entry for want of memory (§4.2; added 2026-10-24), and never a filesystem the guest has
+written (§4.4). The driver clears them before every run, and the guest first writes there that
 the run has started, once its serial port is open (§3; Finding 146 of `23-walkthroughs.md`).
 
 What the guest does not give, stated: inside it the entry runs as its user with no user namespace,
@@ -1044,37 +1071,69 @@ exists instead of a series of forks.
 
 **As built** (2026-10-24, Phase 3). The suite is `korpis-driver-conformance`, Apache-2.0 as the
 protocol it tests is (§2 of `19-governance.md`, §11 of `10-api.md`): it speaks `korpis.driver.v1`
-over the driver's socket and links nothing else of Korpis's, so a driver written in any language
-is tested as a node uses it. It stands in for the node, and what it is given is what a driver's
-node gives it: the driver's socket, and the paths the driver was started with. One is the content
-store, whose blobs are files named by their digest under `blobs/sha256/`, written whole and
-renamed into place (§6); the suite writes it, and the driver only reads it. The other is the volume
-root, under which each volume is a directory given to its workload's first id, or, for a driver
-that declares block devices, a directory holding `block.ext4`, an image made sparse and formatted
-empty as ext4, which says what it is in the extended attribute `trusted.korpis.volume`, valued
-`block_device` (§3.1 of `06-storage.md`). Into each object it fills in what the agent would: the
-labels adoption matches, an id range of its own, and each volume's source. Its objects run a static
-program of its own, `korpis-conformance-probe`, packed into a one-layer image the suite lays into
-the store and names in a recipe at the driver's first declared tier. Each case ends in a pass, a
-failure saying what was seen, or not applicable, naming the capability the driver does not
+over the driver's socket and links nothing else of Korpis's, so a driver written in any language is
+tested as a node uses it. It stands in for the node, and what it is given is what a driver's node
+gives it: how the driver is started, the socket it serves on, and the paths it is started with. The
+suite starts the driver itself, so it can kill it as a crash does and start it again. One path is
+the content store, whose blobs are files named by their digest under `blobs/sha256/`, written whole
+and renamed into place (§6); the suite writes it, and the driver only reads it. The other is the
+volume root, under which each volume is a directory given to its workload's first id, or, for a
+driver that declares block devices, a directory holding `block.ext4`, an image made sparse and
+formatted empty as ext4, which says what it is in the extended attribute `trusted.korpis.volume`,
+valued `block_device` (§3.1 of `06-storage.md`). Into each object it fills in what the agent would:
+the labels adoption matches, an id range of its own, and each volume's source. Its objects run a
+static program of its own, `korpis-conformance-probe`, packed into a one-layer image the suite lays
+into the store and names in a recipe at the driver's first declared tier. Each case ends in a pass,
+a failure saying what was seen, or not applicable, naming the capability the driver does not
 declare, which never counts as a pass of it; a driver conforms when no case fails.
 
 The first cases are the lifecycle's (§4.2): `Describe` says a name, a protocol, a tier, and its
 health; `Prepare` changes nothing and answers the same twice, and rejects, rather than fails, a
 tier the driver does not declare and an intent naming another driver; `Create` runs nothing, makes
-one object however often it is asked, and refuses a volume outside the volume root, leaving
-nothing behind (§6.1 of `02-architecture.md`); `Start` runs it and says when, and again changes
-nothing; a `Stop` reaches the entry well within its grace and kills one that ignores it only once
-the grace is over; `Kill` ends it; an entry's exit is inspected with its status and when, and sent
-as an event; `Destroy` releases it; and each verb naming an object the driver does not hold is
-`NotFound`. Both of Korpis's drivers conform to them, each started as its own process by
+one object however often it is asked, and refuses a volume outside the volume root, leaving nothing
+behind (§6.1 of `02-architecture.md`); `Start` runs it and says when, and again changes nothing; a
+`Stop` reaches the entry well within its grace and kills one that ignores it only once the grace is
+over; `Kill` ends it; an entry's exit is inspected with its status and when, and sent as an event;
+`Destroy` releases it; and each verb naming an object the driver does not hold is `NotFound`. Both
+of Korpis's drivers conform to them, each started as its own process by
 `crates/korpis-e2e/tests/e2e/conformance.rs`, and the suite found three defects on its first run
-against them (Findings 160 to 162 of `23-walkthroughs.md`). What is not built yet, and follows in
-this phase (§4 of `20-roadmap.md`): the cases of `Recover` after the kills above, of enforcement
-and capability honesty, of isolation and `Exec`, and the runner a third party starts on its own.
-What it costs: the suite runs as root, since it marks block devices with a `trusted` attribute
-and gives volumes to ids, needs `mke2fs` for a driver that declares block devices, and makes and
+against them (Findings 160 to 162 of `23-walkthroughs.md`).
+
+The `Recover` cases follow the three kills above. The driver is killed with `SIGKILL` while it
+holds an object running, one that exited, and one created, and once started again lists each with
+its labels and as it was, the running one with its own start and process, and drives it: a stop
+reaches the entry and is sent as an event. An object that takes memory past its limit is ended by
+its kernel, says `oom_killed`, and is listed so again by the driver started after a kill. And a
+restart of the host is what the fixture says it is: a program the suite runs between killing the
+driver and starting it, given each object's process, which ends what a host's restart ends; after
+it, every object is still held and none runs, and one starts again and stops as before. Without
+such a program the case is not applicable. For Korpis's drivers on this machine it kills a
+container's process and its shim, and a guest's Firecracker, and leaves containerd running, since
+other services share it: what it does not exercise is containerd's own restart and a `/run` emptied
+by a reboot, which a real host restart does too. It found two more defects (Findings 163 and 164).
+What it costs: the suite runs as root, since it marks block devices with a `trusted` attribute and
+gives volumes to ids, needs `mke2fs` for a driver that declares block devices, and makes and
 destroys objects through the driver it tests, so it is run against a node that holds nothing else.
+
+Each limit a driver declares enforced is then met inside one of its objects and found held where
+the kernel or the hypervisor holds it, Rule K-3 tested rather than trusted; a limit declared not
+enforced is not applicable, never a pass. Memory, processes, and disk are met from inside, through
+`Exec`, the probe saying how far it got: memory taken a mebibyte at a time is ended by the kernel's
+kill at no more than the limit and at least a quarter of it; threads started past the process limit
+are refused below it; a volume is filled to no more than its size before a write is refused.
+Processor time is read from the driver's own counters, since a guest's clock does not count the
+time it is not given: an object keeping four threads busy is given no more than its limit, with a
+tenth's room for a quota kept per period, and at least half of it. A driver that declares a
+resource resized while it runs fails, since the protocol has no verb to ask it (§9, question 8).
+Both drivers hold memory and processor time; the `oci` driver holds processes and declares disk not
+enforced, which the helper keeps per volume, and the `firecracker` driver holds disk and declares
+processes not enforced, a guest's own kernel counting them; neither declares input and output, a
+link's shaping, or a resize. What is not built yet, and follows in this phase (§4 of
+`20-roadmap.md`): the cases of isolation and of `Exec` itself, and the runner a third party starts
+on its own. What the enforcement cases do not do: a limit met through `Exec` is a driver that
+declares `exec`, and one that does not is not applicable for memory, processes, and disk; and the
+bounds are loose enough to pass a limit enforced a little high, which is what a quota kept per
+period and a guest's own kernel make of every limit.
 
 ---
 
@@ -1113,3 +1172,11 @@ destroys objects through the driver it tests, so it is run against a node that h
    (question 3), and not carried until now (finding S18). It would be a fifth tier with its own
    honest table row, and whether it is worth it depends on attestation (§13 of `17-security.md`,
    question 2), which is the harder half. → here, after attestation is settled
+8. **Resizing an object while it runs.** §4.2 lists `Resize` and §4.1 a `hot_resize` capability,
+   and `korpis.driver.v1` has no such verb, so a change of resources is applied by recreating
+   the object and no driver declares a resource resized in place; the conformance suite fails a
+   driver that declares one (§8), since nothing could exercise it. Adding the verb needs what a
+   resize answers when the kernel cannot take it at once (memory below what is in use), how a
+   plan says a change is not disruptive when the driver resizes it in place (§3.3 of
+   `01-model.md`), and the guest side of a microVM, whose memory and processors the driver fixes
+   in the configuration Firecracker starts with (§6). Found 2026-10-24 by the suite. → here

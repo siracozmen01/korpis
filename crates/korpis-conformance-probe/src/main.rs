@@ -6,10 +6,22 @@
 //!
 //! - `serve`: runs until it is sent the terminating signal, then exits 0;
 //! - `stubborn`: takes the terminating signal and goes on running, so only a kill ends it;
-//! - `exit <status>`: exits with that status at once.
+//! - `serving`: exits 0 if a `serve` or a `stubborn` beside it has taken the terminating signal,
+//!   and 1 otherwise;
+//! - `exit <status>`: exits with that status at once;
+//! - `alloc`: takes memory a mebibyte at a time, writing each and saying how much it holds, until
+//!   the kernel ends it;
+//! - `threads`: starts threads until one is refused, and says how many;
+//! - `fill <dir>`: writes in `dir` until a write is refused, and says how much and why;
+//! - `spin <threads>`: keeps that many threads busy until it is killed.
 
 use std::io::Write as _;
 use std::process::ExitCode;
+
+mod limits;
+
+/// The file `serve` and `stubborn` write once they take the terminating signal.
+const SERVING: &str = "/tmp/probe-serving";
 
 /// Says `line` on its standard output.
 fn say(line: &str) {
@@ -31,6 +43,8 @@ fn until_terminated(stubborn: bool) -> ExitCode {
             say("probe: the terminating signal cannot be taken");
             return ExitCode::FAILURE;
         };
+        // Said once the signal is taken, so a stop from now on reaches this handler.
+        let _ = std::fs::write(SERVING, b"");
         say("probe: running");
         loop {
             terminated.recv().await;
@@ -48,8 +62,21 @@ fn main() -> ExitCode {
         ["serve"] => until_terminated(false),
         ["stubborn"] => until_terminated(true),
         ["exit", status] => ExitCode::from(status.parse::<u8>().unwrap_or(u8::MAX)),
+        ["serving"] => {
+            if std::path::Path::new(SERVING).exists() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        ["alloc"] => limits::alloc(),
+        ["threads"] => limits::threads(),
+        ["fill", dir] => limits::fill(dir),
+        ["spin", threads] => limits::spin(threads),
         _ => {
-            say("probe: serve, stubborn, or exit <status>");
+            say(
+                "probe: serve, stubborn, serving, exit <status>, alloc, threads, fill <dir>, spin <n>",
+            );
             ExitCode::from(2)
         }
     }

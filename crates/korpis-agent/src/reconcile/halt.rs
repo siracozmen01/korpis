@@ -81,9 +81,14 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 h.signalled = Some(now);
             }
             (_, _, Some(at)) if at.elapsed() >= self.wiring.grace => {
-                // An object gone meanwhile has stopped, which is what the kill wants.
                 match self.runtime.kill(id).await {
+                    // An object gone meanwhile has stopped, which is what the kill wants.
                     Ok(()) | Err(RuntimeError::NotFound(_)) => {}
+                    // Not answered in time: the next pass kills it again (Finding 165 of
+                    // docs/23-walkthroughs.md).
+                    Err(RuntimeError::Unavailable(why)) => {
+                        tracing::warn!(%id, %why, "the kill was not answered; a later pass asks again");
+                    }
                     Err(e) => return Err(e.into()),
                 }
             }
@@ -126,11 +131,18 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         written.is_ok()
     }
 
-    /// Whether `id` is running now; an object that is gone is not.
+    /// Whether `id` is running now; an object that is gone is not, and one the driver did not
+    /// answer for in time is not known to have stopped, so its stop goes on and the next pass
+    /// asks again, as a destroy does (§6 of docs/02-architecture.md; Finding 165 of
+    /// docs/23-walkthroughs.md). A runtime whose shim is busy answers that late under load.
     async fn running_now(&self, id: &str) -> Result<bool, Failure> {
         match self.runtime.inspect(id).await {
             Ok(s) => Ok(running(&s)),
             Err(RuntimeError::NotFound(_)) => Ok(false),
+            Err(RuntimeError::Unavailable(why)) => {
+                tracing::warn!(%id, %why, "whether it stopped was not answered; asked again later");
+                Ok(true)
+            }
             Err(e) => Err(e.into()),
         }
     }
