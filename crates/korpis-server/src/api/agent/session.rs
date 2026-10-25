@@ -21,7 +21,8 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as U
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_wire::duration;
 use korpis_wire::node::{
-    advertised_from_pb, drivers_from_pb, resources_from_pb, storage_classes_from_pb,
+    advertised_from_pb, devices_from_pb, drivers_from_pb, resources_from_pb,
+    storage_classes_from_pb, unoffered_from_pb,
 };
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -30,12 +31,16 @@ use tokio::sync::mpsc;
 /// How many decisions may wait for a slow agent before the session is dropped and it resyncs.
 const OUTBOUND: usize = 64;
 
+/// A node's devices and those it does not offer, as a Hello or a heartbeat reports them.
+pub(super) type Devices<'a> =
+    (&'a [korpis_proto::korpis::v1::Device], &'a [korpis_proto::korpis::v1::UnofferedDevice]);
+
 pub(super) fn facts(
     (capacity, allocatable): (
         Option<&korpis_proto::korpis::v1::Resources>,
         Option<&korpis_proto::korpis::v1::Resources>,
     ),
-    drivers: &[korpis_proto::korpis::v1::DriverInfo],
+    (drivers, devices): (&[korpis_proto::korpis::v1::DriverInfo], Devices<'_>),
     classes: Option<&[korpis_proto::korpis::v1::StorageClassInfo]>,
     advertised: Option<&agent::Advertised>,
 ) -> Result<NodeFacts, ConnectError> {
@@ -44,6 +49,8 @@ pub(super) fn facts(
         capacity: resources_from_pb(capacity.unwrap_or(&zero)),
         allocatable: resources_from_pb(allocatable.unwrap_or(&zero)),
         drivers: drivers_from_pb("drivers", drivers).refuse()?,
+        devices: devices_from_pb("devices", devices.0).refuse()?,
+        unoffered_devices: unoffered_from_pb("unoffered_devices", devices.1).refuse()?,
         storage_classes: classes
             .map(|c| storage_classes_from_pb("storage_classes", c))
             .transpose()
@@ -84,7 +91,7 @@ fn hello_from_pb(h: &agent::Hello) -> Result<Hello, ConnectError> {
         protocol: h.protocol.clone(),
         facts: facts(
             (h.capacity.as_option(), h.allocatable.as_option()),
-            &h.drivers,
+            (&h.drivers, (&h.devices, &h.unoffered_devices)),
             Some(&h.storage_classes),
             h.advertised.as_option(),
         )?,

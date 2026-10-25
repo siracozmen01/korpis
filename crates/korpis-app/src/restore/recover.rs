@@ -89,6 +89,7 @@ fn recovered_placement(opened: &Opened, now: std::time::SystemTime) -> Placement
         },
         authoritative: true,
         held_at: None,
+        devices: Vec::new(),
     }
 }
 

@@ -7,21 +7,10 @@ use crate::workload::plan::StepAction;
 use crate::workload::spec::{ConsoleMode, IsolationTier};
 use std::collections::BTreeMap;
 
-/// How a driver offers GPUs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum GpuMode {
-    /// None.
-    None,
-    /// A whole device, passed through.
-    Passthrough,
-    /// A mediated slice.
-    Mediated,
-    /// Time-sliced sharing.
-    Timeslice,
-}
+pub use super::device::DeviceMode;
 
 /// A class of device a driver can attach.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DeviceClass {
     /// A GPU.
     Gpu,
@@ -137,8 +126,9 @@ pub struct Capabilities {
     pub runtime_snapshot: Option<SnapshotCaps>,
     /// Whether it migrates a running workload.
     pub live_migrate: bool,
-    /// How it offers GPUs.
-    pub gpu: Vec<GpuMode>,
+    /// The modes it gives devices of the classes in `devices` in; none gives none (§6.2 of
+    /// docs/05-scheduling.md).
+    pub device_modes: Vec<DeviceMode>,
     /// The device classes it attaches.
     pub devices: Vec<DeviceClass>,
     /// Where root filesystems come from.
@@ -174,10 +164,10 @@ impl Capabilities {
         self.enforcement.get(kind).is_some_and(|e| e.enforced)
     }
 
-    /// Whether it can give a workload a GPU in any mode.
+    /// Whether it gives a device of `class` in `mode`.
     #[must_use]
-    pub fn offers_gpu(&self) -> bool {
-        self.gpu.iter().any(|m| *m != GpuMode::None) || self.devices.contains(&DeviceClass::Gpu)
+    pub fn gives(&self, class: DeviceClass, mode: DeviceMode) -> bool {
+        self.devices.contains(&class) && self.device_modes.contains(&mode)
     }
 }
 

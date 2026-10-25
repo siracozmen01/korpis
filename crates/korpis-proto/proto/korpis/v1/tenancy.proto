@@ -121,6 +121,12 @@ message QuotaBounds {
   optional uint64 endpoints = 12;
   optional uint64 dedicated_ipv4 = 13;
   optional uint64 node_ports = 15;
+  // Devices held, by class (§6.4 of docs/05-scheduling.md).
+  optional uint64 devices_gpu = 16;
+  optional uint64 devices_usb = 17;
+  optional uint64 devices_pci = 18;
+  optional uint64 devices_tpm = 19;
+  optional uint64 devices_serial = 20;
 }
 
 // What the workloads a quota entry counts hold together.

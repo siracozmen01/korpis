@@ -6,6 +6,7 @@
 //! reasons, so they are kept apart and the status a client shows is derived from both.
 
 pub mod advertised;
+pub mod device;
 pub mod driver;
 #[cfg(feature = "identity")]
 pub mod identity;
@@ -118,6 +119,10 @@ pub struct Node {
     pub allocatable: Bounds,
     /// The runtime drivers it offers, with their declared capabilities.
     pub drivers: Vec<DriverInfo>,
+    /// The devices its agent found described (§6.1 of docs/05-scheduling.md).
+    pub devices: Vec<device::Device>,
+    /// The devices described that it does not offer, and why.
+    pub unoffered_devices: Vec<device::UnofferedDevice>,
     /// The storage classes it offers.
     pub storage_classes: Vec<StorageClass>,
     /// Measured inbound reachability.
@@ -215,6 +220,8 @@ mod tests {
             capacity: Bounds::new(),
             allocatable: Bounds::new(),
             drivers: Vec::new(),
+            devices: Vec::new(),
+            unoffered_devices: Vec::new(),
             storage_classes: Vec::new(),
             reachability: Reachability::EdgeOnly,
             advertised: None,

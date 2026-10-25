@@ -4,8 +4,8 @@
 
 use crate::errors::from_sqlx;
 use crate::stored::{
-    bounds, bounds_doc, count, drivers, from_time, node_docs, storage_classes, taints, to_count,
-    to_json, to_time,
+    bounds, bounds_doc, count, devices, drivers, from_time, node_docs, storage_classes, taints,
+    to_count, to_json, to_time,
 };
 use crate::tenancy::{labels, name};
 use crate::{PgStore, PgTx};
@@ -41,6 +41,8 @@ pub(crate) struct NodeRow {
     pub(crate) last_port: Option<i32>,
     pub(crate) probed_at: Option<DateTime<Utc>>,
     pub(crate) ingress: bool,
+    pub(crate) devices: Value,
+    pub(crate) unoffered_devices: Value,
 }
 
 /// What a node advertises, from its columns; none until it has reported a range.
@@ -115,6 +117,7 @@ impl NodeRow {
             .ok_or_else(|| corrupt("reachability", &self.reachability))?;
         let advertised =
             advertised(&self.addresses, (self.first_port, self.last_port), self.ingress)?;
+        let (devices, unoffered_devices) = devices(self.devices, self.unoffered_devices)?;
         let mut capacity = bounds("node capacity", self.capacity)?;
         let mut allocatable = bounds("node allocatable", self.allocatable)?;
         // A node's ports are what its range holds, as it advertises it (§3 of
@@ -132,6 +135,8 @@ impl NodeRow {
             capacity,
             allocatable,
             drivers: drivers(self.drivers)?,
+            devices,
+            unoffered_devices,
             storage_classes: storage_classes(self.storage_classes)?,
             reachability,
             advertised,

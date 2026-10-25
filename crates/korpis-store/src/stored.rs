@@ -8,6 +8,7 @@
 //! written. Every conversion from a row refuses what it cannot read as
 //! [`StoreError::Corrupt`] rather than defaulting it.
 
+mod device;
 mod held;
 mod node;
 mod observation;
@@ -16,6 +17,7 @@ mod plan;
 mod scope;
 mod time;
 
+pub(crate) use device::{devices, devices_doc, holds, holds_doc};
 pub(crate) use held::{held, held_doc, totals, totals_doc};
 pub(crate) use node::{bounds, bounds_doc, drivers, node_docs, storage_classes, taints};
 pub(crate) use observation::{ObservationDoc, state_str};

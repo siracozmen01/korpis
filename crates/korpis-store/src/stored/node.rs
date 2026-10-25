@@ -5,8 +5,8 @@
 use super::from_json;
 use korpis_app::ports::{StoreError, StoreResult};
 use korpis_core::node::driver::{
-    DeviceClass, Fencing, FileAccess, GpuMode, IdMapCaps, NetworkMode, RootfsSource, SnapshotCaps,
-    StorageBackend, StorageCaps, StorageFeature, VolumeSemantics,
+    DeviceClass, DeviceMode, Fencing, FileAccess, IdMapCaps, NetworkMode, RootfsSource,
+    SnapshotCaps, StorageBackend, StorageCaps, StorageFeature, VolumeSemantics,
 };
 use korpis_core::node::{Capabilities, DriverInfo, Enforcement, StorageClass, Taint};
 use korpis_core::tenancy::quota::{Bounds, Dimension};
@@ -34,7 +34,7 @@ macro_rules! mirror {
 
 mirror!(TierDoc, IsolationTier { Process, Container, MicroVm, Vm });
 mirror!(ConsoleDoc, ConsoleMode { None, Logs, Interactive, Serial });
-mirror!(GpuDoc, GpuMode { None, Passthrough, Mediated, Timeslice });
+mirror!(ModeDoc, DeviceMode { Passthrough, Mediated, Timeslice });
 mirror!(DeviceDoc, DeviceClass { Gpu, Usb, Pci, Tpm, Serial });
 mirror!(RootfsDoc, RootfsSource { OciImage, Directory, DiskImage, Iso });
 mirror!(NetworkDoc, NetworkMode { Veth, Tap, Host, None });
@@ -83,7 +83,10 @@ struct CapsDoc {
     hot_volume_attach: bool,
     runtime_snapshot: Option<SnapshotDoc>,
     live_migrate: bool,
-    gpu: Vec<GpuDoc>,
+    /// Read from a driver stored before modes applied to every class, whose `gpu` is ignored
+    /// and which declared none, as empty (§4.1 of docs/04-runtimes.md).
+    #[serde(default)]
+    device_modes: Vec<ModeDoc>,
     devices: Vec<DeviceDoc>,
     rootfs_sources: Vec<RootfsDoc>,
     network_modes: Vec<NetworkDoc>,
@@ -178,7 +181,7 @@ impl CapsDoc {
                 kernel_max: s.kernel_max.clone(),
             }),
             live_migrate: c.live_migrate,
-            gpu: all(&c.gpu),
+            device_modes: all(&c.device_modes),
             devices: all(&c.devices),
             rootfs_sources: all(&c.rootfs_sources),
             network_modes: all(&c.network_modes),
@@ -227,7 +230,7 @@ impl CapsDoc {
                 kernel_max: s.kernel_max,
             }),
             live_migrate: self.live_migrate,
-            gpu: all(&self.gpu),
+            device_modes: all(&self.device_modes),
             devices: all(&self.devices),
             rootfs_sources: all(&self.rootfs_sources),
             network_modes: all(&self.network_modes),

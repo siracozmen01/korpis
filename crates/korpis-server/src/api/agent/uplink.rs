@@ -117,7 +117,9 @@ impl Uplink {
             }
             Some(Up::NodeStatus(s)) => {
                 let resources = (s.capacity.as_option(), s.allocatable.as_option());
-                match facts(resources, &s.drivers, None, s.advertised.as_option()) {
+                let reported =
+                    (s.drivers.as_slice(), (s.devices.as_slice(), s.unoffered_devices.as_slice()));
+                match facts(resources, reported, None, s.advertised.as_option()) {
                     Ok(f) => app.heartbeat(node, &f).await.map_err(|e| e.to_string()),
                     Err(e) => Err(e.to_string()),
                 }

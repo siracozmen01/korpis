@@ -119,6 +119,7 @@ pub fn declaration_from_pb(
         })?,
         runtime: runtime(&f("runtime"), b.runtime.as_option())?,
         resources: resources_from_pb(&f("resources"), b.resources.as_option())?,
+        devices: super::devices::requests_from_pb(&f("devices"), &b.devices)?,
         volumes: b
             .volumes
             .iter()

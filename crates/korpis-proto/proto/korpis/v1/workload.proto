@@ -149,6 +149,8 @@ message IntentBody {
   // How a task or scheduled workload's runs are made and kept; the defaults when absent, and
   // refused for a persistent workload (§4 of docs/05-scheduling.md).
   RunPolicy runs = 17;
+  // The devices it holds while placed (§6.3 of docs/05-scheduling.md). Added 2026-10-25.
+  repeated DeviceRequest devices = 18;
 }
 
 // Power is declared separately from configuration (finding R7, §3.3 of docs/01-model.md).

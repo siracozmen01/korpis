@@ -259,10 +259,9 @@ never assumes" has to cover devices for the same reason it covers everything els
 > alone, while §6 of `05-scheduling.md` gives every device a mode; a capture card shared by two
 > workloads had no declaration to rest on. The field is `device_modes`, applying to every class
 > the driver declares, with the same values less `none`, which an empty list says. Nothing had
-> been released, and the wire keeps its number; the schema and the code are renamed when devices'
-> schema is built, the next step of Phase 3 (§4 of `20-roadmap.md`), and say `gpu` until then. The `oci` driver declares `passthrough` and
-> `timeslice` for character devices once devices are built, and the `firecracker` driver no class
-> and no mode.
+> been released, and the wire keeps its number; the schema and the code were renamed with
+> devices' schema, the same day. The `oci` driver declares `passthrough` and `timeslice` for
+> character devices once devices are built, and the `firecracker` driver no class and no mode.
 
 `config_schema` is the honest part of the abstraction. A VM needs a kernel, a bootloader, and
 cloud-init; a container needs none of those. Core does not model that difference, the driver

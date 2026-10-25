@@ -181,7 +181,7 @@ async fn recovered_from(h: &Harness, intent: Uuid) -> serde_json::Value {
 async fn a_restore_recovers_what_the_nodes_run_and_tells_them_nothing_older() {
     let h = Harness::new().await;
     let node = TestAgent::enroll(&h, "fra-3", 1).await;
-    let ran = run_then_forget(&h, &node).await;
+    let ran = Box::pin(run_then_forget(&h, &node)).await;
     let app = App::new(h.db.store().await.unwrap(), SystemClock, test_key(), NoRecipes);
     let backup = BackupEpochs { max_issued: 0, rate_per_sec: 0, taken_at: SystemTime::now() };
     let fenced = app.fence_epochs(backup, Duration::from_secs(4), "uid 0 (root)").await.unwrap();

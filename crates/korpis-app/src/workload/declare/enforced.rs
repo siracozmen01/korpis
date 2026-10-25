@@ -24,7 +24,18 @@ pub(super) fn refuse_unenforced(body: &IntentBody) -> Result<(), AppError> {
         peer(&format!("body.egress.rules[{j}]"), r)?;
     }
     limits(body.egress.limits)?;
-    resources(&body.resources)
+    resources(&body.resources)?;
+    devices(body)
+}
+
+/// Refuses devices until placement holds them and a node gives them (§6 of
+/// docs/05-scheduling.md): a request no node of this release would honour is refused rather than
+/// stored as asked.
+fn devices(body: &IntentBody) -> Result<(), AppError> {
+    if body.devices.is_empty() {
+        return Ok(());
+    }
+    Err(AppError::NotYet { what: "devices", phase: 3 })
 }
 
 /// Refuses resources no node of this release holds: whole cores pinned need a cpuset and the

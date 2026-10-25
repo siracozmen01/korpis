@@ -22,6 +22,7 @@ pub use totals::Totals;
 
 use crate::id::{Id, IdKind};
 use crate::labels::LabelSelector;
+use crate::node::driver::DeviceClass;
 use crate::workload::spec::endpoints::Exposure;
 use crate::workload::spec::resources::ReservedLimit;
 use crate::workload::spec::{ConsoleMode, IntentBody};
@@ -60,11 +61,13 @@ pub enum Dimension {
     /// Ports of a node held by endpoints the node itself exposes, `node_port` and `node_bound`
     /// (§3 of docs/07-networking.md); never overcommitted, since a port is one endpoint's.
     NodePorts,
+    /// Devices held, one each, by class (§6.4 of docs/05-scheduling.md); never overcommitted.
+    Devices(DeviceClass),
 }
 
 impl Dimension {
     /// Every dimension.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 18] = [
         Self::Cpu,
         Self::Memory,
         Self::Disk,
@@ -78,6 +81,11 @@ impl Dimension {
         Self::Endpoints,
         Self::DedicatedIpv4,
         Self::NodePorts,
+        Self::Devices(DeviceClass::Gpu),
+        Self::Devices(DeviceClass::Usb),
+        Self::Devices(DeviceClass::Pci),
+        Self::Devices(DeviceClass::Tpm),
+        Self::Devices(DeviceClass::Serial),
     ];
 
     /// The stored and wire name: the field of `korpis.v1.Resources`.
@@ -97,6 +105,11 @@ impl Dimension {
             Self::Endpoints => "endpoints",
             Self::DedicatedIpv4 => "dedicated_ipv4",
             Self::NodePorts => "node_ports",
+            Self::Devices(DeviceClass::Gpu) => "devices_gpu",
+            Self::Devices(DeviceClass::Usb) => "devices_usb",
+            Self::Devices(DeviceClass::Pci) => "devices_pci",
+            Self::Devices(DeviceClass::Tpm) => "devices_tpm",
+            Self::Devices(DeviceClass::Serial) => "devices_serial",
         }
     }
 
@@ -198,6 +211,7 @@ impl Held {
             // (§4 of docs/20-roadmap.md): a `stable` endpoint holds a port of its node.
             (D::NodePorts, crate::workload::endpoint::node_ports(&body.endpoints, false)),
         ];
+        let devices = body.devices.iter().map(|d| (D::Devices(d.class), u64::from(d.count)));
         // A limit left unset is the reservation (`ReservedLimit::effective`); the I/O ceilings
         // have no reservation, so unset there is unbounded.
         let ceiling = |n: u64| (n > 0).then_some(n);
@@ -222,6 +236,12 @@ impl Held {
         for (d, n) in counts {
             reservations.insert(d, n);
             limits.insert(d, Some(n));
+        }
+        // Requests of one class add up.
+        for (d, n) in devices {
+            let held = reservations.entry(d).or_insert(0);
+            *held = held.saturating_add(n);
+            limits.insert(d, Some(*held));
         }
         Self { reservations, limits }
     }

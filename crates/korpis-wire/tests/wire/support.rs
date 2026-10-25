@@ -183,6 +183,16 @@ fn recipe() -> RecipeRef {
     }
 }
 
+/// Two GPUs, held in timeslice.
+fn shared_gpus() -> korpis_core::workload::spec::devices::DeviceRequest {
+    korpis_core::workload::spec::devices::DeviceRequest {
+        class: korpis_core::node::driver::DeviceClass::Gpu,
+        count: 2,
+        selector: None,
+        mode: korpis_core::node::device::DeviceMode::Timeslice,
+    }
+}
+
 pub fn body() -> IntentBody {
     IntentBody {
         recipe: recipe(),
@@ -206,6 +216,7 @@ pub fn body() -> IntentBody {
             pids_limit: 4096,
             ..ResourceSpec::default()
         },
+        devices: vec![shared_gpus()],
         volumes: vec![
             VolumeSpec {
                 name: "world".into(),

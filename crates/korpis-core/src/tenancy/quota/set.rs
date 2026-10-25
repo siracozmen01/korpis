@@ -9,11 +9,20 @@
 
 use super::{Bounds, Dimension, QuotaEntry};
 use crate::labels::LabelSelector;
+use crate::node::driver::DeviceClass;
 use std::collections::BTreeMap;
 
 /// The dimensions that are exclusive by nature and never overcommitted (§5.3 of
 /// docs/05-scheduling.md).
-pub const EXCLUSIVE: [Dimension; 2] = [Dimension::DedicatedIpv4, Dimension::NodePorts];
+pub const EXCLUSIVE: [Dimension; 7] = [
+    Dimension::DedicatedIpv4,
+    Dimension::NodePorts,
+    Dimension::Devices(DeviceClass::Gpu),
+    Dimension::Devices(DeviceClass::Usb),
+    Dimension::Devices(DeviceClass::Pci),
+    Dimension::Devices(DeviceClass::Tpm),
+    Dimension::Devices(DeviceClass::Serial),
+];
 
 /// An owner's quota set.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

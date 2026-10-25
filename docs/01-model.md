@@ -161,7 +161,7 @@ Quota dimensions
   dedicated_ipv4  count        exclusive, never overcommitted; IPv6 is not counted
   node_ports    count          ports of a node held by node_port and node_bound endpoints;
                                exclusive (§3 of 07-networking.md)
-  devices.<class>  count       devices held, one each, a timeslice share counting one (§6.4 of
+  devices_<class>  count       devices held, one each, a timeslice share counting one (§6.4 of
                                05-scheduling.md); added 2026-10-25
 ```
 

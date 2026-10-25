@@ -69,6 +69,8 @@ pub struct Placement {
     /// When a restore held it: its node presented its assignments without this one, so nothing
     /// is sent for it until an operator confirms it or it is retired (§8 of docs/03-state.md).
     pub held_at: Option<SystemTime>,
+    /// The node's devices it holds, chosen when it was bound (§6.3 of docs/05-scheduling.md).
+    pub devices: Vec<crate::node::device::DeviceHold>,
 }
 
 /// The newest attempt that found no node for a workload's target.

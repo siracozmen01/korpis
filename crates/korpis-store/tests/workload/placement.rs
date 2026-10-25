@@ -60,6 +60,10 @@ async fn a_placement_reads_back_whole_and_its_node_counts_it() {
         explanation: explanation(node.id),
         authoritative: true,
         held_at: None,
+        devices: vec![korpis_core::node::device::DeviceHold {
+            device: "nvidia.com/gpu=0".into(),
+            mode: korpis_core::node::device::DeviceMode::Passthrough,
+        }],
     };
     let mut tx = f.store.begin().await.unwrap();
     tx.move_target(w.id, first.id, 0).await.unwrap();

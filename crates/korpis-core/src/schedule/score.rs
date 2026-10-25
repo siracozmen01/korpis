@@ -152,9 +152,10 @@ pub(super) fn rank(
             // Phase 0 volumes live on the node of the placement that created them.
             values.push((Signal::VolumeLocality, if cur.node == id { 1.0 } else { 0.0 }));
         }
-        // No Phase 0 intent requests a device, so a node offering a GPU is one to spare.
-        let gpu = c.node.drivers.iter().any(|d| d.capabilities.offers_gpu());
-        values.push((Signal::DeviceFit, if gpu { 0.0 } else { 1.0 }));
+        // A node's devices are spared for workloads that ask for them (§6.3 of
+        // docs/05-scheduling.md): what its driver could give is not what the node has.
+        let spared = req.body.devices.is_empty() && !c.node.devices.is_empty();
+        values.push((Signal::DeviceFit, if spared { 0.0 } else { 1.0 }));
         if let Some(v) = failure_domain(req, c.node, &eligible, fleet, peers, &policies.workload) {
             values.push((Signal::FailureDomain, v));
         }

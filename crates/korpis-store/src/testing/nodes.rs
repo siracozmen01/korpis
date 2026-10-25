@@ -48,7 +48,7 @@ pub fn oci_driver() -> DriverInfo {
             hot_volume_attach: false,
             runtime_snapshot: None,
             live_migrate: false,
-            gpu: Vec::new(),
+            device_modes: Vec::new(),
             devices: Vec::new(),
             rootfs_sources: vec![RootfsSource::OciImage],
             network_modes: vec![NetworkMode::Veth],
@@ -104,6 +104,8 @@ pub fn ready_node(
         capacity,
         allocatable,
         drivers: vec![oci_driver()],
+        devices: Vec::new(),
+        unoffered_devices: Vec::new(),
         storage_classes: Vec::new(),
         reachability: Reachability::Public,
         // Public, so measured: an address in TEST-NET-3, and the default range, which holds the

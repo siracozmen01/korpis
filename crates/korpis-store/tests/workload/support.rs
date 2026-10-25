@@ -92,6 +92,7 @@ pub fn body(motd: &str) -> IntentBody {
             config: ValueMap::new(),
         },
         resources: ResourceSpec::default(),
+        devices: Vec::new(),
         volumes: Vec::new(),
         endpoints: vec![EndpointSpec {
             name: "game".into(),

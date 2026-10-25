@@ -4,7 +4,7 @@
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
-use crate::stored::{bounds_doc, from_time, node_docs, to_json};
+use crate::stored::{bounds_doc, devices_doc, from_time, node_docs, to_json};
 use korpis_app::ports::{NodeFacts, SessionWrite, StoreResult};
 use korpis_core::node::Reachability;
 use korpis_core::node::advertised::Advertised;
@@ -56,6 +56,7 @@ impl SessionWrite for PgTx {
         let first = f.advertised.as_ref().map(|a| i32::from(a.ports.first()));
         let last = f.advertised.as_ref().map(|a| i32::from(a.ports.last()));
         let ingress = f.advertised.as_ref().map(|a| a.ingress);
+        let (devices, unoffered) = devices_doc(&f.devices, &f.unoffered_devices)?;
         let done = sqlx::query_file!(
             "queries/node_facts.sql",
             node,
@@ -69,7 +70,9 @@ impl SessionWrite for PgTx {
             addresses.as_deref(),
             first,
             last,
-            ingress
+            ingress,
+            devices,
+            unoffered
         )
         .execute(&mut *self.tx)
         .await

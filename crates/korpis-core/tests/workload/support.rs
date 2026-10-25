@@ -40,6 +40,7 @@ pub fn body() -> IntentBody {
             config: ValueMap::new(),
         },
         resources,
+        devices: Vec::new(),
         volumes: vec![VolumeSpec {
             name: "world".into(),
             path: "/data".into(),

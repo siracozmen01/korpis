@@ -5,12 +5,12 @@
 //! is refused rather than read as some default a scheduler would then trust.
 
 use super::{
-    device_from_pb, file_access_from_pb, gpu_from_pb, network_from_pb, rootfs_from_pb,
+    device_from_pb, file_access_from_pb, mode_from_pb, network_from_pb, rootfs_from_pb,
     semantics_from_pb,
 };
 use crate::spec::{console_from_pb, tier_from_pb};
 use crate::{Result, invalid};
-use korpis_core::node::driver::{IdMapCaps, SnapshotCaps};
+use korpis_core::node::driver::{DeviceClass, IdMapCaps, SnapshotCaps};
 use korpis_core::node::{Capabilities, DriverInfo, Enforcement};
 use korpis_core::tenancy::quota::{Bounds, Dimension};
 use korpis_core::workload::plan::StepAction;
@@ -34,6 +34,11 @@ pub fn resources_from_pb(r: &pb::Resources) -> Bounds {
         (Dimension::Endpoints, r.endpoints),
         (Dimension::DedicatedIpv4, r.dedicated_ipv4),
         (Dimension::NodePorts, r.node_ports),
+        (Dimension::Devices(DeviceClass::Gpu), r.devices_gpu),
+        (Dimension::Devices(DeviceClass::Usb), r.devices_usb),
+        (Dimension::Devices(DeviceClass::Pci), r.devices_pci),
+        (Dimension::Devices(DeviceClass::Tpm), r.devices_tpm),
+        (Dimension::Devices(DeviceClass::Serial), r.devices_serial),
     ]
     .into_iter()
     .filter(|(_, n)| *n > 0)
@@ -66,7 +71,7 @@ fn capabilities_from_pb(field: &str, c: &pb::Capabilities) -> Result<Capabilitie
             kernel_max: s.kernel_max.clone(),
         }),
         live_migrate: c.live_migrate,
-        gpu: each(&f("gpu"), &c.gpu, gpu_from_pb)?,
+        device_modes: each(&f("device_modes"), &c.device_modes, mode_from_pb)?,
         devices: each(&f("devices"), &c.devices, device_from_pb)?,
         rootfs_sources: each(&f("rootfs_sources"), &c.rootfs_sources, rootfs_from_pb)?,
         network_modes: each(&f("network_modes"), &c.network_modes, network_from_pb)?,

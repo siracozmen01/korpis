@@ -7,6 +7,7 @@
 
 pub mod cron;
 pub mod dependencies;
+pub mod devices;
 pub mod egress;
 pub mod endpoints;
 pub mod health;
@@ -148,6 +149,8 @@ pub struct IntentBody {
     pub runtime: RuntimeSpec,
     /// What it reserves and is limited to.
     pub resources: ResourceSpec,
+    /// The devices it holds while placed (§6.3 of docs/05-scheduling.md).
+    pub devices: Vec<devices::DeviceRequest>,
     /// What it mounts.
     pub volumes: Vec<VolumeSpec>,
     /// How it is reached.
@@ -180,6 +183,7 @@ impl IntentBody {
             return Err(SpecError::new("console", "a serial console needs a virtual machine"));
         }
         self.resources.validate()?;
+        devices::validate(&self.devices)?;
         volumes::validate(&self.volumes)?;
         endpoints::validate(&self.endpoints)?;
         self.health.validate(&self.endpoints)?;
@@ -255,6 +259,7 @@ pub fn fixture() -> IntentBody {
             config: ValueMap::new(),
         },
         resources: ResourceSpec::default(),
+        devices: Vec::new(),
         volumes: Vec::new(),
         endpoints: Vec::new(),
         health: HealthSpec::default(),

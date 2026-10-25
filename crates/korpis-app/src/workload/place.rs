@@ -233,6 +233,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             explanation,
             authoritative: true,
             held_at: None,
+            devices: Vec::new(),
         };
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;

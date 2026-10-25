@@ -94,6 +94,17 @@ message RuntimeSpec {
   map<string, Value> config = 3;
 }
 
+// A workload's request for devices of one class (§6.3 of docs/05-scheduling.md).
+message DeviceRequest {
+  DeviceClass class = 1;
+  // How many; at least one.
+  uint32 count = 2;
+  // Over the devices' attributes, and `id`, their CDI name; any device of the class when empty.
+  LabelSelector selector = 3;
+  // Passthrough when unspecified.
+  DeviceMode mode = 4;
+}
+
 // Reservation and limit are different numbers (§5.2 of docs/05-scheduling.md).
 message ResourceSpec {
   CpuSpec cpu = 1;

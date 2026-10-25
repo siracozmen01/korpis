@@ -50,6 +50,10 @@ message Node {
   // Whether it serves the ingress, holding ports 80 and 443 of its addresses (§3.2 of
   // docs/07-networking.md); a workload with an ingress endpoint is placed only where it does.
   bool ingress = 22;
+  // The devices its agent found described, and those it does not offer (§6.1 of
+  // docs/05-scheduling.md). Added 2026-10-25.
+  repeated Device devices = 23;
+  repeated UnofferedDevice unoffered_devices = 24;
 }
 
 message Taint {
@@ -121,7 +125,9 @@ message Capabilities {
   // Absent if execution-state snapshots are not supported.
   SnapshotCaps runtime_snapshot = 7;
   bool live_migrate = 8;
-  repeated GpuMode gpu = 9;
+  // The modes it gives devices of the classes in `devices` in; none gives none (§6.2 of
+  // docs/05-scheduling.md). Was `gpu`, for GPUs alone: corrected 2026-10-25.
+  repeated DeviceMode device_modes = 9;
   repeated DeviceClass devices = 10;
   repeated RootfsSource rootfs_sources = 11;
   repeated NetworkMode network_modes = 12;
@@ -163,22 +169,36 @@ message SnapshotCaps {
   string kernel_max = 4;
 }
 
-enum GpuMode {
-  GPU_MODE_UNSPECIFIED = 0;
-  GPU_MODE_NONE = 1;
-  GPU_MODE_PASSTHROUGH = 2;
-  GPU_MODE_MEDIATED = 3;
-  GPU_MODE_TIMESLICE = 4;
+
+// A device of a node, as the Container Device Interface's files on it describe it (§6.1 of
+// docs/05-scheduling.md).
+message Device {
+  // Its CDI name, vendor.com/kind=name; unique on its node.
+  string id = 1;
+  DeviceClass class = 2;
+  // The CDI file's and the device's annotations, which a request's selector matches.
+  map<string, string> attributes = 3;
+  // The host device nodes its own edits give: a device whose nodes contain another's is the same
+  // hardware.
+  repeated string host_nodes = 4;
+  // How many workloads may hold it at once in timeslice; 0 offers passthrough alone.
+  uint32 shares = 5;
 }
 
-enum DeviceClass {
-  DEVICE_CLASS_UNSPECIFIED = 0;
-  DEVICE_CLASS_GPU = 1;
-  DEVICE_CLASS_USB = 2;
-  DEVICE_CLASS_PCI = 3;
-  DEVICE_CLASS_TPM = 4;
-  DEVICE_CLASS_SERIAL = 5;
+// A device a node's files describe and the node does not offer, and why: a kind of no class, an
+// aggregate of smaller devices, no node of its own, or a file not root's alone.
+message UnofferedDevice {
+  string id = 1;
+  string reason = 2;
 }
+
+// A device a placement holds, and how.
+message DeviceHold {
+  // Device.id, on the placement's node.
+  string device = 1;
+  DeviceMode mode = 2;
+}
+
 
 enum RootfsSource {
   ROOTFS_SOURCE_UNSPECIFIED = 0;
@@ -293,6 +313,8 @@ message Placement {
   // When a restore held it: its node presented its assignments without it, so nothing is sent
   // for it until an operator confirms it or it is retired (§8 of docs/03-state.md).
   google.protobuf.Timestamp held_at = 12;
+  // The node's devices it holds, chosen when it was bound (§6.3 of docs/05-scheduling.md).
+  repeated DeviceHold devices = 13;
 }
 
 // Why no node took a workload's approved target, from the newest attempt.

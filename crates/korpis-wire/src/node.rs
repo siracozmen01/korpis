@@ -2,9 +2,14 @@
 
 //! Nodes, their drivers and storage, and amounts per dimension.
 
+mod devices;
 mod facts;
 mod storage;
 
+pub use devices::{
+    device_to_wire, devices_from_pb, holds_from_pb, holds_to_pb, mode_from_pb, mode_to_pb,
+    unoffered_from_pb, unoffered_to_wire,
+};
 pub use facts::{drivers_from_pb, resources_from_pb};
 pub use storage::{storage_class_to_pb, storage_classes_from_pb};
 
@@ -13,7 +18,7 @@ use crate::{Result, timestamp, wire_id};
 use korpis_core::id::IdKind;
 use korpis_core::node::advertised::{Advertised, PortRange};
 use korpis_core::node::driver::{
-    DeviceClass, FileAccess, GpuMode, NetworkMode, RootfsSource, VolumeSemantics,
+    DeviceClass, FileAccess, NetworkMode, RootfsSource, VolumeSemantics,
 };
 use korpis_core::node::{
     Capabilities, Connectivity, DriverInfo, Node, NodeAdmin, NodeStatus, Reachability,
@@ -52,13 +57,6 @@ enum_map!(reachability_to_pb, reachability_from_pb, Reachability, pb::Reachabili
     "a reachability", {
     Reachability::Public => pb::Reachability::REACHABILITY_PUBLIC,
     Reachability::EdgeOnly => pb::Reachability::REACHABILITY_EDGE_ONLY,
-});
-
-enum_map!(gpu_to_pb, gpu_from_pb, GpuMode, pb::GpuMode, "a GPU mode", {
-    GpuMode::None => pb::GpuMode::GPU_MODE_NONE,
-    GpuMode::Passthrough => pb::GpuMode::GPU_MODE_PASSTHROUGH,
-    GpuMode::Mediated => pb::GpuMode::GPU_MODE_MEDIATED,
-    GpuMode::Timeslice => pb::GpuMode::GPU_MODE_TIMESLICE,
 });
 
 enum_map!(device_to_pb, device_from_pb, DeviceClass, pb::DeviceClass, "a device class", {
@@ -117,6 +115,11 @@ pub fn resources_to_pb(b: &Bounds) -> pb::Resources {
         endpoints: n(Dimension::Endpoints),
         dedicated_ipv4: n(Dimension::DedicatedIpv4),
         node_ports: n(Dimension::NodePorts),
+        devices_gpu: n(Dimension::Devices(DeviceClass::Gpu)),
+        devices_usb: n(Dimension::Devices(DeviceClass::Usb)),
+        devices_pci: n(Dimension::Devices(DeviceClass::Pci)),
+        devices_tpm: n(Dimension::Devices(DeviceClass::Tpm)),
+        devices_serial: n(Dimension::Devices(DeviceClass::Serial)),
         ..Default::default()
     }
 }
@@ -143,7 +146,7 @@ fn capabilities_to_pb(c: &Capabilities) -> pb::Capabilities {
             })
             .into(),
         live_migrate: c.live_migrate,
-        gpu: all(&c.gpu, gpu_to_pb),
+        device_modes: all(&c.device_modes, mode_to_pb),
         devices: all(&c.devices, device_to_pb),
         rootfs_sources: all(&c.rootfs_sources, rootfs_to_pb),
         network_modes: all(&c.network_modes, network_to_pb),
@@ -229,6 +232,8 @@ pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
         last_port: n.advertised.as_ref().map_or(0, |a| u32::from(a.ports.last())),
         probed_at: n.probed_at.map(timestamp).into(),
         ingress: n.advertised.as_ref().is_some_and(|a| a.ingress),
+        devices: n.devices.iter().map(device_to_wire).collect(),
+        unoffered_devices: n.unoffered_devices.iter().map(unoffered_to_wire).collect(),
         ..Default::default()
     }
 }

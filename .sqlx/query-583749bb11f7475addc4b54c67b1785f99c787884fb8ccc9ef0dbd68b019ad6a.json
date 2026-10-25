@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One node ($1).\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at, ingress\n  FROM node WHERE id = $1\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The nodes any organization of $1 owns, decommissioned ones excepted, in identifier order.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at, ingress, devices,\n       unoffered_devices\n  FROM node WHERE organization_id = ANY($1) AND admin <> 'decommissioned'\n ORDER BY id\n",
   "describe": {
     "columns": [
       {
@@ -233,11 +233,33 @@
             "name": "ingress"
           }
         }
+      },
+      {
+        "ordinal": 21,
+        "name": "devices",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "devices"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "unoffered_devices",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "unoffered_devices"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "UuidArray"
       ]
     },
     "nullable": [
@@ -261,8 +283,10 @@
       true,
       true,
       true,
+      false,
+      false,
       false
     ]
   },
-  "hash": "f2960b4fcc992e1e4545330da81023bb827dcbda075406409337dc804c1d1f7f"
+  "hash": "583749bb11f7475addc4b54c67b1785f99c787884fb8ccc9ef0dbd68b019ad6a"
 }

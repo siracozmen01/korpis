@@ -406,6 +406,9 @@ message Hello {
   // running a driver it can ask, is not asked, and the check after a bind covers it, rather than
   // being passed over for a silence that will never end.
   bool answers_feasibility = 14;
+  // As in NodeStatus.
+  repeated korpis.v1.Device devices = 15;
+  repeated korpis.v1.UnofferedDevice unoffered_devices = 16;
 }
 
 // The session runs over TLS to a control plane certificate the agent pinned at enrollment; this
@@ -445,6 +448,10 @@ message NodeStatus {
   // The addresses clients reach the node at, and the ports its endpoints are allocated from (§9
   // of docs/07-networking.md); a change of address makes its reachability unmeasured again.
   Advertised advertised = 9;
+  // The devices the Container Device Interface's files on the node describe, in full every time,
+  // and those it does not offer (§6.1 of docs/05-scheduling.md). Added 2026-10-25.
+  repeated korpis.v1.Device devices = 10;
+  repeated korpis.v1.UnofferedDevice unoffered_devices = 11;
 }
 
 // What the node offers for inbound traffic, before anything has measured it.
@@ -564,6 +571,9 @@ message Assignment {
   // once the run is not here, which is the control plane saying retention deleted it (§4 of
   // docs/14-streams.md).
   repeated string kept_runs = 26;
+  // The node's devices its placement holds, which the agent gives the driver with their edits
+  // (§6.3 of docs/05-scheduling.md, §4.2 of docs/04-runtimes.md). Added 2026-10-25.
+  repeated korpis.v1.DeviceHold devices = 28;
 }
 
 // One run a node is to execute: what it is, and what the node enforces of it. Also what a

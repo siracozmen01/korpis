@@ -6,6 +6,7 @@
 
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::{Result, invalid};
+use korpis_core::node::driver::DeviceClass;
 use korpis_core::tenancy::quota::{
     Bounds, Dimension as D, EgressBudget, Exhaustion, QuotaEntry, QuotaOwner, QuotaSet, Spent,
     Totals,
@@ -13,7 +14,7 @@ use korpis_core::tenancy::quota::{
 use korpis_proto::korpis::v1 as pb;
 use uuid::Uuid;
 
-fn slots(b: &pb::QuotaBounds) -> [(D, Option<u64>); 13] {
+fn slots(b: &pb::QuotaBounds) -> [(D, Option<u64>); 18] {
     [
         (D::Cpu, b.cpu_millis),
         (D::Memory, b.memory_bytes),
@@ -28,6 +29,11 @@ fn slots(b: &pb::QuotaBounds) -> [(D, Option<u64>); 13] {
         (D::Endpoints, b.endpoints),
         (D::DedicatedIpv4, b.dedicated_ipv4),
         (D::NodePorts, b.node_ports),
+        (D::Devices(DeviceClass::Gpu), b.devices_gpu),
+        (D::Devices(DeviceClass::Usb), b.devices_usb),
+        (D::Devices(DeviceClass::Pci), b.devices_pci),
+        (D::Devices(DeviceClass::Tpm), b.devices_tpm),
+        (D::Devices(DeviceClass::Serial), b.devices_serial),
     ]
 }
 
@@ -56,6 +62,11 @@ pub fn bounds_to_pb(b: &Bounds) -> pb::QuotaBounds {
         endpoints: get(D::Endpoints),
         dedicated_ipv4: get(D::DedicatedIpv4),
         node_ports: get(D::NodePorts),
+        devices_gpu: get(D::Devices(DeviceClass::Gpu)),
+        devices_usb: get(D::Devices(DeviceClass::Usb)),
+        devices_pci: get(D::Devices(DeviceClass::Pci)),
+        devices_tpm: get(D::Devices(DeviceClass::Tpm)),
+        devices_serial: get(D::Devices(DeviceClass::Serial)),
         ..Default::default()
     }
 }

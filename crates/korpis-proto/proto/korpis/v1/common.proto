@@ -137,6 +137,12 @@ message Resources {
   uint64 pids = 14;
   // Ports of a node held by node_port and node_bound endpoints (§3 of docs/07-networking.md).
   uint64 node_ports = 15;
+  // Devices held, one each, a timeslice share counting one (§6.4 of docs/05-scheduling.md).
+  uint64 devices_gpu = 16;
+  uint64 devices_usb = 17;
+  uint64 devices_pci = 18;
+  uint64 devices_tpm = 19;
+  uint64 devices_serial = 20;
 }
 
 // The kinds of thing Korpis calls out to an extension for (§5 of docs/16-extensions.md). Here
@@ -154,4 +160,28 @@ enum ProviderType {
   // A key management service holding a repository's key-encryption key for its tenant (§5.5 of
   // docs/06-storage.md).
   PROVIDER_TYPE_KEY_MANAGEMENT = 9;
+}
+
+// A class of device a driver can give a workload (§6 of docs/05-scheduling.md).
+enum DeviceClass {
+  DEVICE_CLASS_UNSPECIFIED = 0;
+  DEVICE_CLASS_GPU = 1;
+  DEVICE_CLASS_USB = 2;
+  DEVICE_CLASS_PCI = 3;
+  DEVICE_CLASS_TPM = 4;
+  DEVICE_CLASS_SERIAL = 5;
+}
+
+// How a workload holds a device (§6.2 of docs/05-scheduling.md). Was `GpuMode`, whose `NONE` an
+// empty list now says.
+enum DeviceMode {
+  reserved 1;
+  reserved "GPU_MODE_NONE";
+  DEVICE_MODE_UNSPECIFIED = 0;
+  // The device, alone, while the workload is placed.
+  DEVICE_MODE_PASSTHROUGH = 2;
+  // A virtual device a hypervisor partitions it into.
+  DEVICE_MODE_MEDIATED = 3;
+  // The same device as up to its shares of other holders.
+  DEVICE_MODE_TIMESLICE = 4;
 }

@@ -1338,7 +1338,7 @@ driver could give.
 
 ### 6.4 Quota
 
-Each class is a count dimension, `devices.gpu` and the like (§3.1 of `01-model.md`), enforced at
+Each class is a count dimension, `devices_gpu` and the like (§3.1 of `01-model.md`), enforced at
 admission (§5.1): one for each device a workload holds, a `timeslice` share counting one as a
 device in `passthrough` does, since what a quota bounds is how many a tenant holds, and what each
 costs is the host's billing's (Rule K-12).

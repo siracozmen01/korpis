@@ -5,7 +5,8 @@
 use crate::errors::from_sqlx;
 use crate::node::NodeRow;
 use crate::stored::{
-    ExplanationDoc, bounds, bounds_doc, count, from_json, from_time, to_json, to_time,
+    ExplanationDoc, bounds, bounds_doc, count, from_json, from_time, holds, holds_doc, to_json,
+    to_time,
 };
 use crate::tenancy::labels;
 use crate::{PgStore, PgTx};
@@ -35,6 +36,7 @@ struct PlacementRow {
     explanation: Value,
     authoritative: bool,
     held_at: Option<DateTime<Utc>>,
+    devices: Value,
 }
 
 impl PlacementRow {
@@ -53,6 +55,7 @@ impl PlacementRow {
             explanation: doc.into_domain()?,
             authoritative: self.authoritative,
             held_at: self.held_at.map(to_time),
+            devices: holds(self.devices)?,
         })
     }
 }
@@ -169,7 +172,8 @@ impl PlacementWrite for PgTx {
             p.bound_by.as_str(),
             p.reason,
             explanation,
-            p.authoritative
+            p.authoritative,
+            holds_doc(&p.devices)?
         )
         .execute(&mut *self.tx)
         .await

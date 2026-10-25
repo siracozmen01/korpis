@@ -68,7 +68,7 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         // Named signals reach a guest's entry through its agent on the control port (§6 of
         // docs/04-runtimes.md).
         signals: korpis_guest::control::SIGNALS.iter().map(|s| (*s).to_owned()).collect(),
-        gpu: vec![pb::GpuMode::GPU_MODE_NONE.into()],
+        device_modes: Vec::new(),
         rootfs_sources: vec![pb::RootfsSource::ROOTFS_SOURCE_OCI_IMAGE.into()],
         network_modes: vec![
             pb::NetworkMode::NETWORK_MODE_TAP.into(),

@@ -13,6 +13,7 @@ mod parts;
 
 pub use parts::{DeclaredEndpoint, DeclaredRuntime, DeclaredVolume, default_driver};
 
+use super::spec::devices::DeviceRequest;
 use super::spec::{
     ConsoleMode, Continuity, Dependency, EgressPolicy, HealthSpec, IntentBody, Lifecycle,
     PlacementSpec, ResourceSpec, RunPolicy, SpecError, StreamSpec,
@@ -37,6 +38,8 @@ pub struct Declaration {
     pub runtime: DeclaredRuntime,
     /// What it reserves and is limited to; the preset's recommendation when nothing is declared.
     pub resources: ResourceSpec,
+    /// The devices it holds while placed; a recipe proposes none.
+    pub devices: Vec<DeviceRequest>,
     /// Volumes, merged by name into the preset's.
     pub volumes: Vec<DeclaredVolume>,
     /// Endpoints, merged by name into the preset's.
@@ -84,6 +87,7 @@ impl Declaration {
             console: self.console.unwrap_or(preset.console),
             runtime: self.runtime.complete(&recipe.runtime)?,
             resources: parts::resources(self.resources, preset.resources)?,
+            devices: self.devices,
             volumes: parts::volumes(self.volumes, &preset.volumes)?,
             endpoints: parts::endpoints(self.endpoints, &preset.endpoints)?,
             health: HealthSpec {

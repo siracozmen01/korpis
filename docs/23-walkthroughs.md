@@ -5980,7 +5980,7 @@ the first version as a sketch, and no trace had crossed it.
 | 1 | The host installs the vendor's driver and toolkit, which writes the machine's CDI file | `05-scheduling.md` §6.1; `18-operations.md` §2 |
 | 2 | The agent reads the file and reports GPU 0, GPU 1, and partitions `1:0` and `1:1`, and not `all` | `05-scheduling.md` §6.1; `01-model.md` §3.4 |
 | 3 | A customer declares a workload asking for one GPU in `passthrough` | `01-model.md` §3.3; `05-scheduling.md` §6.3 |
-| 4 | Its organization's quota admits one more `devices.gpu` | `05-scheduling.md` §6.4; `01-model.md` §3.1 |
+| 4 | Its organization's quota admits one more `devices_gpu` | `05-scheduling.md` §6.4; `01-model.md` §3.1 |
 | 5 | The filter keeps the node, whose `oci` driver declares the class and the mode, and the bind holds GPU 0 | `05-scheduling.md` §2.1, §6.3; `04-runtimes.md` §4.1 |
 | 6 | The agent fills the spec's device with its edits, and the driver applies them | `04-runtimes.md` §4.2 |
 | 7 | Two more customers each ask for a partition, and hold `1:0` and `1:1` at once | `05-scheduling.md` §6.3 |

@@ -100,3 +100,16 @@ fn dedicated_cores_are_refused_until_a_driver_holds_them() {
     r.cpu.isolation = CpuIsolation::DedicatedCores;
     assert_eq!(why(resources(&r)), "dedicated cores in phase 3");
 }
+
+#[test]
+fn devices_are_refused_until_a_node_gives_them() {
+    let mut body = korpis_core::workload::spec::fixture();
+    assert!(devices(&body).is_ok());
+    body.devices = vec![korpis_core::workload::spec::devices::DeviceRequest {
+        class: korpis_core::node::driver::DeviceClass::Gpu,
+        count: 1,
+        selector: None,
+        mode: korpis_core::node::device::DeviceMode::Passthrough,
+    }];
+    assert_eq!(why(devices(&body)), "devices in phase 3");
+}

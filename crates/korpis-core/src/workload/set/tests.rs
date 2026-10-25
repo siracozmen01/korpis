@@ -30,6 +30,7 @@ fn body() -> IntentBody {
             config: ValueMap::new(),
         },
         resources: ResourceSpec::default(),
+        devices: Vec::new(),
         volumes: Vec::new(),
         endpoints: Vec::new(),
         health: HealthSpec::default(),

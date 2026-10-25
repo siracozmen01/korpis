@@ -59,6 +59,8 @@ async fn a_change_of_what_a_node_advertises_makes_its_reachability_unmeasured() 
         capacity: n.capacity.clone(),
         allocatable: n.allocatable.clone(),
         drivers: n.drivers.clone(),
+        devices: Vec::new(),
+        unoffered_devices: Vec::new(),
         storage_classes: None,
         agent: None,
         advertised: (!address.is_empty()).then(|| Advertised {
@@ -92,4 +94,40 @@ async fn a_change_of_what_a_node_advertises_makes_its_reachability_unmeasured() 
     assert_eq!((reach, probed), (Reachability::Public, true), "a report that does not say");
     let (reach, probed, _) = report(advertising("198.51.100.9")).await;
     assert_eq!((reach, probed), (Reachability::EdgeOnly, false), "another address, unmeasured");
+}
+
+#[tokio::test]
+async fn a_node_s_devices_are_kept_as_its_agent_last_reported_them() {
+    use korpis_app::ports::{NodeFacts, SessionWrite as _};
+    use korpis_core::node::device::{Device, UnofferedDevice};
+    use korpis_core::node::driver::DeviceClass;
+    let f = fixture().await;
+    let n = ready_node(f.organization, "fra-3", &[]).unwrap();
+    enroll(&f.store, &n).await.unwrap();
+    let gpu = Device {
+        id: "nvidia.com/gpu=0".into(),
+        class: DeviceClass::Gpu,
+        attributes: [("model".to_owned(), "a100".to_owned())].into(),
+        host_nodes: vec!["/dev/nvidia0".into()],
+        shares: 4,
+    };
+    let all = UnofferedDevice { id: "nvidia.com/gpu=all".into(), reason: "an aggregate".into() };
+    let reporting = |devices: Vec<Device>, unoffered: Vec<UnofferedDevice>| NodeFacts {
+        capacity: n.capacity.clone(),
+        allocatable: n.allocatable.clone(),
+        drivers: n.drivers.clone(),
+        devices,
+        unoffered_devices: unoffered,
+        storage_classes: None,
+        agent: None,
+        advertised: None,
+    };
+    for (devices, unoffered) in [(vec![gpu.clone()], vec![all.clone()]), (Vec::new(), Vec::new())] {
+        let mut tx = f.store.begin().await.unwrap();
+        let facts = reporting(devices.clone(), unoffered.clone());
+        assert!(tx.record_node_facts(n.id, &facts, now()).await.unwrap());
+        tx.commit().await.unwrap();
+        let read = f.store.node(n.id).await.unwrap().unwrap();
+        assert_eq!((read.devices, read.unoffered_devices), (devices, unoffered), "in full");
+    }
 }

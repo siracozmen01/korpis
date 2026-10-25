@@ -11,7 +11,7 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { LabelSelector, Resources } from "./common_pb";
+import type { DeviceClass, DeviceMode, LabelSelector, Resources } from "./common_pb";
 import { file_korpis_v1_common } from "./common_pb";
 import type { AffinityRule, ConsoleMode, IsolationTier } from "./workload_spec_pb";
 import { file_korpis_v1_workload_spec } from "./workload_spec_pb";
@@ -21,7 +21,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/placement.proto.
  */
 export const file_korpis_v1_placement: GenFile = /*@__PURE__*/
-  fileDesc("Chlrb3JwaXMvdjEvcGxhY2VtZW50LnByb3RvEglrb3JwaXMudjEioQYKBE5vZGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIrCgZsYWJlbHMYAyADKAsyGy5rb3JwaXMudjEuTm9kZS5MYWJlbHNFbnRyeRIgCgZ0YWludHMYBCADKAsyEC5rb3JwaXMudjEuVGFpbnQSJgoIY2FwYWNpdHkYBSABKAsyFC5rb3JwaXMudjEuUmVzb3VyY2VzEikKC2FsbG9jYXRhYmxlGAYgASgLMhQua29ycGlzLnYxLlJlc291cmNlcxInCglhbGxvY2F0ZWQYByABKAsyFC5rb3JwaXMudjEuUmVzb3VyY2VzEiYKB2RyaXZlcnMYCCADKAsyFS5rb3JwaXMudjEuRHJpdmVySW5mbxIlCgZzdGF0dXMYCSABKA4yFS5rb3JwaXMudjEuTm9kZVN0YXR1cxIVCg1hZ2VudF92ZXJzaW9uGAogASgJEi0KCWxhc3Rfc2VlbhgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNAoPc3RvcmFnZV9jbGFzc2VzGAwgAygLMhsua29ycGlzLnYxLlN0b3JhZ2VDbGFzc0luZm8SLQoMcmVhY2hhYmlsaXR5GA0gASgOMhcua29ycGlzLnYxLlJlYWNoYWJpbGl0eRIUCgxvcmdhbml6YXRpb24YDiABKAkSIwoFYWRtaW4YDyABKA4yFC5rb3JwaXMudjEuTm9kZUFkbWluEjEKDGNvbm5lY3Rpdml0eRgQIAEoDjIbLmtvcnBpcy52MS5Ob2RlQ29ubmVjdGl2aXR5EiMKB292ZXJsYXkYESABKA4yEi5rb3JwaXMudjEuT3ZlcmxheRIRCglhZGRyZXNzZXMYEiADKAkSEgoKZmlyc3RfcG9ydBgTIAEoDRIRCglsYXN0X3BvcnQYFCABKA0SLQoJcHJvYmVkX2F0GBUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdpbmdyZXNzGBYgASgIGi0KC0xhYmVsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIwoFVGFpbnQSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJIn0KCkRyaXZlckluZm8SDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEhAKCHByb3RvY29sGAMgASgJEi0KDGNhcGFiaWxpdGllcxgEIAEoCzIXLmtvcnBpcy52MS5DYXBhYmlsaXRpZXMSDwoHaGVhbHRoeRgFIAEoCCLIBgoMQ2FwYWJpbGl0aWVzEicKBXRpZXJzGAEgAygOMhgua29ycGlzLnYxLklzb2xhdGlvblRpZXISJwoHY29uc29sZRgCIAMoDjIWLmtvcnBpcy52MS5Db25zb2xlTW9kZRIMCgRleGVjGAMgASgIEg8KB3NpZ25hbHMYBCADKAkSEgoKaG90X3Jlc2l6ZRgFIAMoCRIZChFob3Rfdm9sdW1lX2F0dGFjaBgGIAEoCBIxChBydW50aW1lX3NuYXBzaG90GAcgASgLMhcua29ycGlzLnYxLlNuYXBzaG90Q2FwcxIUCgxsaXZlX21pZ3JhdGUYCCABKAgSHwoDZ3B1GAkgAygOMhIua29ycGlzLnYxLkdwdU1vZGUSJwoHZGV2aWNlcxgKIAMoDjIWLmtvcnBpcy52MS5EZXZpY2VDbGFzcxIvCg5yb290ZnNfc291cmNlcxgLIAMoDjIXLmtvcnBpcy52MS5Sb290ZnNTb3VyY2USLQoNbmV0d29ya19tb2RlcxgMIAMoDjIWLmtvcnBpcy52MS5OZXR3b3JrTW9kZRI9CgtlbmZvcmNlbWVudBgNIAMoCzIoLmtvcnBpcy52MS5DYXBhYmlsaXRpZXMuRW5mb3JjZW1lbnRFbnRyeRI0ChB2b2x1bWVfc2VtYW50aWNzGA4gASgOMhoua29ycGlzLnYxLlZvbHVtZVNlbWFudGljcxIqCgtmaWxlX2FjY2VzcxgPIAEoDjIVLmtvcnBpcy52MS5GaWxlQWNjZXNzEigKCmlkX21hcHBpbmcYECABKAsyFC5rb3JwaXMudjEuSWRNYXBDYXBzEhUKDWNvbmZpZ19zY2hlbWEYESABKAkSLQoKZGlzcnVwdGlvbhgSIAMoCzIZLmtvcnBpcy52MS5UaWVyRGlzcnVwdGlvbhIUCgxpZGVudGl0eV9kaXIYEyABKAgSEwoLZ3Vlc3RfYWdlbnQYFCABKAgSGQoRZ3Vlc3RfZmlsZXN5c3RlbXMYFSADKAkaTgoQRW5mb3JjZW1lbnRFbnRyeRILCgNrZXkYASABKAkSKQoFdmFsdWUYAiABKAsyGi5rb3JwaXMudjEuRW5mb3JjZW1lbnREZWNsOgI4ASJJCg5UaWVyRGlzcnVwdGlvbhImCgR0aWVyGAEgASgOMhgua29ycGlzLnYxLklzb2xhdGlvblRpZXISDwoHYWN0aW9ucxgCIAMoCSJoCgxTbmFwc2hvdENhcHMSFAoMY3B1X3RlbXBsYXRlGAEgASgJEhoKEmh5cGVydmlzb3JfdmVyc2lvbhgCIAEoCRISCgprZXJuZWxfbWluGAMgASgJEhIKCmtlcm5lbF9tYXgYBCABKAkiSwoPRW5mb3JjZW1lbnREZWNsEhAKCGVuZm9yY2VkGAEgASgIEhEKCW1lY2hhbmlzbRgCIAEoCRITCgtncmFudWxhcml0eRgDIAEoCSI9CglJZE1hcENhcHMSFwoPaWRtYXBwZWRfbW91bnRzGAEgASgIEhcKD3VzZXJfbmFtZXNwYWNlcxgCIAEoCCKuAQoQU3RvcmFnZUNsYXNzSW5mbxIMCgRuYW1lGAEgASgJEioKB2JhY2tlbmQYAiABKA4yGS5rb3JwaXMudjEuU3RvcmFnZUJhY2tlbmQSNAoMY2FwYWJpbGl0aWVzGAMgASgLMh4ua29ycGlzLnYxLlN0b3JhZ2VDYXBhYmlsaXRpZXMSFgoOY2FwYWNpdHlfYnl0ZXMYBCABKAQSEgoKZnJlZV9ieXRlcxgFIAEoBCKCAwoTU3RvcmFnZUNhcGFiaWxpdGllcxIQCghzbmFwc2hvdBgBIAEoCBIXCg9zbmFwc2hvdF9hdG9taWMYAiABKAgSGAoQaW5jcmVtZW50YWxfc2VuZBgDIAEoCBIWCg5xdW90YV9lbmZvcmNlZBgEIAEoCBIWCg5xdW90YV9jYXBhY2l0eRgFIAEoCBIUCgxxdW90YV9pbm9kZXMYBiABKAgSFgoOdGhpbl9wcm92aXNpb24YByABKAgSEwoLb25saW5lX2dyb3cYCCABKAgSFQoNb25saW5lX3NocmluaxgJIAEoCBIUCgxyZWZsaW5rX2NvcHkYCiABKAgSEwoLY29tcHJlc3Npb24YCyABKAgSGgoSZW5jcnlwdGlvbl9hdF9yZXN0GAwgASgIEhUKDXNoYXJlZF9hY2Nlc3MYDSABKAgSGQoRbXVsdGlfbm9kZV9hdHRhY2gYDiABKAgSIwoHZmVuY2luZxgPIAEoDjISLmtvcnBpcy52MS5GZW5jaW5nIvACCglQbGFjZW1lbnQSEAoId29ya2xvYWQYASABKAkSDAoEbm9kZRgCIAEoCRIsCghib3VuZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJAoIYm91bmRfYnkYBCABKA4yEi5rb3JwaXMudjEuQm91bmRCeRIOCgZyZWFzb24YBSABKAkSKwoLZXhwbGFuYXRpb24YBiABKAsyFi5rb3JwaXMudjEuRXhwbGFuYXRpb24SFQoNYXV0aG9yaXRhdGl2ZRgHIAEoCBIOCgZyZWdpb24YCCABKAkSJgoEdGllchgJIAEoDjIYLmtvcnBpcy52MS5Jc29sYXRpb25UaWVyEg4KBmludGVudBgKIAEoCRImCghyZXNlcnZlZBgLIAEoCzIULmtvcnBpcy52MS5SZXNvdXJjZXMSKwoHaGVsZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAicgoIVW5wbGFjZWQSDgoGaW50ZW50GAEgASgJEikKBXNpbmNlGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIrCgtleHBsYW5hdGlvbhgDIAEoCzIWLmtvcnBpcy52MS5FeHBsYW5hdGlvbiLDAgoLRXhwbGFuYXRpb24SFwoKY2FuZGlkYXRlcxgBIAEoDUgAiAEBEikKCGZpbHRlcmVkGAIgAygLMhcua29ycGlzLnYxLkZpbHRlclJlc3VsdBImCgZzY29yZWQYAyADKAsyFi5rb3JwaXMudjEuU2NvcmVSZXN1bHQSDgoGY2hvc2VuGAQgASgJEhYKCXJ1bm5lcl91cBgFIAEoCUgBiAEBEioKBnBvbGljeRgGIAEoCzIaLmtvcnBpcy52MS5QbGFjZW1lbnRQb2xpY3kSJwoIcmVqZWN0ZWQYByADKAsyFS5rb3JwaXMudjEuQ2hlY2tDb3VudBIuCg5vd25lcl9wb2xpY2llcxgIIAMoCzIWLmtvcnBpcy52MS5Pd25lclBvbGljeUINCgtfY2FuZGlkYXRlc0IMCgpfcnVubmVyX3VwIk8KC093bmVyUG9saWN5EhQKDG9yZ2FuaXphdGlvbhgBIAEoCRIqCgZwb2xpY3kYAiABKAsyGi5rb3JwaXMudjEuUGxhY2VtZW50UG9saWN5IjkKCkNoZWNrQ291bnQSDQoFY2hlY2sYASABKAkSEgoFbm9kZXMYAiABKA1IAIgBAUIICgZfbm9kZXMiOwoMRmlsdGVyUmVzdWx0EgwKBG5vZGUYASABKAkSDQoFY2hlY2sYAiABKAkSDgoGZGV0YWlsGAMgASgJIkoKC1Njb3JlUmVzdWx0EgwKBG5vZGUYASABKAkSDgoGc2lnbmFsGAIgASgJEg0KBXZhbHVlGAMgASgBEg4KBndlaWdodBgEIAEoASKDAgoPUGxhY2VtZW50UG9saWN5Ei4KCHN0cmF0ZWd5GAEgASgOMhwua29ycGlzLnYxLlBsYWNlbWVudFN0cmF0ZWd5EisKBnNwcmVhZBgCIAMoCzIbLmtvcnBpcy52MS5TcHJlYWRDb25zdHJhaW50EikKCGFmZmluaXR5GAMgAygLMhcua29ycGlzLnYxLkFmZmluaXR5UnVsZRI4Cgd3ZWlnaHRzGAQgAygLMicua29ycGlzLnYxLlBsYWNlbWVudFBvbGljeS5XZWlnaHRzRW50cnkaLgoMV2VpZ2h0c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEijQEKEFNwcmVhZENvbnN0cmFpbnQSFAoMdG9wb2xvZ3lfa2V5GAEgASgJEhAKCG1heF9za2V3GAIgASgNEioKCHNlbGVjdG9yGAMgASgLMhgua29ycGlzLnYxLkxhYmVsU2VsZWN0b3ISJQoFc2NvcGUYBCABKA4yFi5rb3JwaXMudjEuU3ByZWFkU2NvcGUqjwEKCU5vZGVBZG1pbhIaChZOT0RFX0FETUlOX1VOU1BFQ0lGSUVEEAASFQoRTk9ERV9BRE1JTl9BQ1RJVkUQARIXChNOT0RFX0FETUlOX0NPUkRPTkVEEAISFwoTTk9ERV9BRE1JTl9EUkFJTklORxADEh0KGU5PREVfQURNSU5fREVDT01NSVNTSU9ORUQQBCq7AQoQTm9kZUNvbm5lY3Rpdml0eRIhCh1OT0RFX0NPTk5FQ1RJVklUWV9VTlNQRUNJRklFRBAAEiEKHU5PREVfQ09OTkVDVElWSVRZX1JFR0lTVEVSSU5HEAESHwobTk9ERV9DT05ORUNUSVZJVFlfQ09OTkVDVEVEEAISIQodTk9ERV9DT05ORUNUSVZJVFlfVU5SRUFDSEFCTEUQAxIdChlOT0RFX0NPTk5FQ1RJVklUWV9VTktOT1dOEAQq5wEKCk5vZGVTdGF0dXMSGwoXTk9ERV9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdOT0RFX1NUQVRVU19SRUdJU1RFUklORxABEhUKEU5PREVfU1RBVFVTX1JFQURZEAISGAoUTk9ERV9TVEFUVVNfQ09SRE9ORUQQAxIYChROT0RFX1NUQVRVU19EUkFJTklORxAEEhsKF05PREVfU1RBVFVTX1VOUkVBQ0hBQkxFEAUSFwoTTk9ERV9TVEFUVVNfVU5LTk9XThAGEh4KGk5PREVfU1RBVFVTX0RFQ09NTUlTU0lPTkVEEAcqUgoHT3ZlcmxheRIXChNPVkVSTEFZX1VOU1BFQ0lGSUVEEAASFQoRT1ZFUkxBWV9BVkFJTEFCTEUQARIXChNPVkVSTEFZX1VOQVZBSUxBQkxFEAIqYQoMUmVhY2hhYmlsaXR5EhwKGFJFQUNIQUJJTElUWV9VTlNQRUNJRklFRBAAEhcKE1JFQUNIQUJJTElUWV9QVUJMSUMQARIaChZSRUFDSEFCSUxJVFlfRURHRV9PTkxZEAIqfwoHR3B1TW9kZRIYChRHUFVfTU9ERV9VTlNQRUNJRklFRBAAEhEKDUdQVV9NT0RFX05PTkUQARIYChRHUFVfTU9ERV9QQVNTVEhST1VHSBACEhUKEUdQVV9NT0RFX01FRElBVEVEEAMSFgoSR1BVX01PREVfVElNRVNMSUNFEAQqnAEKC0RldmljZUNsYXNzEhwKGERFVklDRV9DTEFTU19VTlNQRUNJRklFRBAAEhQKEERFVklDRV9DTEFTU19HUFUQARIUChBERVZJQ0VfQ0xBU1NfVVNCEAISFAoQREVWSUNFX0NMQVNTX1BDSRADEhQKEERFVklDRV9DTEFTU19UUE0QBBIXChNERVZJQ0VfQ0xBU1NfU0VSSUFMEAUqnAEKDFJvb3Rmc1NvdXJjZRIdChlST09URlNfU09VUkNFX1VOU1BFQ0lGSUVEEAASGwoXUk9PVEZTX1NPVVJDRV9PQ0lfSU1BR0UQARIbChdST09URlNfU09VUkNFX0RJUkVDVE9SWRACEhwKGFJPT1RGU19TT1VSQ0VfRElTS19JTUFHRRADEhUKEVJPT1RGU19TT1VSQ0VfSVNPEAQqhgEKC05ldHdvcmtNb2RlEhwKGE5FVFdPUktfTU9ERV9VTlNQRUNJRklFRBAAEhUKEU5FVFdPUktfTU9ERV9WRVRIEAESFAoQTkVUV09SS19NT0RFX1RBUBACEhUKEU5FVFdPUktfTU9ERV9IT1NUEAMSFQoRTkVUV09SS19NT0RFX05PTkUQBCp3Cg9Wb2x1bWVTZW1hbnRpY3MSIAocVk9MVU1FX1NFTUFOVElDU19VTlNQRUNJRklFRBAAEh8KG1ZPTFVNRV9TRU1BTlRJQ1NfRklMRVNZU1RFTRABEiEKHVZPTFVNRV9TRU1BTlRJQ1NfQkxPQ0tfREVWSUNFEAIqegoKRmlsZUFjY2VzcxIbChdGSUxFX0FDQ0VTU19VTlNQRUNJRklFRBAAEhsKF0ZJTEVfQUNDRVNTX0hPU1RfV09SS0VSEAESHAoYRklMRV9BQ0NFU1NfR1VFU1RfV09SS0VSEAISFAoQRklMRV9BQ0NFU1NfTk9ORRADKoICCg5TdG9yYWdlQmFja2VuZBIfChtTVE9SQUdFX0JBQ0tFTkRfVU5TUEVDSUZJRUQQABIXChNTVE9SQUdFX0JBQ0tFTkRfWkZTEAESGQoVU1RPUkFHRV9CQUNLRU5EX0JUUkZTEAISHAoYU1RPUkFHRV9CQUNLRU5EX0xWTV9USElOEAMSHwobU1RPUkFHRV9CQUNLRU5EX1hGU19QUk9KRUNUEAQSIAocU1RPUkFHRV9CQUNLRU5EX0VYVDRfUFJPSkVDVBAFEhsKF1NUT1JBR0VfQkFDS0VORF9ORVRXT1JLEAYSHQoZU1RPUkFHRV9CQUNLRU5EX0RJUkVDVE9SWRAHKmoKB0ZlbmNpbmcSFwoTRkVOQ0lOR19VTlNQRUNJRklFRBAAEhAKDEZFTkNJTkdfTk9ORRABEhYKEkZFTkNJTkdfTEVBU0VfT05MWRACEhwKGEZFTkNJTkdfU1RPUkFHRV9FTkZPUkNFRBADKoEBCgdCb3VuZEJ5EhgKFEJPVU5EX0JZX1VOU1BFQ0lGSUVEEAASFgoSQk9VTkRfQllfU0NIRURVTEVSEAESFQoRQk9VTkRfQllfT1BFUkFUT1IQAhIWChJCT1VORF9CWV9NSUdSQVRJT04QAxIVChFCT1VORF9CWV9SRUNPVkVSWRAEKpsBChFQbGFjZW1lbnRTdHJhdGVneRIiCh5QTEFDRU1FTlRfU1RSQVRFR1lfVU5TUEVDSUZJRUQQABIdChlQTEFDRU1FTlRfU1RSQVRFR1lfUEFDS0VEEAESIgoeUExBQ0VNRU5UX1NUUkFURUdZX0RJU1RSSUJVVEVEEAISHwobUExBQ0VNRU5UX1NUUkFURUdZX0JBTEFOQ0VEEAMqfwoLU3ByZWFkU2NvcGUSHAoYU1BSRUFEX1NDT1BFX1VOU1BFQ0lGSUVEEAASGAoUU1BSRUFEX1NDT1BFX1BST0pFQ1QQARIdChlTUFJFQURfU0NPUEVfT1JHQU5JWkFUSU9OEAISGQoVU1BSRUFEX1NDT1BFX1NFTEVDVE9SEANiBnByb3RvMw", [file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_workload_spec]);
+  fileDesc("Chlrb3JwaXMvdjEvcGxhY2VtZW50LnByb3RvEglrb3JwaXMudjEi/AYKBE5vZGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIrCgZsYWJlbHMYAyADKAsyGy5rb3JwaXMudjEuTm9kZS5MYWJlbHNFbnRyeRIgCgZ0YWludHMYBCADKAsyEC5rb3JwaXMudjEuVGFpbnQSJgoIY2FwYWNpdHkYBSABKAsyFC5rb3JwaXMudjEuUmVzb3VyY2VzEikKC2FsbG9jYXRhYmxlGAYgASgLMhQua29ycGlzLnYxLlJlc291cmNlcxInCglhbGxvY2F0ZWQYByABKAsyFC5rb3JwaXMudjEuUmVzb3VyY2VzEiYKB2RyaXZlcnMYCCADKAsyFS5rb3JwaXMudjEuRHJpdmVySW5mbxIlCgZzdGF0dXMYCSABKA4yFS5rb3JwaXMudjEuTm9kZVN0YXR1cxIVCg1hZ2VudF92ZXJzaW9uGAogASgJEi0KCWxhc3Rfc2VlbhgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNAoPc3RvcmFnZV9jbGFzc2VzGAwgAygLMhsua29ycGlzLnYxLlN0b3JhZ2VDbGFzc0luZm8SLQoMcmVhY2hhYmlsaXR5GA0gASgOMhcua29ycGlzLnYxLlJlYWNoYWJpbGl0eRIUCgxvcmdhbml6YXRpb24YDiABKAkSIwoFYWRtaW4YDyABKA4yFC5rb3JwaXMudjEuTm9kZUFkbWluEjEKDGNvbm5lY3Rpdml0eRgQIAEoDjIbLmtvcnBpcy52MS5Ob2RlQ29ubmVjdGl2aXR5EiMKB292ZXJsYXkYESABKA4yEi5rb3JwaXMudjEuT3ZlcmxheRIRCglhZGRyZXNzZXMYEiADKAkSEgoKZmlyc3RfcG9ydBgTIAEoDRIRCglsYXN0X3BvcnQYFCABKA0SLQoJcHJvYmVkX2F0GBUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdpbmdyZXNzGBYgASgIEiIKB2RldmljZXMYFyADKAsyES5rb3JwaXMudjEuRGV2aWNlEjUKEXVub2ZmZXJlZF9kZXZpY2VzGBggAygLMhoua29ycGlzLnYxLlVub2ZmZXJlZERldmljZRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIiMKBVRhaW50EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCSJ9CgpEcml2ZXJJbmZvEgwKBG5hbWUYASABKAkSDwoHdmVyc2lvbhgCIAEoCRIQCghwcm90b2NvbBgDIAEoCRItCgxjYXBhYmlsaXRpZXMYBCABKAsyFy5rb3JwaXMudjEuQ2FwYWJpbGl0aWVzEg8KB2hlYWx0aHkYBSABKAgi1AYKDENhcGFiaWxpdGllcxInCgV0aWVycxgBIAMoDjIYLmtvcnBpcy52MS5Jc29sYXRpb25UaWVyEicKB2NvbnNvbGUYAiADKA4yFi5rb3JwaXMudjEuQ29uc29sZU1vZGUSDAoEZXhlYxgDIAEoCBIPCgdzaWduYWxzGAQgAygJEhIKCmhvdF9yZXNpemUYBSADKAkSGQoRaG90X3ZvbHVtZV9hdHRhY2gYBiABKAgSMQoQcnVudGltZV9zbmFwc2hvdBgHIAEoCzIXLmtvcnBpcy52MS5TbmFwc2hvdENhcHMSFAoMbGl2ZV9taWdyYXRlGAggASgIEisKDGRldmljZV9tb2RlcxgJIAMoDjIVLmtvcnBpcy52MS5EZXZpY2VNb2RlEicKB2RldmljZXMYCiADKA4yFi5rb3JwaXMudjEuRGV2aWNlQ2xhc3MSLwoOcm9vdGZzX3NvdXJjZXMYCyADKA4yFy5rb3JwaXMudjEuUm9vdGZzU291cmNlEi0KDW5ldHdvcmtfbW9kZXMYDCADKA4yFi5rb3JwaXMudjEuTmV0d29ya01vZGUSPQoLZW5mb3JjZW1lbnQYDSADKAsyKC5rb3JwaXMudjEuQ2FwYWJpbGl0aWVzLkVuZm9yY2VtZW50RW50cnkSNAoQdm9sdW1lX3NlbWFudGljcxgOIAEoDjIaLmtvcnBpcy52MS5Wb2x1bWVTZW1hbnRpY3MSKgoLZmlsZV9hY2Nlc3MYDyABKA4yFS5rb3JwaXMudjEuRmlsZUFjY2VzcxIoCgppZF9tYXBwaW5nGBAgASgLMhQua29ycGlzLnYxLklkTWFwQ2FwcxIVCg1jb25maWdfc2NoZW1hGBEgASgJEi0KCmRpc3J1cHRpb24YEiADKAsyGS5rb3JwaXMudjEuVGllckRpc3J1cHRpb24SFAoMaWRlbnRpdHlfZGlyGBMgASgIEhMKC2d1ZXN0X2FnZW50GBQgASgIEhkKEWd1ZXN0X2ZpbGVzeXN0ZW1zGBUgAygJGk4KEEVuZm9yY2VtZW50RW50cnkSCwoDa2V5GAEgASgJEikKBXZhbHVlGAIgASgLMhoua29ycGlzLnYxLkVuZm9yY2VtZW50RGVjbDoCOAEiSQoOVGllckRpc3J1cHRpb24SJgoEdGllchgBIAEoDjIYLmtvcnBpcy52MS5Jc29sYXRpb25UaWVyEg8KB2FjdGlvbnMYAiADKAkiaAoMU25hcHNob3RDYXBzEhQKDGNwdV90ZW1wbGF0ZRgBIAEoCRIaChJoeXBlcnZpc29yX3ZlcnNpb24YAiABKAkSEgoKa2VybmVsX21pbhgDIAEoCRISCgprZXJuZWxfbWF4GAQgASgJIskBCgZEZXZpY2USCgoCaWQYASABKAkSJQoFY2xhc3MYAiABKA4yFi5rb3JwaXMudjEuRGV2aWNlQ2xhc3MSNQoKYXR0cmlidXRlcxgDIAMoCzIhLmtvcnBpcy52MS5EZXZpY2UuQXR0cmlidXRlc0VudHJ5EhIKCmhvc3Rfbm9kZXMYBCADKAkSDgoGc2hhcmVzGAUgASgNGjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIi0KD1Vub2ZmZXJlZERldmljZRIKCgJpZBgBIAEoCRIOCgZyZWFzb24YAiABKAkiQQoKRGV2aWNlSG9sZBIOCgZkZXZpY2UYASABKAkSIwoEbW9kZRgCIAEoDjIVLmtvcnBpcy52MS5EZXZpY2VNb2RlIksKD0VuZm9yY2VtZW50RGVjbBIQCghlbmZvcmNlZBgBIAEoCBIRCgltZWNoYW5pc20YAiABKAkSEwoLZ3JhbnVsYXJpdHkYAyABKAkiPQoJSWRNYXBDYXBzEhcKD2lkbWFwcGVkX21vdW50cxgBIAEoCBIXCg91c2VyX25hbWVzcGFjZXMYAiABKAgirgEKEFN0b3JhZ2VDbGFzc0luZm8SDAoEbmFtZRgBIAEoCRIqCgdiYWNrZW5kGAIgASgOMhkua29ycGlzLnYxLlN0b3JhZ2VCYWNrZW5kEjQKDGNhcGFiaWxpdGllcxgDIAEoCzIeLmtvcnBpcy52MS5TdG9yYWdlQ2FwYWJpbGl0aWVzEhYKDmNhcGFjaXR5X2J5dGVzGAQgASgEEhIKCmZyZWVfYnl0ZXMYBSABKAQiggMKE1N0b3JhZ2VDYXBhYmlsaXRpZXMSEAoIc25hcHNob3QYASABKAgSFwoPc25hcHNob3RfYXRvbWljGAIgASgIEhgKEGluY3JlbWVudGFsX3NlbmQYAyABKAgSFgoOcXVvdGFfZW5mb3JjZWQYBCABKAgSFgoOcXVvdGFfY2FwYWNpdHkYBSABKAgSFAoMcXVvdGFfaW5vZGVzGAYgASgIEhYKDnRoaW5fcHJvdmlzaW9uGAcgASgIEhMKC29ubGluZV9ncm93GAggASgIEhUKDW9ubGluZV9zaHJpbmsYCSABKAgSFAoMcmVmbGlua19jb3B5GAogASgIEhMKC2NvbXByZXNzaW9uGAsgASgIEhoKEmVuY3J5cHRpb25fYXRfcmVzdBgMIAEoCBIVCg1zaGFyZWRfYWNjZXNzGA0gASgIEhkKEW11bHRpX25vZGVfYXR0YWNoGA4gASgIEiMKB2ZlbmNpbmcYDyABKA4yEi5rb3JwaXMudjEuRmVuY2luZyKYAwoJUGxhY2VtZW50EhAKCHdvcmtsb2FkGAEgASgJEgwKBG5vZGUYAiABKAkSLAoIYm91bmRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiQKCGJvdW5kX2J5GAQgASgOMhIua29ycGlzLnYxLkJvdW5kQnkSDgoGcmVhc29uGAUgASgJEisKC2V4cGxhbmF0aW9uGAYgASgLMhYua29ycGlzLnYxLkV4cGxhbmF0aW9uEhUKDWF1dGhvcml0YXRpdmUYByABKAgSDgoGcmVnaW9uGAggASgJEiYKBHRpZXIYCSABKA4yGC5rb3JwaXMudjEuSXNvbGF0aW9uVGllchIOCgZpbnRlbnQYCiABKAkSJgoIcmVzZXJ2ZWQYCyABKAsyFC5rb3JwaXMudjEuUmVzb3VyY2VzEisKB2hlbGRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiYKB2RldmljZXMYDSADKAsyFS5rb3JwaXMudjEuRGV2aWNlSG9sZCJyCghVbnBsYWNlZBIOCgZpbnRlbnQYASABKAkSKQoFc2luY2UYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEisKC2V4cGxhbmF0aW9uGAMgASgLMhYua29ycGlzLnYxLkV4cGxhbmF0aW9uIsMCCgtFeHBsYW5hdGlvbhIXCgpjYW5kaWRhdGVzGAEgASgNSACIAQESKQoIZmlsdGVyZWQYAiADKAsyFy5rb3JwaXMudjEuRmlsdGVyUmVzdWx0EiYKBnNjb3JlZBgDIAMoCzIWLmtvcnBpcy52MS5TY29yZVJlc3VsdBIOCgZjaG9zZW4YBCABKAkSFgoJcnVubmVyX3VwGAUgASgJSAGIAQESKgoGcG9saWN5GAYgASgLMhoua29ycGlzLnYxLlBsYWNlbWVudFBvbGljeRInCghyZWplY3RlZBgHIAMoCzIVLmtvcnBpcy52MS5DaGVja0NvdW50Ei4KDm93bmVyX3BvbGljaWVzGAggAygLMhYua29ycGlzLnYxLk93bmVyUG9saWN5Qg0KC19jYW5kaWRhdGVzQgwKCl9ydW5uZXJfdXAiTwoLT3duZXJQb2xpY3kSFAoMb3JnYW5pemF0aW9uGAEgASgJEioKBnBvbGljeRgCIAEoCzIaLmtvcnBpcy52MS5QbGFjZW1lbnRQb2xpY3kiOQoKQ2hlY2tDb3VudBINCgVjaGVjaxgBIAEoCRISCgVub2RlcxgCIAEoDUgAiAEBQggKBl9ub2RlcyI7CgxGaWx0ZXJSZXN1bHQSDAoEbm9kZRgBIAEoCRINCgVjaGVjaxgCIAEoCRIOCgZkZXRhaWwYAyABKAkiSgoLU2NvcmVSZXN1bHQSDAoEbm9kZRgBIAEoCRIOCgZzaWduYWwYAiABKAkSDQoFdmFsdWUYAyABKAESDgoGd2VpZ2h0GAQgASgBIoMCCg9QbGFjZW1lbnRQb2xpY3kSLgoIc3RyYXRlZ3kYASABKA4yHC5rb3JwaXMudjEuUGxhY2VtZW50U3RyYXRlZ3kSKwoGc3ByZWFkGAIgAygLMhsua29ycGlzLnYxLlNwcmVhZENvbnN0cmFpbnQSKQoIYWZmaW5pdHkYAyADKAsyFy5rb3JwaXMudjEuQWZmaW5pdHlSdWxlEjgKB3dlaWdodHMYBCADKAsyJy5rb3JwaXMudjEuUGxhY2VtZW50UG9saWN5LldlaWdodHNFbnRyeRouCgxXZWlnaHRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ASKNAQoQU3ByZWFkQ29uc3RyYWludBIUCgx0b3BvbG9neV9rZXkYASABKAkSEAoIbWF4X3NrZXcYAiABKA0SKgoIc2VsZWN0b3IYAyABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIlCgVzY29wZRgEIAEoDjIWLmtvcnBpcy52MS5TcHJlYWRTY29wZSqPAQoJTm9kZUFkbWluEhoKFk5PREVfQURNSU5fVU5TUEVDSUZJRUQQABIVChFOT0RFX0FETUlOX0FDVElWRRABEhcKE05PREVfQURNSU5fQ09SRE9ORUQQAhIXChNOT0RFX0FETUlOX0RSQUlOSU5HEAMSHQoZTk9ERV9BRE1JTl9ERUNPTU1JU1NJT05FRBAEKrsBChBOb2RlQ29ubmVjdGl2aXR5EiEKHU5PREVfQ09OTkVDVElWSVRZX1VOU1BFQ0lGSUVEEAASIQodTk9ERV9DT05ORUNUSVZJVFlfUkVHSVNURVJJTkcQARIfChtOT0RFX0NPTk5FQ1RJVklUWV9DT05ORUNURUQQAhIhCh1OT0RFX0NPTk5FQ1RJVklUWV9VTlJFQUNIQUJMRRADEh0KGU5PREVfQ09OTkVDVElWSVRZX1VOS05PV04QBCrnAQoKTm9kZVN0YXR1cxIbChdOT0RFX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF05PREVfU1RBVFVTX1JFR0lTVEVSSU5HEAESFQoRTk9ERV9TVEFUVVNfUkVBRFkQAhIYChROT0RFX1NUQVRVU19DT1JET05FRBADEhgKFE5PREVfU1RBVFVTX0RSQUlOSU5HEAQSGwoXTk9ERV9TVEFUVVNfVU5SRUFDSEFCTEUQBRIXChNOT0RFX1NUQVRVU19VTktOT1dOEAYSHgoaTk9ERV9TVEFUVVNfREVDT01NSVNTSU9ORUQQBypSCgdPdmVybGF5EhcKE09WRVJMQVlfVU5TUEVDSUZJRUQQABIVChFPVkVSTEFZX0FWQUlMQUJMRRABEhcKE09WRVJMQVlfVU5BVkFJTEFCTEUQAiphCgxSZWFjaGFiaWxpdHkSHAoYUkVBQ0hBQklMSVRZX1VOU1BFQ0lGSUVEEAASFwoTUkVBQ0hBQklMSVRZX1BVQkxJQxABEhoKFlJFQUNIQUJJTElUWV9FREdFX09OTFkQAiqcAQoMUm9vdGZzU291cmNlEh0KGVJPT1RGU19TT1VSQ0VfVU5TUEVDSUZJRUQQABIbChdST09URlNfU09VUkNFX09DSV9JTUFHRRABEhsKF1JPT1RGU19TT1VSQ0VfRElSRUNUT1JZEAISHAoYUk9PVEZTX1NPVVJDRV9ESVNLX0lNQUdFEAMSFQoRUk9PVEZTX1NPVVJDRV9JU08QBCqGAQoLTmV0d29ya01vZGUSHAoYTkVUV09SS19NT0RFX1VOU1BFQ0lGSUVEEAASFQoRTkVUV09SS19NT0RFX1ZFVEgQARIUChBORVRXT1JLX01PREVfVEFQEAISFQoRTkVUV09SS19NT0RFX0hPU1QQAxIVChFORVRXT1JLX01PREVfTk9ORRAEKncKD1ZvbHVtZVNlbWFudGljcxIgChxWT0xVTUVfU0VNQU5USUNTX1VOU1BFQ0lGSUVEEAASHwobVk9MVU1FX1NFTUFOVElDU19GSUxFU1lTVEVNEAESIQodVk9MVU1FX1NFTUFOVElDU19CTE9DS19ERVZJQ0UQAip6CgpGaWxlQWNjZXNzEhsKF0ZJTEVfQUNDRVNTX1VOU1BFQ0lGSUVEEAASGwoXRklMRV9BQ0NFU1NfSE9TVF9XT1JLRVIQARIcChhGSUxFX0FDQ0VTU19HVUVTVF9XT1JLRVIQAhIUChBGSUxFX0FDQ0VTU19OT05FEAMqggIKDlN0b3JhZ2VCYWNrZW5kEh8KG1NUT1JBR0VfQkFDS0VORF9VTlNQRUNJRklFRBAAEhcKE1NUT1JBR0VfQkFDS0VORF9aRlMQARIZChVTVE9SQUdFX0JBQ0tFTkRfQlRSRlMQAhIcChhTVE9SQUdFX0JBQ0tFTkRfTFZNX1RISU4QAxIfChtTVE9SQUdFX0JBQ0tFTkRfWEZTX1BST0pFQ1QQBBIgChxTVE9SQUdFX0JBQ0tFTkRfRVhUNF9QUk9KRUNUEAUSGwoXU1RPUkFHRV9CQUNLRU5EX05FVFdPUksQBhIdChlTVE9SQUdFX0JBQ0tFTkRfRElSRUNUT1JZEAcqagoHRmVuY2luZxIXChNGRU5DSU5HX1VOU1BFQ0lGSUVEEAASEAoMRkVOQ0lOR19OT05FEAESFgoSRkVOQ0lOR19MRUFTRV9PTkxZEAISHAoYRkVOQ0lOR19TVE9SQUdFX0VORk9SQ0VEEAMqgQEKB0JvdW5kQnkSGAoUQk9VTkRfQllfVU5TUEVDSUZJRUQQABIWChJCT1VORF9CWV9TQ0hFRFVMRVIQARIVChFCT1VORF9CWV9PUEVSQVRPUhACEhYKEkJPVU5EX0JZX01JR1JBVElPThADEhUKEUJPVU5EX0JZX1JFQ09WRVJZEAQqmwEKEVBsYWNlbWVudFN0cmF0ZWd5EiIKHlBMQUNFTUVOVF9TVFJBVEVHWV9VTlNQRUNJRklFRBAAEh0KGVBMQUNFTUVOVF9TVFJBVEVHWV9QQUNLRUQQARIiCh5QTEFDRU1FTlRfU1RSQVRFR1lfRElTVFJJQlVURUQQAhIfChtQTEFDRU1FTlRfU1RSQVRFR1lfQkFMQU5DRUQQAyp/CgtTcHJlYWRTY29wZRIcChhTUFJFQURfU0NPUEVfVU5TUEVDSUZJRUQQABIYChRTUFJFQURfU0NPUEVfUFJPSkVDVBABEh0KGVNQUkVBRF9TQ09QRV9PUkdBTklaQVRJT04QAhIZChVTUFJFQURfU0NPUEVfU0VMRUNUT1IQA2IGcHJvdG8z", [file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_workload_spec]);
 
 /**
  * @generated from message korpis.v1.Node
@@ -162,6 +162,19 @@ export type Node = Message<"korpis.v1.Node"> & {
    * @generated from field: bool ingress = 22;
    */
   ingress: boolean;
+
+  /**
+   * The devices its agent found described, and those it does not offer (§6.1 of
+   * docs/05-scheduling.md). Added 2026-10-25.
+   *
+   * @generated from field: repeated korpis.v1.Device devices = 23;
+   */
+  devices: Device[];
+
+  /**
+   * @generated from field: repeated korpis.v1.UnofferedDevice unoffered_devices = 24;
+   */
+  unofferedDevices: UnofferedDevice[];
 };
 
 /**
@@ -283,9 +296,12 @@ export type Capabilities = Message<"korpis.v1.Capabilities"> & {
   liveMigrate: boolean;
 
   /**
-   * @generated from field: repeated korpis.v1.GpuMode gpu = 9;
+   * The modes it gives devices of the classes in `devices` in; none gives none (§6.2 of
+   * docs/05-scheduling.md). Was `gpu`, for GPUs alone: corrected 2026-10-25.
+   *
+   * @generated from field: repeated korpis.v1.DeviceMode device_modes = 9;
    */
-  gpu: GpuMode[];
+  deviceModes: DeviceMode[];
 
   /**
    * @generated from field: repeated korpis.v1.DeviceClass devices = 10;
@@ -433,6 +449,106 @@ export const SnapshotCapsSchema: GenMessage<SnapshotCaps> = /*@__PURE__*/
   messageDesc(file_korpis_v1_placement, 5);
 
 /**
+ * A device of a node, as the Container Device Interface's files on it describe it (§6.1 of
+ * docs/05-scheduling.md).
+ *
+ * @generated from message korpis.v1.Device
+ */
+export type Device = Message<"korpis.v1.Device"> & {
+  /**
+   * Its CDI name, vendor.com/kind=name; unique on its node.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: korpis.v1.DeviceClass class = 2;
+   */
+  class: DeviceClass;
+
+  /**
+   * The CDI file's and the device's annotations, which a request's selector matches.
+   *
+   * @generated from field: map<string, string> attributes = 3;
+   */
+  attributes: { [key: string]: string };
+
+  /**
+   * The host device nodes its own edits give: a device whose nodes contain another's is the same
+   * hardware.
+   *
+   * @generated from field: repeated string host_nodes = 4;
+   */
+  hostNodes: string[];
+
+  /**
+   * How many workloads may hold it at once in timeslice; 0 offers passthrough alone.
+   *
+   * @generated from field: uint32 shares = 5;
+   */
+  shares: number;
+};
+
+/**
+ * Describes the message korpis.v1.Device.
+ * Use `create(DeviceSchema)` to create a new message.
+ */
+export const DeviceSchema: GenMessage<Device> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_placement, 6);
+
+/**
+ * A device a node's files describe and the node does not offer, and why: a kind of no class, an
+ * aggregate of smaller devices, no node of its own, or a file not root's alone.
+ *
+ * @generated from message korpis.v1.UnofferedDevice
+ */
+export type UnofferedDevice = Message<"korpis.v1.UnofferedDevice"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message korpis.v1.UnofferedDevice.
+ * Use `create(UnofferedDeviceSchema)` to create a new message.
+ */
+export const UnofferedDeviceSchema: GenMessage<UnofferedDevice> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_placement, 7);
+
+/**
+ * A device a placement holds, and how.
+ *
+ * @generated from message korpis.v1.DeviceHold
+ */
+export type DeviceHold = Message<"korpis.v1.DeviceHold"> & {
+  /**
+   * Device.id, on the placement's node.
+   *
+   * @generated from field: string device = 1;
+   */
+  device: string;
+
+  /**
+   * @generated from field: korpis.v1.DeviceMode mode = 2;
+   */
+  mode: DeviceMode;
+};
+
+/**
+ * Describes the message korpis.v1.DeviceHold.
+ * Use `create(DeviceHoldSchema)` to create a new message.
+ */
+export const DeviceHoldSchema: GenMessage<DeviceHold> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_placement, 8);
+
+/**
  * @generated from message korpis.v1.EnforcementDecl
  */
 export type EnforcementDecl = Message<"korpis.v1.EnforcementDecl"> & {
@@ -459,7 +575,7 @@ export type EnforcementDecl = Message<"korpis.v1.EnforcementDecl"> & {
  * Use `create(EnforcementDeclSchema)` to create a new message.
  */
 export const EnforcementDeclSchema: GenMessage<EnforcementDecl> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 6);
+  messageDesc(file_korpis_v1_placement, 9);
 
 /**
  * How workload uids reach the disk (§4.5 of docs/04-runtimes.md).
@@ -483,7 +599,7 @@ export type IdMapCaps = Message<"korpis.v1.IdMapCaps"> & {
  * Use `create(IdMapCapsSchema)` to create a new message.
  */
 export const IdMapCapsSchema: GenMessage<IdMapCaps> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 7);
+  messageDesc(file_korpis_v1_placement, 10);
 
 /**
  * A storage class as offered on a node (§2 of docs/06-storage.md).
@@ -522,7 +638,7 @@ export type StorageClassInfo = Message<"korpis.v1.StorageClassInfo"> & {
  * Use `create(StorageClassInfoSchema)` to create a new message.
  */
 export const StorageClassInfoSchema: GenMessage<StorageClassInfo> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 8);
+  messageDesc(file_korpis_v1_placement, 11);
 
 /**
  * @generated from message korpis.v1.StorageCapabilities
@@ -611,7 +727,7 @@ export type StorageCapabilities = Message<"korpis.v1.StorageCapabilities"> & {
  * Use `create(StorageCapabilitiesSchema)` to create a new message.
  */
 export const StorageCapabilitiesSchema: GenMessage<StorageCapabilities> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 9);
+  messageDesc(file_korpis_v1_placement, 12);
 
 /**
  * The binding of a workload to a node, and why, as the caller may see it (§8 of
@@ -693,6 +809,13 @@ export type Placement = Message<"korpis.v1.Placement"> & {
    * @generated from field: google.protobuf.Timestamp held_at = 12;
    */
   heldAt?: Timestamp | undefined;
+
+  /**
+   * The node's devices it holds, chosen when it was bound (§6.3 of docs/05-scheduling.md).
+   *
+   * @generated from field: repeated korpis.v1.DeviceHold devices = 13;
+   */
+  devices: DeviceHold[];
 };
 
 /**
@@ -700,7 +823,7 @@ export type Placement = Message<"korpis.v1.Placement"> & {
  * Use `create(PlacementSchema)` to create a new message.
  */
 export const PlacementSchema: GenMessage<Placement> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 10);
+  messageDesc(file_korpis_v1_placement, 13);
 
 /**
  * Why no node took a workload's approved target, from the newest attempt.
@@ -732,7 +855,7 @@ export type Unplaced = Message<"korpis.v1.Unplaced"> & {
  * Use `create(UnplacedSchema)` to create a new message.
  */
 export const UnplacedSchema: GenMessage<Unplaced> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 11);
+  messageDesc(file_korpis_v1_placement, 14);
 
 /**
  * Every rejection with its reason, every score with its weight (§2.3 of
@@ -795,7 +918,7 @@ export type Explanation = Message<"korpis.v1.Explanation"> & {
  * Use `create(ExplanationSchema)` to create a new message.
  */
 export const ExplanationSchema: GenMessage<Explanation> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 12);
+  messageDesc(file_korpis_v1_placement, 15);
 
 /**
  * The policy one owner's nodes were scored by.
@@ -821,7 +944,7 @@ export type OwnerPolicy = Message<"korpis.v1.OwnerPolicy"> & {
  * Use `create(OwnerPolicySchema)` to create a new message.
  */
 export const OwnerPolicySchema: GenMessage<OwnerPolicy> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 13);
+  messageDesc(file_korpis_v1_placement, 16);
 
 /**
  * @generated from message korpis.v1.CheckCount
@@ -843,7 +966,7 @@ export type CheckCount = Message<"korpis.v1.CheckCount"> & {
  * Use `create(CheckCountSchema)` to create a new message.
  */
 export const CheckCountSchema: GenMessage<CheckCount> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 14);
+  messageDesc(file_korpis_v1_placement, 17);
 
 /**
  * @generated from message korpis.v1.FilterResult
@@ -870,7 +993,7 @@ export type FilterResult = Message<"korpis.v1.FilterResult"> & {
  * Use `create(FilterResultSchema)` to create a new message.
  */
 export const FilterResultSchema: GenMessage<FilterResult> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 15);
+  messageDesc(file_korpis_v1_placement, 18);
 
 /**
  * @generated from message korpis.v1.ScoreResult
@@ -902,7 +1025,7 @@ export type ScoreResult = Message<"korpis.v1.ScoreResult"> & {
  * Use `create(ScoreResultSchema)` to create a new message.
  */
 export const ScoreResultSchema: GenMessage<ScoreResult> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 16);
+  messageDesc(file_korpis_v1_placement, 19);
 
 /**
  * @generated from message korpis.v1.PlacementPolicy
@@ -934,7 +1057,7 @@ export type PlacementPolicy = Message<"korpis.v1.PlacementPolicy"> & {
  * Use `create(PlacementPolicySchema)` to create a new message.
  */
 export const PlacementPolicySchema: GenMessage<PlacementPolicy> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 17);
+  messageDesc(file_korpis_v1_placement, 20);
 
 /**
  * @generated from message korpis.v1.SpreadConstraint
@@ -968,7 +1091,7 @@ export type SpreadConstraint = Message<"korpis.v1.SpreadConstraint"> & {
  * Use `create(SpreadConstraintSchema)` to create a new message.
  */
 export const SpreadConstraintSchema: GenMessage<SpreadConstraint> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_placement, 18);
+  messageDesc(file_korpis_v1_placement, 21);
 
 /**
  * @generated from enum korpis.v1.NodeAdmin
@@ -1154,83 +1277,6 @@ export const ReachabilitySchema: GenEnum<Reachability> = /*@__PURE__*/
   enumDesc(file_korpis_v1_placement, 4);
 
 /**
- * @generated from enum korpis.v1.GpuMode
- */
-export enum GpuMode {
-  /**
-   * @generated from enum value: GPU_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: GPU_MODE_NONE = 1;
-   */
-  NONE = 1,
-
-  /**
-   * @generated from enum value: GPU_MODE_PASSTHROUGH = 2;
-   */
-  PASSTHROUGH = 2,
-
-  /**
-   * @generated from enum value: GPU_MODE_MEDIATED = 3;
-   */
-  MEDIATED = 3,
-
-  /**
-   * @generated from enum value: GPU_MODE_TIMESLICE = 4;
-   */
-  TIMESLICE = 4,
-}
-
-/**
- * Describes the enum korpis.v1.GpuMode.
- */
-export const GpuModeSchema: GenEnum<GpuMode> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 5);
-
-/**
- * @generated from enum korpis.v1.DeviceClass
- */
-export enum DeviceClass {
-  /**
-   * @generated from enum value: DEVICE_CLASS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: DEVICE_CLASS_GPU = 1;
-   */
-  GPU = 1,
-
-  /**
-   * @generated from enum value: DEVICE_CLASS_USB = 2;
-   */
-  USB = 2,
-
-  /**
-   * @generated from enum value: DEVICE_CLASS_PCI = 3;
-   */
-  PCI = 3,
-
-  /**
-   * @generated from enum value: DEVICE_CLASS_TPM = 4;
-   */
-  TPM = 4,
-
-  /**
-   * @generated from enum value: DEVICE_CLASS_SERIAL = 5;
-   */
-  SERIAL = 5,
-}
-
-/**
- * Describes the enum korpis.v1.DeviceClass.
- */
-export const DeviceClassSchema: GenEnum<DeviceClass> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 6);
-
-/**
  * @generated from enum korpis.v1.RootfsSource
  */
 export enum RootfsSource {
@@ -1264,7 +1310,7 @@ export enum RootfsSource {
  * Describes the enum korpis.v1.RootfsSource.
  */
 export const RootfsSourceSchema: GenEnum<RootfsSource> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 7);
+  enumDesc(file_korpis_v1_placement, 5);
 
 /**
  * @generated from enum korpis.v1.NetworkMode
@@ -1300,7 +1346,7 @@ export enum NetworkMode {
  * Describes the enum korpis.v1.NetworkMode.
  */
 export const NetworkModeSchema: GenEnum<NetworkMode> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 8);
+  enumDesc(file_korpis_v1_placement, 6);
 
 /**
  * @generated from enum korpis.v1.VolumeSemantics
@@ -1326,7 +1372,7 @@ export enum VolumeSemantics {
  * Describes the enum korpis.v1.VolumeSemantics.
  */
 export const VolumeSemanticsSchema: GenEnum<VolumeSemantics> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 9);
+  enumDesc(file_korpis_v1_placement, 7);
 
 /**
  * @generated from enum korpis.v1.FileAccess
@@ -1357,7 +1403,7 @@ export enum FileAccess {
  * Describes the enum korpis.v1.FileAccess.
  */
 export const FileAccessSchema: GenEnum<FileAccess> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 10);
+  enumDesc(file_korpis_v1_placement, 8);
 
 /**
  * @generated from enum korpis.v1.StorageBackend
@@ -1411,7 +1457,7 @@ export enum StorageBackend {
  * Describes the enum korpis.v1.StorageBackend.
  */
 export const StorageBackendSchema: GenEnum<StorageBackend> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 11);
+  enumDesc(file_korpis_v1_placement, 9);
 
 /**
  * @generated from enum korpis.v1.Fencing
@@ -1442,7 +1488,7 @@ export enum Fencing {
  * Describes the enum korpis.v1.Fencing.
  */
 export const FencingSchema: GenEnum<Fencing> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 12);
+  enumDesc(file_korpis_v1_placement, 10);
 
 /**
  * @generated from enum korpis.v1.BoundBy
@@ -1480,7 +1526,7 @@ export enum BoundBy {
  * Describes the enum korpis.v1.BoundBy.
  */
 export const BoundBySchema: GenEnum<BoundBy> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 13);
+  enumDesc(file_korpis_v1_placement, 11);
 
 /**
  * @generated from enum korpis.v1.PlacementStrategy
@@ -1511,7 +1557,7 @@ export enum PlacementStrategy {
  * Describes the enum korpis.v1.PlacementStrategy.
  */
 export const PlacementStrategySchema: GenEnum<PlacementStrategy> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 14);
+  enumDesc(file_korpis_v1_placement, 12);
 
 /**
  * Which workloads a spread constraint counts, always within the placed workload's own
@@ -1545,5 +1591,5 @@ export enum SpreadScope {
  * Describes the enum korpis.v1.SpreadScope.
  */
 export const SpreadScopeSchema: GenEnum<SpreadScope> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_placement, 15);
+  enumDesc(file_korpis_v1_placement, 13);
 

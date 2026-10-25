@@ -4,6 +4,7 @@
 //! the nonces that keep a Hello from being replayed, and whether a node is heard.
 
 use super::StoreResult;
+use korpis_core::node::device::{Device, UnofferedDevice};
 use korpis_core::node::{DriverInfo, StorageClass};
 use korpis_core::tenancy::quota::Bounds;
 use std::future::Future;
@@ -19,6 +20,10 @@ pub struct NodeFacts {
     pub allocatable: Bounds,
     /// The runtime drivers, with their declared capabilities.
     pub drivers: Vec<DriverInfo>,
+    /// The devices its agent found described, in full (§6.1 of docs/05-scheduling.md).
+    pub devices: Vec<Device>,
+    /// The devices described that it does not offer, and why.
+    pub unoffered_devices: Vec<UnofferedDevice>,
     /// The storage classes; `None` leaves them as they were, since a heartbeat does not carry
     /// them.
     pub storage_classes: Option<Vec<StorageClass>>,

@@ -682,7 +682,8 @@ Primary:
   `/var/run/cdi/nvidia.yaml` by a systemd service, `nvidia-cdi-refresh`, when the toolkit or the
   GPU driver is installed or upgraded, and not when MIG partitions are reconfigured; the file
   names `nvidia.com/gpu=all`, each GPU by index (`nvidia.com/gpu=0`), and each MIG device as
-  `nvidia.com/gpu=1:0` ([CDI support](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html),
+  `nvidia.com/gpu=1:0`, a colon the CDI specification's grammar for a device's name does not list
+  and which Korpis therefore accepts between ([CDI support](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html),
   read 2026-10-25). Why §6.1 of `../05-scheduling.md` treats a device whose nodes contain
   another's as one hardware and an aggregate as not offered.
 - **[R]** CVE-2024-0132: NVIDIA's Container Toolkit up to v1.16.1, in its default configuration,

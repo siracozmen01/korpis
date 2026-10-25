@@ -4,6 +4,7 @@
 
 pub mod declare;
 pub mod dependencies;
+pub mod devices;
 pub mod endpoints;
 pub mod health;
 pub mod resources;
@@ -74,6 +75,7 @@ pub fn body_to_pb(b: &IntentBody) -> pb::IntentBody {
         }
         .into(),
         resources: resources::resources_to_pb(&b.resources).into(),
+        devices: devices::requests_to_pb(&b.devices),
         volumes: b.volumes.iter().map(resources::volume_to_pb).collect(),
         endpoints: b.endpoints.iter().map(endpoints::endpoint_to_pb).collect(),
         health: health::health_to_pb(&b.health).into(),
@@ -116,6 +118,7 @@ pub fn body_from_pb(field: &str, b: &pb::IntentBody) -> Result<IntentBody> {
         console: console_from_pb(&f("console"), b.console)?,
         runtime: runtime_from_pb(&f("runtime"), b.runtime.as_option())?,
         resources: resources::resources_from_pb(&f("resources"), b.resources.as_option())?,
+        devices: devices::requests_from_pb(&f("devices"), &b.devices)?,
         volumes: b
             .volumes
             .iter()
