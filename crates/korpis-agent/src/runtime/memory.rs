@@ -179,6 +179,7 @@ impl InMemory {
                 runtime_id: id.clone(),
                 labels: o.spec.labels.clone(),
                 status: o.status.clone().into(),
+                cpus: o.spec.cores.iter().flat_map(|c| c.cpus.iter().copied()).collect(),
                 ..Default::default()
             })
             .collect())

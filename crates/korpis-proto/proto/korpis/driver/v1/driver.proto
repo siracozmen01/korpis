@@ -264,6 +264,11 @@ message RuntimeObject {
   string runtime_id = 1;
   RuntimeLabels labels = 2;
   RuntimeStatus status = 3;
+  // The logical CPUs of the dedicated cores the object was made holding, as its driver recorded
+  // them when it made it; none for an object holding none. What an agent that adopts the object
+  // records it as holding, never what its assignment says (§4.2 of docs/04-runtimes.md, Finding
+  // 172 of docs/23-walkthroughs.md). Added 2026-10-25.
+  repeated uint32 cpus = 4;
 }
 
 message InspectRequest {

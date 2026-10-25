@@ -22,6 +22,8 @@
 )]
 #![allow(dead_code, reason = "the shared modules hold what the other e2e tests use as well")]
 
+#[path = "../e2e/containers.rs"]
+mod containers;
 #[path = "../e2e/guests.rs"]
 mod guests;
 #[path = "../e2e/image.rs"]

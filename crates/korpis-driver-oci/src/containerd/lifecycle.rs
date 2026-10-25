@@ -32,7 +32,7 @@ const LABEL_EPOCH: &str = "korpis.lease_epoch";
 pub(crate) const LABEL_RUN: &str = "korpis.run";
 /// The CPUs of the dedicated cores a container was made holding, so one is never handed back for
 /// other cores (§4.2 of docs/04-runtimes.md).
-const LABEL_CPUS: &str = "korpis.cpus";
+pub(crate) const LABEL_CPUS: &str = "korpis.cpus";
 /// How long a killed task is given to be reaped.
 pub(crate) const KILL_WAIT: Duration = Duration::from_secs(10);
 

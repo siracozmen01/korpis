@@ -390,9 +390,11 @@ back that its parent's `shared` cgroup is off its CPUs, as the kernel applies th
 start otherwise, so a helper that did not narrow it leaves no tenant beside it (Finding 170 of
 `23-walkthroughs.md`). Neither driver hands back an object made holding other cores than those
 asked, the `oci` driver knowing a container's by a label it records them in, and the agent builds
-an object again when its placement's cores change (Finding 171). What it costs: a driver given
-cores runs its object's cgroup in a different place than one not, so an object's cores change only
-when it is built again from a new placement, which is a restart.
+an object again when its placement's cores change (Finding 171), knowing an adopted object's cores
+from what its driver reports it was made holding (`RuntimeObject.cpus`), never from its assignment
+(Finding 172). What it costs: a driver given cores runs its object's cgroup in a different place
+than one not, so an object's cores change only when it is built again from a new placement, which
+is a restart.
 
 **`Prepare` is pure.** It validates that this driver on this node can satisfy this intent, resolves
 references, and returns either a prepared spec or a rejection with a reason, changing nothing. This

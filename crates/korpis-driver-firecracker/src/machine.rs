@@ -359,6 +359,7 @@ impl Machine {
                 runtime_id: o.id.clone(),
                 labels: o.spec.labels.clone(),
                 status: self.inspect(&o.id).ok().into(),
+                cpus: o.spec.cores.iter().flat_map(|c| c.cpus.iter().copied()).collect(),
                 ..Default::default()
             })
             .collect()

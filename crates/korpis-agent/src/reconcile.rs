@@ -335,7 +335,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
         }
         self.release_networks(&held).await;
-        self.keep_cores(&held).await;
+        self.keep_cores().await;
         self.serve_resolvers(&held).await;
         self.publish_ingress(&held);
         self.serve_relays(&held);

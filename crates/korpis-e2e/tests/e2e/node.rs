@@ -19,6 +19,7 @@ use korpis_agent::session::Event;
 use korpis_agent::state::StateDir;
 use korpis_core::node::advertised::PortRange;
 use korpis_core::node::driver::DeviceClass;
+use korpis_driver_kit::cores::Cores;
 use korpis_driver_oci::containerd::Containerd;
 use korpis_driver_oci::containerd::stream::Streams;
 use korpis_driver_oci::devices::Specs;
@@ -41,6 +42,9 @@ pub struct Node {
     helper: PathBuf,
     /// The workloads whose containers are removed when the test ends, however it ends.
     guarded: Mutex<Vec<String>>,
+    /// The cgroup the node's `oci` driver makes its containers beneath, its own, so every one
+    /// is found and removed when the test ends.
+    containers: PathBuf,
     /// A filesystem mounted for the volumes, unmounted when the node is dropped.
     mounted: Option<PathBuf>,
     /// Where the helper binds the workloads' network namespaces; every one is released when
@@ -169,11 +173,16 @@ pub fn built(package: &str, bin: &str) -> PathBuf {
 /// from the agent's default root, `identity` in its state directory, writes consoles with the
 /// stream writer, keeping its own state in `driver` beside the agent's, and reads devices from
 /// the spec files in `cdi`.
-async fn driver(socket: &Path, state: &StateDir, (volumes, netns, cdi): (&Path, &Path, &Path)) {
+async fn driver(
+    socket: &Path,
+    state: &StateDir,
+    (volumes, netns, cdi): (&Path, &Path, &Path),
+    cores: Cores,
+) {
     let content = state.root().join("content");
     let streams = Streams { writer: writer(), state: state.root().with_file_name("driver") };
-    let containerd =
-        Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap().with_streams(streams);
+    let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
+    let containerd = containerd.with_streams(streams).with_cores(cores);
     let listener = korpis_driver_kit::serve::bind(socket).unwrap();
     let identity_root = state.root().join("identity");
     let policy = Policy {
@@ -234,7 +243,9 @@ impl Node {
         helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content, &netns));
         let cdi = dir.path().join("cdi");
         std::fs::create_dir(&cdi).unwrap();
-        driver(&driver_socket, &state, (&volumes, &netns, &cdi)).await;
+        let cores = crate::containers::own(name);
+        let containers = cores.root.join(cores.parent.trim_start_matches('/'));
+        driver(&driver_socket, &state, (&volumes, &netns, &cdi), cores).await;
         Self {
             dir,
             state,
@@ -242,6 +253,7 @@ impl Node {
             driver: driver_socket,
             helper: helper_socket,
             guarded: Mutex::new(Vec::new()),
+            containers,
             mounted,
             netns,
             pool: next_pool(),
@@ -356,18 +368,10 @@ impl Drop for Node {
         if let Some((_, cgroup)) = &self.microvms {
             crate::guests::end_guests(cgroup, &self.dir.path().join("firecracker"));
         }
-        let ctr = |args: &[&str]| Command::new("ctr").args(["-n", "korpis"]).args(args).output();
         for w in self.guarded.lock().map(|g| g.clone()).unwrap_or_default() {
-            let filter = format!("labels.\"korpis.workload\"=={w}");
-            let Ok(out) = ctr(&["containers", "ls", "-q", &filter]) else { continue };
-            for id in String::from_utf8_lossy(&out.stdout).split_whitespace() {
-                let _ = ctr(&["tasks", "kill", "-s", "SIGKILL", id]);
-                std::thread::sleep(Duration::from_millis(300));
-                let _ = ctr(&["tasks", "rm", "-f", id]);
-                let _ = ctr(&["containers", "rm", id]);
-                let _ = ctr(&["snapshots", "rm", id]);
-            }
+            crate::containers::remove_workload(&w);
         }
+        crate::containers::remove_under(&self.containers);
         let networks = korpis_helper::network::Network::new(self.netns.clone());
         for entry in std::fs::read_dir(&self.netns).into_iter().flatten().flatten() {
             let _ = networks.release(&entry.file_name().to_string_lossy());

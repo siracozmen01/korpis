@@ -7,7 +7,6 @@
 
 use super::act::Failure;
 use super::{Reconciler, Tracked};
-use crate::held::HeldSet;
 use crate::host::Host;
 use crate::runtime::Runtime;
 use korpis_proto::korpis::agent::v1 as agent;
@@ -42,18 +41,14 @@ fn cpus(cores: &[pb::Core]) -> Vec<u32> {
     cores.iter().flat_map(|c| c.cpus.iter().copied()).collect()
 }
 
-/// Whether an object whose cores were `recorded` (its parent and CPUs) when it was built or first
-/// kept holds the cores `asked` names, as the node offers them in `cores`: one built before its
-/// placement's cores changed holds others, and is built again. An object with nothing recorded,
-/// adopted and not yet kept, or holding none, is taken to hold what is asked, since whether it
-/// holds any follows its intent; its driver refuses to hand one back for other cores when it is
-/// next made.
-fn holds(cores: &[pb::Core], asked: &[u32], recorded: &(String, Vec<u32>)) -> bool {
-    if recorded.0.is_empty() {
-        return true;
-    }
+/// Whether an object recorded as holding the logical CPUs `recorded`, when it was built or as
+/// its driver reported it when it was adopted, holds the cores `asked` names, as the node offers
+/// them in `cores`: one whose placement's cores changed holds others, and is built again. Nothing
+/// is taken on trust: an object recorded as holding none holds none (Findings 171 and 172 of
+/// docs/23-walkthroughs.md).
+fn holds(cores: &[pb::Core], asked: &[u32], recorded: &[u32]) -> bool {
     let mut asked = offered(cores, asked).map(|c| cpus(&c)).unwrap_or_default();
-    let mut held = recorded.1.clone();
+    let mut held = recorded.to_vec();
     held.sort_unstable();
     asked.sort_unstable();
     held == asked
@@ -93,7 +88,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 
     /// Whether the object tracked as `t` holds the cores `a`'s placement does, as [`holds`] says.
     pub(super) fn holds_its_cores(&self, a: &agent::Assignment, t: &Tracked) -> bool {
-        holds(&self.wiring.cores, &a.cores, &t.cores)
+        holds(&self.wiring.cores, &a.cores, &t.cores.1)
     }
 
     /// The CPUs of every core an object here holds, under every parent the drivers declare.
@@ -110,21 +105,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         held
     }
 
-    /// Keeps the helper's cpusets to the cores objects here hold, once a pass: an object adopted
-    /// holds its assignment's, and one destroyed none. Nothing is written on a node that offers
-    /// no cores or whose drivers declare no cgroup parent.
-    pub(super) async fn keep_cores(&mut self, held: &HeldSet) {
+    /// Keeps the helper's cpusets to the cores objects here hold, once a pass: as each was
+    /// built, or as its driver reported it when it was adopted, and one destroyed none. Nothing
+    /// is written on a node that offers no cores or whose drivers declare no cgroup parent.
+    pub(super) async fn keep_cores(&mut self) {
         if self.wiring.cores.is_empty() || self.wiring.driver_kinds.cgroup_parents().is_empty() {
             return;
-        }
-        for (workload, t) in &mut self.tracked {
-            let Some(a) = held.assignments.get(workload).filter(|_| t.cores.1.is_empty()) else {
-                continue;
-            };
-            let parent = self.wiring.driver_kinds.cgroup_parent(super::driver_of(a));
-            if let (Some(p), Ok(cores)) = (parent, offered(&self.wiring.cores, &a.cores)) {
-                t.cores = (p, cpus(&cores));
-            }
         }
         let cpus = self.cores_held();
         if self.cores_kept.refused.as_ref() == Some(&cpus) {

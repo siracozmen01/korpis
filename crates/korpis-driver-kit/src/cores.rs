@@ -204,6 +204,13 @@ impl Cores {
     }
 }
 
+/// The logical CPUs a kernel CPU list names, in order: what a driver recorded an object as
+/// holding; none for a list that is empty or not one.
+#[must_use]
+pub fn cpus_of(list: &str) -> Vec<u32> {
+    korpis_topology::cpu_list(list).map(|c| c.into_iter().collect()).unwrap_or_default()
+}
+
 /// The cgroups of every object under the parent cgroup at `at`, wherever each was made: in its
 /// `shared` and `dedicated` cgroups, and directly beneath it for one made before cores were held.
 #[must_use]

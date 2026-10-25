@@ -1417,6 +1417,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 169 | A device's edits reached the driver from the supervisor, which the driver's checks exist to distrust | §72 | `04-runtimes.md` §4.2; `05-scheduling.md` §6.3, §6.5; `02-architecture.md` §6.1; `17-security.md` §5 |
 | 170 | A driver whose host shares held cores declared other tenants kept off them, and never checked that they were | §73 | `04-runtimes.md` §4.2 |
 | 171 | A container made for one placement's cores was handed back for other cores | §73 | `04-runtimes.md` §4.2 |
+| 172 | An object an agent adopted was taken to hold its assignment's cores, which it need not | §73 | `04-runtimes.md` §4.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6208,6 +6209,24 @@ the object kept CPUs its placement no longer held, which the scheduler could giv
 placement's differ; the `oci` driver labels a container with the CPUs it was made holding and
 refuses to hand one back for others, as the `firecracker` driver refuses an object made with other
 cores, so neither trusts the agent alone. An adopted object is taken to hold its assignment's cores
-until the agent first keeps them, and its driver's refusal covers it after. Corrected in place in
+until the agent first keeps them, and its driver's refusal covers it after (corrected by Finding
+172 below: an adopted object is recorded as holding what its driver reports). Corrected in place in
 §4.2 of `04-runtimes.md`. What it costs: a label on every container, and a rebuild, which is a
 restart, when a placement's cores change.
+
+**FINDING 172: An object an agent adopted was taken to hold its assignment's cores, which it need
+not. `CONFIRMED`, by an automated security review of the commit that resolved Finding 171**
+
+Found 2026-10-25. Finding 171's resolution asks what an agent that restarts knows of the cores its
+objects hold, and answered with the assignment, which is what the object should hold, not what it
+does. A placement whose cores changed while the agent was down left an object on its old cores
+that the agent recorded as on the new: the helper was told the new CPUs held and the old ones
+shared, and the object ran beside whatever was placed there, which no refusal at `Create` covers,
+since nothing was made.
+
+**Resolution.** A driver reports, for every object it recovers, the CPUs it recorded making it
+with (`RuntimeObject.cpus`: the `oci` driver's label, the `firecracker` driver's stored spec), and
+an agent that adopts the object records those; an object whose recorded CPUs are not its
+placement's is built again, and one recorded as holding none holds none. Finding 171's resolution
+is corrected in place above, and §4.2 of `04-runtimes.md` says so. What it costs: a field in the
+driver protocol, which a third-party driver that holds cores must fill.

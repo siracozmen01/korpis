@@ -53,12 +53,18 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 continue;
             }
             let running = o.status.as_option().is_some_and(act::running);
+            // The cores it holds are what its driver recorded making it with, not what its
+            // assignment says now (Finding 172 of docs/23-walkthroughs.md).
+            let a = held.assignments.get(&workload);
+            let parent =
+                a.and_then(|a| self.wiring.driver_kinds.cgroup_parent(super::driver_of(a)));
             let t = Tracked {
                 runtime: Some(o.runtime_id.clone()),
                 labels: o.labels.as_option().cloned(),
                 status: o.status.as_option().cloned(),
                 stopped_by_us: !running,
                 running_since: running.then(Instant::now),
+                cores: (parent.unwrap_or_default(), o.cpus.clone()),
                 ..Tracked::default()
             };
             self.tracked.insert(workload.clone(), t);
@@ -77,7 +83,17 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// its timeout counted from when it started, and one that ended is reported once more,
     /// which the control plane takes once.
     fn adopt_run(&mut self, workload: &str, run: &str, o: &driver::RuntimeObject) {
+        let parent = self
+            .wiring
+            .held
+            .borrow()
+            .assignments
+            .get(workload)
+            .and_then(|a| self.wiring.driver_kinds.cgroup_parent(super::driver_of(a)));
         let t = self.tracked.entry(workload.to_owned()).or_default();
+        if t.cores.1.is_empty() && !o.cpus.is_empty() {
+            t.cores = (parent.unwrap_or_default(), o.cpus.clone());
+        }
         let held = runs::RunTracked { runtime: o.runtime_id.clone(), ..Default::default() };
         t.runs.insert(run.to_owned(), held);
     }

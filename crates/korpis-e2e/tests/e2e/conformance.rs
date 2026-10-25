@@ -43,6 +43,15 @@ fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+/// Every container beneath a cgroup removed when the test ends, whether or not it failed.
+struct Containers(PathBuf);
+
+impl Drop for Containers {
+    fn drop(&mut self) {
+        crate::containers::remove_under(&self.0);
+    }
+}
+
 /// `script` run by the shell, with what it is given as its arguments.
 fn shell(script: &str) -> Launch {
     let args = ["-c", script, "restart"].map(OsString::from).to_vec();
@@ -100,7 +109,7 @@ fn the_oci_driver_conforms() {
     std::fs::create_dir(d.join("volumes")).unwrap();
     let socket = d.join("oci.sock");
     let writer = writer();
-    let driver = Launch {
+    let mut driver = Launch {
         program: built("korpis-driver-oci", "korpis-driver-oci"),
         args: args(&[
             ("--socket", &socket),
@@ -113,6 +122,11 @@ fn the_oci_driver_conforms() {
             ("--state-dir", &d.join("state")),
         ]),
     };
+    // Its own cgroup parent, the host sharing any dedicated cores: what it leaves is removed.
+    let own = crate::containers::own("conformance");
+    let host = ["--cgroup-parent", &own.parent, "--dedicated-cores-host", "shared"];
+    driver.args.extend(host.map(OsString::from));
+    let _containers = Containers(own.root.join(own.parent.trim_start_matches('/')));
     let fixture = fixture(&d, (driver, socket), shell(CONTAINERS_RESTART), 26_000 * IDS);
     conforms(&d, &fixture, "oci");
 }
@@ -151,6 +165,7 @@ fn the_firecracker_driver_conforms() {
         ("--state-dir", &d.join("state")),
     ]);
     flags.extend(["--cgroup".into(), OsString::from(&cgroup)]);
+    flags.extend(["--dedicated-cores-host", "shared"].map(OsString::from));
     let driver = Launch {
         program: built("korpis-driver-firecracker", "korpis-driver-firecracker"),
         args: flags,

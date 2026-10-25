@@ -115,6 +115,7 @@ impl Containerd {
                     self.oom_killed(&c.id),
                 )
                 .into(),
+                cpus: korpis_driver_kit::cores::cpus_of(&label(super::lifecycle::LABEL_CPUS)),
                 ..Default::default()
             });
         }

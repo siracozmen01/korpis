@@ -35,9 +35,10 @@ fn the_cgroup_parents_are_each_declared_once_and_never_empty() {
 #[test]
 fn an_object_holding_other_cores_than_its_placement_is_built_again() {
     let node = [core(1, &[1, 9]), core(2, &[2, 10])];
-    let built = ("/korpis".to_owned(), vec![9, 1]);
+    let built = [9, 1];
     assert!(holds(&node, &[1], &built), "the same CPUs, in any order");
     assert!(!holds(&node, &[2], &built), "its placement now holds another core");
     assert!(!holds(&node, &[3], &built), "or one the node no longer offers");
-    assert!(holds(&node, &[2], &(String::new(), Vec::new())), "nothing recorded: adopted");
+    assert!(!holds(&node, &[2], &[]), "adopted, its driver reporting none: built again");
+    assert!(holds(&node, &[], &[]), "holding none, asked none");
 }

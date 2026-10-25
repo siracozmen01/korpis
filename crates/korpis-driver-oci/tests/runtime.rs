@@ -19,6 +19,7 @@ use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::runtime::{Prepared, Runtime, RuntimeError, Sender};
 use korpis_core::workload::assignment::IdRange;
 use korpis_core::workload::stream::StreamKind;
+use korpis_driver_kit::cores::{CGROUP_ROOT, Cores, Host};
 use korpis_driver_kit::serve::{bind, serve};
 use korpis_driver_oci::containerd::Containerd;
 use korpis_driver_oci::containerd::stream::Streams;
@@ -95,15 +96,41 @@ fn intent(nonce: &str, console: pb::ConsoleMode) -> pb::Intent {
 }
 
 /// A driver serving in `dir` to this process's user; the agent's runtime over its socket.
-async fn started(dir: &Path) -> DriverRuntime {
+/// The cgroup a test's driver makes its containers beneath, its own: whatever is there when the
+/// test ends, however it ends, is removed.
+struct Leftovers(PathBuf);
+
+impl Drop for Leftovers {
+    fn drop(&mut self) {
+        let ctr = |args: &[&str]| Command::new("ctr").args(["-n", "korpis"]).args(args).output();
+        for dir in korpis_driver_kit::cores::objects_under(&self.0) {
+            let Some(id) = dir.file_name().and_then(|n| n.to_str()) else { continue };
+            let _ = ctr(&["tasks", "kill", "-s", "SIGKILL", id]);
+            std::thread::sleep(Duration::from_millis(300));
+            let _ = ctr(&["tasks", "rm", "-f", id]);
+            let _ = ctr(&["containers", "rm", id]);
+            let _ = ctr(&["snapshots", "rm", id]);
+        }
+        korpis_driver_kit::cores::remove_under(&self.0);
+    }
+}
+
+async fn started(dir: &Path) -> (DriverRuntime, Leftovers) {
     let content = dir.join("content");
     ContentStore::open(&content, vec![test_registry()]).unwrap().fetch(&busybox()).await.unwrap();
     let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
     let socket = dir.join("driver.sock");
     let listener = bind(&socket).unwrap();
     let streams = Streams { writer: writer(), state: dir.join("driver") };
+    let cores = Cores {
+        system: PathBuf::from("/sys/devices/system"),
+        root: PathBuf::from(CGROUP_ROOT),
+        parent: format!("/korpis-rt-{}-{}", std::process::id(), uuid::Uuid::now_v7().simple()),
+        host: Host::Shared,
+    };
+    let leftovers = Leftovers(cores.root.join(cores.parent.trim_start_matches('/')));
     let (d, _watcher) = Driver::new(
-        containerd.with_streams(streams),
+        containerd.with_streams(streams).with_cores(cores),
         Policy {
             volume_root: dir.join("volumes"),
             identity_root: dir.join("identity"),
@@ -113,7 +140,7 @@ async fn started(dir: &Path) -> DriverRuntime {
     );
     let own = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata("/proc/self").unwrap());
     tokio::spawn(serve(listener, BTreeSet::from([own]), d, std::future::pending()));
-    DriverRuntime::connect(&socket)
+    (DriverRuntime::connect(&socket), leftovers)
 }
 
 /// The spec the reconciler would build: prepared, its volume placed, labelled, and mapped.
@@ -157,7 +184,7 @@ async fn the_agent_runs_a_thin_recipe_through_the_driver_process() {
     }
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("volumes/data")).unwrap();
-    let rt = started(dir.path()).await;
+    let (rt, _leftovers) = started(dir.path()).await;
     assert!(rt.describe().await.unwrap().healthy);
     let mut changes = rt.changes();
     let nonce = uuid::Uuid::now_v7().simple().to_string();
@@ -245,7 +272,7 @@ async fn an_interactive_console_takes_input_records_who_typed_it_and_resizes() {
     }
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("volumes/data")).unwrap();
-    let rt = started(dir.path()).await;
+    let (rt, _leftovers) = started(dir.path()).await;
     let nonce = uuid::Uuid::now_v7().simple().to_string();
     let interactive = (pb::ConsoleMode::CONSOLE_MODE_INTERACTIVE, ANSWERS);
     let id = rt.create(&built(&rt, dir.path(), &nonce, interactive).await).await.unwrap();
