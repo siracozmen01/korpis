@@ -9,7 +9,16 @@ fn at(secs: u64) -> SystemTime {
     UNIX_EPOCH + Duration::from_secs(secs)
 }
 
+/// The organization every node of these tests is enrolled into, unless one says otherwise.
+const ORG: Uuid = Uuid::from_u128(100);
+
+/// Node `n`, reporting `pool` as the one it was given, or as the old default it was given none.
 fn candidate(n: u128, enrolled: u64, pool: &str, address: Option<&str>) -> Candidate {
+    let pool: IpNet = pool.parse().unwrap();
+    let given = match pool {
+        IpNet::V4(v4) if v4 != legacy_pool() => Some(v4),
+        _ => None,
+    };
     Candidate {
         node: Uuid::from_u128(n),
         enrolled_at: at(enrolled),
@@ -17,9 +26,12 @@ fn candidate(n: u128, enrolled: u64, pool: &str, address: Option<&str>) -> Candi
         facts: OverlayFacts {
             key: [u8::try_from(n).unwrap(); 32],
             port: 51820,
-            pools: vec![pool.parse().unwrap()],
+            pools: vec![pool],
             handshakes: BTreeMap::new(),
         },
+        given,
+        derived_ipv6: format!("fd00:0:{n:x}::/64").parse().unwrap(),
+        lineage: vec![ORG],
     }
 }
 
@@ -82,4 +94,39 @@ fn a_node_stands_available_when_it_reaches_every_other_member() {
     assert!(Standing::of(Uuid::from_u128(3), (&mesh(lone.clone()), &lone), now).available);
     let nowhere = Standing::of(Uuid::from_u128(9), (&mesh(all.clone()), &all), now);
     assert_eq!(nowhere, Standing::default(), "not a member, reporting nothing");
+}
+
+#[test]
+fn a_node_reporting_a_pool_it_was_not_given_is_outside_and_only_given_or_derived_pools_route() {
+    let mut liar = candidate(1, 10, "10.48.0.0/22", None);
+    liar.facts.pools = vec!["192.168.1.0/24".parse().unwrap()];
+    let m = mesh(vec![liar]);
+    assert!(m.members.is_empty(), "its own LAN would be routed to it on every node");
+    assert!(m.outside[0].1.contains("192.168.1.0/24"), "{:?}", m.outside);
+
+    let mut honest = candidate(2, 20, "10.48.4.0/22", None);
+    let derived = honest.derived_ipv6;
+    honest.facts.pools.extend([IpNet::V6(derived), "2001:db8:1::/64".parse().unwrap()]);
+    let pools = routed(&honest).unwrap();
+    assert_eq!(pools.len(), 2, "the operator's routed prefix is left to its own network");
+    let mut squatter = candidate(3, 30, "10.48.8.0/22", None);
+    squatter.facts.pools.push(IpNet::V6(derived));
+    assert!(routed(&squatter).is_err(), "another node's unique local prefix");
+}
+
+#[test]
+fn members_are_paired_only_where_one_s_organization_is_the_other_s_or_above_it() {
+    let (root, tenant_a, tenant_b) = (ORG, Uuid::from_u128(101), Uuid::from_u128(102));
+    let mut own = candidate(1, 10, "10.48.0.0/22", None);
+    let mut a = candidate(2, 20, "10.48.4.0/22", None);
+    let mut b = candidate(3, 30, "10.48.8.0/22", None);
+    own.lineage = vec![root];
+    a.lineage = vec![tenant_a, root];
+    b.lineage = vec![tenant_b, root];
+    let m = mesh(vec![own, a, b]);
+    let peers = |n: u128| -> Vec<u128> {
+        m.peers_of(Uuid::from_u128(n)).iter().map(|p| p.node.as_u128()).collect()
+    };
+    assert_eq!(peers(1), [2, 3], "the installation's own node may run either tenant's work");
+    assert_eq!(peers(2), [1], "and no tenant learns of its sibling's node");
 }

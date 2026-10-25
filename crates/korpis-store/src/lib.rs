@@ -97,12 +97,27 @@ pub enum Error {
     Irreversible(String),
 }
 
-/// A pool of connections acting as [`APP_ROLE`].
+/// Two pools of connections acting as [`APP_ROLE`]: one that transactions are begun on, and one
+/// that every other query, and the change feed's listening connection, takes from. A
+/// transaction holds its connection while it reads from the other pool and while it waits for
+/// a lock, and a read holds its connection only for its one query, so a transaction waiting for
+/// a read connection always gets one, however many transactions wait (Finding 177 of
+/// docs/23-walkthroughs.md). In one pool, every connection held by a transaction waiting for a
+/// second left none to give.
 #[derive(Debug, Clone)]
 pub struct PgStore {
     pool: PgPool,
+    transactions: PgPool,
     bodies: Arc<dyn IntentCodec>,
     feed: Arc<feed::Feed>,
+}
+
+/// How `max_connections` is split between the pools: half each, and at least two each, so a
+/// read is served beside the listening connection.
+#[must_use]
+pub fn split(max_connections: u32) -> (u32, u32) {
+    let transactions = (max_connections / 2).max(2);
+    (max_connections.saturating_sub(transactions).max(2), transactions)
 }
 
 /// How often a watcher re-reads what it watches when nothing was announced: time alone changes
@@ -110,17 +125,26 @@ pub struct PgStore {
 pub const DEFAULT_WATCH_RESYNC: std::time::Duration = std::time::Duration::from_secs(15);
 
 impl PgStore {
-    /// Connects with `url` and assumes [`APP_ROLE`] on every connection, so that the
-    /// immutability grants of the schema bind the control plane whatever login it used. Intent
-    /// bodies are written and read with `bodies` (§3.1 of docs/03-state.md).
+    /// Connects with `url`, `max_connections` split between reads and transactions by
+    /// [`split`], and assumes [`APP_ROLE`] on every connection, so that the immutability grants
+    /// of the schema bind the control plane whatever login it used. Intent bodies are written
+    /// and read with `bodies` (§3.1 of docs/03-state.md).
     pub async fn connect(
         url: &str,
         max_connections: u32,
         bodies: Arc<dyn IntentCodec>,
     ) -> Result<Self, Error> {
         let options = PgConnectOptions::from_str(url)?.application_name("korpis-server");
-        let pool = PgPoolOptions::new()
-            .max_connections(max_connections)
+        let (reads, transactions) = split(max_connections);
+        let pool = Self::connected(reads, options.clone()).await?;
+        let transactions = Self::connected(transactions, options).await?;
+        Ok(Self { pool, transactions, bodies, feed: feed::Feed::new(DEFAULT_WATCH_RESYNC) })
+    }
+
+    /// A pool of at most `size` connections with `options`, each acting as [`APP_ROLE`].
+    async fn connected(size: u32, options: PgConnectOptions) -> Result<PgPool, Error> {
+        Ok(PgPoolOptions::new()
+            .max_connections(size)
             .after_connect(|conn, _| {
                 Box::pin(async move {
                     sqlx::query("SET ROLE korpis_app").execute(&mut *conn).await?;
@@ -128,8 +152,7 @@ impl PgStore {
                 })
             })
             .connect_with(options)
-            .await?;
-        Ok(Self { pool, bodies, feed: feed::Feed::new(DEFAULT_WATCH_RESYNC) })
+            .await?)
     }
 
     /// Resyncs watchers every `every` instead of [`DEFAULT_WATCH_RESYNC`]. Call before
@@ -211,7 +234,7 @@ impl Store for PgStore {
     }
 
     async fn begin(&self) -> StoreResult<PgTx> {
-        let tx = self.pool.begin().await.map_err(errors::from_sqlx)?;
+        let tx = self.transactions.begin().await.map_err(errors::from_sqlx)?;
         Ok(PgTx { tx, bodies: Arc::clone(&self.bodies) })
     }
 }

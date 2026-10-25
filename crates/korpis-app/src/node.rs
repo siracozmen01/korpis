@@ -77,7 +77,29 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub async fn get_node(&self, caller: &Caller, id: Uuid) -> Result<NodeView, AppError> {
         self.authorize(caller, "node.read", ObjectRef::new(Kind::Node, id)).await?;
         let node = self.store.node(id).await?.ok_or(AppError::NotFound { kind: "node" })?;
-        self.node_view(node, &self.judged().await?).await
+        let mut view = self.node_view(node, &self.judged().await?).await?;
+        self.readable_peers(caller, std::slice::from_mut(&mut view.overlay)).await?;
+        Ok(view)
+    }
+
+    /// Leaves in each of `standings` only the peers `caller` may read: a pair is paired by the
+    /// organizations above both nodes, and the caller may read one node and not the other.
+    async fn readable_peers(
+        &self,
+        caller: &Caller,
+        standings: &mut [korpis_core::node::mesh::Standing],
+    ) -> Result<(), AppError> {
+        let peers: std::collections::BTreeSet<Uuid> =
+            standings.iter().flat_map(|s| s.peers.iter().map(|(p, _)| *p)).collect();
+        let objects: Vec<ObjectRef> =
+            peers.iter().map(|p| ObjectRef::new(Kind::Node, *p)).collect();
+        let permitted = self.permitted_each(caller, "node.read", &objects).await?;
+        let readable: std::collections::BTreeSet<Uuid> =
+            peers.into_iter().zip(permitted).filter_map(|(p, ok)| ok.then_some(p)).collect();
+        for s in standings {
+            s.peers.retain(|(p, _)| readable.contains(p));
+        }
+        Ok(())
     }
 
     /// The nodes an organization owns, matching a selector. A page may hold fewer than its
@@ -97,6 +119,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         for n in read.into_iter().filter(|n| selector.matches(n.labels.as_map())) {
             items.push(self.node_view(n, &judged).await?);
         }
+        let mut standings: Vec<_> =
+            items.iter_mut().map(|v| std::mem::take(&mut v.overlay)).collect();
+        self.readable_peers(caller, &mut standings).await?;
+        for (v, s) in items.iter_mut().zip(standings) {
+            v.overlay = s;
+        }
         Ok(Paged { items, next })
     }
 
@@ -115,7 +143,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Reply::Replayed(r));
         }
         let permit = self.authorize(caller, "node.cordon", ObjectRef::new(Kind::Node, id)).await?;
-        let overlay = self.judged().await?.standing(id);
+        let mut overlay = self.judged().await?.standing(id);
+        self.readable_peers(caller, std::slice::from_mut(&mut overlay)).await?;
         let mut tx = self.store.begin().await?;
         tx.lock_placement().await?;
         let mut node = tx.lock_node(id).await?.ok_or(AppError::NotFound { kind: "node" })?;

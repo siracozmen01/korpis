@@ -75,8 +75,8 @@ pub fn overlay_to_pb(o: &OverlayFacts) -> agent::OverlayFacts {
     }
 }
 
-/// What `node` is told of `mesh`: every other member, or none and why it is outside; nothing
-/// for a node that reports no mesh interface, which keeps none to tell.
+/// What `node` is told of `mesh`: every member it is paired with, or none and why it is outside;
+/// nothing for a node that reports no mesh interface, which keeps none to tell.
 #[must_use]
 pub fn peers_to_pb(mesh: &Mesh, node: Uuid) -> Option<agent::Peers> {
     if let Some((_, why)) = mesh.outside.iter().find(|(n, _)| *n == node) {
@@ -85,7 +85,7 @@ pub fn peers_to_pb(mesh: &Mesh, node: Uuid) -> Option<agent::Peers> {
     if !mesh.members.iter().any(|m| m.node == node) {
         return None;
     }
-    let peers = mesh.members.iter().filter(|m| m.node != node).map(|m| agent::Peer {
+    let peers = mesh.peers_of(node).into_iter().map(|m| agent::Peer {
         node: wire_id(IdKind::Node, m.node),
         public_key: m.key.to_vec(),
         endpoint: m.endpoint.map(|e| e.to_string()).unwrap_or_default(),
@@ -108,6 +108,7 @@ pub(super) fn standing_into(node: &mut korpis_proto::korpis::v1::Node, s: &Stand
         node.overlay_port = u32::from(f.port);
         node.pools = f.pools.iter().map(ToString::to_string).collect();
     }
+    node.overlay_outside = s.outside.clone().unwrap_or_default();
     node.peers = s
         .peers
         .iter()
@@ -151,6 +152,7 @@ mod tests {
             key: [u8::try_from(n).unwrap(); 32],
             endpoint: None,
             pools: vec![],
+            lineage: vec![Uuid::from_u128(100)],
         };
         let mesh = Mesh {
             members: vec![member(1), member(2)],

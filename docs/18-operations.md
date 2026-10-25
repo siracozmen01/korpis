@@ -563,6 +563,19 @@ the interval is configurable, and `korpis-server` **detects the pooling mode at 
 which wake-up path it is using**. Session-mode pooling keeps notifications. Either is supported;
 being unsure which one is running is not.
 
+**How many connections a replica holds is sized by concurrency, not by nodes.** Decided
+2026-10-25 (Finding 177 of `23-walkthroughs.md`). A node holds no database connection: its
+session holds none between passes, and computing its assignment set takes one transaction, every
+query of which runs on that transaction. What takes connections at once is work in flight:
+requests, placements, and the passes that a change of the mesh or a resync starts for every node
+together, which wait their turn rather than fail. `--max-connections` (16 by default) is split
+half and half, at least two each, between transactions and plain reads, the change feed's one
+listening connection among the reads; a transaction may wait for a read connection, and a read
+never waits for anything while holding one, so a burst of transactions, each waiting for the
+placement lock or for a read, always leaves the one holding the lock a connection to read with.
+What it costs: half the connections are idle while work is all reads or all transactions, and an
+operator sizing Postgres's own `max_connections` counts every replica's whole figure.
+
 **Postgres.** Korpis does not implement database high availability. Patroni, a managed service, or
 accepting single-instance risk are all valid; Korpis states the requirement, synchronous durability
 for the transaction that writes an `Effect`, and leaves the rest to tools built for it.

@@ -1436,6 +1436,12 @@ the same mechanism", and that is the price of having made core and extensions th
 | 170 | A driver whose host shares held cores declared other tenants kept off them, and never checked that they were | §73 | `04-runtimes.md` §4.2 |
 | 171 | A container made for one placement's cores was handed back for other cores | §73 | `04-runtimes.md` §4.2 |
 | 172 | An object an agent adopted was taken to hold its assignment's cores, which it need not | §73 | `04-runtimes.md` §4.2 |
+| 173 | Every node's default pool was the same, so a routed mesh could carry no dependency | §74 | `07-networking.md` §4.1, §9.1 |
+| 174 | A state the runtime could not tell was taken as stopped | §7 | `02-architecture.md` §4.4 |
+| 175 | A workload's address was reported only inside its reachable endpoints' statuses | §74 | `07-networking.md` §4.1 |
+| 176 | A dependency's status was promised and did not exist | §74 | `07-networking.md` §5 |
+| 177 | Transactions waiting for the placement lock held every connection its holder needed to read | §75 | `18-operations.md` §5 |
+| 178 | A node's reported pools were routed to it by every other node, and every node was told of every other | §74 | `07-networking.md` §9.1, `17-security.md` §9.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6363,6 +6369,17 @@ one field in every observation.
 > the control plane when the workload is read, from both placements and the mesh's pairs, which
 > it alone holds. Asking where that status lived found it had never existed (Finding 176, below).
 
+**Finding 178.** Found by an automated security review of the commit that built the mesh, not
+by a step of this trace, which asked what makes a packet's source trustworthy (step 3) and not
+what makes a route trustworthy. Step 3's answer, WireGuard's allowed IPs, holds only if the
+allowed IPs are right, and they were the node's own report: a compromised node could report a
+prefix no node held and have every other node route it there, the hosts' own traffic included.
+And step 3 told every node of every other, whatever their organizations. Resolved in §9.1 of
+`07-networking.md`: the mesh routes only the pool the control plane gave and the prefix it
+derives, a node reporting another is outside saying why, two nodes are paired only where one's
+organization is the other's or above it, and `Node.peers` lists only nodes the caller may read.
+What it costs: an operator-named pool takes its node out of the mesh.
+
 **Finding 176.** §5 of `07-networking.md` said, as built in Phase 1, that a selector's match with
 several endpoints is left out of the dependency "and the dependency's status says so". No such
 status existed anywhere: resolution dropped the match silently, and a workload whose selector
@@ -6370,3 +6387,40 @@ matched only such workloads reached nothing with no word as to why. Resolved in 
 workload's status carries each dependency, each target and how it is reached, and each workload
 left out with why; `korpis status` prints it. What it costs: reading a workload with dependencies
 resolves them and reads the mesh, once per read.
+
+## 75. A pipeline declares twenty workloads at once against one replica
+
+Written 2026-10-25, when §4 of `20-roadmap.md` asked how the control plane's database connections
+scale (P3.3c), and chosen by that question rather than by coverage: no trace before it had asked
+what holds a connection while it waits. A pipeline declares twenty workloads in one burst, each a
+request of its own, all reaching one replica of `korpis-server` with the default sixteen
+connections.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Each declaration opens a transaction and locks its workload | `03-state.md` §3 |
+| 2 | Each placement takes the placement lock, waiting for it while holding its transaction | `05-scheduling.md` §2.3 |
+| 3 | The one holding the lock reads what placement needs outside its transaction: the owners, the volumes, the dependencies, the mesh, the policies | `05-scheduling.md` §2.1; `07-networking.md` §9.1 |
+| 4 | It binds, commits, and the next waiter takes the lock | `05-scheduling.md` §2.3 |
+| 5 | Every declaration answers | `10-api.md` §6 |
+
+Step 2 asks what a transaction waiting for a lock holds: its connection, for as long as it waits,
+since Postgres's advisory locks are taken by a session. Step 3 asks where its reads get a connection,
+and with fifteen of the sixteen held by waiting transactions and one by the change feed, from
+nowhere: the holder waits for a connection the waiters hold while they wait for the lock it holds.
+The pool gives up after thirty seconds, the holder's declaration fails, its connection returns, and
+the next holder starts the same wait (Finding 177).
+
+**Finding 177.** The store kept one pool of connections for transactions and for every other query,
+and placement, among others, reads outside its transaction while it holds one. A burst of
+transactions each waiting for the placement lock, or each wanting a second connection, held every
+connection, so the holder could not read and the burst proceeded one declaration per thirty-second
+timeout, each failing. Resolved in §5 of `18-operations.md`: the store keeps two pools, one that
+transactions are begun on and one for every other query; a transaction may wait for a read
+connection, a read never waits for anything while holding one, so the holder always reads. The
+answer to the sizing question is the same section's: connections are sized by work in flight, not
+by nodes, since no node holds one. What it costs: half the connections idle while the work is all
+of one kind. Tested in `korpis-store` with more transactions waiting for the placement lock than
+the store has connections, the holder reading as placement does: all finish at once.

@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH RECURSIVE line AS (\n                   SELECT n.id AS node, n.organization_id AS org, 0 AS depth\n                     FROM node n WHERE n.admin <> 'decommissioned' AND n.overlay IS NOT NULL\n                   UNION ALL\n                   SELECT line.node, o.parent_id, line.depth + 1\n                     FROM line JOIN organization o ON o.id = line.org\n                    WHERE o.parent_id IS NOT NULL\n               )\n               SELECT n.id AS \"id!\", n.enrolled_at AS \"enrolled_at!\", n.addresses AS \"addresses!\",\n                      n.overlay AS \"overlay!\",\n                      p.ipv4::text AS \"given?\",\n                      (SELECT array_agg(l.org ORDER BY l.depth) FROM line l WHERE l.node = n.id)\n                          AS \"lineage!: Vec<uuid::Uuid>\"\n                 FROM node n LEFT JOIN node_pool p ON p.node_id = n.id\n                WHERE n.admin <> 'decommissioned' AND n.overlay IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "enrolled_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "enrolled_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "addresses!",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "addresses"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "overlay!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "overlay"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "given?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "lineage!: Vec<uuid::Uuid>",
+        "type_info": "UuidArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "72d9af0e5de322f53e87263e0eb416ea417d550fc78eba466252ed1d7d4cf184"
+}

@@ -63,10 +63,14 @@ message Node {
   bytes overlay_key = 26;
   uint32 overlay_port = 27;
   repeated string pools = 28;
-  // Each other member of the mesh, and whether the pair reaches each other now: both nodes
-  // report a handshake with the other younger than 180 seconds. What the scheduler asks of a
-  // dependency across nodes. Added 2026-10-25.
+  // Each member of the mesh it is paired with, one whose organization is its own or above it or
+  // beneath it, and whether the pair reaches each other now: both nodes report a handshake with
+  // the other younger than 180 seconds; only members the caller may read are listed. What the
+  // scheduler asks of a dependency across nodes. Added 2026-10-25.
   repeated PeerReach peers = 29;
+  // Why it is outside the mesh, for a node that reports a side and is: a pool it reports that it
+  // was not given, or one that overlaps an earlier member's. Added 2026-10-26.
+  string overlay_outside = 30;
 }
 
 // Another member of the mesh, as one node's pair with it stands.
@@ -111,8 +115,9 @@ enum NodeStatus {
 enum Overlay {
   OVERLAY_UNSPECIFIED = 0;
   OVERLAY_AVAILABLE = 1;
-  // Not in the mesh, or not reaching every other member: it reports no mesh interface, a pool of
-  // its overlaps one of a node enrolled before it, or it or a member has no handshake with the
+  // Not in the mesh, or not reaching every member it is paired with: it reports no mesh
+  // interface, a pool it was not given, or one overlapping an earlier member's (its
+  // overlay_outside says which), or it or a member it is paired with has no handshake with the
   // other younger than 180 seconds (§9.1 of docs/07-networking.md).
   OVERLAY_UNAVAILABLE = 2;
 }

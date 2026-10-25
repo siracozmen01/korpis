@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The mesh between nodes (§9.1 of docs/07-networking.md): who is a member, and which pairs of
-//! members reach each other. Every node that reports a mesh interface is a member, unless one of
-//! its pools overlaps a pool of a node enrolled before it, which would leave the mesh two routes
-//! to one address; that node is outside, and says with which. A pair is reachable when each of
-//! its nodes reports a handshake with the other younger than WireGuard's Reject-After-Time, past
-//! which a session carries no data, so the control plane joins two reports neither node can make
-//! alone.
+//! The mesh between nodes (§9.1 of docs/07-networking.md): who is a member, which members are
+//! paired, and which pairs reach each other. Every node that reports a mesh interface is a
+//! member, unless it reports a pool it was not given ([`routed`]) or one of its pools overlaps a
+//! pool of a node enrolled before it, which would leave the mesh two routes to one address; that
+//! node is outside, and says why. Two members are paired only when they may host workloads of one
+//! project: one's organization is the other's or above it, so no tenant's node learns of a
+//! sibling tenant's. A pair is reachable when each of its nodes reports a handshake with the
+//! other younger than WireGuard's Reject-After-Time, past which a session carries no data, so the
+//! control plane joins two reports neither node can make alone.
 
-use ipnet::IpNet;
+mod routed;
+
+use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+pub use routed::{legacy_pool, routed};
 use std::collections::BTreeMap;
 use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, SystemTime};
@@ -45,6 +50,13 @@ pub struct Candidate {
     pub addresses: Vec<IpAddr>,
     /// What it reports of the mesh.
     pub facts: OverlayFacts,
+    /// The IPv4 pool the control plane gave it at enrollment; none for a node enrolled before
+    /// pools were given.
+    pub given: Option<Ipv4Net>,
+    /// The unique local IPv6 prefix derived from its identity (§4.1 of docs/07-networking.md).
+    pub derived_ipv6: Ipv6Net,
+    /// Its organization, then each organization above it.
+    pub lineage: Vec<Uuid>,
 }
 
 /// A member of the mesh, as each other member is told of it.
@@ -59,6 +71,8 @@ pub struct Member {
     pub endpoint: Option<SocketAddr>,
     /// Its pools: where packets to it are routed, and the only sources accepted from it.
     pub pools: Vec<IpNet>,
+    /// Its organization, then each organization above it, which decides whom it is paired with.
+    pub lineage: Vec<Uuid>,
 }
 
 /// The mesh: its members, and the nodes outside it with why.
@@ -70,24 +84,51 @@ pub struct Mesh {
     pub outside: Vec<(Uuid, String)>,
 }
 
+/// Whether two nodes, by their organizations' lineages, may host workloads of one project: one's
+/// organization is the other's or above it, since a project's workloads run on nodes of its
+/// organization and of those above it alone (§2.1 of docs/05-scheduling.md).
+#[must_use]
+pub fn related(a: &[Uuid], b: &[Uuid]) -> bool {
+    a.first().is_some_and(|o| b.contains(o)) || b.first().is_some_and(|o| a.contains(o))
+}
+
+impl Mesh {
+    /// The members `node` is paired with: every other member related to it; none for a node
+    /// outside.
+    #[must_use]
+    pub fn peers_of(&self, node: Uuid) -> Vec<&Member> {
+        let Some(own) = self.members.iter().find(|m| m.node == node) else { return Vec::new() };
+        let paired = |m: &&Member| m.node != node && related(&own.lineage, &m.lineage);
+        self.members.iter().filter(paired).collect()
+    }
+}
+
 fn overlaps(a: &[IpNet], b: &[IpNet]) -> bool {
     a.iter().any(|x| b.iter().any(|y| x.contains(&y.network()) || y.contains(&x.network())))
 }
 
-/// The mesh of `candidates`: each a member unless a pool of it overlaps one of a member enrolled
-/// before it.
+/// The mesh of `candidates`: each a member unless it reports a pool it was not given, or a pool
+/// of it overlaps one of a member enrolled before it.
 #[must_use]
 pub fn mesh(mut candidates: Vec<Candidate>) -> Mesh {
     candidates.sort_by_key(|c| (c.enrolled_at, c.node));
     let mut out = Mesh::default();
     for c in candidates {
-        if let Some(m) = out.members.iter().find(|m| overlaps(&m.pools, &c.facts.pools)) {
+        let pools = match routed(&c) {
+            Ok(pools) => pools,
+            Err(why) => {
+                out.outside.push((c.node, why));
+                continue;
+            }
+        };
+        if let Some(m) = out.members.iter().find(|m| overlaps(&m.pools, &pools)) {
             let why = format!("its workload pool overlaps node {}'s", m.node);
             out.outside.push((c.node, why));
             continue;
         }
         let endpoint = c.addresses.first().map(|a| SocketAddr::new(*a, c.facts.port));
-        out.members.push(Member { node: c.node, key: c.facts.key, endpoint, pools: c.facts.pools });
+        let (node, key, lineage) = (c.node, c.facts.key, c.lineage);
+        out.members.push(Member { node, key, endpoint, pools, lineage });
     }
     out
 }
@@ -113,12 +154,15 @@ impl FromIterator<(Uuid, Uuid)> for Pairs {
 /// A node's place in the mesh, as the API shows it (§3.4 of docs/01-model.md).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Standing {
-    /// It is a member and reaches every other member.
+    /// It is a member and reaches every member it is paired with.
     pub available: bool,
     /// Its side of the mesh as its agent last reported it; none for a node reporting none.
     pub facts: Option<OverlayFacts>,
-    /// Each other member, and whether the pair reaches each other now; none for a node outside.
+    /// Each member it is paired with, and whether the pair reaches each other now; none for a
+    /// node outside.
     pub peers: Vec<(Uuid, bool)>,
+    /// Why it is outside the mesh, where it reports a side and is.
+    pub outside: Option<String>,
 }
 
 impl Standing {
@@ -131,13 +175,14 @@ impl Standing {
         let peers: Vec<(Uuid, bool)> = match own.as_ref().filter(|_| member) {
             None => Vec::new(),
             Some(own) => mesh
-                .members
-                .iter()
-                .filter(|m| m.node != node)
+                .peers_of(node)
+                .into_iter()
                 .map(|m| (m.node, facts(m.node).is_some_and(|f| reachable(own, f, now))))
                 .collect(),
         };
-        Self { available: member && peers.iter().all(|(_, r)| *r), facts: own, peers }
+        let outside = mesh.outside.iter().find(|(n, _)| *n == node).map(|(_, why)| why.clone());
+        let available = member && peers.iter().all(|(_, r)| *r);
+        Self { available, facts: own, peers, outside }
     }
 }
 
@@ -158,6 +203,7 @@ impl Pairs {
         let pairs =
             all.iter().enumerate().flat_map(|(i, a)| all.iter().skip(i + 1).map(move |b| (a, b)));
         let out = pairs
+            .filter(|(a, b)| related(&a.lineage, &b.lineage))
             .filter(|(a, b)| {
                 facts(a.node).zip(facts(b.node)).is_some_and(|(x, y)| reachable(x, y, now))
             })

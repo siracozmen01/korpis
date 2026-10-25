@@ -1650,18 +1650,37 @@ outside the mesh until it is given a pool; the operator is told which, and how.
 > frees it, and a range with no free /22 enrolls the node without one, its enrollment's effect
 > saying so. The overlap check against operators' own pools comes with the mesh's status.
 
+> Corrected 2026-10-26 (Finding 178 of `23-walkthroughs.md`, from an automated security review of
+> the commit that built the mesh). The mesh took each node's pools as its agent reported them,
+> checking only that they overlapped no earlier member's, and every member routes a member's
+> pools through the mesh: a compromised node could report a prefix no node held, the operator's
+> own LAN or half the address space, and have every other node route it, the hosts' own traffic
+> included, to itself. A member's pools are now what the control plane gave or can derive: the
+> IPv4 pool it gave at enrollment, `10.47.0.0/16` for a node enrolled before pools were given,
+> and the unique local IPv6 prefix derived from the node's identity, which the control plane
+> computes as the agent does. A node reporting another IPv4 pool, a pool its operator named with
+> `--workload-ipv4` among them, or another unique local prefix, is outside, `overlay_outside`
+> saying which; an operator's routed IPv6 prefix is left to the operator's network and not
+> carried. What it costs: an operator who names a node's pool takes it out of the mesh, and of
+> two nodes on the old default the later stays outside until enrolled again, since no pool can be
+> given to a node that keeps its workloads numbered.
+
 **The control plane tells each node its peers; the peers authenticate the traffic.** Every enrolled
 node is a member, whatever organization it belongs to (§3.4 of `01-model.md`), since membership
-reaches no workload by itself: a destination accepts only its workloads' dependents (below). For
-each other member, a node is sent the member's public key, an endpoint (its first advertised
-address and overlay port, or none when it advertises none), and its pools, which become the peer's
-allowed IPs. WireGuard routes a packet to the peer whose allowed IPs hold its destination, and
-accepts a decrypted packet only if its source is in the allowed IPs of the peer whose key decrypted
-it (§5 of `research/evidence.md`), so a packet arriving on `korpis-overlay` from a workload address
-is authentically from the node that holds that workload's pool. The agent writes the peers, the
-routes to each peer's pools through the interface, and keeps them on disk, so the mesh runs with
-the control plane gone (§4.6 of `02-architecture.md`); a change is applied whole, a peer removed
-with its routes.
+reaches no workload by itself: a destination accepts only its workloads' dependents (below). Two
+members are paired only where they may host workloads of one project: one's organization is the
+other's or above it, since a project runs on nodes of its organization and those above it alone
+(§2.1 of `05-scheduling.md`); so a tenant's own node is paired with the installation's and never
+with a sibling tenant's, and `Node.peers` lists only nodes the caller may read (corrected
+2026-10-26, Finding 178). For each member it is paired with, a node is sent the member's public
+key, an endpoint (its first advertised address and overlay port, or none when it advertises none),
+and its pools, which become the peer's allowed IPs. WireGuard routes a packet to the peer whose
+allowed IPs hold its destination, and accepts a decrypted packet only if its source is in the
+allowed IPs of the peer whose key decrypted it (§5 of `research/evidence.md`), so a packet arriving
+on `korpis-overlay` from a workload address is authentically from the node that holds that
+workload's pool. The agent writes the peers, the routes to each peer's pools through the interface,
+and keeps them on disk, so the mesh runs with the control plane gone (§4.6 of
+`02-architecture.md`); a change is applied whole, a peer removed with its routes.
 
 > Built 2026-10-25, the helper's half (`korpis-helper`'s `overlay`, the `KeepOverlay` verb): the
 > interface is made over route netlink and configured over WireGuard's generic netlink family,
@@ -1716,11 +1735,11 @@ session older than 180 seconds carries no data (WireGuard's Reject-After-Time, �
 `research/evidence.md`), and a session in use is renewed every 120 seconds, which the keepalive
 keeps in use; so the control plane takes a pair as reachable when both nodes' last reports name a
 handshake with the other younger than 180 seconds. `Node.overlay` is `available` when the node
-reaches every other member, and the scheduler asks the pair (§2.1 of `05-scheduling.md`): a
-dependent may be placed on a node from which each target's node is reachable. What it costs: a pair
-is judged at most one heartbeat late, so a link that has just failed takes placements for up to
-that long, and the dependency's status says it is unreached once the node reports it so (built
-2026-10-25, §5).
+reaches every member it is paired with, and the scheduler asks the pair (§2.1 of
+`05-scheduling.md`): a dependent may be placed on a node from which each target's node is
+reachable. What it costs: a pair is judged at most one heartbeat late, so a link that has just
+failed takes placements for up to that long, and the dependency's status says it is unreached once
+the node reports it so (built 2026-10-25, §5).
 
 **Both ends hold the policy**, as §9.1 of `17-security.md` decided east-west traffic would be: the
 source drops early and the destination does not trust the source. The dependent's node opens the

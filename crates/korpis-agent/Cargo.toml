@@ -30,7 +30,7 @@ korpis-egress = { workspace = true }
 korpis-cdi = { workspace = true }
 # The cores it offers are read from the kernel's topology as a driver reads them.
 korpis-topology = { workspace = true }
-korpis-core = { workspace = true, features = ["authz", "content", "identity"] }
+korpis-core = { workspace = true, features = ["authz", "content", "identity", "mesh"] }
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-stream = { workspace = true }
 # Sealed data keys under tenant custody (§5.5 of docs/06-storage.md).

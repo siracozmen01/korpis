@@ -465,6 +465,15 @@ peer's key.
 > the node itself. What it does not stop: the admission names addresses, and a compromised node
 > can send from any address of its own pool, so it reaches whatever any dependent on it is
 > admitted to, which it could reach through that dependent anyway, and nothing else.
+>
+> Corrected 2026-10-26 (Finding 178 of `23-walkthroughs.md`): a node's pools were taken as it
+> reported them, so a compromised node could have had every other node route a prefix of its
+> choosing, the operator's own LAN among them, to itself; the mesh now routes to a node only the
+> pool the control plane gave it and the prefix its identity derives. And every node was told of
+> every other: two nodes are now paired only where one's organization is the other's or above
+> it, so a tenant's node learns nothing of a sibling tenant's. What a node still learns, of each
+> node it is paired with, is its public key, the address it advertises, which its clients are
+> told anyway, and its pools.
 
 **North-south egress is uncontained on a compromised node, and this is stated rather than
 implied.** Only the source, or a chokepoint the operator owns, can enforce it, and nothing at this

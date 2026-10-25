@@ -118,8 +118,13 @@ mod tests {
         let kept = KeptMesh::default();
         assert!(kept.publish(Mesh::default()), "the first is always published");
         assert!(!kept.publish(Mesh::default()));
-        let member =
-            Member { node: Uuid::from_u128(1), key: [1; 32], endpoint: None, pools: vec![] };
+        let member = Member {
+            node: Uuid::from_u128(1),
+            key: [1; 32],
+            endpoint: None,
+            pools: vec![],
+            lineage: vec![],
+        };
         assert!(kept.publish(Mesh { members: vec![member], outside: vec![] }));
     }
 }

@@ -20,6 +20,10 @@ use std::time::SystemTime;
 /// The default superuser URL, matching `scripts/dev-pg.sh url`.
 pub const DEFAULT_ADMIN_URL: &str = "postgres://postgres:korpis-dev@127.0.0.1:55432/postgres";
 
+/// How many connections a test's store holds: four for reads, among them what a test opens on
+/// the read pool itself, and four for transactions.
+pub const CONNECTIONS: u32 = 8;
+
 /// A migrated database that exists for the lifetime of the value.
 #[derive(Debug)]
 pub struct TestDb {
@@ -99,9 +103,9 @@ impl TestDb {
     }
 
     /// A store acting as the application role, as the control plane does, with intent bodies
-    /// stored as the control plane stores them.
+    /// stored as the control plane stores them, of [`CONNECTIONS`] connections.
     pub async fn store(&self) -> Result<PgStore, Error> {
-        PgStore::connect(&self.owner_url, 4, Arc::new(WireBodies)).await
+        PgStore::connect(&self.owner_url, CONNECTIONS, Arc::new(WireBodies)).await
     }
 
     /// Records `record` at `at`, as ingesting a node's journal would, for a test of what reads

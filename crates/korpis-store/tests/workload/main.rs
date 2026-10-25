@@ -27,6 +27,7 @@ mod members;
 mod nodes;
 mod placement;
 mod plans;
+mod pools;
 mod recovered;
 mod revocation;
 mod routes;

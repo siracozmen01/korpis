@@ -2,7 +2,8 @@
 
 //! The mesh between nodes as the control plane keeps it (§9.1 of docs/07-networking.md): each
 //! node that reports its side is told every other member, with its key, endpoint, and pools; a
-//! node whose pool overlaps one of a node enrolled before it is told it is outside, and why; and
+//! node reporting a pool it was not given is told it is outside, and why, since every other member
+//! would route that pool to it; and
 //! `Node.overlay` is available only once both sides of every pair with the node report a fresh
 //! handshake, the node showing its key, port, pools, and each pair with it.
 
@@ -65,7 +66,7 @@ async fn got(h: &Harness, node: &str) -> pb::Node {
 }
 
 #[tokio::test]
-async fn each_member_is_told_the_others_an_overlapping_node_why_and_a_pair_judged_by_both() {
+async fn each_member_is_told_the_others_a_node_claiming_a_pool_why_and_a_pair_judged_by_both() {
     let h = Harness::new().await;
     let (a, b) =
         (TestAgent::enroll(&h, "mesh-a", 41).await, TestAgent::enroll(&h, "mesh-b", 42).await);
@@ -90,7 +91,11 @@ async fn each_member_is_told_the_others_an_overlapping_node_why_and_a_pair_judge
     let mut sc = opened(&h, &c, side(3, "10.48.0.0/24", &[])).await;
     let outside = next_peers(&mut sc).await;
     assert!(outside.peers.is_empty());
-    assert!(outside.outside.contains("overlaps"), "{}", outside.outside);
+    assert!(
+        outside.outside.contains("10.48.0.0/24, which it was not given"),
+        "{}",
+        outside.outside
+    );
 
     sa.send(beat(side(1, "10.48.0.0/22", &[2]))).await.unwrap();
     sb.send(beat(side(2, "10.48.4.0/22", &[1]))).await.unwrap();

@@ -11,7 +11,6 @@ use crate::runtime::Runtime;
 use ipnet::{Ipv4Net, Ipv6Net};
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
-use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
@@ -43,13 +42,7 @@ pub struct Pools {
 /// agent's state, and different for each node so two nodes' workloads never share one.
 #[must_use]
 pub fn unique_local(node: &str) -> Ipv6Net {
-    let hash = Sha256::digest(node.as_bytes());
-    let mut octets = [0_u8; 16];
-    octets[0] = 0xfd;
-    for (to, from) in octets.iter_mut().skip(1).zip(hash.iter().take(5)) {
-        *to = *from;
-    }
-    Ipv6Net::new(Ipv6Addr::from(octets), 64).unwrap_or_default()
+    korpis_core::node::pool::unique_local(node)
 }
 
 /// What one workload holds.

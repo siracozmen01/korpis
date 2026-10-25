@@ -30,6 +30,9 @@ testing = ["accounts"]
 # Content: OCI images as a node holds them, by digest (§6 of docs/04-runtimes.md), shared by the
 # agent that fetches them and the driver that imports them.
 content = ["dep:serde", "dep:sha2"]
+# The mesh between nodes: each node's unique local IPv6 prefix, derived from its identity (§4.1
+# and §9.1 of docs/07-networking.md), which the agent uses and the control plane checks.
+mesh = ["dep:sha2"]
 
 [dependencies]
 biscuit-auth = { version = "=6.0.0", default-features = false, features = ["datalog-macro"], optional = true }

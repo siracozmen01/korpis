@@ -7,6 +7,24 @@
 
 use ipnet::Ipv4Net;
 
+/// A unique local /64 for the node `node` names, as the control plane names it: `fd`, then 40
+/// bits of a hash of its identifier as RFC 4193's global identifier, then subnet zero. Derived
+/// rather than random so that it survives the agent's state, different for each node so two
+/// nodes' workloads never share one, and derivable by the control plane, which so knows it
+/// without being told (§4.1 and §9.1 of docs/07-networking.md).
+#[cfg(feature = "mesh")]
+#[must_use]
+pub fn unique_local(node: &str) -> ipnet::Ipv6Net {
+    use sha2::Digest as _;
+    let hash = sha2::Sha256::digest(node.as_bytes());
+    let mut octets = [0_u8; 16];
+    octets[0] = 0xfd;
+    for (to, from) in octets.iter_mut().skip(1).zip(hash.iter().take(5)) {
+        *to = *from;
+    }
+    ipnet::Ipv6Net::new(std::net::Ipv6Addr::from(octets), 64).unwrap_or_default()
+}
+
 /// The installation's range, unless `korpis-server --overlay-range` names another.
 pub const DEFAULT_RANGE: &str = "10.48.0.0/12";
 
