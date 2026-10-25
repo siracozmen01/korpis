@@ -138,70 +138,24 @@ message PreparedSpec {
   // workload holds its own interface: a microVM's guest sets them on its `eth0`, routed through
   // the gateways every workload has (§4.1 of docs/07-networking.md). Empty without `namespaces`.
   repeated string addresses = 19;
-  // The devices the workload's placement holds, each with the edits that give it, filled in by
-  // the agent before Create from the node's Container Device Interface files (§4.2 of
-  // docs/04-runtimes.md). A driver refuses, before it makes anything, a device of a class or mode
-  // it does not declare, or an edit it does not apply. Added 2026-10-25.
+  // The devices the workload's placement holds, filled in by the agent before Create (§4.2 of
+  // docs/04-runtimes.md). A driver reads each one's edits from the node's Container Device
+  // Interface files itself, never from the agent, and refuses, before it makes anything, a
+  // device the files do not describe, of a class or mode it does not declare, or with an edit it
+  // does not apply. Added 2026-10-25.
   repeated GivenDevice devices = 20;
 }
 
-// A device given to a workload: what it is, how it is held, and what gives it.
+// A device given to a workload: what it is, and how it is held.
 message GivenDevice {
   // Its CDI name, vendor.com/kind=name.
   string id = 1;
   korpis.v1.DeviceClass class = 2;
   korpis.v1.DeviceMode mode = 3;
-  // Its CDI file's edits, then its own, merged in that order.
-  DeviceEdits edits = 4;
-}
-
-// The edits the Container Device Interface (1.1.0) makes to a container's spec to give a device.
-message DeviceEdits {
-  // Appended to the environment, as NAME=VALUE.
-  repeated string env = 1;
-  repeated DeviceNode device_nodes = 2;
-  repeated DeviceMount mounts = 3;
-  repeated DeviceHook hooks = 4;
-  // Added to the process's groups; 0 is ignored.
-  repeated uint32 additional_gids = 5;
-  // Edits no driver of this release applies, carried so a driver refuses a device needing them
-  // rather than giving it half: an Intel RDT class, and network interfaces moved in.
-  bool intel_rdt = 6;
-  repeated string net_devices = 7;
-}
-
-message DeviceNode {
-  // Inside the container.
-  string path = 1;
-  // On the host; `path` when empty.
-  string host_path = 2;
-  // "c" or "b"; read from the host's node when empty.
-  string type = 3;
-  optional int64 major = 4;
-  optional int64 minor = 5;
-  optional uint32 file_mode = 6;
-  // The cgroup's: of r, w, m; "rwm" when empty.
-  string permissions = 7;
-  optional uint32 uid = 8;
-  optional uint32 gid = 9;
-}
-
-message DeviceMount {
-  string host_path = 1;
-  string container_path = 2;
-  string type = 3;
-  repeated string options = 4;
-}
-
-message DeviceHook {
-  // An OCI hook point: createRuntime, createContainer, startContainer, poststart, poststop.
-  string hook_name = 1;
-  // Absolute.
-  string path = 2;
-  repeated string args = 3;
-  repeated string env = 4;
-  // Seconds; none when unset.
-  optional uint32 timeout = 5;
+  // Its edits, as the agent once passed them; a driver reads them itself (Finding 169 of
+  // docs/23-walkthroughs.md).
+  reserved 4;
+  reserved "edits";
 }
 
 // The console stream of a workload: its limits and the secret values it redacts, from Prepare;

@@ -25,13 +25,17 @@ fn refused(why: impl Into<String>) -> MachineError {
     MachineError::Refused(why.into())
 }
 
-/// That `spec` is one this driver builds: its tier, its image by digest, its ids a whole range
-/// above the host's own, its network, if any, its workload's own namespaces, its console written
-/// to its own stream volume alone, its identity directory its own, and every volume beneath the
-/// volume root and mounted beside `/run/korpis`, never over it.
+/// That `spec` is one this driver builds: its tier, no device, its image by digest, its ids a
+/// whole range above the host's own, its network, if any, its workload's own namespaces, its
+/// console written to its own stream volume alone, its identity directory its own, and every
+/// volume beneath the volume root and mounted beside `/run/korpis`, never over it.
 pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> MachineResult<()> {
     if spec.tier.as_known() != Some(pb::IsolationTier::ISOLATION_TIER_MICROVM) {
         return Err(refused("the firecracker driver builds the microvm tier alone"));
+    }
+    // It declares no device class (§4.1 of docs/04-runtimes.md): Firecracker passes none through.
+    if !spec.devices.is_empty() {
+        return Err(refused("a microvm is given no device"));
     }
     let digest = spec.rootfs.rsplit_once('@').map_or("", |(_, d)| d);
     korpis_core::content::hex_of(digest).map_err(|_| refused("an image by its digest"))?;
@@ -236,4 +240,36 @@ fn build(
     Object::keep_drives(dir, &drives).map_err(failed)?;
     // Built here as well as at each start, so what would fail to build fails before anything runs.
     jail::build(settings, id, &drives, &crate::guest::shape(spec)).map_err(failed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_microvm_asking_for_a_device_is_refused_before_anything_else_is_read() {
+        let settings = Settings {
+            firecracker: "/fc".into(),
+            jailer: "/jailer".into(),
+            kernel: "/k".into(),
+            guest: "/g".into(),
+            fsworker: "/f".into(),
+            install_job: "/j".into(),
+            image_build: "/b".into(),
+            writer: "/w".into(),
+            content: "/c".into(),
+            volume_root: "/v".into(),
+            netns_root: "/n".into(),
+            identity_root: "/i".into(),
+            state: "/s".into(),
+            cgroup: "korpis".into(),
+        };
+        let spec = driver::PreparedSpec {
+            tier: pb::IsolationTier::ISOLATION_TIER_MICROVM.into(),
+            devices: vec![driver::GivenDevice { id: "a.com/gpu=0".into(), ..Default::default() }],
+            ..Default::default()
+        };
+        let refused = validate(&spec, &settings).unwrap_err().to_string();
+        assert!(refused.contains("no device"), "{refused}");
+    }
 }

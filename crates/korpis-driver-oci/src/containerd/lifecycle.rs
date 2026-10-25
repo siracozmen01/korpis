@@ -7,6 +7,7 @@
 //! `destroy` releases everything the container holds. Volumes are never touched here.
 
 use super::{Containerd, NAMESPACE, RUNTIME, SNAPSHOTTER, under};
+use crate::devices::Given;
 use crate::error::{DriverError, DriverResult};
 use crate::oci::runtime_spec;
 use crate::validate::{Policy, Valid, Violation};
@@ -158,6 +159,8 @@ impl Containerd {
             return Ok(id);
         }
         volumes_resolve(valid, policy)?;
+        // Read now, before anything is made, so a device the node no longer describes refuses.
+        let given = crate::devices::given(s, &policy.devices).map_err(DriverError::Rejected)?;
         if valid.spec().stream.is_set() {
             let streams = self.streams.as_ref().ok_or_else(|| {
                 DriverError::Rejected("this driver has no stream writer configured".into())
@@ -166,13 +169,19 @@ impl Containerd {
             streams.make_input(valid, &id)?;
         }
         let lease = self.lease().await?;
-        let made = self.assemble(&lease, valid, &id).await;
+        let made = self.assemble(&lease, (valid, &given), &id).await;
         self.release(&lease).await;
         made.map(|()| id)
     }
 
-    /// Imports, unpacks, snapshots, and records the container, all under `lease`.
-    async fn assemble(&self, lease: &str, valid: &Valid, id: &str) -> DriverResult<()> {
+    /// Imports, unpacks, snapshots, and records the container, all under `lease`, with what its
+    /// devices give.
+    async fn assemble(
+        &self,
+        lease: &str,
+        (valid, given): (&Valid, &Given),
+        id: &str,
+    ) -> DriverResult<()> {
         let s = valid.spec();
         let image = self.import(lease, &s.rootfs).await?;
         let top = self.unpack(lease, &image).await?;
@@ -194,7 +203,7 @@ impl Containerd {
             Err(e) if e.code == connectrpc::ErrorCode::AlreadyExists => {}
             Err(e) => return Err(e.into()),
         }
-        let spec = runtime_spec(valid, &image.config, &self.cgroup(id))
+        let spec = runtime_spec(valid, &image.config, &self.cgroup(id), given)
             .map_err(|e| DriverError::Rejected(e.to_string()))?;
         let json = serde_json::to_vec(&spec).map_err(|e| DriverError::Failed(e.to_string()))?;
         let mut labels = labels(valid);

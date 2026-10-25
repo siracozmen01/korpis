@@ -96,6 +96,9 @@ pub struct Options {
     pub ingress: Option<Arc<std::sync::atomic::AtomicBool>>,
     /// The meter's interval and where it reads interfaces (§2 of docs/15-observability.md).
     pub metering: Metering,
+    /// The node's devices, which a placement's holds are given from (§6.3 of
+    /// docs/05-scheduling.md); none where the node offers none.
+    pub devices: Option<crate::devices::Devices>,
 }
 
 impl Default for Options {
@@ -110,6 +113,7 @@ impl Default for Options {
             network: None,
             ingress: None,
             metering: Metering::default(),
+            devices: None,
         }
     }
 }
@@ -149,7 +153,7 @@ pub async fn facts_of<R: Runtime, H: Host>(
     runtime: &R,
     host: &H,
     (reserve, uplinks): (Reserve, &[helper::Uplink]),
-    (advertise, devices): (Advertise, Devices),
+    (advertise, devices): (Advertise, crate::devices::Devices),
 ) -> Result<Arc<dyn Fn() -> Facts + Send + Sync>, RuntimeError> {
     let mut drivers = runtime.drivers().await?;
     let storage_classes = host.storage().await.unwrap_or_else(|e| {
@@ -182,9 +186,6 @@ pub async fn facts_of<R: Runtime, H: Host>(
         }
     }))
 }
-
-/// The node's devices as the spec files describe them now (§6.1 of docs/05-scheduling.md).
-pub type Devices = tokio::sync::watch::Receiver<Arc<crate::devices::Catalog>>;
 
 /// What the node's ingress proxy is fed from and the task that runs it, where the node runs one:
 /// it needs workloads to have networks, which the proxy reaches them on, and an address it
@@ -288,10 +289,9 @@ impl Agent {
         let identity = state.load()?;
         let Kept { journal, progress, streams, inventory, network } =
             Kept::open(state, options.journal, options.network)?;
-        let node = identity.node.clone();
+        let (node, data) = (identity.node.clone(), identity.clone());
         let control_plane =
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
-        let data = identity.clone();
         let ingress_facts = facts();
         let driver_kinds = crate::reconcile::DriverKinds::of(&ingress_facts.drivers);
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
@@ -332,6 +332,7 @@ impl Agent {
             driver_kinds,
             identity: Some(sockets),
             reading,
+            devices: options.devices,
         };
         let offloader = offloader(state, &streams, (&journal, &link.jobs), options.period)?;
         let tasks = [

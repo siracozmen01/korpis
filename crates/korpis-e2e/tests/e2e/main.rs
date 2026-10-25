@@ -16,6 +16,7 @@ mod backups;
 mod conformance;
 mod console;
 mod dependencies;
+mod devices;
 mod exec_probe;
 mod extension;
 mod files;

@@ -190,17 +190,20 @@ its own store, holding only what that install names.
 **A device given to a workload is its host driver given to the tenant.** Designed 2026-10-25 (§6 of
 `05-scheduling.md`). A device in `passthrough` or `timeslice` reaches a `container` as a node of
 the host's own kernel driver for it, so a vulnerability in that driver is a kernel vulnerability
-the tenant can reach, in the row of the tier above; GPU drivers are large and parse what a
-workload sends them. A device's Container Device Interface file is host configuration, and its
-hooks run as root on the host when each container holding it is created: they are as trusted as
-the vendor's driver the host installed, which is why the agent passes on only files and hook
-programs that root alone can write (§6.5 there). NVIDIA's container toolkit had a container
-escape in its default mode, which its CDI mode was reported not to share (§5 of
+the tenant can reach, in the row of the tier above; GPU drivers are large and parse what a workload
+sends them. A device's Container Device Interface file is host configuration, and its hooks run as
+root on the host when each container holding it is created: they are as trusted as the vendor's
+driver the host installed, which is why the agent and the driver read only files and hook programs
+that root alone can write (§6.5 there), and why the driver reads a device's edits itself rather
+than taking them from the agent, which could otherwise mount any host path or run any program as
+root through a device it named (Finding 169 of `23-walkthroughs.md`). NVIDIA's container toolkit
+had a container escape in its default mode, which its CDI mode was reported not to share (§5 of
 `research/evidence.md`), and a toolkit's hook is still code of the vendor's run as root. What it
-does not stop: a tenant holding a device can attack its driver; holders of one device in
-`timeslice` share its memory and can starve or observe one another as far as the device lets
-them; and a `microvm` is given no device, so the tier that would put the device's driver behind a
-hypervisor offers none, until a `vm` driver gives one through VFIO.
+does not stop: a tenant holding a device can attack its driver; a compromised agent can give a
+device one workload holds to another of its node's (§6.1 of `02-architecture.md`); holders of one
+device in `timeslice` share its memory and can starve or observe one another as far as the device
+lets them; and a `microvm` is given no device, so the tier that would put the device's driver
+behind a hypervisor offers none, until a `vm` driver gives one through VFIO.
 
 **A shared-kernel tier does not survive a kernel privilege-escalation vulnerability.** That is true
 of every container platform, it is true here, and it is why the tier is an operator choice rather

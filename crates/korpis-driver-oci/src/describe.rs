@@ -66,7 +66,20 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
             pb::ConsoleMode::CONSOLE_MODE_INTERACTIVE.into(),
         ],
         signals: SIGNALS.iter().map(|s| (*s).to_owned()).collect(),
-        device_modes: Vec::new(),
+        // Any class, given as character devices bound from the host (crate::devices).
+        devices: [
+            pb::DeviceClass::DEVICE_CLASS_GPU,
+            pb::DeviceClass::DEVICE_CLASS_USB,
+            pb::DeviceClass::DEVICE_CLASS_PCI,
+            pb::DeviceClass::DEVICE_CLASS_TPM,
+            pb::DeviceClass::DEVICE_CLASS_SERIAL,
+        ]
+        .map(Into::into)
+        .to_vec(),
+        device_modes: vec![
+            pb::DeviceMode::DEVICE_MODE_PASSTHROUGH.into(),
+            pb::DeviceMode::DEVICE_MODE_TIMESLICE.into(),
+        ],
         rootfs_sources: vec![pb::RootfsSource::ROOTFS_SOURCE_OCI_IMAGE.into()],
         network_modes: vec![
             pb::NetworkMode::NETWORK_MODE_VETH.into(),

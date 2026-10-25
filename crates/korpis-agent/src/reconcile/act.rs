@@ -14,7 +14,9 @@ use korpis_core::workload::stream::StreamKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::helper::v1 as helper;
+use korpis_proto::korpis::v1 as pb;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Instant;
 
 /// Why an action did not happen.
@@ -61,6 +63,35 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             Prepared::Rejected(r) => {
                 let why = format!("the driver refused the target: {}", r.detail);
                 t.rejected = Some(r);
+                Err(Failure(why))
+            }
+        }
+    }
+
+    /// Fills in the devices `a`'s placement holds here, by id, class, and mode (§4.2 of
+    /// docs/04-runtimes.md). One the node no longer offers is refused as a driver refuses a
+    /// target, before anything is made, so a workload not yet made here is placed elsewhere
+    /// (§6.3 of docs/05-scheduling.md).
+    fn give(
+        &self,
+        a: &agent::Assignment,
+        t: &mut Tracked,
+        spec: &mut driver::PreparedSpec,
+    ) -> Result<(), Failure> {
+        if a.devices.is_empty() {
+            return Ok(());
+        }
+        let catalog = self.wiring.devices.as_ref().map(|d| Arc::clone(&d.borrow()));
+        match crate::devices::given(&catalog.unwrap_or_default(), &a.devices) {
+            Ok(given) => {
+                spec.devices = given;
+                Ok(())
+            }
+            Err(why) => {
+                let reason = pb::UnsatisfiableReason::UNSATISFIABLE_REASON_DEVICE_UNAVAILABLE;
+                let detail = why.clone();
+                t.rejected =
+                    Some(driver::Rejection { reason: reason.into(), detail, ..Default::default() });
                 Err(Failure(why))
             }
         }
@@ -139,6 +170,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         run: &str,
     ) -> Result<String, Failure> {
         let mut spec = self.prepare(a, t).await?;
+        self.give(a, t, &mut spec)?;
         self.mount(a, &mut spec).await?;
         self.stream(a, &mut spec, run).await?;
         let mut dir = None;

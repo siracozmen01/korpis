@@ -315,9 +315,11 @@ and are held for the maintainer's design (2026-10-24): until they are built, a d
 conformance says nothing of its isolation, and the suite's report says so. Devices, including
 GPUs, are designed (§6 of `05-scheduling.md`, trace 72 of `23-walkthroughs.md`): a node's are those
 the Container Device Interface's files describe, held by placements, and given to a driver as
-edits. The scheduler's half is built (devices chosen at the bind, held, freed, and restored with
-placements), and so is the agent's reading of the files; until the driver applies a device's
-edits, a request for one is refused when it is declared.
+edits, which the driver reads from the files itself (Finding 169). It is built: a request is
+declared and counted, the device chosen at the bind, held, freed, and restored with placements,
+and given by the `oci` driver as a node bound from the host; the `firecracker` driver refuses one.
+It is tested with a stand-in device of the test's own on this machine, whose GPU is never passed
+through, so no real GPU has been given to a workload.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -477,7 +479,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-two traces and their 168 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-two traces and their 169 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

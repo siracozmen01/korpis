@@ -678,6 +678,11 @@ Primary:
   CRI runtime plugin (`containerd config default`, read 2026-10-25 on this machine), so a client
   of containerd's own API, as the `oci` driver is, has no CDI device applied for it. Why the edits
   are applied by the driver (§4.2 of `../04-runtimes.md`).
+- **[V]** runc, in a container with a user namespace, does not make the device nodes its spec's
+  `linux.devices` lists but binds each from the host at the node's own path, the container path
+  (`createDevices` and `bindMountDeviceNode` in `libcontainer/rootfs_linux.go` on its main branch,
+  read 2026-10-25; runc 1.5.2 is installed here). Why the `oci` driver binds a device's node from
+  the host path its CDI edit names rather than listing it there (§4.2 of `../04-runtimes.md`).
 - **[V]** CDI's reference implementation, the Go module `tags.cncf.io/container-device-interface`
   (`pkg/cdi/spec-dirs.go`, `cache.go`, and `spec.go` on its main branch, read 2026-10-25), reads
   `/etc/cdi` and then `/var/run/cdi`, each directory's `.json` and `.yaml` files without

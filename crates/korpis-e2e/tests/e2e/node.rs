@@ -18,8 +18,10 @@ use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::session::Event;
 use korpis_agent::state::StateDir;
 use korpis_core::node::advertised::PortRange;
+use korpis_core::node::driver::DeviceClass;
 use korpis_driver_oci::containerd::Containerd;
 use korpis_driver_oci::containerd::stream::Streams;
+use korpis_driver_oci::devices::Specs;
 use korpis_driver_oci::validate::Policy;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -51,7 +53,14 @@ pub struct Node {
     /// The `firecracker` driver's socket and the cgroup its guests run beneath, on a node that
     /// runs it beside the `oci` driver.
     microvms: Option<(PathBuf, PathBuf)>,
+    /// The node's own Container Device Interface directory, which its agent and its driver read
+    /// as their `--cdi-dir`; empty unless a test writes a spec file into it.
+    pub cdi: PathBuf,
 }
+
+/// The device kind the tests' spec files name, which the agent maps to `serial` as
+/// `--device-class korpis.test/standin=serial` would.
+pub const STANDIN: &str = "korpis.test/standin";
 
 /// An address of this machine other than loopback: the one its traffic towards the internet
 /// leaves from, or loopback where it has none.
@@ -157,17 +166,22 @@ pub fn built(package: &str, bin: &str) -> PathBuf {
 }
 
 /// The oci driver, serving on `socket` for the rest of the test; it mounts identity sockets
-/// from the agent's default root, `identity` in its state directory, and writes consoles with
-/// the stream writer, keeping its own state in `driver` beside the agent's.
-async fn driver(socket: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) {
+/// from the agent's default root, `identity` in its state directory, writes consoles with the
+/// stream writer, keeping its own state in `driver` beside the agent's, and reads devices from
+/// the spec files in `cdi`.
+async fn driver(socket: &Path, state: &StateDir, (volumes, netns, cdi): (&Path, &Path, &Path)) {
     let content = state.root().join("content");
     let streams = Streams { writer: writer(), state: state.root().with_file_name("driver") };
     let containerd =
         Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap().with_streams(streams);
     let listener = korpis_driver_kit::serve::bind(socket).unwrap();
     let identity_root = state.root().join("identity");
-    let policy =
-        Policy { volume_root: volumes.to_owned(), identity_root, netns_root: netns.to_owned() };
+    let policy = Policy {
+        volume_root: volumes.to_owned(),
+        identity_root,
+        netns_root: netns.to_owned(),
+        devices: Specs { dirs: vec![cdi.to_owned()], owner: 0 },
+    };
     let (d, _watcher) = korpis_driver_oci::service::Driver::new(containerd, policy);
     let allowed = BTreeSet::from([0]);
     tokio::spawn(korpis_driver_kit::serve::serve(listener, allowed, d, std::future::pending()));
@@ -218,7 +232,9 @@ impl Node {
         let content = state.root().join("content");
         let netns = dir.path().join("netns");
         helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content, &netns));
-        driver(&driver_socket, &state, (&volumes, &netns)).await;
+        let cdi = dir.path().join("cdi");
+        std::fs::create_dir(&cdi).unwrap();
+        driver(&driver_socket, &state, (&volumes, &netns, &cdi)).await;
         Self {
             dir,
             state,
@@ -231,6 +247,7 @@ impl Node {
             pool: next_pool(),
             ports: next_ports(),
             microvms: None,
+            cdi,
         }
     }
 
@@ -290,13 +307,20 @@ impl Node {
         let advertise = Advertise::new(vec![host_address().into()], self.ports, &server);
         let ingress = ingress.then(|| advertise.ingress());
         let offer = (Reserve::default(), [].as_slice());
-        let (devices, _) =
-            korpis_agent::devices::watch(korpis_agent::devices::Config::default()).await;
-        let facts = facts_of(&runtime, &host, offer, (advertise, devices)).await.unwrap();
+        // As `--cdi-dir` with the node's own directory and `--device-class` for the stand-in.
+        let classes = [(STANDIN.to_owned(), DeviceClass::Serial)].into();
+        let config = korpis_agent::devices::Config {
+            dirs: vec![self.cdi.clone()],
+            classes,
+            ..Default::default()
+        };
+        let (devices, _) = korpis_agent::devices::watch(config).await;
+        let facts = facts_of(&runtime, &host, offer, (advertise, devices.clone())).await.unwrap();
         // As `--workload-ipv4` with the node's own pool would.
         let network = korpis_agent::network::offered(&runtime, &host, &id, (self.pool, None)).await;
         let period = Duration::from_millis(500);
-        let options = Options { period, network, ingress, ..Options::default() };
+        let options =
+            Options { period, network, ingress, devices: Some(devices), ..Options::default() };
         let agent = Agent::start(&self.state, runtime, host, facts, options).unwrap();
         let mut events = agent.events();
         let welcomed =

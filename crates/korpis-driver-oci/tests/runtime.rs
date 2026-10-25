@@ -108,6 +108,7 @@ async fn started(dir: &Path) -> DriverRuntime {
             volume_root: dir.join("volumes"),
             identity_root: dir.join("identity"),
             netns_root: dir.join("netns"),
+            devices: korpis_driver_oci::devices::Specs { dirs: Vec::new(), owner: 0 },
         },
     );
     let own = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata("/proc/self").unwrap());

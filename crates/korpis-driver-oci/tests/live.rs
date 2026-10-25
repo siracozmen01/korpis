@@ -127,6 +127,7 @@ fn policy(volumes: &Path) -> Policy {
         volume_root: volumes.to_owned(),
         identity_root: volumes.join("identity"),
         netns_root: volumes.join("netns"),
+        devices: korpis_driver_oci::devices::Specs { dirs: Vec::new(), owner: 0 },
     }
 }
 
@@ -147,20 +148,7 @@ async fn a_hardened_container_runs_stops_starts_and_is_destroyed() {
     let c = Containerd::connect(Path::new(SOCKET), &content).await.unwrap().with_streams(streams);
     let valid = validate(spec(&volumes, &nonce), &policy(&volumes)).unwrap();
     let id = c.create(&valid, &policy(&volumes)).await.unwrap();
-    assert_eq!(
-        c.create(
-            &valid,
-            &Policy {
-                volume_root: volumes.clone(),
-                identity_root: volumes.join("identity"),
-                netns_root: volumes.join("netns")
-            }
-        )
-        .await
-        .unwrap(),
-        id,
-        "idempotent"
-    );
+    assert_eq!(c.create(&valid, &policy(&volumes)).await.unwrap(), id, "idempotent");
     until_state(&c, &id, driver::RuntimeState::RUNTIME_STATE_CREATED).await;
 
     c.start(&id).await.unwrap();

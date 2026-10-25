@@ -44,6 +44,7 @@ async fn node(rig: &Rig) -> Drivers<DriverRuntime> {
         volume_root: dir.join("volumes"),
         identity_root: dir.join("identity"),
         netns_root: dir.join("netns"),
+        devices: korpis_driver_oci::devices::Specs { dirs: Vec::new(), owner: 0 },
     };
     let (oci, _watcher) = korpis_driver_oci::service::Driver::new(containerd.unwrap(), policy);
     let firecracker = korpis_driver_firecracker::service::Driver::new(rig.machine.clone());

@@ -1414,6 +1414,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 166 | The interface listed a verb to resize an object while it runs, and the protocol has none | §70 | `04-runtimes.md` §4.2, §9 |
 | 167 | Dedicated cores were accepted and stored as asked, and nothing held them | §71 | `05-scheduling.md` §5.2; `17-security.md` §5, §13; `20-roadmap.md` §4 |
 | 168 | Devices had a model and no source: nothing said how a node learned them, which were one hardware, or how one reached a driver | §72 | `05-scheduling.md` §6; `01-model.md` §3.4; `04-runtimes.md` §4.1, §4.2 |
+| 169 | A device's edits reached the driver from the supervisor, which the driver's checks exist to distrust | §72 | `04-runtimes.md` §4.2; `05-scheduling.md` §6.3, §6.5; `02-architecture.md` §6.1; `17-security.md` §5 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6012,7 +6013,8 @@ known by its CDI name and the host device nodes its own edits give; one whose no
 another's is the same hardware, and an aggregate of smaller devices is not offered. A placement
 records what it holds (§3.4 of `01-model.md`), so holding, freeing, and restoring follow
 placements; the agent passes each held device's edits to the driver as data (§4.2 of
-`04-runtimes.md`); and `device_modes` replaces `gpu` for every class, corrected in place. What it
+`04-runtimes.md`; corrected by Finding 169 below, the driver reading them itself); and
+`device_modes` replaces `gpu` for every class, corrected in place. What it
 costs: the same hardware is inferred from the files, and a vendor whose partitions name no node of
 their own sees them held one at a time (§6.5 of `05-scheduling.md`).
 
@@ -6027,7 +6029,9 @@ machines this project is built on; a file that gives them otherwise is held in t
 direction, one at a time. Step 9 is the vendor's gap, which its documentation
 states: the file is not rewritten when partitions change, so the agent reports the old partitions
 until the host regenerates it, a start naming one that no longer exists is refused by the driver,
-and the workload is placed elsewhere (§6.3 there). Step 10 restores holds with the placements
+and the workload is placed elsewhere (§6.3 there; corrected by Finding 169 below: the refusal is
+the agent's before `Create` and the driver's at it, and it moves only a workload not yet made on
+the node). Step 10 restores holds with the placements
 that record them. Step 11 finds no driver of the `microvm` tier declaring a device class, and the
 workload stays unplaced saying so (§6.5 there).
 
@@ -6038,3 +6042,43 @@ chooses the devices at the bind, holds them in the placement, and frees and rest
 and the agent reads the spec files and reports what step 2 says, tested on a file of NVIDIA's
 shape. Step 6 is not built, so a request is still refused when it is declared and no workload holds
 a device yet.
+
+**FINDING 169: A device's edits reached the driver from the supervisor, which the driver's checks
+exist to distrust. `CONFIRMED`, by the algebra question as step 6 was built**
+
+Found 2026-10-25. Step 6 asks what decides which host paths a container holding a device mounts,
+and which programs run as root when it is created, and with what information. As designed, the
+agent did: it read the files and put each device's edits in the spec, and the driver applied them.
+The `oci` driver's checks are what stand between a compromised supervisor and root (§6.1 of
+`02-architecture.md`), and an edit could be checked against nothing the driver trusted, so a
+supervisor passing edits could have mounted the host's root, or run any program as root, by naming
+a device. Two smaller defects came with it. Step 9's refusal was said to be the driver's at
+`Prepare`, which reads the intent and the recipe and never the devices held, and to move the
+workload, which a refusal does only for a workload nothing of which was made on the node (§2.1 of
+`05-scheduling.md`). And runc binds a device node in a user namespace from its container path (§5
+of `research/evidence.md`), so a node whose file names another host path would have been bound
+from the wrong one, or from none.
+
+**Resolution.** The driver reads the files itself, under the rules the agent reads them by,
+through the one reader both link (`korpis-cdi`); the agent names each device by id, class, and
+mode, and the edits leave the driver protocol, their field reserved. The driver binds each node
+from the host path its edit names, with a cgroup rule built from the type and numbers of the
+host's node, and refuses what it cannot apply. The agent refuses a device its node no longer
+offers before anything is made, which moves a workload not yet made there, and the driver refuses
+at `Create` one the files no longer describe. Corrected in place in §4.2 of `04-runtimes.md`, §6.3
+and §6.5 of `05-scheduling.md`, §6.1 of `02-architecture.md`, §5 of `17-security.md`, and §2 of
+`18-operations.md`. What it costs: every driver that gives devices reads the files, the driver is
+given the agent's `--cdi-dir`, and the driver checks a device against the files and not the
+placements, so a compromised supervisor can give a device one workload holds to another of the
+node's, within the tenants a compromised node already reaches (§9 of `17-security.md`) and never a
+host path or a program of its choosing.
+
+With the resolution step 6 is built, and steps 2 to 11 with it (P3.3a4b): a workload asking for a
+device is declared, its organization's quota counted, the device held at the bind, given to the
+container bound from its host node, freed with the placement, and given to the next. The test is a
+stand-in on this machine, a spec file of the test's own naming the host's `/dev/zero` as
+`/dev/korpis-standin`: the first workload reads it inside its user namespace with the environment
+its file gives, a second asking for it in `passthrough` stays unplaced with the device check's
+reason, and it is placed once the first is retired. No real GPU was given to a workload; step 1's
+file and step 7's partitions are read in unit tests from a file of NVIDIA's shape, not from a
+machine's.

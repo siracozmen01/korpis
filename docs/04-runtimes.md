@@ -312,22 +312,41 @@ The interface has no input to a command yet; an interactive `workload.exec` (§3
 
 Three of these carry more weight than the rest.
 
-**A device reaches a driver as data** (designed 2026-10-25, §6 of `05-scheduling.md`). The agent
-is the node's one reader of the Container Device Interface's files. Before `Create`, as it fills
-in each volume's source, it fills in the spec's devices from what the placement holds: for each,
-its id, class, and mode, and the edits its file says give it, the file's own and the device's,
-merged in that order. A driver never reads the files, so a third party's driver needs no parser
-for them, and `Prepare` still reads its arguments alone. A driver applies a device of a class and
-a mode it declares (§4.1), and refuses at `Create`, before it makes anything, any other, or an edit
-it cannot apply, which is the step's refusal and sends the workload elsewhere (§7 of
-`05-scheduling.md`). The `oci` driver adds each device node to the container with a cgroup rule
-allowing it, its type, numbers, and mode read from the host's node where the edit leaves them out;
-binds each mount with the options the edit gives; appends the environment and the extra groups;
-places each hook at the point it names; and refuses an edit of Intel RDT or of network devices,
-which it does not apply. Its container being in a user namespace, a device node is bound from the
-host rather than made, and opened as the workload's host ids (§6.5 there). The `firecracker`
-driver declares no device. What it costs: a device whose edits a driver cannot apply is found only
-after the bind, and the node is passed over for that target once refused (§2.1 there).
+**A device reaches a driver by name, and its edits from the node's own files** (designed
+2026-10-25, §6 of `05-scheduling.md`; corrected the same day, below). Before `Create`, as it fills
+in each volume's source, the agent fills in the spec's devices from what the placement holds: for
+each, its id, class, and mode, and nothing of how it is given. The driver reads the node's
+Container Device Interface files itself, under the rules the agent reads them by (§6.5 there),
+and gives a device only with the edits they give it, the file's own and the device's, merged in
+that order. A driver applies a device of a class and a mode it declares (§4.1), and refuses at
+`Create`, before it makes anything, a device the files do not describe as one, any other, or an
+edit it cannot apply; the agent, which holds the same files' reading, refuses first a device the
+node no longer offers, which is the step's refusal and sends a workload not yet made there
+elsewhere (§2.1 there). The `oci` driver binds each device node from the host node its edit
+names, since a container in a user namespace cannot make one, with a cgroup rule allowing the
+type and numbers the host's node has; binds each mount with the options the edit gives; appends
+the environment and the extra groups; and places each hook at the OCI hook point it names. It
+refuses a node that is not a character device on the host, numbers that are not the host node's,
+a node's mode or owner, which a node bound from the host keeps, and an edit of Intel RDT or of
+network devices, none of which it applies. Its container being in a user namespace, a node bound
+from the host is opened as the workload's host ids (§6.5 there). The `firecracker` driver
+declares no device and refuses a spec naming one. What it costs: each driver that gives devices
+reads the files, which a third party's driver does with the reference implementation or its own
+reader rather than receiving the edits; a device whose edits a driver cannot apply is found only
+after the bind, and the node is passed over for that target once refused (§2.1 there); and the
+driver is given the agent's `--cdi-dir`, or it describes another set of files and refuses what the
+agent offered.
+
+> Corrected 2026-10-25, as the driver came to apply a device's edits (Finding 169 of
+> `23-walkthroughs.md`): this paragraph first had the agent pass each device's edits to the
+> driver as data, and say a driver never reads the files. The `oci` driver's checks are what stand
+> between a compromised supervisor and root (§6.1 of `02-architecture.md`), and an edit names
+> host paths to mount and programs to run as root, so a supervisor passing edits could have
+> mounted any host path or run any program through a device it named. The driver now reads the
+> edits from files root alone can write, and the supervisor names a device and never an edit.
+> Nor does the driver hand a device node to runc to bind: runc binds a node in a user namespace
+> from its container path (§5 of `research/evidence.md`), which a vendor's file need not name on
+> the host.
 
 **`Prepare` is pure.** It validates that this driver on this node can satisfy this intent, resolves
 references, and returns either a prepared spec or a rejection with a reason, changing nothing. This

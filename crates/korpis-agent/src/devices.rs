@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The node's devices (§6.1 of docs/05-scheduling.md): those the Container Device Interface's
-//! spec files on it describe, read by the agent, their one reader, when it starts and again every
-//! half minute, so a file the vendor's toolkit rewrites reaches the node's facts by its next
-//! heartbeat. The agent never writes them.
+//! spec files on it describe, read with `korpis_cdi` when the agent starts and again every half
+//! minute, so a file the vendor's toolkit rewrites reaches the node's facts by its next
+//! heartbeat; and the devices a placement holds, given to the driver by id, class, and mode,
+//! whose edits the driver reads itself (§4.2 of docs/04-runtimes.md). The agent never writes
+//! the files.
 
-pub mod cdi;
 mod classify;
-pub mod file;
 
 use korpis_core::node::driver::DeviceClass;
 use korpis_proto::korpis::driver::v1 as driver;
@@ -44,19 +44,40 @@ pub struct Catalog {
     pub devices: Vec<pb::Device>,
     /// The devices, files, and directories it does not offer, and why.
     pub unoffered: Vec<pb::UnofferedDevice>,
-    /// The edits each offered device is given with, its file's then its own, by id.
-    pub edits: BTreeMap<String, driver::DeviceEdits>,
 }
+
+/// The node's devices as the spec files describe them now.
+pub type Devices = watch::Receiver<Arc<Catalog>>;
 
 /// What `config`'s directories describe now.
 #[must_use]
 pub fn read(config: &Config) -> Catalog {
-    let dirs = config
-        .dirs
+    classify::catalog(korpis_cdi::describe(&config.dirs, config.owner), config)
+}
+
+/// The devices `holds` name, as the driver is given them: each the catalog's device of that id,
+/// with its class, in the mode it is held.
+///
+/// # Errors
+/// A device held that the node no longer offers, which no driver can give.
+pub fn given(
+    catalog: &Catalog,
+    holds: &[pb::DeviceHold],
+) -> Result<Vec<driver::GivenDevice>, String> {
+    holds
         .iter()
-        .map(|d| (d.display().to_string(), file::specs_in(d, config.owner)))
-        .collect();
-    classify::catalog(dirs, config)
+        .map(|h| {
+            let d = catalog.devices.iter().find(|d| d.id == h.device).ok_or_else(|| {
+                format!("the device {} it holds is no longer offered by this node", h.device)
+            })?;
+            Ok(driver::GivenDevice {
+                id: d.id.clone(),
+                class: d.class,
+                mode: h.mode,
+                ..Default::default()
+            })
+        })
+        .collect()
 }
 
 /// What `config`'s directories describe, read now and every half minute after by the task

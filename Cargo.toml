@@ -38,6 +38,7 @@ unwrap_used = "deny"
 
 [workspace.dependencies]
 korpis-proto = { path = "crates/korpis-proto" }
+korpis-cdi = { path = "crates/korpis-cdi" }
 korpis-core = { path = "crates/korpis-core" }
 korpis-app = { path = "crates/korpis-app" }
 korpis-store = { path = "crates/korpis-store" }

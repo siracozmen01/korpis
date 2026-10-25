@@ -1332,9 +1332,11 @@ So the boundary is drawn at each driver, not at the supervisor:
 - **Every driver validates every spec against the invariants of its tier**, independently of the
   supervisor, and refuses anything outside them: for `container`, user-namespace remapping,
   the seccomp profile, `no-new-privileges`, a read-only root filesystem, the dropped capability set,
-  and no mount other than the volume mounts the helper prepared and the workload's own identity
+  and no mount other than the volume mounts the helper prepared, the workload's own identity
   directory, read-only and only the one under the identity root that bears the workload's
-  identifier (§2 of `04-runtimes.md`). A spec
+  identifier (§2 of `04-runtimes.md`), and what the node's Container Device Interface files give
+  a device the spec names, which the driver reads itself and never takes from the supervisor
+  (§4.2 there; added 2026-10-25, Finding 169 of `23-walkthroughs.md`). A spec
   the supervisor could not have produced from an honest assignment is refused, logged, and reported
   as a security event.
 - **Each driver runs as its own user with access only to what its runtime needs**, so the union of
@@ -1349,8 +1351,13 @@ So the boundary is drawn at each driver, not at the supervisor:
   records what this meant for the language choice, and why it no longer splits it.
 
 The honest statement is therefore: a compromised supervisor can ask for anything and obtain only
-what an honest assignment could have produced. It does not reduce the oci driver's own attack
-surface, which is containerd's, and §6 of `17-security.md` carries that negative.
+what an honest assignment could have produced. One part of that is narrower than it reads: the
+driver checks a device against the host's files and not against the placements, which it does not
+know, so a compromised supervisor can give one of the node's workloads a device another holds; that
+stays within the node's tenants, which a compromised node already reaches (§9 of `17-security.md`),
+and never reaches a host path or a program of the supervisor's choosing. It does not reduce the oci
+driver's own attack surface, which is containerd's, and §6 of `17-security.md` carries that
+negative.
 
 ### 6.2 The agent is several executables, and their protocol is versioned too
 

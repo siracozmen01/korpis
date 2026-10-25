@@ -4,7 +4,6 @@
 //! of docs/research/evidence.md), read as strictly as its reference implementation reads it: a
 //! field it does not define refuses the file, so no edit a vendor wrote is silently dropped.
 
-use korpis_proto::korpis::driver::v1 as driver;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -44,30 +43,34 @@ pub struct SpecDevice {
 }
 
 /// The edits CDI makes to a container's spec.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Edits {
+    /// Appended to the environment, as `NAME=VALUE`.
     #[serde(default)]
-    env: Vec<String>,
+    pub env: Vec<String>,
     /// The device nodes it gives.
     #[serde(default)]
     pub device_nodes: Vec<Node>,
+    /// The mounts it makes.
     #[serde(default)]
-    mounts: Vec<Mount>,
-    /// The hooks it runs.
+    pub mounts: Vec<Mount>,
+    /// The hooks it runs, on the host, as root.
     #[serde(default)]
     pub hooks: Vec<Hook>,
+    /// Added to the process's groups; 0 is ignored.
     #[serde(default, rename = "additionalGIDs")]
-    additional_gids: Vec<u32>,
-    /// An Intel RDT class; its settings are not read, since no driver applies one.
+    pub additional_gids: Vec<u32>,
+    /// An Intel RDT class, its settings not read, since no driver applies one.
     #[serde(default)]
-    intel_rdt: Option<serde_json::Value>,
+    pub intel_rdt: Option<serde_json::Value>,
+    /// Network interfaces moved into the container, which no driver does.
     #[serde(default)]
-    net_devices: Vec<NetDevice>,
+    pub net_devices: Vec<NetDevice>,
 }
 
 /// A device node.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Node {
     /// Inside the container.
@@ -75,20 +78,27 @@ pub struct Node {
     /// On the host; `path` when unset.
     #[serde(default)]
     pub host_path: Option<String>,
+    /// `c`, `u`, `b`, or `p`; the host node's when unset.
     #[serde(default, rename = "type")]
-    kind: Option<String>,
+    pub kind: Option<String>,
+    /// Its major number; the host node's when unset.
     #[serde(default)]
-    major: Option<i64>,
+    pub major: Option<i64>,
+    /// Its minor number; the host node's when unset.
     #[serde(default)]
-    minor: Option<i64>,
+    pub minor: Option<i64>,
+    /// Its mode inside the container.
     #[serde(default)]
-    file_mode: Option<u32>,
+    pub file_mode: Option<u32>,
+    /// The cgroup's access, of `r`, `w`, and `m`; `rwm` when unset.
     #[serde(default)]
-    permissions: Option<String>,
+    pub permissions: Option<String>,
+    /// Its owner inside the container.
     #[serde(default)]
-    uid: Option<u32>,
+    pub uid: Option<u32>,
+    /// Its group inside the container.
     #[serde(default)]
-    gid: Option<u32>,
+    pub gid: Option<u32>,
 }
 
 impl Node {
@@ -100,42 +110,49 @@ impl Node {
 }
 
 /// A mount.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Mount {
     /// On the host.
     pub host_path: String,
     /// Inside the container.
     pub container_path: String,
+    /// The filesystem's type; for a bind, a placeholder.
     #[serde(default, rename = "type")]
-    kind: Option<String>,
+    pub kind: Option<String>,
+    /// Its options.
     #[serde(default)]
-    options: Vec<String>,
+    pub options: Vec<String>,
 }
 
 /// A hook, run on the host as root.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Hook {
-    /// The OCI hook point.
+    /// The OCI hook point: `createRuntime`, `createContainer`, `startContainer`, `poststart`,
+    /// or `poststop`.
     pub hook_name: String,
     /// Its program; absolute.
     pub path: String,
+    /// Its arguments, the first its name.
     #[serde(default)]
-    args: Vec<String>,
+    pub args: Vec<String>,
+    /// Its environment.
     #[serde(default)]
-    env: Vec<String>,
+    pub env: Vec<String>,
+    /// Seconds before it is abandoned; none when unset.
     #[serde(default)]
-    timeout: Option<u32>,
+    pub timeout: Option<u32>,
 }
 
 /// A network interface moved into the container.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct NetDevice {
-    host_interface_name: String,
-    #[allow(dead_code, reason = "read so a file naming it is valid; no driver moves one")]
-    name: String,
+pub struct NetDevice {
+    /// Its name on the host.
+    pub host_interface_name: String,
+    /// Its name inside the container.
+    pub name: String,
 }
 
 impl Edits {
@@ -150,39 +167,23 @@ impl Edits {
         nodes.chain(mounts).chain(self.hooks.iter().map(|h| ("a hook", h.path.as_str())))
     }
 
-    /// These edits appended to `into`, as a runtime merges a file's edits and then a device's.
-    pub fn merge_into(&self, into: &mut driver::DeviceEdits) {
-        into.env.extend(self.env.iter().cloned());
-        into.device_nodes.extend(self.device_nodes.iter().map(|n| driver::DeviceNode {
-            path: n.path.clone(),
-            host_path: n.host_path.clone().unwrap_or_default(),
-            r#type: n.kind.clone().unwrap_or_default(),
-            major: n.major,
-            minor: n.minor,
-            file_mode: n.file_mode,
-            permissions: n.permissions.clone().unwrap_or_default(),
-            uid: n.uid,
-            gid: n.gid,
-            ..Default::default()
-        }));
-        into.mounts.extend(self.mounts.iter().map(|m| driver::DeviceMount {
-            host_path: m.host_path.clone(),
-            container_path: m.container_path.clone(),
-            r#type: m.kind.clone().unwrap_or_default(),
-            options: m.options.clone(),
-            ..Default::default()
-        }));
-        into.hooks.extend(self.hooks.iter().map(|h| driver::DeviceHook {
-            hook_name: h.hook_name.clone(),
-            path: h.path.clone(),
-            args: h.args.clone(),
-            env: h.env.clone(),
-            timeout: h.timeout,
-            ..Default::default()
-        }));
-        into.additional_gids.extend(self.additional_gids.iter().filter(|g| **g != 0));
-        into.intel_rdt |= self.intel_rdt.is_some();
-        into.net_devices.extend(self.net_devices.iter().map(|d| d.host_interface_name.clone()));
+    /// These edits, then `then`'s, as a runtime merges a file's edits and a device's.
+    #[must_use]
+    pub fn merged(&self, then: &Self) -> Self {
+        fn both<T: Clone>(a: &[T], b: &[T]) -> Vec<T> {
+            a.iter().chain(b).cloned().collect()
+        }
+        let mut additional_gids = both(&self.additional_gids, &then.additional_gids);
+        additional_gids.retain(|g| *g != 0);
+        Self {
+            env: both(&self.env, &then.env),
+            device_nodes: both(&self.device_nodes, &then.device_nodes),
+            mounts: both(&self.mounts, &then.mounts),
+            hooks: both(&self.hooks, &then.hooks),
+            additional_gids,
+            intel_rdt: then.intel_rdt.clone().or_else(|| self.intel_rdt.clone()),
+            net_devices: both(&self.net_devices, &then.net_devices),
+        }
     }
 }
 

@@ -6,6 +6,7 @@ use clap::Parser;
 use korpis_driver_kit::serve::{allowed, bind, serve, shutdown};
 use korpis_driver_oci::containerd::Containerd;
 use korpis_driver_oci::containerd::stream::Streams;
+use korpis_driver_oci::devices::Specs;
 use korpis_driver_oci::service::Driver;
 use korpis_driver_oci::validate::Policy;
 use std::os::unix::fs::{DirBuilderExt as _, MetadataExt as _};
@@ -31,8 +32,9 @@ struct Cli {
     /// The directory the helper keeps volumes under.
     #[arg(long, default_value = "/var/lib/korpis/volumes")]
     volume_root: PathBuf,
-    /// The directory the agent makes workload identity sockets under; with the volume root and
-    /// the `resolv.conf` of a workload's network directory, the only host paths ever mounted.
+    /// The directory the agent makes workload identity sockets under; with the volume root, the
+    /// `resolv.conf` of a workload's network directory, and what the node's CDI files give a
+    /// device, the only host paths ever mounted.
     #[arg(long, default_value = "/var/lib/korpis-agent/identity")]
     identity_root: PathBuf,
     /// The directory the helper binds workloads' network namespaces under.
@@ -48,6 +50,10 @@ struct Cli {
     /// The driver's own state: the files it hands each task's stream writer.
     #[arg(long, default_value = "/var/lib/korpis-driver-oci")]
     state_dir: PathBuf,
+    /// A directory of Container Device Interface spec files a device's edits are read from, as
+    /// the agent's `--cdi-dir` names them; repeatable (§4.2 of docs/04-runtimes.md).
+    #[arg(long = "cdi-dir", default_values = ["/etc/cdi", "/var/run/cdi"])]
+    cdi_dirs: Vec<PathBuf>,
 }
 
 /// The stream writer: the one named, or the one beside this binary; it must be there, since a
@@ -86,6 +92,7 @@ async fn run(cli: Cli) -> Result<(), String> {
             volume_root: cli.volume_root,
             identity_root: cli.identity_root,
             netns_root: cli.netns_root,
+            devices: Specs { dirs: cli.cdi_dirs, owner: 0 },
         },
     );
     tracing::info!(socket = %cli.socket.display(), ?allowed, "serving");

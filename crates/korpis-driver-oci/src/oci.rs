@@ -8,6 +8,7 @@
 //! loopback until the networking of Phase 1), and its limits as cgroup v2 enforces them. A volume
 //! is bind-mounted with an idmapped mount, so its files keep workload-relative ids on disk (§4.5).
 
+use crate::devices::Given;
 use crate::seccomp::{Seccomp, profile};
 use crate::validate::{IDENTITY_MOUNT, Valid};
 use korpis_core::content::image::ImageConfig;
@@ -80,6 +81,8 @@ pub struct Mount {
 struct User {
     uid: u32,
     gid: u32,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    additional_gids: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -171,7 +174,13 @@ struct Pids {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct DeviceRule {
     allow: bool,
-    access: &'static str,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    kind: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    major: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    minor: Option<i64>,
+    access: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -204,6 +213,8 @@ pub struct RuntimeSpec {
     root: Root,
     hostname: String,
     mounts: Vec<Mount>,
+    #[serde(skip_serializing_if = "devices::Hooks::is_empty")]
+    hooks: devices::Hooks,
     linux: Linux,
 }
 
@@ -282,7 +293,13 @@ fn resources(valid: &Valid) -> Resources {
     }
     let pids = r.and_then(|r| r.pids.as_option()).map_or(0, |p| p.limit);
     Resources {
-        devices: vec![DeviceRule { allow: false, access: "rwm" }],
+        devices: vec![DeviceRule {
+            allow: false,
+            kind: None,
+            major: None,
+            minor: None,
+            access: "rwm".into(),
+        }],
         memory,
         cpu,
         pids: Pids { limit: signed(pids) },
@@ -290,11 +307,12 @@ fn resources(valid: &Valid) -> Resources {
 }
 
 /// The runtime specification of the container `valid` describes, running `image`, in the
-/// cgroup at `cgroups_path`.
+/// cgroup at `cgroups_path`, given what its devices give.
 pub fn runtime_spec(
     valid: &Valid,
     image: &ImageConfig,
     cgroups_path: &str,
+    given: &Given,
 ) -> Result<RuntimeSpec, BuildError> {
     let s = valid.spec();
     let args = argv(valid, image);
@@ -328,12 +346,12 @@ pub fn runtime_spec(
     let caps: Vec<&'static str> = CAPABILITIES.to_vec();
     let cwd =
         [s.working_dir.as_str(), image.working_dir.as_str()].into_iter().find(|w| !w.is_empty());
-    Ok(RuntimeSpec {
+    let mut spec = RuntimeSpec {
         oci_version: OCI_VERSION,
         process: Process {
             // An interactive console runs under a terminal (§6 of docs/14-streams.md).
             terminal: s.stream.as_option().is_some_and(|c| c.input),
-            user: User { uid: image.user.0, gid: image.user.1 },
+            user: User { uid: image.user.0, gid: image.user.1, additional_gids: Vec::new() },
             args,
             env: environment(valid, image),
             cwd: cwd.unwrap_or("/").to_owned(),
@@ -348,6 +366,7 @@ pub fn runtime_spec(
         root: Root { path: "rootfs", readonly: true },
         hostname: s.workload.clone(),
         mounts,
+        hooks: devices::Hooks::default(),
         linux: Linux {
             // Given also when the user namespace is joined, which already maps the range: runc
             // then refuses a namespace whose mapping is not this one.
@@ -360,8 +379,11 @@ pub fn runtime_spec(
             readonly_paths: READ_ONLY.to_vec(),
             seccomp: profile(),
         },
-    })
+    };
+    devices::apply(&mut spec, given);
+    Ok(spec)
 }
 
+mod devices;
 #[cfg(test)]
 mod tests;

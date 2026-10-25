@@ -10,6 +10,7 @@
 
 pub mod containerd;
 pub mod describe;
+pub mod devices;
 pub mod error;
 pub mod oci;
 pub mod prepare;

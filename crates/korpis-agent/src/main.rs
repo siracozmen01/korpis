@@ -182,7 +182,7 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
     let ingress = node.ingress.then(|| advertise.ingress());
     let offer = (node.reserve, node.uplinks.as_slice());
     let (devices, watching) = korpis_agent::devices::watch(node.devices.clone()).await;
-    let facts = match facts_of(&runtime, &host, offer, (advertise, devices)).await {
+    let facts = match facts_of(&runtime, &host, offer, (advertise, devices.clone())).await {
         Ok(f) => f,
         Err(e) => {
             tracing::error!(error = %e, "the driver could not be described");
@@ -191,7 +191,7 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
     };
     let pools = (node.workload_ipv4, node.workload_ipv6);
     let network = korpis_agent::network::offered(&runtime, &host, &id, pools).await;
-    let options = Options { network, ingress, ..Options::default() };
+    let options = Options { network, ingress, devices: Some(devices), ..Options::default() };
     let ran = start(state, (runtime, host), facts, options).await;
     watching.abort();
     ran

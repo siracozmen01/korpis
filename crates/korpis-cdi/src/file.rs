@@ -2,11 +2,11 @@
 
 //! Reading the spec directories as the node's own configuration (§6.5 of
 //! docs/05-scheduling.md): a directory and a file are read only when they are owned by the
-//! owner the agent was given, root on a node, and writable by no one else, a file only when it is
+//! owner the reader was given, root on a node, and writable by no one else, a file only when it is
 //! not a link and not larger than a vendor's file would be, and a hook only when its program is
 //! the same.
 
-use super::cdi::Spec;
+use crate::spec::Spec;
 use rustix::fs::{FileType, Mode, OFlags};
 use std::io::Read as _;
 use std::os::unix::fs::MetadataExt as _;

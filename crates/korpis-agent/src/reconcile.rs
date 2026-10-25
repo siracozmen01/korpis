@@ -153,6 +153,8 @@ pub struct Wiring {
     pub queries: Arc<crate::health::Queries>,
     /// The reading jobs live backup sessions hold, which are not forgotten under them.
     pub reading: crate::data::backup::Reading,
+    /// The node's devices, which a placement's holds are given from; none where it offers none.
+    pub devices: Option<crate::devices::Devices>,
 }
 
 /// The reconciler.

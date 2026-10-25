@@ -1337,11 +1337,21 @@ by its selector. The placement records them (`Placement.devices`): what a node's
 derived from its placements, as `allocated` is. So a device is held while its placement is, freed
 with it when the workload is retired or a move releases it, and restored with placements by a
 restore (§8 of `03-state.md`), never a separate ledger that can disagree with them. The assignment
-names the devices a placement holds, and the agent gives them to the driver in the spec (§4.2 of
-`04-runtimes.md`). A device that leaves the node's facts while held, because the vendor's toolkit
-rewrote its file or the card failed, stays held by its placement; the driver refuses the next
-`Prepare` that names it, the refusal is the plan step's (§7), and the scheduler places the workload
-elsewhere. Scoring keeps workloads that ask for no device off nodes that have devices when another
+names the devices a placement holds, and the agent gives them to the driver in the spec by name,
+the driver reading their edits from the files itself (§4.2 of `04-runtimes.md`). A device that
+leaves the node's facts while held, because the vendor's toolkit rewrote its file or the card
+failed, stays held by its placement; the agent refuses the next build that names it before
+anything is made, as a driver refuses a target, and the driver refuses it at `Create` if the agent
+did not. A workload not yet made on the node is then placed elsewhere (§2.1); one that ran there
+stays, its start failing with the reason, until it is moved (§8).
+
+> Corrected 2026-10-25 (Finding 169 of `23-walkthroughs.md`): this paragraph said the driver
+> refuses the next `Prepare` naming such a device and the scheduler places the workload
+> elsewhere. `Prepare` reads the intent and the recipe alone and never the devices held, and a
+> refusal moves only a workload nothing of which was made on the node (§2.1), so the refusal is
+> the agent's before `Create`, the driver's at it, and moving a workload that ran is migration.
+
+Scoring keeps workloads that ask for no device off nodes that have devices when another
 node will do (the `device fit` signal of §2.2), reading the node's devices rather than what its
 driver could give.
 
@@ -1356,26 +1366,29 @@ costs is the host's billing's (Rule K-12).
 
 The CDI files are trusted as the node's own configuration: they are written by the vendor's
 installer as root, and their hooks run as root on the host each time a container holding the device
-is created, which NVIDIA's own file needs. So the agent, the files' one reader (§4.2 of
-`04-runtimes.md`), reads only files owned by root and writable by no one else, in directories the
-same, and passes on a hook only when its program is the same: a device's hooks are host code the
-host chose (§5 of `17-security.md`). Two of CDI's edits are not applied, a device's Intel RDT class
-and the network interfaces it moves into a container, and the driver refuses a device that needs
-either rather than giving it half. A workload in a user namespace (every `container`, §2 of
-`04-runtimes.md`) is given a device node bound from the host, which it opens as its host ids, so a
-node only its group can open (mode 0660, group `video`) cannot be opened by it; NVIDIA's nodes are
-open to all, and a host whose devices are not sets their mode with a udev rule. Which devices are
-the same hardware is inferred from the files (§6.1): a vendor whose partitions name no node of
-their own has them seen as one device, held one at a time, which errs toward giving less and never
-toward two holders of one; and a device whose own edits give no node at all cannot be told apart
-from any other and is not offered. The devices of a node are chosen request by request, in the
-order above, which is greedy: a workload whose requests have overlapping selectors can be refused
-by a node whose devices would meet them paired another way, and is told which request found too
-few. Devices are not metered yet (question 11 of §10). A `microvm` is given no device, since
-Firecracker has no PCI passthrough (§4.1 of `04-runtimes.md`), and a `vm` driver with VFIO, the
-path for one, is not built. And no real GPU has been given to a workload on any machine this
-project is built on, whose GPU is never passed through: what is tested is a stand-in device of a
-CDI file of the test's own (§4 of `20-roadmap.md`).
+is created, which NVIDIA's own file needs. So the agent and the driver, the files' two readers
+(§4.2 of `04-runtimes.md`), read only files owned by root and writable by no one else, in
+directories the same, and take a hook only when its program is the same: a device's hooks are host
+code the host chose (§5 of `17-security.md`), and the driver reads them itself, so the agent, if it
+were compromised, could name a device and never a hook. (Corrected 2026-10-25, Finding 169: this
+sentence first named the agent the files' one reader, passing their edits to the driver.) Two of
+CDI's edits are not applied, a device's Intel RDT class and the network interfaces it moves into a
+container, and the driver refuses a device that needs either rather than giving it half. A workload
+in a user namespace (every `container`, §2 of `04-runtimes.md`) is given a device node bound from
+the host, which it opens as its host ids, so a node only its group can open (mode 0660, group
+`video`) cannot be opened by it; NVIDIA's nodes are open to all, and a host whose devices are not
+sets their mode with a udev rule. Which devices are the same hardware is inferred from the files
+(§6.1): a vendor whose partitions name no node of their own has them seen as one device, held one
+at a time, which errs toward giving less and never toward two holders of one; and a device whose
+own edits give no node at all cannot be told apart from any other and is not offered. The devices
+of a node are chosen request by request, in the order above, which is greedy: a workload whose
+requests have overlapping selectors can be refused by a node whose devices would meet them paired
+another way, and is told which request found too few. Devices are not metered yet (question 11 of
+§10). A `microvm` is given no device, since Firecracker has no PCI passthrough (§4.1 of
+`04-runtimes.md`), and a `vm` driver with VFIO, the path for one, is not built. And no real GPU has
+been given to a workload on any machine this project is built on, whose GPU is never passed
+through: what is tested is a stand-in device of a CDI file of the test's own (§4 of
+`20-roadmap.md`).
 
 ---
 

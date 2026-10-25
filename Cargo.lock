@@ -2978,6 +2978,7 @@ dependencies = [
  "ipnet",
  "korpis-app",
  "korpis-backup",
+ "korpis-cdi",
  "korpis-core",
  "korpis-egress",
  "korpis-extension",
@@ -2994,8 +2995,6 @@ dependencies = [
  "reqwest",
  "rustix",
  "rustls",
- "serde",
- "serde-saphyr",
  "serde_json",
  "sha2 0.10.9",
  "sqlx",
@@ -3054,6 +3053,18 @@ dependencies = [
  "url",
  "zeroize",
  "zstd",
+]
+
+[[package]]
+name = "korpis-cdi"
+version = "0.0.0"
+dependencies = [
+ "korpis-core",
+ "rustix",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -3235,6 +3246,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "korpis-agent",
+ "korpis-cdi",
  "korpis-containerd",
  "korpis-core",
  "korpis-driver-kit",

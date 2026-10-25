@@ -49,12 +49,15 @@ pub struct Policy {
     /// The directory the helper keeps volumes under.
     pub volume_root: PathBuf,
     /// The directory the agent makes the workloads' identity sockets under, one directory each
-    /// (§9.5 of docs/08-identity.md). These two roots, and the `resolv.conf` in the network
-    /// directory a spec joins, are the only host paths ever mounted.
+    /// (§9.5 of docs/08-identity.md). These two roots, the `resolv.conf` in the network
+    /// directory a spec joins, and what the node's CDI files give a device, read by the driver
+    /// itself, are the only host paths ever mounted.
     pub identity_root: PathBuf,
     /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
     /// docs/07-networking.md): the only namespaces a container joins rather than makes.
     pub netns_root: PathBuf,
+    /// The node's Container Device Interface files, the only source of a device's edits.
+    pub devices: crate::devices::Specs,
 }
 
 /// A spec that passed every check.
@@ -221,6 +224,7 @@ pub fn validate(spec: driver::PreparedSpec, policy: &Policy) -> Result<Valid, Vi
     stream(&spec, policy)?;
     process(&spec)?;
     resources(&spec)?;
+    crate::devices::lexical(&spec)?;
     Ok(Valid(spec))
 }
 
@@ -233,6 +237,7 @@ mod tests {
             volume_root: PathBuf::from("/var/lib/korpis/volumes"),
             identity_root: PathBuf::from("/var/lib/korpis-agent/identity"),
             netns_root: PathBuf::from("/run/korpis/netns"),
+            devices: crate::devices::Specs { dirs: Vec::new(), owner: 0 },
         }
     }
 
