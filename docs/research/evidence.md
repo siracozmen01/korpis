@@ -678,6 +678,16 @@ Primary:
   CRI runtime plugin (`containerd config default`, read 2026-10-25 on this machine), so a client
   of containerd's own API, as the `oci` driver is, has no CDI device applied for it. Why the edits
   are applied by the driver (§4.2 of `../04-runtimes.md`).
+- **[V]** cgroup v2 cpuset partitions: a partition has exclusive use of its exclusive CPUs, and
+  no cgroup outside it can use them; a remote partition is one whose parent is not a partition
+  root, every ancestor but the root cgroup must not be one, and the right
+  `cpuset.cpus.exclusive` must be written down the hierarchy before the partition root is made
+  (`Documentation/admin-guide/cgroup-v2.rst` on the kernel's master branch, read 2026-10-25;
+  `cpuset.cpus.exclusive` and `cpuset.cpus.partition` are present on this machine's 6.8 kernel).
+  **[R]** that remote partitions shipped in Linux 6.7, from Waiman Long's series of 2023
+  ([v8](https://patchew.org/linux/20230905133243.91107-1-longman@redhat.com),
+  [LWN](https://lwn.net/Articles/941674)); preflight checks the files, not the version. Why a
+  held core's cgroup is a partition of its own (§5.2 of `../05-scheduling.md`).
 - **[V]** runc, in a container with a user namespace, does not make the device nodes its spec's
   `linux.devices` lists but binds each from the host at the node's own path, the container path
   (`createDevices` and `bindMountDeviceNode` in `libcontainer/rootfs_linux.go` on its main branch,

@@ -43,6 +43,8 @@ disk_bytes_stored      sampled at a declared interval
 disk_io_bytes          read and write, separately
 network_bytes          ingress and egress, separately, on-net and off-net separately
 device_seconds         per device class (GPU and others), from the driver
+dedicated_core_seconds per workload, each held core for the time it is held, whatever runs
+                       on it (§5.2 of `05-scheduling.md`); designed 2026-10-25
 address_hours          dedicated IPv4 is scarce and is a real cost (§4 of `07-networking.md`)
 backup_bytes_stored    post-deduplication, with the dedup scope named (§5.3 of `06-storage.md`)
 ```

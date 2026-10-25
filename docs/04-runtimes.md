@@ -162,6 +162,9 @@ Capabilities
   guest_agent          bool               asks a guest's own agent whether it answers (§5)
   guest_filesystems    []text             for block devices: what its guests mount a volume
                                           as, so what a backup is browsed from (§4.4)
+  cgroup_parent        text               the cgroup its objects live under, which the
+                                          helper keeps the shared and exclusive cpusets of
+                                          (§5.2 of 05-scheduling.md); added 2026-10-25
 
 EnforcementDecl
   enforced      bool
@@ -234,6 +237,15 @@ declares its own. Added 2026-10-21, when shaping was designed.
 > and `egress` only where an uplink is declared and shaped as well, since a reservation is held
 > there and a limit is placed against the bandwidth it offers. The paragraph above tied
 > `ingress` to an uplink, which nothing held there needs.
+
+`dedicated_cores` is declared like a limit (designed 2026-10-25, §5.2 of `05-scheduling.md`): a
+driver declares it enforced only where it puts an object holding cores in a `cpuset` of its own
+and every other object in the shared `cpuset` the helper keeps at the node's CPUs less those held,
+and, by default, makes the holding object's cgroup a cpuset partition, so the host is kept off as
+well. Its `granularity` says which: a driver given `--dedicated-cores-host shared` says the host
+is not kept off, and the plan of a workload asking for dedicated cores shows it. A driver whose
+node's kernel has no cpuset partitions, and which was not given that flag, declares it not
+enforced, and the scheduler places no workload asking for dedicated cores on it.
 
 **`volume_semantics`, because a VM's volume is a block device.** Under `process` and `container`, a
 volume is a directory on a filesystem the host controls, quota is `refquota` or a project quota,
@@ -347,6 +359,19 @@ agent offered.
 > Nor does the driver hand a device node to runc to bind: runc binds a node in a user namespace
 > from its container path (§5 of `research/evidence.md`), which a vendor's file need not name on
 > the host.
+
+**Dedicated cores reach a driver as a `cpuset`** (designed 2026-10-25, §5.2 of `05-scheduling.md`).
+Before `Create`, the agent fills in the spec's cores from what the placement holds, each with its
+logical CPUs and their NUMA node; nothing else in a spec names a CPU. A driver checks them against
+the topology it reads itself, as it reads a device's files, and refuses at `Create` a core the
+machine does not have, a CPU that is not that core's, and the core holding CPU 0, which is never
+given; as with devices, it does not know which cores other placements hold. It puts the object in a
+cgroup of its own under its parent's `dedicated` cgroup with those CPUs and nodes, made a partition
+unless its operator chose otherwise, and an object holding no cores under its `shared` cgroup. The
+`oci` driver sets them as the container's `linux.resources.cpu` CPUs and memory nodes; the
+`firecracker` driver as the jailer's cgroup, and pins each vCPU's thread to one of the CPUs. What
+it costs: a driver given cores runs its object's cgroup in a different place than one not, so an
+object's cores change only when it is built again from a new placement, which is a restart.
 
 **`Prepare` is pure.** It validates that this driver on this node can satisfy this intent, resolves
 references, and returns either a prepared spec or a rejection with a reason, changing nothing. This

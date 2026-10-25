@@ -937,6 +937,8 @@ Node
   allocated     Resources      sum of what its placements reserve
   drivers       []DriverInfo   which runtime drivers this node offers, with capabilities
   devices       []Device       the devices its agent found described, below; added 2026-10-25
+  cores         []Core         the physical cores it offers for dedication, below; added
+                               2026-10-25
   storage_classes []StorageClassInfo  the classes its helper provides, with what each can do
                                (§2 of 06-storage.md)
   reachability  public | edge_only    whether inbound traffic can reach it directly (§9 of
@@ -1000,6 +1002,19 @@ the devices the Container Device Interface's files describe on its machine (§6.
 `Placement.devices` does, so a node's held devices are derived as its `allocated` is. Added
 2026-10-25, when devices were designed.
 
+```
+Core
+  id            int            the lowest logical CPU of the core; unique on its node
+  cpus          []int          its logical CPUs, the siblings that share its execution units
+  numa          int            the NUMA node its CPUs belong to
+```
+
+**A core is offered whole, and what holds it is a fact of placements.** The agent reports the
+cores the kernel's topology describes, all but the one holding CPU 0 unless the operator names
+them (§5.2 of `05-scheduling.md`), and `Placement.cores` records which a placement holds, so a
+node's held cores are derived as its devices are. Added 2026-10-25, when dedicated cores were
+designed.
+
 **Lifecycle**
 
 ```
@@ -1037,6 +1052,9 @@ Placement
   reserved      Resources       that intent's reservations, held on the node
   devices       []DeviceHold    the node's devices it holds, each an id and a mode, chosen when
                                 it was bound (§6.3 of 05-scheduling.md); added 2026-10-25
+  cores         []int           the node's cores it holds, by id, chosen when it was bound for
+                                dedicated cores, whose logical CPUs' millicores `reserved` then
+                                counts (§5.2 of 05-scheduling.md); added 2026-10-25
   tier          IsolationTier   the tier it runs at, from the target it was bound with
   region        string          the node's `region` label, which every reader of the workload
                                 sees though not every reader may see the node (§8 of

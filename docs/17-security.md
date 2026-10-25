@@ -545,24 +545,26 @@ publish vague ones.
    advice was to pick `microvm`, which on its own does not stop the sibling leaks (finding S46).
 
 `cpu.isolation: dedicated_cores` (§5.2 of `05-scheduling.md`) pins a workload to whole physical
-cores and keeps every other tenant off their SMT siblings. It is honest on both counts: it is the
-only configuration that defends against the cross-core leak classes, in any tier, and it costs the
-whole core, which the scheduler accounts and the meter bills. Combined with `microvm` it is the
-strongest isolation Korpis offers; neither alone is. (Until Phase 3 builds it, this release offers
-neither; see the `microvm` row as built in §5.)
-2. **Hardware attestation.** Verifying that a node runs the kernel and agent it claims would raise
-   compromised-node detection substantially and drags in TPM, measured boot, and a key-management
-   story disproportionate to a single-operator install. → `18-operations.md`
-3. **Confidential computing tiers.** AMD SEV-SNP and Intel TDX would let a tenant be protected
-   *from the operator*, which §8 currently states is impossible. That is a real fifth tier and a
-   large commitment. → `04-runtimes.md`
-4. **Recipe author reputation. Resolved here: operator-managed allow-lists, nothing central.**
-   Signing proves who published a recipe, not whether they should be trusted. Anything resembling
-   curation collides with "Korpis is not a marketplace" (§2 of `00-overview.md`). It was routed to
-   `09-recipes.md`, which never carried it (finding S18). The mechanism already exists in two
-   places and is now named as the answer: `TrustPolicy.accepted_signers` per organization (§7 of
-   `09-recipes.md`) and the publisher or registry allow-list for extensions (§4.1 of
-   `16-extensions.md`). Korpis supplies verification and policy; reputation is the operator's.
-5. **Windows isolation parity.** K-9 requires the runtime interface to express Windows on day one;
-   job objects and server silos are genuinely weaker than Linux namespaces, and §5's tier table has
-   no honest Windows column yet. It needs one before Windows ships, not after. → `04-runtimes.md`
+cores and keeps every other tenant off their SMT siblings, and by default the host's own processes
+too, each holding workload's cgroup a cpuset partition of its own; a host that keeps its processes
+on every CPU leaves its agent and services exposed on a held core's sibling to the leak classes the
+cores defend against, and its drivers' declarations say so (designed 2026-10-25). It is honest on
+both counts: it is the only configuration that defends against the cross-core leak classes, in any
+tier, and it costs the whole core, which the scheduler accounts and the meter bills. Combined with
+`microvm` it is the strongest isolation Korpis offers; neither alone is. (Until Phase 3 builds it,
+this release offers neither; see the `microvm` row as built in §5.) 2. **Hardware attestation.**
+Verifying that a node runs the kernel and agent it claims would raise    compromised-node detection
+substantially and drags in TPM, measured boot, and a key-management    story disproportionate to a
+single-operator install. → `18-operations.md` 3. **Confidential computing tiers.** AMD SEV-SNP and
+Intel TDX would let a tenant be protected    *from the operator*, which §8 currently states is
+impossible. That is a real fifth tier and a    large commitment. → `04-runtimes.md` 4. **Recipe
+author reputation. Resolved here: operator-managed allow-lists, nothing central.**    Signing
+proves who published a recipe, not whether they should be trusted. Anything resembling    curation
+collides with "Korpis is not a marketplace" (§2 of `00-overview.md`). It was routed to
+`09-recipes.md`, which never carried it (finding S18). The mechanism already exists in two
+places and is now named as the answer: `TrustPolicy.accepted_signers` per organization (§7 of
+`09-recipes.md`) and the publisher or registry allow-list for extensions (§4.1 of
+`16-extensions.md`). Korpis supplies verification and policy; reputation is the operator's. 5.
+**Windows isolation parity.** K-9 requires the runtime interface to express Windows on day one;
+job objects and server silos are genuinely weaker than Linux namespaces, and §5's tier table has
+no honest Windows column yet. It needs one before Windows ships, not after. → `04-runtimes.md`

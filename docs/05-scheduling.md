@@ -1197,6 +1197,69 @@ stated in the plan that requests it.
 > a limit like any other: a node is a candidate only where its driver declares `dedicated_cores`
 > enforced (§4.1 of `04-runtimes.md`), which no driver of this release does.
 
+#### Dedicated cores, as they are held
+
+Designed 2026-10-25, as Phase 3 builds them (Finding 167 of `23-walkthroughs.md`).
+
+**A workload asks for a whole number of physical cores.** Its CPU reservation equals its limit and
+is a multiple of 1,000 millicores, each 1,000 one core, and a declaration otherwise is refused. A
+core is what the kernel's topology says shares one core's execution units
+(`/sys/devices/system/cpu/cpuN/topology/core_cpus_list`): two logical CPUs on a machine whose SMT
+is on. The workload is given every logical CPU of each core it holds, so nothing else shares a
+sibling of its cores, and each core counts its logical CPUs, at 1,000 millicores each, against the
+node's allocatable CPU: four dedicated cores on a machine with two threads a core take 8,000
+millicores there, which is the density cost a plan that asks for them states. Quota counts what the
+declaration asks, 1,000 millicores a core, since admission knows no node (§5.1).
+
+**A node's cores are read by its agent, and all but the first are offered.** The agent reads the
+topology when it starts and reports each core it offers, its logical CPUs and their NUMA node
+(`Node.cores`, §3.4 of `01-model.md`). The core holding CPU 0 is never offered, so the shared
+workloads, the host, and the node's own agent always keep at least one; an operator names the
+cores offered with `--dedicated-cores` (§2 of `18-operations.md`), and a core with a logical CPU
+offline is not offered.
+
+**The scheduler chooses the cores when it binds, and the placement holds them**, as it does devices
+(§6.3): those a placement following its target in place already holds first, then cores of the NUMA
+node with the most free before another's, so a workload's cores and its memory stay on one node
+where they fit, then the lowest ids. The filter keeps a node only where one driver offering the
+workload's tier declares `dedicated_cores` enforced (§4.1 of `04-runtimes.md`) and enough offered
+cores are free. The placement records the cores (`Placement.cores`) and reserves what they take on
+that node, their logical CPUs' millicores, rather than the reservation declared; a node's held
+cores are derived from its placements, and freeing and restoring follow placements, never a
+separate ledger.
+
+**Nothing else runs on a held core.** A driver puts an object that holds cores in a cgroup of its
+own under `<parent>/dedicated`, its `cpuset` the cores' logical CPUs and their NUMA nodes' memory,
+and every other object under `<parent>/shared`, whose `cpuset` the node's helper keeps at the
+node's online CPUs less those held, told by the agent which its placements hold and where each
+driver's objects live, which a driver declares (`cgroup_parent`, §4.1 of `04-runtimes.md`), writing
+it before an object holding cores is created and after one is destroyed; a shared object's tasks
+leave a core when it is held, the kernel moving them. That keeps every other tenant off. To keep
+the host off too, the holding object's cgroup is made a cpuset partition of its own
+(`cpuset.cpus.partition`, a remote partition of cgroup v2, which kernels from about Linux 6.7
+have), the helper writing the held CPUs into `cpuset.cpus.exclusive` of each cgroup above it first,
+as the kernel requires: no process outside the partition, the host's agent, containerd, and
+services included, can run on its CPUs while it is held (§5 of `research/evidence.md`). That is the
+default. An operator who would rather the host keep every CPU passes `--dedicated-cores-host
+shared` to the node's drivers, and each one's declaration of `dedicated_cores` then says that other
+tenants are kept off and the host is not (§4.1 of `04-runtimes.md`), which a plan that asks for
+them shows; without it, a node whose kernel has no remote partitions offers no dedicated cores,
+preflight saying why.
+
+What it costs and does not do. A partition takes its CPUs from every process outside it, the
+host's own services included, for as long as it is held: that is what makes a core the workload's,
+and a host whose services need those CPUs runs fewer dedicated cores. Per-CPU kernel threads and
+interrupts still run on a held core: the kernel's own housekeeping, and the interrupts the
+operator does not steer elsewhere with `irqaffinity`, which preflight names where a node offers
+dedicated cores. `cpuset.mems` keeps the workload's pages on its cores' NUMA nodes, not the
+kernel's allocations made for it. A core is given whole, so on a machine with SMT on a dedicated
+workload pays for both threads of each core whether it uses them or not. The meter records each
+held core for the time it is held, whatever the workload does on it (§2 of `15-observability.md`).
+And the partition path is not run end to end on the machine this project is built on, whose other
+services it would take CPUs from: what is tested there is the opt-out, tenants kept off by the
+shared `cpuset`, and the partition's files written in the order the kernel asks, against a tree of
+the test's own (§4 of `20-roadmap.md`).
+
 **I/O is ceilings and shares, never a reservation.** `io.limit` sets `io.max` (bytes and operations
 per second, read and write). `io.share` sets `io.weight`, which is a proportional share of the
 device under contention and does nothing at all unless the node runs the `io.cost` controller; a

@@ -6082,3 +6082,52 @@ its file gives, a second asking for it in `passthrough` stays unplaced with the 
 reason, and it is placed once the first is retired. No real GPU was given to a workload; step 1's
 file and step 7's partitions are read in unit tests from a file of NVIDIA's shape, not from a
 machine's.
+
+---
+
+## 73. A host sells dedicated cores to a customer who fears its neighbours
+
+Written 2026-10-25, as dedicated cores were designed (§5.2 of `05-scheduling.md`), before any of it
+is built. A host with twelve-core, two-thread machines sells a plan of four dedicated cores to a
+customer running a trading bot, who has read §13 of `17-security.md` and wants no other tenant on
+its cores' siblings. The trace asks the algebra question of every step: what decides it, where, and
+with what information? It was chosen by the task: Finding 167 homed dedicated cores in Phase 3, and
+trace 71, which found it, stopped at the refusal.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The node's agent reads the topology and offers cores 1 to 11, keeping the core of CPU 0 | `05-scheduling.md` §5.2; `01-model.md` §3.4 |
+| 2 | Each driver declares `dedicated_cores` enforced, partitions available, and its cgroup parent | `04-runtimes.md` §4.1 |
+| 3 | The customer declares a CPU reservation and limit of 4,000 millicores, `dedicated_cores` | `05-scheduling.md` §5.2; `01-model.md` §3.3 |
+| 4 | Quota admits 4,000 millicores of CPU | `05-scheduling.md` §5.1, §5.2 |
+| 5 | The filter keeps the node, and the bind holds four cores of one NUMA node and reserves 8,000 millicores | `05-scheduling.md` §2.1, §5.2 |
+| 6 | The agent tells the helper the held CPUs; the helper narrows the shared `cpuset` and writes the exclusive CPUs above the object | `05-scheduling.md` §5.2; `04-runtimes.md` §4.2 |
+| 7 | The driver checks the cores against the topology and makes the object's cgroup a partition | `04-runtimes.md` §4.2 |
+| 8 | The meter records four cores held, whether the bot is busy or idle | `15-observability.md` §2 |
+| 9 | The workload is deleted; its placement frees the cores and the shared `cpuset` widens again | `05-scheduling.md` §5.2 |
+| 10 | Another host, wanting its services on every CPU, gives its drivers `--dedicated-cores-host shared` | `05-scheduling.md` §5.2; `17-security.md` §13 |
+
+Step 5 asks who knows that four cores take 8,000 millicores on this node and 4,000 on a machine
+with SMT off: only the bind, which sees the node's cores, so the placement reserves what its cores
+take there while quota, evaluated before any node is chosen, counts what was declared. Step 6 asks
+who knows where the driver's objects live, since the kernel wants the exclusive CPUs written on
+every cgroup above the partition before it is made: the driver, which runs its objects there, so
+it declares its `cgroup_parent` (§4.1 of `04-runtimes.md`) and the agent hands it to the helper,
+the one process allowed to write those cgroups. Both answers were added to §5.2 of
+`05-scheduling.md` and §4.1 of `04-runtimes.md` as the trace was written. Step 7 asks what stops
+a compromised supervisor naming the core of CPU 0, or CPUs of another core: the driver reads the
+topology itself and refuses both, though, as with devices, it does not know which cores other
+placements hold (§4.2 there). Step 10 asks what the second host's customers are told: the drivers'
+declarations say the host is not kept off, a plan asking for dedicated cores shows it, and §13 of
+`17-security.md` says what that leaves exposed: the host's agent and services, on a held core's
+sibling, to the leak classes the cores defend against.
+
+No new finding: the trace was written with the design, and the two gaps it found, the reservation a
+dedicated placement holds and where the helper writes, are answered in the documents that own
+them. What remains, by design, is stated in §5.2 of `05-scheduling.md`: kernel threads and
+interrupts still run on a held core, and the partition path cannot be run end to end on the
+machine this project is built on, whose other services it would take CPUs from.
+
+Steps 1 to 10 are designed, and none is built yet (§4 of `20-roadmap.md`).

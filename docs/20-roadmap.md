@@ -319,7 +319,11 @@ edits, which the driver reads from the files itself (Finding 169). It is built: 
 declared and counted, the device chosen at the bind, held, freed, and restored with placements,
 and given by the `oci` driver as a node bound from the host; the `firecracker` driver refuses one.
 It is tested with a stand-in device of the test's own on this machine, whose GPU is never passed
-through, so no real GPU has been given to a workload.
+through, so no real GPU has been given to a workload. Dedicated cores are designed (§5.2 of
+`05-scheduling.md`, trace 73 of `23-walkthroughs.md`): whole physical cores read from the
+kernel's topology, chosen at the bind and held by placements, each holding object in a `cpuset`
+of its own and by default a cpuset partition, so neither another tenant nor the host runs on its
+cores; none of it is built yet, and a request for them is still refused when it is declared.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -479,7 +483,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-two traces and their 169 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-three traces and their 169 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
