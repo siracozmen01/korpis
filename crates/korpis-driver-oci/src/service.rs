@@ -122,7 +122,8 @@ impl driver::DriverService for Driver {
         _request: ServiceRequest<'_, driver::DescribeRequest>,
     ) -> ServiceResult<driver::DescribeResponse> {
         let healthy = self.containerd.ping().await;
-        Response::ok(driver::DescribeResponse { info: info(healthy).into(), ..Default::default() })
+        let info = info(healthy, self.containerd.cores());
+        Response::ok(driver::DescribeResponse { info: info.into(), ..Default::default() })
     }
 
     fn prepare(

@@ -98,7 +98,8 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         install_binary: InstallBinary::Beside,
         ingress_binary: InstallBinary::Beside,
         files_binary: InstallBinary::Beside,
-        job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis")),
+        // Within the `oci` driver's shared cgroup, whose cpuset is kept off dedicated cores.
+        job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis/shared")),
         content: PathBuf::from("/var/lib/korpis-agent/content"),
         netns_root: Some(PathBuf::from(NETNS_ROOT)),
         cores_cgroups: None,

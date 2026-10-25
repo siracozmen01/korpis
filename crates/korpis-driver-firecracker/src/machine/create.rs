@@ -37,6 +37,11 @@ pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> Mach
     if !spec.devices.is_empty() {
         return Err(refused("a microvm is given no device"));
     }
+    // Nor dedicated cores, until its guests' threads are held to them (§5.2 of
+    // docs/05-scheduling.md).
+    if !spec.cores.is_empty() {
+        return Err(refused("a microvm holds no dedicated core yet"));
+    }
     let digest = spec.rootfs.rsplit_once('@').map_or("", |(_, d)| d);
     korpis_core::content::hex_of(digest).map_err(|_| refused("an image by its digest"))?;
     ids(spec.uid_base, spec.uid_count)?;
@@ -271,5 +276,12 @@ mod tests {
         };
         let refused = validate(&spec, &settings).unwrap_err().to_string();
         assert!(refused.contains("no device"), "{refused}");
+        let spec = driver::PreparedSpec {
+            tier: pb::IsolationTier::ISOLATION_TIER_MICROVM.into(),
+            cores: vec![pb::Core { id: 1, cpus: vec![1], ..Default::default() }],
+            ..Default::default()
+        };
+        let refused = validate(&spec, &settings).unwrap_err().to_string();
+        assert!(refused.contains("no dedicated core"), "{refused}");
     }
 }

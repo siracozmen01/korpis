@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's physical cores offered for dedication (§5.2 of docs/05-scheduling.md), read from
-//! the kernel's topology under `/sys/devices/system`: each core the logical CPUs that share its
-//! execution units, offered whole, and only when all of them are online; never the core holding
-//! CPU 0, and, when the operator names cores with `--dedicated-cores`, only those.
+//! A node's physical cores (§5.2 of docs/05-scheduling.md), read from the kernel's topology under
+//! `/sys/devices/system`: each core the logical CPUs that share its execution units, whole, and
+//! only when all of them are online; never the core holding CPU 0. The agent reads them to offer
+//! them, and a driver reads them again to check the cores it is given, so neither believes what
+//! the control plane says a core is (§4.2 of docs/04-runtimes.md).
 
-use korpis_proto::korpis::v1 as pb;
+use korpis_core::node::cores::Core;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -33,6 +34,29 @@ pub fn cpu_list(s: &str) -> Result<BTreeSet<u32>, String> {
     Ok(cpus)
 }
 
+/// `cpus` as the kernel writes a CPU list: `1-3,7`, and empty for none.
+#[must_use]
+pub fn listed<'a>(cpus: impl IntoIterator<Item = &'a u32>) -> String {
+    let set: BTreeSet<u32> = cpus.into_iter().copied().collect();
+    let range = |(first, last): (u32, u32)| {
+        if first == last { first.to_string() } else { format!("{first}-{last}") }
+    };
+    let mut out: Vec<String> = Vec::new();
+    let mut run: Option<(u32, u32)> = None;
+    for c in set {
+        run = match run {
+            Some((first, last)) if last + 1 == c => Some((first, c)),
+            Some(r) => {
+                out.push(range(r));
+                Some((c, c))
+            }
+            None => Some((c, c)),
+        };
+    }
+    out.extend(run.map(range));
+    out.join(",")
+}
+
 /// The text of `path`, if it is there.
 fn read(path: &Path) -> Option<String> {
     std::fs::read_to_string(path).ok()
@@ -53,11 +77,11 @@ fn numa_nodes(system: &Path) -> BTreeMap<u32, u32> {
     of
 }
 
-/// The cores under `system` (`/sys/devices/system` on a node) offered for dedication: those
+/// The cores under `system` (`/sys/devices/system` on a node) that may be dedicated: those
 /// `named` names, when it names any, never the one holding CPU 0, and each only with every one of
-/// its logical CPUs online. A topology that cannot be read offers none.
+/// its logical CPUs online. A topology that cannot be read has none.
 #[must_use]
-pub fn cores(system: &Path, named: Option<&BTreeSet<u32>>) -> Vec<pb::Core> {
+pub fn cores(system: &Path, named: Option<&BTreeSet<u32>>) -> Vec<Core> {
     let online = read(&system.join("cpu/online")).and_then(|l| cpu_list(&l).ok());
     let Some(online) = online else { return Vec::new() };
     let numa = numa_nodes(system);
@@ -86,10 +110,28 @@ pub fn cores(system: &Path, named: Option<&BTreeSet<u32>>) -> Vec<pb::Core> {
         .filter_map(|cpus| {
             let id = *cpus.first()?;
             let numa = numa.get(&id).copied().unwrap_or(0);
-            Some(pb::Core { id, cpus, numa, ..Default::default() })
+            Some(Core { id, cpus, numa })
         })
         .filter(|c| named.is_none_or(|n| n.contains(&c.id)))
         .collect()
+}
+
+/// Whether each of `given` is a core of the machine under `system` as its topology reads now:
+/// the same logical CPUs, every one online, on the same NUMA node, and not the core of CPU 0.
+///
+/// # Errors
+/// The first that is not, and why.
+pub fn check(system: &Path, given: &[Core]) -> Result<(), String> {
+    let machine = cores(system, None);
+    for g in given {
+        let Some(found) = machine.iter().find(|c| c.id == g.id) else {
+            return Err(format!("core {} is not one of this machine's that may be held", g.id));
+        };
+        if found.cpus != g.cpus || found.numa != g.numa {
+            return Err(format!("core {} is not CPUs {:?} of NUMA node {}", g.id, g.cpus, g.numa));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -227,7 +227,7 @@ microVMs on ZFS. Preflight reports against what the node is *configured to offer
 | `tc` from iproute2 and the `htb` qdisc | ingress limits and an endpoint's own limits, held on the workload's link (§7 of `07-networking.md`) | absent → the node enforces no bandwidth and the scheduler places nothing that sets one there, saying why; an endpoint's accounting needs only nftables, above |
 | those, and an uplink declared with `korpis-agent run --uplink eth0=1gbit` | egress reservations and limits (§7 of `07-networking.md`) | absent → the node enforces no egress and the scheduler places nothing that sets it there, saying why; the capacity is declared, not read, because a virtual machine's link speed is not what its provider sold |
 | a Container Device Interface file for each device, as the vendor's toolkit writes it under `/etc/cdi` or `/var/run/cdi` (`--cdi-dir`, repeatable, names others in their place, given alike to the agent and the `oci` driver, which reads a device's edits itself), owned by root and writable by no one else | devices given to workloads (§6 of `05-scheduling.md`) | absent → the node reports no devices and places no workload that asks for one; a kind whose name is not a class Korpis knows is mapped with `--device-class vendor.com/kind=class`, and shared with `--device-share vendor.com/kind=N`, or stays unoffered and listed as unclassified; a file or a hook's program writable by anyone but root is ignored, saying why |
-| cgroup v2 cpuset partitions (`cpuset.cpus.exclusive` and `cpuset.cpus.partition` in a cgroup below the root, from about Linux 6.7), and a physical core besides the one holding CPU 0 | dedicated cores (§5.2 of `05-scheduling.md`) | absent → the node offers no dedicated cores, unless its drivers are given `--dedicated-cores-host shared`, which keeps other tenants off a held core and not the host, and their declarations say so; the agent offers every core but the first, or those `--dedicated-cores` names; interrupts not steered away with the kernel's `irqaffinity` still run on a held core, which preflight names (designed 2026-10-25) |
+| cgroup v2 cpuset partitions (`cpuset.cpus.exclusive` and `cpuset.cpus.partition` in a cgroup below the root, from about Linux 6.7), and a physical core besides the one holding CPU 0 | dedicated cores (§5.2 of `05-scheduling.md`) | absent → the node offers no dedicated cores, unless its drivers are given `--dedicated-cores-host shared`, which keeps other tenants off a held core and not the host, and their declarations say so; the agent offers every core but the first, or those `--dedicated-cores` names; interrupts not steered away with the kernel's `irqaffinity` still run on a held core, which preflight names (designed 2026-10-25); the `oci` driver's containers live under `--cgroup-parent` (`/korpis`), and a container made there before cores were held keeps the driver from declaring them held until it is rebuilt |
 
 > Corrected 2026-10-21, when an endpoint's own bandwidth was built: one row said every bandwidth
 > limit needed a declared uplink. Only egress does; an ingress limit and an endpoint's own are
@@ -377,13 +377,15 @@ bytes limited by its qgroup and its inodes not at all (§3 there); any other fil
 told an operator on btrfs that their volumes would not be limited. The jobs it starts are binaries
 beside it unless named: `--job-binary` for backups and restores and `--install-binary` for installs
 (`none` runs no installs); each job's cgroup is made under `--job-cgroups`
-(`/sys/fs/cgroup/korpis`), and `--content` names the agent's content store, which restores and
-installs read (`/var/lib/korpis-agent/content`). It keeps the workloads' cpusets for dedicated
-cores (§5.2 of `05-scheduling.md`) only under the drivers' cgroup parents `--cores-cgroup` names,
-refusing a request that names any other: the flag repeats, `none` keeps no cpusets at all, and
-without it the helper keeps `/korpis` and `/korpis-firecracker`, the first-party drivers' own, so
-an agent cannot have it narrow a cgroup no driver of the node makes objects in. Added 2026-10-25,
-when it was built.
+(`/sys/fs/cgroup/korpis/shared`, the `oci` driver's shared cgroup, so a job keeps off dedicated
+cores as a container holding none does; it was `/sys/fs/cgroup/korpis` until 2026-10-25, when cores
+were first held, and a job there could have run on one), and `--content` names the agent's content
+store, which restores and installs read (`/var/lib/korpis-agent/content`). It keeps the workloads'
+cpusets for dedicated cores (§5.2 of `05-scheduling.md`) only under the drivers' cgroup parents
+`--cores-cgroup` names, refusing a request that names any other: the flag repeats, `none` keeps no
+cpusets at all, and without it the helper keeps `/korpis` and `/korpis-firecracker`, the
+first-party drivers' own, so an agent cannot have it narrow a cgroup no driver of the node makes
+objects in. Added 2026-10-25, when it was built.
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it

@@ -55,3 +55,20 @@ fn a_cpu_list_is_read_as_the_kernel_writes_it() {
     assert!(cpu_list("a").is_err());
     assert!(cpu_list("0-9000").is_err());
 }
+
+#[test]
+fn a_cpu_list_is_written_as_the_kernel_writes_one() {
+    assert_eq!(listed(&[8, 1, 2, 3, 5, 7]), "1-3,5,7-8");
+    assert_eq!(listed(&[]), "");
+}
+
+#[test]
+fn a_core_given_is_checked_against_the_topology_read_again() {
+    let dir = system(4, "0-7\n");
+    let core = |id, cpus: &[u32], numa| Core { id, cpus: cpus.to_vec(), numa };
+    assert!(check(dir.path(), &[core(2, &[2, 6], 1), core(1, &[1, 5], 0)]).is_ok());
+    assert!(check(dir.path(), &[core(0, &[0, 4], 0)]).unwrap_err().contains("core 0"));
+    assert!(check(dir.path(), &[core(2, &[2, 3], 1)]).is_err(), "CPUs not that core's");
+    assert!(check(dir.path(), &[core(2, &[2, 6], 0)]).is_err(), "another NUMA node");
+    assert!(check(dir.path(), &[core(9, &[9], 0)]).is_err(), "not the machine's");
+}

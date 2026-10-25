@@ -135,7 +135,7 @@ struct RunArgs {
     /// The physical cores offered for dedication, by id (the lowest logical CPU of each), as
     /// a kernel CPU list such as `2-11`; unset, every core but the one holding CPU 0 (§5.2
     /// of docs/05-scheduling.md).
-    #[arg(long = "dedicated-cores", value_parser = korpis_agent::topology::cpu_list)]
+    #[arg(long = "dedicated-cores", value_parser = korpis_topology::cpu_list)]
     dedicated_cores: Option<std::collections::BTreeSet<u32>>,
 }
 
@@ -221,7 +221,8 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
     let advertise = Advertise::new(node.advertise_address.clone(), node.ports, &server);
     let ingress = node.ingress.then(|| advertise.ingress());
     let system = std::path::Path::new("/sys/devices/system");
-    let cores = korpis_agent::topology::cores(system, node.dedicated_cores.as_ref());
+    let cores = korpis_topology::cores(system, node.dedicated_cores.as_ref());
+    let cores = cores.iter().map(korpis_wire::node::core_to_pb).collect();
     let offer = (node.reserve, node.uplinks.as_slice(), cores);
     let (devices, watching) = korpis_agent::devices::watch(node.devices.clone()).await;
     let facts = match facts_of(&runtime, &host, offer, (advertise, devices.clone())).await {

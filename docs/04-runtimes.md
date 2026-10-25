@@ -239,13 +239,17 @@ declares its own. Added 2026-10-21, when shaping was designed.
 > `ingress` to an uplink, which nothing held there needs.
 
 `dedicated_cores` is declared like a limit (designed 2026-10-25, §5.2 of `05-scheduling.md`): a
-driver declares it enforced only where it puts an object holding cores in a `cpuset` of its own
-and every other object in the shared `cpuset` the helper keeps at the node's CPUs less those held,
-and, by default, makes the holding object's cgroup a cpuset partition, so the host is kept off as
-well. Its `granularity` says which: a driver given `--dedicated-cores-host shared` says the host
-is not kept off, and the plan of a workload asking for dedicated cores shows it. A driver whose
-node's kernel has no cpuset partitions, and which was not given that flag, declares it not
-enforced, and the scheduler places no workload asking for dedicated cores on it.
+driver declares it enforced only where it puts an object holding cores in a `cpuset` of its own and
+every other object in the shared `cpuset` the helper keeps at the node's CPUs less those held, and,
+by default, makes the holding object's cgroup a cpuset partition, so the host is kept off as well.
+Its `granularity` says which: a driver given `--dedicated-cores-host shared` says the host is not
+kept off, and the plan of a workload asking for dedicated cores shows it. A driver whose node's
+kernel has no cpuset partitions, and which was not given that flag, declares it not enforced, and
+the scheduler places no workload asking for dedicated cores on it. So does a driver with an object
+outside its `shared` and `dedicated` cgroups, which an object made before the driver held cores is,
+until it is built again: that object's tasks could run on a held core, and the declaration names
+it. Built for the `oci` driver 2026-10-25, which declares its parent, `--cgroup-parent`
+(`/korpis`).
 
 **`volume_semantics`, because a VM's volume is a block device.** Under `process` and `container`, a
 volume is a directory on a filesystem the host controls, quota is `refquota` or a project quota,
@@ -368,10 +372,16 @@ machine does not have, a CPU that is not that core's, and the core holding CPU 0
 given; as with devices, it does not know which cores other placements hold. It puts the object in a
 cgroup of its own under its parent's `dedicated` cgroup with those CPUs and nodes, made a partition
 unless its operator chose otherwise, and an object holding no cores under its `shared` cgroup. The
-`oci` driver sets them as the container's `linux.resources.cpu` CPUs and memory nodes; the
-`firecracker` driver as the jailer's cgroup, and pins each vCPU's thread to one of the CPUs. What
-it costs: a driver given cores runs its object's cgroup in a different place than one not, so an
-object's cores change only when it is built again from a new placement, which is a restart.
+object's CPU is bounded by its cores alone, with no quota and no weight: a quota of the millicores
+declared would throttle it below the threads it holds, and a weight divides only CPUs it shares.
+The `oci` driver sets them as the container's `linux.resources.cpu` CPUs and memory nodes, and
+makes the partition itself, writing the container cgroup's `cpuset.cpus.exclusive` and
+`cpuset.cpus.partition` after its task is created and before anything of it runs; where the kernel
+makes none, which it says in that file, the task is deleted and the start fails with the kernel's
+reason (built 2026-10-25). The `firecracker` driver sets them as the jailer's cgroup, and pins each
+vCPU's thread to one of the CPUs; until it does, it refuses a spec naming cores. What it costs: a
+driver given cores runs its object's cgroup in a different place than one not, so an object's cores
+change only when it is built again from a new placement, which is a restart.
 
 **`Prepare` is pure.** It validates that this driver on this node can satisfy this intent, resolves
 references, and returns either a prepared spec or a rejection with a reason, changing nothing. This

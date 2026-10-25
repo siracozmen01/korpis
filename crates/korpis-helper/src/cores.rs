@@ -9,6 +9,7 @@
 //! of docs/research/evidence.md).
 
 use crate::error::{HelperError, HelperResult};
+use korpis_topology::listed;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
@@ -24,41 +25,9 @@ pub struct CoresConfig {
     pub parents: Vec<PathBuf>,
 }
 
-/// A CPU set as the kernel writes one: `1-3,7`.
-fn listed(cpus: &BTreeSet<u32>) -> String {
-    let mut out: Vec<String> = Vec::new();
-    let mut run: Option<(u32, u32)> = None;
-    for &c in cpus {
-        run = match run {
-            Some((first, last)) if last + 1 == c => Some((first, c)),
-            Some(r) => {
-                out.push(range(r));
-                Some((c, c))
-            }
-            None => Some((c, c)),
-        };
-    }
-    out.extend(run.map(range));
-    out.join(",")
-}
-
-fn range((first, last): (u32, u32)) -> String {
-    if first == last { first.to_string() } else { format!("{first}-{last}") }
-}
-
 /// The CPUs a kernel list names.
 fn parse(s: &str) -> HelperResult<BTreeSet<u32>> {
-    let mut cpus = BTreeSet::new();
-    for part in s.trim().split(',').filter(|p| !p.is_empty()) {
-        let (a, b) = part.split_once('-').unwrap_or((part, part));
-        let n = |x: &str| x.parse::<u32>().map_err(|_| HelperError::Failed(format!("{s:?}")));
-        let (a, b) = (n(a)?, n(b)?);
-        if a > b || b >= 8192 {
-            return Err(HelperError::Failed(format!("{s:?} is no CPU list")));
-        }
-        cpus.extend(a..=b);
-    }
-    Ok(cpus)
+    korpis_topology::cpu_list(s).map_err(HelperError::Failed)
 }
 
 fn failed(path: &Path, e: &std::io::Error) -> HelperError {
@@ -167,14 +136,14 @@ impl Cores {
             let file = at.join("cpuset.cpus.exclusive");
             let before = std::fs::read_to_string(&file)
                 .map_or_else(|_| Ok(BTreeSet::new()), |t| parse(&t))?;
-            write(&file, &listed(&before.intersection(cpus).copied().collect()))?;
+            write(&file, &listed(before.intersection(cpus)))?;
         }
         for parent in parents {
             let at = self.config.root.join(parent.trim_start_matches('/'));
             write(&at.join("shared/cpuset.cpus"), &listed(shared))?;
         }
         for (at, cpus) in order.iter().rev() {
-            write(&at.join("cpuset.cpus.exclusive"), &listed(cpus))?;
+            write(&at.join("cpuset.cpus.exclusive"), &listed(*cpus))?;
         }
         Ok(())
     }

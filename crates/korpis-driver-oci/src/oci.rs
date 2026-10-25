@@ -159,6 +159,10 @@ struct Memory {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 struct Cpu {
     #[serde(skip_serializing_if = "Option::is_none")]
+    cpus: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mems: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shares: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     quota: Option<i64>,
@@ -384,6 +388,7 @@ pub fn runtime_spec(
     Ok(spec)
 }
 
+mod cores;
 mod devices;
 #[cfg(test)]
 mod tests;

@@ -3,6 +3,7 @@
 //! `korpis-driver-oci`: the container tier, served to the agent on a local socket.
 
 use clap::Parser;
+use korpis_driver_kit::cores::{CGROUP_ROOT, Cores, Host};
 use korpis_driver_kit::serve::{allowed, bind, serve, shutdown};
 use korpis_driver_oci::containerd::Containerd;
 use korpis_driver_oci::containerd::stream::Streams;
@@ -54,6 +55,15 @@ struct Cli {
     /// the agent's `--cdi-dir` names them; repeatable (§4.2 of docs/04-runtimes.md).
     #[arg(long = "cdi-dir", default_values = ["/etc/cdi", "/var/run/cdi"])]
     cdi_dirs: Vec<PathBuf>,
+    /// The cgroup, from the unified hierarchy's root, its containers live under: those holding
+    /// dedicated cores in its `dedicated` cgroup, the rest in its `shared` one, whose cpusets the
+    /// node's helper keeps (§5.2 of docs/05-scheduling.md).
+    #[arg(long, default_value = "/korpis")]
+    cgroup_parent: String,
+    /// `kept`: a container holding dedicated cores is a cpuset partition of its own, so the
+    /// host's processes are kept off its cores too; `shared`: only other tenants are.
+    #[arg(long, default_value = "kept", value_parser = ["kept", "shared"])]
+    dedicated_cores_host: String,
 }
 
 /// The stream writer: the one named, or the one beside this binary; it must be there, since a
@@ -84,7 +94,13 @@ async fn run(cli: Cli) -> Result<(), String> {
         .await
         .map_err(|e| format!("containerd at {}: {e}", cli.containerd.display()))?
         .with_streams(streams)
-        .with_state(&cli.containerd_state);
+        .with_state(&cli.containerd_state)
+        .with_cores(Cores {
+            system: PathBuf::from("/sys/devices/system"),
+            root: PathBuf::from(CGROUP_ROOT),
+            parent: korpis_driver_kit::cores::parent(&cli.cgroup_parent)?,
+            host: if cli.dedicated_cores_host == "shared" { Host::Shared } else { Host::Kept },
+        });
     let listener = bind(&cli.socket).map_err(|e| format!("{}: {e}", cli.socket.display()))?;
     let (driver, watcher) = Driver::new(
         containerd,

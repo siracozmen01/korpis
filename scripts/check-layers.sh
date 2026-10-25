@@ -60,6 +60,7 @@ rules=(
     # The spec files' reader is linked by the agent and a driver alike: the domain's CDI name and
     # nothing else of ours, no RPC stack, runtime, or wire contract.
     "korpis-cdi||korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-proto connectrpc tokio sqlx hyper reqwest"
+    "korpis-topology||korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-proto connectrpc tokio sqlx hyper reqwest"
     "korpis-driver-oci||korpis-app korpis-store korpis-server korpis-agent korpis-helper korpis-driver-firecracker sqlx"
     "korpis-driver-firecracker||korpis-app korpis-store korpis-server korpis-agent korpis-helper korpis-driver-oci korpis-containerd sqlx reqwest"
     # A first-party extension is built as a third party's would be (§1 of docs/22-first-party.md):

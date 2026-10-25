@@ -10,6 +10,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+use korpis_driver_kit::cores::{Cores, Host};
 use korpis_driver_oci::containerd::signal_number;
 use korpis_driver_oci::describe::{SIGNALS, info};
 use korpis_driver_oci::prepare::prepare;
@@ -98,8 +99,16 @@ fn a_managed_file_is_left_to_the_agent_and_never_refused() {
 
 #[test]
 fn the_declaration_matches_what_the_code_keeps() {
-    let info = info(true);
+    let dir = tempfile::tempdir().unwrap();
+    let cores = Cores {
+        system: dir.path().join("system"),
+        root: dir.path().join("cgroup"),
+        parent: "/korpis".into(),
+        host: Host::Shared,
+    };
+    let info = info(true, &cores);
     let caps = info.capabilities.as_option().unwrap();
+    assert_eq!(caps.cgroup_parent, "/korpis", "where the helper keeps its cpusets");
     for s in SIGNALS {
         assert!(signal_number(s).is_ok(), "{s} is declared and accepted");
     }
@@ -108,6 +117,7 @@ fn the_declaration_matches_what_the_code_keeps() {
     assert_eq!(enforced("memory"), Some(true));
     assert_eq!(enforced("pids"), Some(true));
     assert_eq!(enforced("disk"), Some(false), "displayed nowhere, so promised nowhere");
+    assert_eq!(enforced("dedicated_cores"), Some(true), "the host shares them; tenants do not");
     assert!(caps.id_mapping.as_option().unwrap().idmapped_mounts);
     assert_eq!(caps.tiers.len(), 1);
 }

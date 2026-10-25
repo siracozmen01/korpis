@@ -66,11 +66,3 @@ fn a_cpu_not_online_held_twice_or_every_one_and_a_parent_not_kept_are_refused() 
         assert!(Cores::new(config).is_err(), "{bad}");
     }
 }
-
-#[test]
-fn a_cpu_list_is_written_as_the_kernel_writes_one() {
-    let set = |v: &[u32]| v.iter().copied().collect::<BTreeSet<u32>>();
-    assert_eq!(listed(&set(&[1, 2, 3, 5, 7, 8])), "1-3,5,7-8");
-    assert_eq!(listed(&set(&[])), "");
-    assert_eq!(parse("1-3,5\n").unwrap(), set(&[1, 2, 3, 5]));
-}

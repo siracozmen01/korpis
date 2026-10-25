@@ -28,6 +28,8 @@ ipnet = "2"
 korpis-egress = { workspace = true }
 # The node's Container Device Interface spec files (§6.1 of docs/05-scheduling.md).
 korpis-cdi = { workspace = true }
+# The cores it offers are read from the kernel's topology as a driver reads them.
+korpis-topology = { workspace = true }
 korpis-core = { workspace = true, features = ["authz", "content", "identity"] }
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-stream = { workspace = true }

@@ -6155,3 +6155,14 @@ before any grows. Tested on a cgroup tree of the test's own: the shared `cpuset`
 widened, two parents' exclusive CPUs apart, every cgroup above a nested parent written, a CPU not
 online, held twice, or every CPU, and a parent not kept, refused. Steps 2, 7, 8, and 10, the
 drivers', are not built, and no driver declares a cgroup parent yet, so no helper is asked.
+
+Revisited again the same day, as steps 2 and 7 were built for the `oci` driver (P3.3b3b): it
+declares its cgroup parent and `dedicated_cores`, checks a container's cores against the topology
+it reads itself (one reader, `korpis-topology`, shared with the agent so the two cannot read a core
+differently), runs it under `dedicated` with their `cpuset`, and makes its cgroup a partition
+before its task runs. Building it asked step 2's question of an upgraded node: what decides that
+every object of the driver is under `shared`? Only the driver, which sees its parent's cgroups, so
+a container made before cores were held, directly under the parent, keeps it from declaring them
+held until it is rebuilt (§4.1 of `04-runtimes.md`), and the helper's own jobs moved under `shared`
+(§3 of `18-operations.md`), where they had been beside it. Steps 2 and 7 for the `firecracker`
+driver, and 8 and 10, are not built.

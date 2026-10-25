@@ -7,7 +7,7 @@ use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use serde_json::Value;
 
-fn spec(command: &[&str]) -> Valid {
+pub(super) fn spec(command: &[&str]) -> Valid {
     joined(command, "")
 }
 
@@ -60,7 +60,7 @@ fn joined(command: &[&str], namespaces: &str) -> Valid {
     validate(s, &policy).unwrap()
 }
 
-fn image() -> ImageConfig {
+pub(super) fn image() -> ImageConfig {
     ImageConfig {
         env: vec!["PATH=/bin".into(), "EULA=false".into()],
         entrypoint: vec!["/start".into()],

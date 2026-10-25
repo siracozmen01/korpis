@@ -6,6 +6,7 @@
 //! runs a task on it, replacing one that exited; `stop` signals, waits out the grace, and kills;
 //! `destroy` releases everything the container holds. Volumes are never touched here.
 
+use super::names::{container_id, is_container_id};
 use super::{Containerd, NAMESPACE, RUNTIME, SNAPSHOTTER, under};
 use crate::devices::Given;
 use crate::error::{DriverError, DriverResult};
@@ -16,6 +17,7 @@ use korpis_containerd::containerd::services::containers::v1 as containers;
 use korpis_containerd::containerd::services::snapshots::v1 as snapshots;
 use korpis_containerd::containerd::services::tasks::v1 as tasks;
 use korpis_containerd::containerd::v1::types::{Process, Status};
+use korpis_driver_kit::cores::Cpuset;
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
@@ -30,45 +32,6 @@ const LABEL_EPOCH: &str = "korpis.lease_epoch";
 pub(crate) const LABEL_RUN: &str = "korpis.run";
 /// How long a killed task is given to be reaped.
 pub(crate) const KILL_WAIT: Duration = Duration::from_secs(10);
-
-/// The container identifier of `workload` built from `intent`, for `run` when it executes one:
-/// one per intent and run, so a create is idempotent, a rebuild never collides with the object
-/// it replaces, and two runs never share one. A digest of them, so it is always within
-/// containerd's 76 characters and its alphabet, whatever it is given; the labels carry them
-/// readably. A persistent workload's object, which executes no run, keeps the digest it had
-/// before runs, so an upgraded driver finds it again.
-pub(crate) fn container_id(workload: &str, intent: &str, run: &str) -> String {
-    let named = if run.is_empty() {
-        format!("{workload}\n{intent}")
-    } else {
-        format!("{workload}\n{intent}\n{run}")
-    };
-    let digest = korpis_core::content::digest_of(named.as_bytes());
-    let hex = digest.trim_start_matches("sha256:");
-    format!("korpis-{}", hex.get(..40).unwrap_or(hex))
-}
-
-/// Whether `id` is named as [`container_id`] names a container.
-fn is_container_id(id: &str) -> bool {
-    id.strip_prefix("korpis-").is_some_and(|hex| {
-        hex.len() == 40 && hex.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-    })
-}
-
-/// A driver-declared signal name, as a number.
-pub fn signal_number(name: &str) -> DriverResult<u32> {
-    Ok(match name {
-        "" | "SIGTERM" => 15,
-        "SIGKILL" => 9,
-        "SIGINT" => 2,
-        "SIGHUP" => 1,
-        "SIGQUIT" => 3,
-        "SIGUSR1" => 10,
-        "SIGUSR2" => 12,
-        "SIGWINCH" => 28,
-        other => return Err(DriverError::Rejected(format!("no signal named {other:?}"))),
-    })
-}
 
 /// Every volume source, resolved on the filesystem, is a directory under the volume root: the
 /// lexical check of [`crate::validate`] cannot see a symbolic link.
@@ -159,8 +122,10 @@ impl Containerd {
             return Ok(id);
         }
         volumes_resolve(valid, policy)?;
-        // Read now, before anything is made, so a device the node no longer describes refuses.
+        // Read now, before anything is made, so a device the node no longer describes, or a core
+        // the machine does not have, refuses.
         let given = crate::devices::given(s, &policy.devices).map_err(DriverError::Rejected)?;
+        let cpuset = self.cores.given(&s.cores).map_err(DriverError::Rejected)?;
         if valid.spec().stream.is_set() {
             let streams = self.streams.as_ref().ok_or_else(|| {
                 DriverError::Rejected("this driver has no stream writer configured".into())
@@ -169,17 +134,17 @@ impl Containerd {
             streams.make_input(valid, &id)?;
         }
         let lease = self.lease().await?;
-        let made = self.assemble(&lease, (valid, &given), &id).await;
+        let made = self.assemble(&lease, (valid, &given, cpuset.as_ref()), &id).await;
         self.release(&lease).await;
         made.map(|()| id)
     }
 
     /// Imports, unpacks, snapshots, and records the container, all under `lease`, with what its
-    /// devices give.
+    /// devices give and its cores' `cpuset`.
     async fn assemble(
         &self,
         lease: &str,
-        (valid, given): (&Valid, &Given),
+        (valid, given, cpuset): (&Valid, &Given, Option<&Cpuset>),
         id: &str,
     ) -> DriverResult<()> {
         let s = valid.spec();
@@ -203,8 +168,10 @@ impl Containerd {
             Err(e) if e.code == connectrpc::ErrorCode::AlreadyExists => {}
             Err(e) => return Err(e.into()),
         }
-        let spec = runtime_spec(valid, &image.config, &self.cgroup(id), given)
-            .map_err(|e| DriverError::Rejected(e.to_string()))?;
+        let cgroup = self.cores.cgroup(id, cpuset.is_some());
+        let spec = runtime_spec(valid, &image.config, &cgroup, given)
+            .map_err(|e| DriverError::Rejected(e.to_string()))?
+            .with_cpuset(cpuset);
         let json = serde_json::to_vec(&spec).map_err(|e| DriverError::Failed(e.to_string()))?;
         let mut labels = labels(valid);
         labels.extend(super::stream::labels(valid));
@@ -285,6 +252,11 @@ impl Containerd {
             ..Default::default()
         };
         self.create_task(create).await?;
+        // A holding container's cgroup is made a partition before anything of it runs.
+        if let Err(why) = self.cores.partition(&self.cores.dir(id)) {
+            self.delete_task(id).await?;
+            return Err(DriverError::Failed(why));
+        }
         self.mark_started(id).await?;
         let start = tasks::StartRequest { container_id: id.to_owned(), ..Default::default() };
         self.tasks().start(start).await?;

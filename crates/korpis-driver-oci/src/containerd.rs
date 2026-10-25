@@ -11,13 +11,14 @@ pub mod exec;
 mod import;
 mod inspect;
 mod lifecycle;
+mod names;
 pub mod stream;
 mod times;
 mod unpack;
 
 pub use console::Sender;
 pub use inspect::Usage;
-pub use lifecycle::signal_number;
+pub use names::signal_number;
 
 use crate::error::{DriverError, DriverResult};
 use connectrpc::Protocol;
@@ -46,8 +47,9 @@ pub struct Containerd {
     config: ClientConfig,
     /// The node's content store, which the driver reads and never writes.
     content: PathBuf,
-    /// Where the driver's cgroups are, under the cgroup v2 root.
-    cgroup_parent: String,
+    /// Where the driver's cgroups are, under the cgroup v2 root, and how dedicated cores are
+    /// held there.
+    cores: korpis_driver_kit::cores::Cores,
     /// What cgroup statistics were last read, to measure CPU as a rate.
     samples: std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<String, inspect::Sample>>>,
     /// The stream writer and the driver's state, once configured; a container with a stream is
@@ -79,7 +81,12 @@ impl Containerd {
             conn,
             config,
             content: content.to_owned(),
-            cgroup_parent: format!("/{NAMESPACE}"),
+            cores: korpis_driver_kit::cores::Cores {
+                system: PathBuf::from("/sys/devices/system"),
+                root: PathBuf::from(korpis_driver_kit::cores::CGROUP_ROOT),
+                parent: format!("/{NAMESPACE}"),
+                host: korpis_driver_kit::cores::Host::Kept,
+            },
             samples: std::sync::Arc::default(),
             streams: None,
             socket: socket.to_owned(),
@@ -95,6 +102,19 @@ impl Containerd {
     pub fn with_state(mut self, state: &Path) -> Self {
         state.clone_into(&mut self.state);
         self
+    }
+
+    /// Makes its cgroups and holds dedicated cores as `cores` says.
+    #[must_use]
+    pub fn with_cores(mut self, cores: korpis_driver_kit::cores::Cores) -> Self {
+        self.cores = cores;
+        self
+    }
+
+    /// Where its cgroups are, and how dedicated cores are held there.
+    #[must_use]
+    pub fn cores(&self) -> &korpis_driver_kit::cores::Cores {
+        &self.cores
     }
 
     /// Writes consoles with `streams`.
@@ -118,11 +138,6 @@ impl Containerd {
             Err(e) if e.code == connectrpc::ErrorCode::AlreadyExists => Ok(()),
             Err(e) => Err(e.into()),
         }
-    }
-
-    /// The cgroup a container runs in.
-    fn cgroup(&self, id: &str) -> String {
-        format!("{}/{id}", self.cgroup_parent)
     }
 
     /// The path of the blob `digest` in the content store.

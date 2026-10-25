@@ -1,0 +1,19 @@
+[package]
+name = "korpis-topology"
+description = "A node's physical cores, read from the kernel's topology by the agent, which offers them, and by a driver, which checks the cores it is given"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# A core is the domain's (node::cores::Core).
+korpis-core = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

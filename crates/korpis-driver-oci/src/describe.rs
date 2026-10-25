@@ -55,9 +55,13 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
         .collect()
 }
 
-/// What the driver declares; `healthy` is whether containerd answered.
+/// What the driver declares; `healthy` is whether containerd answered, and `cores` where its
+/// cgroups are and how it holds dedicated cores there (§5.2 of docs/05-scheduling.md).
 #[must_use]
-pub fn info(healthy: bool) -> pb::DriverInfo {
+pub fn info(healthy: bool, cores: &korpis_driver_kit::cores::Cores) -> pb::DriverInfo {
+    let mut held = pb::Capabilities::default().enforcement;
+    held.extend(enforcement());
+    held.insert("dedicated_cores".to_owned(), cores.declared());
     let capabilities = pb::Capabilities {
         tiers: vec![pb::IsolationTier::ISOLATION_TIER_CONTAINER.into()],
         console: vec![
@@ -85,7 +89,8 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
             pb::NetworkMode::NETWORK_MODE_VETH.into(),
             pb::NetworkMode::NETWORK_MODE_NONE.into(),
         ],
-        enforcement: enforcement().into_iter().collect(),
+        enforcement: held,
+        cgroup_parent: cores.parent.clone(),
         volume_semantics: pb::VolumeSemantics::VOLUME_SEMANTICS_FILESYSTEM.into(),
         file_access: pb::FileAccess::FILE_ACCESS_HOST_WORKER.into(),
         exec: true,

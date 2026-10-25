@@ -125,8 +125,7 @@ impl Containerd {
     /// it: the cgroup stays until the task is deleted, which a start of a new one does, so the
     /// count is the task's.
     fn oom_killed(&self, id: &str) -> bool {
-        let dir =
-            std::path::Path::new("/sys/fs/cgroup").join(self.cgroup(id).trim_start_matches('/'));
+        let dir = self.cores.dir(id);
         let events = std::fs::read_to_string(dir.join("memory.events")).unwrap_or_default();
         let kills = events.lines().find_map(|l| l.strip_prefix("oom_kill ")).and_then(number);
         kills.is_some_and(|n| n > 0)
@@ -134,8 +133,7 @@ impl Containerd {
 
     /// What `id` uses now.
     pub fn usage(&self, id: &str) -> DriverResult<Usage> {
-        let dir =
-            std::path::Path::new("/sys/fs/cgroup").join(self.cgroup(id).trim_start_matches('/'));
+        let dir = self.cores.dir(id);
         let read = |f: &str| std::fs::read_to_string(dir.join(f)).unwrap_or_default();
         let now =
             Sample { at: Instant::now(), usage_usec: usage_usec(&read("cpu.stat")).unwrap_or(0) };
@@ -158,8 +156,7 @@ impl Containerd {
 
     /// `id`'s counters since its cgroup was made, each absent where its file is.
     pub fn counters(&self, id: &str) -> driver::ObjectCounters {
-        let dir =
-            std::path::Path::new("/sys/fs/cgroup").join(self.cgroup(id).trim_start_matches('/'));
+        let dir = self.cores.dir(id);
         korpis_driver_kit::counters::counters(|f| std::fs::read_to_string(dir.join(f)).ok())
     }
 

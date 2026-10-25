@@ -2989,6 +2989,7 @@ dependencies = [
  "korpis-store",
  "korpis-stream",
  "korpis-tls",
+ "korpis-topology",
  "korpis-wire",
  "landlock",
  "oci-client",
@@ -3224,9 +3225,11 @@ dependencies = [
  "korpis-core",
  "korpis-proto",
  "korpis-recipe",
+ "korpis-topology",
  "korpis-wire",
  "rustix",
  "serde_json",
+ "tempfile",
  "tokio",
  "tower-service",
  "tracing",
@@ -3392,6 +3395,7 @@ dependencies = [
  "korpis-core",
  "korpis-files",
  "korpis-proto",
+ "korpis-topology",
  "korpis-wire",
  "libc",
  "netlink-packet-core",
@@ -3698,6 +3702,14 @@ dependencies = [
  "rustls",
  "sha2 0.10.9",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "korpis-topology"
+version = "0.0.0"
+dependencies = [
+ "korpis-core",
+ "tempfile",
 ]
 
 [[package]]

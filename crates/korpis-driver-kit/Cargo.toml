@@ -19,9 +19,14 @@ hyper-util = { version = "0.1", features = ["tokio"] }
 korpis-core = { workspace = true, features = ["content"] }
 korpis-proto = { workspace = true, features = ["services"] }
 korpis-recipe = { path = "../korpis-recipe", default-features = false }
+# A workload's dedicated cores are checked against the topology as the agent reads it.
+korpis-topology = { workspace = true }
 korpis-wire = { workspace = true }
 rustix = { version = "1", features = ["fs"] }
 serde_json = "1"
 tokio = { workspace = true }
 tower-service = "0.3"
 tracing = "0.1"
+
+[dev-dependencies]
+tempfile = "3"

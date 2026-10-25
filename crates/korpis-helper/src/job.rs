@@ -50,14 +50,22 @@ pub struct JobConfig {
     pub content: Option<PathBuf>,
 }
 
+/// The unified cgroup hierarchy.
+const CGROUP_ROOT: &str = "/sys/fs/cgroup";
+
 /// The cgroup `name` beneath `base`, made with a job's limits, or none where none can be made.
 pub(crate) fn cgroup_in(base: &Path, name: &str) -> Option<PathBuf> {
     if let Err(e) = std::fs::create_dir_all(base) {
         tracing::warn!(error = %e, "no cgroup for jobs");
         return None;
     }
-    for controller in ["+cpu", "+io", "+memory", "+pids"] {
-        let _ = std::fs::write(base.join("cgroup.subtree_control"), controller);
+    // The controllers are given to the base's children, and to the base from its own parent
+    // unless that is the hierarchy's root, whose controllers are the host's to give.
+    let parent = base.parent().filter(|p| *p != Path::new(CGROUP_ROOT));
+    for at in parent.into_iter().chain([base]) {
+        for controller in ["+cpu", "+io", "+memory", "+pids"] {
+            let _ = std::fs::write(at.join("cgroup.subtree_control"), controller);
+        }
     }
     let dir = base.join(name);
     match std::fs::create_dir(&dir) {

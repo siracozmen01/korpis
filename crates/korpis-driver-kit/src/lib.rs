@@ -11,6 +11,7 @@
 #![warn(missing_docs)]
 
 pub mod console;
+pub mod cores;
 pub mod counters;
 pub mod entry;
 pub mod exec;
