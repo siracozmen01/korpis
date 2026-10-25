@@ -119,6 +119,19 @@ fn limited(req: &Request<'_>) -> Vec<&'static str> {
     .collect()
 }
 
+/// The devices the workload asks for, of a class and mode the driver gives, free on the node
+/// beside what its other placements hold (§6.3 of docs/05-scheduling.md).
+fn devices(req: &Request<'_>, c: &Candidate<'_>, d: &DriverInfo) -> Option<Refusal> {
+    if req.body.devices.is_empty() {
+        return None;
+    }
+    if let Some(r) = req.body.devices.iter().find(|r| !d.capabilities.gives(r.class, r.mode)) {
+        let why = format!("{:?} gives no {} device in {:?}", d.name, r.class.as_str(), r.mode);
+        return Some((Check::Device, why));
+    }
+    super::devices::given(req, c.node).err().map(|why| (Check::Device, why))
+}
+
 /// Rule K-3: a limit the kernel does not hold is not accepted, so a node whose driver cannot
 /// hold one the intent sets cannot run it.
 fn enforcement(req: &Request<'_>, d: &DriverInfo) -> Option<Refusal> {
@@ -289,7 +302,10 @@ pub(super) fn rejections(
 ) -> Vec<Refusal> {
     let mut out: Vec<Refusal> = [owner(req, c), status(req, c)].into_iter().flatten().collect();
     match driver(req, c) {
-        Ok(d) => out.extend(enforcement(req, d)),
+        Ok(d) => {
+            out.extend(enforcement(req, d));
+            out.extend(devices(req, c, d));
+        }
         Err(r) => out.push(r),
     }
     out.extend([reachability(req, c), selector(req, c), taints(req, c)].into_iter().flatten());

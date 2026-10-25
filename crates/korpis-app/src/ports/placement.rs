@@ -5,6 +5,7 @@
 use super::StoreResult;
 use crate::page::Page;
 use korpis_core::node::Node;
+use korpis_core::node::device::DeviceHold;
 use korpis_core::placement::{Placement, Unplaced};
 use korpis_core::schedule::Peer;
 use korpis_core::tenancy::quota::Bounds;
@@ -55,6 +56,22 @@ pub trait PlacementWrite {
         &mut self,
         nodes: &[Uuid],
     ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, Bounds>>> + Send;
+
+    /// By node of `nodes`, the devices placements other than `except`'s hold there, as this
+    /// transaction sees it (§6.3 of docs/05-scheduling.md). A node whose placements hold none is
+    /// absent.
+    fn device_holds(
+        &mut self,
+        nodes: &[Uuid],
+        except: Uuid,
+    ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, Vec<DeviceHold>>>> + Send;
+
+    /// The devices `workload`'s placement on `node` holds; none without one.
+    fn holds_on(
+        &mut self,
+        workload: Uuid,
+        node: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<DeviceHold>>> + Send;
 
     /// The nodes any of `owners` owns, decommissioned ones excepted.
     fn serving_nodes(

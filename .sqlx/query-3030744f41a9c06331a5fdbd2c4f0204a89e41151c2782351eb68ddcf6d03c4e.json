@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The devices held on each of nodes $1 by placements of workloads other than $2: what the\n-- scheduler gives none of again (§6.3 of docs/05-scheduling.md). Both of a migration's placements\n-- hold theirs.\nSELECT node_id, devices FROM placement\n WHERE node_id = ANY($1) AND workload_id <> $2 AND devices <> '[]'::jsonb\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "devices",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "devices"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3030744f41a9c06331a5fdbd2c4f0204a89e41151c2782351eb68ddcf6d03c4e"
+}

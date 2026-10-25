@@ -97,6 +97,8 @@ impl AssignmentSealer for Ed25519Sealer {
                 .map(ref_from_pb)
                 .collect::<Result<_, _>>()
                 .map_err(|e| refused(&e.to_string()))?,
+            devices: korpis_wire::node::holds_from_pb("devices", &pb.devices)
+                .map_err(|e| refused(&e.to_string()))?,
         })
     }
 }

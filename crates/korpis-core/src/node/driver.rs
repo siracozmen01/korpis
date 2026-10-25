@@ -24,6 +24,20 @@ pub enum DeviceClass {
     Serial,
 }
 
+impl DeviceClass {
+    /// Its name, as a quota dimension and an explanation say it.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Gpu => "gpu",
+            Self::Usb => "usb",
+            Self::Pci => "pci",
+            Self::Tpm => "tpm",
+            Self::Serial => "serial",
+        }
+    }
+}
+
 /// Where a root filesystem can come from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RootfsSource {

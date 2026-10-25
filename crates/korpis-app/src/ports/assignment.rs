@@ -75,6 +75,9 @@ pub struct Opened {
     pub plan: Option<korpis_core::workload::Plan>,
     /// The runs it named (§4.5 of docs/05-scheduling.md).
     pub runs: Vec<korpis_core::workload::run::RunRef>,
+    /// The node's devices it held, which its recovered placement holds again (§6.3 of
+    /// docs/05-scheduling.md).
+    pub devices: Vec<korpis_core::node::device::DeviceHold>,
 }
 
 /// An assignment as the store keeps it.

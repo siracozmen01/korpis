@@ -1323,10 +1323,13 @@ filter keeps a node only where one driver offering the workload's tier declares 
 mode (§4.1 of `04-runtimes.md`) and enough matching devices are free. A device is free for
 `passthrough` when no placement holds it or any device that is the same hardware (§6.1), and for
 `timeslice` when fewer than its shares hold it in that mode and none holds it or the same hardware
-in `passthrough`. The scheduler chooses the devices when it binds, in the same transaction, the
-lowest ids first, and the placement records them (`Placement.devices`): what a node's devices hold
-is derived from its placements, as `allocated` is. So a device is held while its placement is,
-freed with it when the workload is retired or a move releases it, and restored with placements by a
+in `passthrough`. The scheduler chooses the devices when it binds, in the same transaction: those a
+placement following its target in place already holds first, then those sharing the least hardware
+with other devices, so a partition is given before the whole device it is part of and the most stay
+free, then the lowest ids; a workload that wants a whole device rather than a partition asks for it
+by its selector. The placement records them (`Placement.devices`): what a node's devices hold is
+derived from its placements, as `allocated` is. So a device is held while its placement is, freed
+with it when the workload is retired or a move releases it, and restored with placements by a
 restore (§8 of `03-state.md`), never a separate ledger that can disagree with them. The assignment
 names the devices a placement holds, and the agent gives them to the driver in the spec (§4.2 of
 `04-runtimes.md`). A device that leaves the node's facts while held, because the vendor's toolkit
@@ -1359,11 +1362,14 @@ open to all, and a host whose devices are not sets their mode with a udev rule. 
 the same hardware is inferred from the files (§6.1): a vendor whose partitions name no node of
 their own has them seen as one device, held one at a time, which errs toward giving less and never
 toward two holders of one; and a device whose own edits give no node at all cannot be told apart
-from any other and is not offered. Devices are not metered yet (question 11 of §10). A `microvm` is
-given no device, since Firecracker has no PCI passthrough (§4.1 of `04-runtimes.md`), and a `vm`
-driver with VFIO, the path for one, is not built. And no real GPU has been given to a workload on
-any machine this project is built on, whose GPU is never passed through: what is tested is a
-stand-in device of a CDI file of the test's own (§4 of `20-roadmap.md`).
+from any other and is not offered. The devices of a node are chosen request by request, in the
+order above, which is greedy: a workload whose requests have overlapping selectors can be refused
+by a node whose devices would meet them paired another way, and is told which request found too
+few. Devices are not metered yet (question 11 of §10). A `microvm` is given no device, since
+Firecracker has no PCI passthrough (§4.1 of `04-runtimes.md`), and a `vm` driver with VFIO, the
+path for one, is not built. And no real GPU has been given to a workload on any machine this
+project is built on, whose GPU is never passed through: what is tested is a stand-in device of a
+CDI file of the test's own (§4 of `20-roadmap.md`).
 
 ---
 

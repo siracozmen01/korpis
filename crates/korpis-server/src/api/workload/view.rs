@@ -14,7 +14,7 @@ use korpis_app::workload::{Classified, PlacementView, SetDeclaration, WorkloadVi
 use korpis_core::id::IdKind;
 use korpis_core::placement::Placement;
 use korpis_proto::korpis::v1 as pb;
-use korpis_wire::node::resources_to_pb;
+use korpis_wire::node::{holds_to_pb, resources_to_pb};
 use korpis_wire::observation::observation_to_pb;
 
 /// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md), its
@@ -169,6 +169,7 @@ fn placement_pb(p: &Placement) -> pb::Placement {
         intent: wire_id(IdKind::Intent, p.intent),
         reserved: resources_to_pb(&p.reserved).into(),
         held_at: p.held_at.map(timestamp).into(),
+        devices: holds_to_pb(&p.devices),
         ..Default::default()
     }
 }
@@ -187,6 +188,7 @@ pub(super) fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Pl
         intent: wire_id(IdKind::Intent, p.intent),
         reserved: resources_to_pb(&p.reserved).into(),
         held_at: p.held_at.map(timestamp).into(),
+        devices: holds_to_pb(&p.devices),
         ..Default::default()
     }
 }

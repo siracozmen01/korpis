@@ -3,8 +3,7 @@
 use super::*;
 use crate::labels::{LabelSelector, Labels};
 use crate::node::Taint;
-use crate::node::driver::{FileAccess, IdMapCaps, VolumeSemantics};
-use crate::node::{Capabilities, Connectivity, DriverInfo, Enforcement, NodeAdmin, Reachability};
+use crate::node::{Connectivity, NodeAdmin, Reachability};
 use crate::recipe::RecipeRef;
 use crate::tenancy::Name;
 use crate::value::ValueMap;
@@ -28,47 +27,10 @@ const GIB: u64 = 1 << 30;
 const ORG: Uuid = Uuid::from_u128(7);
 const PROJECT: Uuid = Uuid::from_u128(8);
 
-fn driver(enforced: &[&str]) -> DriverInfo {
-    let enforcement = enforced
-        .iter()
-        .map(|k| {
-            let e = Enforcement {
-                enforced: true,
-                mechanism: "cgroup v2".into(),
-                granularity: String::new(),
-            };
-            ((*k).to_owned(), e)
-        })
-        .collect();
-    DriverInfo {
-        name: "oci".into(),
-        version: "1".into(),
-        protocol: "1".into(),
-        healthy: true,
-        capabilities: Capabilities {
-            tiers: vec![IsolationTier::Container],
-            console: vec![ConsoleMode::Logs, ConsoleMode::Interactive],
-            exec: true,
-            signals: Vec::new(),
-            hot_resize: Vec::new(),
-            hot_volume_attach: false,
-            runtime_snapshot: None,
-            live_migrate: false,
-            device_modes: Vec::new(),
-            devices: Vec::new(),
-            rootfs_sources: Vec::new(),
-            network_modes: Vec::new(),
-            enforcement,
-            volume_semantics: VolumeSemantics::Filesystem,
-            file_access: FileAccess::HostWorker,
-            id_mapping: IdMapCaps::default(),
-            config_schema: String::new(),
-            disruptive: vec![],
-            identity_dir: true,
-            guest_agent: false,
-        },
-    }
-}
+use fixtures::driver;
+
+/// No placement holding a device.
+static NO_HOLDS: BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>> = BTreeMap::new();
 
 fn node(n: u128, labels: &[(&str, &str)]) -> Node {
     let cap = Bounds::from([(Dimension::Cpu, 4_000), (Dimension::Memory, 8 * GIB)]);
@@ -142,6 +104,7 @@ struct Case {
     policy: PlacementPolicy,
     content: BTreeMap<Uuid, bool>,
     churn: BTreeMap<Uuid, f64>,
+    held: BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>>,
 }
 
 impl Case {
@@ -155,6 +118,7 @@ impl Case {
             policy: PlacementPolicy::default(),
             content: BTreeMap::new(),
             churn: BTreeMap::new(),
+            held: BTreeMap::new(),
         }
     }
 
@@ -179,6 +143,7 @@ impl Case {
             churn: &self.churn,
             dependencies: &[],
             quota: &[],
+            devices: &self.held,
         };
         place(&req, &candidates, &self.peers, &Policies::single(self.policy.clone()))
     }
@@ -296,7 +261,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         labels: &labels,
         owners: &[ORG],
         body: &b,
-        current: Some(Current { node: here.id, reserved: &reserved }),
+        current: Some(Current { node: here.id, reserved: &reserved, devices: &[] }),
         edge_tier: false,
         volumes: &[],
         refused: &NONE_REFUSED,
@@ -304,6 +269,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         churn: &NONE_LOST,
         dependencies: &[],
         quota: &[],
+        devices: &NO_HOLDS,
     };
     let e =
         place(&req, &[Candidate { node: &here, allocated: &allocated }], &[], &Policies::default());
@@ -338,6 +304,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         churn: &NONE_LOST,
         dependencies: &[],
         quota: &[],
+        devices: &NO_HOLDS,
     }
 }
 
@@ -392,6 +359,8 @@ fn the_driver_layer_is_the_union_of_what_every_driver_that_could_run_the_tier_de
 mod bandwidth;
 mod colocation;
 mod cores;
+mod devices;
+mod fixtures;
 mod ingress;
 mod owners;
 mod probes;

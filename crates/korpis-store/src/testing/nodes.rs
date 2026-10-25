@@ -134,6 +134,18 @@ pub async fn enroll(store: &PgStore, node: &Node) -> StoreResult<()> {
     let mut tx = store.begin().await?;
     tx.enroll_node(node, &key).await?;
     tx.commit().await?;
+    // Enrolling records no devices; an agent's facts do, and a fixture's are written as if it had.
+    if !node.devices.is_empty() || !node.unoffered_devices.is_empty() {
+        let (devices, unoffered) =
+            crate::stored::devices_doc(&node.devices, &node.unoffered_devices)?;
+        sqlx::query("UPDATE node SET devices = $2, unoffered_devices = $3 WHERE id = $1")
+            .bind(node.id)
+            .bind(devices)
+            .bind(unoffered)
+            .execute(store.pool())
+            .await
+            .map_err(crate::errors::from_sqlx)?;
+    }
     // Enrolling records nothing a node advertises; its first Hello does, and a fixture has none.
     if let Some(a) = &node.advertised {
         let addresses: Vec<String> = a.addresses.iter().map(ToString::to_string).collect();

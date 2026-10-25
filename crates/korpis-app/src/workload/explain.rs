@@ -44,6 +44,9 @@ pub struct PlacementView {
     pub explanation: ExplanationView,
     /// When a restore held it, until an operator confirms it (§8 of docs/03-state.md).
     pub held_at: Option<SystemTime>,
+    /// The devices it holds on its node, by their names there, which say what was given and
+    /// not which node holds them (§6.3 of docs/05-scheduling.md).
+    pub devices: Vec<korpis_core::node::device::DeviceHold>,
 }
 
 /// Why no node took a workload's target, as the caller may see it.
@@ -152,6 +155,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 reserved: p.reserved,
                 explanation: render(&p.explanation, &sight),
                 held_at: p.held_at,
+                devices: p.devices,
             });
             v.unplaced = f.unplaced.map(|u| UnplacedView {
                 intent: u.intent,

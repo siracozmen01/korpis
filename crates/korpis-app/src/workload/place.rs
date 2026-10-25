@@ -16,6 +16,8 @@ use crate::page::Page;
 use crate::ports::{Clock, EffectWrite, PlacementWrite, RecipeSource, Store, Tx, WorkloadWrite};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
+use korpis_core::node::Node;
+use korpis_core::node::device::DeviceHold;
 use korpis_core::placement::{BoundBy, Placement, Unplaced};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::schedule::{Candidate, Current, Explanation, Request, place, reservation};
@@ -34,6 +36,42 @@ struct Binding<'a> {
     target: &'a Intent,
     current: Option<Placement>,
     node: Uuid,
+    /// The devices it is given there, as the filter found them free; computed before
+    /// `current` is moved in, since the request computing them borrows it.
+    devices: Vec<DeviceHold>,
+}
+
+/// `nodes` as candidates, each with what its placements reserve: `allocations`, or `empty`.
+pub(super) fn candidates_of<'a>(
+    nodes: &'a [Node],
+    allocations: &'a std::collections::BTreeMap<Uuid, Bounds>,
+    empty: &'a Bounds,
+) -> Vec<Candidate<'a>> {
+    nodes
+        .iter()
+        .map(|n| Candidate { node: n, allocated: allocations.get(&n.id).unwrap_or(empty) })
+        .collect()
+}
+
+/// Where `p` places its workload now, as a placement that may follow its target in place.
+fn current_of(p: &Placement) -> Current<'_> {
+    Current { node: p.node, reserved: &p.reserved, devices: &p.devices }
+}
+
+/// The devices `req` is given on `node`, one of `nodes`: what the filter found free there, so
+/// failing now is the store and the scheduler disagreeing.
+pub(super) fn given_on(
+    req: &Request<'_>,
+    nodes: &[Node],
+    node: Uuid,
+) -> Result<Vec<DeviceHold>, AppError> {
+    nodes
+        .iter()
+        .find(|n| n.id == node)
+        .map(|n| korpis_core::schedule::devices::given(req, n))
+        .transpose()
+        .map(Option::unwrap_or_default)
+        .map_err(|why| AppError::Internal(format!("the chosen node's devices: {why}")))
 }
 
 fn scheduler() -> Principal {
@@ -156,12 +194,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let ids: Vec<Uuid> = nodes.iter().map(|n| n.id).collect();
         let allocations = tx.allocations(&ids).await?;
+        let held = tx.device_holds(&ids, w.id).await?;
         let peers = tx.peers(w.organization, w.id).await?;
         let empty = Bounds::default();
-        let candidates: Vec<Candidate<'_>> = nodes
-            .iter()
-            .map(|n| Candidate { node: n, allocated: allocations.get(&n.id).unwrap_or(&empty) })
-            .collect();
+        let candidates = candidates_of(&nodes, &allocations, &empty);
         let (volumes, needed) =
             (self.existing_nodes(&target.body).await?, self.needed(w, &target.body).await?);
         let refused = self.refusals_screened(tx, (w, target), screened).await?;
@@ -175,7 +211,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             labels: w.labels.as_map(),
             owners: &owners,
             body: &target.body,
-            current: current.as_ref().map(|p| Current { node: p.node, reserved: &p.reserved }),
+            current: current.as_ref().map(current_of),
             edge_tier: EDGE_TIER,
             volumes: &volumes,
             refused: &refused,
@@ -183,11 +219,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             churn: &learned.churn,
             dependencies: &needed,
             quota: &quota,
+            devices: &held,
         };
         let explanation = place(&req, &candidates, &peers, &self.policies(&owners).await?);
         match explanation.chosen {
             Some(node) => {
-                let binding = Binding { w, target, current, node };
+                let binding =
+                    Binding { devices: given_on(&req, &nodes, node)?, w, target, current, node };
                 self.bind_chosen(tx, binding, explanation).await
             }
             None => self.record_unplaced(tx, w, target, explanation).await,
@@ -218,7 +256,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         binding: Binding<'_>,
         explanation: Explanation,
     ) -> Result<(), AppError> {
-        let Binding { w, target, current, node } = binding;
+        let Binding { w, target, current, node, devices } = binding;
         let followed = current.is_some();
         let (bound_at, bound_by) =
             current.map_or((self.clock.now(), BoundBy::Scheduler), |p| (p.bound_at, p.bound_by));
@@ -233,7 +271,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             explanation,
             authoritative: true,
             held_at: None,
-            devices: Vec::new(),
+            devices,
         };
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;

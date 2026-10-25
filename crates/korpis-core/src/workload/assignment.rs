@@ -80,6 +80,9 @@ pub struct Assignment {
     /// plane saying retention deleted it (§4.4 of docs/05-scheduling.md, §4 of
     /// docs/14-streams.md).
     pub kept_runs: Vec<Uuid>,
+    /// The node's devices its placement there holds, which the node gives its driver (§6.3 of
+    /// docs/05-scheduling.md).
+    pub devices: Vec<crate::node::device::DeviceHold>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

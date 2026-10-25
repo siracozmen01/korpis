@@ -15,8 +15,8 @@ use super::endpoints;
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    AssignmentWrite, CertificateWrite as _, Clock, RecipeSource, RunWrite as _, SealError, Sealed,
-    Store, StoredAssignment, Tx, WorkloadWrite,
+    AssignmentWrite, CertificateWrite as _, Clock, PlacementWrite as _, RecipeSource,
+    RunWrite as _, SealError, Sealed, Store, StoredAssignment, Tx, WorkloadWrite,
 };
 use korpis_core::authz::record::{GrantRecord, in_force};
 use korpis_core::principal::Principal;
@@ -98,8 +98,8 @@ async fn ids<T: Tx>(tx: &mut T, node: Uuid, workload: Uuid) -> Result<IdRange, A
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// What a live assignment holds of its node: the ids it keeps there, its endpoints as placed
-    /// there, the challenges its node's proxy answers, and the runs it executes, none while a
-    /// suspension holds it stopped.
+    /// there, the challenges its node's proxy answers, the runs it executes, none while a
+    /// suspension holds it stopped, and the devices its placement there holds.
     async fn place_here(
         &self,
         tx: &mut S::Tx,
@@ -117,6 +117,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             a.runs = named(&active, &a.target.body.run_policy());
         }
         a.kept_runs = tx.kept_runs_within(a.workload).await?;
+        a.devices = tx.holds_on(a.workload, a.node).await?;
         Ok(())
     }
 
@@ -306,6 +307,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 alpn_challenges: Vec::new(),
                 runs: Vec::new(),
                 kept_runs: Vec::new(),
+                devices: Vec::new(),
             },
             plan,
             held,
@@ -362,6 +364,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 alpn_challenges: Vec::new(),
                 runs: Vec::new(),
                 kept_runs: Vec::new(),
+                devices: Vec::new(),
             },
             plan: Some(plan),
             held: false,

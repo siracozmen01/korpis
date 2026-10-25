@@ -15,6 +15,7 @@ use crate::ports::{Clock, EffectWrite, PlacementWrite, RecipeSource, Store, Work
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::node::Node;
+use korpis_core::node::device::DeviceHold;
 use korpis_core::placement::{BoundBy, Placement};
 use korpis_core::schedule::{
     Candidate, Explanation, Rejection, Request, operator_refusals, place, reservation,
@@ -85,7 +86,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             None => {}
         }
-        let explanation = self.choose(&mut tx, &w, &target, &node).await?;
+        let (explanation, devices) = self.choose(&mut tx, &w, &target, &node).await?;
         let placement = Placement {
             workload: w.id,
             node: node.id,
@@ -97,7 +98,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             explanation,
             authoritative: true,
             held_at: None,
-            devices: Vec::new(),
+            devices,
         };
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;
@@ -132,9 +133,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         w: &Workload,
         target: &Intent,
         node: &Node,
-    ) -> Result<Explanation, AppError> {
+    ) -> Result<(Explanation, Vec<DeviceHold>), AppError> {
         let owners = self.owners(w.organization).await?;
         let allocations = tx.allocations(&[node.id]).await?;
+        let held = tx.device_holds(&[node.id], w.id).await?;
         let peers = tx.peers(w.organization, w.id).await?;
         let empty = Bounds::default();
         let c = Candidate { node, allocated: allocations.get(&node.id).unwrap_or(&empty) };
@@ -159,6 +161,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             churn: &learned.churn,
             dependencies: &needed,
             quota: &quota,
+            devices: &held,
         };
         let policies = self.policies(&owners).await?;
         let standing = operator_refusals(&req, &c, &peers, &policies);
@@ -167,6 +170,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let mut explanation = place(&req, &[c], &peers, &policies);
         explanation.chosen = Some(node.id);
-        Ok(explanation)
+        let devices = super::place::given_on(&req, std::slice::from_ref(node), node.id)?;
+        Ok((explanation, devices))
     }
 }

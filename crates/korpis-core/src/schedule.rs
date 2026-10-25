@@ -6,6 +6,7 @@
 //! placement lock, so the answer is consistent with what the bind will write.
 
 pub mod churn;
+pub mod devices;
 mod filter;
 pub mod policy;
 mod score;
@@ -81,6 +82,9 @@ pub struct Request<'a> {
     /// The quota entries counting it that count where it runs (§5.1 of
     /// docs/05-scheduling.md).
     pub quota: &'a [Counting<'a>],
+    /// By node, the devices its other placements hold (§6.3 of docs/05-scheduling.md); a node
+    /// absent holds none.
+    pub devices: &'a BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>>,
 }
 
 /// A quota entry that counts where workloads run, as placement checks it: the entry, what
@@ -117,6 +121,8 @@ pub struct Current<'a> {
     pub node: Uuid,
     /// What it reserves there.
     pub reserved: &'a Bounds,
+    /// The devices it holds there, which it keeps while they still meet its requests.
+    pub devices: &'a [crate::node::device::DeviceHold],
 }
 
 /// A node, with what its placements reserve.
@@ -167,6 +173,9 @@ pub enum Check {
     Taint,
     /// Unallocated capacity for every reservation.
     Capacity,
+    /// Free devices for every request, of a class and mode its driver gives (§6.3 of
+    /// docs/05-scheduling.md).
+    Device,
     /// Every named storage class is offered.
     StorageClass,
     /// Every existing volume attached is on the node.
@@ -185,7 +194,7 @@ pub enum Check {
 
 impl Check {
     /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 18] = [
         Self::Owner,
         Self::Status,
         Self::Driver,
@@ -197,6 +206,7 @@ impl Check {
         Self::Selector,
         Self::Taint,
         Self::Capacity,
+        Self::Device,
         Self::StorageClass,
         Self::Volume,
         Self::Affinity,
@@ -226,6 +236,7 @@ impl Check {
             Self::Selector => "selector",
             Self::Taint => "taint",
             Self::Capacity => "capacity",
+            Self::Device => "device",
             Self::StorageClass => "storage_class",
             Self::Volume => "volume",
             Self::Affinity => "affinity",

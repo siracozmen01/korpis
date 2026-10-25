@@ -14,6 +14,7 @@ use chrono::{DateTime, Utc};
 use korpis_app::Page;
 use korpis_app::ports::{PlacementRead, PlacementWrite, StoreError, StoreResult};
 use korpis_core::node::Node;
+use korpis_core::node::device::DeviceHold;
 use korpis_core::placement::{BoundBy, Placement, Unplaced};
 use korpis_core::schedule::Peer;
 use korpis_core::tenancy::quota::{Bounds, Dimension};
@@ -129,6 +130,34 @@ impl PlacementWrite for PgTx {
             out.entry(r.node_id).or_default().insert(d, count("node allocated", r.total)?);
         }
         Ok(out)
+    }
+
+    async fn device_holds(
+        &mut self,
+        nodes: &[Uuid],
+        except: Uuid,
+    ) -> StoreResult<BTreeMap<Uuid, Vec<DeviceHold>>> {
+        let rows = sqlx::query_file!("queries/node_device_holds.sql", nodes, except)
+            .fetch_all(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        let mut out: BTreeMap<Uuid, Vec<DeviceHold>> = BTreeMap::new();
+        for r in rows {
+            out.entry(r.node_id).or_default().extend(holds(r.devices)?);
+        }
+        Ok(out)
+    }
+
+    async fn holds_on(&mut self, workload: Uuid, node: Uuid) -> StoreResult<Vec<DeviceHold>> {
+        let held = sqlx::query_scalar!(
+            "SELECT devices FROM placement WHERE workload_id = $1 AND node_id = $2",
+            workload,
+            node
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        held.map(holds).transpose().map(Option::unwrap_or_default)
     }
 
     async fn serving_nodes(&mut self, owners: &[Uuid]) -> StoreResult<Vec<Node>> {
