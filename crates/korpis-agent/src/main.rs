@@ -336,6 +336,10 @@ struct PreflightArgs {
     /// The privileged helper's socket.
     #[arg(long, default_value = "/run/korpis/helper.sock")]
     helper_socket: PathBuf,
+    /// The physical cores `run` is given for dedication, as a kernel CPU list of their ids;
+    /// unset, every core but the one holding CPU 0.
+    #[arg(long = "dedicated-cores", value_parser = korpis_topology::cpu_list)]
+    dedicated_cores: Option<std::collections::BTreeSet<u32>>,
     /// The helper's volume root.
     #[arg(long, default_value = "/var/lib/korpis/volumes")]
     volume_root: PathBuf,
@@ -348,7 +352,7 @@ impl PreflightArgs {
     /// Where preflight asks.
     fn asking(self) -> Asking {
         Asking {
-            offer: Offer { driver: self.driver },
+            offer: Offer { driver: self.driver, dedicated_cores: self.dedicated_cores },
             containerd: self.containerd_socket,
             drivers: self.driver_socket,
             helper: self.helper_socket,

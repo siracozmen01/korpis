@@ -601,6 +601,24 @@ mutation of the test shows the second `create` beside the running first.
 half a second and then twice as long each time up to fifteen seconds, and acts on no assignment
 until the driver answers. → patched into `02-architecture.md` §4.4
 
+**FINDING 174: A state the runtime could not tell was taken as stopped. `CONFIRMED` in the code,
+`PLAUSIBLE` as the cause of the failure that led to it**
+
+Found 2026-10-25 while chasing an end-to-end test that, beside a loaded machine, saw its workload
+start a second time after the agent restarted, once its test workload stopped at the signal rather
+than holding every stop to thirty seconds of grace, which had hidden any such restart. The agent
+started an object whenever the driver did not say it was running: after adoption, `stopped_by_us`
+was set for any object not reported running, and in steady state any other state was a crash to
+revive. containerd reports a task's state as unknown when its shim fails to say, logging "get state
+for" the task (its `getProcessState`, read at v2.4.2), and starting the object then replaces a
+task that may be running. The containerd journal on this machine had no such line for the failing
+run, so this is not shown to be what restarted that workload; the test now prints the node's
+effects when it fails, so the next occurrence names its cause.
+
+**Resolution.** A state the driver cannot tell is waited out for up to a minute, in which nothing
+is started or stopped for it; past that it is acted on as stopped, since a shim gone for good stays
+unknown. → patched into `02-architecture.md` §4.4
+
 ---
 
 ## 8. The month closes with six hours missing from the meter
@@ -6230,3 +6248,88 @@ an agent that adopts the object records those; an object whose recorded CPUs are
 placement's is built again, and one recorded as holding none holds none. Finding 171's resolution
 is corrected in place above, and §4.2 of `04-runtimes.md` says so. What it costs: a field in the
 driver protocol, which a third-party driver that holds cores must fill.
+
+Revisited 2026-10-25, as step 8 was built (P3.3b3d1): the agent's meter counts each core and each
+device a placement holds for every second its node holds the assignment, whatever runs, and the
+record, `korpis get usage`, and the panel carry them. Building it asked step 8's question: who
+knows for how long a core or a device was held? Not the driver, which §2 of `15-observability.md`
+had named for devices: it knows what it gave an object, while a placement holds its devices across
+every object its workload is run as. The agent, which holds the assignment, does, and §2 is
+corrected in place. Step 10 is not built.
+
+Revisited again the same day, as what an operator and a customer see of steps 1 and 3 was built
+(P3.3b3d2, P3.3b3d3). `korpis-agent preflight` checks, for the cores a node offers, a physical core
+besides CPU 0's, remote cpuset partitions, and the affinity new interrupts are given (§2 of
+`18-operations.md`). Building it asked step 1's question of the interrupts §5.2 of
+`05-scheduling.md` says preflight names: what reads where they go? The kernel's default affinity,
+which `irqaffinity` sets, says where a new interrupt is sent; an interrupt a device's driver
+spreads over every CPU itself is not read, and §2 says so. `korpis get` shows a workload holding
+cores its cores and not its CPU limit. That asked step 3's question of the 4,000 millicores the
+customer declared as a limit: what holds them once the cores are held? Nothing, since the driver
+gives the object no quota (§4.2 of `04-runtimes.md`), so showing them would be a limit no kernel
+enforces (Rule K-3), and §5.2 says what is shown instead. The panel shows no CPU limit; the CLI's
+drift figures were the only display.
+
+Revisited again the same day, as the trace was run end to end (P3.3b3d4). The declaration of step 3
+is accepted, and steps 4 to 7 and 9 run on a real node on this machine: a workload asking for a
+core is placed on a node offering the machine's last core, says from inside that it may run on that
+core's CPUs alone while its node's `shared` cgroup leaves them, keeps a second workload off the
+node (the `cores` check, no core free) until it is retired, and frees the core. Step 10 is how it
+runs here, the host sharing the core. Step 2's declaration and step 7's check are tested for both
+drivers by the conformance cases of §8 of `04-runtimes.md`. Writing those asked step 6's question
+of a third party's run: what keeps the cpusets when the suite, not a node, drives the driver?
+Nothing did, and a driver that checks the `shared` cgroup before a holder runs (Finding 170) would
+refuse every start. The suite, which already makes volumes as the helper would, now keeps the
+cpusets as the helper keeps them under the driver's declared parent and puts each file back once
+the object is gone (§8 there). What is still not run on this machine is step 7's partition.
+
+## 74. A web application on one node reaches its database on another
+
+Written 2026-10-25, as the mesh was designed (§9.1 of `07-networking.md`), before any of it is
+built. It was chosen by measuring coverage: one step of the seventy-three traces before it crossed
+§9 of `07-networking.md`, and none a dependency across nodes, which Phase 3 exists to make
+possible. An installation that has run one node, A, since Phase 1 adds a second, B, behind a home
+router's NAT; a customer runs a database that fills A and a web application that depends on it. The
+trace asks the algebra question of every step: what decides it, where, and with what information?
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | B enrolls and is given a /22 of the installation range, which its agent keeps; A, enrolled before pools were given, keeps `10.47.0.0/16` | `07-networking.md` §9.1, §4.1; `01-model.md` §3.4 |
+| 2 | Each node's helper makes `korpis-overlay` with a key of its own; each agent reports its public key and port | `07-networking.md` §9.1 |
+| 3 | The control plane sends each node its peer: key, endpoint, pools; B has no endpoint, advertising no address | `07-networking.md` §9, §9.1 |
+| 4 | B reaches A, keeping its NAT mapping open; both report a handshake younger than 180 seconds | `07-networking.md` §9.1 |
+| 5 | `web`, depending on `db`, is placed on B: the pair B, A is reachable | `05-scheduling.md` §2.1; `07-networking.md` §5 |
+| 6 | The control plane puts `db`'s address in `web`'s assignment, and `web`'s address, allowed to `db`'s port, in A's | `07-networking.md` §5, §9.1 |
+| 7 | `web` connects: B's chain lets it out, the mesh carries it, A admits it from the mesh to `db`'s port, and `db`'s own table accepts it | `07-networking.md` §5, §6, §9.1; `17-security.md` §9.1 |
+| 8 | The control plane is down for an hour; `web` keeps reaching `db` | `02-architecture.md` §4.6; `07-networking.md` §9.1 |
+| 9 | B's uplink fails; at the next reports the pair is unreachable, `web`'s dependency says so, and no new dependent of `db` is placed on B | `07-networking.md` §9.1; `05-scheduling.md` §2.1 |
+
+Step 1 asks who knows that two nodes' pools collide: only the control plane, which sees every node,
+so it gives the pools; and when, since the agent lays out its networks as it starts, before any
+session: at enrollment, the pool kept beside the node's identity; and it found that §4.1 of
+`07-networking.md` had said nothing in it prevented the overlay from joining its namespaces later,
+while every node's default pool was the same `10.47.0.0/16`, which a routed mesh cannot carry
+(Finding 173, below). Step 3 asks what makes a packet's source trustworthy on A: WireGuard, which
+accepts a packet from a peer only with a source in that peer's allowed IPs, which are B's pool (§5
+of `research/evidence.md`). Step 4 asks who can see that the pair works, since neither node can see
+the other's view: each reports its latest handshake, and the control plane joins the two reports.
+Step 6 asks who turns `db` into an address for B, which holds no address of A's: the control plane,
+from A's observations, which §5 of `07-networking.md` had given to the dependent's node; it is
+answered there. Step 7 asks what stops a compromised B reaching another tenant's workload on A: A
+admits from the mesh only the dependents the control plane resolved, as §9.1 of `17-security.md`
+decided for east-west traffic. Step 8 holds because the agent keeps its peers on disk. Step 9 asks
+how late the scheduler learns: one heartbeat, stated in §9.1.
+
+**Finding 173.** §4.1 of `07-networking.md` said that nothing in a workload's network on a node
+prevented the overlay from joining those namespaces later. Every node's default IPv4 pool was the
+same `10.47.0.0/16`, and a routed mesh, which preserves a workload's source address as §3.4 there
+requires, cannot route one prefix to two nodes, so every installation of more than one default node
+would have had the overlay unable to carry any dependency. Resolved in §9.1 there: the control
+plane gives each node enrolled without `--workload-ipv4` a /22 of an installation range, a node
+that has run workloads keeps its pool, and a node whose pool overlaps another member's is outside
+the mesh, saying with which. §4.1 is corrected in place. What it costs: an installation upgrading
+with two nodes on the old default keeps one outside the mesh until its operator gives it a pool.
+
+Steps 1 to 9 are designed, and none is built yet (§4 of `20-roadmap.md`).

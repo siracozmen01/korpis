@@ -83,6 +83,8 @@ struct Tracked {
     next_restart: Option<Instant>,
     /// Since when it has been running, to forgive past crashes once it stays up.
     running_since: Option<Instant>,
+    /// Since when the driver has said it cannot tell what it is doing, while it says so.
+    unknown_since: Option<Instant>,
     /// The generation and power version it last acted on.
     generation: u64,
     power_version: u64,

@@ -90,6 +90,22 @@ fn memory_is_integrated_and_an_interval_s_peak_falls_with_the_next() {
     assert_eq!(book.close("wl_1").peak, None, "nothing read, no peak");
 }
 
+#[test]
+fn what_a_placement_holds_is_integrated_whatever_runs_and_nothing_for_none() {
+    use korpis_proto::korpis::v1 as pb;
+    let mut book = Book::default();
+    let gpu = [(pb::DeviceClass::DEVICE_CLASS_GPU, 1)];
+    book.held("wl_1", (2, &gpu), Duration::from_secs(10));
+    book.held("wl_1", (2, &gpu), Duration::from_secs(10));
+    book.held("wl_2", (0, &[]), Duration::from_secs(10));
+    let counters = book.close("wl_1").counters;
+    assert_eq!(counters.dedicated_core_seconds, Some(40), "two cores for 20 s");
+    assert_eq!(counters.device_seconds.len(), 1);
+    assert_eq!(counters.device_seconds[0].seconds, 20, "one GPU for 20 s");
+    let none = book.close("wl_2").counters;
+    assert_eq!(none.dedicated_core_seconds, None, "absent, not zero, where nothing is held");
+}
+
 fn table(egress: u64, endpoints: &[(&str, u64)]) -> agent::MeterCounters {
     let endpoints = endpoints
         .iter()

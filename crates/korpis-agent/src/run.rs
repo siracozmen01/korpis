@@ -184,10 +184,13 @@ fn meter<R: Runtime + Clone, H: Host + Clone>(
     state: &StateDir,
     runtime: R,
     (host, link, journal): (&H, &Link, &JournalHandle),
-    options: Metering,
+    options: &Options,
 ) -> Result<crate::meter::Started<R, H>, RunError> {
     let told = (host.clone(), link.held.clone(), link.metering.clone(), journal.clone());
-    crate::meter::start(state.root(), runtime, told, options)
+    // The node's devices, which the meter counts a placement's by class with.
+    let devices = options.devices.clone().or_else(|| options.metering.devices.clone());
+    let metering = Metering { devices, ..options.metering.clone() };
+    crate::meter::start(state.root(), runtime, told, metering)
         .map_err(|source| RunError::Io { what: "the meter", source })
 }
 
@@ -209,7 +212,7 @@ impl Agent {
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
         let (ingress_facts, driver_kinds, offered_cores) = declared(&*facts);
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
-        let (runtime, sampler) = meter(state, runtime, (&host, &link, &journal), options.metering)?;
+        let (runtime, sampler) = meter(state, runtime, (&host, &link, &journal), &options)?;
         let (ingress, proxy) =
             ingress(state, &host, (ingress_facts, options.ingress), (network.is_some(), &link));
         let answerer = crate::feasibility::answerer(runtime.clone());

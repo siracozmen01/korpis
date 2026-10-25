@@ -15,6 +15,7 @@ import "google/protobuf/timestamp.proto";
 import "korpis/backup/v1/backup.proto";
 import "korpis/v1/attached.proto";
 import "korpis/v1/common.proto";
+import "korpis/v1/metering.proto";
 import "korpis/v1/placement.proto";
 import "korpis/v1/provider.proto";
 import "korpis/v1/tenancy.proto";
@@ -780,6 +781,13 @@ message MeterCounters {
   // What each of its endpoints whose accounting is on carried, by name (§7 of
   // docs/07-networking.md).
   repeated EndpointCounters endpoints = 9;
+  // Each dedicated core its placement held on the node, for the seconds it was held, whatever
+  // ran on it (§5.2 of docs/05-scheduling.md): integrated by the node from its readings. Added
+  // 2026-10-25.
+  optional uint64 dedicated_core_seconds = 10;
+  // Each device its placement held, by class, for the seconds it was held (§6 of
+  // docs/05-scheduling.md). Added 2026-10-25.
+  repeated korpis.v1.DeviceSeconds device_seconds = 11;
 }
 
 // One endpoint's counters, cumulative: what was sent to its port, and what left it.

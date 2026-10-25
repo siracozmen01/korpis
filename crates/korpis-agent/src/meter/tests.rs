@@ -52,7 +52,8 @@ fn node(workload: &str) -> Node {
     let journal = JournalHandle::open(&dir.path().join("journal"), Bounds::default()).unwrap();
     let net = dir.path().join("net");
     let told = tokio::sync::watch::channel(None).1;
-    let sources = Sources { runtime: runtime.clone(), host: host.clone(), held, net, told };
+    let (devices, runtime_read) = (None, runtime.clone());
+    let sources = Sources { runtime: runtime_read, host: host.clone(), held, net, told, devices };
     let sampler = Sampler::new(meter.clone(), sources, journal.clone(), DEFAULT_INTERVAL);
     Node { dir, runtime, inner, host, meter, sampler, journal }
 }

@@ -5,9 +5,11 @@
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_json, from_time, to_count, to_json, to_time};
 
+mod held;
 mod read;
 use crate::PgTx;
 use chrono::{DateTime, Utc};
+use held::{device_seconds, device_seconds_doc};
 use korpis_app::ports::{MeteringWrite, StoreResult};
 use korpis_core::metering::{Counters, EndpointUse, Endpoints, Loss, Reading, Record};
 use std::time::SystemTime;
@@ -92,7 +94,7 @@ fn read(what: &str, n: Option<i64>) -> StoreResult<Option<u64>> {
 }
 
 /// A counter row's columns, to store.
-fn columns(c: &Counters) -> StoreResult<[Option<i64>; 8]> {
+fn columns(c: &Counters) -> StoreResult<[Option<i64>; 9]> {
     Ok([
         stored("cpu_usec", c.cpu_usec)?,
         stored("cpu_throttled_usec", c.cpu_throttled_usec)?,
@@ -102,12 +104,16 @@ fn columns(c: &Counters) -> StoreResult<[Option<i64>; 8]> {
         stored("net_tx_bytes", c.net_tx_bytes)?,
         stored("memory_kib_seconds", c.memory_kib_seconds)?,
         stored("egress_bytes", c.egress_bytes)?,
+        stored("dedicated_core_seconds", c.dedicated_core_seconds)?,
     ])
 }
 
-/// Counters, as their columns and their endpoints' document hold them.
-fn counters(c: [Option<i64>; 8], doc: serde_json::Value) -> StoreResult<Counters> {
-    let [cpu, throttled, read_bytes, written, rx, tx, memory, egress] = c;
+/// Counters, as their columns and their endpoints' and devices' documents hold them.
+fn counters(
+    c: [Option<i64>; 9],
+    (doc, devices): (serde_json::Value, serde_json::Value),
+) -> StoreResult<Counters> {
+    let [cpu, throttled, read_bytes, written, rx, tx, memory, egress, cores] = c;
     Ok(Counters {
         cpu_usec: read("cpu_usec", cpu)?,
         cpu_throttled_usec: read("cpu_throttled_usec", throttled)?,
@@ -118,6 +124,8 @@ fn counters(c: [Option<i64>; 8], doc: serde_json::Value) -> StoreResult<Counters
         memory_kib_seconds: read("memory_kib_seconds", memory)?,
         egress_bytes: read("egress_bytes", egress)?,
         endpoints: endpoints(doc)?,
+        dedicated_core_seconds: read("dedicated_core_seconds", cores)?,
+        device_seconds: device_seconds(devices)?,
     })
 }
 
@@ -129,7 +137,8 @@ impl MeteringWrite for PgTx {
     ) -> StoreResult<Option<Reading>> {
         let row = sqlx::query!(
             "SELECT interval_end, cpu_usec, cpu_throttled_usec, io_read_bytes, io_write_bytes,
-                    net_rx_bytes, net_tx_bytes, memory_kib_seconds, egress_bytes, endpoints
+                    net_rx_bytes, net_tx_bytes, memory_kib_seconds, egress_bytes, endpoints,
+                    dedicated_core_seconds, device_seconds
                FROM metering_reading WHERE workload_id = $1 AND node_id = $2 FOR UPDATE",
             workload,
             node
@@ -147,8 +156,10 @@ impl MeteringWrite for PgTx {
                 r.net_tx_bytes,
                 r.memory_kib_seconds,
                 r.egress_bytes,
+                r.dedicated_core_seconds,
             ];
-            Ok(Reading { end: to_time(r.interval_end), counters: counters(c, r.endpoints)? })
+            let counters = counters(c, (r.endpoints, r.device_seconds))?;
+            Ok(Reading { end: to_time(r.interval_end), counters })
         })
         .transpose()
     }
@@ -159,17 +170,19 @@ impl MeteringWrite for PgTx {
         node: Uuid,
         reading: &Reading,
     ) -> StoreResult<()> {
-        let [cpu, throttled, read_bytes, written, rx, tx, memory, egress] =
+        let [cpu, throttled, read_bytes, written, rx, tx, memory, egress, cores] =
             columns(&reading.counters)?;
         sqlx::query!(
             "INSERT INTO metering_reading (workload_id, node_id, interval_end, cpu_usec,
                     cpu_throttled_usec, io_read_bytes, io_write_bytes, net_rx_bytes, net_tx_bytes,
-                    memory_kib_seconds, egress_bytes, endpoints)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    memory_kib_seconds, egress_bytes, endpoints, dedicated_core_seconds,
+                    device_seconds)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              ON CONFLICT (workload_id, node_id) DO UPDATE SET interval_end = $3, cpu_usec = $4,
                     cpu_throttled_usec = $5, io_read_bytes = $6, io_write_bytes = $7,
                     net_rx_bytes = $8, net_tx_bytes = $9, memory_kib_seconds = $10,
-                    egress_bytes = $11, endpoints = $12",
+                    egress_bytes = $11, endpoints = $12, dedicated_core_seconds = $13,
+                    device_seconds = $14",
             workload,
             node,
             from_time(reading.end),
@@ -181,7 +194,9 @@ impl MeteringWrite for PgTx {
             tx,
             memory,
             egress,
-            endpoints_doc(&reading.counters.endpoints)?
+            endpoints_doc(&reading.counters.endpoints)?,
+            cores,
+            device_seconds_doc(&reading.counters.device_seconds)?
         )
         .execute(&mut *self.tx)
         .await
@@ -273,15 +288,16 @@ impl MeteringWrite for PgTx {
     }
 
     async fn append_metering_record(&mut self, r: &Record, at: SystemTime) -> StoreResult<()> {
-        let [cpu, throttled, read_bytes, written, rx, tx, memory, egress] = columns(&r.used)?;
+        let [cpu, throttled, read_bytes, written, rx, tx, memory, egress, cores] =
+            columns(&r.used)?;
         sqlx::query!(
             "INSERT INTO metering_record (id, recorded_at, workload_id, node_id, lease_epoch,
                     interval_start, interval_end, kind, cause, supersedes, cpu_usec,
                     cpu_throttled_usec, io_read_bytes, io_write_bytes, net_rx_bytes, net_tx_bytes,
                     memory_kib_seconds, memory_peak_bytes, disk_bytes, losses, egress_bytes,
-                    endpoints, disk_allocated)
+                    endpoints, disk_allocated, dedicated_core_seconds, device_seconds)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                     $18, $19, $20, $21, $22, $23)",
+                     $18, $19, $20, $21, $22, $23, $24, $25)",
             r.id,
             from_time(at),
             r.workload,
@@ -304,7 +320,9 @@ impl MeteringWrite for PgTx {
             losses_doc(&r.losses)?,
             egress,
             endpoints_doc(&r.used.endpoints)?,
-            r.disk_allocated
+            r.disk_allocated,
+            cores,
+            device_seconds_doc(&r.used.device_seconds)?
         )
         .execute(&mut *self.tx)
         .await

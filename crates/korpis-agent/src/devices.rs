@@ -55,6 +55,21 @@ pub fn read(config: &Config) -> Catalog {
     classify::catalog(korpis_cdi::describe(&config.dirs, config.owner), config)
 }
 
+/// How many of the devices `holds` names are of each class, as `catalog` describes each; one it
+/// does not describe has no class, and is not counted.
+#[must_use]
+pub fn classes(catalog: Option<&Catalog>, holds: &[pb::DeviceHold]) -> Vec<(pb::DeviceClass, u64)> {
+    let mut by_class: Vec<(pb::DeviceClass, u64)> = Vec::new();
+    let described = |id: &str| catalog?.devices.iter().find(|d| d.id == id)?.class.as_known();
+    for class in holds.iter().filter_map(|h| described(&h.device)) {
+        match by_class.iter_mut().find(|(k, _)| *k == class) {
+            Some((_, n)) => *n += 1,
+            None => by_class.push((class, 1)),
+        }
+    }
+    by_class
+}
+
 /// The devices `holds` name, as the driver is given them: each the catalog's device of that id,
 /// with its class, in the mode it is held.
 ///

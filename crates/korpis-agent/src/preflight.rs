@@ -11,6 +11,7 @@
 //! kernel, a command, or a socket (`Probes`), gathered first by `probe`, so every check is
 //! tested against a machine that is not this one.
 
+pub mod cores;
 pub mod kernel;
 pub mod network;
 pub mod node;
@@ -62,6 +63,9 @@ fn read(under: &Path, rel: &str) -> Option<String> {
 pub struct Offer {
     /// The runtime driver: `oci` or `memory`.
     pub driver: String,
+    /// The physical cores `--dedicated-cores` names for dedication; `None`, every core but the
+    /// one holding CPU 0.
+    pub dedicated_cores: Option<std::collections::BTreeSet<u32>>,
 }
 
 /// Everything preflight asked of things other than files: the kernel, commands, and sockets.
@@ -90,5 +94,6 @@ pub fn checks(m: &Machine, p: &Probes, offer: &Offer) -> Report {
     let mut all = kernel::checks(m, p);
     all.extend(node::checks(m, p, offer));
     all.extend(network::checks(m, p));
+    all.extend(cores::checks(m, offer));
     Report(all)
 }

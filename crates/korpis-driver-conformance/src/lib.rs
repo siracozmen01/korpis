@@ -16,6 +16,7 @@
 pub mod case;
 mod cases;
 pub mod client;
+pub mod cores;
 pub mod fixture;
 pub mod image;
 pub mod probe;
@@ -39,6 +40,7 @@ pub async fn run(fixture: Fixture) -> Result<Report, String> {
     Box::pin(cases::recover(&suite, &mut report)).await;
     Box::pin(cases::limits(&suite, &mut report)).await;
     Box::pin(cases::exec(&suite, &mut report)).await;
+    Box::pin(cases::cores(&suite, &mut report)).await;
     report.untested.extend(cases::UNTESTED);
     suite.clean().await;
     suite.end();

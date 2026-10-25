@@ -242,9 +242,18 @@ fn figures(b: Option<&pb::IntentBody>) -> [(&'static str, u64); 6] {
         r.memory.into_option().unwrap_or_default(),
         r.disk.into_option().unwrap_or_default(),
     );
+    // Dedicated cores are held by their cpuset, not a quota: they are shown as cores, never as
+    // a limit in millicores no kernel holds (Rule K-3, §5.2 of docs/05-scheduling.md).
+    let dedicated =
+        cpu.isolation.as_known() == Some(pb::CpuIsolation::CPU_ISOLATION_DEDICATED_CORES);
+    let limit = if dedicated {
+        ("dedicated cores", cpu.limit_millis / 1000)
+    } else {
+        ("cpu limit (millicores)", cpu.limit_millis)
+    };
     [
         ("cpu reservation (millicores)", cpu.reservation_millis),
-        ("cpu limit (millicores)", cpu.limit_millis),
+        limit,
         ("memory reservation (bytes)", memory.reservation),
         ("memory limit (bytes)", memory.limit),
         ("disk reservation (bytes)", disk.reservation),
@@ -313,4 +322,33 @@ pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> 
     unplaced(&mut out, &s);
     drift(c, &mut out, &s).await?;
     Ok(Answer { json: json(&s), human: out })
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
+
+    use super::*;
+
+    #[test]
+    fn dedicated_cores_are_shown_as_cores_and_never_as_a_limit_no_quota_holds() {
+        let body = |isolation: pb::CpuIsolation| pb::IntentBody {
+            resources: pb::ResourceSpec {
+                cpu: pb::CpuSpec {
+                    reservation_millis: 2000,
+                    limit_millis: 2000,
+                    isolation: isolation.into(),
+                    ..Default::default()
+                }
+                .into(),
+                ..Default::default()
+            }
+            .into(),
+            ..Default::default()
+        };
+        let held = figures(Some(&body(pb::CpuIsolation::CPU_ISOLATION_DEDICATED_CORES)));
+        assert_eq!(held[1], ("dedicated cores", 2));
+        let shared = figures(Some(&body(pb::CpuIsolation::CPU_ISOLATION_SHARED)));
+        assert_eq!(shared[1], ("cpu limit (millicores)", 2000));
+    }
 }

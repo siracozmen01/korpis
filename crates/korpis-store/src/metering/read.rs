@@ -38,6 +38,8 @@ struct RecordRow {
     recorded_at: DateTime<Utc>,
     egress_bytes: Option<i64>,
     endpoints: serde_json::Value,
+    dedicated_core_seconds: Option<i64>,
+    device_seconds: serde_json::Value,
 }
 
 impl RecordRow {
@@ -53,6 +55,7 @@ impl RecordRow {
             self.net_tx_bytes,
             self.memory_kib_seconds,
             self.egress_bytes,
+            self.dedicated_core_seconds,
         ];
         Ok(Record {
             id: self.id,
@@ -64,7 +67,7 @@ impl RecordRow {
             kind,
             cause: self.cause,
             supersedes: self.supersedes,
-            used: counters(used, self.endpoints)?,
+            used: counters(used, (self.endpoints, self.device_seconds))?,
             memory_peak_bytes: read("memory_peak_bytes", self.memory_peak_bytes)?,
             disk_bytes: read("disk_bytes", self.disk_bytes)?,
             disk_allocated: self.disk_allocated,
@@ -108,7 +111,7 @@ impl MeteringRead for PgStore {
                     cause, supersedes, cpu_usec, cpu_throttled_usec, io_read_bytes,
                     io_write_bytes, net_rx_bytes, net_tx_bytes, memory_kib_seconds,
                     memory_peak_bytes, disk_bytes, disk_allocated, losses, recorded_at,
-                    egress_bytes, endpoints
+                    egress_bytes, endpoints, dedicated_core_seconds, device_seconds
                FROM metering_record
               WHERE workload_id = $1 AND interval_start >= $2 AND interval_start < $3
               ORDER BY interval_start, recorded_at, id",
@@ -131,7 +134,8 @@ impl MeteringRead for PgStore {
                     r.interval_end, r.kind, r.cause, r.supersedes, r.cpu_usec,
                     r.cpu_throttled_usec, r.io_read_bytes, r.io_write_bytes, r.net_rx_bytes,
                     r.net_tx_bytes, r.memory_kib_seconds, r.memory_peak_bytes, r.disk_bytes,
-                    r.disk_allocated, r.losses, r.recorded_at, r.egress_bytes, r.endpoints
+                    r.disk_allocated, r.losses, r.recorded_at, r.egress_bytes, r.endpoints,
+                    r.dedicated_core_seconds, r.device_seconds
                FROM metering_record r JOIN workload w ON w.id = r.workload_id
               WHERE ((NOT $10 OR r.kind <> 'adjustment')
                      AND r.interval_start >= $4 AND r.interval_start < $5

@@ -6,6 +6,7 @@
 // quantity nothing measured stays absent; it is never shown as a zero.
 
 import { timestampMs } from "@bufbuild/protobuf/wkt";
+import { DeviceClass } from "../gen/korpis/v1/common_pb";
 import { type UsageRecord, UsageKind } from "../gen/korpis/v1/metering_pb";
 import { bytes } from "../i18n/format";
 import { intl, t } from "../i18n/intl";
@@ -25,6 +26,39 @@ export function gibHours(kibSeconds: bigint): string {
     { defaultMessage: "{hours} GiB-hours", id: "sgfAtMMm", description: "memory held over time" },
     { hours },
   );
+}
+
+/** Dedicated cores held over time, in core-seconds, as core-hours: what a core held for an hour
+ * is, whatever ran on it. */
+export function coreHours(seconds: bigint): string {
+  const hours = intl.formatNumber(Number(seconds) / 3600, { maximumFractionDigits: 3 });
+  return t(
+    {
+      defaultMessage: "{hours} core-hours",
+      id: "H7Kb5kH1",
+      description: "dedicated cores held over time",
+    },
+    { hours },
+  );
+}
+
+/** Devices held over time, by class, in seconds, as hours of each class. */
+export function deviceHours(held: ReadonlyMap<DeviceClass, bigint>): string {
+  return [...held]
+    .map(([c, seconds]) =>
+      t(
+        {
+          defaultMessage: "{class} {hours} hours",
+          id: "wSoDXbHI",
+          description: "devices of one class held over time",
+        },
+        {
+          class: DeviceClass[c],
+          hours: intl.formatNumber(Number(seconds) / 3600, { maximumFractionDigits: 3 }),
+        },
+      ),
+    )
+    .join(", ");
 }
 
 /** CPU in use, in thousandths of a core, as cores. */
@@ -68,6 +102,10 @@ export interface Totals {
   readonly egressBytes: bigint | undefined;
   /** What each endpoint whose accounting is on carried, by name. */
   readonly endpoints: ReadonlyMap<string, EndpointTotal>;
+  /** Each dedicated core held, for the seconds it was held. */
+  readonly dedicatedCoreSeconds: bigint | undefined;
+  /** Each device held, by class, for the seconds it was held; empty where none was. */
+  readonly deviceSeconds: ReadonlyMap<DeviceClass, bigint>;
   /** The disk the latest record measured, when its interval ended, and whether it counted what
    * a guest's block devices have allocated rather than what filesystems hold. */
   readonly disk:
@@ -104,6 +142,8 @@ export function totals(records: readonly UsageRecord[]): Totals {
     netTxBytes: undefined,
     egressBytes: undefined,
     endpoints: new Map(),
+    dedicatedCoreSeconds: undefined,
+    deviceSeconds: new Map(),
     disk: undefined,
     measured: 0,
     adjustments: 0,
@@ -124,6 +164,10 @@ export function totals(records: readonly UsageRecord[]): Totals {
         sentBytes: before.sentBytes + e.sentBytes,
       });
     }
+    const deviceSeconds = new Map(acc.deviceSeconds);
+    for (const d of r.deviceSeconds) {
+      deviceSeconds.set(d.class, (deviceSeconds.get(d.class) ?? 0n) + d.seconds);
+    }
     const later = r.diskBytes !== undefined && (acc.disk === undefined || span.to >= acc.disk.at);
     acc = {
       ...acc,
@@ -137,6 +181,8 @@ export function totals(records: readonly UsageRecord[]): Totals {
       netTxBytes: sum(acc.netTxBytes, r.netTxBytes),
       egressBytes: sum(acc.egressBytes, r.egressBytes),
       endpoints,
+      dedicatedCoreSeconds: sum(acc.dedicatedCoreSeconds, r.dedicatedCoreSeconds),
+      deviceSeconds,
       disk:
         later && r.diskBytes !== undefined
           ? { bytes: r.diskBytes, at: span.to, allocated: r.diskAllocated }

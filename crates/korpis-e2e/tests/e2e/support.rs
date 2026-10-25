@@ -3,6 +3,7 @@
 //! A control plane for the node to join, installed into a throwaway database and served on a
 //! free port, as the agent's own tests make one.
 
+use crate::serving::serve_config;
 use connectrpc::client::{ClientConfig, HttpClient};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
@@ -301,53 +302,6 @@ impl ControlPlane {
             .unwrap()
             .into_owned();
         (created.token, created.ca_fingerprint)
-    }
-}
-
-/// How the tests' control plane serves: as `login`, on `port` of the loopback address, a panel from
-/// `web_root` with its passkeys bound to `localhost` when one is given.
-fn serve_config(
-    login: String,
-    data: &DataDir,
-    port: u16,
-    acme: korpis_server::acme::AcmeConfig,
-    web_root: Option<std::path::PathBuf>,
-) -> korpis_server::ServeConfig {
-    let relying_party = web_root.as_ref().map(|_| korpis_core::webauthn::RelyingParty {
-        id: "localhost".into(),
-        origins: vec![format!("https://localhost:{port}")],
-    });
-    korpis_server::ServeConfig {
-        data: data.clone(),
-        database_url: login,
-        listen: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
-        max_connections: 4,
-        fetch_allow: Vec::new(),
-        plain_http_registries: vec![
-            std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned()),
-        ],
-        placement_policy: korpis_core::schedule::PlacementPolicy::default(),
-        placement_retry: Duration::from_millis(200),
-        watch_resync: Duration::from_secs(1),
-        heartbeat_interval: Duration::from_secs(30),
-        // Long enough that a renewal delayed on a loaded machine does not let a lease lapse: a
-        // run on a lapsed lease is judged lost (§4.2 of docs/05-scheduling.md), which is right
-        // of a node gone silent and wrong of one that was merely slow. Nothing here tests
-        // expiry; the agent's and the API's tests do, at terms of their own.
-        lease_term: Duration::from_secs(15),
-        metering_interval: std::time::Duration::from_secs(3600),
-        metering_lateness: std::time::Duration::from_secs(86_400),
-        denial_window: Duration::from_secs(60),
-        event_retention: Duration::from_secs(30 * 86_400),
-        stream_retention_floor: std::time::Duration::ZERO,
-        relay_role: true,
-        proxy_protocol_from: Vec::new(),
-        dns_resolver: None,
-        acme,
-        rates: korpis_core::rate::Rates::default(),
-        relying_party,
-        session_limits: korpis_core::account::session::SessionLimits::default(),
-        web_root,
     }
 }
 

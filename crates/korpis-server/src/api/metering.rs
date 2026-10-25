@@ -75,6 +75,17 @@ fn record_to_pb(r: &Record) -> pb::UsageRecord {
         losses: losses.collect(),
         egress_bytes: r.used.egress_bytes,
         endpoints: endpoints.collect(),
+        dedicated_core_seconds: r.used.dedicated_core_seconds,
+        device_seconds: r
+            .used
+            .device_seconds
+            .iter()
+            .map(|(class, seconds)| pb::DeviceSeconds {
+                class: korpis_wire::node::device_to_pb(*class).into(),
+                seconds: *seconds,
+                ..Default::default()
+            })
+            .collect(),
         ..Default::default()
     }
 }

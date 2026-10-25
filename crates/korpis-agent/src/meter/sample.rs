@@ -15,6 +15,7 @@ use crate::runtime::{Runtime, RuntimeError};
 use korpis_core::workload::network::host_link;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
+use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -26,6 +27,9 @@ use tokio::sync::watch;
 const LONGEST_READ: Duration = Duration::from_secs(30);
 /// Memory in use was not read for a span.
 pub const MEMORY_UNREAD: &str = "memory unread";
+
+/// A workload, how many dedicated cores its placement holds, and how many devices of each class.
+type Holding = (String, u64, Vec<(pb::DeviceClass, u64)>);
 
 /// What the meter reads.
 #[derive(Debug, Clone)]
@@ -40,6 +44,9 @@ pub struct Sources<R, H> {
     pub net: PathBuf,
     /// The interval the control plane declared, which is the one sampled at once it is told.
     pub told: watch::Receiver<Option<Duration>>,
+    /// The node's devices, which say the class of each device a placement holds; none where it
+    /// offers none.
+    pub devices: Option<crate::devices::Devices>,
 }
 
 /// The meter's reading and sampling.
@@ -125,6 +132,7 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
             self.read_link(workload, now);
         }
         self.read_table(now).await;
+        self.read_held(integrated);
         self.meter.with_book(|b| {
             if elapsed > LONGEST_READ
                 && let Some(from) = last
@@ -166,6 +174,25 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
             b.memory((workload, object), memory, integrated);
         });
         memory.0
+    }
+
+    /// Integrates what each held workload's placement holds on the node over `integrated`: its
+    /// dedicated cores, and its devices by class, as the node's catalog says each is. A device
+    /// the node no longer describes has no class to count it under, and is not counted.
+    fn read_held(&self, integrated: Duration) {
+        let catalog = self.sources.devices.as_ref().map(|d| Arc::clone(&d.borrow()));
+        let held: Vec<Holding> = {
+            let held = self.sources.held.borrow();
+            let cores = |a: &agent::Assignment| u64::try_from(a.cores.len()).unwrap_or(0);
+            let devices =
+                |a: &agent::Assignment| crate::devices::classes(catalog.as_deref(), &a.devices);
+            held.assignments.iter().map(|(w, a)| (w.clone(), cores(a), devices(a))).collect()
+        };
+        self.meter.with_book(|b| {
+            for (workload, cores, devices) in &held {
+                b.held(workload, (*cores, devices), integrated);
+            }
+        });
     }
 
     /// Reads `workload`'s interface, if it has one.

@@ -29,10 +29,10 @@ cannot be undone later, because by then invoices depend on it.
 ### Measured, never assumed
 
 Every metered quantity comes from a kernel counter, cgroup v2 accounting, the filesystem's quota
-accounting, nftables counters, driver-reported device usage. **No metered quantity is ever derived
-from a configured limit.** Pterodactyl reports the limit you set as though it were consumption
-because it cannot measure the difference; that is the failure P4 and K-3 exist to prevent, and it
-is worst here, because the number becomes an invoice.
+accounting, nftables counters, and what a placement holds for the time it holds it. **No metered
+quantity is ever derived from a configured limit.** Pterodactyl reports the limit you set as though
+it were consumption because it cannot measure the difference; that is the failure P4 and K-3 exist
+to prevent, and it is worst here, because the number becomes an invoice.
 
 ### What is metered
 
@@ -42,9 +42,10 @@ memory_byte_seconds    the integral, not the peak, peak is reported separately
 disk_bytes_stored      sampled at a declared interval
 disk_io_bytes          read and write, separately
 network_bytes          ingress and egress, separately, on-net and off-net separately
-device_seconds         per device class (GPU and others), from the driver
+device_seconds         per device class (GPU and others), each held device for the time it is
+                       held, whatever runs on it (§6 of `05-scheduling.md`)
 dedicated_core_seconds per workload, each held core for the time it is held, whatever runs
-                       on it (§5.2 of `05-scheduling.md`); designed 2026-10-25
+                       on it (§5.2 of `05-scheduling.md`)
 address_hours          dedicated IPv4 is scarce and is a real cost (§4 of `07-networking.md`)
 backup_bytes_stored    post-deduplication, with the dedup scope named (§5.3 of `06-storage.md`)
 ```
@@ -195,8 +196,23 @@ per-endpoint and per-destination accounting of Phase 2's bandwidth work answers 
 `07-networking.md`); until it is built a sample says its network bytes are not split, rather than
 calling them all one or the other. A workload with no network of its own has no network meter.
 
-**What is not measured yet says so.** `device_seconds` waits for devices and `address_hours` for
-dedicated addresses, both Phase 3 (§4 of `20-roadmap.md`). A sample names the quantities it
+**What a placement holds is metered for the time it holds it.** A dedicated core and a device are
+the workload's from the bind until its placement is freed, whether it uses them or not, which is
+what makes them its: so `dedicated_core_seconds` and `device_seconds` count each held one for every
+second its node holds the workload's assignment, integrated by the agent's meter at each reading as
+memory is, the cores from the assignment and each device's class from the node's own description of
+it. Nothing measures how busy a held device is, and nothing is charged by it. A device the node no
+longer describes has no class to count it under and is not counted, which a placement still holding
+it shows. Built 2026-10-25.
+
+> Corrected 2026-10-25, as they were built: the list above said `device_seconds` came from the
+> driver, and the first paragraph of this section named driver-reported device usage among the
+> sources. A driver knows what it gave an object, not for how long a placement held it while its
+> objects came and went; the agent, which holds the assignment, does, and a held device's seconds
+> are the placement's, as a held core's are.
+
+**What is not measured yet says so.** `address_hours` waits for dedicated addresses, Phase 3 (§4
+of `20-roadmap.md`). A sample names the quantities it
 measured, and a quantity it does not name is absent, never zero: a zero is a measurement.
 
 **Storage is sampled, and the samples are stored.** `disk_bytes_stored` is what the storage class

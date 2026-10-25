@@ -7,6 +7,7 @@
 //! made again without the meter seeing it end, and what that source used since is a loss.
 
 use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime};
 
@@ -34,6 +35,13 @@ pub fn add(a: &mut agent::MeterCounters, b: &agent::MeterCounters) {
     a.net_tx_bytes = sum(a.net_tx_bytes, b.net_tx_bytes);
     a.memory_kib_seconds = sum(a.memory_kib_seconds, b.memory_kib_seconds);
     a.egress_bytes = sum(a.egress_bytes, b.egress_bytes);
+    a.dedicated_core_seconds = sum(a.dedicated_core_seconds, b.dedicated_core_seconds);
+    for d in &b.device_seconds {
+        match a.device_seconds.iter_mut().find(|x| x.class == d.class) {
+            Some(x) => x.seconds = x.seconds.saturating_add(d.seconds),
+            None => a.device_seconds.push(d.clone()),
+        }
+    }
     for e in &b.endpoints {
         match a.endpoints.iter_mut().find(|x| x.endpoint == e.endpoint) {
             Some(x) => {
@@ -223,6 +231,37 @@ impl Book {
         }
         if peak.is_some() {
             w.interval_peak_bytes = w.interval_peak_bytes.max(peak);
+        }
+    }
+
+    /// Integrates what `workload`'s placement holds on the node, `cores` dedicated cores and
+    /// `devices` of each class, over the `elapsed` since the last reading: held, whatever ran on
+    /// them (§2 of docs/15-observability.md). Nothing is counted for a placement holding none.
+    pub fn held(
+        &mut self,
+        workload: &str,
+        (cores, devices): (u64, &[(pb::DeviceClass, u64)]),
+        elapsed: Duration,
+    ) {
+        let seconds = |n: u64| {
+            let s = u128::from(n) * elapsed.as_millis() / 1000;
+            u64::try_from(s).unwrap_or(u64::MAX)
+        };
+        let mut held = agent::MeterCounters::default();
+        if cores > 0 {
+            held.dedicated_core_seconds = Some(seconds(cores));
+        }
+        held.device_seconds = devices
+            .iter()
+            .filter(|(_, n)| *n > 0)
+            .map(|(class, n)| pb::DeviceSeconds {
+                class: (*class).into(),
+                seconds: seconds(*n),
+                ..Default::default()
+            })
+            .collect();
+        if held != agent::MeterCounters::default() {
+            add(self.workload(workload).base.get_or_insert_default(), &held);
         }
     }
 

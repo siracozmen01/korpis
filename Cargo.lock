@@ -3301,6 +3301,7 @@ dependencies = [
  "korpis-store",
  "korpis-stream",
  "korpis-target-s3",
+ "korpis-topology",
  "korpis-wire",
  "ppp",
  "rcgen",

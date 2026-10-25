@@ -256,9 +256,18 @@ impl Suite {
         command: &[&str],
     ) -> Result<(String, driver::PreparedSpec), String> {
         let spec = self.prepared(command).await?;
-        let id = self.driver().create(&spec).await.map_err(|e| format!("Create: {e}"))?;
-        self.keep(id.clone(), String::new());
+        let id = self.create(&spec).await?;
         Ok((id, spec))
+    }
+
+    /// The object `spec` describes, created and kept to be cleaned away: its id.
+    ///
+    /// # Errors
+    /// The driver refused to create it.
+    pub async fn create(&self, spec: &driver::PreparedSpec) -> Result<String, String> {
+        let id = self.driver().create(spec).await.map_err(|e| format!("Create: {e}"))?;
+        self.keep(id.clone(), String::new());
+        Ok(id)
     }
 
     /// A new object running the probe's `command`, started and seen running: its id and spec.

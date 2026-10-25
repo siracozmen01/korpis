@@ -126,6 +126,16 @@ async fn shown_detached(cp: &ControlPlane, tenant: &str, project: &str) {
     );
 }
 
+/// That the workload whose volume is `vol` has started once; otherwise what the node did, as it
+/// recorded it, so a start nothing should have made says why.
+async fn started_once(cp: &ControlPlane, vol: &std::path::Path) {
+    if lines(&vol.join("starts")).await.len() != 1 {
+        let sql = "SELECT coalesce(string_agg(action || ' ' || outcome || ' ' ||
+                    coalesce(after::text, ''), ' | ' ORDER BY at), '') FROM effect";
+        panic!("never started again, and it was: {}", cp.scalar::<String>(sql).await);
+    }
+}
+
 #[tokio::test]
 async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     if !live() {
@@ -165,7 +175,7 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     counted(&cp, "SELECT count(*) FROM effect WHERE action = 'node.adopt'", 1).await;
     status(&cp, &w, 30, converged).await;
     tokio::time::sleep(Duration::from_secs(2)).await;
-    assert_eq!(lines(&vol.join("starts")).await.len(), 1, "never started again");
+    started_once(&cp, &vol).await;
     assert_eq!(runtime.inspect(&observed.runtime_id).await.unwrap().pid, pid, "the same process");
     let sql = "SELECT count(*) FROM effect WHERE (action LIKE 'step.%' OR action = 'node.adopt') \
                AND origin_seq IS NOT NULL AND grant_id IS NULL";

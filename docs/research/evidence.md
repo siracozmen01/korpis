@@ -754,6 +754,26 @@ Primary:
   directory's children in the lower layers
   ([layer.md](https://github.com/opencontainers/image-spec/blob/v1.1.1/layer.md), read
   2026-10-23 at v1.1.1). How a microVM's image drive applies layers (§6 of `../04-runtimes.md`).
+- **[V]** WireGuard's cryptokey routing: each peer is identified by its public key and has a list
+  of allowed source IPs; an outgoing packet is encrypted for the peer whose allowed IPs hold its
+  destination, and a decrypted incoming packet is accepted only if its source resolves to the key
+  that decrypted it, otherwise it is dropped, so a packet arriving on the interface has an
+  authentic source address (whitepaper §2). A responder sends nothing to an unauthenticated
+  message and keeps no state for one (§5.1). A secure session is renewed every Rekey-After-Time,
+  120 seconds, and one older than Reject-After-Time, 180 seconds, carries no data (§6.1)
+  ([WireGuard: Next Generation Kernel Network
+  Tunnel](https://www.wireguard.com/papers/wireguard.pdf), read 2026-10-25). Why a mesh packet's
+  source names its node, why the mesh's port answers no scanner, and why a pair is judged by a
+  handshake younger than 180 seconds (§9.1 of `../07-networking.md`).
+- **[V]** `wg(8)`: a peer's endpoint is updated to the source of its most recent authenticated
+  packet, so a peer behind NAT is answered where it last spoke from; `PersistentKeepalive` sends
+  an authenticated empty packet at an interval to keep a NAT mapping valid; `wg show` reports each
+  peer's latest handshake. `wg-quick` sets an interface's MTU to its route's MTU less 80
+  ([wg.8](https://git.zx2c4.com/wireguard-tools/plain/src/man/wg.8),
+  [linux.bash](https://git.zx2c4.com/wireguard-tools/plain/src/wg-quick/linux.bash), read
+  2026-10-25). WireGuard is in the Linux kernel from 5.6
+  ([install](https://www.wireguard.com/install/), which offers modules only to users of older
+  kernels). The mesh's NAT, MTU, and kernel floor (§9.1 of `../07-networking.md`).
 Secondary:
 - [TheGamePanel: a modern alternative to
   Pterodactyl](https://ollieread.com/articles/thegamepanel-a-modern-alternative-to-pterodactyl)

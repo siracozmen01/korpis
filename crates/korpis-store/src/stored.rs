@@ -11,7 +11,7 @@
 mod cores;
 mod device;
 mod held;
-mod node;
+pub(crate) mod node;
 mod observation;
 mod placement;
 mod plan;

@@ -5,6 +5,7 @@ use korpis_core::labels::LabelSelector;
 use korpis_core::workload::spec::endpoints::{
     NetworkAction, NetworkPolicy, PortRange, Protocol, ShapingSpec, TlsSpec,
 };
+use korpis_core::workload::spec::resources::{CpuIsolation, CpuSpec};
 
 fn declared() -> EndpointSpec {
     EndpointSpec {
@@ -94,11 +95,14 @@ fn a_workload_s_own_limits_lower_the_default_and_never_raise_it() {
 }
 
 #[test]
-fn dedicated_cores_are_refused_until_a_driver_holds_them() {
-    let mut r = ResourceSpec::default();
-    assert!(resources(&r).is_ok());
-    r.cpu.isolation = CpuIsolation::DedicatedCores;
-    assert_eq!(why(resources(&r)), "dedicated cores in phase 3");
+fn dedicated_cores_are_declared_now_that_a_driver_holds_them() {
+    let mut body = korpis_core::workload::spec::fixture();
+    body.resources.cpu = CpuSpec {
+        reservation_millis: 2000,
+        limit_millis: 2000,
+        isolation: CpuIsolation::DedicatedCores,
+    };
+    assert!(refuse_unenforced(&body).is_ok());
 }
 
 #[test]

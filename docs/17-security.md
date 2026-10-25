@@ -144,13 +144,15 @@ guest's limits; and in the workload's network namespace, whose tap is the guest'
 of `04-runtimes.md`). Firecracker applies its own seccomp filters, which the driver never turns off
 (§5 of `research/evidence.md`). The guest's kernel is Korpis's own build of a longterm release with
 Firecracker's guest configuration (§5 of `21-stack.md`), booted with no PCI bus and its root the
-read-only boot drive. What the row's "when its cores are dedicated" does not yet mean: dedicated
-cores are not built (Finding 167 of `23-walkthroughs.md`), a declaration asking for them is
-refused, and every guest runs on cores it shares, so a `microvm` workload today does not stop the
-leaks between SMT siblings the row names, and a tenant who needs that waits for Phase 3 (§5.2 of
-`05-scheduling.md`). The conformance suite's isolation cases, which would test this row with escape
-attempts, are held for the maintainer (§8 of `04-runtimes.md`), so the row is argued from the
-implementation and not yet tested against it.
+read-only boot drive. What the row's "when its cores are dedicated" means as built (2026-10-25,
+§5.2 of `05-scheduling.md`): a guest holding cores has a vCPU for each of their CPUs, each pinned
+to its own, in a cgroup under the driver's `dedicated` one with their `cpuset`, and no other
+tenant's guest or container runs on them; a guest holding none runs on cores it shares and does not
+stop the leaks between SMT siblings the row names. Until 2026-10-25 a declaration asking for
+dedicated cores was refused and every guest shared its cores (Finding 167 of `23-walkthroughs.md`).
+The conformance suite's isolation cases, which would test this row with escape attempts, are held
+for the maintainer (§8 of `04-runtimes.md`), so the row is argued from the implementation and not
+yet tested against it.
 
 **What a guest says to its host is read as data of fixed layout.** Added 2026-10-24, when the
 driver first asked a running guest anything (§6 of `04-runtimes.md`). The `firecracker` driver is
@@ -451,6 +453,11 @@ on a healthy node is stopped by the *destination's* agent, which already maintai
 namespace and nftables rules for its own workloads. The source enforces for efficiency (drop early)
 and the destination enforces because it does not trust the source. Genuine defence in depth at
 essentially no cost, and it means a compromised node cannot use the fleet as its lateral path.
+Across nodes this is the mesh's rule (§9.1 of `07-networking.md`, designed 2026-10-25): WireGuard
+accepts a packet from a peer only with a source in that peer's own pool, so a compromised node
+cannot speak as another, and the destination admits from the mesh only the dependents of its
+workloads, to their dependencies' ports. The mesh's UDP port answers nothing that does not carry a
+peer's key.
 
 **North-south egress is uncontained on a compromised node, and this is stated rather than
 implied.** Only the source, or a chokepoint the operator owns, can enforce it, and nothing at this
@@ -538,33 +545,40 @@ publish vague ones.
 ## 13. Open questions
 
 1. **CPU side channels between tenants in shared tiers. Resolved here: dedicated cores are offered,
-   and they are what defends against them** (designed; built in Phase 3, and refused until then,
-   corrected 2026-10-25 by Finding 167 of `23-walkthroughs.md`). Not defended against by default;
-   §5 says so plainly. Whether Korpis offers core pinning and sibling-thread exclusion as a
-   declared workload property (with the density cost stated) was unresolved, and the default
-   advice was to pick `microvm`, which on its own does not stop the sibling leaks (finding S46).
+   and they are what defends against them** (built in Phase 3, 2026-10-25, and refused at
+   declaration until then, corrected 2026-10-25 by Finding 167 of `23-walkthroughs.md`). Not
+   defended against by default; §5 says so plainly. Whether Korpis offers core pinning and
+   sibling-thread exclusion as a declared workload property (with the density cost stated) was
+   unresolved, and the default advice was to pick `microvm`, which on its own does not stop the
+   sibling leaks (finding S46).
 
-`cpu.isolation: dedicated_cores` (§5.2 of `05-scheduling.md`) pins a workload to whole physical
-cores and keeps every other tenant off their SMT siblings, and by default the host's own processes
-too, each holding workload's cgroup a cpuset partition of its own; a host that keeps its processes
-on every CPU leaves its agent and services exposed on a held core's sibling to the leak classes the
-cores defend against, and its drivers' declarations say so (designed 2026-10-25). It is honest on
-both counts: it is the only configuration that defends against the cross-core leak classes, in any
-tier, and it costs the whole core, which the scheduler accounts and the meter bills. Combined with
-`microvm` it is the strongest isolation Korpis offers; neither alone is. (Until Phase 3 builds it,
-this release offers neither; see the `microvm` row as built in §5.) 2. **Hardware attestation.**
-Verifying that a node runs the kernel and agent it claims would raise    compromised-node detection
-substantially and drags in TPM, measured boot, and a key-management    story disproportionate to a
-single-operator install. → `18-operations.md` 3. **Confidential computing tiers.** AMD SEV-SNP and
-Intel TDX would let a tenant be protected    *from the operator*, which §8 currently states is
-impossible. That is a real fifth tier and a    large commitment. → `04-runtimes.md` 4. **Recipe
-author reputation. Resolved here: operator-managed allow-lists, nothing central.**    Signing
-proves who published a recipe, not whether they should be trusted. Anything resembling    curation
-collides with "Korpis is not a marketplace" (§2 of `00-overview.md`). It was routed to
-`09-recipes.md`, which never carried it (finding S18). The mechanism already exists in two
-places and is now named as the answer: `TrustPolicy.accepted_signers` per organization (§7 of
-`09-recipes.md`) and the publisher or registry allow-list for extensions (§4.1 of
-`16-extensions.md`). Korpis supplies verification and policy; reputation is the operator's. 5.
-**Windows isolation parity.** K-9 requires the runtime interface to express Windows on day one;
-job objects and server silos are genuinely weaker than Linux namespaces, and §5's tier table has
-no honest Windows column yet. It needs one before Windows ships, not after. → `04-runtimes.md`
+   `cpu.isolation: dedicated_cores` (§5.2 of `05-scheduling.md`) pins a workload to whole physical
+   cores and keeps every other tenant off their SMT siblings, and by default the host's own
+   processes too, each holding workload's cgroup a cpuset partition of its own; a host that keeps
+   its processes on every CPU leaves its agent and services exposed on a held core's sibling to
+   the leak classes the cores defend against, and its drivers' declarations say so. It is honest
+   on both counts: it is the only configuration that defends against the cross-core leak classes,
+   in any tier, and it costs the whole core, which the scheduler accounts and the meter bills.
+   Combined with `microvm` it is the strongest isolation Korpis offers; neither alone is. What is
+   tested of it on the machine this project is built on is the host sharing the cores: other
+   tenants kept off, and no partition made (§8 of `04-runtimes.md`).
+
+   > Corrected 2026-10-25: the reflow that added the host's half above, in the commit that
+   > designed dedicated cores, ran questions 2 to 5 into this paragraph, so the list read as one
+   > question. They are restored as they stood.
+2. **Hardware attestation.** Verifying that a node runs the kernel and agent it claims would raise
+   compromised-node detection substantially and drags in TPM, measured boot, and a key-management
+   story disproportionate to a single-operator install. → `18-operations.md`
+3. **Confidential computing tiers.** AMD SEV-SNP and Intel TDX would let a tenant be protected
+   *from the operator*, which §8 currently states is impossible. That is a real fifth tier and a
+   large commitment. → `04-runtimes.md`
+4. **Recipe author reputation. Resolved here: operator-managed allow-lists, nothing central.**
+   Signing proves who published a recipe, not whether they should be trusted. Anything resembling
+   curation collides with "Korpis is not a marketplace" (§2 of `00-overview.md`). It was routed to
+   `09-recipes.md`, which never carried it (finding S18). The mechanism already exists in two
+   places and is now named as the answer: `TrustPolicy.accepted_signers` per organization (§7 of
+   `09-recipes.md`) and the publisher or registry allow-list for extensions (§4.1 of
+   `16-extensions.md`). Korpis supplies verification and policy; reputation is the operator's.
+5. **Windows isolation parity.** K-9 requires the runtime interface to express Windows on day one;
+   job objects and server silos are genuinely weaker than Linux namespaces, and §5's tier table has
+   no honest Windows column yet. It needs one before Windows ships, not after. → `04-runtimes.md`

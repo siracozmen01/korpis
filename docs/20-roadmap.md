@@ -271,29 +271,30 @@ iSCSI) of §2 of `06-storage.md`, whose question 3 decides whether one class cov
 closed and §2 there was found pointing at this section for them while no phase named them. Edges in
 failover groups, which is what `stable` exposure requires to exist at all and what lets it survive
 the move (§3.1 of `07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can
-cross nodes. Dedicated addresses (§3 there), routed to whichever node a workload runs on. HTTP/3 at
-the ingress, on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6
-there), which only reaching workloads on other nodes makes necessary. Devices, including GPU.
-Dedicated cores (§5.2 of `05-scheduling.md`): a `cpuset` per driver and the scheduler's
-accounting of whole cores with their siblings, which the schema accepted from Phase 0 while
-nothing held them; homed here 2026-10-25, when it was found that no phase named them and that a
-workload asking for them ran on shared cores (Finding 167 of `23-walkthroughs.md`), and refused
-at declaration until then.
-`AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads for the difference to be
-measured. Drain and evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since
-draining a node is migrating its workloads off it; and the `template_rollout` Operation there,
-which issues a grant template's newer version to the holders of an older one (§3.5 of
-`08-identity.md`), the one Operation of Phase 2's tenancy that needs this machinery. With edges,
-the count of a node's ports learns them: until then every `stable` endpoint reserves a port of its
-node, which one an edge serves does not use (§3 of `07-networking.md`). Application-level health
-(Rule K-16): the node runs a workload's probes and acts on their verdicts (§5 of `04-runtimes.md`),
-homed here 2026-10-23, when it was found that no phase named it while four documents described it
-(Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are built, the `query` probe
-through its protocol's health provider (§5 of `16-extensions.md`), the `heartbeat` probe through
-the workload's identity socket, the `exec` probe through either driver's `Exec`, the `firecracker`
-driver's through the guest's agent, and the `guest_agent` probe through a microVM's vsock channel
-to its guest. A microVM's `/run/korpis` reaches its guest over that channel: its identity socket
-and API relay served there by its first process (trace 65 there), and its managed files and its
+cross nodes; designed 2026-10-25 as a WireGuard mesh of every node, each with a pool of its own
+(§9.1 there, trace 74 of `23-walkthroughs.md`), and not built. Dedicated addresses (§3 there),
+routed to whichever node a workload runs on. HTTP/3 at the ingress, on the UDP path edges bring
+(§3.2 there). Network rules naming workloads by label (§6 there), which only reaching workloads on
+other nodes makes necessary. Devices, including GPU. Dedicated cores (§5.2 of `05-scheduling.md`):
+a `cpuset` per driver and the scheduler's accounting of whole cores with their siblings, which the
+schema accepted from Phase 0 while nothing held them; homed here 2026-10-25, when it was found that
+no phase named them and that a workload asking for them ran on shared cores (Finding 167 of
+`23-walkthroughs.md`), and refused at declaration until then. `AssignmentDelta` (§9 of
+`10-api.md`), once nodes hold enough workloads for the difference to be measured. Drain and
+evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since draining a node is
+migrating its workloads off it; and the `template_rollout` Operation there, which issues a grant
+template's newer version to the holders of an older one (§3.5 of `08-identity.md`), the one
+Operation of Phase 2's tenancy that needs this machinery. With edges, the count of a node's ports
+learns them: until then every `stable` endpoint reserves a port of its node, which one an edge
+serves does not use (§3 of `07-networking.md`). Application-level health (Rule K-16): the node runs
+a workload's probes and acts on their verdicts (§5 of `04-runtimes.md`), homed here 2026-10-23,
+when it was found that no phase named it while four documents described it (Finding 151 of
+`23-walkthroughs.md`). The `tcp` and `http` probes are built, the `query` probe through its
+protocol's health provider (§5 of `16-extensions.md`), the `heartbeat` probe through the workload's
+identity socket, the `exec` probe through either driver's `Exec`, the `firecracker` driver's
+through the guest's agent, and the `guest_agent` probe through a microVM's vsock channel to its
+guest. A microVM's `/run/korpis` reaches its guest over that channel: its identity socket and API
+relay served there by its first process (trace 65 there), and its managed files and its
 dependencies' files sent as copies as they change, so a heartbeat probe runs on either tier
 (Finding 154 there, closed). A running microVM's file sessions, the panel's file manager and SFTP,
 are served inside its guest by the file worker its boot drive carries, and a stopped one's by the
@@ -301,40 +302,44 @@ same worker in a service microVM, a guest of Korpis's own holding its volumes (�
 `04-runtimes.md`), and so are installs into a stopped microVM's volume, by the helper's install job
 in such a guest (§4 of `09-recipes.md`); a block-device volume's backup is browsed and read inside
 its image by such a guest holding a copy restored for it, through `korpis backup ls` and `cat`
-(§5.4 of `06-storage.md`), and a path of it is restored into a new directory of the live volume
-by a copy in such a guest while the workload is stopped. The driver conformance suite (§8 of
+(§5.4 of `06-storage.md`), and a path of it is restored into a new directory of the live volume by
+a copy in such a guest while the workload is stopped. The driver conformance suite (§8 of
 `04-runtimes.md`) is built for the lifecycle, for `Recover` after a driver's crash, a kill for
 memory, and a host's restart, for every limit a driver declares enforced, and for `Exec` as it says
 it runs a command, Apache-2.0 and speaking the driver protocol alone, and both drivers conform to
 it, run by the program a third party starts on its own, from a fixture file, which prints each
 verdict and writes the report as JSON. Rule D's validation of the driver interface is recorded in
-§4.6 of `04-runtimes.md`: the second driver left the lifecycle as it was and added what a
-separate kernel with its own filesystem needs, each foreseen by §4.3 there but the workload's
-addresses. The suite's isolation cases, the escape attempts §8 there requires, stay in this phase
-and are held for the maintainer's design (2026-10-24): until they are built, a driver's
-conformance says nothing of its isolation, and the suite's report says so. Devices, including
-GPUs, are designed (§6 of `05-scheduling.md`, trace 72 of `23-walkthroughs.md`): a node's are those
-the Container Device Interface's files describe, held by placements, and given to a driver as
-edits, which the driver reads from the files itself (Finding 169). It is built: a request is
-declared and counted, the device chosen at the bind, held, freed, and restored with placements,
-and given by the `oci` driver as a node bound from the host; the `firecracker` driver refuses one.
-It is tested with a stand-in device of the test's own on this machine, whose GPU is never passed
-through, so no real GPU has been given to a workload. Dedicated cores are designed (§5.2 of
-`05-scheduling.md`, trace 73 of `23-walkthroughs.md`): whole physical cores read from the kernel's
-topology, chosen at the bind and held by placements, each holding object in a `cpuset` of its own
-and by default a cpuset partition, so neither another tenant nor the host runs on its cores. A
-node's report of its cores is built, and so is the scheduler's half: cores chosen at the bind,
-held, freed, and restored with placements, each reserving its threads; so is the node's half that
-keeps other workloads off them: the agent gives the driver the cores from its own topology and
-tells the helper the CPUs held, before an object holding them is made and after one is destroyed,
-and the helper keeps each driver's `shared` cgroup off them and writes their exclusive CPUs, tested
-on a cgroup tree of the test's own. So is the `oci` driver's: a container holding cores checked
-against the topology the driver reads, given their `cpuset`, and made a partition before it runs,
-unless the host shares the cores; tested on trees of the test's own and not yet on this machine's
-kernel. So is the `firecracker` driver's: the jailer makes a guest's cgroup with their `cpuset` and
-partition before Firecracker runs, the guest has a vCPU for each CPU, and each vCPU's thread is
-pinned to its own. A request for them is still refused when it is declared, until the meter, the
-conformance case, and an end-to-end test are built.
+§4.6 of `04-runtimes.md`: the second driver left the lifecycle as it was and added what a separate
+kernel with its own filesystem needs, each foreseen by §4.3 there but the workload's addresses. The
+suite's isolation cases, the escape attempts §8 there requires, stay in this phase and are held for
+the maintainer's design (2026-10-24): until they are built, a driver's conformance says nothing of
+its isolation, and the suite's report says so. Devices, including GPUs, are designed (§6 of
+`05-scheduling.md`, trace 72 of `23-walkthroughs.md`): a node's are those the Container Device
+Interface's files describe, held by placements, and given to a driver as edits, which the driver
+reads from the files itself (Finding 169). It is built: a request is declared and counted, the
+device chosen at the bind, held, freed, and restored with placements, and given by the `oci` driver
+as a node bound from the host; the `firecracker` driver refuses one. It is tested with a stand-in
+device of the test's own on this machine, whose GPU is never passed through, so no real GPU has
+been given to a workload. Dedicated cores are designed (§5.2 of `05-scheduling.md`, trace 73 of
+`23-walkthroughs.md`): whole physical cores read from the kernel's topology, chosen at the bind and
+held by placements, each holding object in a `cpuset` of its own and by default a cpuset partition,
+so neither another tenant nor the host runs on its cores. A node's report of its cores is built,
+and so is the scheduler's half: cores chosen at the bind, held, freed, and restored with
+placements, each reserving its threads; so is the node's half that keeps other workloads off them:
+the agent gives the driver the cores from its own topology and tells the helper the CPUs held,
+before an object holding them is made and after one is destroyed, and the helper keeps each
+driver's `shared` cgroup off them and writes their exclusive CPUs, tested on a cgroup tree of the
+test's own. So is the `oci` driver's: a container holding cores checked against the topology the
+driver reads, given their `cpuset`, and made a partition before it runs, unless the host shares the
+cores; tested on trees of the test's own and not yet on this machine's kernel. So is the
+`firecracker` driver's: the jailer makes a guest's cgroup with their `cpuset` and partition before
+Firecracker runs, the guest has a vCPU for each CPU, and each vCPU's thread is pinned to its own.
+The meter counts each core held, preflight names what a node lacks to offer them, and a workload
+holding cores is shown its cores in place of a CPU limit. Both drivers pass the conformance cases
+for dedicated cores, and a workload asking for one is declared, placed, held, and freed end to end
+on this machine with the host sharing the core, so a request for them is accepted when it is
+declared. What is not tested here: a partition, which would take CPUs from this machine's other
+services (§5.2 of `05-scheduling.md`).
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -494,7 +499,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-three traces and their 172 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-four traces and their 174 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

@@ -27,11 +27,24 @@ fn ctr(args: &[&str]) -> Option<String> {
     Some(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
-/// Removes container `id`: its task killed and removed, then it and its snapshot.
+/// Whether containerd holds a task for container `id`.
+fn has_task(id: &str) -> bool {
+    ctr(&["tasks", "ls", "-q"]).is_some_and(|ids| ids.lines().any(|t| t.trim() == id))
+}
+
+/// Removes container `id`: its task killed and removed, then it and its snapshot. The task goes
+/// first and is waited for, however slow containerd is: a container removed while its task
+/// remains leaves the task's shim running with no container to end it by.
 fn remove(id: &str) {
     let _ = ctr(&["tasks", "kill", "-s", "SIGKILL", id]);
-    std::thread::sleep(Duration::from_millis(300));
-    let _ = ctr(&["tasks", "rm", "-f", id]);
+    let until = std::time::Instant::now() + Duration::from_secs(20);
+    while has_task(id) && std::time::Instant::now() < until {
+        let _ = ctr(&["tasks", "rm", "-f", id]);
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    if has_task(id) {
+        return;
+    }
     let _ = ctr(&["containers", "rm", id]);
     let _ = ctr(&["snapshots", "rm", id]);
 }

@@ -74,6 +74,20 @@ fn a_counter_first_measured_now_is_counted_from_zero() {
 }
 
 #[test]
+fn held_cores_and_devices_are_counted_as_seconds_since_the_reading_before() {
+    use crate::node::driver::DeviceClass;
+    let held = |cores, gpu| Counters {
+        dedicated_core_seconds: Some(cores),
+        device_seconds: [(DeviceClass::Gpu, gpu)].into(),
+        ..Counters::default()
+    };
+    let used = held(14_400, 7_200).since(&held(7_200, 3_600));
+    assert_eq!(used.dedicated_core_seconds, Some(7_200), "two cores for an hour");
+    assert_eq!(used.device_seconds[&DeviceClass::Gpu], 3_600);
+    assert!(held(10, 3_600).below(&held(10, 7_200)), "a device's seconds went back");
+}
+
+#[test]
 fn a_silent_span_is_one_gap_an_interval_and_a_day_is_utc() {
     let spans = gaps(t(2), t(5), HOUR);
     assert_eq!(spans, [(t(2), t(3)), (t(3), t(4)), (t(4), t(5))]);

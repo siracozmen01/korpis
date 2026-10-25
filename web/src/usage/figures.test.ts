@@ -2,7 +2,17 @@
 
 import { create } from "@bufbuild/protobuf";
 import { UsageKind, UsageRecordSchema } from "../gen/korpis/v1/metering_pb";
-import { cores, cpuSeconds, gibHours, permille, perSecond, totals } from "./figures";
+import { DeviceClass } from "../gen/korpis/v1/common_pb";
+import {
+  coreHours,
+  cores,
+  cpuSeconds,
+  deviceHours,
+  gibHours,
+  permille,
+  perSecond,
+  totals,
+} from "./figures";
 
 const HOUR = 3600n;
 
@@ -12,6 +22,8 @@ interface Init {
   readonly diskAllocated?: boolean;
   readonly egressBytes?: bigint;
   readonly endpoints?: { endpoint: string; receivedBytes: bigint; sentBytes: bigint }[];
+  readonly dedicatedCoreSeconds?: bigint;
+  readonly deviceSeconds?: { class: DeviceClass; seconds: bigint }[];
 }
 
 function record(hour: bigint, kind: UsageKind, init: Init) {
@@ -71,4 +83,17 @@ test("a day's egress and each counted endpoint are summed by name", () => {
   expect(sum.egressBytes).toBe(1000n);
   expect(sum.endpoints.get("game")).toEqual({ receivedBytes: 120n, sentBytes: 430n });
   expect(totals([record(2n, UsageKind.MEASURED, {})]).endpoints.size, "none counted").toBe(0);
+});
+
+test("held cores and devices are summed, each class apart, and absent where none was", () => {
+  const gpu = (seconds: bigint) => [{ class: DeviceClass.GPU, seconds }];
+  const sum = totals([
+    record(0n, UsageKind.MEASURED, { dedicatedCoreSeconds: 4n * HOUR, deviceSeconds: gpu(HOUR) }),
+    record(1n, UsageKind.MEASURED, { dedicatedCoreSeconds: 4n * HOUR, deviceSeconds: gpu(HOUR) }),
+  ]);
+  expect(coreHours(sum.dedicatedCoreSeconds ?? 0n)).toBe("8 core-hours");
+  expect(deviceHours(sum.deviceSeconds)).toBe("GPU 2 hours");
+  const none = totals([record(2n, UsageKind.MEASURED, {})]);
+  expect(none.dedicatedCoreSeconds, "nothing held, nothing shown").toBeUndefined();
+  expect(none.deviceSeconds.size).toBe(0);
 });

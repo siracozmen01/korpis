@@ -6,6 +6,7 @@
 use crate::case::{Report, Verdict};
 use crate::suite::Suite;
 
+mod cores;
 mod ending;
 mod exec;
 mod limits;
@@ -93,4 +94,13 @@ pub async fn exec(s: &Suite, report: &mut Report) {
     report.add(("a_command_sends_no_more_than_its_limit_and_says_so", "04 §4.2"), limited);
     let refused = verdict(exec::undeclared_is_refused(s).await);
     report.add(("exec_it_does_not_declare_is_refused", "04 §4.1"), refused);
+}
+
+/// Dedicated cores, where the driver declares them held: an object given a core runs on its CPUs
+/// alone, and the core of CPU 0 is refused.
+pub async fn cores(s: &Suite, report: &mut Report) {
+    let held = verdict(cores::held(s).await);
+    report.add(("an_object_given_a_core_runs_on_its_cpus_alone", "04 §4.2"), held);
+    let refused = verdict(cores::refuses_cpu_0s(s).await);
+    report.add(("create_refuses_the_core_of_cpu_0", "04 §4.2"), refused);
 }

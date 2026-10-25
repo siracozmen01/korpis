@@ -818,6 +818,10 @@ an anchor.
 Decided 2026-10-15, for the networking of Phase 1 (§4 of `20-roadmap.md`), which runs on one
 machine; nothing here prevents the overlay of §9 from joining these namespaces later.
 
+> Corrected 2026-10-25 (Finding 173 of `23-walkthroughs.md`): the sentence above was not so. Every
+> node's default pool below is the same `10.47.0.0/16`, and the mesh routes rather than
+> translates, so it cannot carry one prefix to two nodes. §9.1 gives each node a pool of its own.
+
 **The agent decides, the helper executes, the driver joins.** A workload's network namespace is
 data-plane state the agent owns (§2 of `02-architecture.md`). From the assignment the agent
 computes what the workload's network must be: its addresses, its declared endpoints, its allocated
@@ -1013,11 +1017,16 @@ dependent is placed on the node its targets are on, which the filter row of §2.
 `05-scheduling.md` already states for a node outside the overlay. A required dependency whose
 target is not placed leaves the dependent unplaced, saying so; one that is not required constrains
 nothing. Targets on two different nodes leave it unplaced: there is no node from which both are
-reachable.
+reachable. With the mesh (§9.1, designed 2026-10-25), a target on another node is reached through
+it when the pair is reachable, and the dependent may be placed on any node from which every
+target's node is; until it is built, the rule above holds.
 
 *The address.* The node turns each target into an address: the target's workload address, which its
 agent allocated and alone holds (§4.1), and the endpoint's container port. A target that is not on
-the dependent's node is not resolved.
+the dependent's node is not resolved. With the mesh it is, and not by the dependent's node, which
+holds no other node's addresses: the control plane, which learns each workload's address from its
+node's observations (§4.1), carries a remote target's address in the dependent's assignment, and
+it is reached at that address, since every node's pool is its own (§9.1).
 
 *Injection.* Into the environment at the container's creation: `KORPIS_DEP_<NAME>_HOST` and
 `_PORT`, of the first target in the order of the targets' names, and `_ADDRESSES`, every target as
@@ -1588,6 +1597,96 @@ operator still owns the outside firewall; the plan that exposes an endpoint says
 outside every node's network is what an edge tier or a relay on another machine provides (§3.1 of
 `02-architecture.md`), and with one the measurement means what a client sees.
 
+
+### 9.1 The mesh, as designed
+
+Designed 2026-10-25, as Phase 3 builds it (§4 of `20-roadmap.md`, trace 74 of
+`23-walkthroughs.md`). Each step names what decides it, where, and with what information.
+
+**Each node has one WireGuard interface, and its key never leaves the node.** The helper makes the
+interface, `korpis-overlay`, generates its private key into its own state directory the first time,
+and listens on one UDP port, 51820 unless the agent is given `--overlay-port`. WireGuard is in the
+kernel from Linux 5.6, below the floor of §2 of `18-operations.md`, and is configured over
+generic netlink, as the helper already configures links over netlink (§4.1). The agent reports the
+interface's public key and port in its Hello and every heartbeat, beside the addresses it
+advertises (§9 above), so the control plane holds each node's key as the node's authenticated
+session said it, and never a private key. What it costs: a compromised control plane can name any
+key as a node's peer, which gives it nothing it lacks, since it already decides what every node
+runs; and the key lasts as long as the node's identity, so it is replaced only when the node is
+enrolled again (question 13 of §11).
+
+**Every node's workload pool is its own.** Cross-node traffic is routed, not translated, so that a
+workload sees its client's own address, as §3.4 requires of every path. That needs pools no two
+nodes share, and every node's default is `10.47.0.0/16` (§4.1). So the control plane, which alone
+sees every node, gives each node a /22 of an installation range, `10.48.0.0/12` unless
+`korpis-server` is given `--overlay-range`, when it enrolls, and holds it as the node's until the
+node is decommissioned. The agent keeps it in its state directory beside its identity, since it
+lays out its workloads' networks when it starts, before any session, and uses it unless
+`--workload-ipv4` names another; it reports the pool it uses in its Hello. A node enrolled before
+pools were given has none kept and goes on with `10.47.0.0/16`, since changing it would renumber
+its workloads; and a node whose pool overlaps another member's is outside the mesh, `overlay:
+unavailable` saying with which node, until its operator names another. A /22 is 1,022 workloads on
+a node, and the default range holds 1,024 nodes. A node's IPv6 prefix is routed alike: its routed
+prefix, or the unique local prefix derived from its identity (§4.1), checked for overlaps the same
+way. What it costs: an installation that upgrades with two nodes on the old default has one of them
+outside the mesh until it is given a pool; the operator is told which, and how.
+
+**The control plane tells each node its peers; the peers authenticate the traffic.** Every enrolled
+node is a member, whatever organization it belongs to (§3.4 of `01-model.md`), since membership
+reaches no workload by itself: a destination accepts only its workloads' dependents (below). For
+each other member, a node is sent the member's public key, an endpoint (its first advertised
+address and overlay port, or none when it advertises none), and its pools, which become the peer's
+allowed IPs. WireGuard routes a packet to the peer whose allowed IPs hold its destination, and
+accepts a decrypted packet only if its source is in the allowed IPs of the peer whose key decrypted
+it (§5 of `research/evidence.md`), so a packet arriving on `korpis-overlay` from a workload address
+is authentically from the node that holds that workload's pool. The agent writes the peers, the
+routes to each peer's pools through the interface, and keeps them on disk, so the mesh runs with
+the control plane gone (§4.6 of `02-architecture.md`); a change is applied whole, a peer removed
+with its routes.
+
+**A pair is reachable when both its nodes say a handshake is fresh.** A node behind NAT advertises
+no address (§9 above), so it has no endpoint; it reaches a peer that has one, keeping the NAT
+mapping open with a keepalive every 25 seconds, and the peer learns its endpoint from the
+authenticated packets. So a pair works when at least one of its nodes is reachable, and two nodes
+that both are not cannot reach each other, as position 3 above says, with no relay. Each node
+reads, for every peer, the time of its latest handshake, and reports it with its heartbeat. A
+session older than 180 seconds carries no data (WireGuard's Reject-After-Time, §5 of
+`research/evidence.md`), and a session in use is renewed every 120 seconds, which the keepalive
+keeps in use; so the control plane takes a pair as reachable when both nodes' last reports name a
+handshake with the other younger than 180 seconds. `Node.overlay` is `available` when the node
+reaches every other member, and the scheduler asks the pair (§2.1 of `05-scheduling.md`): a
+dependent may be placed on a node from which each target's node is reachable. What it costs: a pair
+is judged at most one heartbeat late, so a link that has just failed takes placements for up to
+that long, and the dependency's status says it is unreached once the node reports it so.
+
+**Both ends hold the policy**, as §9.1 of `17-security.md` decided east-west traffic would be: the
+source drops early and the destination does not trust the source. The dependent's node opens the
+target's address and port in the dependent's own chain, as on one node (§5). The target's node does
+not take that on trust, since a compromised node could send anything its interface carries. So the
+control plane, which resolved the dependency, gives the target's node each remote dependent's
+address and the endpoint it may reach, and the target's node accepts a packet from `korpis-overlay`
+to a workload only from a dependent of it, to a port of the dependency's endpoint, counting what it
+lets through under the comment `dependency`. Nothing else crosses the overlay into a workload: a
+workload's `overlay_only` endpoint is reached from another node by its dependents and by no one
+else, as on one node. What leaves a node into the overlay goes untranslated, since its source is a
+workload address the peer allows.
+
+**What crosses it is smaller.** WireGuard's encapsulation takes 80 bytes of an IPv6 packet's 1,500
+(60 of IPv4's), so the interface's MTU is 1,420, which is `wg-quick`'s choice on such a link (§5 of
+`research/evidence.md`). A workload's link stays at 1,500, so the node clamps the maximum segment
+size of TCP connections into the overlay to fit, and answers a larger packet that may not be
+fragmented with the ICMP message that says so, which a workload's table already accepts.
+
+What the overlay does not do. It does not relay: two nodes neither of which is reachable from the
+other share no dependency, and the scheduler says why. Edges are not members yet: §3.4 has an edge
+tunnel to a node over WireGuard between Korpis machines, and how an edge joins this mesh is settled
+with the edge tier (§3.1); until then nothing from the internet is routed into it. It does not hide
+which nodes talk to which from someone watching the network between them. And it is tested on the
+machine this project is built on with each node's data plane in a network namespace of its own and
+a link between them, so that no interface is made in the host's namespace and no UDP port is opened
+on its addresses; the paths between machines on separate networks, NAT among them, are argued from
+WireGuard's documented behaviour rather than run there.
+
 ---
 
 ## 10. What changes at migration cutover
@@ -1689,3 +1788,7 @@ promise, and it is now the one the document makes.
 12. **What the workload speaks.** The proxy forwards over HTTP/1.1, so a workload that serves only
     HTTP/2, which gRPC needs, cannot be routed. Whether an endpoint declares its backend protocol,
     and how that fits the frozen `EndpointProtocol`, is undecided. → here
+13. **Rotating a node's overlay key.** A node's WireGuard key lasts as long as its identity (§9.1),
+    so a key read off a node's disk stays good until the node is enrolled again. Whether the helper
+    rotates it on a schedule, the agent reporting the new key and both keys being allowed while
+    every peer learns it, is undecided. → here

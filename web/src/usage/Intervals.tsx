@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 import { type UsageRecord, UsageKind } from "../gen/korpis/v1/metering_pb";
 import { bytes } from "../i18n/format";
 import { intl, t } from "../i18n/intl";
-import { cpuSeconds, gibHours, spanMs } from "./figures";
+import { coreHours, cpuSeconds, deviceHours, gibHours, spanMs } from "./figures";
 
 function kindText(k: UsageKind): string {
   switch (k) {
@@ -48,6 +48,10 @@ function Row({ record: r }: { readonly record: UsageRecord }) {
     shown(r.netRxBytes, bytes),
     shown(r.netTxBytes, bytes),
     shown(r.egressBytes, bytes),
+    shown(r.dedicatedCoreSeconds, coreHours),
+    r.deviceSeconds.length === 0
+      ? "-"
+      : deviceHours(new Map(r.deviceSeconds.map((d) => [d.class, d.seconds]))),
   ];
   return (
     <tr className={r.kind === UsageKind.GAP ? "gap" : undefined}>
@@ -78,6 +82,12 @@ export function Intervals({ records }: { readonly records: readonly UsageRecord[
       id: "GUVPdT95",
       description: "a usage column: sent beyond the node",
     }),
+    t({
+      defaultMessage: "Cores",
+      id: "p+iaEV98",
+      description: "a usage column: dedicated cores held",
+    }),
+    t({ defaultMessage: "Devices", id: "eiaY37sX", description: "a usage column: devices held" }),
   ];
   return (
     <details>

@@ -166,12 +166,31 @@ fn usage_rows(list: &[pb::UsageRecord]) -> Vec<Vec<String>> {
         "SENT",
         "EGRESS",
         "DISK",
+        "CORES",
+        "DEVICES",
         "NODE",
         "CAUSE",
     ];
     let mut rows = vec![header.iter().map(|h| (*h).to_owned()).collect()];
     rows.extend(list.iter().map(usage_row));
     rows
+}
+
+/// Core-seconds as core-hours: `2.00 core-h`.
+fn core_hours(seconds: u64) -> String {
+    format!("{}.{:02} core-h", seconds / 3600, seconds % 3600 * 100 / 3600)
+}
+
+/// Each class of device held, in device-hours: `gpu 1.00 h`; `-` for none.
+fn held_devices(held: &[pb::DeviceSeconds]) -> String {
+    if held.is_empty() {
+        return "-".to_owned();
+    }
+    let one = |d: &pb::DeviceSeconds| {
+        let (hours, rest) = (d.seconds / 3600, d.seconds % 3600 * 100 / 3600);
+        format!("{} {hours}.{rest:02} h", short(d.class, "DEVICE_CLASS_"))
+    };
+    held.iter().map(one).collect::<Vec<_>>().join(", ")
 }
 
 fn usage_row(r: &pb::UsageRecord) -> Vec<String> {
@@ -199,6 +218,8 @@ fn usage_row(r: &pb::UsageRecord) -> Vec<String> {
             Some(b) if r.disk_allocated => format!("{} allocated", bytes(b)),
             _ => size(r.disk_bytes),
         },
+        r.dedicated_core_seconds.map_or_else(|| "-".to_owned(), core_hours),
+        held_devices(&r.device_seconds),
         r.node.clone().unwrap_or_else(|| "-".to_owned()),
         cause,
     ]

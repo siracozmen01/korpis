@@ -2,8 +2,8 @@
 
 //! What the probe does to meet a limit, saying as it goes how far it got, so whoever runs it
 //! reads in its output where the kernel stopped it: memory taken a mebibyte at a time, threads
-//! started until one is refused, a directory filled until a write is refused, and processors
-//! kept busy.
+//! started until one is refused, a directory filled until a write is refused, processors kept
+//! busy, and the processors it may run on.
 
 use super::say;
 use std::io::Write as _;
@@ -71,4 +71,16 @@ fn busy() -> ! {
     loop {
         x = std::hint::black_box(x.wrapping_add(1));
     }
+}
+
+/// Says the logical CPUs it may run on, as `/proc/self/status` lists them, and exits 0; or
+/// says it could not read them and exits 1.
+pub fn cpus() -> ExitCode {
+    let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
+    let Some(list) = status.lines().find_map(|l| l.strip_prefix("Cpus_allowed_list:")) else {
+        say("probe: cpus unread");
+        return ExitCode::FAILURE;
+    };
+    say(&format!("probe: cpus {}", list.trim()));
+    ExitCode::SUCCESS
 }

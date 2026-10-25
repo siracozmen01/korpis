@@ -10,9 +10,11 @@ use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
 mod endpoints;
+mod held;
 mod period;
 
 pub use endpoints::{EndpointUse, Endpoints};
+pub use held::DeviceSeconds;
 pub use period::{Period, PeriodState};
 
 /// A span samples were lost over, between the last one received and the next.
@@ -63,10 +65,14 @@ pub struct Counters {
     pub egress_bytes: Option<u64>,
     /// What each endpoint whose accounting is on carried, by name.
     pub endpoints: Endpoints,
+    /// Each dedicated core its placement held, for the seconds it was held.
+    pub dedicated_core_seconds: Option<u64>,
+    /// Each device it held, by class, for the seconds it was held.
+    pub device_seconds: DeviceSeconds,
 }
 
 impl Counters {
-    fn pairs(&self) -> [Option<u64>; 8] {
+    fn pairs(&self) -> [Option<u64>; 9] {
         [
             self.cpu_usec,
             self.cpu_throttled_usec,
@@ -76,11 +82,12 @@ impl Counters {
             self.net_tx_bytes,
             self.memory_kib_seconds,
             self.egress_bytes,
+            self.dedicated_core_seconds,
         ]
     }
 
-    fn from_pairs(p: [Option<u64>; 8], endpoints: Endpoints) -> Self {
-        let [cpu, throttled, read, written, rx, tx, memory, egress] = p;
+    fn from_pairs(p: [Option<u64>; 9], (endpoints, devices): (Endpoints, DeviceSeconds)) -> Self {
+        let [cpu, throttled, read, written, rx, tx, memory, egress, cores] = p;
         Self {
             cpu_usec: cpu,
             cpu_throttled_usec: throttled,
@@ -91,6 +98,8 @@ impl Counters {
             memory_kib_seconds: memory,
             egress_bytes: egress,
             endpoints,
+            dedicated_core_seconds: cores,
+            device_seconds: devices,
         }
     }
 
@@ -102,17 +111,19 @@ impl Counters {
             .zip(before.pairs())
             .any(|(n, b)| matches!((n, b), (Some(n), Some(b)) if *n < b))
             || endpoints::below(&self.endpoints, &before.endpoints)
+            || held::below(&self.device_seconds, &before.device_seconds)
     }
 
     /// What was used since `before`, counter by counter. A counter `before` did not measure is
     /// counted from zero, since a node's counter begins at zero when it is first measured.
     #[must_use]
     pub fn since(&self, before: &Self) -> Self {
-        let mut out = [None; 8];
+        let mut out = [None; 9];
         for (o, (n, b)) in out.iter_mut().zip(self.pairs().into_iter().zip(before.pairs())) {
             *o = n.map(|n| n.saturating_sub(b.unwrap_or(0)));
         }
-        Self::from_pairs(out, endpoints::since(&self.endpoints, &before.endpoints))
+        let devices = held::since(&self.device_seconds, &before.device_seconds);
+        Self::from_pairs(out, (endpoints::since(&self.endpoints, &before.endpoints), devices))
     }
 }
 

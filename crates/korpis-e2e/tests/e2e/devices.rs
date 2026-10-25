@@ -66,7 +66,7 @@ fn asking() -> pb::IntentBody {
 }
 
 /// The first line workload `w` printed, read as `tenant`.
-async fn printed(cp: &ControlPlane, tenant: &str, w: &str) -> Vec<String> {
+pub(crate) async fn printed(cp: &ControlPlane, tenant: &str, w: &str) -> Vec<String> {
     let reading = Reading { follow: true, limit: Some(1), ..reading() };
     let asked = Logs { workload: w.to_owned(), reading };
     let mut lines = Vec::new();
@@ -75,7 +75,7 @@ async fn printed(cp: &ControlPlane, tenant: &str, w: &str) -> Vec<String> {
 }
 
 /// Why no node took workload `w`, once the scheduler has said.
-async fn unplaced(cp: &ControlPlane, w: &str) -> pb::Explanation {
+pub(crate) async fn unplaced(cp: &ControlPlane, w: &str) -> pb::Explanation {
     for _ in 0..300 {
         let status = cp.status(w).await;
         if let Some(why) = status.unplaced.as_option().and_then(|u| u.explanation.as_option()) {

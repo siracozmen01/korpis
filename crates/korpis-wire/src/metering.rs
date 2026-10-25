@@ -14,7 +14,16 @@ fn counters(field: &str, c: &agent::MeterCounters) -> Result<Counters> {
     if names.len() != c.endpoints.len() || names.contains("") {
         return Err(invalid(&format!("{field}.endpoints"), "each endpoint is named, once"));
     }
+    let mut device_seconds = korpis_core::metering::DeviceSeconds::new();
+    for (i, d) in c.device_seconds.iter().enumerate() {
+        let class = crate::node::device_from_pb(&format!("{field}.device_seconds[{i}]"), d.class)?;
+        if device_seconds.insert(class, d.seconds).is_some() {
+            return Err(invalid(&format!("{field}.device_seconds"), "each class once"));
+        }
+    }
     Ok(Counters {
+        dedicated_core_seconds: c.dedicated_core_seconds,
+        device_seconds,
         cpu_usec: c.cpu_usec,
         cpu_throttled_usec: c.cpu_throttled_usec,
         io_read_bytes: c.io_read_bytes,

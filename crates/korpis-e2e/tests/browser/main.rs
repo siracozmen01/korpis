@@ -26,6 +26,8 @@
 mod containers;
 #[path = "../e2e/guests.rs"]
 mod guests;
+#[path = "../e2e/helper.rs"]
+mod helper;
 #[path = "../e2e/image.rs"]
 mod image;
 #[path = "../e2e/node.rs"]
@@ -34,6 +36,8 @@ mod person;
 mod portal;
 #[path = "../e2e/recipes.rs"]
 mod recipes;
+#[path = "../e2e/serving.rs"]
+mod serving;
 #[path = "../e2e/support.rs"]
 mod support;
 mod terminal;

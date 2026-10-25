@@ -5,6 +5,7 @@
 //! sockets and the control plane through its stream. Only the processes are folded together;
 //! every boundary between them is the socket it is in production.
 
+use crate::helper::{cgroups, helper};
 use crate::support::ControlPlane;
 use korpis_agent::advertise::Advertise;
 use korpis_agent::content::ContentStore;
@@ -18,6 +19,7 @@ use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::session::Event;
 use korpis_agent::state::StateDir;
 use korpis_core::node::advertised::PortRange;
+use korpis_core::node::cores::Core;
 use korpis_core::node::driver::DeviceClass;
 use korpis_driver_kit::cores::Cores;
 use korpis_driver_oci::containerd::Containerd;
@@ -60,6 +62,8 @@ pub struct Node {
     /// The node's own Container Device Interface directory, which its agent and its driver read
     /// as their `--cdi-dir`; empty unless a test writes a spec file into it.
     pub cdi: PathBuf,
+    /// The cores the agent offers for dedication: none, unless the node was joined holding them.
+    pub cores: Vec<Core>,
 }
 
 /// The device kind the tests' spec files name, which the agent maps to `serial` as
@@ -99,50 +103,6 @@ pub fn live() -> bool {
 
 fn registries() -> Vec<String> {
     vec![std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())]
-}
-
-/// The helper, serving on `socket` from its own thread for the rest of the process, running
-/// backup and restore jobs with the job binary as a node's helper does, which read recipe content
-/// from `content`, the agent's content store, and file sessions with the file worker.
-fn helper(socket: &Path, volumes: &Path, (state, content, netns): (&Path, &Path, &Path)) {
-    let class = korpis_helper::storage::Class::open("local", volumes).unwrap();
-    let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
-    let jobs = korpis_helper::job::JobConfig {
-        binary: built("korpis-backup", "korpis-backup-job"),
-        install_binary: Some(built("korpis-install", "korpis-install-job")),
-        state: state.to_owned(),
-        cgroups: None,
-        content: Some(content.to_owned()),
-    };
-    let network = korpis_helper::network::Network::new(netns.to_owned());
-    // As `--ingress-binary` beside the helper would, the proxy's cgroup made beneath one of the
-    // test's own, which the node removes when it is dropped.
-    let ingress =
-        korpis_helper::ingress::IngressConfig { binary: proxy(), cgroups: Some(cgroups(state)) };
-    let mut h = korpis_helper::helper::Helper::new(vec![class], ledger)
-        .with_jobs(jobs)
-        .with_network(network)
-        .with_ingress(korpis_helper::ingress::Ingress::new(ingress))
-        .with_files(korpis_helper::files::Files::new(korpis_helper::files::FilesConfig {
-            binary: built("korpis-files", "korpis-fsworker"),
-            state: state.to_owned(),
-            cgroups: None,
-        }));
-    let listener = korpis_helper::serve::bound(socket).unwrap();
-    std::thread::spawn(move || korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None));
-}
-
-/// The ingress proxy, built where this test was, once per test process.
-fn proxy() -> PathBuf {
-    static BUILT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
-    BUILT.get_or_init(|| built("korpis-ingress", "korpis-ingress")).clone()
-}
-
-/// The cgroup the helper whose state is at `state` makes its ingress proxy's beneath: one of
-/// this test process's own, named for that helper, so no two nodes share it.
-fn cgroups(state: &Path) -> PathBuf {
-    let name = state.parent().and_then(Path::file_name).unwrap_or_default().to_string_lossy();
-    PathBuf::from(format!("/sys/fs/cgroup/korpis-e2e-{}-{name}", std::process::id()))
 }
 
 /// The stream writer, built where this test was if it is not already.
@@ -201,7 +161,17 @@ impl Node {
     pub async fn join(cp: &ControlPlane, name: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let volumes = dir.path().join("volumes");
-        Self::join_with(cp, name, dir, (volumes, None)).await
+        Self::join_with(cp, name, dir, (volumes, None), Vec::new()).await
+    }
+
+    /// As [`Self::join`], its agent offering the machine's last core for dedication and its
+    /// helper keeping the cpusets beneath its driver's cgroup parent, the driver's host sharing
+    /// the core as this machine's other services need; `None` on a machine of one core.
+    pub async fn join_holding_cores(cp: &ControlPlane, name: &str) -> Option<Self> {
+        let core = korpis_topology::cores(Path::new("/sys/devices/system"), None).pop()?;
+        let dir = tempfile::tempdir().unwrap();
+        let volumes = dir.path().join("volumes");
+        Some(Self::join_with(cp, name, dir, (volumes, None), vec![core]).await)
     }
 
     /// As [`Self::join`], with its volumes on a btrfs made for it, qgroups on, so its class can
@@ -222,7 +192,7 @@ impl Node {
             && ok(Command::new("btrfs").args(["quota", "rescan", "-w"]).arg(&at));
         assert!(quota, "qgroups on the test's own filesystem");
         let volumes = at.join("volumes");
-        Some(Self::join_with(cp, name, dir, (volumes, Some(at))).await)
+        Some(Self::join_with(cp, name, dir, (volumes, Some(at)), Vec::new()).await)
     }
 
     async fn join_with(
@@ -230,6 +200,7 @@ impl Node {
         name: &str,
         dir: tempfile::TempDir,
         (volumes, mounted): (PathBuf, Option<PathBuf>),
+        offered: Vec<Core>,
     ) -> Self {
         let state = StateDir::new(dir.path().join("agent"));
         let (token, ca) = cp.token(name).await;
@@ -240,10 +211,11 @@ impl Node {
             (dir.path().join("driver.sock"), dir.path().join("helper.sock"));
         let content = state.root().join("content");
         let netns = dir.path().join("netns");
-        helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content, &netns));
+        let cores = crate::containers::own(name);
+        let parent = (!offered.is_empty()).then_some(cores.parent.as_str());
+        helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content, &netns), parent);
         let cdi = dir.path().join("cdi");
         std::fs::create_dir(&cdi).unwrap();
-        let cores = crate::containers::own(name);
         let containers = cores.root.join(cores.parent.trim_start_matches('/'));
         driver(&driver_socket, &state, (&volumes, &netns, &cdi), cores).await;
         Self {
@@ -260,6 +232,7 @@ impl Node {
             ports: next_ports(),
             microvms: None,
             cdi,
+            cores: offered,
         }
     }
 
@@ -318,7 +291,8 @@ impl Node {
         // but loopback (§3 of docs/07-networking.md).
         let advertise = Advertise::new(vec![host_address().into()], self.ports, &server);
         let ingress = ingress.then(|| advertise.ingress());
-        let offer = (Reserve::default(), [].as_slice(), Vec::new());
+        let cores = self.cores.iter().map(korpis_wire::node::core_to_pb).collect();
+        let offer = (Reserve::default(), [].as_slice(), cores);
         // As `--cdi-dir` with the node's own directory and `--device-class` for the stand-in.
         let classes = [(STANDIN.to_owned(), DeviceClass::Serial)].into();
         let config = korpis_agent::devices::Config {

@@ -24,7 +24,9 @@ pub const VERSION: &str = "1.0.0";
 
 /// A thin recipe (§2 of docs/09-recipes.md): an image by digest, an entry that records each
 /// start in its volume, a configured greeting it writes there and prints to its console, and
-/// what it finds of its identity socket (§9.5 of docs/08-identity.md).
+/// what it finds of its identity socket (§9.5 of docs/08-identity.md). It ends when asked to
+/// stop, as software does, rather than as `sleep` run first in its namespace, which ignores the
+/// signal and so held every stop to its thirty seconds of grace.
 fn sleeper() -> String {
     let busybox = busybox();
     format!(
@@ -42,7 +44,7 @@ runtime:
         echo $GREETING > /data/greeting; echo said $GREETING;
         {{ test -S /run/korpis/identity.sock && echo socket;
         touch /run/korpis/x 2>/dev/null || echo read-only; }} > /data/identity;
-        date +%s%N >> /data/starts; exec sleep 3600
+        date +%s%N >> /data/starts; trap 'exit 0' TERM; sleep 3600 & wait
 preset:
   lifecycle: persistent
   console: logs

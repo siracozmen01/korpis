@@ -1296,6 +1296,23 @@ case rather than being compared. A microVM's guest keeps no cgroup of its own, i
 the host's outside it, so there the entry and the command both say none, and what is compared is
 the guest's view of the two.
 
+Dedicated cores (2026-10-25) are tested where a driver declares them held, given as the node gives
+them. The suite reads the machine's last core from the kernel's topology, as an agent reads one,
+and never uses the core of CPU 0; it keeps the cpusets the helper keeps under the driver's declared
+cgroup parent while an object holds the core (the `shared` cgroup off its CPUs, and the CPUs
+written as the exclusive CPUs of every cgroup from below the root down to `dedicated`), and puts
+each file back as it was once the object is destroyed. An object given the core must be seen from
+outside in a cgroup under `dedicated` running on exactly those CPUs, with the `shared` cgroup on
+none of them, and from inside, through `Exec`, able to run on exactly those CPUs where it shares
+the host's kernel and on as many where it has its own; an object given the core of CPU 0 must be
+refused at `Create`. A driver that does not declare dedicated cores held is not applicable, and so
+is a machine of one core. Both drivers are run with the host sharing the cores
+(`--dedicated-cores-host shared`), which is how the suite runs on the machine this project is built
+on, whose other services a partition would take CPUs from. What these cases do not do: there, no
+partition is made, so a driver's partition is tested only where the suite is run on a machine whose
+host may give up a core; and they read where the object may run and where the `shared` cgroup may,
+not where every process of the host may.
+
 The isolation cases, which this section requires as escape attempts fitting each tier, are not
 built: their design is held for the maintainer (2026-10-24, §4 of `20-roadmap.md`). Until they are
 built, a driver's conformance says nothing of its isolation, and every report of the suite says so

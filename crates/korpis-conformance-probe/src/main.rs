@@ -20,6 +20,7 @@
 //! - `threads`: starts threads until one is refused, and says how many;
 //! - `fill <dir>`: writes in `dir` until a write is refused, and says how much and why;
 //! - `spin <threads>`: keeps that many threads busy until it is killed.
+//! - `cpus`: says the logical CPUs it may run on, as the kernel lists them.
 
 use std::io::Write as _;
 use std::process::ExitCode;
@@ -88,6 +89,7 @@ fn main() -> ExitCode {
         ["threads"] => limits::threads(),
         ["fill", dir] => limits::fill(dir),
         ["spin", threads] => limits::spin(threads),
+        ["cpus"] => limits::cpus(),
         _ => {
             say("probe: serve, stubborn, serving, exit <status>, whoami, entry, write <bytes>, \
                  count <command>, alloc, threads, fill <dir>, spin <n>");

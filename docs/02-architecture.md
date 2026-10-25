@@ -501,6 +501,13 @@ assignment meanwhile. The first build logged the failure and went on reconciling
 adopted, so each workload already running was prepared and created a second time beside itself.
 The cost is that a node whose driver stays unable to answer runs what it ran, unsupervised and
 unreported, until it answers; its lease expiring is what tells the control plane (§4.5).
+
+**A state the driver cannot tell is waited out.** Added 2026-10-25 (Finding 174 of
+`23-walkthroughs.md`). An object the driver reports in an unknown state, which containerd reports
+when a task's shim fails to answer, is neither started nor stopped for up to a minute, at adoption
+or after: starting it would replace a task that may be running. Past the minute it is taken as
+stopped and started again, since a shim that is gone for good stays unknown. The cost is that a
+workload whose shim died is brought back a minute later than one that exited.
 Effects a node originates are named in two namespaces, `step.<action>` for a plan step's
 completion and `node.<event>` for what the node did on its own (`node.adopt`, `node.restart`,
 `node.superseded`, `node.orphan`), so that none can be mistaken for the control plane's own

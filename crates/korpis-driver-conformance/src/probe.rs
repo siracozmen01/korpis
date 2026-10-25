@@ -24,6 +24,9 @@ pub const FILL: [&str; 3] = ["/probe", "fill", "/data"];
 /// Keeps four threads busy, more than the processor time an object may use.
 pub const SPIN: [&str; 3] = ["/probe", "spin", "4"];
 
+/// Says the logical CPUs it may run on, as the kernel lists them.
+pub const CPUS: [&str; 2] = ["/probe", "cpus"];
+
 /// Exits 0 once a `SERVE` or a `STUBBORN` beside it takes the terminating signal.
 pub const SERVING: [&str; 2] = ["/probe", "serving"];
 

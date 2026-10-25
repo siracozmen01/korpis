@@ -41,6 +41,7 @@ korpis-server = { workspace = true, features = ["testing"] }
 korpis-store = { workspace = true, features = ["testing"] }
 korpis-stream = { workspace = true }
 korpis-target-s3 = { path = "../korpis-target-s3" }
+korpis-topology = { workspace = true }
 korpis-wire = { workspace = true }
 # The PROXY header a passthrough workload is sent, read by a parser that is not Korpis's.
 ppp = "2.3"

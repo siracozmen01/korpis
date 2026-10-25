@@ -18,7 +18,9 @@ import { Intervals } from "./Intervals";
 import {
   type EndpointTotal,
   cores,
+  coreHours,
   cpuSeconds,
+  deviceHours,
   gibHours,
   perSecond,
   permille,
@@ -73,6 +75,18 @@ const NAMES = {
       description: "a usage figure: bytes sent beyond the node",
     }),
   disk: () => t({ defaultMessage: "Disk", id: "UYHJnj7x", description: "a usage figure" }),
+  cores: () =>
+    t({
+      defaultMessage: "Dedicated cores",
+      id: "2HoDOHU6",
+      description: "a usage figure: dedicated cores held",
+    }),
+  devices: () =>
+    t({
+      defaultMessage: "Devices",
+      id: "/tS7AnHp",
+      description: "a usage figure: devices held",
+    }),
 };
 
 const map = <T, U>(v: T | undefined, f: (v: T) => U) => (v === undefined ? undefined : f(v));
@@ -207,6 +221,11 @@ function Accounted({ records, from }: { readonly records: UsageRecord[]; readonl
           [NAMES.received(), map(sum.netRxBytes, bytes)],
           [NAMES.sent(), map(sum.netTxBytes, bytes)],
           [NAMES.egress(), map(sum.egressBytes, bytes)],
+          [NAMES.cores(), map(sum.dedicatedCoreSeconds, coreHours)],
+          [
+            NAMES.devices(),
+            sum.deviceSeconds.size === 0 ? undefined : deviceHours(sum.deviceSeconds),
+          ],
           [
             NAMES.disk(),
             map(sum.disk, (d) =>

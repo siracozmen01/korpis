@@ -74,6 +74,10 @@
   "/oK6MZ9J": {
     "defaultMessage": "Uses (optional)"
   },
+  "/tS7AnHp": {
+    "defaultMessage": "Devices",
+    "description": "a usage figure: devices held"
+  },
   "05J8UAPw": {
     "defaultMessage": "stopped",
     "description": "a workload's declared power state"
@@ -140,6 +144,10 @@
   },
   "2E9YtXqZ": {
     "defaultMessage": "Its plan applies at {when}."
+  },
+  "2HoDOHU6": {
+    "defaultMessage": "Dedicated cores",
+    "description": "a usage figure: dedicated cores held"
   },
   "2MR6/PnK": {
     "defaultMessage": "Below it"
@@ -699,6 +707,10 @@
   },
   "H+C4LITW": {
     "defaultMessage": "Upload {name}"
+  },
+  "H7Kb5kH1": {
+    "defaultMessage": "{hours} core-hours",
+    "description": "dedicated cores held over time"
   },
   "HAlOn1Zs": {
     "defaultMessage": "Name"
@@ -1558,6 +1570,10 @@
     "defaultMessage": "region=eu",
     "description": "an example of node labels"
   },
+  "eiaY37sX": {
+    "defaultMessage": "Devices",
+    "description": "a usage column: devices held"
+  },
   "elS34uKD": {
     "defaultMessage": "Reading what was done here…"
   },
@@ -1877,6 +1893,10 @@
     "defaultMessage": "someone",
     "description": "an effect's actor, unnamed"
   },
+  "p+iaEV98": {
+    "defaultMessage": "Cores",
+    "description": "a usage column: dedicated cores held"
+  },
   "p556q3uv": {
     "defaultMessage": "Copied"
   },
@@ -2115,6 +2135,10 @@
   },
   "wPj0Ogg+": {
     "defaultMessage": "Only the workloads labelled (optional)"
+  },
+  "wSoDXbHI": {
+    "defaultMessage": "{class} {hours} hours",
+    "description": "devices of one class held over time"
   },
   "wWOah4PS": {
     "defaultMessage": "Down",

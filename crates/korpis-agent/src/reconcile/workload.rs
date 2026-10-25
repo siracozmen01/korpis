@@ -14,6 +14,7 @@ use crate::host::Host;
 use crate::lease::{OnExpiry, Refusal, Standing};
 use crate::runtime::{Runtime, RuntimeError};
 use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::time::{Duration, Instant};
 
@@ -169,6 +170,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if let Some(restarted) = self.unhealthy(a, t).await {
             return restarted;
         }
+        if undetermined(t) {
+            return Ok(());
+        }
         if !t.status.as_ref().is_some_and(running) {
             if t.stopped_by_us {
                 self.start(a, t).await?;
@@ -218,5 +222,48 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             self.record(e).await;
         }
         Ok(())
+    }
+}
+
+/// How long a state the driver cannot tell is waited out before the object is taken as stopped.
+const UNKNOWN_BOUND: Duration = Duration::from_secs(60);
+
+/// Whether `t`'s object is in a state its driver cannot tell, and has been for less than
+/// [`UNKNOWN_BOUND`]. containerd says so when a task's shim fails to answer (§4.4 of
+/// docs/02-architecture.md), and starting the object then would replace a task that may be
+/// running; a shim gone for good stays unknown, so past the bound the object is acted on as
+/// stopped.
+fn undetermined(t: &mut Tracked) -> bool {
+    let unknown = t
+        .status
+        .as_ref()
+        .is_some_and(|s| s.state.as_known() == Some(driver::RuntimeState::RUNTIME_STATE_UNKNOWN));
+    if !unknown {
+        t.unknown_since = None;
+        return false;
+    }
+    t.unknown_since.get_or_insert_with(Instant::now).elapsed() < UNKNOWN_BOUND
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_state_the_driver_cannot_tell_is_waited_out_before_anything_is_started() {
+        let state = |s: driver::RuntimeState| driver::RuntimeStatus {
+            state: s.into(),
+            ..Default::default()
+        };
+        let mut t = Tracked {
+            status: Some(state(driver::RuntimeState::RUNTIME_STATE_UNKNOWN)),
+            ..Tracked::default()
+        };
+        assert!(undetermined(&mut t), "unknown: nothing is done yet");
+        t.unknown_since = Instant::now().checked_sub(UNKNOWN_BOUND);
+        assert!(!undetermined(&mut t), "unknown past the bound: acted on as stopped");
+        t.status = Some(state(driver::RuntimeState::RUNTIME_STATE_STOPPED));
+        assert!(!undetermined(&mut t));
+        assert_eq!(t.unknown_since, None, "forgotten once the driver can tell again");
     }
 }

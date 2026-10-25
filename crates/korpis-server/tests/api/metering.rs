@@ -69,6 +69,16 @@ async fn a_sample_is_measured_from_the_one_before_it_and_lost_ones_leave_a_span(
     let mut allocated = sample(2, &workload, 0, 100);
     if let Some(B::Metering(m)) = allocated.body.as_mut() {
         (m.disk_bytes, m.disk_allocated) = (Some(4096), true);
+        // Two dedicated cores and a GPU held for the hour, whatever ran.
+        let c = m.counters.get_or_insert_default();
+        c.dedicated_core_seconds = Some(7200);
+        let gpu = korpis_proto::korpis::v1::DeviceClass::DEVICE_CLASS_GPU;
+        let held = korpis_proto::korpis::v1::DeviceSeconds {
+            class: gpu.into(),
+            seconds: 3600,
+            ..Default::default()
+        };
+        c.device_seconds.push(held);
     }
     send(&mut s, vec![allocated]).await;
     assert_eq!(until(&mut s, ack).await, 2);
@@ -100,6 +110,10 @@ async fn a_sample_is_measured_from_the_one_before_it_and_lost_ones_leave_a_span(
     assert!(records.iter().all(|r| r.kind == RecordKind::Measured && r.node.is_some()));
     let disks: Vec<_> = records.iter().map(|r| (r.disk_bytes, r.disk_allocated)).collect();
     assert_eq!(disks, [(Some(4096), true), (None, false)], "kept with the record that read it");
+    let gpu = korpis_core::node::driver::DeviceClass::Gpu;
+    assert_eq!(records[0].used.dedicated_core_seconds, Some(7200), "held, kept with its record");
+    assert_eq!(records[0].used.device_seconds.get(&gpu), Some(&3600));
+    assert_eq!(records[1].used.dedicated_core_seconds, None, "absent where nothing held any");
     assert!(h.effects("journal.unsupported").await.is_empty(), "a sample is no effect");
 }
 

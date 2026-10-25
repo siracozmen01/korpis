@@ -945,7 +945,17 @@ Node
                                07-networking.md)
   admin         active | cordoned | draining | decommissioned      what the operator decided
   connectivity  registering | connected | unreachable | unknown    whether it is heard
-  overlay       available | unavailable    measured (§9 of 07-networking.md)
+  overlay       available | unavailable    measured (§9 of 07-networking.md): available when it
+                               reaches every other member of the mesh
+  overlay_key   bytes          its WireGuard public key, as its agent reports it; the private key
+                               never leaves the node (§9.1 of 07-networking.md); designed
+                               2026-10-25
+  overlay_port  uint32         the UDP port its mesh listens on, as its agent reports it
+  pools         []Prefix       its workloads' address pools, given at enrollment or named by its
+                               operator, no two members' overlapping (§9.1 of 07-networking.md)
+  peers         []PeerReach    each other member, and whether the pair is reachable: both nodes
+                               report a handshake with the other younger than 180 seconds; what
+                               the scheduler asks of a dependency across nodes
   ingress       bool           whether its agent holds ports 80 and 443 for its ingress proxy;
                                required of an ingress endpoint's node without an edge tier
                                (§3.2 of 07-networking.md)

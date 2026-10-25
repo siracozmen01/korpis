@@ -14,6 +14,7 @@ package korpis.v1;
 
 import "google/protobuf/timestamp.proto";
 import "korpis/v1/api.proto";
+import "korpis/v1/common.proto";
 
 service MeteringService {
   // The records of what a workload, or every workload of a project or an organization's
@@ -110,6 +111,18 @@ message UsageRecord {
   // What each endpoint whose accounting is on carried, by name; none for an endpoint whose
   // accounting is off, which is not counted.
   repeated EndpointUsage endpoints = 22;
+  // Each dedicated core the workload's placement held, for the seconds it was held, whatever ran
+  // on it (§5.2 of docs/05-scheduling.md). Added 2026-10-25.
+  optional uint64 dedicated_core_seconds = 24;
+  // Each device it held, by class, for the seconds it was held (§6 of docs/05-scheduling.md).
+  // Added 2026-10-25.
+  repeated DeviceSeconds device_seconds = 25;
+}
+
+// The seconds devices of one class were held: two held for an hour are 7,200.
+message DeviceSeconds {
+  DeviceClass class = 1;
+  uint64 seconds = 2;
 }
 
 // One endpoint's bytes and packets over a record's window: sent to its port, and from it.

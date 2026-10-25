@@ -45,7 +45,7 @@ A node survives the filter only if all hold:
 | is `ready`: active and connected, so not cordoned, draining, or unheard | `Node.admin`, `Node.connectivity` (§3.4 of `01-model.md`) |
 | belongs to the workload's organization or one of its ancestors | `Node.organization` (§3.4 of `01-model.md`) |
 | can be reached the way the workload's endpoints need | measured reachability (§9 of `07-networking.md`) |
-| is in the overlay, when a dependency or a dependent is placed on another node | `Node.overlay` (§9 of `07-networking.md`); built 2026-10-15 as the `dependency` check, with no node in the overlay yet: a dependent goes where its targets are, and a dependent does not yet hold its targets (§5 of `07-networking.md`) |
+| is in the overlay, when a dependency or a dependent is placed on another node | `Node.overlay` (§9 of `07-networking.md`); built 2026-10-15 as the `dependency` check, with no node in the overlay yet: a dependent goes where its targets are, and a dependent does not yet hold its targets (§5 of `07-networking.md`). Designed 2026-10-25 with the mesh (§9.1 there): the check asks the pair, `Node.peers`, so a dependent may be placed on a node from which each target's node is reachable, and targets on two nodes are placeable |
 | every quota entry counting what runs on the node admits it | §5.1, "Where a workload runs" |
 
 **`allocatable` is measured by the agent, less a reserve the operator sets on the node.** The
@@ -1196,6 +1196,11 @@ stated in the plan that requests it.
 > built, a declaration asking for them is refused, naming that phase, and placement treats them as
 > a limit like any other: a node is a candidate only where its driver declares `dedicated_cores`
 > enforced (§4.1 of `04-runtimes.md`), which no driver of this release does.
+>
+> Built 2026-10-25: both drivers declare `dedicated_cores` held where their objects are all under
+> `shared` and `dedicated` and the kernel makes the partitions or the host shares the cores, and
+> a declaration asking for them is accepted. Placement still treats them as a limit, so a node
+> whose drivers do not declare them held is never chosen for them.
 
 #### Dedicated cores, as they are held
 
@@ -1209,7 +1214,10 @@ is on. The workload is given every logical CPU of each core it holds, so nothing
 sibling of its cores, and each core counts its logical CPUs, at 1,000 millicores each, against the
 node's allocatable CPU: four dedicated cores on a machine with two threads a core take 8,000
 millicores there, which is the density cost a plan that asks for them states. Quota counts what the
-declaration asks, 1,000 millicores a core, since admission knows no node (§5.1).
+declaration asks, 1,000 millicores a core, since admission knows no node (§5.1). Its limit is not a
+quota: an object holding cores is given none, its cores its bound (§4.2 of `04-runtimes.md`), so
+wherever a declaration's CPU is shown, one holding dedicated cores shows its cores and never a
+limit in millicores that no kernel holds (Rule K-3).
 
 **A node's cores are read by its agent, and all but the first are offered.** The agent reads the
 topology when it starts and reports each core it offers, its logical CPUs and their NUMA node
@@ -1258,7 +1266,11 @@ held core for the time it is held, whatever the workload does on it (§2 of `15-
 And the partition path is not run end to end on the machine this project is built on, whose other
 services it would take CPUs from: what is tested there is the opt-out, tenants kept off by the
 shared `cpuset`, and the partition's files written in the order the kernel asks, against a tree of
-the test's own (§4 of `20-roadmap.md`).
+the test's own (§4 of `20-roadmap.md`). End to end, a workload declared asking for a core is placed
+on a node offering the machine's last core, runs on that core's CPUs alone while its node's
+`shared` cgroup leaves them, keeps a second off the node until it is retired, and frees them; and
+both drivers pass the conformance cases for dedicated cores (§8 of `04-runtimes.md`), each with the
+host sharing the cores.
 
 **I/O is ceilings and shares, never a reservation.** `io.limit` sets `io.max` (bytes and operations
 per second, read and write). `io.share` sets `io.weight`, which is a proportional share of the

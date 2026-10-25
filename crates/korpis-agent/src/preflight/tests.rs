@@ -33,6 +33,15 @@ const GOOD: &[(&str, &str)] = &[
     ("sys/fs/cgroup/io.cost.qos", "259:0 enable=1 ctrl=auto rpct=0.00\n"),
     ("proc/cpuinfo", "processor : 0\nflags : fpu vme sse2\n"),
     ("dev/kvm", ""),
+    ("sys/devices/system/cpu/online", "0-3\n"),
+    ("sys/devices/system/cpu/cpu0/topology/core_cpus_list", "0-1\n"),
+    ("sys/devices/system/cpu/cpu1/topology/core_cpus_list", "0-1\n"),
+    ("sys/devices/system/cpu/cpu2/topology/core_cpus_list", "2-3\n"),
+    ("sys/devices/system/cpu/cpu3/topology/core_cpus_list", "2-3\n"),
+    ("sys/fs/cgroup/cgroup.subtree_control", "cpuset cpu io memory pids\n"),
+    ("sys/fs/cgroup/korpis/cpuset.cpus.exclusive", "\n"),
+    ("sys/fs/cgroup/korpis/cpuset.cpus.partition", "member\n"),
+    ("proc/irq/default_smp_affinity", "3\n"),
 ];
 
 fn class(name: &str, backend: pb::StorageBackend) -> pb::StorageClassInfo {
@@ -52,7 +61,7 @@ fn probes() -> Probes {
 }
 
 fn oci() -> Offer {
-    Offer { driver: "oci".into() }
+    Offer { driver: "oci".into(), dedicated_cores: None }
 }
 
 fn outcome<'a>(r: &'a Report, name: &str) -> &'a Outcome {
@@ -151,7 +160,7 @@ fn what_could_not_be_asked_is_unchecked_and_says_how_to_ask_it() {
     let mut p = probes();
     p.storage = Some(Err("connection refused".into()));
     p.containerd = None;
-    let r = checks(&m, &p, &Offer { driver: "memory".into() });
+    let r = checks(&m, &p, &Offer { driver: "memory".into(), dedicated_cores: None });
     let Outcome::Unchecked(why) = outcome(&r, "enforced storage") else { panic!() };
     assert!(why.contains("systemctl start korpis-helper.socket"), "{why}");
     assert!(matches!(outcome(&r, "containerd"), Outcome::NotNeeded(_)));
@@ -183,4 +192,45 @@ fn kvm_and_the_tun_driver_are_needed_where_a_driver_offers_microvms_and_lacking_
     let unasked =
         Probes { tiers: Some(Err("the driver at /run/x.sock: refused".into())), ..probes() };
     assert!(matches!(outcome(&checks(&m, &unasked, &oci()), "tun"), Outcome::Unchecked(_)));
+}
+
+#[test]
+fn dedicated_cores_need_a_core_besides_cpu_0s_partitions_and_interrupts_steered_off_them() {
+    let with = |changed: &[(&'static str, &'static str)]| {
+        let mut files: Vec<_> =
+            GOOD.iter().copied().filter(|(p, _)| changed.iter().all(|(c, _)| c != p)).collect();
+        files.extend(changed.iter().copied().filter(|(_, content)| !content.is_empty()));
+        machine(&files)
+    };
+    let (_dir, m) = with(&[("proc/irq/default_smp_affinity", "f\n")]);
+    let r = checks(&m, &probes(), &oci());
+    let Outcome::Lacking { costs, fix } = outcome(&r, "interrupt affinity") else { panic!() };
+    assert!(costs.contains("CPUs 2-3"), "{costs}");
+    assert!(fix.starts_with("boot with irqaffinity=0-1 "), "{fix}");
+
+    let (_dir, m) = with(&[("sys/fs/cgroup/cgroup.subtree_control", "cpu io memory\n")]);
+    let r = checks(&m, &probes(), &oci());
+    let Outcome::Lacking { fix, .. } = outcome(&r, "cpuset partitions") else { panic!() };
+    assert!(fix.starts_with("echo +cpuset >") && fix.contains("--dedicated-cores-host shared"));
+    let (_dir, m) = with(&[("sys/fs/cgroup/korpis/cpuset.cpus.exclusive", "")]);
+    let r = checks(&m, &probes(), &oci());
+    let Outcome::Lacking { fix, .. } = outcome(&r, "cpuset partitions") else { panic!() };
+    assert!(fix.starts_with("Linux 6.7 or later"), "{fix}");
+    assert!(r.offers_anything(), "a node without them still offers the rest");
+
+    let named = Offer { dedicated_cores: Some([2, 4].into_iter().collect()), ..oci() };
+    let (_dir, m) = machine(GOOD);
+    let r = checks(&m, &probes(), &named);
+    let Outcome::Lacking { costs, .. } = outcome(&r, "physical cores") else { panic!() };
+    assert_eq!(costs, "cores 4 are not offered");
+
+    let (_dir, m) = with(&[
+        ("sys/devices/system/cpu/online", "0-1\n"),
+        ("sys/devices/system/cpu/cpu2/topology/core_cpus_list", ""),
+        ("sys/devices/system/cpu/cpu3/topology/core_cpus_list", ""),
+    ]);
+    let r = checks(&m, &probes(), &oci());
+    assert!(matches!(outcome(&r, "physical cores"), Outcome::Lacking { .. }));
+    assert!(matches!(outcome(&r, "cpuset partitions"), Outcome::NotNeeded(_)));
+    assert!(matches!(outcome(&r, "interrupt affinity"), Outcome::NotNeeded(_)));
 }
