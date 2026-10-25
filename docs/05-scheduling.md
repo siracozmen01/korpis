@@ -1232,19 +1232,19 @@ separate ledger.
 own under `<parent>/dedicated`, its `cpuset` the cores' logical CPUs and their NUMA nodes' memory,
 and every other object under `<parent>/shared`, whose `cpuset` the node's helper keeps at the
 node's online CPUs less those held, told by the agent which its placements hold and where each
-driver's objects live, which a driver declares (`cgroup_parent`, §4.1 of `04-runtimes.md`), writing
-it before an object holding cores is created and after one is destroyed; a shared object's tasks
-leave a core when it is held, the kernel moving them. That keeps every other tenant off. To keep
-the host off too, the holding object's cgroup is made a cpuset partition of its own
-(`cpuset.cpus.partition`, a remote partition of cgroup v2, which kernels from about Linux 6.7
-have), the helper writing the held CPUs into `cpuset.cpus.exclusive` of each cgroup above it first,
-as the kernel requires: no process outside the partition, the host's agent, containerd, and
-services included, can run on its CPUs while it is held (§5 of `research/evidence.md`). That is the
-default. An operator who would rather the host keep every CPU passes `--dedicated-cores-host
-shared` to the node's drivers, and each one's declaration of `dedicated_cores` then says that other
-tenants are kept off and the host is not (§4.1 of `04-runtimes.md`), which a plan that asks for
-them shows; without it, a node whose kernel has no remote partitions offers no dedicated cores,
-preflight saying why.
+driver's objects live, which a driver declares (`cgroup_parent`, §4.1 of `04-runtimes.md`) and the
+helper keeps only where its `--cores-cgroup` allows (§3 of `18-operations.md`), writing it before
+an object holding cores is created and after one is destroyed; a shared object's tasks leave a core
+when it is held, the kernel moving them. That keeps every other tenant off. To keep the host off
+too, the holding object's cgroup is made a cpuset partition of its own (`cpuset.cpus.partition`, a
+remote partition of cgroup v2, which kernels from about Linux 6.7 have), the helper writing the
+held CPUs into `cpuset.cpus.exclusive` of each cgroup above it first, as the kernel requires: no
+process outside the partition, the host's agent, containerd, and services included, can run on its
+CPUs while it is held (§5 of `research/evidence.md`). That is the default. An operator who would
+rather the host keep every CPU passes `--dedicated-cores-host shared` to the node's drivers, and
+each one's declaration of `dedicated_cores` then says that other tenants are kept off and the host
+is not (§4.1 of `04-runtimes.md`), which a plan that asks for them shows; without it, a node whose
+kernel has no remote partitions offers no dedicated cores, preflight saying why.
 
 What it costs and does not do. A partition takes its CPUs from every process outside it, the
 host's own services included, for as long as it is held: that is what makes a core the workload's,

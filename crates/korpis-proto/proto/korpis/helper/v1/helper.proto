@@ -64,6 +64,12 @@ service HelperService {
   // What the host's table has counted of every workload's link (§7 of docs/07-networking.md):
   // each named counter, in one listing of the table, which the meter reads at each reading.
   rpc ReadCounters(ReadCountersRequest) returns (ReadCountersResponse);
+  // Keeps the workloads' cpusets to the dedicated cores held (§5.2 of docs/05-scheduling.md):
+  // under each driver's cgroup parent the request names, each one the helper was configured to
+  // keep, its `shared` cgroup on the node's online CPUs less every CPU held, and the CPUs held
+  // there written as the exclusive CPUs of that cgroup, the cgroups above it, and its `dedicated`
+  // cgroup, which a driver's partitions take theirs from.
+  rpc HoldCores(HoldCoresRequest) returns (HoldCoresResponse);
 }
 
 // One request, as the transport carries it.
@@ -94,6 +100,7 @@ message HelperRequest {
     EnsureUplinksRequest ensure_uplinks = 23;
     ReadCountersRequest read_counters = 24;
     OpenProbeRequest open_probe = 25;
+    HoldCoresRequest hold_cores = 26;
   }
 }
 
@@ -126,6 +133,7 @@ message HelperResponse {
     EnsureUplinksResponse ensure_uplinks = 24;
     ReadCountersResponse read_counters = 25;
     OpenProbeResponse open_probe = 26;
+    HoldCoresResponse hold_cores = 27;
   }
 }
 
@@ -702,4 +710,23 @@ message ListJobsResponse {
 message JobSummary {
   string job = 1;
   JobState state = 2;
+}
+
+// The logical CPUs of every core the node's objects hold, by the cgroup parent of the driver whose
+// objects hold them, in full each time: every parent the node's drivers declare is named, one
+// whose objects hold none with no CPUs.
+message HoldCoresRequest {
+  repeated HeldCores parents = 1;
+}
+
+// The CPUs held under one driver's cgroup parent.
+message HeldCores {
+  // From the unified hierarchy's root: `/korpis`.
+  string parent = 1;
+  repeated uint32 cpus = 2;
+}
+
+// What the shared cgroups were left on.
+message HoldCoresResponse {
+  repeated uint32 shared = 1;
 }

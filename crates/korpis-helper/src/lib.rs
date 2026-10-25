@@ -13,6 +13,7 @@
 
 pub mod block;
 pub mod btrfs;
+pub mod cores;
 pub mod error;
 pub mod files;
 pub mod frame;

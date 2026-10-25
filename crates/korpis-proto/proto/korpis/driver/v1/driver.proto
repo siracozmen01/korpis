@@ -144,6 +144,12 @@ message PreparedSpec {
   // device the files do not describe, of a class or mode it does not declare, or with an edit it
   // does not apply. Added 2026-10-25.
   repeated GivenDevice devices = 20;
+  // The node's cores the workload's placement holds for dedicated cores, filled in by the agent
+  // before Create from its own topology (§4.2 of docs/04-runtimes.md). A driver checks them
+  // against the topology it reads itself and refuses, before it makes anything, a core the
+  // machine does not have, CPUs that are not that core's, or the core holding CPU 0. Added
+  // 2026-10-25.
+  repeated korpis.v1.Core cores = 21;
 }
 
 // A device given to a workload: what it is, and how it is held.

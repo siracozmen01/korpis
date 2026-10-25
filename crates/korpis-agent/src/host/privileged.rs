@@ -271,6 +271,17 @@ impl HelperClient {
         }
     }
 
+    /// Keeps the workloads' cpusets to the cores `request` says are held.
+    pub async fn hold_cores(
+        &self,
+        request: &helper::HoldCoresRequest,
+    ) -> Result<helper::HoldCoresResponse, HostError> {
+        match self.call(Verb::HoldCores(Box::new(request.clone()))).await? {
+            Answer::HoldCores(a) => Ok(*a),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// What the host's table has counted of every workload's link.
     pub async fn read_counters(&self) -> Result<helper::ReadCountersResponse, HostError> {
         match self.call(Verb::ReadCounters(Box::default())).await? {

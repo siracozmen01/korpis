@@ -171,6 +171,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     ) -> Result<String, Failure> {
         let mut spec = self.prepare(a, t).await?;
         self.give(a, t, &mut spec)?;
+        self.dedicate(a, t, &mut spec).await?;
         self.mount(a, &mut spec).await?;
         self.stream(a, &mut spec, run).await?;
         let mut dir = None;

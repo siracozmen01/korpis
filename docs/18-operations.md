@@ -378,7 +378,12 @@ told an operator on btrfs that their volumes would not be limited. The jobs it s
 beside it unless named: `--job-binary` for backups and restores and `--install-binary` for installs
 (`none` runs no installs); each job's cgroup is made under `--job-cgroups`
 (`/sys/fs/cgroup/korpis`), and `--content` names the agent's content store, which restores and
-installs read (`/var/lib/korpis-agent/content`).
+installs read (`/var/lib/korpis-agent/content`). It keeps the workloads' cpusets for dedicated
+cores (§5.2 of `05-scheduling.md`) only under the drivers' cgroup parents `--cores-cgroup` names,
+refusing a request that names any other: the flag repeats, `none` keeps no cpusets at all, and
+without it the helper keeps `/korpis` and `/korpis-firecracker`, the first-party drivers' own, so
+an agent cannot have it narrow a cgroup no driver of the node makes objects in. Added 2026-10-25,
+when it was built.
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it

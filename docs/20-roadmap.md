@@ -324,8 +324,12 @@ through, so no real GPU has been given to a workload. Dedicated cores are design
 kernel's topology, chosen at the bind and held by placements, each holding object in a `cpuset`
 of its own and by default a cpuset partition, so neither another tenant nor the host runs on its
 cores. A node's report of its cores is built, and so is the scheduler's half: cores chosen at
-the bind, held, freed, and restored with placements, each reserving its threads; the drivers'
-half is not, and a request for them is still refused when it is declared.
+the bind, held, freed, and restored with placements, each reserving its threads; so is the
+node's half that keeps other workloads off them: the agent gives the driver the cores from its own
+topology and tells the helper the CPUs held, before an object holding them is made and after one
+is destroyed, and the helper keeps each driver's `shared` cgroup off them and writes their
+exclusive CPUs, tested on a cgroup tree of the test's own. The drivers' half is not, and a request
+for them is still refused when it is declared.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

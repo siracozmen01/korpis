@@ -42,6 +42,8 @@ struct Kept {
     usage: BTreeMap<String, u64>,
     /// What the host's table has counted, as a test set it.
     counters: Vec<helper::Counter>,
+    /// Each set of CPUs the node's dedicated cores were said to hold.
+    held_cores: Vec<helper::HoldCoresRequest>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -344,6 +346,16 @@ impl Host for InMemoryHost {
         ready(self.with(|k| helper::ReadCountersResponse {
             counters: k.counters.clone(),
             ..Default::default()
+        }))
+    }
+
+    fn hold_cores(
+        &self,
+        request: &helper::HoldCoresRequest,
+    ) -> impl Future<Output = Result<helper::HoldCoresResponse, HostError>> + Send {
+        ready(self.with(|k| {
+            k.held_cores.push(request.clone());
+            helper::HoldCoresResponse::default()
         }))
     }
 }

@@ -156,6 +156,10 @@ message Capabilities {
   // service guest (§4.4 of docs/04-runtimes.md, §5.4 of docs/06-storage.md). Any other offers
   // whole-image restore only.
   repeated string guest_filesystems = 21;
+  // The cgroup its objects live under, as an absolute path below the cgroup root, whose
+  // `shared` and `dedicated` cgroups the helper keeps the cpusets of for dedicated cores (§5.2 of
+  // docs/05-scheduling.md); empty for a driver that holds none. Added 2026-10-25.
+  string cgroup_parent = 22;
 }
 
 // What a driver makes disruptive on one tier: `stop` on a `vm` costs a boot.

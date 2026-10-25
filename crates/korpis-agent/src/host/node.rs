@@ -226,4 +226,11 @@ impl Host for NodeHost {
     ) -> impl Future<Output = Result<helper::VolumeUsageResponse, HostError>> + Send {
         self.helper.volume_usage(volume)
     }
+
+    fn hold_cores(
+        &self,
+        request: &helper::HoldCoresRequest,
+    ) -> impl Future<Output = Result<helper::HoldCoresResponse, HostError>> + Send {
+        self.helper.hold_cores(request)
+    }
 }

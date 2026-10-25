@@ -13,6 +13,12 @@ impl InMemoryHost {
         self.with(|k| k.volumes.clone()).unwrap_or_default()
     }
 
+    /// Each set of CPUs the node's dedicated cores were said to hold, in order.
+    #[must_use]
+    pub fn held_cores(&self) -> Vec<helper::HoldCoresRequest> {
+        self.with(|k| k.held_cores.clone()).unwrap_or_default()
+    }
+
     /// The content fetched.
     #[must_use]
     pub fn content(&self) -> BTreeSet<String> {

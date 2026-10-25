@@ -6140,3 +6140,18 @@ Revisited again the same day, as steps 5 and 9 were built (P3.3b2b): the schedul
 cores at the bind, the placement holds them and reserves their threads, the assignment names them,
 and a restore recovers them with the placement, reserving their threads again from the node's
 cores. Steps 6 to 8 and 10, the helper's and the drivers', are not built.
+
+Revisited again the same day, as step 6 was built (P3.3b3a): the agent gives the driver each core
+it offers, as its own topology says it is, refusing one it no longer offers before anything is
+made, and tells the helper the CPUs every object of the node holds, before an object holding cores
+is made and once a pass after; the helper writes them under each cgroup parent the drivers declare,
+and only one its `--cores-cgroup` keeps (§3 of `18-operations.md`), which answers what stops an
+agent naming a cgroup of the host's own services. Building it asked step 6's question again, of two
+drivers on one node: the kernel refuses two sibling cgroups exclusive CPUs in common (§5 of
+`research/evidence.md`), so the helper cannot write every held CPU under both `/korpis` and
+`/korpis-firecracker`. The agent tells it the CPUs held under each parent apart, the driver of each
+object deciding which, every `shared` cgroup leaves all of them, and every exclusive set is shrunk
+before any grows. Tested on a cgroup tree of the test's own: the shared `cpuset` narrowed and
+widened, two parents' exclusive CPUs apart, every cgroup above a nested parent written, a CPU not
+online, held twice, or every CPU, and a parent not kept, refused. Steps 2, 7, 8, and 10, the
+drivers', are not built, and no driver declares a cgroup parent yet, so no helper is asked.

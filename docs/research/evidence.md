@@ -688,6 +688,13 @@ Primary:
   ([v8](https://patchew.org/linux/20230905133243.91107-1-longman@redhat.com),
   [LWN](https://lwn.net/Articles/941674)); preflight checks the files, not the version. Why a
   held core's cgroup is a partition of its own (§5.2 of `../05-scheduling.md`).
+- **[V]** cgroup v2 refuses a write of `cpuset.cpus.exclusive` that shares a CPU with a sibling's
+  exclusive CPUs (the exclusivity rule: one parent's exclusive CPU goes to at most one child), or
+  that is a superset of a sibling's `cpuset.cpus`
+  (`Documentation/admin-guide/cgroup-v2.rst` on the kernel's master branch, read 2026-10-25). Why
+  the helper is told the CPUs held under each driver's cgroup parent apart, shrinks every
+  exclusive set before it grows any, and narrows the `shared` cgroup first (§5.2 of
+  `../05-scheduling.md`, §3 of `../18-operations.md`).
 - **[V]** runc, in a container with a user namespace, does not make the device nodes its spec's
   `linux.devices` lists but binds each from the host at the node's own path, the container path
   (`createDevices` and `bindMountDeviceNode` in `libcontainer/rootfs_linux.go` on its main branch,

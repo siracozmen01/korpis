@@ -3,6 +3,7 @@
 //! `korpis-helper`: the node's root helper. Its arguments are parsed by hand, so the one root
 //! process carries no argument-parsing library.
 
+use korpis_helper::cores::{Cores, CoresConfig};
 use korpis_helper::files::{Files, FilesConfig};
 use korpis_helper::helper::Helper;
 use korpis_helper::ids::Ledger;
@@ -21,7 +22,8 @@ const USAGE: &str = "usage: korpis-helper (--inherit | --socket PATH) [--volume-
                      [--class NAME] [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
                      [--job-binary PATH] [--install-binary PATH|none] [--job-cgroups PATH|none] \
                      [--content PATH] [--netns-root PATH|none] \
-                     [--ingress-binary PATH|none] [--files-binary PATH|none]\n       \
+                     [--ingress-binary PATH|none] [--files-binary PATH|none] \
+                     [--cores-cgroup PATH|none]...\n       \
                      korpis-helper release-networks [--netns-root PATH]";
 
 /// Where workloads' network namespaces are bound unless `--netns-root` says otherwise.
@@ -76,7 +78,13 @@ struct Args {
     content: PathBuf,
     /// Where workloads' network namespaces are bound; none gives workloads no network.
     netns_root: Option<PathBuf>,
+    /// The drivers' cgroup parents whose cpusets it keeps for dedicated cores; `None` until one
+    /// is named, which keeps the drivers' own defaults.
+    cores_cgroups: Option<Vec<PathBuf>>,
 }
+
+/// The cgroup parents the first-party drivers use unless told otherwise.
+const CORES_CGROUPS: [&str; 2] = ["/korpis", "/korpis-firecracker"];
 
 fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
     let mut a = Args {
@@ -93,6 +101,7 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis")),
         content: PathBuf::from("/var/lib/korpis-agent/content"),
         netns_root: Some(PathBuf::from(NETNS_ROOT)),
+        cores_cgroups: None,
     };
     let mut inherit = false;
     while let Some(flag) = args.next() {
@@ -116,6 +125,11 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
             "--netns-root" => {
                 let v = value()?;
                 a.netns_root = (v != "none").then(|| PathBuf::from(v));
+            }
+            "--cores-cgroup" => {
+                let v = value()?;
+                let kept = a.cores_cgroups.get_or_insert_with(Vec::new);
+                kept.extend((v != "none").then(|| PathBuf::from(v)));
             }
             "--idle" => {
                 a.idle = Some(Duration::from_secs(value()?.parse().map_err(|e| format!("{e}"))?));
@@ -171,6 +185,15 @@ fn run(a: Args) -> Result<(), String> {
     }
     if let Some(root) = a.netns_root {
         helper = helper.with_network(Network::new(root));
+    }
+    let parents = a.cores_cgroups.unwrap_or_else(|| CORES_CGROUPS.map(PathBuf::from).to_vec());
+    if !parents.is_empty() {
+        let config = CoresConfig {
+            root: PathBuf::from("/sys/fs/cgroup"),
+            online: PathBuf::from("/sys/devices/system/cpu/online"),
+            parents,
+        };
+        helper = helper.with_cores(Cores::new(config).map_err(|e| format!("cores: {e}"))?);
     }
     tracing::info!(?allowed, "serving");
     serve(&listener, &allowed, &mut helper, a.idle).map_err(|e| e.to_string())

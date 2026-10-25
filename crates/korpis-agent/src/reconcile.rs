@@ -18,6 +18,7 @@ mod adopt;
 mod apply;
 mod backup;
 mod content;
+mod cores;
 mod deps;
 mod halt;
 mod health;
@@ -106,6 +107,9 @@ struct Tracked {
     probing: health::Probing,
     /// The kind of the liveness probe whose failure it is being restarted for, until it is.
     recovering: Option<&'static str>,
+    /// The cgroup parent its object's dedicated cores are held under, and their logical CPUs
+    /// (§5.2 of docs/05-scheduling.md).
+    cores: (String, Vec<u32>),
 }
 
 /// Where the reconciler reads and writes.
@@ -155,6 +159,9 @@ pub struct Wiring {
     pub reading: crate::data::backup::Reading,
     /// The node's devices, which a placement's holds are given from; none where it offers none.
     pub devices: Option<crate::devices::Devices>,
+    /// The cores the node offers for dedication, which a placement's are given from (§5.2 of
+    /// docs/05-scheduling.md).
+    pub cores: Vec<pb::Core>,
 }
 
 /// The reconciler.
@@ -172,6 +179,8 @@ pub struct Reconciler<R, H> {
     reaped: Option<Instant>,
     /// Where health probes' attempts report.
     outcomes: health::Outcomes,
+    /// The CPUs the helper keeps out of every cpuset but their holders'.
+    cores_kept: cores::Kept,
 }
 
 /// A string value.
@@ -222,7 +231,19 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let (tracked, orphans) = (BTreeMap::new(), BTreeSet::new());
         let outcomes = health::Outcomes::default();
         let runtime = Arc::new(runtime);
-        Self { runtime, host, wiring, progress, streams, tracked, orphans, reaped: None, outcomes }
+        let (reaped, cores_kept) = (None, cores::Kept::default());
+        Self {
+            runtime,
+            host,
+            wiring,
+            progress,
+            streams,
+            tracked,
+            orphans,
+            reaped,
+            outcomes,
+            cores_kept,
+        }
     }
 
     /// Records `e` in the journal; whether it is on disk.
@@ -314,6 +335,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
         }
         self.release_networks(&held).await;
+        self.keep_cores(&held).await;
         self.serve_resolvers(&held).await;
         self.publish_ingress(&held);
         self.serve_relays(&held);

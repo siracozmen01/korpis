@@ -18,6 +18,7 @@ use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::helper_request::Verb;
 use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
 
+mod held;
 mod placing;
 mod sessions;
 mod snapshots;
@@ -31,6 +32,7 @@ pub struct Helper {
     network: Option<Network>,
     ingress: Option<Ingress>,
     files: Option<crate::files::Files>,
+    cores: Option<crate::cores::Cores>,
     /// The user and group of the connection being answered, as the kernel recorded them.
     peer: (u32, u32),
     /// Descriptors the last answer carries, sent with its frame and then closed here.
@@ -56,6 +58,7 @@ impl Helper {
             network: None,
             ingress: None,
             files: None,
+            cores: None,
             peer: (u32::MAX, u32::MAX),
             attached: Vec::new(),
         }
@@ -327,6 +330,7 @@ impl Helper {
             }
             Verb::DescribeStorage(_) => Answer::DescribeStorage(Box::new(self.storage())),
             Verb::OpenFiles(r) => self.open_files(&r)?,
+            Verb::HoldCores(r) => self.hold_cores(&r)?,
         })
     }
 

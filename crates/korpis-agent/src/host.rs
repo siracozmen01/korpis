@@ -199,4 +199,11 @@ pub trait Host: Send + Sync + 'static {
         &self,
         volume: &str,
     ) -> impl Future<Output = Result<helper::VolumeUsageResponse, HostError>> + Send;
+
+    /// Keeps the workloads' cpusets to the CPUs `request` says the node's dedicated cores hold,
+    /// under the drivers' cgroup parents it names (§5.2 of docs/05-scheduling.md).
+    fn hold_cores(
+        &self,
+        request: &helper::HoldCoresRequest,
+    ) -> impl Future<Output = Result<helper::HoldCoresResponse, HostError>> + Send;
 }
