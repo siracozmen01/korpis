@@ -24,6 +24,8 @@ pub struct NodeFacts {
     pub devices: Vec<Device>,
     /// The devices described that it does not offer, and why.
     pub unoffered_devices: Vec<UnofferedDevice>,
+    /// The physical cores it offers for dedication, in full (§5.2 of docs/05-scheduling.md).
+    pub cores: Vec<korpis_core::node::cores::Core>,
     /// The storage classes; `None` leaves them as they were, since a heartbeat does not carry
     /// them.
     pub storage_classes: Option<Vec<StorageClass>>,

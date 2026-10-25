@@ -109,6 +109,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let ids: Vec<Uuid> = nodes.iter().map(|n| n.id).collect();
         let allocations = tx.allocations(&ids).await?;
         let held = tx.device_holds(&ids, w.id).await?;
+        let held_cores = tx.core_holds(&ids, w.id).await?;
         let peers = tx.peers(w.organization, w.id).await?;
         let refused = tx.refusals(w.id, target.id).await?;
         let learned = self.learned(&mut tx, &ids, target).await?;
@@ -135,6 +136,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             // shortlist only asks drivers.
             quota: &[],
             devices: &held,
+            cores: &held_cores,
         };
         let (_, ranking) = ranked(&req, &candidates, &peers, &self.policies(&owners).await?);
         Ok(ranking.into_iter().take(SHORTLIST).collect())

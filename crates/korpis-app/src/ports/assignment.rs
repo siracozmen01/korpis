@@ -78,6 +78,9 @@ pub struct Opened {
     /// The node's devices it held, which its recovered placement holds again (§6.3 of
     /// docs/05-scheduling.md).
     pub devices: Vec<korpis_core::node::device::DeviceHold>,
+    /// The node's cores it held, which its recovered placement holds again (§5.2 of
+    /// docs/05-scheduling.md).
+    pub cores: Vec<u32>,
 }
 
 /// An assignment as the store keeps it.

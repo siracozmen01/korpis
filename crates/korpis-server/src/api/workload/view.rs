@@ -170,6 +170,7 @@ fn placement_pb(p: &Placement) -> pb::Placement {
         reserved: resources_to_pb(&p.reserved).into(),
         held_at: p.held_at.map(timestamp).into(),
         devices: holds_to_pb(&p.devices),
+        cores: p.cores.clone(),
         ..Default::default()
     }
 }
@@ -189,6 +190,7 @@ pub(super) fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Pl
         reserved: resources_to_pb(&p.reserved).into(),
         held_at: p.held_at.map(timestamp).into(),
         devices: holds_to_pb(&p.devices),
+        cores: p.cores.clone(),
         ..Default::default()
     }
 }

@@ -66,6 +66,22 @@ pub trait PlacementWrite {
         except: Uuid,
     ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, Vec<DeviceHold>>>> + Send;
 
+    /// By node of `nodes`, the cores placements other than `except`'s hold there, as this
+    /// transaction sees it (§5.2 of docs/05-scheduling.md). A node whose placements hold none is
+    /// absent.
+    fn core_holds(
+        &mut self,
+        nodes: &[Uuid],
+        except: Uuid,
+    ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, Vec<u32>>>> + Send;
+
+    /// The cores `workload`'s placement on `node` holds; none without one.
+    fn cores_on(
+        &mut self,
+        workload: Uuid,
+        node: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<u32>>> + Send;
+
     /// The devices `workload`'s placement on `node` holds; none without one.
     fn holds_on(
         &mut self,

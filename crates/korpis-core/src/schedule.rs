@@ -6,6 +6,7 @@
 //! placement lock, so the answer is consistent with what the bind will write.
 
 pub mod churn;
+pub mod cores;
 pub mod devices;
 mod filter;
 pub mod policy;
@@ -85,6 +86,9 @@ pub struct Request<'a> {
     /// By node, the devices its other placements hold (§6.3 of docs/05-scheduling.md); a node
     /// absent holds none.
     pub devices: &'a BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>>,
+    /// By node, the cores its other placements hold (§5.2 of docs/05-scheduling.md); a node
+    /// absent holds none.
+    pub cores: &'a BTreeMap<Uuid, Vec<u32>>,
 }
 
 /// A quota entry that counts where workloads run, as placement checks it: the entry, what
@@ -123,6 +127,8 @@ pub struct Current<'a> {
     pub reserved: &'a Bounds,
     /// The devices it holds there, which it keeps while they still meet its requests.
     pub devices: &'a [crate::node::device::DeviceHold],
+    /// The cores it holds there, which it keeps first.
+    pub cores: &'a [u32],
 }
 
 /// A node, with what its placements reserve.
@@ -176,6 +182,9 @@ pub enum Check {
     /// Free devices for every request, of a class and mode its driver gives (§6.3 of
     /// docs/05-scheduling.md).
     Device,
+    /// Enough free cores offered for dedication, where they are asked for (§5.2 of
+    /// docs/05-scheduling.md).
+    Cores,
     /// Every named storage class is offered.
     StorageClass,
     /// Every existing volume attached is on the node.
@@ -194,7 +203,7 @@ pub enum Check {
 
 impl Check {
     /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::Owner,
         Self::Status,
         Self::Driver,
@@ -207,6 +216,7 @@ impl Check {
         Self::Taint,
         Self::Capacity,
         Self::Device,
+        Self::Cores,
         Self::StorageClass,
         Self::Volume,
         Self::Affinity,
@@ -237,6 +247,7 @@ impl Check {
             Self::Taint => "taint",
             Self::Capacity => "capacity",
             Self::Device => "device",
+            Self::Cores => "cores",
             Self::StorageClass => "storage_class",
             Self::Volume => "volume",
             Self::Affinity => "affinity",

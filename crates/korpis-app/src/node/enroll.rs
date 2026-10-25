@@ -148,6 +148,7 @@ fn enrolled_node(e: &Enrollment, id: Uuid, now: std::time::SystemTime) -> Node {
         drivers: Vec::new(),
         devices: Vec::new(),
         unoffered_devices: Vec::new(),
+        cores: Vec::new(),
         storage_classes: Vec::new(),
         reachability: Reachability::EdgeOnly,
         advertised: None,

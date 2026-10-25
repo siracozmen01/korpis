@@ -31,6 +31,7 @@ use fixtures::driver;
 
 /// No placement holding a device.
 static NO_HOLDS: BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>> = BTreeMap::new();
+static NO_CORES: BTreeMap<Uuid, Vec<u32>> = BTreeMap::new();
 
 fn node(n: u128, labels: &[(&str, &str)]) -> Node {
     let cap = Bounds::from([(Dimension::Cpu, 4_000), (Dimension::Memory, 8 * GIB)]);
@@ -45,6 +46,7 @@ fn node(n: u128, labels: &[(&str, &str)]) -> Node {
         drivers: vec![driver(&["memory", "cpu"])],
         devices: Vec::new(),
         unoffered_devices: Vec::new(),
+        cores: Vec::new(),
         storage_classes: Vec::new(),
         reachability: Reachability::Public,
         advertised: None,
@@ -105,6 +107,7 @@ struct Case {
     content: BTreeMap<Uuid, bool>,
     churn: BTreeMap<Uuid, f64>,
     held: BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>>,
+    held_cores: BTreeMap<Uuid, Vec<u32>>,
 }
 
 impl Case {
@@ -119,6 +122,7 @@ impl Case {
             content: BTreeMap::new(),
             churn: BTreeMap::new(),
             held: BTreeMap::new(),
+            held_cores: BTreeMap::new(),
         }
     }
 
@@ -144,6 +148,7 @@ impl Case {
             dependencies: &[],
             quota: &[],
             devices: &self.held,
+            cores: &self.held_cores,
         };
         place(&req, &candidates, &self.peers, &Policies::single(self.policy.clone()))
     }
@@ -261,7 +266,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         labels: &labels,
         owners: &[ORG],
         body: &b,
-        current: Some(Current { node: here.id, reserved: &reserved, devices: &[] }),
+        current: Some(Current { node: here.id, reserved: &reserved, devices: &[], cores: &[] }),
         edge_tier: false,
         volumes: &[],
         refused: &NONE_REFUSED,
@@ -270,6 +275,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         dependencies: &[],
         quota: &[],
         devices: &NO_HOLDS,
+        cores: &NO_CORES,
     };
     let e =
         place(&req, &[Candidate { node: &here, allocated: &allocated }], &[], &Policies::default());
@@ -305,6 +311,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         dependencies: &[],
         quota: &[],
         devices: &NO_HOLDS,
+        cores: &NO_CORES,
     }
 }
 

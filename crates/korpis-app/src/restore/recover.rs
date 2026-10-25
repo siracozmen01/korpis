@@ -68,13 +68,22 @@ pub(super) fn effect(action: &str, outcome: Outcome, opened: &Opened, sealed: &S
     ]))
 }
 
-/// The placement of `opened`'s workload on the node that presented it, at `now`.
-fn recovered_placement(opened: &Opened, now: std::time::SystemTime) -> Placement {
+/// The placement of `opened`'s workload on the node that presented it, `node` where it holds
+/// cores there, whose threads it then reserves, at `now`.
+fn recovered_placement(
+    opened: &Opened,
+    node: Option<&korpis_core::node::Node>,
+    now: std::time::SystemTime,
+) -> Placement {
+    let body = &opened.target.body;
     Placement {
         workload: opened.workload,
         node: opened.node,
         intent: opened.target.id,
-        reserved: reservation(&opened.target.body),
+        reserved: node.map_or_else(
+            || reservation(body),
+            |n| korpis_core::schedule::cores::reservation_on(body, n, &opened.cores),
+        ),
         bound_at: now,
         bound_by: BoundBy::Recovery,
         reason: "recovered from the assignment its node presented after a restore".into(),
@@ -90,6 +99,7 @@ fn recovered_placement(opened: &Opened, now: std::time::SystemTime) -> Placement
         authoritative: true,
         held_at: None,
         devices: opened.devices.clone(),
+        cores: opened.cores.clone(),
     }
 }
 
@@ -241,7 +251,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(Vec<Effect>, bool), AppError> {
         tx.lock_placement().await?;
         let mut effects = Vec::new();
-        let placement = recovered_placement(opened, self.clock.now());
+        let node =
+            if opened.cores.is_empty() { None } else { self.store.node(opened.node).await? };
+        let placement = recovered_placement(opened, node.as_ref(), self.clock.now());
         let epoch = opened.lease_epoch;
         let here = match tx.recover_placement(&placement, epoch).await? {
             PlacementRecovery::Bound { replaced } => {

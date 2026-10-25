@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The authoritative placement of workload $1.\nSELECT workload_id, node_id, intent_id, reserved, bound_at, bound_by, reason, explanation,\n       authoritative, held_at, devices\n  FROM placement WHERE workload_id = $1 AND authoritative\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The authoritative placement of workload $1.\nSELECT workload_id, node_id, intent_id, reserved, bound_at, bound_by, reason, explanation,\n       authoritative, held_at, devices, cores\n  FROM placement WHERE workload_id = $1 AND authoritative\n",
   "describe": {
     "columns": [
       {
@@ -123,6 +123,17 @@
             "name": "devices"
           }
         }
+      },
+      {
+        "ordinal": 11,
+        "name": "cores",
+        "type_info": "Int4Array",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "cores"
+          }
+        }
       }
     ],
     "parameters": {
@@ -141,8 +152,9 @@
       false,
       false,
       true,
+      false,
       false
     ]
   },
-  "hash": "c4bda13f8ad15060fecf70ad73d006c7d0defc62ce11c28b6894cbbfe26b48f8"
+  "hash": "75bc02378ca967830e4866cb3ed2e02ede5f2f2bc8f2389f9a37c4faba2d503c"
 }

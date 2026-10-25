@@ -61,6 +61,7 @@ async fn a_change_of_what_a_node_advertises_makes_its_reachability_unmeasured() 
         drivers: n.drivers.clone(),
         devices: Vec::new(),
         unoffered_devices: Vec::new(),
+        cores: Vec::new(),
         storage_classes: None,
         agent: None,
         advertised: (!address.is_empty()).then(|| Advertised {
@@ -97,8 +98,9 @@ async fn a_change_of_what_a_node_advertises_makes_its_reachability_unmeasured() 
 }
 
 #[tokio::test]
-async fn a_node_s_devices_are_kept_as_its_agent_last_reported_them() {
+async fn a_node_s_devices_and_cores_are_kept_as_its_agent_last_reported_them() {
     use korpis_app::ports::{NodeFacts, SessionWrite as _};
+    use korpis_core::node::cores::Core;
     use korpis_core::node::device::{Device, UnofferedDevice};
     use korpis_core::node::driver::DeviceClass;
     let f = fixture().await;
@@ -112,10 +114,12 @@ async fn a_node_s_devices_are_kept_as_its_agent_last_reported_them() {
         shares: 4,
     };
     let all = UnofferedDevice { id: "nvidia.com/gpu=all".into(), reason: "an aggregate".into() };
+    let core = Core { id: 1, cpus: vec![1, 13], numa: 0 };
     let reporting = |devices: Vec<Device>, unoffered: Vec<UnofferedDevice>| NodeFacts {
         capacity: n.capacity.clone(),
         allocatable: n.allocatable.clone(),
         drivers: n.drivers.clone(),
+        cores: if devices.is_empty() { Vec::new() } else { vec![core.clone()] },
         devices,
         unoffered_devices: unoffered,
         storage_classes: None,
@@ -128,6 +132,7 @@ async fn a_node_s_devices_are_kept_as_its_agent_last_reported_them() {
         assert!(tx.record_node_facts(n.id, &facts, now()).await.unwrap());
         tx.commit().await.unwrap();
         let read = f.store.node(n.id).await.unwrap().unwrap();
+        assert_eq!(read.cores, facts.cores, "cores in full");
         assert_eq!((read.devices, read.unoffered_devices), (devices, unoffered), "in full");
     }
 }

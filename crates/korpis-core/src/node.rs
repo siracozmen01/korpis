@@ -6,6 +6,7 @@
 //! reasons, so they are kept apart and the status a client shows is derived from both.
 
 pub mod advertised;
+pub mod cores;
 pub mod device;
 pub mod driver;
 #[cfg(feature = "identity")]
@@ -123,6 +124,8 @@ pub struct Node {
     pub devices: Vec<device::Device>,
     /// The devices described that it does not offer, and why.
     pub unoffered_devices: Vec<device::UnofferedDevice>,
+    /// The physical cores it offers for dedication (§5.2 of docs/05-scheduling.md).
+    pub cores: Vec<cores::Core>,
     /// The storage classes it offers.
     pub storage_classes: Vec<StorageClass>,
     /// Measured inbound reachability.
@@ -222,6 +225,7 @@ mod tests {
             drivers: Vec::new(),
             devices: Vec::new(),
             unoffered_devices: Vec::new(),
+            cores: Vec::new(),
             storage_classes: Vec::new(),
             reachability: Reachability::EdgeOnly,
             advertised: None,

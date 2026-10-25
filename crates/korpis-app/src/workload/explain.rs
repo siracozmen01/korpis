@@ -38,7 +38,8 @@ pub struct PlacementView {
     /// Whether it is the authoritative one.
     pub authoritative: bool,
     /// What it holds on the node: its intent's reservations, which every reader of the
-    /// workload may already compute from the intent.
+    /// workload may already compute from the intent, its CPU for dedicated cores what they take
+    /// there.
     pub reserved: Bounds,
     /// The derivation, filtered.
     pub explanation: ExplanationView,
@@ -47,6 +48,9 @@ pub struct PlacementView {
     /// The devices it holds on its node, by their names there, which say what was given and
     /// not which node holds them (§6.3 of docs/05-scheduling.md).
     pub devices: Vec<korpis_core::node::device::DeviceHold>,
+    /// The cores it holds on its node, by id, for dedicated cores (§5.2 of
+    /// docs/05-scheduling.md).
+    pub cores: Vec<u32>,
 }
 
 /// Why no node took a workload's target, as the caller may see it.
@@ -156,6 +160,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 explanation: render(&p.explanation, &sight),
                 held_at: p.held_at,
                 devices: p.devices,
+                cores: p.cores,
             });
             v.unplaced = f.unplaced.map(|u| UnplacedView {
                 intent: u.intent,

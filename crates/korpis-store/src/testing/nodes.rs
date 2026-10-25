@@ -106,6 +106,7 @@ pub fn ready_node(
         drivers: vec![oci_driver()],
         devices: Vec::new(),
         unoffered_devices: Vec::new(),
+        cores: Vec::new(),
         storage_classes: Vec::new(),
         reachability: Reachability::Public,
         // Public, so measured: an address in TEST-NET-3, and the default range, which holds the
@@ -134,14 +135,17 @@ pub async fn enroll(store: &PgStore, node: &Node) -> StoreResult<()> {
     let mut tx = store.begin().await?;
     tx.enroll_node(node, &key).await?;
     tx.commit().await?;
-    // Enrolling records no devices; an agent's facts do, and a fixture's are written as if it had.
-    if !node.devices.is_empty() || !node.unoffered_devices.is_empty() {
+    // Enrolling records no devices or cores; an agent's facts do, and a fixture's are written as
+    // if it had.
+    if !node.devices.is_empty() || !node.unoffered_devices.is_empty() || !node.cores.is_empty() {
         let (devices, unoffered) =
             crate::stored::devices_doc(&node.devices, &node.unoffered_devices)?;
-        sqlx::query("UPDATE node SET devices = $2, unoffered_devices = $3 WHERE id = $1")
+        let set = "UPDATE node SET devices = $2, unoffered_devices = $3, cores = $4 WHERE id = $1";
+        sqlx::query(set)
             .bind(node.id)
             .bind(devices)
             .bind(unoffered)
+            .bind(crate::stored::cores_doc(&node.cores)?)
             .execute(store.pool())
             .await
             .map_err(crate::errors::from_sqlx)?;

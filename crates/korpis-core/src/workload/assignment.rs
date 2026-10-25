@@ -83,6 +83,8 @@ pub struct Assignment {
     /// The node's devices its placement there holds, which the node gives its driver (§6.3 of
     /// docs/05-scheduling.md).
     pub devices: Vec<crate::node::device::DeviceHold>,
+    /// The node's cores its placement there holds, by id (§5.2 of docs/05-scheduling.md).
+    pub cores: Vec<u32>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

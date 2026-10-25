@@ -4,7 +4,7 @@
 //! reason. Every check is evaluated, so a node rejected for two reasons shows both.
 
 use super::topology::{Fleet, domain, matching};
-use super::{Candidate, Check, Peer, PlacementPolicy, RESERVED, Request, reservation};
+use super::{Candidate, Check, Peer, PlacementPolicy, RESERVED, Request};
 use crate::node::driver::DriverInfo;
 use crate::node::{NodeAdmin, NodeStatus, Reachability};
 use crate::tenancy::quota::Held;
@@ -132,6 +132,12 @@ fn devices(req: &Request<'_>, c: &Candidate<'_>, d: &DriverInfo) -> Option<Refus
     super::devices::given(req, c.node).err().map(|why| (Check::Device, why))
 }
 
+/// The cores the workload asks for, offered on the node and free beside what its other
+/// placements hold (§5.2 of docs/05-scheduling.md).
+fn cores(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    super::cores::given(req, c.node).err().map(|why| (Check::Cores, why))
+}
+
 /// Rule K-3: a limit the kernel does not hold is not accepted, so a node whose driver cannot
 /// hold one the intent sets cannot run it.
 fn enforcement(req: &Request<'_>, d: &DriverInfo) -> Option<Refusal> {
@@ -185,7 +191,9 @@ fn taints(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
 }
 
 fn capacity(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
-    let need = reservation(req.body);
+    // Dedicated cores reserve what they take here; too few free is the cores check's to say.
+    let held = super::cores::given(req, c.node).unwrap_or_default();
+    let need = super::cores::reservation_on(req.body, c.node, &held);
     let own = req.current.filter(|cur| cur.node == c.node.id).map(|cur| cur.reserved);
     RESERVED
         .into_iter()
@@ -309,6 +317,7 @@ pub(super) fn rejections(
         Err(r) => out.push(r),
     }
     out.extend([reachability(req, c), selector(req, c), taints(req, c)].into_iter().flatten());
+    out.extend(cores(req, c));
     out.extend(capacity(req, c));
     out.extend(storage_classes(req, c));
     out.extend(volumes(req, c));

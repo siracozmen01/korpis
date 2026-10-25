@@ -31,9 +31,13 @@ use tokio::sync::mpsc;
 /// How many decisions may wait for a slow agent before the session is dropped and it resyncs.
 const OUTBOUND: usize = 64;
 
-/// A node's devices and those it does not offer, as a Hello or a heartbeat reports them.
-pub(super) type Devices<'a> =
-    (&'a [korpis_proto::korpis::v1::Device], &'a [korpis_proto::korpis::v1::UnofferedDevice]);
+/// A node's devices, those it does not offer, and its cores offered for dedication, as a Hello or
+/// a heartbeat reports them.
+pub(super) type Devices<'a> = (
+    &'a [korpis_proto::korpis::v1::Device],
+    &'a [korpis_proto::korpis::v1::UnofferedDevice],
+    &'a [korpis_proto::korpis::v1::Core],
+);
 
 pub(super) fn facts(
     (capacity, allocatable): (
@@ -51,6 +55,7 @@ pub(super) fn facts(
         drivers: drivers_from_pb("drivers", drivers).refuse()?,
         devices: devices_from_pb("devices", devices.0).refuse()?,
         unoffered_devices: unoffered_from_pb("unoffered_devices", devices.1).refuse()?,
+        cores: korpis_wire::node::cores_from_pb("cores", devices.2).refuse()?,
         storage_classes: classes
             .map(|c| storage_classes_from_pb("storage_classes", c))
             .transpose()
@@ -91,7 +96,7 @@ fn hello_from_pb(h: &agent::Hello) -> Result<Hello, ConnectError> {
         protocol: h.protocol.clone(),
         facts: facts(
             (h.capacity.as_option(), h.allocatable.as_option()),
-            (&h.drivers, (&h.devices, &h.unoffered_devices)),
+            (&h.drivers, (&h.devices, &h.unoffered_devices, &h.cores)),
             Some(&h.storage_classes),
             h.advertised.as_option(),
         )?,

@@ -4,7 +4,7 @@
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
-use crate::stored::{bounds_doc, devices_doc, from_time, node_docs, to_json};
+use crate::stored::{bounds_doc, cores_doc, devices_doc, from_time, node_docs, to_json};
 use korpis_app::ports::{NodeFacts, SessionWrite, StoreResult};
 use korpis_core::node::Reachability;
 use korpis_core::node::advertised::Advertised;
@@ -72,7 +72,8 @@ impl SessionWrite for PgTx {
             last,
             ingress,
             devices,
-            unoffered
+            unoffered,
+            cores_doc(&f.cores)?
         )
         .execute(&mut *self.tx)
         .await

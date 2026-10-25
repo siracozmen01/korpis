@@ -2,7 +2,7 @@
 
 //! `korpis-agent`: join a control plane once, then run.
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use korpis_agent::advertise::Advertise;
 use korpis_agent::content::{ContentStore, Reach};
@@ -56,78 +56,117 @@ enum Command {
     /// nothing at all.
     Preflight(PreflightArgs),
     /// Run the node: hold the control stream, keep the journal, and reconcile.
-    Run {
-        /// The runtime: `oci`, the driver processes serving on `--driver-socket`, the container
-        /// tier's `korpis-driver-oci` by default, or `memory`, which runs nothing, for trying the
-        /// agent without one.
-        #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "oci")]
-        driver: String,
-        /// A driver's socket; repeatable, one for each tier the node offers through its own
-        /// driver process (§3 of docs/04-runtimes.md).
-        #[arg(long, default_values = ["/run/korpis/driver-oci.sock"])]
-        driver_socket: Vec<PathBuf>,
-        /// The privileged helper's socket.
-        #[arg(long, default_value = "/run/korpis/helper.sock")]
-        helper_socket: PathBuf,
-        /// A registry spoken to over plain HTTP, as `host:port`; repeatable. For a development
-        /// registry only: content is verified by digest either way.
-        #[arg(long = "plain-http")]
-        plain_http: Vec<String>,
-        /// A network an install's `fetch` may reach besides the public internet, as a CIDR, for
-        /// a private mirror; repeatable. Loopback, private, and link-local addresses are
-        /// otherwise refused (§4 of docs/09-recipes.md).
-        #[arg(long = "fetch-allow")]
-        fetch_allow: Vec<IpNet>,
-        /// Millicores kept back from placement for the machine's own system.
-        #[arg(long, default_value_t = Reserve::default().cpu_millis)]
-        reserve_cpu_millis: u64,
-        /// Bytes of memory kept back from placement for the machine's own system.
-        #[arg(long, default_value_t = Reserve::default().memory_bytes)]
-        reserve_memory_bytes: u64,
-        /// An address clients reach this node at, such as a router's public address forwarding
-        /// to it or a LAN address for clients on the LAN; repeatable. Unset: the node's own
-        /// address towards the control plane, if it is routable on the internet. Either way the
-        /// control plane measures it before anything relies on it.
-        #[arg(long = "advertise-address")]
-        advertise_address: Vec<IpAddr>,
-        /// The ports endpoints on this node are allocated from, as `FIRST-LAST`.
-        #[arg(long, default_value = "30000-32767")]
-        ports: PortRange,
-        /// The IPv4 pool workloads get addresses from, private to this node; change it when it
-        /// collides with a network the node reaches (§4.1 of docs/07-networking.md).
-        #[arg(long, default_value = korpis_agent::network::DEFAULT_IPV4)]
-        workload_ipv4: Ipv4Net,
-        /// An IPv6 prefix routed to this node, which gives workloads routable addresses; unset,
-        /// they get unique local ones, translated on the way out.
-        #[arg(long)]
-        workload_ipv6: Option<Ipv6Net>,
-        /// Serve the ingress: the helper opens ports 80 and 443 on the advertised addresses for
-        /// the node's ingress proxy, and the node says it serves it, so workloads with ingress
-        /// endpoints are placed here (§3.2 of docs/07-networking.md).
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
-        ingress: bool,
-        /// An interface the node's workloads leave by and the capacity it sells, as
-        /// `eth0=1gbit`, keeping five percent for the node unless `,reserve=50mbit` says
-        /// otherwise; repeatable. Declared, since a virtual machine's link speed is not what
-        /// its provider sold; none, and the node enforces no bandwidth (§7 of
-        /// docs/07-networking.md).
-        #[arg(long = "uplink", value_parser = korpis_agent::shaping::parse_uplink)]
-        uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
-        /// A directory of Container Device Interface spec files the node's devices are read
-        /// from; repeatable, a later one's device replacing an earlier one's of the same name
-        /// (§6.1 of docs/05-scheduling.md).
-        #[arg(long = "cdi-dir", default_values = ["/etc/cdi", "/var/run/cdi"])]
-        cdi_dirs: Vec<PathBuf>,
-        /// The class of a device kind whose name is none Korpis knows, as
-        /// `vendor.com/kind=class`; repeatable. A device of a kind neither names is not offered.
-        #[arg(long = "device-class", value_parser = korpis_agent::devices::parse_class)]
-        device_classes: Vec<(String, DeviceClass)>,
-        /// How many workloads may hold one device of a kind at once in `timeslice`, as
-        /// `vendor.com/kind=N`; repeatable. Timeslicing isolates nothing between its holders
-        /// (§6.2 of docs/05-scheduling.md); a kind not named is given in `passthrough` alone.
-        #[arg(long = "device-share", value_parser = korpis_agent::devices::parse_share)]
-        device_shares: Vec<(String, u32)>,
-    },
+    Run(Box<RunArgs>),
+}
+
+/// What `run` is told.
+#[derive(Args)]
+struct RunArgs {
+    /// The runtime: `oci`, the driver processes serving on `--driver-socket`, the container
+    /// tier's `korpis-driver-oci` by default, or `memory`, which runs nothing, for trying the
+    /// agent without one.
+    #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "oci")]
+    driver: String,
+    /// A driver's socket; repeatable, one for each tier the node offers through its own
+    /// driver process (§3 of docs/04-runtimes.md).
+    #[arg(long, default_values = ["/run/korpis/driver-oci.sock"])]
+    driver_socket: Vec<PathBuf>,
+    /// The privileged helper's socket.
+    #[arg(long, default_value = "/run/korpis/helper.sock")]
+    helper_socket: PathBuf,
+    /// A registry spoken to over plain HTTP, as `host:port`; repeatable. For a development
+    /// registry only: content is verified by digest either way.
+    #[arg(long = "plain-http")]
+    plain_http: Vec<String>,
+    /// A network an install's `fetch` may reach besides the public internet, as a CIDR, for
+    /// a private mirror; repeatable. Loopback, private, and link-local addresses are
+    /// otherwise refused (§4 of docs/09-recipes.md).
+    #[arg(long = "fetch-allow")]
+    fetch_allow: Vec<IpNet>,
+    /// Millicores kept back from placement for the machine's own system.
+    #[arg(long, default_value_t = Reserve::default().cpu_millis)]
+    reserve_cpu_millis: u64,
+    /// Bytes of memory kept back from placement for the machine's own system.
+    #[arg(long, default_value_t = Reserve::default().memory_bytes)]
+    reserve_memory_bytes: u64,
+    /// An address clients reach this node at, such as a router's public address forwarding
+    /// to it or a LAN address for clients on the LAN; repeatable. Unset: the node's own
+    /// address towards the control plane, if it is routable on the internet. Either way the
+    /// control plane measures it before anything relies on it.
+    #[arg(long = "advertise-address")]
+    advertise_address: Vec<IpAddr>,
+    /// The ports endpoints on this node are allocated from, as `FIRST-LAST`.
+    #[arg(long, default_value = "30000-32767")]
+    ports: PortRange,
+    /// The IPv4 pool workloads get addresses from, private to this node; change it when it
+    /// collides with a network the node reaches (§4.1 of docs/07-networking.md).
+    #[arg(long, default_value = korpis_agent::network::DEFAULT_IPV4)]
+    workload_ipv4: Ipv4Net,
+    /// An IPv6 prefix routed to this node, which gives workloads routable addresses; unset,
+    /// they get unique local ones, translated on the way out.
+    #[arg(long)]
+    workload_ipv6: Option<Ipv6Net>,
+    /// Serve the ingress: the helper opens ports 80 and 443 on the advertised addresses for
+    /// the node's ingress proxy, and the node says it serves it, so workloads with ingress
+    /// endpoints are placed here (§3.2 of docs/07-networking.md).
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    ingress: bool,
+    /// An interface the node's workloads leave by and the capacity it sells, as
+    /// `eth0=1gbit`, keeping five percent for the node unless `,reserve=50mbit` says
+    /// otherwise; repeatable. Declared, since a virtual machine's link speed is not what
+    /// its provider sold; none, and the node enforces no bandwidth (§7 of
+    /// docs/07-networking.md).
+    #[arg(long = "uplink", value_parser = korpis_agent::shaping::parse_uplink)]
+    uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
+    /// A directory of Container Device Interface spec files the node's devices are read
+    /// from; repeatable, a later one's device replacing an earlier one's of the same name
+    /// (§6.1 of docs/05-scheduling.md).
+    #[arg(long = "cdi-dir", default_values = ["/etc/cdi", "/var/run/cdi"])]
+    cdi_dirs: Vec<PathBuf>,
+    /// The class of a device kind whose name is none Korpis knows, as
+    /// `vendor.com/kind=class`; repeatable. A device of a kind neither names is not offered.
+    #[arg(long = "device-class", value_parser = korpis_agent::devices::parse_class)]
+    device_classes: Vec<(String, DeviceClass)>,
+    /// How many workloads may hold one device of a kind at once in `timeslice`, as
+    /// `vendor.com/kind=N`; repeatable. Timeslicing isolates nothing between its holders
+    /// (§6.2 of docs/05-scheduling.md); a kind not named is given in `passthrough` alone.
+    #[arg(long = "device-share", value_parser = korpis_agent::devices::parse_share)]
+    device_shares: Vec<(String, u32)>,
+    /// The physical cores offered for dedication, by id (the lowest logical CPU of each), as
+    /// a kernel CPU list such as `2-11`; unset, every core but the one holding CPU 0 (§5.2
+    /// of docs/05-scheduling.md).
+    #[arg(long = "dedicated-cores", value_parser = korpis_agent::topology::cpu_list)]
+    dedicated_cores: Option<std::collections::BTreeSet<u32>>,
+}
+
+impl RunArgs {
+    /// The node these flags describe.
+    fn node(self) -> Node {
+        Node {
+            driver: self.driver,
+            driver_socket: self.driver_socket,
+            helper_socket: self.helper_socket,
+            plain_http: self.plain_http,
+            fetch_allow: self.fetch_allow,
+            reserve: Reserve {
+                cpu_millis: self.reserve_cpu_millis,
+                memory_bytes: self.reserve_memory_bytes,
+            },
+            advertise_address: self.advertise_address,
+            ports: self.ports,
+            workload_ipv4: self.workload_ipv4,
+            workload_ipv6: self.workload_ipv6,
+            ingress: self.ingress,
+            uplinks: self.uplinks,
+            devices: korpis_agent::devices::Config {
+                dirs: self.cdi_dirs,
+                classes: self.device_classes.into_iter().collect(),
+                shares: self.device_shares.into_iter().collect(),
+                owner: 0,
+            },
+            dedicated_cores: self.dedicated_cores,
+        }
+    }
 }
 
 /// Waits for an interrupt or a termination request.
@@ -161,6 +200,7 @@ struct Node {
     ingress: bool,
     uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
     devices: korpis_agent::devices::Config,
+    dedicated_cores: Option<std::collections::BTreeSet<u32>>,
 }
 
 /// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
@@ -180,7 +220,9 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
     };
     let advertise = Advertise::new(node.advertise_address.clone(), node.ports, &server);
     let ingress = node.ingress.then(|| advertise.ingress());
-    let offer = (node.reserve, node.uplinks.as_slice());
+    let system = std::path::Path::new("/sys/devices/system");
+    let cores = korpis_agent::topology::cores(system, node.dedicated_cores.as_ref());
+    let offer = (node.reserve, node.uplinks.as_slice(), cores);
     let (devices, watching) = korpis_agent::devices::watch(node.devices.clone()).await;
     let facts = match facts_of(&runtime, &host, offer, (advertise, devices.clone())).await {
         Ok(f) => f,
@@ -333,47 +375,6 @@ async fn main() -> ExitCode {
             let json = args.json;
             preflight(&args.asking(), json).await
         }
-        Command::Run {
-            driver,
-            driver_socket,
-            helper_socket,
-            plain_http,
-            fetch_allow,
-            reserve_cpu_millis,
-            reserve_memory_bytes,
-            advertise_address,
-            ports,
-            workload_ipv4,
-            workload_ipv6,
-            ingress,
-            uplinks,
-            cdi_dirs,
-            device_classes,
-            device_shares,
-        } => {
-            let reserve =
-                Reserve { cpu_millis: reserve_cpu_millis, memory_bytes: reserve_memory_bytes };
-            let node = Node {
-                driver,
-                driver_socket,
-                helper_socket,
-                plain_http,
-                fetch_allow,
-                reserve,
-                advertise_address,
-                ports,
-                workload_ipv4,
-                workload_ipv6,
-                ingress,
-                uplinks,
-                devices: korpis_agent::devices::Config {
-                    dirs: cdi_dirs,
-                    classes: device_classes.into_iter().collect(),
-                    shares: device_shares.into_iter().collect(),
-                    owner: 0,
-                },
-            };
-            run(&state, node).await
-        }
+        Command::Run(args) => run(&state, args.node()).await,
     }
 }

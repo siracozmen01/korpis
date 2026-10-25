@@ -99,6 +99,7 @@ impl AssignmentSealer for Ed25519Sealer {
                 .map_err(|e| refused(&e.to_string()))?,
             devices: korpis_wire::node::holds_from_pb("devices", &pb.devices)
                 .map_err(|e| refused(&e.to_string()))?,
+            cores: pb.cores.clone(),
         })
     }
 }

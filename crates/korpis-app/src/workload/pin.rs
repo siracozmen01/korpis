@@ -15,11 +15,8 @@ use crate::ports::{Clock, EffectWrite, PlacementWrite, RecipeSource, Store, Work
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::node::Node;
-use korpis_core::node::device::DeviceHold;
 use korpis_core::placement::{BoundBy, Placement};
-use korpis_core::schedule::{
-    Candidate, Explanation, Rejection, Request, operator_refusals, place, reservation,
-};
+use korpis_core::schedule::{Candidate, Explanation, Rejection, Request, operator_refusals, place};
 use korpis_core::tenancy::quota::Bounds;
 use korpis_core::workload::{Intent, Workload};
 use uuid::Uuid;
@@ -86,19 +83,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             None => {}
         }
-        let (explanation, devices) = self.choose(&mut tx, &w, &target, &node).await?;
+        let (explanation, given) = self.choose(&mut tx, &w, &target, &node).await?;
         let placement = Placement {
             workload: w.id,
             node: node.id,
             intent: target.id,
-            reserved: reservation(&target.body),
+            reserved: given.reserved,
             bound_at: self.clock.now(),
             bound_by: BoundBy::Operator,
             reason: reason.to_owned(),
             explanation,
             authoritative: true,
             held_at: None,
-            devices,
+            devices: given.devices,
+            cores: given.cores,
         };
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;
@@ -133,10 +131,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         w: &Workload,
         target: &Intent,
         node: &Node,
-    ) -> Result<(Explanation, Vec<DeviceHold>), AppError> {
+    ) -> Result<(Explanation, super::place::Given), AppError> {
         let owners = self.owners(w.organization).await?;
         let allocations = tx.allocations(&[node.id]).await?;
         let held = tx.device_holds(&[node.id], w.id).await?;
+        let held_cores = tx.core_holds(&[node.id], w.id).await?;
         let peers = tx.peers(w.organization, w.id).await?;
         let empty = Bounds::default();
         let c = Candidate { node, allocated: allocations.get(&node.id).unwrap_or(&empty) };
@@ -162,6 +161,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             dependencies: &needed,
             quota: &quota,
             devices: &held,
+            cores: &held_cores,
         };
         let policies = self.policies(&owners).await?;
         let standing = operator_refusals(&req, &c, &peers, &policies);
@@ -170,7 +170,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let mut explanation = place(&req, &[c], &peers, &policies);
         explanation.chosen = Some(node.id);
-        let devices = super::place::given_on(&req, std::slice::from_ref(node), node.id)?;
-        Ok((explanation, devices))
+        let given = super::place::given_on(&req, std::slice::from_ref(node), node.id)?;
+        Ok((explanation, given))
     }
 }

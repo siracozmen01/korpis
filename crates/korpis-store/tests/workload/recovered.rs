@@ -40,6 +40,7 @@ fn on(workload: Uuid, node: Uuid, intent: Uuid, bound_by: BoundBy) -> Placement 
         authoritative: true,
         held_at: None,
         devices: Vec::new(),
+        cores: Vec::new(),
     }
 }
 

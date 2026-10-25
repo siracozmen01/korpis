@@ -4,8 +4,8 @@
 
 use crate::errors::from_sqlx;
 use crate::stored::{
-    bounds, bounds_doc, count, devices, drivers, from_time, node_docs, storage_classes, taints,
-    to_count, to_json, to_time,
+    bounds, bounds_doc, cores, count, devices, drivers, from_time, node_docs, storage_classes,
+    taints, to_count, to_json, to_time,
 };
 use crate::tenancy::{labels, name};
 use crate::{PgStore, PgTx};
@@ -43,6 +43,7 @@ pub(crate) struct NodeRow {
     pub(crate) ingress: bool,
     pub(crate) devices: Value,
     pub(crate) unoffered_devices: Value,
+    pub(crate) cores: Value,
 }
 
 /// What a node advertises, from its columns; none until it has reported a range.
@@ -137,6 +138,7 @@ impl NodeRow {
             drivers: drivers(self.drivers)?,
             devices,
             unoffered_devices,
+            cores: cores(self.cores)?,
             storage_classes: storage_classes(self.storage_classes)?,
             reachability,
             advertised,

@@ -38,6 +38,14 @@ struct PlacementRow {
     authoritative: bool,
     held_at: Option<DateTime<Utc>>,
     devices: Value,
+    cores: Vec<i32>,
+}
+
+/// Cores as the `placement` table keeps them, which never holds a negative id.
+fn cores_of(v: Vec<i32>) -> StoreResult<Vec<u32>> {
+    v.into_iter()
+        .map(|c| u32::try_from(c).map_err(|_| StoreError::Corrupt(format!("placement core {c}"))))
+        .collect()
 }
 
 impl PlacementRow {
@@ -57,6 +65,7 @@ impl PlacementRow {
             authoritative: self.authoritative,
             held_at: self.held_at.map(to_time),
             devices: holds(self.devices)?,
+            cores: cores_of(self.cores)?,
         })
     }
 }
@@ -148,6 +157,34 @@ impl PlacementWrite for PgTx {
         Ok(out)
     }
 
+    async fn core_holds(
+        &mut self,
+        nodes: &[Uuid],
+        except: Uuid,
+    ) -> StoreResult<BTreeMap<Uuid, Vec<u32>>> {
+        let rows = sqlx::query_file!("queries/node_core_holds.sql", nodes, except)
+            .fetch_all(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        let mut out: BTreeMap<Uuid, Vec<u32>> = BTreeMap::new();
+        for r in rows {
+            out.entry(r.node_id).or_default().extend(cores_of(r.cores)?);
+        }
+        Ok(out)
+    }
+
+    async fn cores_on(&mut self, workload: Uuid, node: Uuid) -> StoreResult<Vec<u32>> {
+        let held = sqlx::query_scalar!(
+            "SELECT cores FROM placement WHERE workload_id = $1 AND node_id = $2",
+            workload,
+            node
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        held.map(cores_of).transpose().map(Option::unwrap_or_default)
+    }
+
     async fn holds_on(&mut self, workload: Uuid, node: Uuid) -> StoreResult<Vec<DeviceHold>> {
         let held = sqlx::query_scalar!(
             "SELECT devices FROM placement WHERE workload_id = $1 AND node_id = $2",
@@ -202,7 +239,8 @@ impl PlacementWrite for PgTx {
             p.reason,
             explanation,
             p.authoritative,
-            holds_doc(&p.devices)?
+            holds_doc(&p.devices)?,
+            &p.cores.iter().map(|c| i32::try_from(*c).unwrap_or(i32::MAX)).collect::<Vec<_>>()
         )
         .execute(&mut *self.tx)
         .await

@@ -306,7 +306,7 @@ impl Node {
         // but loopback (§3 of docs/07-networking.md).
         let advertise = Advertise::new(vec![host_address().into()], self.ports, &server);
         let ingress = ingress.then(|| advertise.ingress());
-        let offer = (Reserve::default(), [].as_slice());
+        let offer = (Reserve::default(), [].as_slice(), Vec::new());
         // As `--cdi-dir` with the node's own directory and `--device-class` for the stand-in.
         let classes = [(STANDIN.to_owned(), DeviceClass::Serial)].into();
         let config = korpis_agent::devices::Config {

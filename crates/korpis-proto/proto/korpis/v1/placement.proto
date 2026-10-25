@@ -54,6 +54,9 @@ message Node {
   // docs/05-scheduling.md). Added 2026-10-25.
   repeated Device devices = 23;
   repeated UnofferedDevice unoffered_devices = 24;
+  // The physical cores it offers for dedication (§5.2 of docs/05-scheduling.md). Added
+  // 2026-10-25.
+  repeated Core cores = 25;
 }
 
 message Taint {
@@ -187,6 +190,16 @@ message Device {
 
 // A device a node's files describe and the node does not offer, and why: a kind of no class, an
 // aggregate of smaller devices, no node of its own, or a file not root's alone.
+// A physical core of a node, offered whole for dedication.
+message Core {
+  // The lowest logical CPU of the core; unique on its node.
+  uint32 id = 1;
+  // Its logical CPUs, the siblings that share its execution units.
+  repeated uint32 cpus = 2;
+  // The NUMA node its CPUs belong to.
+  uint32 numa = 3;
+}
+
 message UnofferedDevice {
   string id = 1;
   string reason = 2;
@@ -315,6 +328,8 @@ message Placement {
   google.protobuf.Timestamp held_at = 12;
   // The node's devices it holds, chosen when it was bound (§6.3 of docs/05-scheduling.md).
   repeated DeviceHold devices = 13;
+  // The node's cores it holds, by id, for dedicated cores (§5.2 of docs/05-scheduling.md).
+  repeated uint32 cores = 14;
 }
 
 // Why no node took a workload's approved target, from the newest attempt.

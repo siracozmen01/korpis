@@ -71,6 +71,9 @@ pub struct Placement {
     pub held_at: Option<SystemTime>,
     /// The node's devices it holds, chosen when it was bound (§6.3 of docs/05-scheduling.md).
     pub devices: Vec<crate::node::device::DeviceHold>,
+    /// The node's cores it holds, chosen when it was bound for dedicated cores (§5.2 of
+    /// docs/05-scheduling.md).
+    pub cores: Vec<u32>,
 }
 
 /// The newest attempt that found no node for a workload's target.

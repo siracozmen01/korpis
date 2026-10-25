@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The cores held on each of nodes $1 by placements of workloads other than $2: what the\n-- scheduler gives none of again (§5.2 of docs/05-scheduling.md). Both of a migration's placements\n-- hold theirs.\nSELECT node_id, cores FROM placement\n WHERE node_id = ANY($1) AND workload_id <> $2 AND cardinality(cores) > 0\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "cores",
+        "type_info": "Int4Array",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "cores"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "330823ecb6b5265122e8fa4e1509764f018b43a4da32931d86b89db911b9ed4c"
+}

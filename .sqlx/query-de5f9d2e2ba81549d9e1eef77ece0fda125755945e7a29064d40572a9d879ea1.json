@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT cores FROM placement WHERE workload_id = $1 AND node_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "cores",
+        "type_info": "Int4Array",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "cores"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "de5f9d2e2ba81549d9e1eef77ece0fda125755945e7a29064d40572a9d879ea1"
+}

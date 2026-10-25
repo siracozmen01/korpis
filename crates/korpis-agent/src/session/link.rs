@@ -31,6 +31,8 @@ pub struct Facts {
     pub devices: Vec<pb::Device>,
     /// What its spec files describe that it does not offer, and why.
     pub unoffered_devices: Vec<pb::UnofferedDevice>,
+    /// The physical cores it offers for dedication (§5.2 of docs/05-scheduling.md).
+    pub cores: Vec<pb::Core>,
 }
 
 /// What happened on the session, for whoever watches it.

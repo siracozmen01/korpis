@@ -111,6 +111,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         runs: a.runs.iter().map(crate::run::ref_to_pb).collect(),
         kept_runs: a.kept_runs.iter().map(|r| wire_id(IdKind::Run, *r)).collect(),
         devices: crate::node::holds_to_pb(&a.devices),
+        cores: a.cores.clone(),
         ..Default::default()
     }
 }

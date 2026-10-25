@@ -3,7 +3,7 @@
 //! The devices a node's spec files describe reach the node's record (§6.1 of
 //! docs/05-scheduling.md): the agent reports what it read in its Hello, and what it reads again
 //! in its next heartbeat, a device offered with its class and a device it does not offer with
-//! the reason.
+//! the reason; and the cores it offers for dedication with them.
 
 use crate::session::until;
 use crate::support::{self, ControlPlane};
@@ -72,6 +72,7 @@ async fn the_devices_a_nodes_files_describe_reach_its_record_and_so_does_a_chang
         Facts {
             devices: held.devices.clone(),
             unoffered_devices: held.unoffered.clone(),
+            cores: vec![pb::Core { id: 1, cpus: vec![1, 13], ..Default::default() }],
             ..support::facts()
         }
     };
@@ -88,6 +89,8 @@ async fn the_devices_a_nodes_files_describe_reach_its_record_and_so_does_a_chang
     assert_eq!(device.id, "korpis.test/standin=a");
     assert_eq!(device.class, pb::DeviceClass::DEVICE_CLASS_SERIAL);
     assert_eq!(device.host_nodes, ["/dev/zero"]);
+    assert_eq!(reported.cores.len(), 1, "and the cores it offers (§5.2 of docs/05-scheduling.md)");
+    assert_eq!(reported.cores[0].cpus, [1, 13]);
 
     // A kind the operator has not mapped arrives as the files are read again.
     spec(&specs, "korpis.test/other", "b");

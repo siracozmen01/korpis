@@ -145,14 +145,14 @@ pub fn machine(reserve: Reserve) -> (pb::Resources, pb::Resources) {
 }
 
 /// The facts a node reports: its drivers, each as it declares itself, its storage, as the
-/// helper declares it, this machine, the bandwidth of its `uplinks` once the helper shapes
-/// them (§7 of docs/07-networking.md), and its `devices` as they are when asked. A helper that
-/// cannot be reached leaves the node offering no storage class and no bandwidth rather than
-/// keeping it from starting.
+/// helper declares it, this machine and the `cores` it offers, the bandwidth of its `uplinks`
+/// once the helper shapes them (§7 of docs/07-networking.md), and its `devices` as they are
+/// when asked. A helper that cannot be reached leaves the node offering no storage class and no
+/// bandwidth rather than keeping it from starting.
 pub async fn facts_of<R: Runtime, H: Host>(
     runtime: &R,
     host: &H,
-    (reserve, uplinks): (Reserve, &[helper::Uplink]),
+    (reserve, uplinks, cores): (Reserve, &[helper::Uplink], Vec<pb::Core>),
     (advertise, devices): (Advertise, crate::devices::Devices),
 ) -> Result<Arc<dyn Fn() -> Facts + Send + Sync>, RuntimeError> {
     let mut drivers = runtime.drivers().await?;
@@ -174,8 +174,15 @@ pub async fn facts_of<R: Runtime, H: Host>(
         (allocatable.bandwidth_bits_per_sec, capacity.bandwidth_bits_per_sec) = (offered, link);
     }
     let advertised = agent::Advertised::default();
-    let facts =
-        Facts { drivers, storage_classes, capacity, allocatable, advertised, ..Facts::default() };
+    let facts = Facts {
+        drivers,
+        storage_classes,
+        capacity,
+        allocatable,
+        advertised,
+        cores,
+        ..Facts::default()
+    };
     Ok(Arc::new(move || {
         let held = Arc::clone(&devices.borrow());
         Facts {

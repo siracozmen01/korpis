@@ -6131,3 +6131,12 @@ interrupts still run on a held core, and the partition path cannot be run end to
 machine this project is built on, whose other services it would take CPUs from.
 
 Steps 1 to 10 are designed, and none is built yet (§4 of `20-roadmap.md`).
+
+Revisited 2026-10-25, as step 1 was built (P3.3b2a): the agent reads the topology and reports the
+cores it offers in its Hello and every heartbeat, and the control plane keeps them as the node's;
+tested on a topology of the test's own, two threads a core on two NUMA nodes.
+
+Revisited again the same day, as steps 5 and 9 were built (P3.3b2b): the scheduler chooses the
+cores at the bind, the placement holds them and reserves their threads, the assignment names them,
+and a restore recovers them with the placement, reserving their threads again from the node's
+cores. Steps 6 to 8 and 10, the helper's and the drivers', are not built.

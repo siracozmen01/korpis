@@ -20,7 +20,7 @@ use korpis_core::node::Node;
 use korpis_core::node::device::DeviceHold;
 use korpis_core::placement::{BoundBy, Placement, Unplaced};
 use korpis_core::principal::{Principal, SystemActor};
-use korpis_core::schedule::{Candidate, Current, Explanation, Request, place, reservation};
+use korpis_core::schedule::{Candidate, Current, Explanation, Request, place};
 use korpis_core::tenancy::quota::Bounds;
 use korpis_core::workload::{Intent, Workload};
 use uuid::Uuid;
@@ -36,9 +36,20 @@ struct Binding<'a> {
     target: &'a Intent,
     current: Option<Placement>,
     node: Uuid,
-    /// The devices it is given there, as the filter found them free; computed before
-    /// `current` is moved in, since the request computing them borrows it.
-    devices: Vec<DeviceHold>,
+    /// The devices and cores it is given there, as the filter found them free, and what it
+    /// reserves holding them; computed before `current` is moved in, since the request
+    /// computing them borrows it.
+    given: Given,
+}
+
+/// What a workload is given on the node it is bound to.
+pub(super) struct Given {
+    /// Its devices (§6.3 of docs/05-scheduling.md).
+    pub(super) devices: Vec<DeviceHold>,
+    /// Its cores (§5.2 of docs/05-scheduling.md).
+    pub(super) cores: Vec<u32>,
+    /// What it reserves there: its cores' threads, where it holds any, for its declared CPU.
+    pub(super) reserved: Bounds,
 }
 
 /// `nodes` as candidates, each with what its placements reserve: `allocations`, or `empty`.
@@ -55,23 +66,20 @@ pub(super) fn candidates_of<'a>(
 
 /// Where `p` places its workload now, as a placement that may follow its target in place.
 fn current_of(p: &Placement) -> Current<'_> {
-    Current { node: p.node, reserved: &p.reserved, devices: &p.devices }
+    Current { node: p.node, reserved: &p.reserved, devices: &p.devices, cores: &p.cores }
 }
 
-/// The devices `req` is given on `node`, one of `nodes`: what the filter found free there, so
-/// failing now is the store and the scheduler disagreeing.
-pub(super) fn given_on(
-    req: &Request<'_>,
-    nodes: &[Node],
-    node: Uuid,
-) -> Result<Vec<DeviceHold>, AppError> {
-    nodes
-        .iter()
-        .find(|n| n.id == node)
-        .map(|n| korpis_core::schedule::devices::given(req, n))
-        .transpose()
-        .map(Option::unwrap_or_default)
-        .map_err(|why| AppError::Internal(format!("the chosen node's devices: {why}")))
+/// The devices and cores `req` is given on `node`, one of `nodes`, and what it reserves holding
+/// them: what the filter found free there, so failing now is the store and the scheduler
+/// disagreeing.
+pub(super) fn given_on(req: &Request<'_>, nodes: &[Node], node: Uuid) -> Result<Given, AppError> {
+    let disagree = |why: String| AppError::Internal(format!("the chosen node's holds: {why}"));
+    let n =
+        nodes.iter().find(|n| n.id == node).ok_or_else(|| disagree("not a candidate".into()))?;
+    let devices = korpis_core::schedule::devices::given(req, n).map_err(disagree)?;
+    let cores = korpis_core::schedule::cores::given(req, n).map_err(disagree)?;
+    let reserved = korpis_core::schedule::cores::reservation_on(req.body, n, &cores);
+    Ok(Given { devices, cores, reserved })
 }
 
 fn scheduler() -> Principal {
@@ -194,7 +202,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let ids: Vec<Uuid> = nodes.iter().map(|n| n.id).collect();
         let allocations = tx.allocations(&ids).await?;
-        let held = tx.device_holds(&ids, w.id).await?;
+        let (held, held_cores) =
+            (tx.device_holds(&ids, w.id).await?, tx.core_holds(&ids, w.id).await?);
         let peers = tx.peers(w.organization, w.id).await?;
         let empty = Bounds::default();
         let candidates = candidates_of(&nodes, &allocations, &empty);
@@ -220,12 +229,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             dependencies: &needed,
             quota: &quota,
             devices: &held,
+            cores: &held_cores,
         };
         let explanation = place(&req, &candidates, &peers, &self.policies(&owners).await?);
         match explanation.chosen {
             Some(node) => {
                 let binding =
-                    Binding { devices: given_on(&req, &nodes, node)?, w, target, current, node };
+                    Binding { given: given_on(&req, &nodes, node)?, w, target, current, node };
                 self.bind_chosen(tx, binding, explanation).await
             }
             None => self.record_unplaced(tx, w, target, explanation).await,
@@ -256,7 +266,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         binding: Binding<'_>,
         explanation: Explanation,
     ) -> Result<(), AppError> {
-        let Binding { w, target, current, node, devices } = binding;
+        let Binding { w, target, current, node, given } = binding;
         let followed = current.is_some();
         let (bound_at, bound_by) =
             current.map_or((self.clock.now(), BoundBy::Scheduler), |p| (p.bound_at, p.bound_by));
@@ -264,14 +274,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             workload: w.id,
             node,
             intent: target.id,
-            reserved: reservation(&target.body),
+            reserved: given.reserved,
             bound_at,
             bound_by,
             reason: reason(followed),
             explanation,
             authoritative: true,
             held_at: None,
-            devices,
+            devices: given.devices,
+            cores: given.cores,
         };
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;

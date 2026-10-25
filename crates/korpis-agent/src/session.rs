@@ -230,6 +230,7 @@ impl Session {
             storage_classes: facts.storage_classes,
             devices: facts.devices,
             unoffered_devices: facts.unoffered_devices,
+            cores: facts.cores,
             capacity: facts.capacity.into(),
             allocatable: facts.allocatable.into(),
             advertised: facts.advertised.into(),
@@ -258,6 +259,7 @@ impl Session {
             advertised: facts.advertised.into(),
             devices: facts.devices,
             unoffered_devices: facts.unoffered_devices,
+            cores: facts.cores,
             ..Default::default()
         };
         match self.journal.usage().await {

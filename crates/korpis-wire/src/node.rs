@@ -2,10 +2,12 @@
 
 //! Nodes, their drivers and storage, and amounts per dimension.
 
+mod cores;
 mod devices;
 mod facts;
 mod storage;
 
+pub use cores::{core_to_pb, cores_from_pb};
 pub use devices::{
     device_to_wire, devices_from_pb, holds_from_pb, holds_to_pb, mode_from_pb, mode_to_pb,
     unoffered_from_pb, unoffered_to_wire,
@@ -234,6 +236,7 @@ pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
         ingress: n.advertised.as_ref().is_some_and(|a| a.ingress),
         devices: n.devices.iter().map(device_to_wire).collect(),
         unoffered_devices: n.unoffered_devices.iter().map(unoffered_to_wire).collect(),
+        cores: n.cores.iter().map(core_to_pb).collect(),
         ..Default::default()
     }
 }

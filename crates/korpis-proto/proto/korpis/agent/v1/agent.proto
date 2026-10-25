@@ -409,6 +409,7 @@ message Hello {
   // As in NodeStatus.
   repeated korpis.v1.Device devices = 15;
   repeated korpis.v1.UnofferedDevice unoffered_devices = 16;
+  repeated korpis.v1.Core cores = 17;
 }
 
 // The session runs over TLS to a control plane certificate the agent pinned at enrollment; this
@@ -452,6 +453,9 @@ message NodeStatus {
   // and those it does not offer (§6.1 of docs/05-scheduling.md). Added 2026-10-25.
   repeated korpis.v1.Device devices = 10;
   repeated korpis.v1.UnofferedDevice unoffered_devices = 11;
+  // The physical cores it offers for dedication, in full every time (§5.2 of
+  // docs/05-scheduling.md). Added 2026-10-25.
+  repeated korpis.v1.Core cores = 12;
 }
 
 // What the node offers for inbound traffic, before anything has measured it.
@@ -571,9 +575,13 @@ message Assignment {
   // once the run is not here, which is the control plane saying retention deleted it (§4 of
   // docs/14-streams.md).
   repeated string kept_runs = 26;
-  // The node's devices its placement holds, which the agent gives the driver with their edits
-  // (§6.3 of docs/05-scheduling.md, §4.2 of docs/04-runtimes.md). Added 2026-10-25.
+  // The node's devices its placement holds, which the agent gives the driver by name, the
+  // driver reading their edits itself (§6.3 of docs/05-scheduling.md, §4.2 of
+  // docs/04-runtimes.md). Added 2026-10-25.
   repeated korpis.v1.DeviceHold devices = 28;
+  // The node's cores its placement holds, by id, for dedicated cores (§5.2 of
+  // docs/05-scheduling.md). Added 2026-10-25.
+  repeated uint32 cores = 29;
 }
 
 // One run a node is to execute: what it is, and what the node enforces of it. Also what a

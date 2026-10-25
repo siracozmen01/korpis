@@ -107,11 +107,16 @@ impl ResourceSpec {
         if self.io.share > 10_000 {
             return Err(SpecError::new("resources.io.share", "1 to 10000"));
         }
+        // A whole number of cores, all of it reserved (§5.2 of docs/05-scheduling.md).
         if self.cpu.isolation == CpuIsolation::DedicatedCores
             && (self.cpu.reservation_millis == 0
-                || !self.cpu.reservation_millis.is_multiple_of(1000))
+                || !self.cpu.reservation_millis.is_multiple_of(1000)
+                || self.cpu.limit_millis != self.cpu.reservation_millis)
         {
-            return Err(SpecError::new("resources.cpu", "dedicated cores reserve whole cores"));
+            return Err(SpecError::new(
+                "resources.cpu",
+                "dedicated cores reserve whole cores, the limit equal to the reservation",
+            ));
         }
         Ok(())
     }

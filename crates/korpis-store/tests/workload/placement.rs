@@ -64,12 +64,17 @@ async fn a_placement_reads_back_whole_and_its_node_counts_it() {
             device: "nvidia.com/gpu=0".into(),
             mode: korpis_core::node::device::DeviceMode::Passthrough,
         }],
+        cores: vec![1, 2],
     };
     let mut tx = f.store.begin().await.unwrap();
     tx.move_target(w.id, first.id, 0).await.unwrap();
     tx.lock_placement().await.unwrap();
     tx.bind(&p).await.unwrap();
     assert_eq!(tx.allocations(&[node.id]).await.unwrap()[&node.id], p.reserved);
+    let others = tx.core_holds(&[node.id], Uuid::now_v7()).await.unwrap();
+    assert_eq!(others.get(&node.id), Some(&vec![1, 2]), "held from another workload's view");
+    assert!(tx.core_holds(&[node.id], w.id).await.unwrap().is_empty(), "never its own");
+    assert_eq!(tx.cores_on(w.id, node.id).await.unwrap(), [1, 2]);
     tx.commit().await.unwrap();
     assert_eq!(f.store.placement(w.id).await.unwrap(), Some(p));
     assert!(f.store.awaiting_placement(Page::default()).await.unwrap().is_empty());
