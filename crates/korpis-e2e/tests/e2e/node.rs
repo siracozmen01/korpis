@@ -290,7 +290,9 @@ impl Node {
         let advertise = Advertise::new(vec![host_address().into()], self.ports, &server);
         let ingress = ingress.then(|| advertise.ingress());
         let offer = (Reserve::default(), [].as_slice());
-        let facts = facts_of(&runtime, &host, offer, advertise).await.unwrap();
+        let (devices, _) =
+            korpis_agent::devices::watch(korpis_agent::devices::Config::default()).await;
+        let facts = facts_of(&runtime, &host, offer, (advertise, devices)).await.unwrap();
         // As `--workload-ipv4` with the node's own pool would.
         let network = korpis_agent::network::offered(&runtime, &host, &id, (self.pool, None)).await;
         let period = Duration::from_millis(500);

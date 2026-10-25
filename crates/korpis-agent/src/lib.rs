@@ -14,6 +14,7 @@
 pub mod advertise;
 pub mod content;
 pub mod data;
+pub mod devices;
 pub mod durable;
 pub mod feasibility;
 pub mod health;

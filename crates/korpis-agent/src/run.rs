@@ -141,14 +141,15 @@ pub fn machine(reserve: Reserve) -> (pb::Resources, pb::Resources) {
 }
 
 /// The facts a node reports: its drivers, each as it declares itself, its storage, as the
-/// helper declares it, this machine, and the bandwidth of its `uplinks` once the helper shapes
-/// them (§7 of docs/07-networking.md). A helper that cannot be reached leaves the node
-/// offering no storage class and no bandwidth rather than keeping it from starting.
+/// helper declares it, this machine, the bandwidth of its `uplinks` once the helper shapes
+/// them (§7 of docs/07-networking.md), and its `devices` as they are when asked. A helper that
+/// cannot be reached leaves the node offering no storage class and no bandwidth rather than
+/// keeping it from starting.
 pub async fn facts_of<R: Runtime, H: Host>(
     runtime: &R,
     host: &H,
     (reserve, uplinks): (Reserve, &[helper::Uplink]),
-    advertise: Advertise,
+    (advertise, devices): (Advertise, Devices),
 ) -> Result<Arc<dyn Fn() -> Facts + Send + Sync>, RuntimeError> {
     let mut drivers = runtime.drivers().await?;
     let storage_classes = host.storage().await.unwrap_or_else(|e| {
@@ -169,9 +170,21 @@ pub async fn facts_of<R: Runtime, H: Host>(
         (allocatable.bandwidth_bits_per_sec, capacity.bandwidth_bits_per_sec) = (offered, link);
     }
     let advertised = agent::Advertised::default();
-    let facts = Facts { drivers, storage_classes, capacity, allocatable, advertised };
-    Ok(Arc::new(move || Facts { advertised: advertise.current(), ..facts.clone() }))
+    let facts =
+        Facts { drivers, storage_classes, capacity, allocatable, advertised, ..Facts::default() };
+    Ok(Arc::new(move || {
+        let held = Arc::clone(&devices.borrow());
+        Facts {
+            advertised: advertise.current(),
+            devices: held.devices.clone(),
+            unoffered_devices: held.unoffered.clone(),
+            ..facts.clone()
+        }
+    }))
 }
+
+/// The node's devices as the spec files describe them now (§6.1 of docs/05-scheduling.md).
+pub type Devices = tokio::sync::watch::Receiver<Arc<crate::devices::Catalog>>;
 
 /// What the node's ingress proxy is fed from and the task that runs it, where the node runs one:
 /// it needs workloads to have networks, which the proxy reaches them on, and an address it

@@ -27,6 +27,10 @@ pub struct Facts {
     pub allocatable: pb::Resources,
     /// What it advertises for inbound traffic (§9 of docs/07-networking.md).
     pub advertised: agent::Advertised,
+    /// Its devices, as its spec files describe them (§6.1 of docs/05-scheduling.md).
+    pub devices: Vec<pb::Device>,
+    /// What its spec files describe that it does not offer, and why.
+    pub unoffered_devices: Vec<pb::UnofferedDevice>,
 }
 
 /// What happened on the session, for whoever watches it.

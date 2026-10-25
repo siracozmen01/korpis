@@ -1280,8 +1280,13 @@ naming each device as `vendor.com/class=name`, with the edits a runtime makes to
 spec to give it one: device nodes, mounts, environment, groups, and hooks (§5 of
 `research/evidence.md`). NVIDIA's toolkit generates such a file for a machine's GPUs and their
 partitions, so a host who installs the vendor's driver has what Korpis reads, and nothing of
-Korpis's knows a vendor. The agent reads the spec directories when it starts and when they change,
-reports each device in its facts (`Node.devices`, §3.4 of `01-model.md`), and never writes them.
+Korpis's knows a vendor. The agent reads the spec directories when it starts and every half minute
+after, so a file the toolkit rewrites reaches the node's facts by the next heartbeat, reports each
+device in its facts (`Node.devices`, §3.4 of `01-model.md`), and never writes them. It orders them
+as CDI's reference implementation does: `/etc/cdi`, then `/var/run/cdi`, a device of a later
+directory replacing one of the same name in an earlier, a name two files of one directory describe
+offered by neither, and a file with a field the specification does not define not read at all, so
+no edit a vendor wrote is silently dropped (§5 of `research/evidence.md`).
 containerd reads the same directories only in its CRI plugin, which the `oci` driver does not use,
 so the driver applies a device's edits itself (§4.2 of `04-runtimes.md`).
 
@@ -1290,8 +1295,9 @@ Each device reported says four things:
 - **its id**, the CDI name, unique on its node;
 - **its class**, which CDI does not have: the kind's name where it names a class Korpis knows
   (`nvidia.com/gpu` is a `gpu`), otherwise the class the operator maps the kind to on the agent
-  (§2 of `18-operations.md`). A device of a kind neither names is not offered, and the node's
-  status lists it as unclassified rather than guessing;
+  (§2 of `18-operations.md`), which refuses a mapping for a kind whose name settles its class. A
+  device of a kind neither names is not offered, and the node's status lists it as unclassified
+  rather than guessing;
 - **its attributes**, the CDI spec's and device's annotations, which a request's selector matches;
 - **the host device nodes its own edits give**, by which two devices are known to be the same
   hardware. Only a device's own edits count: the nodes its file gives with every device (NVIDIA's

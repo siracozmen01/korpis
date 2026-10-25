@@ -315,7 +315,9 @@ and are held for the maintainer's design (2026-10-24): until they are built, a d
 conformance says nothing of its isolation, and the suite's report says so. Devices, including
 GPUs, are designed (§6 of `05-scheduling.md`, trace 72 of `23-walkthroughs.md`): a node's are those
 the Container Device Interface's files describe, held by placements, and given to a driver as
-edits; none of it is built yet.
+edits. The scheduler's half is built (devices chosen at the bind, held, freed, and restored with
+placements), and so is the agent's reading of the files; until the driver applies a device's
+edits, a request for one is refused when it is declared.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

@@ -36,6 +36,14 @@ impl DeviceClass {
             Self::Serial => "serial",
         }
     }
+
+    /// The class `name` names, as [`Self::as_str`] says it.
+    #[must_use]
+    pub fn named(name: &str) -> Option<Self> {
+        [Self::Gpu, Self::Usb, Self::Pci, Self::Tpm, Self::Serial]
+            .into_iter()
+            .find(|c| c.as_str() == name)
+    }
 }
 
 /// Where a root filesystem can come from.

@@ -340,6 +340,8 @@ pub fn facts() -> korpis_agent::session::Facts {
     korpis_agent::session::Facts {
         drivers: pb.drivers,
         storage_classes: Vec::new(),
+        devices: Vec::new(),
+        unoffered_devices: Vec::new(),
         capacity: pb.capacity.into_option().unwrap_or_default(),
         allocatable: pb.allocatable.into_option().unwrap_or_default(),
         // The loopback address, declared as an operator would declare a LAN address: what the

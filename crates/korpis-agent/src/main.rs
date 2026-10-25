@@ -19,6 +19,7 @@ use korpis_agent::runtime::memory::InMemory;
 use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::state::StateDir;
 use korpis_core::node::advertised::PortRange;
+use korpis_core::node::driver::DeviceClass;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -112,6 +113,20 @@ enum Command {
         /// docs/07-networking.md).
         #[arg(long = "uplink", value_parser = korpis_agent::shaping::parse_uplink)]
         uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
+        /// A directory of Container Device Interface spec files the node's devices are read
+        /// from; repeatable, a later one's device replacing an earlier one's of the same name
+        /// (§6.1 of docs/05-scheduling.md).
+        #[arg(long = "cdi-dir", default_values = ["/etc/cdi", "/var/run/cdi"])]
+        cdi_dirs: Vec<PathBuf>,
+        /// The class of a device kind whose name is none Korpis knows, as
+        /// `vendor.com/kind=class`; repeatable. A device of a kind neither names is not offered.
+        #[arg(long = "device-class", value_parser = korpis_agent::devices::parse_class)]
+        device_classes: Vec<(String, DeviceClass)>,
+        /// How many workloads may hold one device of a kind at once in `timeslice`, as
+        /// `vendor.com/kind=N`; repeatable. Timeslicing isolates nothing between its holders
+        /// (§6.2 of docs/05-scheduling.md); a kind not named is given in `passthrough` alone.
+        #[arg(long = "device-share", value_parser = korpis_agent::devices::parse_share)]
+        device_shares: Vec<(String, u32)>,
     },
 }
 
@@ -145,6 +160,7 @@ struct Node {
     workload_ipv6: Option<Ipv6Net>,
     ingress: bool,
     uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
+    devices: korpis_agent::devices::Config,
 }
 
 /// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
@@ -165,7 +181,8 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
     let advertise = Advertise::new(node.advertise_address.clone(), node.ports, &server);
     let ingress = node.ingress.then(|| advertise.ingress());
     let offer = (node.reserve, node.uplinks.as_slice());
-    let facts = match facts_of(&runtime, &host, offer, advertise).await {
+    let (devices, watching) = korpis_agent::devices::watch(node.devices.clone()).await;
+    let facts = match facts_of(&runtime, &host, offer, (advertise, devices)).await {
         Ok(f) => f,
         Err(e) => {
             tracing::error!(error = %e, "the driver could not be described");
@@ -175,6 +192,18 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
     let pools = (node.workload_ipv4, node.workload_ipv6);
     let network = korpis_agent::network::offered(&runtime, &host, &id, pools).await;
     let options = Options { network, ingress, ..Options::default() };
+    let ran = start(state, (runtime, host), facts, options).await;
+    watching.abort();
+    ran
+}
+
+/// Starts the agent, and runs it until it is asked to stop.
+async fn start<R: Runtime + Clone, H: Host + Clone>(
+    state: &StateDir,
+    (runtime, host): (R, H),
+    facts: std::sync::Arc<dyn Fn() -> korpis_agent::session::Facts + Send + Sync>,
+    options: Options,
+) -> ExitCode {
     match Agent::start(state, runtime, host, facts, options) {
         Ok(agent) => {
             tracing::info!("agent running");
@@ -318,6 +347,9 @@ async fn main() -> ExitCode {
             workload_ipv6,
             ingress,
             uplinks,
+            cdi_dirs,
+            device_classes,
+            device_shares,
         } => {
             let reserve =
                 Reserve { cpu_millis: reserve_cpu_millis, memory_bytes: reserve_memory_bytes };
@@ -334,6 +366,12 @@ async fn main() -> ExitCode {
                 workload_ipv6,
                 ingress,
                 uplinks,
+                devices: korpis_agent::devices::Config {
+                    dirs: cdi_dirs,
+                    classes: device_classes.into_iter().collect(),
+                    shares: device_shares.into_iter().collect(),
+                    owner: 0,
+                },
             };
             run(&state, node).await
         }

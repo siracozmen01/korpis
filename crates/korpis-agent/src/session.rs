@@ -228,6 +228,8 @@ impl Session {
             protocol: PROTOCOL.to_owned(),
             drivers: facts.drivers,
             storage_classes: facts.storage_classes,
+            devices: facts.devices,
+            unoffered_devices: facts.unoffered_devices,
             capacity: facts.capacity.into(),
             allocatable: facts.allocatable.into(),
             advertised: facts.advertised.into(),
@@ -254,6 +256,8 @@ impl Session {
             allocatable: facts.allocatable.into(),
             drivers: facts.drivers,
             advertised: facts.advertised.into(),
+            devices: facts.devices,
+            unoffered_devices: facts.unoffered_devices,
             ..Default::default()
         };
         match self.journal.usage().await {

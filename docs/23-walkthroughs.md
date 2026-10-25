@@ -6021,9 +6021,10 @@ GPU 0 and GPU 1 together. Step 5 holds GPU 0 in the binding transaction, and ste
 each name GPU 1's node and nodes of their own, so neither contains the other and both are held.
 Step 8 finds GPU 0 held, and GPU 1 contained in each held partition, so the workload stays
 unplaced with that reason. That rests on how NVIDIA's file gives a MIG device, its parent's node
-and nodes of its own, which no file from a real machine has been read to confirm, since no GPU is
-passed through on the machines this project is built on; a file that gives them otherwise is held
-in the rule's safe direction, one at a time. Step 9 is the vendor's gap, which its documentation
+and nodes of its own, which the toolkit's source confirms (§5 of `research/evidence.md`, read as
+step 2 was built) and no file from a real machine has, since no GPU is passed through on the
+machines this project is built on; a file that gives them otherwise is held in the rule's safe
+direction, one at a time. Step 9 is the vendor's gap, which its documentation
 states: the file is not rewritten when partitions change, so the agent reports the old partitions
 until the host regenerates it, a start naming one that no longer exists is refused by the driver,
 and the workload is placed elsewhere (§6.3 there). Step 10 restores holds with the placements
@@ -6031,3 +6032,9 @@ that record them. Step 11 finds no driver of the `microvm` tier declaring a devi
 workload stays unplaced saying so (§6.5 there).
 
 Steps 1 to 11 are designed, and none is built yet (§4 of `20-roadmap.md`).
+
+Revisited 2026-10-25, as steps 2, 5, 7, 8, and 10 were built (P3.3a3 and P3.3a4a): the scheduler
+chooses the devices at the bind, holds them in the placement, and frees and restores them with it,
+and the agent reads the spec files and reports what step 2 says, tested on a file of NVIDIA's
+shape. Step 6 is not built, so a request is still refused when it is declared and no workload holds
+a device yet.
