@@ -249,7 +249,8 @@ the scheduler places no workload asking for dedicated cores on it. So does a dri
 outside its `shared` and `dedicated` cgroups, which an object made before the driver held cores is,
 until it is built again: that object's tasks could run on a held core, and the declaration names
 it. Built for the `oci` driver 2026-10-25, which declares its parent, `--cgroup-parent`
-(`/korpis`).
+(`/korpis`), and for the `firecracker` driver the same day, which declares its `--cgroup`
+(`/korpis-firecracker`); each takes `--dedicated-cores-host`.
 
 **`volume_semantics`, because a VM's volume is a block device.** Under `process` and `container`, a
 volume is a directory on a filesystem the host controls, quota is `refquota` or a project quota,
@@ -378,10 +379,20 @@ The `oci` driver sets them as the container's `linux.resources.cpu` CPUs and mem
 makes the partition itself, writing the container cgroup's `cpuset.cpus.exclusive` and
 `cpuset.cpus.partition` after its task is created and before anything of it runs; where the kernel
 makes none, which it says in that file, the task is deleted and the start fails with the kernel's
-reason (built 2026-10-25). The `firecracker` driver sets them as the jailer's cgroup, and pins each
-vCPU's thread to one of the CPUs; until it does, it refuses a spec naming cores. What it costs: a
-driver given cores runs its object's cgroup in a different place than one not, so an object's cores
-change only when it is built again from a new placement, which is a restart.
+reason (built 2026-10-25). The `firecracker` driver has the jailer write them into its guest's
+cgroup under `dedicated`, and then, unless the host shares them, the partition, before Firecracker
+runs, since the jailer writes its settings in the order given; it gives the guest one vCPU for each
+of their logical CPUs, whatever millicores were declared, since the guest holds them all, and pins
+each vCPU's thread to its own CPU once Firecracker has made them. A guest whose partition the
+kernel did not make, which the driver reads back, or whose vCPUs could not be pinned, is ended and
+its start fails (built 2026-10-25). Before anything of a holding object runs, either driver reads
+back that its parent's `shared` cgroup is off its CPUs, as the kernel applies them, and fails the
+start otherwise, so a helper that did not narrow it leaves no tenant beside it (Finding 170 of
+`23-walkthroughs.md`). Neither driver hands back an object made holding other cores than those
+asked, the `oci` driver knowing a container's by a label it records them in, and the agent builds
+an object again when its placement's cores change (Finding 171). What it costs: a driver given
+cores runs its object's cgroup in a different place than one not, so an object's cores change only
+when it is built again from a new placement, which is a restart.
 
 **`Prepare` is pure.** It validates that this driver on this node can satisfy this intent, resolves
 references, and returns either a prepared spec or a rejection with a reason, changing nothing. This

@@ -3201,6 +3201,7 @@ dependencies = [
  "korpis-image",
  "korpis-proto",
  "korpis-stream",
+ "korpis-topology",
  "korpis-wire",
  "rustix",
  "serde",

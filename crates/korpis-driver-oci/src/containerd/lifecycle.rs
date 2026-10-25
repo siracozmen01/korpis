@@ -30,6 +30,9 @@ const LABEL_GENERATION: &str = "korpis.assignment_generation";
 const LABEL_CYCLE: &str = "korpis.power_cycle";
 const LABEL_EPOCH: &str = "korpis.lease_epoch";
 pub(crate) const LABEL_RUN: &str = "korpis.run";
+/// The CPUs of the dedicated cores a container was made holding, so one is never handed back for
+/// other cores (§4.2 of docs/04-runtimes.md).
+const LABEL_CPUS: &str = "korpis.cpus";
 /// How long a killed task is given to be reaped.
 pub(crate) const KILL_WAIT: Duration = Duration::from_secs(10);
 
@@ -105,10 +108,20 @@ impl Containerd {
 
     /// Whether the container `id` exists.
     pub(crate) async fn container_exists(&self, id: &str) -> DriverResult<bool> {
+        Ok(self.held_cpus(id).await?.is_some())
+    }
+
+    /// The CPUs container `id` was made holding, empty for none, as its label records them;
+    /// `None` when there is no such container. One made before cores were held has no label, and
+    /// held none.
+    async fn held_cpus(&self, id: &str) -> DriverResult<Option<String>> {
         let request = containers::GetContainerRequest { id: id.to_owned(), ..Default::default() };
         match self.containers().get(request).await {
-            Ok(_) => Ok(true),
-            Err(e) if e.code == connectrpc::ErrorCode::NotFound => Ok(false),
+            Ok(r) => {
+                let container = r.into_owned().container.into_option().unwrap_or_default();
+                Ok(Some(container.labels.get(LABEL_CPUS).cloned().unwrap_or_default()))
+            }
+            Err(e) if e.code == connectrpc::ErrorCode::NotFound => Ok(None),
             Err(e) => Err(e.into()),
         }
     }
@@ -118,14 +131,20 @@ impl Containerd {
         let s = valid.spec();
         let run = s.labels.as_option().map(|l| l.run.as_str()).unwrap_or_default();
         let id = container_id(&s.workload, &s.intent, run);
-        if self.container_exists(&id).await? {
+        // Read now, before anything is made or kept, so a core the machine does not have refuses,
+        // and a container already made holding other CPUs is never handed back for these.
+        let cpuset = self.cores.given(&s.cores).map_err(DriverError::Rejected)?;
+        let cpus = cpuset.as_ref().map(|c| c.cpus.clone()).unwrap_or_default();
+        if let Some(held) = self.held_cpus(&id).await? {
+            if held != cpus {
+                let why = format!("{id} exists holding CPUs {held:?}, not {cpus:?}; destroy it");
+                return Err(DriverError::Rejected(why));
+            }
             return Ok(id);
         }
         volumes_resolve(valid, policy)?;
-        // Read now, before anything is made, so a device the node no longer describes, or a core
-        // the machine does not have, refuses.
+        // And a device the node no longer describes refuses.
         let given = crate::devices::given(s, &policy.devices).map_err(DriverError::Rejected)?;
-        let cpuset = self.cores.given(&s.cores).map_err(DriverError::Rejected)?;
         if valid.spec().stream.is_set() {
             let streams = self.streams.as_ref().ok_or_else(|| {
                 DriverError::Rejected("this driver has no stream writer configured".into())
@@ -175,6 +194,8 @@ impl Containerd {
         let json = serde_json::to_vec(&spec).map_err(|e| DriverError::Failed(e.to_string()))?;
         let mut labels = labels(valid);
         labels.extend(super::stream::labels(valid));
+        let cpus = cpuset.map(|c| c.cpus.clone()).unwrap_or_default();
+        labels.insert(LABEL_CPUS.to_owned(), cpus);
         let container = containers::Container {
             id: id.to_owned(),
             labels,

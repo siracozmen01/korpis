@@ -695,6 +695,13 @@ Primary:
   the helper is told the CPUs held under each driver's cgroup parent apart, shrinks every
   exclusive set before it grows any, and narrows the `shared` cgroup first (§5.2 of
   `../05-scheduling.md`, §3 of `../18-operations.md`).
+- **[V]** Firecracker's jailer, under cgroup v2, keeps each `--cgroup file=value` in the order
+  given and writes them into the guest's cgroup, enabling each one's controller in every parent,
+  before it moves itself in and runs Firecracker (`src/jailer/src/cgroup.rs`, `CgroupV2::
+  write_values` and `setup_cgroup_conf`, on Firecracker's main branch, read 2026-10-25; the jailer
+  installed here is v1.17.0). Why the `firecracker` driver has the jailer write a guest's `cpuset`
+  and then its partition, and reads the partition back rather than trusting the order alone (§4.2
+  of `../04-runtimes.md`).
 - **[V]** runc, in a container with a user namespace, does not make the device nodes its spec's
   `linux.devices` lists but binds each from the host at the node's own path, the container path
   (`createDevices` and `bindMountDeviceNode` in `libcontainer/rootfs_linux.go` on its main branch,

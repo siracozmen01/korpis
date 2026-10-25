@@ -63,6 +63,7 @@ fn a_holding_cgroup_is_made_a_partition_unless_the_host_shares_its_cores() {
     let held = dir.path().join("cgroup/korpis/dedicated/w");
     put(&held, "cpuset.cpus", "1,5\n");
     put(&held, "cpuset.cpus.partition", "member\n");
+    put(&dir.path().join("cgroup/korpis/shared"), "cpuset.cpus.effective", "0,2-4,6-7\n");
     cores(dir.path(), Host::Shared).partition(&held).unwrap();
     let read = |f: &str| std::fs::read_to_string(held.join(f)).unwrap();
     assert_eq!(read("cpuset.cpus.partition"), "member\n", "the host shares them");
@@ -73,6 +74,25 @@ fn a_holding_cgroup_is_made_a_partition_unless_the_host_shares_its_cores() {
     std::fs::create_dir_all(&shared).unwrap();
     cores(dir.path(), Host::Kept).partition(&shared).unwrap();
     assert!(!shared.join("cpuset.cpus.partition").exists(), "a shared object holds none");
+}
+
+#[test]
+fn a_holder_is_not_settled_unless_the_kernel_keeps_it_apart() {
+    let dir = tempfile::tempdir().unwrap();
+    let held = dir.path().join("cgroup/korpis/dedicated/w");
+    put(&held, "cpuset.cpus", "1,5\n");
+    put(&held, "cpuset.cpus.partition", "root invalid (Parent is not a partition root)\n");
+    let shared = dir.path().join("cgroup/korpis/shared");
+    put(&shared, "cpuset.cpus.effective", "0,2-4,6-7\n");
+    let refused = cores(dir.path(), Host::Kept).settled(&held).unwrap_err();
+    assert!(refused.contains("Parent is not a partition root"), "the kernel's reason: {refused}");
+    assert!(cores(dir.path(), Host::Shared).settled(&held).is_ok(), "the host shares them");
+    // A helper that never narrowed the shared cgroup fails the start, whichever the mode.
+    put(&shared, "cpuset.cpus.effective", "0-7\n");
+    let refused = cores(dir.path(), Host::Shared).settled(&held).unwrap_err();
+    assert!(refused.contains("CPUs 1,5"), "{refused}");
+    std::fs::remove_file(shared.join("cpuset.cpus.effective")).unwrap();
+    assert!(cores(dir.path(), Host::Shared).settled(&held).is_err(), "nothing read, nothing kept");
 }
 
 #[test]
@@ -98,4 +118,18 @@ fn a_cgroup_parent_is_a_clean_path_below_the_root() {
     for bad in ["korpis", "/", "/korpis/../system.slice", ""] {
         assert!(parent(bad).is_err(), "{bad}");
     }
+}
+
+#[test]
+fn every_objects_cgroup_is_found_under_its_parent_wherever_it_was_made() {
+    let dir = tempfile::tempdir().unwrap();
+    let at = dir.path().join("fc");
+    for place in ["shared/a", "dedicated/b", "old"] {
+        std::fs::create_dir_all(at.join(place)).unwrap();
+    }
+    let mut found = objects_under(&at);
+    found.sort();
+    assert_eq!(found, [at.join("dedicated/b"), at.join("old"), at.join("shared/a")]);
+    remove_under(&at);
+    assert!(!at.exists(), "the objects' cgroups, then the parent's own, removed");
 }

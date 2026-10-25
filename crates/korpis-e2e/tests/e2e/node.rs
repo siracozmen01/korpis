@@ -333,9 +333,7 @@ impl Node {
     /// cgroup of its object.
     pub fn firecrackers(&self) -> Vec<u32> {
         let Some((_, cgroup)) = &self.microvms else { return Vec::new() };
-        let objects: Vec<PathBuf> = std::fs::read_dir(cgroup)
-            .map(|d| d.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect())
-            .unwrap_or_default();
+        let objects = korpis_driver_kit::cores::objects_under(cgroup);
         let comm = |p: &u32| std::fs::read_to_string(format!("/proc/{p}/comm"));
         objects
             .iter()

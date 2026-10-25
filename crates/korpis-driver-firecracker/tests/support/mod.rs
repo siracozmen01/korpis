@@ -137,6 +137,7 @@ pub fn settings(dir: &Path) -> Settings {
         identity_root: dir.join("identity"),
         state: dir.join("state"),
         cgroup: format!("korpis-test-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)),
+        cores_host: korpis_driver_kit::cores::Host::Shared,
     }
 }
 
@@ -236,18 +237,7 @@ impl Drop for Rig {
     /// Ends whatever a failed test left running, so no guest outlives it: every process in the
     /// rig's cgroups is killed, the cgroups removed, and what its jails bound unbound.
     fn drop(&mut self) {
-        let parent = self.machine.settings().cgroup_parent();
-        let _ = std::fs::write(parent.join("cgroup.kill"), "1");
-        let children: Vec<_> = std::fs::read_dir(&parent)
-            .map(|d| d.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect())
-            .unwrap_or_default();
-        let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        for child in children {
-            while std::fs::remove_dir(&child).is_err() && std::time::Instant::now() < until {
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
-        }
-        let _ = std::fs::remove_dir(parent);
+        korpis_driver_kit::cores::remove_under(&self.machine.settings().cgroup_parent());
         // A guest the test did not destroy keeps its volumes bound in its jail.
         let state = &self.machine.settings().state;
         let mounts = std::fs::read_to_string("/proc/self/mountinfo").unwrap_or_default();

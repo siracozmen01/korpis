@@ -53,9 +53,14 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
         .collect()
 }
 
-/// What the driver declares; `healthy` is whether this machine can run a guest now.
+/// What the driver declares; `healthy` is whether this machine can run a guest now, and `cores`
+/// where its guests' cgroups are and how it holds dedicated cores there (§5.2 of
+/// docs/05-scheduling.md).
 #[must_use]
-pub fn info(healthy: bool) -> pb::DriverInfo {
+pub fn info(healthy: bool, cores: &korpis_driver_kit::cores::Cores) -> pb::DriverInfo {
+    let mut held = pb::Capabilities::default().enforcement;
+    held.extend(enforcement());
+    held.insert("dedicated_cores".to_owned(), cores.declared());
     let capabilities = pb::Capabilities {
         tiers: vec![pb::IsolationTier::ISOLATION_TIER_MICROVM.into()],
         console: [
@@ -74,7 +79,8 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
             pb::NetworkMode::NETWORK_MODE_TAP.into(),
             pb::NetworkMode::NETWORK_MODE_NONE.into(),
         ],
-        enforcement: enforcement().into_iter().collect(),
+        enforcement: held,
+        cgroup_parent: cores.parent.clone(),
         volume_semantics: pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE.into(),
         // A running guest's file sessions are served inside it, by the worker its boot drive
         // carries (§4.4 of docs/04-runtimes.md).
@@ -105,8 +111,17 @@ mod tests {
 
     #[test]
     fn it_declares_the_microvm_tier_and_no_limit_it_cannot_hold_as_held() {
-        let i = info(true);
+        let dir = std::env::temp_dir().join(format!("korpis-describe-{}", std::process::id()));
+        let cores = korpis_driver_kit::cores::Cores {
+            system: dir.join("system"),
+            root: dir.join("cgroup"),
+            parent: "/korpis-firecracker".into(),
+            host: korpis_driver_kit::cores::Host::Shared,
+        };
+        let i = info(true, &cores);
         let caps = i.capabilities.as_option().unwrap();
+        assert_eq!(caps.cgroup_parent, "/korpis-firecracker");
+        assert!(caps.enforcement["dedicated_cores"].enforced, "the host shares them");
         let tiers: Vec<_> = caps.tiers.iter().map(buffa::EnumValue::as_known).collect();
         assert_eq!(tiers, [Some(pb::IsolationTier::ISOLATION_TIER_MICROVM)]);
         // Finding 144 kept this empty until a guest's agent could carry a signal's name.

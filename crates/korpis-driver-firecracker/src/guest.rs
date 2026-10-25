@@ -55,7 +55,8 @@ pub fn shape(spec: &driver::PreparedSpec) -> Shape {
     let netns = Some(spec.namespaces.as_str())
         .filter(|n| !n.is_empty())
         .map(|n| std::path::Path::new(n).join("net"));
-    Shape { vcpus: u32::try_from(vcpus).unwrap_or(1), memory_mib, cgroup, netns }
+    let vcpus = u32::try_from(vcpus).unwrap_or(1);
+    Shape { vcpus, memory_mib, cgroup, netns, dedicated: false }
 }
 
 /// The guest's network, from the addresses `spec` gives it: each on its `eth0`, a default route

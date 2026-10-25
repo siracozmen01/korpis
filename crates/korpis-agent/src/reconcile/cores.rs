@@ -42,6 +42,23 @@ fn cpus(cores: &[pb::Core]) -> Vec<u32> {
     cores.iter().flat_map(|c| c.cpus.iter().copied()).collect()
 }
 
+/// Whether an object whose cores were `recorded` (its parent and CPUs) when it was built or first
+/// kept holds the cores `asked` names, as the node offers them in `cores`: one built before its
+/// placement's cores changed holds others, and is built again. An object with nothing recorded,
+/// adopted and not yet kept, or holding none, is taken to hold what is asked, since whether it
+/// holds any follows its intent; its driver refuses to hand one back for other cores when it is
+/// next made.
+fn holds(cores: &[pb::Core], asked: &[u32], recorded: &(String, Vec<u32>)) -> bool {
+    if recorded.0.is_empty() {
+        return true;
+    }
+    let mut asked = offered(cores, asked).map(|c| cpus(&c)).unwrap_or_default();
+    let mut held = recorded.1.clone();
+    held.sort_unstable();
+    asked.sort_unstable();
+    held == asked
+}
+
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Fills in the cores `a`'s placement holds here and tells the helper they are held before
     /// the object is made. A core the node no longer offers, or a driver that declares no cgroup
@@ -72,6 +89,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         self.hold_cores(held).await.map_err(|e| Failure(format!("the cores held: {e}")))?;
         spec.cores = cores;
         Ok(())
+    }
+
+    /// Whether the object tracked as `t` holds the cores `a`'s placement does, as [`holds`] says.
+    pub(super) fn holds_its_cores(&self, a: &agent::Assignment, t: &Tracked) -> bool {
+        holds(&self.wiring.cores, &a.cores, &t.cores)
     }
 
     /// The CPUs of every core an object here holds, under every parent the drivers declare.

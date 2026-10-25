@@ -37,11 +37,9 @@ pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> Mach
     if !spec.devices.is_empty() {
         return Err(refused("a microvm is given no device"));
     }
-    // Nor dedicated cores, until its guests' threads are held to them (§5.2 of
-    // docs/05-scheduling.md).
-    if !spec.cores.is_empty() {
-        return Err(refused("a microvm holds no dedicated core yet"));
-    }
+    // Its dedicated cores, checked against the topology the driver reads (§4.2 of
+    // docs/04-runtimes.md).
+    crate::cores::given(&settings.cores(), &spec.cores).map_err(refused)?;
     let digest = spec.rootfs.rsplit_once('@').map_or("", |(_, d)| d);
     korpis_core::content::hex_of(digest).map_err(|_| refused("an image by its digest"))?;
     ids(spec.uid_base, spec.uid_count)?;
@@ -196,6 +194,11 @@ impl Machine {
         if let Some(o) =
             Object::all(&self.settings.objects()).into_iter().find(|o| same(&o.spec, &spec))
         {
+            // Its guest starts holding the cores it was made with, so it is never handed back
+            // for others (§4.2 of docs/04-runtimes.md).
+            if o.spec.cores != spec.cores {
+                return Err(refused(format!("{} exists holding other cores; destroy it", o.id)));
+            }
             return Ok(o.id);
         }
         let id = format!("fc-{}", uuid::Uuid::now_v7().simple());
@@ -268,6 +271,7 @@ mod tests {
             identity_root: "/i".into(),
             state: "/s".into(),
             cgroup: "korpis".into(),
+            cores_host: korpis_driver_kit::cores::Host::Kept,
         };
         let spec = driver::PreparedSpec {
             tier: pb::IsolationTier::ISOLATION_TIER_MICROVM.into(),
@@ -282,6 +286,6 @@ mod tests {
             ..Default::default()
         };
         let refused = validate(&spec, &settings).unwrap_err().to_string();
-        assert!(refused.contains("no dedicated core"), "{refused}");
+        assert!(refused.contains("core 1"), "not this machine's, as it reads: {refused}");
     }
 }

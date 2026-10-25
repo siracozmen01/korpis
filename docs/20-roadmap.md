@@ -331,8 +331,10 @@ and the helper keeps each driver's `shared` cgroup off them and writes their exc
 on a cgroup tree of the test's own. So is the `oci` driver's: a container holding cores checked
 against the topology the driver reads, given their `cpuset`, and made a partition before it runs,
 unless the host shares the cores; tested on trees of the test's own and not yet on this machine's
-kernel. The `firecracker` driver's half is not, and a request for them is still refused when it is
-declared.
+kernel. So is the `firecracker` driver's: the jailer makes a guest's cgroup with their `cpuset` and
+partition before Firecracker runs, the guest has a vCPU for each CPU, and each vCPU's thread is
+pinned to its own. A request for them is still refused when it is declared, until the meter, the
+conformance case, and an end-to-end test are built.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -492,7 +494,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-three traces and their 169 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-three traces and their 171 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

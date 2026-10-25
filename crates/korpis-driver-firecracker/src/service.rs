@@ -105,7 +105,7 @@ impl driver::DriverService for Driver {
         _ctx: RequestContext,
         _request: ServiceRequest<'_, driver::DescribeRequest>,
     ) -> impl Future<Output = ServiceResult<driver::DescribeResponse>> + Send {
-        let info = info(self.healthy());
+        let info = info(self.healthy(), &self.machine.settings().cores());
         ready(Response::ok(driver::DescribeResponse { info: info.into(), ..Default::default() }))
     }
 

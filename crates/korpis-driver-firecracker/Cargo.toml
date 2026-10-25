@@ -21,6 +21,8 @@ connectrpc = { version = "=0.9.1", default-features = false, features = ["json",
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 korpis-core = { workspace = true, features = ["content"] }
 korpis-driver-kit = { path = "../korpis-driver-kit" }
+# A guest's dedicated cores are read as CPU lists the kernel writes.
+korpis-topology = { workspace = true }
 # The bound on a file session's frames, the same as the worker's (§4.4 of docs/04-runtimes.md).
 korpis-files = { path = "../korpis-files" }
 # The drive order and config drive the guest reads, and the drives a guest is built from.
@@ -29,7 +31,7 @@ korpis-image = { path = "../korpis-image" }
 korpis-proto = { workspace = true, features = ["services"] }
 # A guest's VMM is watched by a descriptor of its own, so a process id reused is never mistaken
 # for it, and is signalled through it.
-rustix = { version = "1", features = ["fs", "mount", "pipe", "process"] }
+rustix = { version = "1", features = ["fs", "mount", "pipe", "process", "thread"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = { workspace = true }

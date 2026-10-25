@@ -111,10 +111,12 @@ impl Machine {
             std::fs::create_dir_all(dir)?;
         }
         let parent = settings.cgroup_parent();
-        std::fs::create_dir_all(&parent)?;
-        for controller in ["+cpu", "+memory", "+pids", "+io"] {
-            // A controller the host has not enabled is a limit not held, which describe says.
-            let _ = std::fs::write(parent.join("cgroup.subtree_control"), controller);
+        for at in [parent.clone(), parent.join("shared"), parent.join("dedicated")] {
+            std::fs::create_dir_all(&at)?;
+            for controller in ["+cpu", "+memory", "+pids", "+io"] {
+                // A controller the host has not enabled is a limit not held, which describe says.
+                let _ = std::fs::write(at.join("cgroup.subtree_control"), controller);
+            }
         }
         let (events, _) = broadcast::channel(EVENT_BACKLOG);
         let lock = Arc::default();
@@ -212,7 +214,9 @@ impl Machine {
         if object.vm.as_ref().is_some_and(process::alive) {
             return Ok(());
         }
-        let shape = crate::guest::shape(&object.spec);
+        let cores = self.settings.cores();
+        let (shape, cpuset) =
+            crate::cores::shaped(&cores, &object.spec).map_err(MachineError::Refused)?;
         let dir = self.dir(id)?;
         let kept = Object::drives(&dir).map_err(failed)?;
         let settings = Arc::clone(&self.settings);
@@ -244,6 +248,13 @@ impl Machine {
             Err(_) => return Err(failed("the jailer did not detach in time")),
         }
         let pid = self.vmm_pid(id, owner.0).await?;
+        if let Some(set) = &cpuset {
+            let dir = self.settings.cgroup_of(id);
+            if let Err(why) = crate::cores::settle(&cores, &dir, pid, set).await {
+                let _ = std::fs::write(dir.join("cgroup.kill"), "1");
+                return Err(failed(why));
+            }
+        }
         if let Some(writer) = writer {
             console::join(&writer, &self.settings.cgroup_of(id)).map_err(failed)?;
         }

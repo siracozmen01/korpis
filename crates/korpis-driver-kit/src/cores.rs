@@ -101,25 +101,61 @@ impl Cores {
     }
 
     /// Makes the cgroup at `dir`, a holding object's, a remote cpuset partition of its CPUs
-    /// before anything of it runs, unless the host shares them.
+    /// before anything of it runs, unless the host shares them, and checks it is kept apart, as
+    /// [`Cores::settled`] does.
     ///
     /// # Errors
-    /// The kernel did not make it, with its reason: the helper had not made the CPUs exclusive
-    /// above it, or the kernel has no remote partitions.
+    /// As [`Cores::settled`], or a file that could not be written.
     pub fn partition(&self, dir: &Path) -> Result<(), String> {
-        if self.host == Host::Shared || !in_dedicated(dir) {
+        if !in_dedicated(dir) {
             return Ok(());
         }
-        let read = |f: &str| std::fs::read_to_string(dir.join(f)).map_err(|e| format!("{f}: {e}"));
-        let write =
-            |f: &str, v: &str| std::fs::write(dir.join(f), v).map_err(|e| format!("{f}: {e}"));
-        let cpus = read("cpuset.cpus")?;
-        write("cpuset.cpus.exclusive", cpus.trim())?;
-        write("cpuset.cpus.partition", "root")?;
-        match read("cpuset.cpus.partition")?.trim() {
-            "root" => Ok(()),
-            other => Err(format!("the kernel made no partition of {}: {other}", cpus.trim())),
+        if self.host == Host::Kept {
+            let file = |f: &str| dir.join(f);
+            let cpus = std::fs::read_to_string(file("cpuset.cpus")).map_err(|e| e.to_string())?;
+            let write = |f: &str, v: &str| {
+                std::fs::write(file(f), v).map_err(|e| format!("{}: {e}", file(f).display()))
+            };
+            write("cpuset.cpus.exclusive", cpus.trim())?;
+            write("cpuset.cpus.partition", "root")?;
         }
+        self.settled(dir)
+    }
+
+    /// Whether the cgroup at `dir`, a holding object's, is kept apart as the kernel applies it,
+    /// checked before anything of it runs and never assumed: a partition, as its
+    /// `cpuset.cpus.partition` says, unless the host shares its cores, and in either case its
+    /// parent's `shared` cgroup on none of its CPUs, as that cgroup's effective CPUs say, so a
+    /// helper that did not narrow it fails the start rather than leaving another tenant there.
+    ///
+    /// # Errors
+    /// It is not, with the kernel's reason or the CPUs another workload may still run on.
+    pub fn settled(&self, dir: &Path) -> Result<(), String> {
+        if !in_dedicated(dir) {
+            return Ok(());
+        }
+        let read =
+            |p: &Path| std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()));
+        if self.host == Host::Kept {
+            let state = read(&dir.join("cpuset.cpus.partition"))?;
+            if state.trim() != "root" {
+                let why = state.trim();
+                return Err(format!("the kernel made no partition of {}: {why}", dir.display()));
+            }
+        }
+        let shared = dir.parent().and_then(Path::parent).map(|p| p.join("shared"));
+        let shared = shared.ok_or("a holding cgroup with no parent")?;
+        let mine = korpis_topology::cpu_list(&read(&dir.join("cpuset.cpus"))?)?;
+        let theirs = korpis_topology::cpu_list(&read(&shared.join("cpuset.cpus.effective"))?)?;
+        let both: Vec<u32> = mine.intersection(&theirs).copied().collect();
+        if !both.is_empty() {
+            return Err(format!(
+                "{} may still run other workloads on CPUs {}: the helper has not kept it off them",
+                shared.display(),
+                korpis_topology::listed(&both)
+            ));
+        }
+        Ok(())
     }
 
     /// What the driver declares of dedicated cores: held, by which mechanism, with what it does
@@ -164,6 +200,36 @@ impl Cores {
             mechanism: mechanism.into(),
             granularity,
             ..Default::default()
+        }
+    }
+}
+
+/// The cgroups of every object under the parent cgroup at `at`, wherever each was made: in its
+/// `shared` and `dedicated` cgroups, and directly beneath it for one made before cores were held.
+#[must_use]
+pub fn objects_under(at: &Path) -> Vec<PathBuf> {
+    let dirs = |p: &Path| -> Vec<PathBuf> {
+        let entries = std::fs::read_dir(p).map(|d| d.flatten().map(|e| e.path()).collect());
+        entries.unwrap_or_else(|_| Vec::new()).into_iter().filter(|p| p.is_dir()).collect()
+    };
+    let places = [at.join("shared"), at.join("dedicated")];
+    let old = dirs(at).into_iter().filter(|p| !places.contains(p));
+    places.iter().flat_map(|p| dirs(p)).chain(old).collect()
+}
+
+/// Ends every process under the parent cgroup at `at` and removes its cgroups, the objects'
+/// first, waiting a moment for each to empty: what a test leaves behind.
+pub fn remove_under(at: &Path) {
+    // Only a cgroup has the file; writing it elsewhere would make one.
+    if at.join("cgroup.kill").is_file() {
+        let _ = std::fs::write(at.join("cgroup.kill"), "1");
+    }
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let objects = objects_under(at);
+    for dir in objects.iter().chain(&[at.join("shared"), at.join("dedicated"), at.to_owned()]) {
+        while std::fs::remove_dir(dir).is_err() && dir.exists() && std::time::Instant::now() < until
+        {
+            std::thread::sleep(std::time::Duration::from_millis(50));
         }
     }
 }

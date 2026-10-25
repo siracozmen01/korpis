@@ -54,6 +54,8 @@ pub struct Shape {
     /// The network namespace its Firecracker joins, holding the tap that is its `eth0`; none
     /// for a guest with loopback alone.
     pub netns: Option<PathBuf>,
+    /// Whether it holds dedicated cores, so its cgroup is under the driver's `dedicated` one.
+    pub dedicated: bool,
 }
 
 /// What the jail holds, by the host's paths.
@@ -168,7 +170,12 @@ pub fn command(settings: &Settings, id: &str, (uid, gid): (u32, u32), shape: &Sh
         .arg(&settings.firecracker)
         .args(["--uid", &uid.to_string(), "--gid", &gid.to_string(), "--chroot-base-dir"])
         .arg(settings.jails())
-        .args(["--cgroup-version", "2", "--parent-cgroup", &settings.cgroup]);
+        .args([
+            "--cgroup-version",
+            "2",
+            "--parent-cgroup",
+            &settings.parent_cgroup(shape.dedicated),
+        ]);
     for setting in &shape.cgroup {
         c.args(["--cgroup", setting]);
     }
@@ -234,7 +241,8 @@ mod tests {
 
     #[test]
     fn the_machine_names_its_drives_in_the_order_the_guest_counts_them() {
-        let shape = Shape { vcpus: 2, memory_mib: 256, cgroup: Vec::new(), netns: None };
+        let shape =
+            Shape { vcpus: 2, memory_mib: 256, cgroup: Vec::new(), netns: None, dedicated: false };
         let m = machine(&shape, &[(PathBuf::from("/v/a"), false), (PathBuf::from("/v/b"), true)]);
         let ids: Vec<&str> = m["drives"]
             .as_array()
@@ -253,7 +261,13 @@ mod tests {
     #[test]
     fn a_guest_given_a_network_holds_its_namespace_s_tap_and_its_firecracker_joins_it() {
         let netns = PathBuf::from("/run/korpis/netns/w1/net");
-        let shape = Shape { vcpus: 1, memory_mib: 128, cgroup: Vec::new(), netns: Some(netns) };
+        let shape = Shape {
+            vcpus: 1,
+            memory_mib: 128,
+            cgroup: Vec::new(),
+            netns: Some(netns),
+            dedicated: false,
+        };
         let m = machine(&shape, &[]);
         assert_eq!(m["network-interfaces"][0]["host_dev_name"], TAP);
         assert_eq!(m["network-interfaces"][0]["iface_id"], "eth0");
@@ -272,6 +286,7 @@ mod tests {
             identity_root: "/i".into(),
             state: "/s".into(),
             cgroup: "korpis".into(),
+            cores_host: korpis_driver_kit::cores::Host::Kept,
         };
         let c = command(&settings, "fc-1", (1 << 20, 1 << 20), &shape);
         let args: Vec<String> = c.get_args().map(|a| a.to_string_lossy().into_owned()).collect();

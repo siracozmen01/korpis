@@ -231,7 +231,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let target = a.target.as_option().map(|t| t.id.as_str()).unwrap_or_default();
         let built_from = t.labels.as_ref().map(|l| l.intent.as_str());
         if let Some(id) = t.runtime.clone() {
-            if built_from == Some(target) {
+            // An object holding other cores than its placement now does is built again.
+            if built_from == Some(target) && self.holds_its_cores(a, t) {
                 return Ok(Some(id));
             }
             if !self.destroy(t).await? {

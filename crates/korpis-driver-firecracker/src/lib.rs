@@ -16,6 +16,7 @@
 pub mod agent;
 pub mod api;
 pub mod console;
+pub mod cores;
 pub mod describe;
 pub mod files;
 pub mod guest;

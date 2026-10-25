@@ -6,6 +6,7 @@ use clap::Parser;
 use korpis_driver_firecracker::machine::Machine;
 use korpis_driver_firecracker::service::Driver;
 use korpis_driver_firecracker::settings::Settings;
+use korpis_driver_kit::cores::Host;
 use korpis_driver_kit::serve::{allowed, bind, serve, shutdown};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -63,6 +64,10 @@ struct Cli {
     /// The cgroup, from the unified hierarchy's root, beneath which each guest's is made.
     #[arg(long, default_value = "korpis-firecracker")]
     cgroup: String,
+    /// `kept`: a guest holding dedicated cores is a cpuset partition of its own, so the host's
+    /// processes are kept off its cores too; `shared`: only other tenants are.
+    #[arg(long, default_value = "kept", value_parser = ["kept", "shared"])]
+    dedicated_cores_host: String,
     /// A user allowed to connect, by uid; repeatable. Without one, only the driver's own user.
     #[arg(long = "allow-uid")]
     allow_uids: Vec<u32>,
@@ -91,7 +96,10 @@ async fn run(cli: Cli) -> Result<(), String> {
         netns_root: cli.netns_root,
         identity_root: cli.identity_root,
         state: cli.state_dir,
-        cgroup: cli.cgroup,
+        cgroup: korpis_driver_kit::cores::parent(&format!("/{}", cli.cgroup))?
+            .trim_start_matches('/')
+            .to_owned(),
+        cores_host: if cli.dedicated_cores_host == "shared" { Host::Shared } else { Host::Kept },
     };
     let machine = Machine::new(settings).map_err(|e| format!("the driver's state: {e}"))?;
     // Every guest still running is watched again before the agent asks.

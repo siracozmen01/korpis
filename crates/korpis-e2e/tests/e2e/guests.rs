@@ -12,7 +12,6 @@ use korpis_driver_firecracker::settings::Settings;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{Duration, Instant};
 
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -65,6 +64,7 @@ pub fn serve(dir: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) -> 
         identity_root: state.root().join("identity"),
         state: dir.join("firecracker"),
         cgroup: format!("korpis-e2e-{}-{name}-firecracker", std::process::id()),
+        cores_host: korpis_driver_kit::cores::Host::Shared,
     };
     let cgroup = settings.cgroup_parent();
     let machine = Machine::new(settings).unwrap();
@@ -81,17 +81,7 @@ pub fn serve(dir: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) -> 
 /// jail beneath the driver's `state` still holds, since a guest the test did not destroy keeps
 /// them bound, and its directory could not be removed.
 pub fn end_guests(cgroup: &Path, state: &Path) {
-    let _ = std::fs::write(cgroup.join("cgroup.kill"), "1");
-    let children: Vec<PathBuf> = std::fs::read_dir(cgroup)
-        .map(|d| d.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect())
-        .unwrap_or_default();
-    let until = Instant::now() + Duration::from_secs(5);
-    for child in children {
-        while std::fs::remove_dir(&child).is_err() && Instant::now() < until {
-            std::thread::sleep(Duration::from_millis(50));
-        }
-    }
-    let _ = std::fs::remove_dir(cgroup);
+    korpis_driver_kit::cores::remove_under(cgroup);
     let mounts = std::fs::read_to_string("/proc/self/mountinfo").unwrap_or_default();
     let mut beneath: Vec<&str> = mounts
         .lines()

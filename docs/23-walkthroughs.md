@@ -1415,6 +1415,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 167 | Dedicated cores were accepted and stored as asked, and nothing held them | §71 | `05-scheduling.md` §5.2; `17-security.md` §5, §13; `20-roadmap.md` §4 |
 | 168 | Devices had a model and no source: nothing said how a node learned them, which were one hardware, or how one reached a driver | §72 | `05-scheduling.md` §6; `01-model.md` §3.4; `04-runtimes.md` §4.1, §4.2 |
 | 169 | A device's edits reached the driver from the supervisor, which the driver's checks exist to distrust | §72 | `04-runtimes.md` §4.2; `05-scheduling.md` §6.3, §6.5; `02-architecture.md` §6.1; `17-security.md` §5 |
+| 170 | A driver whose host shares held cores declared other tenants kept off them, and never checked that they were | §73 | `04-runtimes.md` §4.2 |
+| 171 | A container made for one placement's cores was handed back for other cores | §73 | `04-runtimes.md` §4.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6166,3 +6168,46 @@ a container made before cores were held, directly under the parent, keeps it fro
 held until it is rebuilt (§4.1 of `04-runtimes.md`), and the helper's own jobs moved under `shared`
 (§3 of `18-operations.md`), where they had been beside it. Steps 2 and 7 for the `firecracker`
 driver, and 8 and 10, are not built.
+
+Revisited again the same day, as steps 2 and 7 were built for the `firecracker` driver (P3.3b3c),
+on the module in `korpis-driver-kit` that places, checks, and declares for both drivers: the jailer
+writes a guest's `cpuset` and then its partition before Firecracker runs. Building it asked step
+7's question of a guest: what does a guest holding four cores of two threads see? It holds eight
+CPUs and runs nothing else there, so it is given eight vCPUs, each pinned to its own CPU, and no
+quota, whatever millicores were declared; a quota of the millicores declared would throttle it to
+half of what it holds, as it would a container, which is why neither driver sets one (§4.2 of
+`04-runtimes.md`). Steps 8 and 10 are not built.
+
+**FINDING 170: A driver whose host shares held cores declared other tenants kept off them, and
+never checked that they were. `CONFIRMED`, by an automated security review of the commit that
+built it**
+
+Found 2026-10-25. Step 7 asks what keeps another tenant off a held core where the host shares it:
+only the helper's narrowing of the parent's `shared` cgroup, which the agent asks for before the
+object is made. A helper call that failed, or a helper not configured to keep that parent, left the
+shared cgroup on every CPU, and the driver, which declares the guarantee, started the object beside
+whatever ran there. A partition keeps others off by itself; the opt-out has only the shared
+`cpuset`.
+
+**Resolution.** Before anything of a holding object runs, the driver reads its parent's `shared`
+cgroup's effective CPUs, as the kernel applies them, and fails the start, ending the object, if they
+share any CPU with the object's: in either mode, so a guarantee the driver declares is one it has
+seen hold. Corrected in place in §4.2 of `04-runtimes.md`. What it costs: a read at each start, and
+a start that fails, rather than one that runs exposed, while the helper has not caught up.
+
+**FINDING 171: A container made for one placement's cores was handed back for other cores.
+`CONFIRMED`, by the same review**
+
+Found 2026-10-25. Step 9 asks what becomes of an object whose placement's cores change while its
+intent does not, as a rebind that cannot keep a core does. The agent kept an object built from the
+same intent, and the `oci` driver handed back a container already made for the same workload,
+intent, and run without looking at its cores, as the `firecracker` driver handed back an object:
+the object kept CPUs its placement no longer held, which the scheduler could give to another.
+
+**Resolution.** The agent records the cores an object was built holding and builds it again when its
+placement's differ; the `oci` driver labels a container with the CPUs it was made holding and
+refuses to hand one back for others, as the `firecracker` driver refuses an object made with other
+cores, so neither trusts the agent alone. An adopted object is taken to hold its assignment's cores
+until the agent first keeps them, and its driver's refusal covers it after. Corrected in place in
+§4.2 of `04-runtimes.md`. What it costs: a label on every container, and a rebuild, which is a
+restart, when a placement's cores change.

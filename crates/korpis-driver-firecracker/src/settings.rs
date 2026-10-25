@@ -42,8 +42,12 @@ pub struct Settings {
     pub identity_root: PathBuf,
     /// The driver's own directory.
     pub state: PathBuf,
-    /// The cgroup, from the unified hierarchy's root, beneath which each guest's is made.
+    /// The cgroup, from the unified hierarchy's root, beneath which each guest's is made: under
+    /// its `dedicated` cgroup for one holding cores, its `shared` one otherwise.
     pub cgroup: String,
+    /// Whether a guest holding dedicated cores is a cpuset partition of its own, keeping the
+    /// host off them too, or shares them with the host (§5.2 of docs/05-scheduling.md).
+    pub cores_host: korpis_driver_kit::cores::Host,
 }
 
 impl Settings {
@@ -95,10 +99,29 @@ impl Settings {
         self.jail(id).join("root")
     }
 
-    /// The cgroup of object `id`'s Firecracker, as the jailer makes it.
+    /// Where its guests' cgroups are, and how dedicated cores are held there.
+    #[must_use]
+    pub fn cores(&self) -> korpis_driver_kit::cores::Cores {
+        korpis_driver_kit::cores::Cores {
+            system: PathBuf::from("/sys/devices/system"),
+            root: PathBuf::from(CGROUP_ROOT),
+            parent: format!("/{}", self.cgroup.trim_matches('/')),
+            host: self.cores_host,
+        }
+    }
+
+    /// The cgroup of object `id`'s Firecracker, where the jailer made it.
     #[must_use]
     pub fn cgroup_of(&self, id: &str) -> PathBuf {
-        Path::new(CGROUP_ROOT).join(&self.cgroup).join(id)
+        self.cores().dir(id)
+    }
+
+    /// The cgroup, from the root, the jailer makes a guest's beneath: `dedicated` for one holding
+    /// cores, `shared` otherwise.
+    #[must_use]
+    pub fn parent_cgroup(&self, dedicated: bool) -> String {
+        let under = if dedicated { "dedicated" } else { "shared" };
+        format!("{}/{under}", self.cgroup.trim_matches('/'))
     }
 
     /// The cgroup beneath which every guest's is.
