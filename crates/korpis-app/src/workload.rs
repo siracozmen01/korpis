@@ -3,6 +3,7 @@
 //! Workloads: declaring what should be true, and the plans that get it there (§3.3 of
 //! docs/01-model.md, §3 and §7 of docs/03-state.md).
 
+mod across;
 mod admit;
 mod attach;
 mod cancel;
@@ -15,6 +16,7 @@ mod dependency;
 mod explain;
 mod hold;
 
+pub(crate) use across::Members;
 pub(crate) use hold::reckon;
 mod learned;
 mod observed;

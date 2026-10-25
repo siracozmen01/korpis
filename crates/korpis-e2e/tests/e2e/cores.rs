@@ -56,23 +56,22 @@ fn asking() -> pb::IntentBody {
     pb::IntentBody { resources: resources.into(), ..Default::default() }
 }
 
-/// The CPUs the `shared` cgroup beneath node `name`'s driver's cgroup parent may run on.
-fn shared(name: &str) -> BTreeSet<u32> {
-    let own = crate::containers::own(name);
-    let at = own.root.join(own.parent.trim_start_matches('/')).join("shared");
+/// The CPUs the `shared` cgroup beneath `node`'s driver's cgroup parent may run on.
+fn shared(node: &Node) -> BTreeSet<u32> {
+    let at = node.containers.join("shared");
     let read = std::fs::read_to_string(at.join("cpuset.cpus.effective")).unwrap();
     korpis_topology::cpu_list(&read).unwrap()
 }
 
-/// Waits until `held` holds of the `shared` cgroup's CPUs beneath node `name`'s parent.
-async fn until_shared(name: &str, held: impl Fn(&BTreeSet<u32>) -> bool) {
+/// Waits until `held` holds of the `shared` cgroup's CPUs beneath `node`'s parent.
+async fn until_shared(node: &Node, held: impl Fn(&BTreeSet<u32>) -> bool) {
     for _ in 0..300 {
-        if held(&shared(name)) {
+        if held(&shared(node)) {
             return;
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    panic!("the shared cgroup stayed on CPUs {:?}", shared(name));
+    panic!("the shared cgroup stayed on CPUs {:?}", shared(node));
 }
 
 #[tokio::test]
@@ -94,7 +93,7 @@ async fn a_workload_holding_a_core_runs_on_its_cpus_alone_and_frees_them_when_re
     node.guard(&first);
     converged(&cp, &first).await;
     assert_eq!(printed(&cp, &tenant, &first).await, said, "its core's CPUs, and no other");
-    until_shared(name, |s| s.is_disjoint(&cpus)).await;
+    until_shared(&node, |s| s.is_disjoint(&cpus)).await;
 
     let second = cp.declare_body(&project, "second", &repo, asking()).await;
     node.guard(&second);
@@ -106,6 +105,6 @@ async fn a_workload_holding_a_core_runs_on_its_cpus_alone_and_frees_them_when_re
     converged(&cp, &second).await;
     assert_eq!(printed(&cp, &tenant, &second).await, said, "freed, and held again");
     cp.retire(&second).await;
-    until_shared(name, |s| cpus.is_subset(s)).await;
+    until_shared(&node, |s| cpus.is_subset(s)).await;
     agent.stop().await;
 }

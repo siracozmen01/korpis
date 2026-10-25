@@ -33,6 +33,11 @@ pub struct ServeArgs {
     /// it, `balanced` with every weight 1 (§2.2 of docs/05-scheduling.md).
     #[arg(long, env = "KORPIS_PLACEMENT_POLICY")]
     placement_policy: Option<PathBuf>,
+    /// The range each enrolling node is given a /22 workload pool of, so that no two nodes'
+    /// workloads share addresses the mesh routes between them (§9.1 of docs/07-networking.md).
+    #[arg(long, default_value = korpis_core::node::pool::DEFAULT_RANGE,
+          value_parser = overlay_range)]
+    overlay_range: ipnet::Ipv4Net,
     /// Seconds between passes that retry workloads no node could take.
     #[arg(long, default_value_t = 10)]
     placement_retry_secs: u64,
@@ -189,6 +194,7 @@ fn config(
         plain_http_registries: args.plain_http_registries,
         fetch_allow: args.fetch_allow,
         placement_policy: policy,
+        overlay_range: args.overlay_range,
         placement_retry: Duration::from_secs(args.placement_retry_secs.max(1)),
         watch_resync: Duration::from_secs(args.watch_resync_secs.max(1)),
         heartbeat_interval: Duration::from_secs(args.agent_heartbeat_secs.max(1)),
@@ -228,4 +234,13 @@ fn config(
         session_limits: SessionLimits { idle: args.session_idle, max: args.session_max },
         web_root: args.web_root,
     })
+}
+
+/// A range of IPv4 pools: a network at least as wide as one pool.
+fn overlay_range(text: &str) -> Result<ipnet::Ipv4Net, String> {
+    let range: ipnet::Ipv4Net = text.parse().map_err(|e| format!("{text:?}: {e}"))?;
+    if !korpis_core::node::pool::holds_pools(range) {
+        return Err(format!("{text:?} is no network of /22 pools: a /22 or wider, at its start"));
+    }
+    Ok(range)
 }

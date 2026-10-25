@@ -233,4 +233,11 @@ impl Host for NodeHost {
     ) -> impl Future<Output = Result<helper::HoldCoresResponse, HostError>> + Send {
         self.helper.hold_cores(request)
     }
+
+    fn keep_overlay(
+        &self,
+        request: &helper::KeepOverlayRequest,
+    ) -> impl Future<Output = Result<helper::KeepOverlayResponse, HostError>> + Send {
+        self.helper.keep_overlay(request)
+    }
 }

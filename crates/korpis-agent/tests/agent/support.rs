@@ -336,6 +336,7 @@ pub fn facts() -> korpis_agent::session::Facts {
     let pb = korpis_server::api::wire::node::node_to_pb(
         &node,
         &korpis_core::tenancy::quota::Bounds::default(),
+        &korpis_core::node::mesh::Standing::default(),
     );
     korpis_agent::session::Facts {
         drivers: pb.drivers,
@@ -353,5 +354,6 @@ pub fn facts() -> korpis_agent::session::Facts {
             last_port: 32_767,
             ..Default::default()
         },
+        overlay: None,
     }
 }

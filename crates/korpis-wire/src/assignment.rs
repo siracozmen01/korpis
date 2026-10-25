@@ -12,7 +12,7 @@ use crate::workload::{intent_to_pb, power_to_pb};
 use korpis_core::id::IdKind;
 use korpis_core::tenancy::quota::Exhaustion;
 use korpis_core::workload::assignment::Assignment;
-use korpis_core::workload::dependency::ResolvedDependency;
+use korpis_core::workload::dependency::{OverlayDependent, ResolvedDependency};
 use korpis_proto::korpis::agent::v1 as agent;
 
 /// The wire form of a dependency as its node is told it.
@@ -29,9 +29,23 @@ fn resolved_to_pb(d: &ResolvedDependency) -> agent::ResolvedDependency {
                 endpoint: t.endpoint.clone(),
                 container_port: u32::from(t.container_port),
                 protocol: crate::spec::endpoints::protocol_to_pb(t.protocol).into(),
+                address: t.address.map(|a| a.to_string()).unwrap_or_default(),
+                ready: t.ready,
                 ..Default::default()
             })
             .collect(),
+        ..Default::default()
+    }
+}
+
+/// The wire form of a dependent on another node of the mesh.
+fn dependent_to_pb(d: &OverlayDependent) -> agent::OverlayDependent {
+    agent::OverlayDependent {
+        workload: wire_id(IdKind::Workload, d.workload),
+        address: d.address.to_string(),
+        target_address: d.target_address.to_string(),
+        container_port: u32::from(d.container_port),
+        protocol: crate::spec::endpoints::protocol_to_pb(d.protocol).into(),
         ..Default::default()
     }
 }
@@ -51,6 +65,17 @@ fn shaping_to_pb(held: Option<Exhaustion>) -> agent::Shaping {
     }
 }
 
+/// The wire form of the plan a node applies.
+fn node_plan_to_pb(p: &korpis_core::workload::assignment::NodePlan) -> agent::NodePlan {
+    agent::NodePlan {
+        plan: wire_id(IdKind::Plan, p.plan),
+        steps: p.steps.iter().map(step_to_pb).collect(),
+        through: p.through,
+        whole: plan_to_pb(&p.whole).into(),
+        ..Default::default()
+    }
+}
+
 /// The wire form of an assignment.
 #[must_use]
 pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
@@ -65,17 +90,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         power: power_to_pb(&a.power).into(),
         on_lease_expiry: continuity_to_pb(a.on_lease_expiry).into(),
         shaping: shaping_to_pb(a.egress).into(),
-        plan: a
-            .plan
-            .as_ref()
-            .map(|p| agent::NodePlan {
-                plan: wire_id(IdKind::Plan, p.plan),
-                steps: p.steps.iter().map(step_to_pb).collect(),
-                through: p.through,
-                whole: plan_to_pb(&p.whole).into(),
-                ..Default::default()
-            })
-            .into(),
+        plan: a.plan.as_ref().map(node_plan_to_pb).into(),
         retire: a
             .retire
             .map(|plan| agent::Retire { plan: wire_id(IdKind::Plan, plan), ..Default::default() })
@@ -112,6 +127,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         kept_runs: a.kept_runs.iter().map(|r| wire_id(IdKind::Run, *r)).collect(),
         devices: crate::node::holds_to_pb(&a.devices),
         cores: a.cores.clone(),
+        dependents: a.dependents.iter().map(dependent_to_pb).collect(),
         ..Default::default()
     }
 }

@@ -57,6 +57,22 @@ message Node {
   // The physical cores it offers for dedication (§5.2 of docs/05-scheduling.md). Added
   // 2026-10-25.
   repeated Core cores = 25;
+  // The node's side of the mesh as its agent last reported it (§9.1 of docs/07-networking.md):
+  // its interface's WireGuard public key, the UDP port it listens on, and its workloads' pools;
+  // empty for a node reporting none. The private key never leaves the node. Added 2026-10-25.
+  bytes overlay_key = 26;
+  uint32 overlay_port = 27;
+  repeated string pools = 28;
+  // Each other member of the mesh, and whether the pair reaches each other now: both nodes
+  // report a handshake with the other younger than 180 seconds. What the scheduler asks of a
+  // dependency across nodes. Added 2026-10-25.
+  repeated PeerReach peers = 29;
+}
+
+// Another member of the mesh, as one node's pair with it stands.
+message PeerReach {
+  string node = 1;
+  bool reachable = 2;
 }
 
 message Taint {
@@ -95,7 +111,9 @@ enum NodeStatus {
 enum Overlay {
   OVERLAY_UNSPECIFIED = 0;
   OVERLAY_AVAILABLE = 1;
-  // Not in the mesh: no overlay is built yet, or its peers cannot reach it.
+  // Not in the mesh, or not reaching every other member: it reports no mesh interface, a pool of
+  // its overlaps one of a node enrolled before it, or it or a member has no handshake with the
+  // other younger than 180 seconds (§9.1 of docs/07-networking.md).
   OVERLAY_UNAVAILABLE = 2;
 }
 

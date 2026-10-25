@@ -2,7 +2,7 @@
 
 //! `korpis-agent preflight` (§2 of docs/18-operations.md): what this machine lacks of what the
 //! node is configured to offer, and the exact command that fixes each, read from `/proc`, `/sys`,
-//! and `/dev` and from the helper and the driver's runtime, and never fixed here: a preflight
+//! `/dev`, and `/lib/modules` and from the helper and the driver's runtime, and never fixed here: a preflight
 //! that loads modules or rewrites `sysctl` on someone's machine is a configuration management
 //! system. A node that lacks something offers less rather than failing to start, so only a lack
 //! that leaves it nothing to offer makes the report a failure.
@@ -32,13 +32,20 @@ pub struct Machine {
     pub sys: PathBuf,
     /// `/dev`.
     pub dev: PathBuf,
+    /// `/lib/modules`, where the kernel's loadable modules are listed.
+    pub modules: PathBuf,
 }
 
 impl Machine {
     /// This machine.
     #[must_use]
     pub fn this() -> Self {
-        Self { proc: "/proc".into(), sys: "/sys".into(), dev: "/dev".into() }
+        Self {
+            proc: "/proc".into(),
+            sys: "/sys".into(),
+            dev: "/dev".into(),
+            modules: "/lib/modules".into(),
+        }
     }
 
     /// `rel` under `/proc`, trimmed; `None` where it cannot be read.

@@ -148,4 +148,7 @@ pub struct Observation {
     pub volumes: Vec<VolumeSeen>,
     /// When the state last changed, by the node's clock: exact however late the report.
     pub since: Option<SystemTime>,
+    /// Its IPv4 address on its node, which the node gave it (§4.1 of docs/07-networking.md);
+    /// none where it has no network.
+    pub address: Option<std::net::Ipv4Addr>,
 }

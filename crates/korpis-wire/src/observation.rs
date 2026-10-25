@@ -126,6 +126,7 @@ pub fn observation_to_pb(o: &Observation, current: bool, show_node: bool) -> pb:
         endpoints: o.endpoints.iter().map(endpoint_to_pb).collect(),
         volumes: o.volumes.iter().map(volume_to_pb).collect(),
         since: o.since.map(timestamp).into(),
+        address: o.address.map(|a| a.to_string()).unwrap_or_default(),
         ..Default::default()
     }
 }
@@ -187,5 +188,9 @@ pub fn observation_from_pb(node: Uuid, o: &pb::Observation) -> Result<Observatio
         endpoints: o.endpoints.iter().map(endpoint_from_pb).collect(),
         volumes: o.volumes.iter().map(volume_from_pb).collect(),
         since: o.since.as_option().map(|t| time(&f("since"), t)).transpose()?,
+        address: (!o.address.is_empty())
+            .then(|| o.address.parse())
+            .transpose()
+            .map_err(|_| invalid(&f("address"), "an IPv4 address"))?,
     })
 }

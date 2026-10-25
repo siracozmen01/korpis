@@ -5,6 +5,7 @@
 mod cores;
 mod devices;
 mod facts;
+mod overlay;
 mod storage;
 
 pub use cores::{core_to_pb, cores_from_pb};
@@ -13,6 +14,9 @@ pub use devices::{
     unoffered_from_pb, unoffered_to_wire,
 };
 pub use facts::{drivers_from_pb, resources_from_pb};
+use korpis_core::node::mesh::Standing;
+use overlay::standing_into;
+pub use overlay::{overlay_from_pb, overlay_to_pb, peers_to_pb};
 pub use storage::{storage_class_to_pb, storage_classes_from_pb};
 
 use crate::spec::{console_to_pb, tier_to_pb};
@@ -198,10 +202,10 @@ fn driver_to_pb(d: &DriverInfo) -> pb::DriverInfo {
     }
 }
 
-/// The wire form of a node, with what its placements reserve.
+/// The wire form of a node, with what its placements reserve and its place in the mesh.
 #[must_use]
-pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
-    pb::Node {
+pub fn node_to_pb(n: &Node, allocated: &Bounds, overlay: &Standing) -> pb::Node {
+    let mut node = pb::Node {
         id: wire_id(IdKind::Node, n.id),
         name: n.name.as_str().to_owned(),
         labels: n.labels.as_map().iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
@@ -222,9 +226,6 @@ pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
         organization: wire_id(IdKind::Organization, n.organization),
         admin: admin_to_pb(n.admin).into(),
         connectivity: connectivity_to_pb(n.connectivity).into(),
-        // Measured by the control plane (§9 of docs/07-networking.md); with no overlay built
-        // yet (§4 of docs/20-roadmap.md), every node measures unavailable.
-        overlay: pb::Overlay::OVERLAY_UNAVAILABLE.into(),
         addresses: n
             .advertised
             .iter()
@@ -238,7 +239,9 @@ pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
         unoffered_devices: n.unoffered_devices.iter().map(unoffered_to_wire).collect(),
         cores: n.cores.iter().map(core_to_pb).collect(),
         ..Default::default()
-    }
+    };
+    standing_into(&mut node, overlay);
+    node
 }
 
 /// What a node says it advertises (§9 of docs/07-networking.md), from the field `field`. A port

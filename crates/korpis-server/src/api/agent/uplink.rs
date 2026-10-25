@@ -9,7 +9,7 @@ use super::session::facts;
 use crate::api::ServerApp;
 use crate::api::wire::{Refuse, id, wire_id};
 use crate::sessions::Sessions;
-use connectrpc::{InboundStream, StreamMessage};
+use connectrpc::{ConnectError, InboundStream, StreamMessage};
 use futures_util::StreamExt as _;
 use korpis_app::node::LeaseAnswer;
 use korpis_app::ports::Sealed;
@@ -83,6 +83,16 @@ pub(super) fn journal_ack(through: u64) -> agent::ControlMessage {
     agent::ControlMessage { message: Some(Down::JournalAck(Box::new(ack))), ..Default::default() }
 }
 
+/// What a heartbeat reports of its node.
+fn status_facts(s: &agent::NodeStatus) -> Result<korpis_app::ports::NodeFacts, ConnectError> {
+    let resources = (s.capacity.as_option(), s.allocatable.as_option());
+    let reported = (
+        s.drivers.as_slice(),
+        (s.devices.as_slice(), s.unoffered_devices.as_slice(), s.cores.as_slice()),
+    );
+    facts(resources, reported, None, (s.advertised.as_option(), s.overlay.as_option()))
+}
+
 impl Uplink {
     /// Handles what the agent sends until the stream ends or another session replaces this one.
     pub(super) async fn run(self, mut requests: InboundStream<agent::AgentMessage>) {
@@ -115,17 +125,10 @@ impl Uplink {
             Some(Up::Ack(a)) => {
                 app.acknowledge_set(node, &a.set_digest).await.map_err(|e| e.to_string())
             }
-            Some(Up::NodeStatus(s)) => {
-                let resources = (s.capacity.as_option(), s.allocatable.as_option());
-                let reported = (
-                    s.drivers.as_slice(),
-                    (s.devices.as_slice(), s.unoffered_devices.as_slice(), s.cores.as_slice()),
-                );
-                match facts(resources, reported, None, s.advertised.as_option()) {
-                    Ok(f) => app.heartbeat(node, &f).await.map_err(|e| e.to_string()),
-                    Err(e) => Err(e.to_string()),
-                }
-            }
+            Some(Up::NodeStatus(s)) => match status_facts(s) {
+                Ok(f) => app.heartbeat(node, &f).await.map_err(|e| e.to_string()),
+                Err(e) => Err(e.to_string()),
+            },
             Some(Up::LeaseRequest(r)) => self.lease(r).await,
             Some(Up::LeaseReleased(r)) => self.released(r).await,
             Some(Up::Journal(j)) => self.journal(j).await,

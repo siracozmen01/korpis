@@ -13,6 +13,7 @@
 
 mod accounts;
 mod acme;
+mod across;
 mod agent;
 mod assertion;
 mod assignments;
@@ -67,6 +68,7 @@ mod lifecycle;
 mod links;
 mod locality;
 mod member_issue;
+mod mesh;
 mod metering;
 mod migrate;
 mod names;

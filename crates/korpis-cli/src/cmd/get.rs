@@ -91,12 +91,13 @@ async fn nodes(c: &Connection, organization: Option<&str>) -> Result<Answer, Cli
     let request = pb::ListNodesRequest { organization: org, ..Default::default() };
     let client = pb::NodeServiceClient::new(c.http(), c.config());
     let list = client.list_nodes(request).await?.into_owned().nodes;
-    let human = rows(&["ID", "NAME", "STATUS", "AGENT", "LAST SEEN"], &list, |n| {
+    let human = rows(&["ID", "NAME", "STATUS", "OVERLAY", "AGENT", "LAST SEEN"], &list, |n| {
         let status = short(n.status, "NODE_STATUS_");
         vec![
             n.id.clone(),
             n.name.clone(),
             status,
+            short(n.overlay, "OVERLAY_"),
             n.agent_version.clone(),
             time(n.last_seen.as_option()),
         ]
@@ -288,6 +289,22 @@ async fn drift(c: &Connection, out: &mut String, s: &pb::WorkloadStatus) -> Resu
     Ok(())
 }
 
+/// Each dependency: what it reaches and how, and what it names and does not reach, with why
+/// (§5 of docs/07-networking.md).
+fn dependencies(out: &mut String, s: &pb::WorkloadStatus) {
+    for d in &s.dependencies {
+        let required = if d.required { ", required" } else { "" };
+        let _ = writeln!(out, "depends:   {}{required}", d.name);
+        for t in &d.targets {
+            let reach = short(t.reach, "DEPENDENCY_REACH_").replace('_', " ");
+            let _ = writeln!(out, "           {} {}: {reach}", t.workload, t.endpoint);
+        }
+        for l in &d.left_out {
+            let _ = writeln!(out, "           {} left out: {}", l.workload, l.reason);
+        }
+    }
+}
+
 /// Answers `korpis status`: where the workload is, what it is doing, and what it waits for.
 pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> {
     let id = resolve::workload(c, workload).await?;
@@ -319,6 +336,7 @@ pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> 
         let _ = writeln!(out, "plan:      {} {}", p.id, short(p.status, "PLAN_STATUS_"));
     }
     endpoints(&mut out, &s);
+    dependencies(&mut out, &s);
     unplaced(&mut out, &s);
     drift(c, &mut out, &s).await?;
     Ok(Answer { json: json(&s), human: out })

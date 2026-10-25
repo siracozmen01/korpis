@@ -41,6 +41,7 @@ fn enrolled_to_pb(e: &Enrolled) -> agent::EnrollResponse {
         node: wire_id(IdKind::Node, e.node),
         assignment_keys: e.assignment_keys.iter().map(key_to_pb).collect(),
         token_keys: e.token_keys.iter().map(key_to_pb).collect(),
+        workload_ipv4: e.workload_ipv4.map(|p| p.to_string()).unwrap_or_default(),
         ..Default::default()
     }
 }

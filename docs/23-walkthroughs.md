@@ -6327,9 +6327,46 @@ prevented the overlay from joining those namespaces later. Every node's default 
 same `10.47.0.0/16`, and a routed mesh, which preserves a workload's source address as §3.4 there
 requires, cannot route one prefix to two nodes, so every installation of more than one default node
 would have had the overlay unable to carry any dependency. Resolved in §9.1 there: the control
-plane gives each node enrolled without `--workload-ipv4` a /22 of an installation range, a node
-that has run workloads keeps its pool, and a node whose pool overlaps another member's is outside
-the mesh, saying with which. §4.1 is corrected in place. What it costs: an installation upgrading
-with two nodes on the old default keeps one outside the mesh until its operator gives it a pool.
+plane gives each node a /22 of an installation range when it enrolls, which its agent uses unless
+`--workload-ipv4` names another, a node enrolled before pools were given keeps `10.47.0.0/16`, and
+a node whose pool overlaps another member's is outside the mesh, saying with which. §4.1 is
+corrected in place. What it costs: an installation upgrading with two nodes on the old default
+keeps one outside the mesh until its operator gives it a pool.
 
 Steps 1 to 9 are designed, and none is built yet (§4 of `20-roadmap.md`).
+
+> Revisited 2026-10-25: steps 1 to 4 are built (P3.4b to P3.4d1 in §4 of `20-roadmap.md`).
+> Step 4's "both report" is evaluated by each replica's mesh task, which holds every node's last
+> report in the store; a replica's view is at most one heartbeat and one two-second pass late,
+> which §9.1 of `07-networking.md` states.
+>
+> Revisited again 2026-10-25: steps 5 to 8 are built, and step 9's placement half. Step 6 asked
+> what turns `web`'s address into A's admission, and found the address was never reported for a
+> workload with no reachable endpoint of its own (Finding 175, below), which `web` may well be.
+> Step 7's "A admits it" is evaluated by A's helper from a set A's agent writes from A's own
+> assignments, which the control plane fills from both nodes' observations, so A trusts nothing B
+> says about itself beyond what WireGuard authenticates. Step 8 holds because the peers, and the
+> assignments naming what is admitted, are both on the node's disk. Step 9's "web's dependency
+> says so" is not built: the control plane marks `db` not ready for `web` once the pair is
+> unreachable, which holds a dependent that has not started, but a running one's status does not
+> yet say it (§9.1 of `07-networking.md`).
+
+**Finding 175.** §4.1 of `07-networking.md` said the node reports each workload's address in its
+observations. It reported the address only within each reachable endpoint's status, so a
+workload with no reachable endpoint, such as a worker that only opens connections, never had
+its address reported, and the control plane could not have told the database's node
+whom to admit. Resolved in §4.1 there: the observation carries the address itself. What it costs:
+one field in every observation.
+
+> Revisited a third time 2026-10-25: step 9 is built. `web`'s status carries its dependency on
+> `db` as reached through the mesh, or unreached once the pair's handshakes go stale, evaluated by
+> the control plane when the workload is read, from both placements and the mesh's pairs, which
+> it alone holds. Asking where that status lived found it had never existed (Finding 176, below).
+
+**Finding 176.** §5 of `07-networking.md` said, as built in Phase 1, that a selector's match with
+several endpoints is left out of the dependency "and the dependency's status says so". No such
+status existed anywhere: resolution dropped the match silently, and a workload whose selector
+matched only such workloads reached nothing with no word as to why. Resolved in §5 there: the
+workload's status carries each dependency, each target and how it is reached, and each workload
+left out with why; `korpis status` prints it. What it costs: reading a workload with dependencies
+resolves them and reads the mesh, once per read.

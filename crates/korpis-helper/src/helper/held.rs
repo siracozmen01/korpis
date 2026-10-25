@@ -35,4 +35,20 @@ impl Helper {
         let shared = cores.hold(&held)?;
         Ok(Answer::HoldCores(Box::new(helper::HoldCoresResponse { shared, ..Default::default() })))
     }
+
+    /// The same helper, keeping the node's side of the mesh as `overlay` says.
+    #[must_use]
+    pub fn with_overlay(mut self, overlay: crate::overlay::Overlay) -> Self {
+        self.overlay = Some(overlay);
+        self
+    }
+
+    /// Keeps the node's side of the mesh to `r`.
+    pub(super) fn keep_overlay(&self, r: &helper::KeepOverlayRequest) -> HelperResult<Answer> {
+        let overlay = self
+            .overlay
+            .as_ref()
+            .ok_or_else(|| HelperError::Refused("this helper keeps no overlay".into()))?;
+        Ok(Answer::KeepOverlay(Box::new(overlay.keep(r)?)))
+    }
 }

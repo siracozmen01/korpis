@@ -140,7 +140,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let empty = Bounds::default();
         let c = Candidate { node, allocated: allocations.get(&node.id).unwrap_or(&empty) };
         let volumes = self.existing_nodes(&target.body).await?;
-        let needed = self.needed(w, &target.body).await?;
+        let (needed, mesh) = (self.needed(w, &target.body).await?, self.judged().await?.pairs());
         let drivers_refused = tx.refusals(w.id, target.id).await?;
         let learned = self.learned(tx, &[node.id], target).await?;
         let (entries, placed) = self.placed_entries(tx, w).await?;
@@ -159,6 +159,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             content: &learned.content,
             churn: &learned.churn,
             dependencies: &needed,
+            mesh: &mesh,
             quota: &quota,
             devices: &held,
             cores: &held_cores,

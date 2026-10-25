@@ -21,7 +21,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as U
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_wire::duration;
 use korpis_wire::node::{
-    advertised_from_pb, devices_from_pb, drivers_from_pb, resources_from_pb,
+    advertised_from_pb, devices_from_pb, drivers_from_pb, overlay_from_pb, resources_from_pb,
     storage_classes_from_pb, unoffered_from_pb,
 };
 use std::net::IpAddr;
@@ -46,7 +46,7 @@ pub(super) fn facts(
     ),
     (drivers, devices): (&[korpis_proto::korpis::v1::DriverInfo], Devices<'_>),
     classes: Option<&[korpis_proto::korpis::v1::StorageClassInfo]>,
-    advertised: Option<&agent::Advertised>,
+    (advertised, overlay): (Option<&agent::Advertised>, Option<&agent::OverlayFacts>),
 ) -> Result<NodeFacts, ConnectError> {
     let zero = korpis_proto::korpis::v1::Resources::default();
     Ok(NodeFacts {
@@ -66,6 +66,7 @@ pub(super) fn facts(
             .transpose()
             .refuse()?
             .flatten(),
+        overlay: overlay.map(|o| overlay_from_pb("overlay", o)).transpose().refuse()?,
     })
 }
 
@@ -98,7 +99,7 @@ fn hello_from_pb(h: &agent::Hello) -> Result<Hello, ConnectError> {
             (h.capacity.as_option(), h.allocatable.as_option()),
             (&h.drivers, (&h.devices, &h.unoffered_devices, &h.cores)),
             Some(&h.storage_classes),
-            h.advertised.as_option(),
+            (h.advertised.as_option(), h.overlay.as_option()),
         )?,
     })
 }
@@ -178,6 +179,7 @@ pub(super) async fn open(
     tokio::spawn(published::push(at(), tx.clone(), lists, Down::RevocationList));
     let relays = api.named_relays.subscribe();
     tokio::spawn(published::push(at(), tx.clone(), relays, Down::Relays));
+    tokio::spawn(crate::mesh::push(at(), tx.clone(), api.mesh.subscribe()));
     let uplink =
         Uplink { app: Arc::clone(app), sessions: Arc::clone(sessions), node, id, tx, ended };
     tokio::spawn(downlink.run());

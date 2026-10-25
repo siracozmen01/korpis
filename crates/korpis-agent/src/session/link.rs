@@ -33,6 +33,8 @@ pub struct Facts {
     pub unoffered_devices: Vec<pb::UnofferedDevice>,
     /// The physical cores it offers for dedication (§5.2 of docs/05-scheduling.md).
     pub cores: Vec<pb::Core>,
+    /// Its side of the mesh, as last kept (§9.1 of docs/07-networking.md); none until it is.
+    pub overlay: Option<agent::OverlayFacts>,
 }
 
 /// What happened on the session, for whoever watches it.
@@ -59,6 +61,9 @@ pub enum Event {
         /// How many grants it lists.
         entries: usize,
     },
+    /// The mesh's other members, as the control plane named them (§9.1 of
+    /// docs/07-networking.md).
+    Peers(agent::Peers),
     /// The stream ended, and why.
     Disconnected(String),
 }

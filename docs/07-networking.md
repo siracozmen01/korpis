@@ -843,7 +843,8 @@ packet that a bridge would skip for traffic between two workloads on one node, w
 the default policy denies anyway.
 
 **Addresses come from node-scope pools, allocated by the agent.** IPv4 comes from a pool private
-to the node, `10.47.0.0/16` unless the operator names another with `korpis-agent run
+to the node: the /22 the control plane gave it when it enrolled (§9.1), or `10.47.0.0/16` for a
+node enrolled before pools were given, unless the operator names another with `korpis-agent run
 --workload-ipv4`, because a pool that collides with the operator's own network breaks it and only
 the operator knows that network. IPv6 comes from a prefix the operator routes to the node
 (`--workload-ipv6`), which makes every workload's IPv6 address routable, as §4 says it should be;
@@ -858,6 +859,11 @@ the lowest free address of each pool when a workload first runs on the node, kee
 across restarts, releases it when the workload is retired from the node, and reports it in the
 workload's observations, because an address is a fact about a node and the control plane learns
 it as it learns the others.
+
+> Corrected 2026-10-25 (Finding 175 of `23-walkthroughs.md`). The node reported the address only
+> inside each reachable endpoint's status, so a workload with no reachable endpoint never had its
+> address reported, and a dependent with none could not have been admitted on its target's node
+> (§9.1). The observation now carries the address itself, `Observation.address`.
 
 **Inbound is closed in the namespace itself.** The namespace has its own nftables table, whose
 input policy is to drop: it accepts its loopback, the replies to connections it opened, the ICMP
@@ -1012,6 +1018,14 @@ since it holds the intents, the labels, and the endpoints, and carries the resul
 dependent's assignment: for each dependency its name, how it is injected, whether it is required,
 and each target's workload, endpoint name, container port, and protocol.
 
+> Corrected 2026-10-25 (Finding 176 of `23-walkthroughs.md`). No dependency status existed: a
+> matched workload with several endpoints was left out silently, and nothing anywhere said so.
+> The workload's status now carries each dependency (`WorkloadStatus.dependencies`): each target,
+> how the dependent reaches it (on its own node, through the mesh, unreached, or not placed, the
+> nodes not named, since whoever reads the workload may not read them), and each workload it names
+> and leaves out, with why; `korpis status` prints it. It is computed when the workload is read,
+> from the resolution, both placements, and the mesh's pairs.
+
 *Where it is placed.* Until the overlay exists (Phase 3) no node reaches another's workloads, so a
 dependent is placed on the node its targets are on, which the filter row of §2.1 of
 `05-scheduling.md` already states for a node outside the overlay. A required dependency whose
@@ -1019,14 +1033,14 @@ target is not placed leaves the dependent unplaced, saying so; one that is not r
 nothing. Targets on two different nodes leave it unplaced: there is no node from which both are
 reachable. With the mesh (§9.1, designed 2026-10-25), a target on another node is reached through
 it when the pair is reachable, and the dependent may be placed on any node from which every
-target's node is; until it is built, the rule above holds.
+target's node is. Built 2026-10-25 (§9.1); until then the rule above held.
 
 *The address.* The node turns each target into an address: the target's workload address, which its
 agent allocated and alone holds (§4.1), and the endpoint's container port. A target that is not on
 the dependent's node is not resolved. With the mesh it is, and not by the dependent's node, which
 holds no other node's addresses: the control plane, which learns each workload's address from its
 node's observations (§4.1), carries a remote target's address in the dependent's assignment, and
-it is reached at that address, since every node's pool is its own (§9.1).
+it is reached at that address, since every node's pool is its own (§9.1). Built 2026-10-25.
 
 *Injection.* Into the environment at the container's creation: `KORPIS_DEP_<NAME>_HOST` and
 `_PORT`, of the first target in the order of the targets' names, and `_ADDRESSES`, every target as
@@ -1631,6 +1645,11 @@ prefix, or the unique local prefix derived from its identity (§4.1), checked fo
 way. What it costs: an installation that upgrades with two nodes on the old default has one of them
 outside the mesh until it is given a pool; the operator is told which, and how.
 
+> Built 2026-10-25 (`korpis-store` `node_pool`, the agent's `network::ipv4_pool`): enrollment
+> gives the pool and its answer carries it, asking again returns the same one, removing a node
+> frees it, and a range with no free /22 enrolls the node without one, its enrollment's effect
+> saying so. The overlap check against operators' own pools comes with the mesh's status.
+
 **The control plane tells each node its peers; the peers authenticate the traffic.** Every enrolled
 node is a member, whatever organization it belongs to (§3.4 of `01-model.md`), since membership
 reaches no workload by itself: a destination accepts only its workloads' dependents (below). For
@@ -1643,6 +1662,49 @@ is authentically from the node that holds that workload's pool. The agent writes
 routes to each peer's pools through the interface, and keeps them on disk, so the mesh runs with
 the control plane gone (§4.6 of `02-architecture.md`); a change is applied whole, a peer removed
 with its routes.
+
+> Built 2026-10-25, the helper's half (`korpis-helper`'s `overlay`, the `KeepOverlay` verb): the
+> interface is made over route netlink and configured over WireGuard's generic netlink family,
+> its key kept at `overlay.key` in the helper's state and set only on a link that has none, so a
+> link kept across a helper's restart keeps its key. Peers are updated in place on every call and
+> only those no longer named removed: replacing them wholesale, as the first build did, ended
+> every session on each of the agent's passes, which the test's handshake caught. Tested between
+> two network namespaces of the test's own, joined by a veth: each pool reaches the other, a
+> source outside the sender's pool is dropped, and a peer no longer named takes its route with
+> it.
+>
+> Built 2026-10-25, the agent's half and the control plane's (`korpis-agent`'s `overlay`,
+> `korpis-server`'s `mesh`): the agent keeps the interface every ten seconds and at once when
+> told new peers, keeps the peers it was told at `overlay-peers.binpb` in its state directory,
+> and reports the key, port, pools, and handshakes in its Hello and heartbeats, which the control
+> plane stores on the node as one document. Each replica computes the mesh every two seconds from
+> those documents, a node outside it when a pool overlaps one of a node enrolled before it, and
+> each session sends its node the other members whenever what it is told changes; `Node.overlay`
+> is `available` when every pair with the node has fresh handshakes on both sides. A node that
+> gives its workloads no networks keeps no interface and reports none, so it is outside the
+> mesh.
+>
+> Built 2026-10-25, dependencies across the mesh (`korpis-app`'s `workload::across`, the agent's
+> `deps`, the helper's `overlay::admit`). Every node reports each workload's address in its
+> observation. The control plane gives a dependent's assignment, for each target on another
+> member, the address that member observed and whether it is ready there, ready only while the
+> pair reaches each other; and gives the target's assignment each dependent on another member
+> with that dependent's address. Both are computed when either side's set is, and a change to a
+> workload wakes the nodes of its dependents and its targets as well as its own, as a change of
+> members wakes every node. The dependent's node opens a remote target in the dependent's chain
+> only out through `korpis-overlay`, so a node with no route to it through the mesh sends nothing
+> towards the target's address; what leaves into the mesh is not translated. The target's node
+> keeps, with the interface, a set of each admitted dependent's address, its own workload's
+> address, the transport, and the port, accepts from the mesh only replies and what the set
+> holds, counted under `dependency`, and drops the rest, to its workloads and to itself alike,
+> counted under `overlay`. It clamps TCP's segment size on what enters the mesh to the route's
+> MTU. The scheduler places a dependent on a node from which each placed target's node is
+> reachable (§2.1 of `05-scheduling.md`). Tested over the API with two nodes and in two network
+> namespaces of the test's own, where a dependent's workload reaches its target's admitted port
+> and no other. A dependent's status says, of each target, whether it is reached through the mesh
+> or unreached now (§5). `Node` shows its key, port, pools, and each pair with it (§3.4 of
+> `01-model.md`). Not built: the end-to-end test of two nodes each in a network namespace of its
+> own.
 
 **A pair is reachable when both its nodes say a handshake is fresh.** A node behind NAT advertises
 no address (§9 above), so it has no endpoint; it reaches a peer that has one, keeping the NAT
@@ -1657,7 +1719,8 @@ handshake with the other younger than 180 seconds. `Node.overlay` is `available`
 reaches every other member, and the scheduler asks the pair (§2.1 of `05-scheduling.md`): a
 dependent may be placed on a node from which each target's node is reachable. What it costs: a pair
 is judged at most one heartbeat late, so a link that has just failed takes placements for up to
-that long, and the dependency's status says it is unreached once the node reports it so.
+that long, and the dependency's status says it is unreached once the node reports it so (built
+2026-10-25, §5).
 
 **Both ends hold the policy**, as §9.1 of `17-security.md` decided east-west traffic would be: the
 source drops early and the destination does not trust the source. The dependent's node opens the

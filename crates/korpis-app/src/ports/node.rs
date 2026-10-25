@@ -4,6 +4,7 @@
 
 use super::StoreResult;
 use crate::page::Page;
+use ipnet::Ipv4Net;
 use korpis_core::node::{DriverInfo, Node};
 use korpis_core::tenancy::quota::Bounds;
 use std::future::Future;
@@ -30,6 +31,16 @@ pub trait NodeRead {
         &self,
         owners: &[Uuid],
     ) -> impl Future<Output = StoreResult<Vec<DriverInfo>>> + Send;
+
+    /// The workload pool `node` was given when it enrolled; none for a node enrolled before
+    /// pools were given (§9.1 of docs/07-networking.md).
+    fn node_pool(&self, node: Uuid) -> impl Future<Output = StoreResult<Option<Ipv4Net>>> + Send;
+
+    /// Every node not decommissioned that reports a mesh interface, as the mesh sees it (§9.1
+    /// of docs/07-networking.md).
+    fn mesh_candidates(
+        &self,
+    ) -> impl Future<Output = StoreResult<Vec<korpis_core::node::mesh::Candidate>>> + Send;
 }
 
 /// Changing nodes.
@@ -60,6 +71,17 @@ pub trait NodeWrite {
         &mut self,
         node: Uuid,
     ) -> impl Future<Output = StoreResult<(Vec<Uuid>, u64)>> + Send;
+
+    /// Gives `node` the lowest pool of `range` no node holds, holding it as the node's, under a
+    /// lock no other enrollment passes until this transaction ends; none once `range` is full.
+    fn take_pool(
+        &mut self,
+        node: Uuid,
+        range: Ipv4Net,
+    ) -> impl Future<Output = StoreResult<Option<Ipv4Net>>> + Send;
+
+    /// Frees the pool `node` holds, if it holds one; whether it did.
+    fn release_pool(&mut self, node: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Removes every endpoint placed on `node`; how many there were.
     fn drop_node_endpoints(&mut self, node: Uuid) -> impl Future<Output = StoreResult<u64>> + Send;

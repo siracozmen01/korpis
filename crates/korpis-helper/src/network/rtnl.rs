@@ -5,6 +5,8 @@
 //! its hardware address, bringing one up, and adding an address, a route, or a neighbour. A socket belongs to the namespace it was opened in,
 //! so one opened on a thread inside a workload's namespace configures that namespace.
 
+mod links;
+
 use netlink_packet_core::{
     NLM_F_ACK, NLM_F_CREATE, NLM_F_EXCL, NLM_F_REPLACE, NLM_F_REQUEST, NetlinkHeader,
     NetlinkMessage, NetlinkPayload,

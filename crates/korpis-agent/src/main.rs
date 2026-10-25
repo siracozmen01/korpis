@@ -98,14 +98,19 @@ struct RunArgs {
     /// The ports endpoints on this node are allocated from, as `FIRST-LAST`.
     #[arg(long, default_value = "30000-32767")]
     ports: PortRange,
-    /// The IPv4 pool workloads get addresses from, private to this node; change it when it
-    /// collides with a network the node reaches (§4.1 of docs/07-networking.md).
-    #[arg(long, default_value = korpis_agent::network::DEFAULT_IPV4)]
-    workload_ipv4: Ipv4Net,
+    /// The IPv4 pool workloads get addresses from, private to this node; unset, the pool the
+    /// control plane gave it when it enrolled, or `10.47.0.0/16` for a node enrolled before
+    /// pools were given; name one when it collides with a network the node reaches (§4.1 and
+    /// §9.1 of docs/07-networking.md).
+    #[arg(long)]
+    workload_ipv4: Option<Ipv4Net>,
     /// An IPv6 prefix routed to this node, which gives workloads routable addresses; unset,
     /// they get unique local ones, translated on the way out.
     #[arg(long)]
     workload_ipv6: Option<Ipv6Net>,
+    /// The UDP port the mesh between nodes listens on (§9.1 of docs/07-networking.md).
+    #[arg(long, default_value_t = korpis_agent::overlay::DEFAULT_PORT)]
+    overlay_port: u16,
     /// Serve the ingress: the helper opens ports 80 and 443 on the advertised addresses for
     /// the node's ingress proxy, and the node says it serves it, so workloads with ingress
     /// endpoints are placed here (§3.2 of docs/07-networking.md).
@@ -156,6 +161,7 @@ impl RunArgs {
             ports: self.ports,
             workload_ipv4: self.workload_ipv4,
             workload_ipv6: self.workload_ipv6,
+            overlay_port: self.overlay_port,
             ingress: self.ingress,
             uplinks: self.uplinks,
             devices: korpis_agent::devices::Config {
@@ -195,8 +201,9 @@ struct Node {
     reserve: Reserve,
     advertise_address: Vec<IpAddr>,
     ports: PortRange,
-    workload_ipv4: Ipv4Net,
+    workload_ipv4: Option<Ipv4Net>,
     workload_ipv6: Option<Ipv6Net>,
+    overlay_port: u16,
     ingress: bool,
     uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
     devices: korpis_agent::devices::Config,
@@ -211,8 +218,8 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
     host: H,
     node: &Node,
 ) -> ExitCode {
-    let (server, id) = match state.load() {
-        Ok(identity) => (identity.server, identity.node),
+    let (server, id, enrolled) = match state.load() {
+        Ok(identity) => (identity.server, identity.node, identity.keys.workload_ipv4),
         Err(e) => {
             tracing::error!(error = %e, "the node's state could not be read");
             return ExitCode::FAILURE;
@@ -232,9 +239,11 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
             return ExitCode::FAILURE;
         }
     };
-    let pools = (node.workload_ipv4, node.workload_ipv6);
+    let ipv4 = korpis_agent::network::ipv4_pool(node.workload_ipv4, &enrolled);
+    let pools = (ipv4, node.workload_ipv6);
     let network = korpis_agent::network::offered(&runtime, &host, &id, pools).await;
-    let options = Options { network, ingress, devices: Some(devices), ..Options::default() };
+    let (devices, overlay_port) = (Some(devices), node.overlay_port);
+    let options = Options { network, ingress, devices, overlay_port, ..Options::default() };
     let ran = start(state, (runtime, host), facts, options).await;
     watching.abort();
     ran

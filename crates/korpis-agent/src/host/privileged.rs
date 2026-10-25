@@ -282,6 +282,17 @@ impl HelperClient {
         }
     }
 
+    /// Keeps the node's side of the mesh to `request`.
+    pub async fn keep_overlay(
+        &self,
+        request: &helper::KeepOverlayRequest,
+    ) -> Result<helper::KeepOverlayResponse, HostError> {
+        match self.call(Verb::KeepOverlay(Box::new(request.clone()))).await? {
+            Answer::KeepOverlay(a) => Ok(*a),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// What the host's table has counted of every workload's link.
     pub async fn read_counters(&self) -> Result<helper::ReadCountersResponse, HostError> {
         match self.call(Verb::ReadCounters(Box::default())).await? {

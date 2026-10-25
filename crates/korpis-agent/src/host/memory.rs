@@ -44,6 +44,8 @@ struct Kept {
     counters: Vec<helper::Counter>,
     /// Each set of CPUs the node's dedicated cores were said to hold.
     held_cores: Vec<helper::HoldCoresRequest>,
+    /// Each side of the mesh the node was kept to.
+    overlays: Vec<helper::KeepOverlayRequest>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -356,6 +358,16 @@ impl Host for InMemoryHost {
         ready(self.with(|k| {
             k.held_cores.push(request.clone());
             helper::HoldCoresResponse::default()
+        }))
+    }
+
+    fn keep_overlay(
+        &self,
+        request: &helper::KeepOverlayRequest,
+    ) -> impl Future<Output = Result<helper::KeepOverlayResponse, HostError>> + Send {
+        ready(self.with(|k| {
+            k.overlays.push(request.clone());
+            helper::KeepOverlayResponse { public_key: vec![7; 32], ..Default::default() }
         }))
     }
 }

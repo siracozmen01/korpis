@@ -22,6 +22,7 @@ static NONE_HELD: BTreeMap<Uuid, bool> = BTreeMap::new();
 
 /// No node lost anything.
 static NONE_LOST: BTreeMap<Uuid, f64> = BTreeMap::new();
+static NO_MESH: crate::node::mesh::Pairs = crate::node::mesh::Pairs::EMPTY;
 
 const GIB: u64 = 1 << 30;
 const ORG: Uuid = Uuid::from_u128(7);
@@ -146,6 +147,7 @@ impl Case {
             content: &self.content,
             churn: &self.churn,
             dependencies: &[],
+            mesh: &NO_MESH,
             quota: &[],
             devices: &self.held,
             cores: &self.held_cores,
@@ -273,6 +275,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         content: &NONE_HELD,
         churn: &NONE_LOST,
         dependencies: &[],
+        mesh: &NO_MESH,
         quota: &[],
         devices: &NO_HOLDS,
         cores: &NO_CORES,
@@ -309,6 +312,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         content: &NONE_HELD,
         churn: &NONE_LOST,
         dependencies: &[],
+        mesh: &NO_MESH,
         quota: &[],
         devices: &NO_HOLDS,
         cores: &NO_CORES,

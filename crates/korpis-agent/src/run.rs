@@ -15,6 +15,7 @@ use crate::lease::{Keeper, Leases};
 use crate::meter::Metering;
 use crate::network::Pools;
 use crate::offload::Offloader;
+use crate::overlay::{Overlay, with_overlay};
 use crate::reconcile::streams::Streams;
 use crate::reconcile::{Reconciler, Wiring};
 use crate::runtime::{Runtime, RuntimeError};
@@ -83,6 +84,9 @@ pub struct Options {
     /// The node's devices, which a placement's holds are given from (§6.3 of
     /// docs/05-scheduling.md); none where the node offers none.
     pub devices: Option<crate::devices::Devices>,
+    /// The UDP port the mesh between nodes listens on, where the node gives its workloads
+    /// networks (§9.1 of docs/07-networking.md).
+    pub overlay_port: u16,
 }
 
 impl Default for Options {
@@ -98,6 +102,7 @@ impl Default for Options {
             ingress: None,
             metering: Metering::default(),
             devices: None,
+            overlay_port: crate::overlay::DEFAULT_PORT,
         }
     }
 }
@@ -134,16 +139,22 @@ fn ingress<H: Host + Clone>(
     (Some(publish), Some(tokio::spawn(supervisor.run())))
 }
 
+/// Where the node that joined as `identity` reaches its control plane.
+fn control_plane(identity: &crate::state::Identity) -> ControlPlane {
+    ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() }
+}
+
 /// The workloads' identity sockets, under `root` or `identity` in the state directory, answered
-/// through `credentials` and reaching `control_plane` (§9.5 of docs/08-identity.md).
+/// through `credentials` and reaching the control plane `identity` names (§9.5 of
+/// docs/08-identity.md).
 fn identity_sockets(
     state: &StateDir,
     root: Option<std::path::PathBuf>,
     credentials: &Arc<crate::identity::Credentials>,
-    control_plane: ControlPlane,
+    identity: &crate::state::Identity,
 ) -> Arc<IdentitySockets> {
     let root = root.unwrap_or_else(|| state.root().join("identity"));
-    IdentitySockets::new(root, Arc::clone(credentials), control_plane)
+    IdentitySockets::new(root, Arc::clone(credentials), control_plane(identity))
 }
 
 /// What offloads the consoles in `streams`, its positions kept in the state directory.
@@ -168,6 +179,21 @@ fn data_link(identity: crate::state::Identity, link: &Link, handlers: Handlers) 
         handlers,
     };
     DataLink::new(identity, judged, link.relays.clone())
+}
+
+/// The node's side of the mesh, where it gives its workloads networks from `pools`, and `facts`
+/// reporting it.
+fn overlay<H: Host + Clone>(
+    state: &StateDir,
+    host: &H,
+    options: &Options,
+    facts: Arc<dyn Fn() -> Facts + Send + Sync>,
+) -> (Option<Overlay<H>>, Arc<dyn Fn() -> Facts + Send + Sync>) {
+    let Some(pools) = options.network else { return (None, facts) };
+    let nets = std::iter::once(pools.ipv4.to_string()).chain(pools.ipv6.map(|p| p.to_string()));
+    let port = options.overlay_port;
+    let (overlay, reported) = Overlay::new(host.clone(), state.root(), (port, nets.collect()));
+    (Some(overlay), with_overlay(facts, reported))
 }
 
 /// The running agent.
@@ -205,11 +231,10 @@ impl Agent {
         options: Options,
     ) -> Result<Self, RunError> {
         let identity = state.load()?;
+        let (overlay, facts) = overlay(state, &host, &options, facts);
         let Kept { journal, progress, streams, inventory, network } =
             Kept::open(state, options.journal, options.network)?;
         let (node, data) = (identity.node.clone(), identity.clone());
-        let control_plane =
-            ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
         let (ingress_facts, driver_kinds, offered_cores) = declared(&*facts);
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
         let (runtime, sampler) = meter(state, runtime, (&host, &link, &journal), &options)?;
@@ -223,12 +248,11 @@ impl Agent {
         let (reading, held) = (crate::data::backup::Reading::default(), (&runtimes, &link.held));
         let handlers =
             file_sessions(handlers, (&host, &runtime), held, (&journal, &link.jobs, &reading));
+        let sockets = identity_sockets(state, options.identity_root, &link.credentials, &data);
         let data = data_link(data, &link, handlers);
         let leases = Leases::new(journal.clone());
         let keeper =
             Keeper::new(leases.clone(), link.held.clone(), link.inbound, link.outbound.clone());
-        let sockets =
-            identity_sockets(state, options.identity_root, &link.credentials, control_plane);
         let wiring = Wiring {
             node,
             held: link.held.clone(),
@@ -262,7 +286,8 @@ impl Agent {
             tokio::spawn(offloader.run()),
             tokio::spawn(sampler.run()),
         ];
-        let tasks = tasks.into_iter().chain(proxy).collect();
+        let overlay = overlay.map(|o| o.spawn(&link.events, link.held.clone()));
+        let tasks = tasks.into_iter().chain(proxy).chain(overlay).collect();
         Ok(Self { tasks, journal, events: link.events })
     }
 

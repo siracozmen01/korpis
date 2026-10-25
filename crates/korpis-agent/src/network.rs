@@ -19,6 +19,15 @@ use std::path::{Path, PathBuf};
 /// The IPv4 pool a node's workloads are given addresses from unless its operator names another.
 pub const DEFAULT_IPV4: &str = "10.47.0.0/16";
 
+/// The IPv4 pool this node's workloads take addresses from: the one its operator `named`, else
+/// the one the control plane gave it when it enrolled (`enrolled`, CIDR text, empty for a node
+/// enrolled before pools were given), else [`DEFAULT_IPV4`] (§9.1 of docs/07-networking.md).
+#[must_use]
+pub fn ipv4_pool(named: Option<Ipv4Net>, enrolled: &str) -> Ipv4Net {
+    let default = || DEFAULT_IPV4.parse().unwrap_or_default();
+    named.or_else(|| enrolled.parse().ok()).unwrap_or_else(default)
+}
+
 /// The pools a node's workloads are given addresses from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pools {

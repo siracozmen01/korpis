@@ -50,3 +50,12 @@ fn a_node_s_unique_local_prefix_is_its_own_and_stable() {
     assert_eq!(one, unique_local("node-a"));
     assert_ne!(one, unique_local("node-b"));
 }
+
+#[test]
+fn a_node_takes_the_pool_its_operator_names_else_the_one_it_enrolled_with_else_the_default() {
+    let named: Ipv4Net = "192.168.200.0/24".parse().unwrap();
+    assert_eq!(ipv4_pool(Some(named), "10.48.4.0/22"), named);
+    assert_eq!(ipv4_pool(None, "10.48.4.0/22"), "10.48.4.0/22".parse::<Ipv4Net>().unwrap());
+    let old = ipv4_pool(None, "");
+    assert_eq!(old, DEFAULT_IPV4.parse::<Ipv4Net>().unwrap(), "enrolled before pools were given");
+}

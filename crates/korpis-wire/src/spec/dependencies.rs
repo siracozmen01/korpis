@@ -5,6 +5,7 @@
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::{Result, id, invalid, wire_id};
 use korpis_core::id::IdKind;
+use korpis_core::workload::dependency::{DependencyStatus, Reach};
 use korpis_core::workload::spec::Dependency;
 use korpis_core::workload::spec::dependencies::{DependencyTarget, Injection};
 use korpis_proto::korpis::v1 as pb;
@@ -75,4 +76,40 @@ pub fn dependency_from_pb(field: &str, d: &pb::Dependency) -> Result<Dependency>
 /// Every dependency of the repeated field `field`.
 pub fn dependencies_from_pb(field: &str, ds: &[pb::Dependency]) -> Result<Vec<Dependency>> {
     ds.iter().enumerate().map(|(i, d)| dependency_from_pb(&format!("{field}[{i}]"), d)).collect()
+}
+
+/// The wire form of a dependency as its dependent's status shows it.
+#[must_use]
+pub fn status_to_pb(d: &DependencyStatus) -> pb::DependencyStatus {
+    let reach = |r: Reach| match r {
+        Reach::SameNode => pb::DependencyReach::DEPENDENCY_REACH_SAME_NODE,
+        Reach::Mesh => pb::DependencyReach::DEPENDENCY_REACH_MESH,
+        Reach::Unreached => pb::DependencyReach::DEPENDENCY_REACH_UNREACHED,
+        Reach::TargetUnplaced => pb::DependencyReach::DEPENDENCY_REACH_TARGET_UNPLACED,
+        Reach::DependentUnplaced => pb::DependencyReach::DEPENDENCY_REACH_DEPENDENT_UNPLACED,
+    };
+    pb::DependencyStatus {
+        name: d.name.clone(),
+        required: d.required,
+        targets: d
+            .targets
+            .iter()
+            .map(|t| pb::DependencyTargetStatus {
+                workload: wire_id(IdKind::Workload, t.workload),
+                endpoint: t.endpoint.clone(),
+                reach: reach(t.reach).into(),
+                ..Default::default()
+            })
+            .collect(),
+        left_out: d
+            .left_out
+            .iter()
+            .map(|(w, why)| pb::DependencyLeftOut {
+                workload: wire_id(IdKind::Workload, *w),
+                reason: why.as_str().to_owned(),
+                ..Default::default()
+            })
+            .collect(),
+        ..Default::default()
+    }
 }

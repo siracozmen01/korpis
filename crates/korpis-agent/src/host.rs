@@ -206,4 +206,11 @@ pub trait Host: Send + Sync + 'static {
         &self,
         request: &helper::HoldCoresRequest,
     ) -> impl Future<Output = Result<helper::HoldCoresResponse, HostError>> + Send;
+
+    /// Keeps the node's side of the mesh to `request` (§9.1 of docs/07-networking.md): its
+    /// interface, its peers, and the routes to them; its public key and the peers' handshakes.
+    fn keep_overlay(
+        &self,
+        request: &helper::KeepOverlayRequest,
+    ) -> impl Future<Output = Result<helper::KeepOverlayResponse, HostError>> + Send;
 }

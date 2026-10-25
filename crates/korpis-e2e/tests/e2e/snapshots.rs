@@ -25,7 +25,20 @@ pub(crate) async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    panic!("{sql} never reached {n}");
+    // Where every plan stood, and what its steps recorded, so that a timeout names its step.
+    let plans: String = cp
+        .scalar(
+            "SELECT coalesce(string_agg(kind || ' ' || status || ' through step '
+               || coalesce(completed::text, '-'), '; ' ORDER BY computed_at), '') FROM plan",
+        )
+        .await;
+    let effects: String = cp
+        .scalar(
+            "SELECT coalesce(string_agg(action || ' ' || outcome || coalesce(' ' || error::text,
+               ''), '; ' ORDER BY at), '') FROM effect WHERE plan_id IS NOT NULL",
+        )
+        .await;
+    panic!("{sql} never reached {n}; plans: {plans}; their effects: {effects}");
 }
 
 /// The lines of `file`, once it has `n` of them.

@@ -207,8 +207,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let peers = tx.peers(w.organization, w.id).await?;
         let empty = Bounds::default();
         let candidates = candidates_of(&nodes, &allocations, &empty);
-        let (volumes, needed) =
-            (self.existing_nodes(&target.body).await?, self.needed(w, &target.body).await?);
+        let volumes = self.existing_nodes(&target.body).await?;
         let refused = self.refusals_screened(tx, (w, target), screened).await?;
         let learned = self.learned(tx, &ids, target).await?;
         let (entries, placed) = self.placed_entries(tx, w).await?;
@@ -226,7 +225,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             refused: &refused,
             content: &learned.content,
             churn: &learned.churn,
-            dependencies: &needed,
+            dependencies: &self.needed(w, &target.body).await?,
+            mesh: &self.judged().await?.pairs(),
             quota: &quota,
             devices: &held,
             cores: &held_cores,

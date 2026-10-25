@@ -53,6 +53,10 @@ impl Session {
                 self.name_relays(&r);
                 Vec::new()
             }
+            Some(Down::Peers(p)) => {
+                let _ = self.events.send(Event::Peers(*p));
+                Vec::new()
+            }
             Some(Down::TokenKeys(keys)) => {
                 self.keys_in_force(&keys);
                 Vec::new()

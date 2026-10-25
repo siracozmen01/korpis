@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Preflight against machines that are not this one: a copy of `/proc`, `/sys`, and `/dev` in a
-//! directory, written as each case needs.
+//! Preflight against machines that are not this one: a copy of `/proc`, `/sys`, `/dev`, and
+//! `/lib/modules` in a directory, written as each case needs.
 
 use super::*;
 use korpis_proto::korpis::v1 as pb;
@@ -18,6 +18,7 @@ fn machine(files: &[(&str, &str)]) -> (tempfile::TempDir, Machine) {
         proc: dir.path().join("proc"),
         sys: dir.path().join("sys"),
         dev: dir.path().join("dev"),
+        modules: dir.path().join("modules"),
     };
     (dir, m)
 }
@@ -42,6 +43,7 @@ const GOOD: &[(&str, &str)] = &[
     ("sys/fs/cgroup/korpis/cpuset.cpus.exclusive", "\n"),
     ("sys/fs/cgroup/korpis/cpuset.cpus.partition", "member\n"),
     ("proc/irq/default_smp_affinity", "3\n"),
+    ("modules/6.8.0-142-generic/modules.dep", "kernel/drivers/net/wireguard/wireguard.ko.zst:\n"),
 ];
 
 fn class(name: &str, backend: pb::StorageBackend) -> pb::StorageClassInfo {
@@ -233,4 +235,20 @@ fn dedicated_cores_need_a_core_besides_cpu_0s_partitions_and_interrupts_steered_
     assert!(matches!(outcome(&r, "physical cores"), Outcome::Lacking { .. }));
     assert!(matches!(outcome(&r, "cpuset partitions"), Outcome::NotNeeded(_)));
     assert!(matches!(outcome(&r, "interrupt affinity"), Outcome::NotNeeded(_)));
+}
+
+#[test]
+fn wireguard_is_found_loaded_or_as_a_module_and_its_absence_leaves_the_node_outside_the_mesh() {
+    let found = |files: &[(&str, &str)]| {
+        let (_dir, m) = machine(files);
+        let report = checks(&m, &probes(), &oci());
+        report.0.into_iter().find(|c| c.name == "WireGuard").unwrap()
+    };
+    assert_eq!(found(GOOD).outcome, Outcome::Met, "listed as a module");
+    let mut loaded: Vec<_> =
+        GOOD.iter().filter(|(p, _)| !p.starts_with("modules/")).copied().collect();
+    let absent = found(&loaded);
+    assert!(matches!(absent.outcome, Outcome::Lacking { .. }), "{absent:?}");
+    loaded.push(("sys/module/wireguard/version", "1.0.0\n"));
+    assert_eq!(found(&loaded).found, "loaded");
 }

@@ -38,6 +38,7 @@ pub fn config(data: &DataDir, login: &str, listen: SocketAddr, relay_role: bool)
         relying_party: None,
         session_limits: korpis_core::account::session::SessionLimits::default(),
         web_root: None,
+        overlay_range: "10.48.0.0/12".parse().unwrap(),
     }
 }
 

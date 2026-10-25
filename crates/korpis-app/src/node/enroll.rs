@@ -82,6 +82,9 @@ pub struct Enrolled {
     pub assignment_keys: Vec<VerifyKey>,
     /// Every key that ever signed a capability token.
     pub token_keys: Vec<VerifyKey>,
+    /// The pool the node's workloads take IPv4 addresses from (§9.1 of docs/07-networking.md);
+    /// none for a node enrolled before pools were given, or once the range is full.
+    pub workload_ipv4: Option<ipnet::Ipv4Net>,
 }
 
 /// A one-use enrollment token's grant: `node.enroll` over one organization, attenuated from
@@ -259,6 +262,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             node,
             assignment_keys: self.store.verify_keys("assignment").await?,
             token_keys: self.store.verify_keys("token").await?,
+            workload_ipv4: self.store.node_pool(node).await?,
         })
     }
 
@@ -285,12 +289,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.complete_enrollment(enrollment.token, node.id, now).await? {
             return Err(AppError::conflict("enrollment.used", "the token was redeemed meanwhile"));
         }
+        // A full range enrolls the node all the same: it is outside the mesh until it is given
+        // a pool, which its status says (§9.1 of docs/07-networking.md).
+        let pool = tx.take_pool(node.id, self.overlay_range).await?;
+        let pool = pool.map_or_else(|| "none: the range is full".to_owned(), |p| p.to_string());
         let mut effect =
             caller.effect("node.enroll", Outcome::Succeeded).under(permit.grant).after(details([
                 ("node", node.id.to_string().into()),
                 ("name", node.name.as_str().into()),
                 ("organization", node.organization.to_string().into()),
                 ("hostname", cmd.hostname.clone().into()),
+                ("workload_ipv4", pool.into()),
             ]));
         effect.node = Some(node.id);
         tx.append_effect(&effect).await?;

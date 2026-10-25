@@ -46,7 +46,7 @@ pub struct Node {
     guarded: Mutex<Vec<String>>,
     /// The cgroup the node's `oci` driver makes its containers beneath, its own, so every one
     /// is found and removed when the test ends.
-    containers: PathBuf,
+    pub containers: PathBuf,
     /// A filesystem mounted for the volumes, unmounted when the node is dropped.
     mounted: Option<PathBuf>,
     /// Where the helper binds the workloads' network namespaces; every one is released when

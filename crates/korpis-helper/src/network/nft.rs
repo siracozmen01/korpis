@@ -35,14 +35,17 @@ fn flush(chain: &str) -> Value {
 /// What every workload's link is named with, as nftables matches a name by its beginning.
 const LINKS: &str = "kw*";
 
-/// Masquerade for what comes from a workload's link and leaves by any other: all of IPv4, and
-/// IPv6 from unique local addresses, which a routed prefix's addresses are not.
+/// Masquerade for what comes from a workload's link and leaves by any other but the mesh's: all
+/// of IPv4, and IPv6 from unique local addresses, which a routed prefix's addresses are not.
 fn masquerade(family: &str, ula_only: bool) -> Value {
     let meta = |key: &str| json!({"meta": {"key": key}});
     let mut expr = vec![
         json!({"match": {"op": "==", "left": meta("nfproto"), "right": family}}),
         json!({"match": {"op": "==", "left": meta("iifname"), "right": LINKS}}),
         json!({"match": {"op": "!=", "left": meta("oifname"), "right": LINKS}}),
+        // What leaves into the mesh keeps its source, a workload address its peer allows
+        // (§9.1 of docs/07-networking.md).
+        json!({"match": {"op": "!=", "left": meta("oifname"), "right": crate::overlay::INTERFACE}}),
     ];
     if ula_only {
         let saddr = json!({"payload": {"protocol": "ip6", "field": "saddr"}});
@@ -84,7 +87,7 @@ pub(crate) fn host(chains: &[String]) -> Vec<Value> {
 
 /// The marker of this version of the host table's base: raised whenever what [`host`] writes
 /// changes, so a node's table is written anew once and then left to count.
-const BASE: &str = "base_v2";
+const BASE: &str = "base_v3";
 
 /// The chains [`host`] writes, which a table of another version has deleted first.
 const BASE_CHAINS: [&str; 8] = [

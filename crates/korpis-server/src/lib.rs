@@ -25,6 +25,7 @@ pub mod install;
 pub mod issuer;
 pub mod keys;
 pub mod lookup;
+pub mod mesh;
 pub mod named_relays;
 pub mod passwords;
 pub mod portals;
@@ -123,6 +124,9 @@ pub struct ServeConfig {
     /// The panel's static bundle, served on the API's address (§1 of docs/11-surface-web.md);
     /// without one, the address serves the API alone.
     pub web_root: Option<std::path::PathBuf>,
+    /// The range each enrolling node is given a workload pool of (§9.1 of
+    /// docs/07-networking.md).
+    pub overlay_range: ipnet::Ipv4Net,
 }
 
 /// Why serving failed.
@@ -184,6 +188,7 @@ fn application(
     };
     let app = App::new(store, SystemClock, keys.token.clone(), recipes)
         .with_placement_policy(config.placement_policy.clone())
+        .with_overlay_range(config.overlay_range)
         .with_session_terms(terms)
         .with_denial_window(config.denial_window)
         .with_rates(config.rates)

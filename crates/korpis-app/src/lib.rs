@@ -77,6 +77,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     passwords: Arc<dyn ports::Passwords>,
     session_limits: korpis_core::account::session::SessionLimits,
     zones: Arc<dyn ports::Zones>,
+    overlay_range: ipnet::Ipv4Net,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -108,7 +109,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             passwords: Arc::new(ports::InPlace),
             zones: Arc::new(ports::UtcOnly),
             session_limits: korpis_core::account::session::SessionLimits::default(),
+            overlay_range: korpis_core::node::pool::DEFAULT_RANGE.parse().unwrap_or_default(),
         }
+    }
+
+    /// Gives enrolling nodes their workload pools from `range` (§9.1 of docs/07-networking.md)
+    /// instead of [`korpis_core::node::pool::DEFAULT_RANGE`].
+    #[must_use]
+    pub fn with_overlay_range(mut self, range: ipnet::Ipv4Net) -> Self {
+        self.overlay_range = range;
+        self
     }
 
     /// Charges requests at `rates` (§10 of docs/10-api.md) instead of the defaults.

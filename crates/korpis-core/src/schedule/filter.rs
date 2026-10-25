@@ -13,7 +13,6 @@ use crate::workload::spec::endpoints::Exposure;
 use crate::workload::spec::health::ProbeKind;
 use crate::workload::spec::placement::AffinityRule;
 use crate::workload::spec::resources::CpuIsolation;
-use uuid::Uuid;
 
 type Refusal = (Check, String);
 
@@ -258,27 +257,23 @@ fn affinity(
     rules.filter(|r| r.required).filter_map(|r| affinity_rule(req, c, fleet, peers, r)).collect()
 }
 
-/// Until the overlay exists no node reaches another's workloads (§9 of docs/07-networking.md), so
-/// a dependency's placed targets must all be on the candidate; a required one with none placed
+/// A dependency's placed targets must each be on the candidate or on a node the candidate
+/// reaches through the mesh (§9.1 of docs/07-networking.md); a required one with none placed
 /// leaves the workload nowhere to start.
 fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Refusal> {
     let mut out = Vec::new();
     for d in req.dependencies {
-        let mut nodes: Vec<Uuid> =
-            peers.iter().filter(|p| d.targets.contains(&p.workload)).map(|p| p.node).collect();
-        nodes.sort_unstable();
-        nodes.dedup();
+        let mut nodes = peers.iter().filter(|p| d.targets.contains(&p.workload)).map(|p| p.node);
         let name = &d.name;
-        let why = match nodes.as_slice() {
-            [] if d.required => Some(format!("its required dependency {name} is not placed")),
-            [] => None,
-            [only] if *only == c.node.id => None,
-            [_] => {
-                Some(format!("its dependency {name} is on another node, and no overlay joins them"))
-            }
-            _ => Some(format!(
-                "its dependency {name} is on several nodes, and no overlay joins them"
-            )),
+        let placed = nodes.clone().next().is_some();
+        let why = if !placed && d.required {
+            Some(format!("its required dependency {name} is not placed"))
+        } else if nodes.any(|n| n != c.node.id && !req.mesh.joins(c.node.id, n)) {
+            Some(format!(
+                "its dependency {name} is on a node this one does not reach through the mesh"
+            ))
+        } else {
+            None
         };
         out.extend(why.map(|w| (Check::Dependency, w)));
     }

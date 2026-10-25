@@ -122,3 +122,38 @@ async fn a_use_limited_grant_is_spent_by_each_use() {
     let e = orgs.get_organization(get()).await.unwrap_err();
     assert_eq!(reason(&e), "object.not_found", "the one use is spent");
 }
+
+#[tokio::test]
+async fn each_node_is_given_a_pool_of_its_own_and_a_removed_nodes_is_given_again() {
+    let h = Harness::new().await;
+    let mut pools = Vec::new();
+    let mut nodes = Vec::new();
+    for (i, name) in ["fra-1", "fra-2"].into_iter().enumerate() {
+        let created = token(&h, &format!("p{i}"), name).await;
+        let seed = u8::try_from(i).unwrap() + 1;
+        let enrolled = agents(&h).enroll(enroll(&created.token, public(seed))).await.unwrap();
+        let enrolled = enrolled.into_owned();
+        let again = agents(&h).enroll(enroll(&created.token, public(seed))).await.unwrap();
+        assert_eq!(again.into_owned().workload_ipv4, enrolled.workload_ipv4, "asked again");
+        pools.push(enrolled.workload_ipv4);
+        nodes.push(enrolled.node);
+    }
+    assert_eq!(pools, ["10.48.0.0/22", "10.48.4.0/22"], "the lowest free /22 of the range");
+
+    let admin = h.nodes(h.root());
+    let cordon = pb::CordonNodeRequest {
+        mutation: mutation("c").into(),
+        node: nodes[0].clone(),
+        ..Default::default()
+    };
+    admin.cordon_node(cordon).await.unwrap();
+    let remove = pb::RemoveNodeRequest {
+        mutation: mutation("r").into(),
+        node: nodes[0].clone(),
+        ..Default::default()
+    };
+    admin.remove_node(remove).await.unwrap();
+    let created = token(&h, "p3", "fra-3").await;
+    let third = agents(&h).enroll(enroll(&created.token, public(3))).await.unwrap();
+    assert_eq!(third.into_owned().workload_ipv4, "10.48.0.0/22", "freed by the removal");
+}

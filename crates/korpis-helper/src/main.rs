@@ -186,6 +186,10 @@ fn run(a: Args) -> Result<(), String> {
     }
     if let Some(root) = a.netns_root {
         helper = helper.with_network(Network::new(root));
+        // The mesh routes workloads' addresses, so only a helper that makes their networks
+        // keeps it; its key is kept with the rest of the helper's state.
+        helper =
+            helper.with_overlay(korpis_helper::overlay::Overlay::new(a.state.join("overlay.key")));
     }
     let parents = a.cores_cgroups.unwrap_or_else(|| CORES_CGROUPS.map(PathBuf::from).to_vec());
     if !parents.is_empty() {

@@ -127,6 +127,8 @@ pub struct Api {
     serves_relay: bool,
     /// The relays this process names to the nodes it holds sessions with.
     named_relays: Arc<crate::named_relays::NamedRelays>,
+    /// The mesh between nodes this process tells the nodes it holds sessions with.
+    mesh: Arc<crate::mesh::KeptMesh>,
     /// The key page tokens are sealed under (§8 of docs/10-api.md).
     cursors: Arc<cursor::Cursors>,
     /// The SFTP servers named to clients.
@@ -153,6 +155,7 @@ impl Api {
             relay: Arc::new(RelayRole::new(Arc::new(in_process))),
             serves_relay: true,
             named_relays: Arc::default(),
+            mesh: Arc::default(),
             cursors: Arc::new(cursor::Cursors::of_this_process()),
             sftp: crate::sftp::Advertised::default(),
             settling: std::sync::Mutex::new(None),
@@ -210,6 +213,12 @@ impl Api {
     #[must_use]
     pub fn named_relays(&self) -> &crate::named_relays::NamedRelays {
         &self.named_relays
+    }
+
+    /// The mesh told to the nodes, for the composition root's background work.
+    #[must_use]
+    pub fn mesh(&self) -> &crate::mesh::KeptMesh {
+        &self.mesh
     }
 
     /// The relay role in this process, for the composition root to give it the token keys.

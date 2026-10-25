@@ -47,6 +47,11 @@ message EnrollResponse {
   repeated SigningKey assignment_keys = 2;
   // The capability-token verification keys (§6 of docs/08-identity.md).
   repeated SigningKey token_keys = 3;
+  // The pool the node's workloads take IPv4 addresses from, a /22 of the installation's range
+  // no other node holds, as CIDR text; empty for a node enrolled before pools were given, or
+  // once the range is full. The agent keeps it with its identity and uses it unless its
+  // operator names another (§9.1 of docs/07-networking.md). Added 2026-10-25.
+  string workload_ipv4 = 4;
 }
 
 // The token keys in force, sent once every session opens, before anything signed with them:
@@ -113,6 +118,7 @@ message ControlMessage {
     CertificateKey certificate_key = 18;
     TokenKeys token_keys = 19;
     HealthAnswer health_answer = 20;
+    Peers peers = 21;
   }
 }
 
@@ -326,6 +332,23 @@ message DependencyEndpoint {
   string endpoint = 2;
   uint32 container_port = 3;
   korpis.v1.EndpointProtocol protocol = 4;
+  // Where its workload is on another node of the mesh: its address there, as that node
+  // observed it, and whether it is ready; empty and false where it is on this node, which knows
+  // both, or where no address is observed yet (§9.1 of docs/07-networking.md).
+  string address = 5;
+  bool ready = 6;
+}
+
+// A dependent on another node of the mesh, which this workload's node admits from the mesh to
+// one of its endpoints (§9.1 of docs/07-networking.md).
+message OverlayDependent {
+  string workload = 1;
+  // The dependent's address on its node, as that node observed it.
+  string address = 2;
+  // This workload's address on this node, as this node observed it.
+  string target_address = 3;
+  uint32 container_port = 4;
+  korpis.v1.EndpointProtocol protocol = 5;
 }
 
 // The answer to a CredentialRequest: a credential, or why there is none.
@@ -411,6 +434,8 @@ message Hello {
   repeated korpis.v1.Device devices = 15;
   repeated korpis.v1.UnofferedDevice unoffered_devices = 16;
   repeated korpis.v1.Core cores = 17;
+  // As in NodeStatus.
+  OverlayFacts overlay = 18;
 }
 
 // The session runs over TLS to a control plane certificate the agent pinned at enrollment; this
@@ -457,6 +482,45 @@ message NodeStatus {
   // The physical cores it offers for dedication, in full every time (§5.2 of
   // docs/05-scheduling.md). Added 2026-10-25.
   repeated korpis.v1.Core cores = 12;
+  // Its side of the mesh (§9.1 of docs/07-networking.md), in full every time; absent on a node
+  // whose helper makes no workload networks. Added 2026-10-25.
+  OverlayFacts overlay = 13;
+}
+
+// What a node reports of its side of the mesh.
+message OverlayFacts {
+  // Its interface's WireGuard public key, 32 bytes; the private key never leaves the helper.
+  bytes public_key = 1;
+  // The UDP port the interface listens on.
+  uint32 port = 2;
+  // Its workloads' pools, as CIDR text.
+  repeated string pools = 3;
+  // When each peer last completed a handshake with it, as it last read them.
+  repeated OverlayHandshake handshakes = 4;
+}
+
+message OverlayHandshake {
+  bytes public_key = 1;
+  // Seconds since the Unix epoch.
+  int64 latest_unix_seconds = 2;
+}
+
+// Every other member of the mesh, sent when a session opens and whenever the members change
+// (§9.1 of docs/07-networking.md); none, and why, to a node outside it. The node keeps them on
+// disk, so its mesh runs without the control plane. Added 2026-10-25.
+message Peers {
+  repeated Peer peers = 1;
+  // Why this node is outside the mesh; empty for a member.
+  string outside = 2;
+}
+
+message Peer {
+  string node = 1;
+  bytes public_key = 2;
+  // `address:port`; empty for a member that advertises no address.
+  string endpoint = 3;
+  // Its pools, as CIDR text.
+  repeated string allowed_ips = 4;
 }
 
 // What the node offers for inbound traffic, before anything has measured it.
@@ -583,6 +647,10 @@ message Assignment {
   // The node's cores its placement holds, by id, for dedicated cores (§5.2 of
   // docs/05-scheduling.md). Added 2026-10-25.
   repeated uint32 cores = 29;
+  // Its dependents on other nodes of the mesh, which the node admits from the mesh to the
+  // endpoint each depends on, and nothing else (§9.1 of docs/07-networking.md). Decided by the
+  // control plane, which alone sees both nodes. Added 2026-10-25.
+  repeated OverlayDependent dependents = 30;
 }
 
 // One run a node is to execute: what it is, and what the node enforces of it. Also what a

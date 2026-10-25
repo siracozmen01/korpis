@@ -30,6 +30,7 @@ pub mod lease;
 pub mod meter;
 pub mod network;
 pub mod offload;
+pub mod overlay;
 pub mod preflight;
 pub mod probe;
 pub mod reconcile;

@@ -35,6 +35,9 @@ pub struct NodeFacts {
     /// What it advertises for inbound traffic; `None` leaves it as it was, for an agent that
     /// does not say.
     pub advertised: Option<korpis_core::node::advertised::Advertised>,
+    /// Its side of the mesh, in full every time; `None` for a node whose helper makes no
+    /// workload networks (§9.1 of docs/07-networking.md).
+    pub overlay: Option<korpis_core::node::mesh::OverlayFacts>,
 }
 
 /// An agent's release and protocol.

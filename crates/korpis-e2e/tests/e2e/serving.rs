@@ -53,5 +53,6 @@ pub(crate) fn serve_config(
         relying_party,
         session_limits: korpis_core::account::session::SessionLimits::default(),
         web_root,
+        overlay_range: "10.48.0.0/12".parse().unwrap(),
     }
 }

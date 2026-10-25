@@ -3013,6 +3013,7 @@ name = "korpis-app"
 version = "0.0.0"
 dependencies = [
  "futures-util",
+ "ipnet",
  "jiff",
  "korpis-core",
  "korpis-store",
@@ -3392,6 +3393,7 @@ name = "korpis-helper"
 version = "0.0.0"
 dependencies = [
  "buffa",
+ "ipnet",
  "korpis-agent",
  "korpis-backup",
  "korpis-core",
@@ -3401,7 +3403,9 @@ dependencies = [
  "korpis-wire",
  "libc",
  "netlink-packet-core",
+ "netlink-packet-generic",
  "netlink-packet-route",
+ "netlink-packet-wireguard",
  "netlink-sys",
  "rustix",
  "serde_json",
@@ -3623,6 +3627,7 @@ name = "korpis-store"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "ipnet",
  "korpis-app",
  "korpis-core",
  "korpis-store",
@@ -3939,6 +3944,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d6e2daf9a8c2e21302714706860a0e6be02e03d17294ecc66b354ea7d4059dd"
 
 [[package]]
+name = "netlink-packet-generic"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e609a7be61318181c110df304d54ed3f3e129b9569b8ca16e40a9d644f46930c"
+dependencies = [
+ "netlink-packet-core",
+ "zerocopy",
+]
+
+[[package]]
 name = "netlink-packet-route"
 version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3949,6 +3964,19 @@ dependencies = [
  "log",
  "netlink-packet-core",
  "zerocopy",
+]
+
+[[package]]
+name = "netlink-packet-wireguard"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1586e7d665d51e10a6e67eaf433beeea784c8dcb96d89c7b9b99444de4221d16"
+dependencies = [
+ "bitflags 2.13.2",
+ "libc",
+ "log",
+ "netlink-packet-core",
+ "netlink-packet-generic",
 ]
 
 [[package]]

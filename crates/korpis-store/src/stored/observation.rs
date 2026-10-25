@@ -56,6 +56,9 @@ pub(crate) struct ObservationDoc {
     endpoints: Vec<EndpointDoc>,
     volumes: Vec<VolumeDoc>,
     since: Option<DateTime<Utc>>,
+    /// Absent from observations recorded before addresses were.
+    #[serde(default)]
+    address: Option<std::net::Ipv4Addr>,
 }
 
 pub(crate) fn state_str(s: ObservedState) -> &'static str {
@@ -147,6 +150,7 @@ impl ObservationDoc {
                 })
                 .collect(),
             since: o.since.map(from_time),
+            address: o.address,
         }
     }
 
@@ -205,6 +209,7 @@ impl ObservationDoc {
                 })
                 .collect(),
             since: self.since.map(to_time),
+            address: self.address,
         })
     }
 }

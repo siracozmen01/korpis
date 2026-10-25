@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ipv4::text AS \"ipv4!\" FROM node_pool",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ipv4!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8541126dd9f44eeefc33ed1952183ad357743610bb227103e953893053918ef2"
+}

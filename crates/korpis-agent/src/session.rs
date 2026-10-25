@@ -231,6 +231,7 @@ impl Session {
             devices: facts.devices,
             unoffered_devices: facts.unoffered_devices,
             cores: facts.cores,
+            overlay: facts.overlay.into(),
             capacity: facts.capacity.into(),
             allocatable: facts.allocatable.into(),
             advertised: facts.advertised.into(),
@@ -260,6 +261,7 @@ impl Session {
             devices: facts.devices,
             unoffered_devices: facts.unoffered_devices,
             cores: facts.cores,
+            overlay: facts.overlay.into(),
             ..Default::default()
         };
         match self.journal.usage().await {

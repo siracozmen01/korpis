@@ -459,6 +459,13 @@ cannot speak as another, and the destination admits from the mesh only the depen
 workloads, to their dependencies' ports. The mesh's UDP port answers nothing that does not carry a
 peer's key.
 
+> Built 2026-10-25 (`korpis-helper`'s `overlay`): the destination's node drops, and counts under
+> the comment `overlay`, everything arriving on `korpis-overlay` that is neither a reply nor an
+> admitted dependent's connection to its dependency's port, whether bound for a workload or for
+> the node itself. What it does not stop: the admission names addresses, and a compromised node
+> can send from any address of its own pool, so it reaches whatever any dependent on it is
+> admitted to, which it could reach through that dependent anyway, and nothing else.
+
 **North-south egress is uncontained on a compromised node, and this is stated rather than
 implied.** Only the source, or a chokepoint the operator owns, can enforce it, and nothing at this
 layer does better.

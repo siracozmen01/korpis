@@ -23,6 +23,7 @@ pub mod ingress;
 pub mod job;
 pub mod kept;
 pub mod network;
+pub mod overlay;
 pub mod projects;
 pub mod quota;
 pub mod serve;

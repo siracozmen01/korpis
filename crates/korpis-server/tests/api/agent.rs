@@ -39,7 +39,7 @@ pub fn agents(h: &Harness) -> agent::AgentServiceClient<HttpClient> {
 fn reported() -> pb::Node {
     let org = uuid::Uuid::now_v7();
     let node = korpis_store::testing::ready_node(org, "reported", &[]).unwrap();
-    node_to_pb(&node, &Bounds::default())
+    node_to_pb(&node, &Bounds::default(), &korpis_core::node::mesh::Standing::default())
 }
 
 impl TestAgent {
@@ -199,15 +199,16 @@ pub fn welcome(m: &agent::ControlMessage) -> agent::Welcome {
     }
 }
 
-/// The next message on a session, within five seconds, passing over revocation lists and the
-/// relays named, which arrive on their own schedule (§6.3 of docs/08-identity.md, §3.1 of
-/// docs/02-architecture.md); [`next_list`] and [`next_relays`] read those.
+/// The next message on a session, within five seconds, passing over revocation lists, the relays
+/// named, and the mesh's peers, which arrive on their own schedule (§6.3 of
+/// docs/08-identity.md, §3.1 of docs/02-architecture.md, §9.1 of docs/07-networking.md);
+/// [`next_list`], [`next_relays`], and [`next_peers`] read those.
 pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
     loop {
         let m = any(stream).await;
         if !matches!(
             m.message,
-            Some(Down::RevocationList(_) | Down::Relays(_) | Down::TokenKeys(_))
+            Some(Down::RevocationList(_) | Down::Relays(_) | Down::TokenKeys(_) | Down::Peers(_))
         ) {
             return m;
         }
@@ -219,6 +220,15 @@ pub async fn next_relays(stream: &mut Stream) -> agent::Relays {
     loop {
         if let Some(Down::Relays(relays)) = any(stream).await.message {
             return *relays;
+        }
+    }
+}
+
+/// The next peers a session is told, within five seconds of each message before it.
+pub async fn next_peers(stream: &mut Stream) -> agent::Peers {
+    loop {
+        if let Some(Down::Peers(peers)) = any(stream).await.message {
+            return *peers;
         }
     }
 }

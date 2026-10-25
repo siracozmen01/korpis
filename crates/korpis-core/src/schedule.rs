@@ -80,6 +80,9 @@ pub struct Request<'a> {
     pub churn: &'a BTreeMap<Uuid, f64>,
     /// What its dependencies reach, resolved (§5 of docs/07-networking.md).
     pub dependencies: &'a [Needed],
+    /// The pairs of nodes that reach each other through the mesh, through which a dependency
+    /// reaches a target on another node (§9.1 of docs/07-networking.md).
+    pub mesh: &'a crate::node::mesh::Pairs,
     /// The quota entries counting it that count where it runs (§5.1 of
     /// docs/05-scheduling.md).
     pub quota: &'a [Counting<'a>],

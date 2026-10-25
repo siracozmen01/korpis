@@ -187,6 +187,7 @@ impl Harness {
             relying_party: Some(crate::panel::relying_party()),
             session_limits: korpis_core::account::session::SessionLimits::default(),
             web_root: None,
+            overlay_range: "10.48.0.0/12".parse().unwrap(),
         };
         let running = korpis_server::serve(config.clone()).await.expect("serve");
         let base = format!("https://localhost:{}", running.addr.port()).parse().unwrap();

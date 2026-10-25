@@ -197,6 +197,9 @@ message Observation {
   repeated VolumeStatus volumes = 17;
   // When the state last changed.
   google.protobuf.Timestamp since = 18;
+  // The workload's IPv4 address on its node, which the node gave it (§4.1 of
+  // docs/07-networking.md); empty where it has no network.
+  string address = 19;
 }
 
 message PowerSeen {

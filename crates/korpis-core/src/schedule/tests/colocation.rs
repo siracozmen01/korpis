@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What keeps a workload on one node: an existing volume it attaches (§7 of docs/06-storage.md),
-//! and, until the overlay exists, the workloads it depends on (§5 of docs/07-networking.md).
+//! and the workloads it depends on, unless the mesh joins their nodes (§5 and §9.1 of
+//! docs/07-networking.md).
 
 use super::{GIB, PROJECT, body, node, req};
+use crate::node::mesh::Pairs;
 use crate::schedule::{Candidate, Check, Needed, Peer, Policies, Request, place};
 use crate::tenancy::quota::Bounds;
 use std::collections::BTreeMap;
@@ -51,4 +53,32 @@ fn a_dependent_goes_to_its_targets_node_and_a_required_unplaced_one_nowhere() {
     ];
     let apart = placed(&needed(false, vec![db, Uuid::from_u128(78)]), &split);
     assert_eq!(apart.chosen, None, "no node reaches targets on two");
+}
+
+#[test]
+fn a_dependent_goes_where_the_mesh_reaches_each_target_s_node() {
+    let (one, two, three) = (node(1, &[]), node(2, &[]), node(3, &[]));
+    let labels = BTreeMap::new();
+    let b = body(GIB);
+    let (db, cache) = (Uuid::from_u128(77), Uuid::from_u128(78));
+    let peers = [
+        Peer { workload: db, project: PROJECT, node: two.id, labels: BTreeMap::new() },
+        Peer { workload: cache, project: PROJECT, node: three.id, labels: BTreeMap::new() },
+    ];
+    let empty = Bounds::new();
+    let nodes = [&one, &two, &three].map(|n| Candidate { node: n, allocated: &empty });
+    let needed = [Needed { name: "db".into(), required: true, targets: vec![db, cache] }];
+    let placed = |mesh: &Pairs| {
+        let request = Request { dependencies: &needed, mesh, ..req(&labels, &b) };
+        place(&request, &nodes, &peers, &Policies::default())
+    };
+    let joined: Pairs = [(one.id, two.id), (one.id, three.id)].into_iter().collect();
+    let e = placed(&joined);
+    assert_eq!(e.chosen, Some(one.id), "the one node that reaches both targets' nodes");
+    let refused = |n: &crate::node::Node| {
+        e.filtered.iter().any(|r| r.node == n.id && r.check == Check::Dependency)
+    };
+    assert!(refused(&two) && refused(&three), "neither reaches the other's");
+    let half: Pairs = [(one.id, two.id)].into_iter().collect();
+    assert_eq!(placed(&half).chosen, None, "no node reaches both");
 }

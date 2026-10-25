@@ -2,16 +2,17 @@
 
 //! What workloads' networks need (§4, §4.1, and §7 of docs/07-networking.md, §2 of
 //! docs/18-operations.md): nftables 1.0 or later with its JSON input, IP forwarding, IPv6 for
-//! the default addressing mode, and `tc` with the HTB qdisc for bandwidth. A node without the
-//! first two gives its workloads loopback alone; one without IPv6 addresses them over IPv4 only;
-//! one that cannot shape enforces no bandwidth.
+//! the default addressing mode, `tc` with the HTB qdisc for bandwidth, and WireGuard for the mesh
+//! (§9.1 there). A node without the first two gives its workloads loopback alone; one without
+//! IPv6 addresses them over IPv4 only; one that cannot shape enforces no bandwidth; one without
+//! WireGuard is outside the mesh.
 
 use super::{Check, Machine, Outcome, Probes};
 
 /// The checks of the network.
 #[must_use]
 pub fn checks(m: &Machine, p: &Probes) -> Vec<Check> {
-    vec![nftables(p), forwarding(m), ipv6(m), shaping(p)]
+    vec![nftables(p), forwarding(m), ipv6(m), shaping(p), wireguard(m)]
 }
 
 /// `major.minor` of what `nft --version` prints, e.g. `nftables v1.0.6 (Lester Gooch #5)`.
@@ -118,6 +119,38 @@ fn shaping(p: &Probes) -> Check {
     Check {
         name: "tc and the HTB qdisc",
         needed_for: "bandwidth reservations and limits",
+        found,
+        outcome,
+        essential: false,
+    }
+}
+
+/// Whether the kernel has WireGuard: loaded or built in, which `/sys/module` shows, or a module
+/// the kernel loads when the helper first asks for the mesh's link, which its modules list.
+fn wireguard(m: &Machine) -> Check {
+    let loaded = m.sys.join("module/wireguard").exists();
+    let listed = |file: &str| {
+        let release = m.proc("sys/kernel/osrelease").unwrap_or_default();
+        let text = std::fs::read_to_string(m.modules.join(release).join(file));
+        text.is_ok_and(|t| t.lines().any(|l| l.contains("/wireguard.ko")))
+    };
+    let (found, outcome) = if loaded {
+        ("loaded".to_owned(), Outcome::Met)
+    } else if listed("modules.builtin") || listed("modules.dep") {
+        ("a module, loaded when the mesh is first made".to_owned(), Outcome::Met)
+    } else {
+        (
+            "absent".to_owned(),
+            Outcome::Lacking {
+                costs: "the node is outside the mesh: a dependency reaches no other node".into(),
+                fix: "a kernel with WireGuard, Linux 5.6 or later built with CONFIG_WIREGUARD"
+                    .into(),
+            },
+        )
+    };
+    Check {
+        name: "WireGuard",
+        needed_for: "dependencies across nodes",
         found,
         outcome,
         essential: false,

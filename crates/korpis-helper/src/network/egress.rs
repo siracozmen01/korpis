@@ -39,6 +39,9 @@ pub(crate) struct Opened {
     pub(crate) transport: super::forward::Transport,
     /// Why, as the rule's comment says it: `dependency`.
     pub(crate) why: &'static str,
+    /// The interface it is opened through alone, where it is: the mesh's, for a target on
+    /// another node, so that without a route through the mesh it is not opened at all.
+    pub(crate) through: Option<&'static str>,
 }
 
 fn rule(chain: &str, comment: Option<&str>, expr: Vec<Value>) -> Value {
@@ -225,13 +228,13 @@ pub(crate) fn hold(link: &str, own: &Own<'_>, listed: bool) -> Vec<Value> {
     ];
     for o in own.opened {
         let family = if o.addr.is_ipv4() { "ip" } else { "ip6" };
-        let expr = vec![
+        let mut expr = vec![
             is(daddr(family), json!(o.addr.to_string())),
             is(meta("l4proto"), json!(o.transport.name())),
             is(json!({"payload": {"protocol": "th", "field": "dport"}}), json!(o.port)),
-            json!({"counter": null}),
-            json!({"accept": null}),
         ];
+        expr.extend(o.through.map(|link| is(meta("oifname"), json!(link))));
+        expr.extend([json!({"counter": null}), json!({"accept": null})]);
         commands.push(rule(&c, Some(o.why), expr));
     }
     let l = own.limits;

@@ -33,6 +33,7 @@ pub struct Helper {
     ingress: Option<Ingress>,
     files: Option<crate::files::Files>,
     cores: Option<crate::cores::Cores>,
+    overlay: Option<crate::overlay::Overlay>,
     /// The user and group of the connection being answered, as the kernel recorded them.
     peer: (u32, u32),
     /// Descriptors the last answer carries, sent with its frame and then closed here.
@@ -59,6 +60,7 @@ impl Helper {
             ingress: None,
             files: None,
             cores: None,
+            overlay: None,
             peer: (u32::MAX, u32::MAX),
             attached: Vec::new(),
         }
@@ -331,6 +333,7 @@ impl Helper {
             Verb::DescribeStorage(_) => Answer::DescribeStorage(Box::new(self.storage())),
             Verb::OpenFiles(r) => self.open_files(&r)?,
             Verb::HoldCores(r) => self.hold_cores(&r)?,
+            Verb::KeepOverlay(r) => self.keep_overlay(&r)?,
         })
     }
 

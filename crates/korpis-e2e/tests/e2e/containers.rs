@@ -11,12 +11,16 @@ use std::time::Duration;
 
 /// Where the `oci` driver of the node named `name` makes its containers: a cgroup parent of its
 /// own, beneath which no other test's are, and any dedicated cores shared with the host, since
-/// this machine's other services keep every CPU (§4 of docs/20-roadmap.md).
+/// this machine's other services keep every CPU (§4 of docs/20-roadmap.md). Numbered within the
+/// process: the tests of one process run at once and many name their node alike, and a parent
+/// two nodes shared had each node's end remove the other's containers, killing them mid-test.
 pub fn own(name: &str) -> Cores {
+    static NODES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = NODES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     Cores {
         system: PathBuf::from("/sys/devices/system"),
         root: PathBuf::from(CGROUP_ROOT),
-        parent: format!("/korpis-e2e-{}-{name}-oci", std::process::id()),
+        parent: format!("/korpis-e2e-{}-{n}-{name}-oci", std::process::id()),
         host: Host::Shared,
     }
 }

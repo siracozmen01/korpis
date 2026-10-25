@@ -85,6 +85,9 @@ pub struct Assignment {
     pub devices: Vec<crate::node::device::DeviceHold>,
     /// The node's cores its placement there holds, by id (§5.2 of docs/05-scheduling.md).
     pub cores: Vec<u32>,
+    /// Its dependents on other nodes of the mesh, which its node admits from the mesh to the
+    /// endpoint each depends on (§9.1 of docs/07-networking.md).
+    pub dependents: Vec<super::dependency::OverlayDependent>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

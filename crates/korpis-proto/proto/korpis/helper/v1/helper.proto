@@ -70,6 +70,12 @@ service HelperService {
   // there written as the exclusive CPUs of that cgroup, the cgroups above it, and its `dedicated`
   // cgroup, which a driver's partitions take theirs from.
   rpc HoldCores(HoldCoresRequest) returns (HoldCoresResponse);
+  // Keeps the node's side of the mesh (§9.1 of docs/07-networking.md): its WireGuard interface,
+  // made with a key of the helper's own the first time, whose private half never leaves it; the
+  // peers the request names, each with its allowed IPs, every other peer removed; and a route to
+  // each peer's allowed IPs through the interface. Answers the interface's public key and when
+  // each peer last completed a handshake. Added 2026-10-25.
+  rpc KeepOverlay(KeepOverlayRequest) returns (KeepOverlayResponse);
 }
 
 // One request, as the transport carries it.
@@ -101,6 +107,7 @@ message HelperRequest {
     ReadCountersRequest read_counters = 24;
     OpenProbeRequest open_probe = 25;
     HoldCoresRequest hold_cores = 26;
+    KeepOverlayRequest keep_overlay = 27;
   }
 }
 
@@ -134,6 +141,7 @@ message HelperResponse {
     ReadCountersResponse read_counters = 25;
     OpenProbeResponse open_probe = 26;
     HoldCoresResponse hold_cores = 27;
+    KeepOverlayResponse keep_overlay = 28;
   }
 }
 
@@ -406,6 +414,10 @@ enum DestinationReason {
   reserved "DESTINATION_REASON_CONTROL_PLANE";
   DESTINATION_REASON_UNSPECIFIED = 0;
   DESTINATION_REASON_DEPENDENCY = 2;
+  // A dependency's target on another node, opened only through the mesh's interface, so that a
+  // node with no route to the target through the mesh sends nothing towards it (§9.1 of
+  // docs/07-networking.md).
+  DESTINATION_REASON_DEPENDENCY_OVERLAY = 3;
 }
 
 // What a forwarded or accepted port is carried over.
@@ -729,4 +741,51 @@ message HeldCores {
 // What the shared cgroups were left on.
 message HoldCoresResponse {
   repeated uint32 shared = 1;
+}
+
+// The node's side of the mesh, in full each time: the port its interface listens on, and every
+// peer it is to have.
+message KeepOverlayRequest {
+  uint32 port = 1;
+  repeated OverlayPeer peers = 2;
+  // What another node's workload may reach of this node's through the mesh: a dependent's
+  // address, to a port of its dependency's endpoint (§9.1 of docs/07-networking.md). Nothing
+  // else arriving on the interface reaches a workload.
+  repeated OverlayAdmitted admitted = 3;
+}
+
+// One dependent on another node, admitted to one endpoint of a workload on this node.
+message OverlayAdmitted {
+  // The dependent's address.
+  string source = 1;
+  // The workload's address on this node.
+  string destination = 2;
+  // The endpoint's container port.
+  uint32 port = 3;
+  Transport transport = 4;
+}
+
+// Another node of the mesh.
+message OverlayPeer {
+  // Its WireGuard public key, 32 bytes.
+  bytes public_key = 1;
+  // Where it is reached, as `address:port`; empty for a peer that advertises no address, which
+  // is reached once it has reached this node.
+  string endpoint = 2;
+  // Its workload pools, as CIDR text: where packets to it are routed, and the only sources
+  // accepted from it.
+  repeated string allowed_ips = 3;
+}
+
+message KeepOverlayResponse {
+  // The interface's public key, 32 bytes.
+  bytes public_key = 1;
+  repeated PeerHandshake handshakes = 2;
+}
+
+// When a peer last completed a handshake with this node.
+message PeerHandshake {
+  bytes public_key = 1;
+  // Seconds since the Unix epoch; zero for never.
+  int64 latest_unix_seconds = 2;
 }

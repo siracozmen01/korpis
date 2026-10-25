@@ -17,7 +17,7 @@ mod netns;
 pub(crate) mod nft;
 mod policy;
 mod resolver;
-mod rtnl;
+pub(crate) mod rtnl;
 mod shape;
 mod tap;
 

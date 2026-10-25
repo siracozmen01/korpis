@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
+ipnet = "2"
 korpis-app = { workspace = true }
 korpis-core = { workspace = true, features = ["accounts", "authz"] }
 serde = { version = "1", features = ["derive"] }

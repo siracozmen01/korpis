@@ -59,6 +59,9 @@ pub struct WorkloadView {
     /// Whether a suspension of its organization, or of one above it, holds it stopped whatever
     /// power it declares (§2.1 of docs/08-identity.md).
     pub held_by_suspension: bool,
+    /// Its dependencies: what each reaches and how, and what each names and does not reach
+    /// (§5 of docs/07-networking.md).
+    pub dependencies: Vec<korpis_core::workload::dependency::DependencyStatus>,
 }
 
 /// The keys whose values a view left out, by intent.
@@ -148,7 +151,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let names = self.endpoint_names(id, &endpoints).await?;
         let newest = crate::page::Page { after: None, size: 1 };
         let newest_run = self.store.runs(id, newest).await?.into_iter().next();
+        let dependencies = self.dependency_status(&workload, target.as_ref()).await?;
         let view = WorkloadView {
+            dependencies,
             newest_run,
             names,
             certificates,

@@ -2,6 +2,9 @@
 
 //! Nodes (§3.4 of docs/01-model.md).
 
+mod mesh;
+mod pool;
+
 use crate::errors::from_sqlx;
 use crate::stored::{
     bounds, bounds_doc, cores, count, devices, drivers, from_time, node_docs, storage_classes,
@@ -154,6 +157,14 @@ impl NodeRow {
 }
 
 impl NodeRead for PgStore {
+    async fn node_pool(&self, node: Uuid) -> StoreResult<Option<ipnet::Ipv4Net>> {
+        self.pool_of(node).await
+    }
+
+    async fn mesh_candidates(&self) -> StoreResult<Vec<korpis_core::node::mesh::Candidate>> {
+        self.candidates().await
+    }
+
     async fn node(&self, id: Uuid) -> StoreResult<Option<Node>> {
         let row = sqlx::query_file_as!(NodeRow, "queries/node_by_id.sql", id)
             .fetch_optional(&self.pool)
@@ -204,6 +215,18 @@ impl NodeRead for PgStore {
 }
 
 impl NodeWrite for PgTx {
+    async fn take_pool(
+        &mut self,
+        node: Uuid,
+        range: ipnet::Ipv4Net,
+    ) -> StoreResult<Option<ipnet::Ipv4Net>> {
+        self.take_pool_in(node, range).await
+    }
+
+    async fn release_pool(&mut self, node: Uuid) -> StoreResult<bool> {
+        self.release_pool_in(node).await
+    }
+
     async fn enroll_node(&mut self, n: &Node, public_key: &[u8]) -> StoreResult<()> {
         let (t, d, c) = node_docs(&n.taints, &n.drivers, &n.storage_classes);
         sqlx::query_file!(

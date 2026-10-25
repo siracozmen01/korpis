@@ -69,6 +69,7 @@ async fn a_change_of_what_a_node_advertises_makes_its_reachability_unmeasured() 
             ports: PortRange::DEFAULT,
             ingress: false,
         }),
+        overlay: None,
     };
     let report = |facts: NodeFacts| {
         let store = f.store.clone();
@@ -125,6 +126,7 @@ async fn a_node_s_devices_and_cores_are_kept_as_its_agent_last_reported_them() {
         storage_classes: None,
         agent: None,
         advertised: None,
+        overlay: None,
     };
     for (devices, unoffered) in [(vec![gpu.clone()], vec![all.clone()]), (Vec::new(), Vec::new())] {
         let mut tx = f.store.begin().await.unwrap();

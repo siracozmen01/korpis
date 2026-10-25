@@ -2,8 +2,9 @@
 
 //! A workload's dependencies, the node's half (§5 of docs/07-networking.md). The control plane
 //! said which endpoints each reaches; the node says where they are, from the addresses it gave
-//! their workloads, holds a dependent back while a required dependency is not running here and
-//! ready, injects the addresses into its environment at creation and into a file it keeps
+//! their workloads, or for a target on another node of the mesh from the address the control
+//! plane carries (§9.1 there), holds a dependent back while a required dependency is not running
+//! and ready, injects the addresses into its environment at creation and into a file it keeps
 //! current, and opens each in the dependent's chain past the egress default.
 
 use super::Reconciler;
@@ -17,7 +18,8 @@ use korpis_proto::korpis::v1 as pb;
 use std::net::Ipv4Addr;
 use std::path::Path;
 
-/// One endpoint a dependency reaches, at the address this node gave its workload.
+/// One endpoint a dependency reaches, at the address this node gave its workload, or, on
+/// another node of the mesh, at the address the control plane says that node gave it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Reached {
     workload: String,
@@ -25,6 +27,8 @@ struct Reached {
     host: Ipv4Addr,
     port: u16,
     protocol: pb::EndpointProtocol,
+    /// On another node: whether that node says it is ready. None on this node, which judges.
+    elsewhere: Option<bool>,
 }
 
 fn protocol_name(p: pb::EndpointProtocol) -> &'static str {
@@ -99,21 +103,35 @@ fn keep(path: &Path, text: &str) -> std::io::Result<()> {
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
-    /// The endpoints `d` reaches that are on this node, where their workloads have addresses.
+    /// The endpoints `d` reaches where their workloads have addresses: on this node, the one it
+    /// gave each; on another node of the mesh, the one the control plane carries.
     fn reached(&self, d: &agent::ResolvedDependency) -> Vec<Reached> {
         let Some(net) = self.wiring.network.as_ref() else { return Vec::new() };
         d.targets
             .iter()
             .filter_map(|t| {
+                let here = net.addresses.of(&t.workload).map(|held| (held.ipv4, None));
+                let there = || Some((t.address.parse().ok()?, Some(t.ready)));
+                let (host, elsewhere) = here.or_else(there)?;
                 Some(Reached {
                     workload: t.workload.clone(),
                     endpoint: t.endpoint.clone(),
-                    host: net.addresses.of(&t.workload)?.ipv4,
+                    host,
                     port: u16::try_from(t.container_port).ok()?,
                     protocol: t.protocol.as_known().unwrap_or_default(),
+                    elsewhere,
                 })
             })
             .collect()
+    }
+
+    /// Whether `r` runs and is ready: as this node judges a target on itself, and as the control
+    /// plane says the other node judged one elsewhere.
+    fn up(&self, r: &Reached) -> bool {
+        r.elsewhere.unwrap_or_else(|| {
+            let t = self.tracked.get(&r.workload);
+            t.is_some_and(|t| t.status.as_ref().is_some_and(running) && t.probing.ready())
+        })
     }
 
     /// The first required dependency of `a` whose targets are not all running on this node and
@@ -122,11 +140,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     fn waiting_for(&self, a: &agent::Assignment) -> Option<String> {
         a.dependencies.iter().filter(|d| d.required).find_map(|d| {
             let reached = self.reached(d);
-            let up = |r: &Reached| {
-                let t = self.tracked.get(&r.workload);
-                t.is_some_and(|t| t.status.as_ref().is_some_and(running) && t.probing.ready())
-            };
-            (reached.is_empty() || !reached.iter().all(up)).then(|| d.name.clone())
+            (reached.is_empty() || !reached.iter().all(|r| self.up(r))).then(|| d.name.clone())
         })
     }
 
@@ -149,7 +163,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 address: r.host.to_string(),
                 port: u32::from(r.port),
                 transport: transport(r.protocol).into(),
-                reason: helper::DestinationReason::DESTINATION_REASON_DEPENDENCY.into(),
+                // A target on another node is opened only through the mesh's interface.
+                reason: if r.elsewhere.is_some() {
+                    helper::DestinationReason::DESTINATION_REASON_DEPENDENCY_OVERLAY
+                } else {
+                    helper::DestinationReason::DESTINATION_REASON_DEPENDENCY
+                }
+                .into(),
                 ..Default::default()
             })
             .collect();
@@ -243,6 +263,7 @@ mod tests {
             host: host.into(),
             port,
             protocol: pb::EndpointProtocol::ENDPOINT_PROTOCOL_TCP,
+            elsewhere: None,
         }
     }
 

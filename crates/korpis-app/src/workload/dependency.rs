@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The workloads of `project` other than `except`, each with the intent it is to run.
-    async fn project_workloads(
+    pub(crate) async fn project_workloads(
         &self,
         project: Uuid,
         except: Uuid,

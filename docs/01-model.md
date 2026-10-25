@@ -955,7 +955,8 @@ Node
                                operator, no two members' overlapping (§9.1 of 07-networking.md)
   peers         []PeerReach    each other member, and whether the pair is reachable: both nodes
                                report a handshake with the other younger than 180 seconds; what
-                               the scheduler asks of a dependency across nodes
+                               the scheduler asks of a dependency across nodes; `overlay` to
+                               `peers` built 2026-10-25
   ingress       bool           whether its agent holds ports 80 and 443 for its ingress proxy;
                                required of an ingress endpoint's node without an edge tier
                                (§3.2 of 07-networking.md)

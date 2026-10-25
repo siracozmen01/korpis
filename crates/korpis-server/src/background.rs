@@ -7,7 +7,8 @@
 use crate::ServeConfig;
 use crate::api::Api;
 use crate::{
-    buckets, control_jobs, issuer, named_relays, provider_calls, reachability, records, revocations,
+    buckets, control_jobs, issuer, mesh, named_relays, provider_calls, reachability, records,
+    revocations,
 };
 use korpis_store::PgStore;
 use std::sync::Arc;
@@ -24,6 +25,7 @@ pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(provider_calls::dispatch(Arc::clone(api)));
     tokio::spawn(revocations::keep(Arc::clone(api)));
     tokio::spawn(named_relays::keep(Arc::clone(api)));
+    tokio::spawn(mesh::keep(Arc::clone(api)));
     tokio::spawn(alert_certificates(Arc::clone(api)));
     tokio::spawn(reachability::keep(Arc::clone(api)));
     tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));

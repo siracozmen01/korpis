@@ -629,6 +629,46 @@ message WorkloadStatus {
   // Whether a suspension of its organization, or of one above it, holds it stopped whatever
   // power it declares (§2.1 of docs/08-identity.md); resuming returns it to its own.
   bool held_by_suspension = 14;
+  // Its dependencies: each target and how the workload reaches it, and each workload a
+  // dependency names and does not reach, with why (§5 and §9.1 of docs/07-networking.md).
+  // Nodes are not named: whoever reads the workload may not read them. Added 2026-10-25.
+  repeated DependencyStatus dependencies = 15;
+}
+
+// One dependency as its dependent's status shows it.
+message DependencyStatus {
+  string name = 1;
+  bool required = 2;
+  repeated DependencyTargetStatus targets = 3;
+  repeated DependencyLeftOut left_out = 4;
+}
+
+// One target of a dependency, and how the dependent reaches it.
+message DependencyTargetStatus {
+  string workload = 1;
+  string endpoint = 2;
+  DependencyReach reach = 3;
+}
+
+enum DependencyReach {
+  DEPENDENCY_REACH_UNSPECIFIED = 0;
+  // Both run on one node.
+  DEPENDENCY_REACH_SAME_NODE = 1;
+  // They run on two nodes that reach each other through the mesh.
+  DEPENDENCY_REACH_MESH = 2;
+  // They run on two nodes that do not reach each other now.
+  DEPENDENCY_REACH_UNREACHED = 3;
+  // The target is not placed.
+  DEPENDENCY_REACH_TARGET_UNPLACED = 4;
+  // The dependent is not placed.
+  DEPENDENCY_REACH_DEPENDENT_UNPLACED = 5;
+}
+
+// A workload a dependency names and does not reach, and why: a selector's match, or a named
+// workload whose endpoints changed since it was declared.
+message DependencyLeftOut {
+  string workload = 1;
+  string reason = 2;
 }
 
 // A name an ingress endpoint routes, in DNS.

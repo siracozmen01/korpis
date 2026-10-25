@@ -15,7 +15,7 @@ use korpis_core::node::NodeAdmin;
 use korpis_proto::korpis::v1 as pb;
 
 fn view_to_pb(v: &NodeView) -> pb::Node {
-    node_to_pb(&v.node, &v.allocated)
+    node_to_pb(&v.node, &v.allocated, &v.overlay)
 }
 
 fn cordoned(v: &NodeView) -> pb::CordonNodeResponse {

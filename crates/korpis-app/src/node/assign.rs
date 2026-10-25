@@ -215,9 +215,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// What `node` is to be told: an assignment for each workload placed on it, and a residual
     /// one for each that left a plan there.
     async fn all_desired(&self, node: Uuid) -> Result<Vec<Desired>, AppError> {
-        let mut desired = Vec::new();
+        let (mut desired, members) = (Vec::new(), self.members().await?);
         for workload in self.store.placed_on(node).await? {
-            desired.extend(self.desired(node, workload).await?);
+            desired.extend(self.desired((node, &members), workload).await?);
         }
         for workload in self.store.residual_on(node).await? {
             desired.extend(self.residual(node, workload).await?);
@@ -227,7 +227,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// The nodes whose sets a change to `workload` may alter.
     pub async fn nodes_concerned(&self, workload: Uuid) -> Result<Vec<Uuid>, AppError> {
-        Ok(self.store.nodes_of(workload).await?)
+        let mut nodes = self.store.nodes_of(workload).await?;
+        // Across nodes, a workload's address and readiness reach its dependents' nodes, and
+        // its placement its targets' (§9.1 of docs/07-networking.md).
+        if let Some(w) = self.store.workload(workload).await?
+            && self.members().await?.len() > 1
+        {
+            for related in self.related(&w).await? {
+                nodes.extend(self.store.nodes_of(related).await?);
+            }
+            nodes.sort_unstable();
+            nodes.dedup();
+        }
+        Ok(nodes)
     }
 
     /// Records that a node holds the set with `digest`.
@@ -255,7 +267,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// told stopped, and a plan waiting to apply waits on, unless it retires the workload; one
     /// already applying is let finish, since a node left half way through its steps would hold
     /// what no plan made (§2.1 of docs/08-identity.md).
-    async fn desired(&self, node: Uuid, workload: Uuid) -> Result<Option<Desired>, AppError> {
+    async fn desired(
+        &self,
+        (node, members): (Uuid, &crate::workload::Members),
+        workload: Uuid,
+    ) -> Result<Option<Desired>, AppError> {
         let Some(w) = self.store.workload(workload).await? else { return Ok(None) };
         let missing = |what: &str| AppError::Internal(format!("{what} of workload {workload}"));
         let held = self.held_by(w.organization).await?.is_some();
@@ -280,7 +296,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let reaches_api = self.reaches_api(workload).await?;
         let month = korpis_core::tenancy::quota::month_of(self.clock.now()).0;
         let egress = self.store.workload_egress(workload, month).await?;
-        let dependencies = self.resolve_dependencies((w.project, w.id), &target.body).await?;
+        let (dependencies, dependents) = self.across((node, members), &w, &target.body).await?;
         Ok(Some(Desired {
             assignment: Assignment {
                 workload,
@@ -310,6 +326,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 kept_runs: Vec::new(),
                 devices: Vec::new(),
                 cores: Vec::new(),
+                dependents,
             },
             plan,
             held,
@@ -368,6 +385,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 kept_runs: Vec::new(),
                 devices: Vec::new(),
                 cores: Vec::new(),
+                dependents: Vec::new(),
             },
             plan: Some(plan),
             held: false,

@@ -12,6 +12,7 @@ pub(crate) use enroll::{OneUse, enrollment_grant};
 mod identity;
 mod journal;
 mod lease;
+mod mesh;
 mod observe;
 mod reachability;
 mod remove;
@@ -51,6 +52,9 @@ pub struct NodeView {
     pub node: Node,
     /// What the placements on it reserve.
     pub allocated: Bounds,
+    /// Its place in the mesh: whether it reaches every other member, its side as its agent
+    /// reported it, and each pair with it (§9.1 of docs/07-networking.md).
+    pub overlay: korpis_core::node::mesh::Standing,
 }
 
 fn admin_name(a: NodeAdmin) -> &'static str {
@@ -63,16 +67,17 @@ fn admin_name(a: NodeAdmin) -> &'static str {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    async fn node_view(&self, node: Node) -> Result<NodeView, AppError> {
+    async fn node_view(&self, node: Node, judged: &mesh::Judged) -> Result<NodeView, AppError> {
         let allocated = self.store.allocated(node.id).await?;
-        Ok(NodeView { node, allocated })
+        let overlay = judged.standing(node.id);
+        Ok(NodeView { node, allocated, overlay })
     }
 
     /// One node the caller may read.
     pub async fn get_node(&self, caller: &Caller, id: Uuid) -> Result<NodeView, AppError> {
         self.authorize(caller, "node.read", ObjectRef::new(Kind::Node, id)).await?;
         let node = self.store.node(id).await?.ok_or(AppError::NotFound { kind: "node" })?;
-        self.node_view(node).await
+        self.node_view(node, &self.judged().await?).await
     }
 
     /// The nodes an organization owns, matching a selector. A page may hold fewer than its
@@ -88,9 +93,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.authorize(caller, "node.read", org).await?;
         let read = self.store.nodes(organization, page).await?;
         let next = page.next(&read, |n| n.id);
-        let mut items = Vec::new();
+        let (mut items, judged) = (Vec::new(), self.judged().await?);
         for n in read.into_iter().filter(|n| selector.matches(n.labels.as_map())) {
-            items.push(self.node_view(n).await?);
+            items.push(self.node_view(n, &judged).await?);
         }
         Ok(Paged { items, next })
     }
@@ -110,6 +115,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Reply::Replayed(r));
         }
         let permit = self.authorize(caller, "node.cordon", ObjectRef::new(Kind::Node, id)).await?;
+        let overlay = self.judged().await?.standing(id);
         let mut tx = self.store.begin().await?;
         tx.lock_placement().await?;
         let mut node = tx.lock_node(id).await?.ok_or(AppError::NotFound { kind: "node" })?;
@@ -133,6 +139,6 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.append_effect(&effect).await?;
         }
         let allocated = tx.allocations(&[id]).await?.remove(&id).unwrap_or_default();
-        finish(tx, caller, idem, OPERATION, NodeView { node, allocated }).await
+        finish(tx, caller, idem, OPERATION, NodeView { node, allocated, overlay }).await
     }
 }

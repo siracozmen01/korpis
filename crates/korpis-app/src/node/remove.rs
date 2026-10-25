@@ -25,6 +25,7 @@ use crate::ports::{
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::node::NodeAdmin;
+use korpis_core::node::mesh::Standing;
 use uuid::Uuid;
 
 /// The operation a removal's idempotency key is kept under.
@@ -71,7 +72,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.decommissioned(&mut tx, by, (id, from, compromised), held).await?;
         }
         let allocated = tx.allocations(&[id]).await?.remove(&id).unwrap_or_default();
-        finish(tx, caller, idem, OPERATION, NodeView { node, allocated }).await
+        finish(
+            tx,
+            caller,
+            idem,
+            OPERATION,
+            NodeView { node, allocated, overlay: Standing::default() },
+        )
+        .await
     }
 
     /// The workloads placed on node `id`, each locked, and then the placement lock: the order
@@ -107,6 +115,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             moved += usize::from(self.displace(tx, w, id).await?);
         }
         let endpoints = tx.drop_node_endpoints(id).await?;
+        // Its pool is free for a node enrolled after (§9.1 of docs/07-networking.md).
+        let pool = tx.release_pool(id).await?;
         let exposed =
             if compromised { tx.expose_certificates(id, self.clock.now()).await? } else { 0 };
         tx.announce_resync().await?;
@@ -117,6 +127,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ("compromised", compromised.into()),
                 ("workloads_placed_again", moved.into()),
                 ("endpoints_dropped", endpoints.into()),
+                ("pool_released", pool.into()),
                 ("volumes_lost", volumes.into()),
                 ("certificates_exposed", exposed.into()),
             ]));

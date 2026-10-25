@@ -133,12 +133,17 @@ pub(super) fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
         .iter()
         .map(|d| {
             let addr = d.address.parse().map_err(|_| refuse("an opened address is not one"))?;
-            let why = match d.reason.as_known() {
-                Some(helper::DestinationReason::DESTINATION_REASON_DEPENDENCY) => "dependency",
+            let (why, through) = match d.reason.as_known() {
+                Some(helper::DestinationReason::DESTINATION_REASON_DEPENDENCY) => {
+                    ("dependency", None)
+                }
+                Some(helper::DestinationReason::DESTINATION_REASON_DEPENDENCY_OVERLAY) => {
+                    ("dependency", Some(crate::overlay::INTERFACE))
+                }
                 _ => return Err(refuse("an opened destination says why it is opened")),
             };
             let (port, transport) = (port("an opened port", d.port, 1)?, transport(d.transport)?);
-            Ok(egress::Opened { addr, port, transport, why })
+            Ok(egress::Opened { addr, port, transport, why, through })
         })
         .collect::<HelperResult<Vec<_>>>()?;
     let ids = (r.uid_base, r.uid_count);

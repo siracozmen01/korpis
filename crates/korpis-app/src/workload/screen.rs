@@ -103,7 +103,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     async fn shortlist(&self, w: &Workload, target: &Intent) -> Result<Vec<Uuid>, AppError> {
         let owners = self.owners(w.organization).await?;
         let volumes = self.existing_nodes(&target.body).await?;
-        let needed = self.needed(w, &target.body).await?;
+        let (needed, mesh) = (self.needed(w, &target.body).await?, self.judged().await?.pairs());
         let mut tx = self.store.begin().await?;
         let nodes = tx.serving_nodes(&owners).await?;
         let ids: Vec<Uuid> = nodes.iter().map(|n| n.id).collect();
@@ -132,6 +132,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             content: &learned.content,
             churn: &learned.churn,
             dependencies: &needed,
+            mesh: &mesh,
             // Quota is checked at the bind, under the placement lock that holds its totals; the
             // shortlist only asks drivers.
             quota: &[],
