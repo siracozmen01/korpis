@@ -1413,6 +1413,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 165 | A stop whose driver did not answer in time failed the retirement it was part of | §70 | `02-architecture.md` §6 |
 | 166 | The interface listed a verb to resize an object while it runs, and the protocol has none | §70 | `04-runtimes.md` §4.2, §9 |
 | 167 | Dedicated cores were accepted and stored as asked, and nothing held them | §71 | `05-scheduling.md` §5.2; `17-security.md` §5, §13; `20-roadmap.md` §4 |
+| 168 | Devices had a model and no source: nothing said how a node learned them, which were one hardware, or how one reached a driver | §72 | `05-scheduling.md` §6; `01-model.md` §3.4; `04-runtimes.md` §4.1, §4.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -5961,3 +5962,72 @@ added was what a separate kernel with its own filesystem needs, every row of it 
 there but one, the workload's addresses, which that list now names, corrected in place.
 
 All eight steps are built or recorded, and step 2's is refused as the resolution says.
+
+---
+
+## 72. A host gives its customers GPUs, whole and in partitions
+
+Written 2026-10-25, as devices were designed (§6 of `05-scheduling.md`), before any of it is built.
+A host has a machine with two NVIDIA GPUs, the second split into two MIG partitions, and sells
+whole GPUs and partitions to its customers. The trace asks the algebra question of every step:
+what decides it, where, and with what information? It was chosen by the task: §6 had stood since
+the first version as a sketch, and no trace had crossed it.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The host installs the vendor's driver and toolkit, which writes the machine's CDI file | `05-scheduling.md` §6.1; `18-operations.md` §2 |
+| 2 | The agent reads the file and reports GPU 0, GPU 1, and partitions `1:0` and `1:1`, and not `all` | `05-scheduling.md` §6.1; `01-model.md` §3.4 |
+| 3 | A customer declares a workload asking for one GPU in `passthrough` | `01-model.md` §3.3; `05-scheduling.md` §6.3 |
+| 4 | Its organization's quota admits one more `devices.gpu` | `05-scheduling.md` §6.4; `01-model.md` §3.1 |
+| 5 | The filter keeps the node, whose `oci` driver declares the class and the mode, and the bind holds GPU 0 | `05-scheduling.md` §2.1, §6.3; `04-runtimes.md` §4.1 |
+| 6 | The agent fills the spec's device with its edits, and the driver applies them | `04-runtimes.md` §4.2 |
+| 7 | Two more customers each ask for a partition, and hold `1:0` and `1:1` at once | `05-scheduling.md` §6.3 |
+| 8 | A fourth asks for a whole GPU, and is told none is free | `05-scheduling.md` §6.3, §2.3 |
+| 9 | The host re-partitions GPU 1, and the toolkit does not rewrite the file | `05-scheduling.md` §6.3; `research/evidence.md` §5 |
+| 10 | The control plane is restored from last night's backup | `03-state.md` §8; `05-scheduling.md` §6.3 |
+| 11 | A customer asks for a GPU for a `microvm` workload | `04-runtimes.md` §4.1; `17-security.md` §5 |
+
+Step 2 asks who knows that a node has GPUs, and step 8 who knows that GPU 1 is not free while its
+partitions are held. Before this trace §6 answered neither: it said devices were discrete named
+objects with modes, and nothing said where a node's list came from, by what name a device was
+known, or that one card has several names.
+
+**FINDING 168: Devices had a model and no source: nothing said how a node learned them, which
+were one hardware, or how one reached a driver. `CONFIRMED`, by the trace**
+
+Found 2026-10-25. §6 of `05-scheduling.md` defined a node's devices and a workload's request, and
+no document said what evaluates them with what information. The agent had nothing to read a
+machine's devices from, so `Node.devices` would have been typed in by someone; nothing knew that
+the vendor's file names one GPU by its index and again inside `all`, so three workloads could
+have been given one GPU under three names; nothing carried a held device to the driver, which is
+the one that makes a container see it; and the modes a driver could give were declared for GPUs
+alone (`gpu` in §4.1 of `04-runtimes.md`) while §6 gave every device a mode. The sketch also kept
+the holders of a device on the device, a second ledger beside the placements that hold it.
+
+**Resolution.** A node's devices are those the Container Device Interface's files describe, the
+format GPU vendors already write, read by the agent alone (§6.1 of `05-scheduling.md`). Each is
+known by its CDI name and the host device nodes its own edits give; one whose nodes contain
+another's is the same hardware, and an aggregate of smaller devices is not offered. A placement
+records what it holds (§3.4 of `01-model.md`), so holding, freeing, and restoring follow
+placements; the agent passes each held device's edits to the driver as data (§4.2 of
+`04-runtimes.md`); and `device_modes` replaces `gpu` for every class, corrected in place. What it
+costs: the same hardware is inferred from the files, and a vendor whose partitions name no node of
+their own sees them held one at a time (§6.5 of `05-scheduling.md`).
+
+With the resolution, step 2 reports four devices and leaves `all` out, since its nodes are those of
+GPU 0 and GPU 1 together. Step 5 holds GPU 0 in the binding transaction, and step 7's partitions
+each name GPU 1's node and nodes of their own, so neither contains the other and both are held.
+Step 8 finds GPU 0 held, and GPU 1 contained in each held partition, so the workload stays
+unplaced with that reason. That rests on how NVIDIA's file gives a MIG device, its parent's node
+and nodes of its own, which no file from a real machine has been read to confirm, since no GPU is
+passed through on the machines this project is built on; a file that gives them otherwise is held
+in the rule's safe direction, one at a time. Step 9 is the vendor's gap, which its documentation
+states: the file is not rewritten when partitions change, so the agent reports the old partitions
+until the host regenerates it, a start naming one that no longer exists is refused by the driver,
+and the workload is placed elsewhere (§6.3 there). Step 10 restores holds with the placements
+that record them. Step 11 finds no driver of the `microvm` tier declaring a device class, and the
+workload stays unplaced saying so (§6.5 there).
+
+Steps 1 to 11 are designed, and none is built yet (§4 of `20-roadmap.md`).

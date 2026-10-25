@@ -145,7 +145,8 @@ Capabilities
   runtime_snapshot     SnapshotCaps?      capture execution state, not just disk; null if not
                                           supported, else where a snapshot can be restored
   live_migrate         bool
-  gpu                  []GPUMode          none | passthrough | mediated | timeslice
+  device_modes         []DeviceMode       passthrough | timeslice | mediated, for every class
+                                          in `devices`; was `gpu`, corrected 2026-10-25
   devices              []DeviceClass      gpu | usb | pci | tpm | serial, per tier
   rootfs_sources       []SourceKind       oci_image | directory | disk_image | iso
   network_modes        []NetworkMode      veth | tap | host | none
@@ -253,6 +254,16 @@ that path is `qemu` with VFIO. Without devices in the capability declaration, th
 `microvm + gpu`, places it, and the failure surfaces at apply time. "The control plane asks and
 never assumes" has to cover devices for the same reason it covers everything else in this list.
 
+> Corrected 2026-10-25, when devices were designed (§6 of `05-scheduling.md`, Finding 168 of
+> `23-walkthroughs.md`). The modes a driver gives devices in were declared as `gpu`, for GPUs
+> alone, while §6 of `05-scheduling.md` gives every device a mode; a capture card shared by two
+> workloads had no declaration to rest on. The field is `device_modes`, applying to every class
+> the driver declares, with the same values less `none`, which an empty list says. Nothing had
+> been released, and the wire keeps its number; the schema and the code are renamed when devices'
+> schema is built, the next step of Phase 3 (§4 of `20-roadmap.md`), and say `gpu` until then. The `oci` driver declares `passthrough` and
+> `timeslice` for character devices once devices are built, and the `firecracker` driver no class
+> and no mode.
+
 `config_schema` is the honest part of the abstraction. A VM needs a kernel, a bootloader, and
 cloud-init; a container needs none of those. Core does not model that difference, the driver
 publishes a schema, the recipe and the operator fill it in, and Korpis validates against it without
@@ -301,6 +312,23 @@ The interface has no input to a command yet; an interactive `workload.exec` (§3
 `08-identity.md`) is not built.
 
 Three of these carry more weight than the rest.
+
+**A device reaches a driver as data** (designed 2026-10-25, §6 of `05-scheduling.md`). The agent
+is the node's one reader of the Container Device Interface's files. Before `Create`, as it fills
+in each volume's source, it fills in the spec's devices from what the placement holds: for each,
+its id, class, and mode, and the edits its file says give it, the file's own and the device's,
+merged in that order. A driver never reads the files, so a third party's driver needs no parser
+for them, and `Prepare` still reads its arguments alone. A driver applies a device of a class and
+a mode it declares (§4.1), and refuses at `Create`, before it makes anything, any other, or an edit
+it cannot apply, which is the step's refusal and sends the workload elsewhere (§7 of
+`05-scheduling.md`). The `oci` driver adds each device node to the container with a cgroup rule
+allowing it, its type, numbers, and mode read from the host's node where the edit leaves them out;
+binds each mount with the options the edit gives; appends the environment and the extra groups;
+places each hook at the point it names; and refuses an edit of Intel RDT or of network devices,
+which it does not apply. Its container being in a user namespace, a device node is bound from the
+host rather than made, and opened as the workload's host ids (§6.5 there). The `firecracker`
+driver declares no device. What it costs: a device whose edits a driver cannot apply is found only
+after the bind, and the node is passed over for that target once refused (§2.1 there).
 
 **`Prepare` is pure.** It validates that this driver on this node can satisfy this intent, resolves
 references, and returns either a prepared spec or a rejection with a reason, changing nothing. This

@@ -1264,6 +1264,107 @@ this node have one), in quota (how many may this tenant hold), and in driver cap
 (does this driver support this mode). Passthrough is exclusive; mediated and timeslice are shared
 with declared partitioning.
 
+> Corrected 2026-10-25, when devices were designed in full (Finding 168 of `23-walkthroughs.md`):
+> the sketch above kept `allocated_to` on the node's device, a second record of what placements
+> hold, and §6.3 derives it from placements instead, as `allocated` is; its `kind` is §6.1's
+> `class`, its `model` the device's CDI name and annotations, and its modes a device's own only
+> for sharing, since whether a mode can be given at all is the driver's (§4.1 of
+> `04-runtimes.md`), which declared modes for GPUs alone.
+
+### 6.1 How a node learns its devices
+
+**A node's devices are the ones the Container Device Interface describes, read by its agent**
+(designed 2026-10-25, Phase 3). The Container Device Interface (CDI) is the format accelerator
+vendors already ship: their toolkits write a JSON or YAML file under `/etc/cdi` or `/var/run/cdi`
+naming each device as `vendor.com/class=name`, with the edits a runtime makes to a container's OCI
+spec to give it one: device nodes, mounts, environment, groups, and hooks (§5 of
+`research/evidence.md`). NVIDIA's toolkit generates such a file for a machine's GPUs and their
+partitions, so a host who installs the vendor's driver has what Korpis reads, and nothing of
+Korpis's knows a vendor. The agent reads the spec directories when it starts and when they change,
+reports each device in its facts (`Node.devices`, §3.4 of `01-model.md`), and never writes them.
+containerd reads the same directories only in its CRI plugin, which the `oci` driver does not use,
+so the driver applies a device's edits itself (§4.2 of `04-runtimes.md`).
+
+Each device reported says four things:
+
+- **its id**, the CDI name, unique on its node;
+- **its class**, which CDI does not have: the kind's name where it names a class Korpis knows
+  (`nvidia.com/gpu` is a `gpu`), otherwise the class the operator maps the kind to on the agent
+  (§2 of `18-operations.md`). A device of a kind neither names is not offered, and the node's
+  status lists it as unclassified rather than guessing;
+- **its attributes**, the CDI spec's and device's annotations, which a request's selector matches;
+- **the host device nodes its own edits give**, by which two devices are known to be the same
+  hardware. Only a device's own edits count: the nodes its file gives with every device (NVIDIA's
+  control node) say nothing of which hardware it is. Two devices are the same hardware when one's
+  nodes contain the other's: NVIDIA's file names a GPU as `0` and each MIG partition of it as
+  `0:0` and the like, each partition naming the GPU's node and nodes of its own, so the GPU and
+  any partition of it are one hardware while two partitions are not. A device whose nodes are
+  exactly those of two or more smaller devices of its file, as NVIDIA's `all`, is an aggregate
+  and not offered, since a workload asks for a count instead.
+
+### 6.2 Modes
+
+| Mode | What a holder has | Offered by |
+|---|---|---|
+| `passthrough` | the device, alone, while the workload is placed | a driver declaring the class and the mode: the `oci` driver, for character devices |
+| `timeslice` | the same device as up to `shares` other holders, scheduled by the device's own driver | the operator, per kind, as the number of shares (§2 of `18-operations.md`), and a driver declaring the mode; a kind not shared offers `passthrough` alone |
+| `mediated` | a virtual device a hypervisor partitions the device into (vGPU) | a `vm` driver; none in this release |
+
+A partition the hardware makes itself, as a MIG instance of an NVIDIA GPU, is a CDI device of its
+own, given in `passthrough`. Timeslicing isolates nothing between its holders: their memory on the
+device is not partitioned and one can starve another. That is what a host offering it sells, and
+the explanation of a placement in that mode says so.
+
+### 6.3 Requests, placement, and allocation
+
+A workload asks in its intent (`devices`, §3.3 of `01-model.md`): each request a class, a count, a
+label selector over the devices' attributes and ids, and a mode, `passthrough` when unset. The
+filter keeps a node only where one driver offering the workload's tier declares the class and the
+mode (§4.1 of `04-runtimes.md`) and enough matching devices are free. A device is free for
+`passthrough` when no placement holds it or any device that is the same hardware (§6.1), and for
+`timeslice` when fewer than its shares hold it in that mode and none holds it or the same hardware
+in `passthrough`. The scheduler chooses the devices when it binds, in the same transaction, the
+lowest ids first, and the placement records them (`Placement.devices`): what a node's devices hold
+is derived from its placements, as `allocated` is. So a device is held while its placement is,
+freed with it when the workload is retired or a move releases it, and restored with placements by a
+restore (§8 of `03-state.md`), never a separate ledger that can disagree with them. The assignment
+names the devices a placement holds, and the agent gives them to the driver in the spec (§4.2 of
+`04-runtimes.md`). A device that leaves the node's facts while held, because the vendor's toolkit
+rewrote its file or the card failed, stays held by its placement; the driver refuses the next
+`Prepare` that names it, the refusal is the plan step's (§7), and the scheduler places the workload
+elsewhere. Scoring keeps workloads that ask for no device off nodes that have devices when another
+node will do (the `device fit` signal of §2.2), reading the node's devices rather than what its
+driver could give.
+
+### 6.4 Quota
+
+Each class is a count dimension, `devices.gpu` and the like (§3.1 of `01-model.md`), enforced at
+admission (§5.1): one for each device a workload holds, a `timeslice` share counting one as a
+device in `passthrough` does, since what a quota bounds is how many a tenant holds, and what each
+costs is the host's billing's (Rule K-12).
+
+### 6.5 What it costs, and what it does not do
+
+The CDI files are trusted as the node's own configuration: they are written by the vendor's
+installer as root, and their hooks run as root on the host each time a container holding the device
+is created, which NVIDIA's own file needs. So the agent, the files' one reader (§4.2 of
+`04-runtimes.md`), reads only files owned by root and writable by no one else, in directories the
+same, and passes on a hook only when its program is the same: a device's hooks are host code the
+host chose (§5 of `17-security.md`). Two of CDI's edits are not applied, a device's Intel RDT class
+and the network interfaces it moves into a container, and the driver refuses a device that needs
+either rather than giving it half. A workload in a user namespace (every `container`, §2 of
+`04-runtimes.md`) is given a device node bound from the host, which it opens as its host ids, so a
+node only its group can open (mode 0660, group `video`) cannot be opened by it; NVIDIA's nodes are
+open to all, and a host whose devices are not sets their mode with a udev rule. Which devices are
+the same hardware is inferred from the files (§6.1): a vendor whose partitions name no node of
+their own has them seen as one device, held one at a time, which errs toward giving less and never
+toward two holders of one; and a device whose own edits give no node at all cannot be told apart
+from any other and is not offered. Devices are not metered yet (question 11 of §10). A `microvm` is
+given no device, since Firecracker has no PCI passthrough (§4.1 of `04-runtimes.md`), and a `vm`
+driver with VFIO, the path for one, is not built. And no real GPU has been given to a workload on
+any machine this project is built on, whose GPU is never passed through: what is tested is a
+stand-in device of a CDI file of the test's own (§4 of `20-roadmap.md`).
+
 ---
 
 ## 7. When a node cannot satisfy an intent
@@ -1458,3 +1559,8 @@ estimates what a rebalance would achieve. It does not act.
     **Resolved in §2.2, 2026-10-15:** loss events, each time the sweep marks a node unreachable
     while it holds workloads, one event however many; crashes do not count; remembered with a
     half-life of a day and forgotten after a week.
+11. **Metering devices.** A device held is a resource a host prices, and the meter records none
+    (§2 of `15-observability.md`): whether a held device is metered by the time it is held or by
+    what the device's own driver reports it used, and whether a `timeslice` share is metered as a
+    fraction, decide what a GPU host can bill from Korpis's records. Added 2026-10-25, when
+    devices were designed (§6.5). → `15-observability.md`

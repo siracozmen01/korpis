@@ -665,6 +665,33 @@ Primary:
   `--seccomp-filter` (`firecracker --help` as installed, read 2026-10-25). The `firecracker`
   driver passes neither. Why §5 of `../17-security.md` counts the filters in the `microvm` row as
   built.
+- **[V]** The Container Device Interface specification, version 1.1.0
+  ([SPEC.md](https://github.com/cncf-tags/container-device-interface/blob/main/SPEC.md), read
+  2026-10-25): a JSON file names a vendor's `kind` (`vendor.com/name`) and its devices, each with
+  `containerEdits` applied only when it is requested, beside the file's own edits applied when any
+  of its devices is; the edits are environment, device nodes (path, host path, type, numbers,
+  mode, cgroup permissions, owner), mounts, hooks at an OCI hook point run with an absolute path,
+  additional groups, Intel RDT, and network devices moved into the container; loading fails on an
+  unknown field. Why a node's devices are read from such files and their edits passed to the
+  driver as data (§6.1 of `../05-scheduling.md`, §4.2 of `../04-runtimes.md`).
+- **[V]** containerd v2.4.2 sets `cdi_spec_dirs = ['/etc/cdi', '/var/run/cdi']` only under its
+  CRI runtime plugin (`containerd config default`, read 2026-10-25 on this machine), so a client
+  of containerd's own API, as the `oci` driver is, has no CDI device applied for it. Why the edits
+  are applied by the driver (§4.2 of `../04-runtimes.md`).
+- **[V]** NVIDIA's Container Toolkit, from v1.18.0, generates its CDI file at
+  `/var/run/cdi/nvidia.yaml` by a systemd service, `nvidia-cdi-refresh`, when the toolkit or the
+  GPU driver is installed or upgraded, and not when MIG partitions are reconfigured; the file
+  names `nvidia.com/gpu=all`, each GPU by index (`nvidia.com/gpu=0`), and each MIG device as
+  `nvidia.com/gpu=1:0` ([CDI support](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html),
+  read 2026-10-25). Why §6.1 of `../05-scheduling.md` treats a device whose nodes contain
+  another's as one hardware and an aggregate as not offered.
+- **[R]** CVE-2024-0132: NVIDIA's Container Toolkit up to v1.16.1, in its default configuration,
+  had a time-of-check, time-of-use flaw letting a crafted image escape its container to the host;
+  the use of CDI was reported not affected
+  ([The Register](https://www.theregister.com/2024/09/26/critical_nvidia_bug_container_escape/),
+  [Wiz](https://www.wiz.io/blog/wiz-research-critical-nvidia-ai-vulnerability)). NVIDIA's
+  bulletin could not be read from here, hence [R]. Why §5 of `../17-security.md` counts a
+  device's toolkit among the host code a device brings.
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a

@@ -312,7 +312,10 @@ verdict and writes the report as JSON. Rule D's validation of the driver interfa
 separate kernel with its own filesystem needs, each foreseen by §4.3 there but the workload's
 addresses. The suite's isolation cases, the escape attempts §8 there requires, stay in this phase
 and are held for the maintainer's design (2026-10-24): until they are built, a driver's
-conformance says nothing of its isolation, and the suite's report says so.
+conformance says nothing of its isolation, and the suite's report says so. Devices, including
+GPUs, are designed (§6 of `05-scheduling.md`, trace 72 of `23-walkthroughs.md`): a node's are those
+the Container Device Interface's files describe, held by placements, and given to a driver as
+edits; none of it is built yet.
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -472,7 +475,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-one traces and their 167 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-two traces and their 168 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

@@ -161,6 +161,8 @@ Quota dimensions
   dedicated_ipv4  count        exclusive, never overcommitted; IPv6 is not counted
   node_ports    count          ports of a node held by node_port and node_bound endpoints;
                                exclusive (§3 of 07-networking.md)
+  devices.<class>  count       devices held, one each, a timeslice share counting one (§6.4 of
+                               05-scheduling.md); added 2026-10-25
 ```
 
 **Invariants**
@@ -456,6 +458,9 @@ Intent
   console       none | logs | interactive
   runtime       RuntimeSpec    driver + isolation tier + driver-specific config
   resources     ResourceSpec   cpu, memory, disk, io, bandwidth (§5.2 of 05-scheduling.md)
+  devices       []DeviceRequest  class, count, selector, mode: passthrough | timeslice |
+                               mediated, passthrough when unset (§6.3 of 05-scheduling.md);
+                               added 2026-10-25
   volumes       []VolumeSpec
   endpoints     []EndpointSpec
   health        HealthSpec
@@ -931,6 +936,7 @@ Node
   allocatable   Resources      capacity minus system reserve (§2.1 of 05-scheduling.md)
   allocated     Resources      sum of what its placements reserve
   drivers       []DriverInfo   which runtime drivers this node offers, with capabilities
+  devices       []Device       the devices its agent found described, below; added 2026-10-25
   storage_classes []StorageClassInfo  the classes its helper provides, with what each can do
                                (§2 of 06-storage.md)
   reachability  public | edge_only    whether inbound traffic can reach it directly (§9 of
@@ -975,6 +981,25 @@ rack", "different power feed", "has NVMe", or "EU only", a label selector expres
 driver can send signals, exec into a running workload, attach an interactive console, hot-resize,
 snapshot, or live-migrate. The scheduler asks; it never assumes (Rule K-9).
 
+```
+Device
+  id            string         its Container Device Interface name, vendor.com/kind=name;
+                               unique on its node
+  class         gpu | usb | pci | tpm | serial
+  attributes    map[str]str    its CDI annotations, which a request's selector matches
+  host_nodes    []string       the host device nodes its own edits give; a device whose nodes
+                               contain another's is the same hardware (§6.1 of
+                               05-scheduling.md)
+  shares        int            how many workloads may hold it at once in `timeslice`; 0 offers
+                               `passthrough` alone
+```
+
+**A device is a fact of its node, and what holds it is a fact of placements.** The agent reports
+the devices the Container Device Interface's files describe on its machine (§6.1 of
+`05-scheduling.md`), as it reports its capacity, and a device carries no record of who holds it:
+`Placement.devices` does, so a node's held devices are derived as its `allocated` is. Added
+2026-10-25, when devices were designed.
+
 **Lifecycle**
 
 ```
@@ -1010,6 +1035,8 @@ Placement
   node          NodeID
   intent        IntentID        the approved intent it was bound for
   reserved      Resources       that intent's reservations, held on the node
+  devices       []DeviceHold    the node's devices it holds, each an id and a mode, chosen when
+                                it was bound (§6.3 of 05-scheduling.md); added 2026-10-25
   tier          IsolationTier   the tier it runs at, from the target it was bound with
   region        string          the node's `region` label, which every reader of the workload
                                 sees though not every reader may see the node (§8 of
@@ -1035,6 +1062,8 @@ Placement
   trusts. Detail in `05-scheduling.md`.
 - A node's `allocated` is the sum of `reserved` over its placements, authoritative or not: during a
   migration both nodes hold the workload's capacity.
+- A device is held in `passthrough` by at most one placement, counting every device that is the
+  same hardware, and in `timeslice` by at most its `shares` (§6.3 of `05-scheduling.md`).
 
 ---
 
