@@ -339,22 +339,27 @@ translates what arrives without adding the address. One holder at a time is the 
 members forwarding one address at once, which ECMP's row needs, is question 14 of §11.
 
 *The tunnel, which keeps the client's address.* Edges are members of the mesh (§9.1), since they
-are nodes; a node behind NAT dials the edges it is paired with, which is why `stable` needs only
-an outbound tunnel of a node (§9). The holder translates a new connection's destination, the
-stable address and port, into the workload's address and port, and carries it to the workload's
-node over GRE inside the mesh: one GRE link per pair of an edge and a node its group forwards to,
-from the pool's last address on each side, which no workload is ever given (§4.1) and which the
-helper puts on `korpis-overlay` as the node's own address in the mesh. GRE carries IPv4 and IPv6
-alike in one link, and its outer header is from the edge's own pool, which WireGuard's allowed IPs
-accept as authentically the edge's, while the inner one keeps the client's address, which WireGuard
-alone would refuse (§5 of `research/evidence.md`). The workload's node takes from an edge's GRE
-link only connections to the ports its group forwards to that node's workloads, marks each with the
-edge it came through, and routes the replies back into that edge's link by the mark; the edge
-reverses the translation and replies from the stable address. So the workload sees the client's
-own address over TCP and UDP (§3.4). Direct server return, detected per node and never assumed
-(§3.4), is not built with the first build of edges, and replies cross the edge. What it costs: 24
-bytes of each packet, so TCP's segment size is clamped to the GRE link's MTU, 1,396, as it is into
-the mesh; a link per pair on each side; and a conntrack entry per flow on the holder (question 1).
+are nodes; a node behind NAT dials the edges it is paired with, which is why `stable` needs only an
+outbound tunnel of a node (§9). The holder translates a new connection's destination, the stable
+address and port, into the workload's address and port, and carries it to the workload's node over
+GRE inside the mesh: one GRE link per pair of an edge and a node its group forwards to, from the
+pool's last address on each side, which no workload is ever given (§4.1) and which the helper puts
+on `korpis-overlay` as the node's own address in the mesh. GRE carries IPv4 and IPv6 alike in one
+link, and its outer header is from the edge's own pool, which WireGuard's allowed IPs accept as
+authentically the edge's, while the inner one keeps the client's address, which WireGuard alone
+would refuse (§5 of `research/evidence.md`). The workload's node takes from an edge's GRE link only
+connections to the ports its group forwards to that node's workloads, marks each with the edge it
+came through, and routes the replies back into that edge's link by the mark; the edge reverses the
+translation and replies from the stable address. Each packet arriving through a link carries the
+link's mark before it is routed, and the kernel checks its source by that mark, which finds the way
+back into the link; the link's arrivals are themselves routed by the main table alone, and refused
+where it has no route. The helper leaves the host's own reverse-path setting as it is, strict or
+loose, and both pass, where a link with no address of its own and a client's source fails either
+without the mark (Finding 191). So the workload sees the client's own address over TCP and UDP
+(§3.4). Direct server return, detected per node and never assumed (§3.4), is not built with the
+first build of edges, and replies cross the edge. What it costs: 24 bytes of each packet, so TCP's
+segment size is clamped to the GRE link's MTU, 1,396, as it is into the mesh; a link per pair on
+each side; and a conntrack entry per flow on the holder (question 1).
 
 *The lease.* An address held by an edge is fenced as a workload is (§4.5 of `02-architecture.md`):
 the member acquires and renews it by request, its term runs from the send on the holder's side and
@@ -447,6 +452,21 @@ as the mesh's peers are. Tested over the API with two members and a node behind 
 yet: the nodes' forwarding, the GRE links, the leases, the probe and failover, the refusal, the
 ingress through the group, HTTP/3, and `stable` resolved to a cluster pool's address (P3.7c to
 P3.7e).
+
+Built 2026-10-26, the nodes' forwarding (P3.7c): the helper's `KeepOverlay` takes the node's mesh
+address and its part in the groups' table, puts the address on `korpis-overlay`, keeps a GRE link
+to each node it tunnels with and no other, and on a member translates each address, transport, and
+port to its workload, marking what goes to another node into that node's link, refuses every other
+packet to an address it holds with a TCP reset or an ICMP port unreachable, and puts each held
+address on its interface; on the node behind, it accepts GRE from each edge's mesh address alone,
+admits from each link only what that edge may reach, marks each such connection with its link, and
+routes the replies back into it. The agent builds that part from the control plane's table, IPv4
+alone, with a probe translation of its own first advertised address. Tested in network namespaces
+with both nodes checking sources strictly and the node behind with no default route: a client
+reaches the workload at the held address and port, which sees the client's own address; a port
+without a target and a port no endpoint holds are refused at once; a port the node was not told to
+admit is not reached; and the address is taken off when no longer held. Not built yet: the leases,
+the probe and failover (P3.7d), and the rest of P3.7e, with IPv6 forwarding through the links.
 
 ### 3.2 `ingress`: name-based routing
 

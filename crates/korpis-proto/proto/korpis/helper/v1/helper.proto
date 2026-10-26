@@ -777,6 +777,57 @@ message KeepOverlayRequest {
   // address, to a port of its dependency's endpoint (§9.1 of docs/07-networking.md). Nothing
   // else arriving on the interface reaches a workload.
   repeated OverlayAdmitted admitted = 3;
+  // This node's own address in the mesh, the last of its IPv4 pool, which no workload is given:
+  // put on the interface, and the local end of every GRE link to and from an edge (§3.1 of
+  // docs/07-networking.md). Empty for none, and then no links are kept. Added 2026-10-26.
+  string mesh_address = 4;
+  // What this node forwards and holds as a member of edge groups, and what edges forward to it.
+  EdgeTable edges = 5;
+}
+
+// The node's part in edge groups (§3.1 of docs/07-networking.md), kept whole by every call.
+message EdgeTable {
+  // The other end of every GRE link kept, by its mesh address: each node this member forwards
+  // to, and each edge forwarding to this node. Every other link is removed.
+  repeated string tunnels = 1;
+  // As a member: each address, transport, and port translated.
+  repeated EdgeTranslation translations = 2;
+  // As a member: each address this node holds now, put on its interface and announced; every
+  // packet to one of them that no translation takes is refused.
+  repeated EdgeHold holds = 3;
+  // As a node behind edges: what each may reach here through its link.
+  repeated EdgeAdmit admits = 4;
+}
+
+// One address, transport, and port a member translates.
+message EdgeTranslation {
+  string address = 1;
+  uint32 port = 2;
+  Transport transport = 3;
+  // The mesh address of the node it is carried to, whose GRE link it enters; empty where it is
+  // this node's own workload.
+  string via = 4;
+  // The workload's address and port; empty, and the port refused, where it runs nowhere.
+  string to_address = 5;
+  uint32 to_port = 6;
+}
+
+// An address a member holds.
+message EdgeHold {
+  string address = 1;
+  // The interface it is put on and answered for, where its pool is on a link the members share;
+  // empty where a router sends it here, when it is put on the loopback.
+  string interface = 2;
+}
+
+// What one edge may reach of this node through its GRE link.
+message EdgeAdmit {
+  // The edge's mesh address, the other end of the link.
+  string source = 1;
+  // A workload's address on this node, or this node's mesh address for the probe.
+  string destination = 2;
+  uint32 port = 3;
+  Transport transport = 4;
 }
 
 // One dependent on another node, admitted to one endpoint of a workload on this node.

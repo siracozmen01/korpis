@@ -40,10 +40,7 @@ impl Session {
     ) -> Vec<agent::AgentMessage> {
         match m.message {
             Some(Down::AssignmentSet(set)) => self.hold(&set).into_iter().collect(),
-            Some(Down::InSync(_)) => {
-                let _ = self.events.send(Event::InSync);
-                Vec::new()
-            }
+            Some(Down::InSync(_)) => self.event(Event::InSync),
             Some(Down::JournalAck(ack)) => shipped(shipper.acknowledged(ack.seq).await),
             Some(Down::RevocationList(list)) => {
                 self.revocations(&list);
@@ -53,10 +50,8 @@ impl Session {
                 self.name_relays(&r);
                 Vec::new()
             }
-            Some(Down::Peers(p)) => {
-                let _ = self.events.send(Event::Peers(*p));
-                Vec::new()
-            }
+            Some(Down::Peers(p)) => self.event(Event::Peers(*p)),
+            Some(Down::Edges(e)) => self.event(Event::Edges(*e)),
             Some(Down::TokenKeys(keys)) => {
                 self.keys_in_force(&keys);
                 Vec::new()
@@ -96,6 +91,12 @@ impl Session {
             }
             None => Vec::new(),
         }
+    }
+
+    /// Passes `e` on to the agent's loops; nothing to send in answer.
+    fn event(&self, e: Event) -> Vec<agent::AgentMessage> {
+        let _ = self.events.send(e);
+        Vec::new()
     }
 
     /// Keeps one data connection to each relay `r` names, the control plane's own address

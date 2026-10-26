@@ -7,6 +7,10 @@
 
 mod addresses;
 mod links;
+mod policy;
+mod tunnels;
+
+pub(crate) use policy::MarkRule;
 
 use netlink_packet_core::{
     NLM_F_ACK, NLM_F_CREATE, NLM_F_EXCL, NLM_F_REPLACE, NLM_F_REQUEST, NetlinkHeader,

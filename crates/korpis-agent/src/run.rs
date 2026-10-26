@@ -192,7 +192,9 @@ fn overlay<H: Host + Clone>(
     let Some(pools) = options.network else { return (None, facts) };
     let nets = std::iter::once(pools.ipv4.to_string()).chain(pools.ipv6.map(|p| p.to_string()));
     let port = options.overlay_port;
-    let (overlay, reported) = Overlay::new(host.clone(), state.root(), (port, nets.collect()));
+    let advertised = facts().advertised.addresses;
+    let at = (port, nets.collect());
+    let (overlay, reported) = Overlay::new(host.clone(), state.root(), at, advertised);
     (Some(overlay), with_overlay(facts, reported))
 }
 

@@ -9,6 +9,7 @@
 //! of that, only the dependents the agent names reach a workload, each its own endpoint.
 
 mod admit;
+mod edge;
 #[cfg(test)]
 mod tests;
 mod wg;
@@ -166,7 +167,7 @@ impl Overlay {
         &self,
         r: &helper::KeepOverlayRequest,
     ) -> HelperResult<helper::KeepOverlayResponse> {
-        let (peers, admitted) = (peers(r)?, admit::admitted(r)?);
+        let (peers, admitted, edges) = (peers(r)?, admit::admitted(r)?, edge::table(r)?);
         let port = u16::try_from(r.port)
             .ok()
             .filter(|p| *p > 0)
@@ -192,7 +193,10 @@ impl Overlay {
         wg.set(device(private, port, (&peers, &stale))).map_err(failed)?;
         rtnl.set_up(index).map_err(failed)?;
         routes(&mut rtnl, index, &peers).map_err(failed)?;
-        crate::network::nft::apply(&admit::rules(&admitted)).map_err(failed)?;
+        let links = edge::keep(&mut rtnl, index, &edges).map_err(failed)?;
+        let (setup, input_before, forward, input) = edge::rules(&edges, &links);
+        let edge_rules = admit::EdgeRules { setup, input_before, forward, input };
+        crate::network::nft::apply(&admit::rules(&admitted, edge_rules)).map_err(failed)?;
         let device = wg.get(INTERFACE).map_err(failed)?;
         Ok(answer(&device))
     }

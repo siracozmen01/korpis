@@ -75,9 +75,20 @@ fn replies() -> Value {
         "right": ["established", "related"]}})
 }
 
+/// The rules edges add (§3.1 of docs/07-networking.md): their own chains, sets, and rules; the
+/// rules of the mesh's input chain ahead of its drop; and those of its forward and input chains
+/// for what arrives by an edge's link.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct EdgeRules {
+    pub(crate) setup: Vec<Value>,
+    pub(crate) input_before: Vec<Value>,
+    pub(crate) forward: Vec<Value>,
+    pub(crate) input: Vec<Value>,
+}
+
 /// Every rule of the mesh's admission, written whole in one transaction: the chains and the set
-/// made if missing and emptied, then filled with what `admitted` names.
-pub(crate) fn rules(admitted: &[Admitted]) -> Value {
+/// made if missing and emptied, then filled with what `admitted` names, with what `edges` adds.
+pub(crate) fn rules(admitted: &[Admitted], edges: EdgeRules) -> Value {
     let from = || is("iifname", INTERFACE);
     let mut commands = vec![
         json!({"add": {"table": {"family": "inet", "name": TABLE}}}),
@@ -112,6 +123,7 @@ pub(crate) fn rules(admitted: &[Admitted]) -> Value {
     ]});
     let listed = json!({"match": {"op": "==", "left": key, "right": format!("@{SET}")}});
     let counted = |verdict: &str| [json!({"counter": null}), json!({ verdict: null })];
+    commands.extend(edges.setup);
     commands.extend([
         rule(FORWARD, None, vec![is("oifname", INTERFACE), syn, clamp]),
         rule(FORWARD, None, vec![from(), replies(), json!({"accept": null})]),
@@ -122,8 +134,11 @@ pub(crate) fn rules(admitted: &[Admitted]) -> Value {
         ),
         rule(FORWARD, Some("overlay"), [vec![from()], counted("drop").to_vec()].concat()),
         rule(INPUT, None, vec![from(), replies(), json!({"accept": null})]),
-        rule(INPUT, Some("overlay"), [vec![from()], counted("drop").to_vec()].concat()),
     ]);
+    commands.extend(edges.input_before);
+    commands.push(rule(INPUT, Some("overlay"), [vec![from()], counted("drop").to_vec()].concat()));
+    commands.extend(edges.forward);
+    commands.extend(edges.input);
     json!({"nftables": commands})
 }
 
@@ -149,9 +164,10 @@ mod tests {
         assert_eq!((asked[0].transport, asked[0].port), ("tcp", 5432));
         assert!(admitted(&request(0, helper::Transport::TRANSPORT_TCP)).is_err());
         assert!(admitted(&request(5432, helper::Transport::TRANSPORT_UNSPECIFIED)).is_err());
-        let text = rules(&asked).to_string();
+        let text = rules(&asked, EdgeRules::default()).to_string();
         assert!(text.contains(r#"{"concat":["10.48.4.2","10.48.0.3","tcp",5432]}"#), "{text}");
         assert!(text.contains(r#""comment":"overlay""#) && text.contains(r#""drop":null"#));
-        assert!(!rules(&[]).to_string().contains(r#""element""#), "none listed, none added");
+        let none = rules(&[], EdgeRules::default()).to_string();
+        assert!(!none.contains(r#""element""#), "none listed, none added");
     }
 }

@@ -12,7 +12,7 @@ use std::io;
 use std::net::IpAddr;
 
 /// A route's destination as an address.
-fn destination(a: &RouteAddress) -> Option<IpAddr> {
+pub(super) fn destination(a: &RouteAddress) -> Option<IpAddr> {
     match a {
         RouteAddress::Inet(v4) => Some(IpAddr::V4(*v4)),
         RouteAddress::Inet6(v6) => Some(IpAddr::V6(*v6)),

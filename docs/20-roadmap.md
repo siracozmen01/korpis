@@ -276,7 +276,8 @@ held by one member under a lease with an epoch and forwarded by every member to 
 over GRE inside the mesh, the client's address kept, each member's liveness probed by the control
 plane through its forwarding path, and the group's ingress served by its members. Built 2026-10-26,
 its control plane's half: groups, edge pools, the allocation of a `stable` endpoint's address and
-port at placement, the `edge` placement check, and each node's table, tested over the API. The
+port at placement, the `edge` placement check, and each node's table, tested over the API; and the
+nodes' forwarding, the GRE links, and the refusal, tested in network namespaces. The
 overlay (§9 of `07-networking.md`), so a dependency can cross nodes; designed 2026-10-25 as a
 WireGuard mesh of every node, each with a pool of its own (§9.1 there, trace 74 of
 `23-walkthroughs.md`); each node's pool given at enrollment, the mesh's interfaces, the peers each
@@ -517,7 +518,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-eight traces and their 190 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-eight traces and their 191 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

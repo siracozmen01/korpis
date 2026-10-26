@@ -1454,6 +1454,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 188 | An edge's tunnel kept the player's address inside WireGuard, which drops a source outside the sender's pools | §78 | `07-networking.md` §3.1, §3.4 |
 | 189 | Liveness through the forwarding path was required and nothing could measure it | §78 | `07-networking.md` §3.1 |
 | 190 | The dependents of a failed edge were made a state their nodes cannot observe | §78 | `07-networking.md` §3.1 |
+| 191 | The node behind an edge took connections its own reverse-path check refuses | §78 | `07-networking.md` §3.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6703,3 +6704,18 @@ Steps 1, 2, and 4 are built 2026-10-26 (P3.7b) and tested over the API: the grou
 reseller's node, the pool refusing a group of another organization, `arena` placed on A because it
 reaches both members, its game's TCP port and its query's UDP port sharing 25565 at `198.51.100.2`
 with no port of A held, and E1 told the table with A's mesh address while A is told both members'.
+Step 5 is built 2026-10-26 (P3.7c) and tested in namespaces, where building it found the step the
+design had left to the kernel (Finding 191).
+
+**Finding 191.** §3.1 of `07-networking.md` had the workload's node take each connection from an
+edge's GRE link and mark it for its replies, and said nothing of the kernel's check of a packet's
+source. A packet arriving through the link has the player's address as its source, which A's main
+table routes out of its uplink, or nowhere on a node without a default route, so the strict check
+refuses it; and the link has no IPv4 address of its own, for which the kernel's loose check
+refuses it too. Turning the check off on the link alone does not answer it, since the kernel takes
+the stricter of the link's setting and the host's, and the host's is the operator's. Found when the
+namespace test's SYN reached A's link and no further, counted as a reverse-path drop. Resolved in
+§3.1 there: each packet arriving through a link is given the link's mark before it is routed, the
+kernel checks its source by the mark, which finds the route back into the link, and the link's
+arrivals are routed by the main table alone, so the mark never sends them back. What it costs: two
+routing rules per link, and a mark on each packet a link brings.

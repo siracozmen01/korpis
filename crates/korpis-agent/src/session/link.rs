@@ -64,6 +64,8 @@ pub enum Event {
     /// The mesh's other members, as the control plane named them (§9.1 of
     /// docs/07-networking.md).
     Peers(agent::Peers),
+    /// What the node is told of edges (§3.1 of docs/07-networking.md).
+    Edges(agent::Edges),
     /// The stream ended, and why.
     Disconnected(String),
 }

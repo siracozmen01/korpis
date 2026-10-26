@@ -8,6 +8,8 @@
 //! handshake, is what the node reports, from which the control plane judges which pairs reach
 //! each other.
 
+mod edges;
+
 use crate::durable;
 use crate::held::HeldSet;
 use crate::host::Host;
@@ -34,8 +36,10 @@ const PEERS: &str = "overlay-peers.binpb";
 pub struct Overlay<H> {
     host: H,
     peers: PathBuf,
+    edges: PathBuf,
     port: u16,
     pools: Vec<String>,
+    advertised: Vec<String>,
     kept: watch::Sender<Option<agent::OverlayFacts>>,
 }
 
@@ -68,10 +72,12 @@ fn admitted(held: &HeldSet) -> Vec<helper::OverlayAdmitted> {
     out
 }
 
-/// The request that keeps the interface to `peers` on `port`, admitting `admitted`.
+/// The request that keeps the interface to `peers` on `port`, admitting `admitted`, with the
+/// node's part in edge groups as `edges` tells it (§3.1 of docs/07-networking.md), the node
+/// advertising `own`.
 fn request(
-    port: u16,
-    peers: &agent::Peers,
+    (port, own): (u16, &[String]),
+    (peers, edges): (&agent::Peers, &agent::Edges),
     admitted: Vec<helper::OverlayAdmitted>,
 ) -> helper::KeepOverlayRequest {
     let peers = peers.peers.iter().map(|p| helper::OverlayPeer {
@@ -84,6 +90,8 @@ fn request(
         port: u32::from(port),
         peers: peers.collect(),
         admitted,
+        mesh_address: edges.mesh_address.clone(),
+        edges: edges::table(edges, own).into(),
         ..Default::default()
     }
 }
@@ -106,14 +114,29 @@ fn facts(port: u16, pools: &[String], kept: helper::KeepOverlayResponse) -> agen
 
 impl<H: Host> Overlay<H> {
     /// The mesh of the node whose state is at `state`, on `port`, its workloads' `pools` its
-    /// allowed IPs; and what it reports, as it changes.
+    /// allowed IPs, the node advertising `advertised`; and what it reports, as it changes.
     pub fn new(
         host: H,
         state: &std::path::Path,
         (port, pools): (u16, Vec<String>),
+        advertised: Vec<String>,
     ) -> (Self, watch::Receiver<Option<agent::OverlayFacts>>) {
         let (kept, reported) = watch::channel(None);
-        (Self { host, peers: state.join(PEERS), port, pools, kept }, reported)
+        let (peers, edges) = (state.join(PEERS), state.join(edges::EDGES));
+        (Self { host, peers, edges, port, pools, advertised, kept }, reported)
+    }
+
+    /// The table of edges last told; none before the first.
+    fn edges_told(&self) -> agent::Edges {
+        let read = std::fs::read(&self.edges).ok();
+        read.and_then(|b| buffa::Message::decode_from_slice(&b).ok()).unwrap_or_default()
+    }
+
+    /// Keeps the table of edges `e` on disk, for the next pass and the next start.
+    fn told_edges(&self, e: &agent::Edges) {
+        if let Err(e) = durable::replace(&self.edges, &buffa::Message::encode_to_vec(e)) {
+            tracing::warn!(error = %e, "the edges' table could not be kept on disk");
+        }
     }
 
     /// The members last named; none before the first.
@@ -125,7 +148,9 @@ impl<H: Host> Overlay<H> {
     /// Keeps the interface to the members last named, admitting `admitted`, and publishes what
     /// the node reports.
     async fn keep(&self, admitted: Vec<helper::OverlayAdmitted>) {
-        match self.host.keep_overlay(&request(self.port, &self.named(), admitted)).await {
+        let told = (&self.named(), &self.edges_told());
+        let asked = request((self.port, &self.advertised), told, admitted);
+        match self.host.keep_overlay(&asked).await {
             Ok(kept) => {
                 let reported = facts(self.port, &self.pools, kept);
                 self.kept.send_if_modified(|held| {
@@ -170,6 +195,10 @@ impl<H: Host> Overlay<H> {
                 e = events.recv() => match e {
                     Ok(Event::Peers(p)) => {
                         self.told(&p);
+                        return Some(());
+                    }
+                    Ok(Event::Edges(e)) => {
+                        self.told_edges(&e);
                         return Some(());
                     }
                     Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
@@ -233,7 +262,7 @@ mod tests {
             }],
             ..Default::default()
         };
-        let asked = request(51820, &named, Vec::new());
+        let asked = request((51820, &[]), (&named, &agent::Edges::default()), Vec::new());
         assert_eq!((asked.port, asked.peers.len()), (51820, 1));
         assert_eq!(asked.peers[0].allowed_ips, ["10.48.4.0/22"]);
         let answer = helper::KeepOverlayResponse {
