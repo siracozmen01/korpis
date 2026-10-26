@@ -17,6 +17,11 @@ use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeSet;
 use std::time::Duration;
 
+/// The machine's last core, which every test here holding a core is given. The kernel lets a CPU
+/// be exclusive to one cgroup among siblings at a time, so a test writing it while another holds
+/// it is refused (`EINVAL`); these tests hold it one at a time.
+pub(crate) static LAST_CORE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 /// A workload that says the CPUs it may run on, as the kernel lists them, and ends when asked.
 fn pinned() -> String {
     let busybox = busybox();
@@ -79,6 +84,7 @@ async fn a_workload_holding_a_core_runs_on_its_cpus_alone_and_frees_them_when_re
     if !live() {
         return;
     }
+    let _core = LAST_CORE.lock().await;
     let cp = ControlPlane::start().await;
     let project = cp.project().await;
     let name = "cores-1";

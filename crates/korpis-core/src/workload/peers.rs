@@ -97,7 +97,7 @@ pub struct Routes<'a> {
 pub enum LeftOut {
     /// It is not placed.
     NotPlaced,
-    /// Its node has not observed it at an address yet.
+    /// Its node does not observe it starting, running, or stopping at an address now.
     NotObserved,
     /// It runs on a node the rule's node routes nothing of its to: a node outside the mesh, or
     /// the rule's node is outside it. It reaches the endpoint, if at all, translated, which no
@@ -111,7 +111,7 @@ impl LeftOut {
     pub fn reason(self) -> &'static str {
         match self {
             Self::NotPlaced => "it is not placed",
-            Self::NotObserved => "its node has not observed it at an address yet",
+            Self::NotObserved => "its node does not observe it running at an address now",
             Self::Unrouted => {
                 "it runs on a node this one routes nothing of its to, outside the mesh or not \
                  paired with it"

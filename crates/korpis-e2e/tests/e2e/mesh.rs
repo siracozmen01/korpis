@@ -177,8 +177,15 @@ async fn unadmitted_is_dropped((there, there_ns): (&Node, &Netns), here_ns: &Net
     assert!(there_ns.run(&["ip", "addr", "add", &format!("{spoofed}/32"), "dev", "lo"]));
     let before = counted(here_ns, "overlay_forward", "overlay");
     let net = format!("--net={}", there_ns.path().display());
-    assert!(fetched(&net, to, Some(&spoofed)).await.is_empty(), "not admitted");
-    assert!(counted(here_ns, "overlay_forward", "overlay") > before, "dropped, and counted");
+    // A loaded machine may hold the first attempt behind the mesh's handshake, past its timeout:
+    // every attempt is refused, and one of them is counted where it is dropped.
+    for _ in 0..10 {
+        assert!(fetched(&net, to, Some(&spoofed)).await.is_empty(), "not admitted");
+        if counted(here_ns, "overlay_forward", "overlay") > before {
+            return;
+        }
+    }
+    panic!("dropped, and counted");
 }
 
 #[tokio::test]

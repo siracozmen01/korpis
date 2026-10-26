@@ -1403,6 +1403,14 @@ that node's address; no rule naming workloads matches either.
 > workload's network failed and it never ran, whatever the rest of its rules. The helper now
 > reads a rule's range as a range, which may be every address of its family; a pool still may
 > not be. Nothing else in the declaration and the node's reading of a rule differed.
+>
+> Corrected again 2026-10-26 (Finding 184 of `23-walkthroughs.md`, from an automated security
+> review of the commit that built it). A matched workload was named at the addresses its node
+> last observed, whatever it was doing: a workload observed stopped, crashed, or unsatisfiable
+> still had its last address named, though nothing promised its node had not let that address go.
+> A matched workload is now named only while its node observes it starting, running, or stopping,
+> when its network is made and it may send, and is otherwise left out as not observed. What it
+> costs: a deny drops nothing from a workload while it is not running, which then sends nothing.
 
 ---
 

@@ -21,6 +21,15 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// `workload` observed running at `address`, its `game` endpoint ready, down `s`.
 pub(crate) async fn running_at(s: &mut Stream, workload: &str, address: &str) {
+    observed_at(s, (workload, address), pb::ObservedState::OBSERVED_STATE_RUNNING).await;
+}
+
+/// `workload` observed in `state` at `address`, its `game` endpoint ready, down `s`.
+pub(crate) async fn observed_at(
+    s: &mut Stream,
+    (workload, address): (&str, &str),
+    state: pb::ObservedState,
+) {
     let since = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let o = pb::Observation {
         workload: workload.to_owned(),
@@ -29,7 +38,7 @@ pub(crate) async fn running_at(s: &mut Stream, workload: &str, address: &str) {
             ..Default::default()
         }
         .into(),
-        state: pb::ObservedState::OBSERVED_STATE_RUNNING.into(),
+        state: state.into(),
         address: address.to_owned(),
         endpoints: vec![pb::EndpointStatus {
             name: "game".into(),

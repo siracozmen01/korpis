@@ -1447,6 +1447,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 181 | A spent egress budget reached a running workload's network only when it was next created | §76 | `05-scheduling.md` §5.1 |
 | 182 | Rules naming workloads were deferred for a reason their own definitions contradict | §76 | `07-networking.md` §6 |
 | 183 | A rule on every address of a family was accepted at declaration and refused by every node | §76 | `07-networking.md` §6 |
+| 184 | A rule named a matched workload's last observed address whatever the workload was doing | §76 | `07-networking.md` §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6529,6 +6530,14 @@ and it never ran. The trace asked what each rule decides and not whether the nod
 which is the question a declaration that a node then refuses should have raised. Resolved in §6
 of `07-networking.md`: a rule's range is read as a range, which may be every address of its
 family. What it costs: nothing.
+
+**Finding 184.** Found by an automated security review of the commit that built the rules,
+asking of step 8 what the control plane takes as a workload's address: its node's last
+observation, whatever the workload was doing then. Step 8's argument held for the window between
+a change and the node being told, which an observation's own announcement bounds; it did not
+cover a workload observed stopped or crashed, whose address its node had no promise to keep.
+Resolved in §6 of `07-networking.md`: a matched workload is named only while it is observed
+starting, running, or stopping. What it costs: nothing a running workload notices.
 
 Steps 2 to 8 are built (P3.5a to P3.5c in §4 of `20-roadmap.md`), and tested where step 3 and
 step 6 meet: on one node, `web` reaches `db` and `report`, let out by its dependency, does not.

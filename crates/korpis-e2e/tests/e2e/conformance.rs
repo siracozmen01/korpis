@@ -84,6 +84,8 @@ fn args(pairs: &[(&str, &Path)]) -> Vec<OsString> {
 fn conforms(dir: &Path, fixture: &Fixture, name: &str) {
     let (file, json) = (dir.join("fixture.json"), dir.join("report.json"));
     std::fs::write(&file, fixture.to_json().unwrap()).unwrap();
+    // The suite gives an object the machine's last core, as another test may meanwhile.
+    let _core = crate::cores::LAST_CORE.blocking_lock();
     let status = Command::new(built("korpis-driver-conformance", "korpis-driver-conformance"))
         .arg("--fixture")
         .arg(&file)

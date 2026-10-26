@@ -4,9 +4,10 @@
 //! control plane's half: a database's endpoint rule naming the workloads labelled `role=web` is
 //! resolved, for the database's node, to the address the web application's node observed it at,
 //! in that node's own pool, and is sent in the database's assignment; and the database's status
-//! says what the rule matched and what it names at no address.
+//! says what the rule matched and what it names at no address. A workload observed stopped is
+//! named no longer.
 
-use crate::across::{assigned_once, running_at};
+use crate::across::{assigned_once, observed_at, running_at};
 use crate::agent::TestAgent;
 use crate::dependencies::{declare, one_endpoint, placement};
 use crate::mesh::{opened, side};
@@ -76,4 +77,11 @@ async fn a_rule_naming_workloads_names_the_addresses_its_node_routes_to_them() {
     let shown = got.status.into_option().unwrap().named_rules;
     assert_eq!(shown[0].matched, std::slice::from_ref(&web.id));
     assert!(shown[0].left_out.is_empty(), "{:?}", shown[0].left_out);
+
+    // Stopped, it is no longer named: its node may give its address to another workload
+    // (Finding 184 of docs/23-walkthroughs.md).
+    let stopped = pb::ObservedState::OBSERVED_STATE_STOPPED;
+    observed_at(&mut other, (&web.id, address), stopped).await;
+    let told = assigned_once(&h, &db.id, |a| a.peers.iter().all(|p| p.addresses.is_empty())).await;
+    assert_eq!(told.peers.len(), 1, "the rule is still told, naming no one");
 }

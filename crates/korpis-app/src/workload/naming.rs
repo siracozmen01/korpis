@@ -10,6 +10,7 @@ use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store};
 use crate::workload::Members;
 use korpis_core::workload::Workload;
+use korpis_core::workload::observation::ObservedState;
 use korpis_core::workload::peers::{Located, Resolved, Routes, naming_workloads, resolve};
 use korpis_core::workload::spec::IntentBody;
 use std::net::IpAddr;
@@ -31,9 +32,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut located = Vec::with_capacity(held.len());
         for (other, _) in &held {
             let placed = self.store.placement(other.id).await?.map(|p| p.node);
-            // Only what its node observes where it is placed now: an address it held elsewhere
-            // before is another workload's, or no one's.
-            let seen = self.store.observation(other.id).await?.filter(|o| Some(o.node) == placed);
+            // Only what its node observes where it is placed now, and while its network is made
+            // and it may send: an address it held elsewhere, or before, may be another
+            // workload's now, or no one's (Finding 184 of docs/23-walkthroughs.md).
+            let seen = self.store.observation(other.id).await?.filter(|o| {
+                Some(o.node) == placed
+                    && matches!(
+                        o.state,
+                        ObservedState::Starting | ObservedState::Running | ObservedState::Stopping
+                    )
+            });
             let addresses: Vec<IpAddr> = seen
                 .map(|o| {
                     o.address.map(IpAddr::V4).into_iter().chain(o.address_ipv6.map(IpAddr::V6))
