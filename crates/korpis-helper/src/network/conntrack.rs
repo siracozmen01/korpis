@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The kernel's connection tracking, read and pruned over its netlink family: every IPv4
+//! The kernel's connection tracking, read and pruned over its netlink family: every IPv4 and IPv6
 //! connection with the tuples it began and is answered with, and a connection forgotten by its
 //! original tuple. An edge forgets the connections of an address it stops holding and of a port
 //! whose target moved, so a UDP flow, which a client keeps alive with every datagram, is not
@@ -9,7 +9,7 @@
 use netlink_sys::protocols::NETLINK_NETFILTER;
 use netlink_sys::{Socket, SocketAddr};
 use std::io;
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 /// The connection-tracking subsystem's messages, and the two used here.
 const CTNETLINK: u16 = 1 << 8;
@@ -28,17 +28,20 @@ const CTA_TUPLE_IP: u16 = 1;
 const CTA_TUPLE_PROTO: u16 = 2;
 const CTA_IP_V4_SRC: u16 = 1;
 const CTA_IP_V4_DST: u16 = 2;
+const CTA_IP_V6_SRC: u16 = 3;
+const CTA_IP_V6_DST: u16 = 4;
 const CTA_PROTO_NUM: u16 = 1;
 const CTA_PROTO_SRC_PORT: u16 = 2;
 const CTA_PROTO_DST_PORT: u16 = 3;
 const AF_INET: u8 = 2;
+const AF_INET6: u8 = 10;
 
 /// One direction of a connection as conntrack keys it; the ports are zero for a protocol
 /// without them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Tuple {
-    pub(crate) source: (Ipv4Addr, u16),
-    pub(crate) destination: (Ipv4Addr, u16),
+    pub(crate) source: (IpAddr, u16),
+    pub(crate) destination: (IpAddr, u16),
     pub(crate) protocol: u8,
 }
 
@@ -75,9 +78,12 @@ fn find<'a>(attrs: &[(u16, &'a [u8], &'a [u8])], kind: u16) -> Option<&'a [u8]> 
     attrs.iter().find(|(k, _, _)| *k == kind).map(|(_, p, _)| *p)
 }
 
-fn ipv4(payload: Option<&[u8]>) -> Option<Ipv4Addr> {
-    let octets: [u8; 4] = payload?.try_into().ok()?;
-    Some(Ipv4Addr::from(octets))
+/// The address of `ip`, a tuple's addresses, that is `v4` or `v6` of its family.
+fn address(ip: &[(u16, &[u8], &[u8])], (v4, v6): (u16, u16)) -> Option<IpAddr> {
+    if let Some(p) = find(ip, v4) {
+        return <[u8; 4]>::try_from(p).ok().map(|o| IpAddr::V4(Ipv4Addr::from(o)));
+    }
+    <[u8; 16]>::try_from(find(ip, v6)?).ok().map(|o| IpAddr::V6(Ipv6Addr::from(o)))
 }
 
 fn port(payload: Option<&[u8]>) -> u16 {
@@ -89,9 +95,11 @@ fn tuple(payload: &[u8]) -> Option<Tuple> {
     let attrs = attributes(payload);
     let ip = attributes(find(&attrs, CTA_TUPLE_IP)?);
     let proto = attributes(find(&attrs, CTA_TUPLE_PROTO)?);
+    let source = address(&ip, (CTA_IP_V4_SRC, CTA_IP_V6_SRC))?;
+    let destination = address(&ip, (CTA_IP_V4_DST, CTA_IP_V6_DST))?;
     Some(Tuple {
-        source: (ipv4(find(&ip, CTA_IP_V4_SRC))?, port(find(&proto, CTA_PROTO_SRC_PORT))),
-        destination: (ipv4(find(&ip, CTA_IP_V4_DST))?, port(find(&proto, CTA_PROTO_DST_PORT))),
+        source: (source, port(find(&proto, CTA_PROTO_SRC_PORT))),
+        destination: (destination, port(find(&proto, CTA_PROTO_DST_PORT))),
         protocol: *find(&proto, CTA_PROTO_NUM)?.first()?,
     })
 }
@@ -122,11 +130,12 @@ impl Conntrack {
         Ok(Self { socket, seq: 0 })
     }
 
-    /// Sends a message of `kind` with `flags` and `body`, and gives each message answering it,
-    /// as its type and what follows its header, to `each`, until the kernel is done or acks.
+    /// Sends a message of `kind` with `flags` and `body` for the address `family`, and gives each
+    /// message answering it, as its type and what follows its header, to `each`, until the
+    /// kernel is done or acks.
     fn exchange(
         &mut self,
-        (kind, flags): (u16, u16),
+        (kind, flags, family): (u16, u16, u8),
         body: &[u8],
         mut each: impl FnMut(u16, &[u8]) -> io::Result<()>,
     ) -> io::Result<()> {
@@ -138,7 +147,7 @@ impl Conntrack {
         message.extend_from_slice(&flags.to_ne_bytes());
         message.extend_from_slice(&self.seq.to_ne_bytes());
         message.extend_from_slice(&0_u32.to_ne_bytes());
-        message.extend_from_slice(&[AF_INET, 0, 0, 0]);
+        message.extend_from_slice(&[family, 0, 0, 0]);
         message.extend_from_slice(body);
         self.socket.send(&message, 0)?;
         loop {
@@ -186,20 +195,24 @@ impl Conntrack {
         Ok(false)
     }
 
-    /// Every IPv4 connection the kernel tracks.
+    /// Every IPv4 and IPv6 connection the kernel tracks.
     pub(crate) fn connections(&mut self) -> io::Result<Vec<Connection>> {
         let mut out = Vec::new();
-        self.exchange((GET, NLM_F_REQUEST | NLM_F_DUMP), &[], |_, body| {
-            out.extend(connection(body));
-            Ok(())
-        })?;
+        for family in [AF_INET, AF_INET6] {
+            self.exchange((GET, NLM_F_REQUEST | NLM_F_DUMP, family), &[], |_, body| {
+                out.extend(connection(body));
+                Ok(())
+            })?;
+        }
         Ok(out)
     }
 
     /// Forgets `c`; one gone already is no error.
     pub(crate) fn forget(&mut self, c: &Connection) -> io::Result<()> {
         let body = c.raw.clone();
-        match self.exchange((DELETE, NLM_F_REQUEST | NLM_F_ACK), &body, |_, _| Ok(())) {
+        let family = if c.original.source.0.is_ipv4() { AF_INET } else { AF_INET6 };
+        let asked = (DELETE, NLM_F_REQUEST | NLM_F_ACK, family);
+        match self.exchange(asked, &body, |_, _| Ok(())) {
             Err(e) if e.raw_os_error() == Some(libc::ENOENT) => Ok(()),
             other => other,
         }

@@ -12,17 +12,17 @@ use crate::network::nft::TABLE;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io;
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::process::Command;
 
 /// A translated port, as conntrack keys it: the address, the port, and the IP protocol.
-type Port = (Ipv4Addr, u16, u8);
+type Port = (IpAddr, u16, u8);
 
 /// What the member translated and held before its table was rewritten.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Before {
-    held: BTreeSet<Ipv4Addr>,
-    translated: BTreeMap<Port, (Ipv4Addr, u16)>,
+    held: BTreeSet<IpAddr>,
+    translated: BTreeMap<Port, (IpAddr, u16)>,
 }
 
 fn protocol(transport: &str) -> u8 {
@@ -56,7 +56,7 @@ fn matched<'a>(expr: &'a [Value], field: &str) -> Option<(&'a str, &'a Value)> {
 
 /// The translation one rule of the member's chain makes. The listing folds the rule's match on
 /// the transport into the match on the port where it can, naming the port `udp dport`.
-fn translation(rule: &Value) -> Option<(Port, (Ipv4Addr, u16))> {
+fn translation(rule: &Value) -> Option<(Port, (IpAddr, u16))> {
     let expr = rule.pointer("/rule/expr")?.as_array()?;
     let address = matched(expr, "daddr")?.1.as_str()?.parse().ok()?;
     let (by, port) = matched(expr, "dport")?;
@@ -76,12 +76,16 @@ fn translation(rule: &Value) -> Option<(Port, (Ipv4Addr, u16))> {
 /// # Errors
 /// `nft` could not be run, or its listing was not JSON.
 pub(crate) fn listed() -> io::Result<Before> {
-    let held = listing(&["set", "inet", TABLE, HELD])?
-        .iter()
-        .filter_map(|i| i.pointer("/set/elem").and_then(Value::as_array).cloned())
-        .flatten()
-        .filter_map(|e| e.as_str()?.parse().ok())
-        .collect();
+    let mut held = BTreeSet::new();
+    for set in HELD {
+        held.extend(
+            listing(&["set", "inet", TABLE, set])?
+                .iter()
+                .filter_map(|i| i.pointer("/set/elem").and_then(Value::as_array).cloned())
+                .flatten()
+                .filter_map(|e| e.as_str()?.parse::<IpAddr>().ok()),
+        );
+    }
     let translated =
         listing(&["chain", "inet", TABLE, PREROUTING])?.iter().filter_map(translation).collect();
     Ok(Before { held, translated })

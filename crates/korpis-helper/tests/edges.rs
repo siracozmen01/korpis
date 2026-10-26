@@ -20,77 +20,15 @@
     reason = "a failing test should fail loudly, and a skipped one should say so"
 )]
 
+mod common;
+
+use common::{Netns, capable, wire};
 use korpis_helper::overlay::Overlay;
 use korpis_proto::korpis::helper::v1 as helper;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
-use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
-
-/// A network namespace of the test's own, removed when dropped.
-struct Netns(String);
-
-impl Netns {
-    fn new(name: String) -> Self {
-        assert!(ip(&["netns", "add", &name]), "netns {name}");
-        assert!(ip(&["-n", &name, "link", "set", "lo", "up"]));
-        Self(name)
-    }
-
-    fn path(&self) -> PathBuf {
-        Path::new("/run/netns").join(&self.0)
-    }
-
-    /// `args` run inside it; whether they succeeded.
-    fn run(&self, args: &[&str]) -> bool {
-        let mut all = vec!["netns", "exec", &self.0];
-        all.extend_from_slice(args);
-        ip(&all)
-    }
-
-    /// `f` run on a thread inside it.
-    fn within<T: Send + 'static>(&self, f: impl FnOnce() -> T + Send + 'static) -> T {
-        let path = self.path();
-        std::thread::spawn(move || {
-            let ns = std::fs::File::open(path).unwrap();
-            rustix::thread::move_into_link_name_space(
-                std::os::fd::AsFd::as_fd(&ns),
-                Some(rustix::thread::LinkNameSpaceType::Network),
-            )
-            .unwrap();
-            f()
-        })
-        .join()
-        .unwrap()
-    }
-
-    fn keep(&self, o: &Overlay, r: helper::KeepOverlayRequest) -> helper::KeepOverlayResponse {
-        let o = o.clone();
-        self.within(move || o.keep(&r).unwrap())
-    }
-}
-
-impl Drop for Netns {
-    fn drop(&mut self) {
-        let _ = ip(&["netns", "del", &self.0]);
-    }
-}
-
-fn ip(args: &[&str]) -> bool {
-    Command::new("ip").args(args).output().is_ok_and(|o| o.status.success())
-}
-
-/// A veth from `a` to `b`, each end named and addressed as given, both up.
-fn wire(a: (&Netns, &str, &str), b: (&Netns, &str, &str)) {
-    assert!(ip(&[
-        "link", "add", a.1, "netns", &a.0.0, "type", "veth", "peer", "name", b.1, "netns", &b.0.0
-    ]));
-    for (ns, link, addr) in [a, b] {
-        assert!(ns.run(&["ip", "addr", "add", addr, "dev", link]));
-        assert!(ns.run(&["ip", "link", "set", link, "up"]));
-    }
-}
 
 /// The edge translating `port` of the stable address to the workload's, through the node.
 fn translated(port: u32) -> helper::EdgeTranslation {
@@ -177,24 +115,6 @@ fn node(edge_key: &[u8]) -> helper::KeepOverlayRequest {
 fn connect(client: &Netns, port: u16) -> std::io::Result<()> {
     let to = SocketAddr::from(([198, 18, 1, 10], port));
     client.within(move || TcpStream::connect_timeout(&to, Duration::from_secs(2)).map(|_| ()))
-}
-
-fn capable(ns: &Netns) -> bool {
-    let wg = ns.run(&["ip", "link", "add", "kedg-wg", "type", "wireguard"])
-        && ns.run(&["ip", "link", "del", "kedg-wg"]);
-    let gre = ns.run(&[
-        "ip",
-        "link",
-        "add",
-        "kedg-gre",
-        "type",
-        "gre",
-        "local",
-        "198.18.0.1",
-        "remote",
-        "198.18.0.2",
-    ]) && ns.run(&["ip", "link", "del", "kedg-gre"]);
-    wg && gre
 }
 
 /// A UDP socket bound to `at` inside `ns`, reading for two seconds at most.

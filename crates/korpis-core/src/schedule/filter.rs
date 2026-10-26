@@ -281,9 +281,11 @@ fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Ref
 }
 
 /// A workload with a `dedicated_ip` endpoint holds one address, which a node may hold only where
-/// a pool of that node's organization reaches it (§3.7 of docs/07-networking.md).
+/// a pool of that node's organization reaches it (§3.7 of docs/07-networking.md); so does one
+/// whose `stable` endpoints are routed, at a `cluster` pool's address (§3.1 there).
 fn dedicated(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
-    let asked = req.body.endpoints.iter().any(|e| e.exposure == Exposure::DedicatedIp);
+    let asked =
+        req.routed || req.body.endpoints.iter().any(|e| e.exposure == Exposure::DedicatedIp);
     (asked && !req.dedicated.contains(&c.node.id)).then(|| {
         let why = "no address pool serving it reaches this node with an address it may hold";
         (Check::DedicatedIp, why.to_owned())

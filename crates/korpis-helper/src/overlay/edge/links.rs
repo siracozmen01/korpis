@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the node's part in edge groups keeps outside nftables: its mesh address on the mesh's
+//! What the node's part in edge groups keeps outside nftables: its mesh addresses on the mesh's
 //! interface, a GRE link to each node it tunnels with and no other, the rules and routes that
 //! send a member's translated packets into the right link and a node's replies back into the
 //! link they came by, and the addresses a member holds on their interfaces.
 
-use super::{EDGE_MARK, HELD_ON, LINKS, MTU, SOURCE_MARK, Table, link_name};
+use super::{EDGE_MARK, HELD_ON, LINKS, MESH_TABLE, MTU, SOURCE_MARK, Table, link_name};
 use crate::network::announce::announce;
 use crate::network::nft::TABLE;
 use crate::network::rtnl::{MarkRule, Rtnl};
@@ -80,7 +80,7 @@ fn routing(t: &Table, links: &BTreeMap<Ipv4Addr, (String, u32)>) -> Wanted {
         .filter_map(|tr| {
             let (to, _) = tr.to?;
             let (_, index) = links.get(&tr.via?)?;
-            Some(((IpAddr::V4(to), 32), *index))
+            Some(((to, if to.is_ipv4() { 32 } else { 128 }), *index))
         })
         .collect();
     if !carried.is_empty() {
@@ -90,7 +90,8 @@ fn routing(t: &Table, links: &BTreeMap<Ipv4Addr, (String, u32)>) -> Wanted {
     for a in &t.admits {
         if let Some((_, index)) = links.get(&a.source) {
             let mark = SOURCE_MARK | (index & 0xffff);
-            let back = vec![((IpAddr::from([0, 0, 0, 0]), 0), *index)];
+            let any = [IpAddr::from([0_u8; 4]), IpAddr::from([0_u16; 8])];
+            let back = any.into_iter().map(|a| ((a, 0), *index)).collect();
             out.insert(mark, (MarkRule { mark, mask: EXACT, table: mark }, back));
         }
     }
@@ -123,29 +124,31 @@ fn keep_routing(rtnl: &mut Rtnl, wanted: &Wanted) -> io::Result<()> {
     Ok(())
 }
 
-/// The addresses the helper put on interfaces for a member's holds, as the host table lists them.
-fn held_before() -> io::Result<Vec<(Ipv4Addr, String)>> {
-    let out = Command::new("nft").args(["-j", "list", "set", "inet", TABLE, HELD_ON]).output()?;
-    if !out.status.success() {
-        return Ok(Vec::new());
-    }
-    let listing: Value = serde_json::from_slice(&out.stdout).map_err(io::Error::other)?;
-    let items = listing.get("nftables").and_then(Value::as_array).cloned().unwrap_or_default();
-    let elems = items.iter().filter_map(|i| i.pointer("/set/elem").and_then(Value::as_array));
-    Ok(elems
-        .flatten()
-        .filter_map(|e| {
+/// The addresses the helper put on interfaces for a member's holds, as the host table lists
+/// them in its set of each family.
+fn held_before() -> io::Result<Vec<(IpAddr, String)>> {
+    let mut held = Vec::new();
+    for set in HELD_ON {
+        let out = Command::new("nft").args(["-j", "list", "set", "inet", TABLE, set]).output()?;
+        if !out.status.success() {
+            continue;
+        }
+        let listing: Value = serde_json::from_slice(&out.stdout).map_err(io::Error::other)?;
+        let items = listing.get("nftables").and_then(Value::as_array).cloned().unwrap_or_default();
+        let elems = items.iter().filter_map(|i| i.pointer("/set/elem").and_then(Value::as_array));
+        held.extend(elems.flatten().filter_map(|e| {
             let pair = e.pointer("/concat")?.as_array()?;
             let address = pair.first()?.as_str()?.parse().ok()?;
             Some((address, pair.get(1)?.as_str()?.to_owned()))
-        })
-        .collect())
+        }));
+    }
+    Ok(held)
 }
 
 /// Announces `address`, just put on link `index`, to the link's neighbours. An announcement that
 /// cannot be sent is logged: the address is held, and the neighbours learn it as their entries
 /// for its last holder go stale.
-fn announced(rtnl: &mut Rtnl, index: u32, address: Ipv4Addr) {
+fn announced(rtnl: &mut Rtnl, index: u32, address: IpAddr) {
     let sent = rtnl.link_address(index).and_then(|mac| announce(index, &mac, address));
     if let Err(e) = sent {
         tracing::warn!(%address, error = %e, "a held address was not announced");
@@ -158,15 +161,15 @@ pub(crate) struct Kept {
     /// Each GRE link by the mesh address at its other end, with its name and index.
     pub(crate) links: BTreeMap<Ipv4Addr, (String, u32)>,
     /// The held addresses the helper put on their interfaces, and so takes off again.
-    pub(crate) owned: Vec<(Ipv4Addr, String)>,
+    pub(crate) owned: Vec<(IpAddr, String)>,
 }
 
 /// Puts each address `t` holds on its interface, and takes off each the helper put on one
 /// before that `t` no longer holds there; what it put on, and so owns. An address the interface
 /// had already, which the helper did not put there, is the operator's: it is left as it is,
 /// held or not, and never taken off.
-fn keep_holds(rtnl: &mut Rtnl, t: &Table) -> io::Result<Vec<(Ipv4Addr, String)>> {
-    let wanted: Vec<(Ipv4Addr, String)> =
+fn keep_holds(rtnl: &mut Rtnl, t: &Table) -> io::Result<Vec<(IpAddr, String)>> {
+    let wanted: Vec<(IpAddr, String)> =
         t.holds.iter().map(|h| (h.address, h.interface.clone())).collect();
     let before = held_before()?;
     for (address, interface) in &before {
@@ -194,6 +197,39 @@ fn keep_holds(rtnl: &mut Rtnl, t: &Table) -> io::Result<Vec<(Ipv4Addr, String)>>
     Ok(owned)
 }
 
+/// The node's own mesh addresses sending where the main table has no route, to the mesh's
+/// interface `overlay` by the table of [`MESH_TABLE`]: the answer to an edge's probe has the
+/// prober's address as its destination, which a node without a default route of that family,
+/// as many are for IPv6, cannot route at all, and the answer's mark, which the output's route
+/// hook restores from its connection, can send it into the link its probe came by only once a
+/// first route was found. A packet from those addresses no connection marks goes into the mesh,
+/// whose peers take nothing they were not given.
+fn keep_mesh_fallback(rtnl: &mut Rtnl, overlay: u32, t: &Table) -> io::Result<()> {
+    let wanted: Vec<IpAddr> =
+        t.mesh.map(IpAddr::V4).into_iter().chain(t.mesh6.map(IpAddr::V6)).collect();
+    for from in rtnl.source_rules()? {
+        if !wanted.contains(&from) {
+            rtnl.delete_source_rule(from, MESH_TABLE)?;
+        }
+    }
+    let any = [IpAddr::from([0_u8; 4]), IpAddr::from([0_u16; 8])].map(|a| (a, 0));
+    for (dest, index) in rtnl.table_routes(MESH_TABLE)? {
+        if wanted.is_empty() || index != overlay || !any.contains(&dest) {
+            rtnl.delete_table_route(MESH_TABLE, dest, index)?;
+        }
+    }
+    if wanted.is_empty() {
+        return Ok(());
+    }
+    for dest in any {
+        rtnl.put_table_route(MESH_TABLE, dest, overlay)?;
+    }
+    for from in wanted {
+        rtnl.add_source_rule(from, MESH_TABLE)?;
+    }
+    Ok(())
+}
+
 /// Keeps everything `t` asks for outside nftables, the mesh's interface being link `overlay`.
 ///
 /// # Errors
@@ -202,6 +238,10 @@ pub(crate) fn keep(rtnl: &mut Rtnl, overlay: u32, t: &Table) -> io::Result<Kept>
     if let Some(mesh) = t.mesh {
         rtnl.add_host_address(overlay, mesh)?;
     }
+    if let Some(mesh) = t.mesh6 {
+        rtnl.add_host_address(overlay, mesh)?;
+    }
+    keep_mesh_fallback(rtnl, overlay, t)?;
     let links = tunnels(rtnl, t)?;
     keep_link_rules(rtnl, &links.values().map(|(name, _)| name).collect::<Vec<_>>())?;
     keep_routing(rtnl, &routing(t, &links))?;

@@ -98,6 +98,7 @@ fn request(
         peers: peers.collect(),
         admitted,
         mesh_address: edges.mesh_address.clone(),
+        mesh_address_v6: edges.mesh_address_v6.clone(),
         edges: edges::table(edges, own, holding).into(),
         ..Default::default()
     }

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT node_id FROM node_colocated WHERE until > $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "node_colocated",
+            "name": "node_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a85625fde4f3ea9f41eea853d6476a5a9465a4191ca5ecf6c672e1c968df25f1"
+}

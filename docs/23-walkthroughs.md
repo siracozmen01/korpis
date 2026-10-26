@@ -1458,6 +1458,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 192 | GRE spoofing an edge's mesh address reached its link from the node's own network | §78 | `07-networking.md` §3.1 |
 | 193 | A member taking its hold off removed an address the operator had put on the interface | §78 | `07-networking.md` §3.1 |
 | 194 | A routed edge address was to be held without being added, leaving its other ports to the routing table | §78 | `07-networking.md` §3.1 |
+| 195 | A node's answer to a probe needed a route of its family before its mark could send it back | §78 | `07-networking.md` §3.1 |
+| 196 | Refusing everything at a held IPv6 address refused the neighbour discovery that keeps it reached | §78 | `07-networking.md` §3.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6717,7 +6719,14 @@ display, the endpoint unreached with its group named (Finding 190). Step 7's rou
 router moves, is built the same day (P3.7e1) and tested over the API with a router of the test's
 own: asked for the member granted the lease, failing when the lease moves with the endpoint shown
 unreached for it, and asked again until it routes the address to the new holder; building it found
-the document and the helper disagreeing on how a routed address is held (Finding 194).
+the document and the helper disagreeing on how a routed address is held (Finding 194). Steps 3 and
+5 for an IPv6 address, and step 6 for its probe, are built the same day (P3.7e2) and tested in
+namespaces, a client on a link of IPv6 alone reaching the workload through the IPv4 mesh, and end
+to end on real nodes, where the client reaches the server at its IPv6 stable address before and
+after the holder loses power; building them found the probe's answer unroutable on a node with no
+route of its family (Finding 195) and the refusal at a held address refusing neighbour discovery
+(Finding 196). Step 2's alternative, a workload no group serves reached at a `cluster` pool's
+address its router moves, is built the same day (P3.7e3) and tested over the API.
 
 **Finding 191.** §3.1 of `07-networking.md` had the workload's node take each connection from an
 edge's GRE link and mark it for its replies, and said nothing of the kernel's check of a packet's
@@ -6761,3 +6770,23 @@ delivered it, where step 9 requires it refused at once. Resolved in §3.1 there:
 routed address to its loopback and announces nothing, so every port of it is the holder's own and
 judged by its table of targets. What it costs: nothing the static pool does not already pay, an
 address on an interface of the member while it holds the lease.
+
+**Finding 195.** Found building IPv6 stable addresses (P3.7e2), whose probe was the first to be
+answered in namespaces by a node with no default route of its family. §3.1 of
+`07-networking.md` had the node answering a probe route its reply into the edge's link by the
+mark its connection carries; but the reply is addressed to the prober, and the kernel restores the
+mark, and routes the packet again by it, only in a hook that runs once a first route was found.
+A node whose main table has no route to the prober, as many have none for IPv6, fails the send
+before any mark is read, so its edges' probes fail and every address it serves looks unreached.
+Resolved in §3.1 there: a node's own mesh addresses are routed, where the main table has no route,
+by a table of Korpis's own whose default is the mesh's interface, a rule after the main table's
+choosing it, so a first route is always found and the mark then sends the answer into its link.
+What it costs: a table and a rule per family; and a packet from a mesh address that no connection
+marks goes into the mesh, whose peers accept nothing they were not given.
+
+**Finding 196.** Found by the same build. §3.1 of `07-networking.md` had a member refuse every
+packet to an address it holds that no translation takes, which for IPv6 includes the unicast
+neighbour solicitations a client sends to confirm the address is still reachable; refused, they
+would end the client's sending to the address after its entry went stale. Resolved in §3.1
+there: neighbour discovery to a held IPv6 address is answered, and everything else not translated
+is refused as before. What it costs: nothing; ARP was never refused, since it is not IP.

@@ -36,7 +36,8 @@ pub struct ProbePlan {
 pub struct ProbeTarget {
     /// The member.
     pub member: Uuid,
-    /// Its own first advertised IPv4 address; none where it advertises none.
+    /// Its own first advertised IPv4 address, or its first IPv6 address where it advertises no
+    /// IPv4 one; none where it advertises none.
     pub own: Option<IpAddr>,
     /// Each address it holds now.
     pub held: Vec<IpAddr>,
@@ -79,9 +80,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut targets = Vec::with_capacity(g.members.len());
         for &member in &g.members {
             let node = self.store.node(member).await?;
-            let own = node
-                .and_then(|n| n.advertised)
-                .and_then(|a| a.addresses.into_iter().find(IpAddr::is_ipv4));
+            let advertised = node.and_then(|n| n.advertised).map(|a| a.addresses);
+            let own = advertised.and_then(|a| {
+                let v4 = a.iter().copied().find(IpAddr::is_ipv4);
+                v4.or_else(|| a.first().copied())
+            });
             let held = addresses
                 .iter()
                 .filter(|a| a.hold.holder(now) == Some(member))

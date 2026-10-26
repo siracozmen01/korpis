@@ -77,7 +77,7 @@ pub(crate) async fn serving(h: &Harness, fabric: Fabric) -> Installed {
     x
 }
 
-fn cluster(key: &str, org: &str) -> pb::CreateAddressPoolRequest {
+pub(crate) fn cluster(key: &str, org: &str) -> pb::CreateAddressPoolRequest {
     let pool = pb::AddressPool {
         organization: org.into(),
         cidr: "203.0.113.0/29".into(),
@@ -104,7 +104,7 @@ fn arena(repo: &str) -> pb::IntentBody {
 }
 
 /// `workload`'s dedicated address as its status shows it, once `until` holds of it.
-async fn shown(
+pub(crate) async fn shown(
     h: &Harness,
     workload: &str,
     until: impl Fn(&pb::DedicatedAddressStatus) -> bool,

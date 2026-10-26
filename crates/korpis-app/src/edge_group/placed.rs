@@ -54,12 +54,21 @@ pub(crate) struct Addressing {
     pub(crate) dedicated: std::collections::BTreeSet<Uuid>,
     /// The group serving its `stable` endpoints, and what they are to hold.
     pub(crate) edge: Option<Serving>,
+    /// Whether, no group serving them, its `stable` endpoints are reached at a `cluster`
+    /// pool's address it holds, which its router moves (§3.1 of docs/07-networking.md).
+    pub(crate) routed: bool,
 }
 
 impl Addressing {
     /// The members of the group serving it; none where none does.
     pub(crate) fn edge_members(&self) -> &[Uuid] {
         self.edge.as_ref().map_or(&[], |e| e.group.members.as_slice())
+    }
+
+    /// Whether a declared `stable` endpoint of it resolves to `stable`: a group serves it, or
+    /// it is routed.
+    pub(crate) fn stable(&self) -> bool {
+        self.edge.is_some() || self.routed
     }
 }
 
@@ -72,9 +81,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         owners: &[Uuid],
         nodes: &[korpis_core::node::Node],
     ) -> Result<Addressing, AppError> {
-        let dedicated = self.dedicated_nodes(tx, (workload, body), owners, nodes).await?;
         let edge = self.edge_serving(tx, (workload, body), owners).await?;
-        Ok(Addressing { dedicated, edge })
+        let routed = edge.is_none()
+            && !stable_endpoints(body).is_empty()
+            && self.routable(tx, workload, owners).await?;
+        let dedicated = self.dedicated_nodes(tx, (workload, body, routed), owners, nodes).await?;
+        Ok(Addressing { dedicated, edge, routed })
     }
 
     /// Records what binding `workload` to `node` gives it: its dedicated address, and its
@@ -86,13 +98,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         (owners, node): (&[Uuid], &korpis_core::node::Node),
         addressing: &Addressing,
     ) -> Result<(), AppError> {
-        self.hold_dedicated(tx, (workload, body), owners, node).await?;
+        self.hold_dedicated(tx, (workload, body, addressing.routed), owners, node).await?;
         self.hold_stable(tx, (workload, body), addressing.edge.as_ref()).await
     }
 
-    /// Whether an edge group serves workloads of `organization`: one of it or an organization
-    /// above it with two members or more and a pool, which is what a plan says a declared
-    /// `stable` endpoint resolves to before a placement allocates its address and port.
+    /// Whether a declared `stable` endpoint of a workload of `organization` resolves to
+    /// `stable`, which is what a plan says before a placement allocates its address: an edge
+    /// group of it or an organization above it with two members or more and a pool serves it,
+    /// or a `cluster` pool of one of them does, at whose address it is routed.
     pub(crate) async fn edge_serves(&self, organization: Uuid) -> Result<bool, AppError> {
         let owners = self.owners(organization).await?;
         for g in self.store.edge_groups_all().await? {
@@ -103,12 +116,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 return Ok(true);
             }
         }
+        let mut tx = self.store.begin().await?;
+        for org in &owners {
+            if tx.address_pools_now(*org).await?.iter().any(AddressPool::is_cluster) {
+                return Ok(true);
+            }
+        }
         Ok(false)
     }
 
-    /// The endpoints of `workload` an edge serves now: those holding an address and port of a
-    /// pool whose group has two members or more.
-    pub(crate) async fn stable_served(&self, workload: Uuid) -> Result<Vec<String>, AppError> {
+    /// The endpoints of `workload`, declared as `body` says, that hold no port of its node for
+    /// being `stable`: those an edge serves now, holding an address and port of a pool whose
+    /// group has two members or more; and, where it serves none, every `stable` one where the
+    /// workload holds a `cluster` pool's address, at which they are routed (§3.1 of
+    /// docs/07-networking.md).
+    pub(crate) async fn stable_served(
+        &self,
+        workload: Uuid,
+        body: &IntentBody,
+    ) -> Result<Vec<String>, AppError> {
         let mut out: Vec<String> = Vec::new();
         for p in self.store.stable_of(workload).await? {
             let pool = self.store.address_pool(p.pool).await?;
@@ -117,6 +143,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             if serves && !out.contains(&p.endpoint) {
                 out.push(p.endpoint);
             }
+        }
+        if out.is_empty() && self.store.dedicated_of(workload).await?.is_some_and(|h| h.cluster) {
+            out = stable_endpoints(body).into_iter().map(|(name, _, _)| name).collect();
         }
         Ok(out)
     }

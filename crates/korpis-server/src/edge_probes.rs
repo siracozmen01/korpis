@@ -103,7 +103,7 @@ async fn round(
     };
     let own = match t.own {
         Some(address) => Ok(probe(address).await),
-        None => Err("it advertises no IPv4 address to be probed at"),
+        None => Err("it advertises no address to be probed at"),
     };
     let mut held = Vec::with_capacity(t.held.len());
     for address in t.held {

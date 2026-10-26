@@ -64,7 +64,9 @@ async function uploadResumed(page: Page): Promise<void> {
   });
   await files.getByLabel("Upload files").setInputFiles(file);
   const asking = files.getByRole("group", { name: "Upload world.bin" });
-  await expect(asking).toContainText("world.bin is there with 2");
+  // What is there already is read through the relay before it is asked about, which a loaded
+  // machine stretches past fifteen seconds as it does the cut above.
+  await expect(asking).toContainText("world.bin is there with 2", { timeout: 60_000 });
   await asking.getByRole("button", { name: "Resume" }).click();
   await expect(files.getByText("Uploaded world.bin.")).toBeVisible({ timeout: 30_000 });
 }

@@ -93,12 +93,15 @@ pub(crate) async fn node_in(cp: &ControlPlane, name: &str, ns: &Netns, address: 
 
 /// What is answered asking for `/` over TCP at `to`, from `source` where one is named, from
 /// inside the network namespace at `net`, read until the server closes, since an answer may come
-/// in more than one segment; empty if nothing answers within two seconds.
+/// in more than one segment; empty if nothing answers within two seconds. An IPv6 address is
+/// written in brackets, `[2001:db8::2]:80`.
 pub(crate) async fn fetched(net: &str, to: &str, source: Option<&str>) -> String {
-    let (host, port) = to.split_once(':').unwrap();
+    let (host, port) = to.rsplit_once(':').unwrap();
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    let family = if host.contains(':') { "socket.AF_INET6" } else { "socket.AF_INET" };
     let bind = source.map(|s| format!(" s.bind(('{s}', 0))\n")).unwrap_or_default();
     let script = format!(
-        "import socket\ngot=b''\ntry:\n s=socket.socket()\n{bind} s.settimeout(2)\n \
+        "import socket\ngot=b''\ntry:\n s=socket.socket({family})\n{bind} s.settimeout(2)\n \
          s.connect(('{host}',{port}))\n s.sendall(b'GET / HTTP/1.0\\r\\n\\r\\n')\n \
          while True:\n  b=s.recv(4096)\n  if not b: break\n  got+=b\nexcept Exception: pass\n\
          print(got.decode(errors='replace'), end='')"

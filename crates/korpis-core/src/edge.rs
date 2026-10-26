@@ -252,5 +252,17 @@ pub fn mesh_address(pools: &[ipnet::IpNet]) -> Option<Ipv4Addr> {
     })
 }
 
+/// A node's own IPv6 address in the mesh: the last of its unique local prefix, which no workload
+/// is ever given either, at which it answers the probe of an IPv6 address an edge forwards to it.
+#[must_use]
+pub fn mesh_address_v6(pools: &[ipnet::IpNet]) -> Option<std::net::Ipv6Addr> {
+    pools.iter().find_map(|p| match p {
+        ipnet::IpNet::V6(v6) if v6.prefix_len() < 127 && (v6.addr().octets()[0] & 0xfe) == 0xfc => {
+            Some(v6.broadcast())
+        }
+        _ => None,
+    })
+}
+
 #[cfg(test)]
 mod tests;

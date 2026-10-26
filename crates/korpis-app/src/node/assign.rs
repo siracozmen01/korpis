@@ -108,7 +108,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(), AppError> {
         a.ids = ids(tx, a.node, a.workload).await?;
         let now = self.clock.now();
-        let edged = self.stable_served(a.workload).await?;
+        let edged = self.stable_served(a.workload, &a.target.body).await?;
         let declared = (&a.target.body, edged.as_slice());
         a.endpoints = endpoints::placed(tx, (a.node, a.workload), declared, range, now).await?;
         a.challenges = tx.challenges_for(a.workload).await?;

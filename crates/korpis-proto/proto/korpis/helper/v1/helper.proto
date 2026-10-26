@@ -783,6 +783,10 @@ message KeepOverlayRequest {
   string mesh_address = 4;
   // What this node forwards and holds as a member of edge groups, and what edges forward to it.
   EdgeTable edges = 5;
+  // This node's own IPv6 address in the mesh, the last of its unique local prefix: put on the
+  // interface beside `mesh_address`, at which the node answers the probe of an IPv6 address an
+  // edge forwards to it. Empty for none. Added 2026-10-26.
+  string mesh_address_v6 = 6;
 }
 
 // The node's part in edge groups (§3.1 of docs/07-networking.md), kept whole by every call.
@@ -792,8 +796,9 @@ message EdgeTable {
   repeated string tunnels = 1;
   // As a member: each address, transport, and port translated.
   repeated EdgeTranslation translations = 2;
-  // As a member: each address this node holds now, put on its interface and announced; every
-  // packet to one of them that no translation takes is refused.
+  // As a member: each address this node holds now, IPv4 or IPv6, put on its interface and
+  // announced; every packet to one of them that no translation takes is refused, but for the
+  // neighbour discovery of an IPv6 one.
   repeated EdgeHold holds = 3;
   // As a node behind edges: what each may reach here through its link.
   repeated EdgeAdmit admits = 4;

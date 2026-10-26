@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO node_colocated (node_id, replica, until)\n         SELECT n, $1, $3 FROM unnest($2::uuid[]) AS n\n             WHERE EXISTS (SELECT 1 FROM node WHERE id = n)\n         ON CONFLICT (node_id, replica) DO UPDATE SET until = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7f23236d539915e079ccf04ad5173c422f0281f21ba7dc56ed1a7527eb5137e4"
+}

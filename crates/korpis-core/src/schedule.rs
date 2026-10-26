@@ -71,10 +71,14 @@ pub struct Request<'a> {
     /// Where it is placed now, and what that placement reserves, when it is re-placed for a
     /// new target.
     pub current: Option<Current<'a>>,
-    /// Whether an edge group serves it with an address and port for each of its `stable`
-    /// endpoints, which decides what a declared `stable` endpoint resolves to and so what it
-    /// needs of a node (§3 and §3.1 of docs/07-networking.md).
+    /// Whether a declared `stable` endpoint of it resolves to `stable`: an edge group serves it
+    /// with an address and port for each, or, none doing, it is `routed`. That decides what such
+    /// an endpoint needs of a node (§3 and §3.1 of docs/07-networking.md).
     pub edge_tier: bool,
+    /// Whether its `stable` endpoints are reached, no edge group serving it, at a `cluster`
+    /// pool's address it holds, which its router moves; a node must then be one it may hold
+    /// that address on, as for a `dedicated_ip` endpoint.
+    pub routed: bool,
     /// That group's members, which a node it is placed on reaches through the mesh; empty where
     /// no group serves it.
     pub edge_members: &'a [Uuid],

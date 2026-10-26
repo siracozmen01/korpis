@@ -12,6 +12,7 @@ use crate::{PgStore, PgTx};
 use korpis_app::ports::{EdgeLeaseRead, EdgeLeaseWrite, StoreError, StoreResult};
 use korpis_core::edge::lease::{Hold, MemberState};
 use korpis_core::edge::probe::{AddressStatus, EdgeRoute};
+use std::collections::BTreeSet;
 use std::net::IpAddr;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -144,9 +145,22 @@ impl EdgeLeaseRead for PgStore {
         .map_err(from_sqlx)?;
         rows.iter().map(status).collect()
     }
+
+    async fn colocated_nodes(&self, now: SystemTime) -> StoreResult<BTreeSet<Uuid>> {
+        super::colocated::nodes(&self.pool, now).await
+    }
 }
 
 impl EdgeLeaseWrite for PgTx {
+    async fn record_colocated(
+        &mut self,
+        replica: Uuid,
+        nodes: &[Uuid],
+        until: SystemTime,
+    ) -> StoreResult<()> {
+        super::colocated::record(self, replica, nodes, until).await
+    }
+
     async fn claim_edge_probes(
         &mut self,
         replica: Uuid,

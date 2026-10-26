@@ -9,8 +9,19 @@
 use super::EdgeGroup;
 use crate::workload::spec::endpoints::Protocol;
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use uuid::Uuid;
+
+/// A node's own addresses in the mesh: the last of its IPv4 pool, from which its GRE links are
+/// made, and the last of its unique local prefix where it has one, at which it answers the probe
+/// of an IPv6 address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Mesh {
+    /// Its IPv4 address in the mesh.
+    pub v4: Ipv4Addr,
+    /// Its IPv6 address in the mesh.
+    pub v6: Option<Ipv6Addr>,
+}
 
 /// Where a forwarded port's workload runs.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,8 +70,8 @@ pub struct Forwarding {
     pub group: Uuid,
     /// The port forwarded for the control plane's probe.
     pub probe_port: u16,
-    /// The node the probe is forwarded to, with its address in the mesh.
-    pub probe: Option<(Uuid, Ipv4Addr)>,
+    /// The node the probe is forwarded to, with its addresses in the mesh.
+    pub probe: Option<(Uuid, Mesh)>,
     /// Every forwarded port.
     pub forwards: Vec<Forward>,
     /// Each address of the group it should hold, with the interface it puts the address on;
@@ -97,28 +108,43 @@ pub type Holding = BTreeMap<IpAddr, (Uuid, String)>;
 /// What one node is told of edges.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct NodeEdges {
-    /// Its own address in the mesh.
-    pub mesh_address: Option<Ipv4Addr>,
+    /// Its own addresses in the mesh.
+    pub mesh: Option<Mesh>,
     /// Each group it is a member of.
     pub groups: Vec<Forwarding>,
     /// Each edge forwarding to it.
     pub sources: Vec<Source>,
 }
 
+/// The mesh's members with their addresses in it, and those sharing a machine and its network
+/// with a control plane, whose answer to a probe that control plane would take locally.
+#[derive(Debug, Clone, Copy)]
+pub struct MeshView<'a> {
+    /// Each member's addresses in the mesh.
+    pub addresses: &'a BTreeMap<Uuid, Mesh>,
+    /// The members a control plane shares its network with.
+    pub colocated: &'a BTreeSet<Uuid>,
+}
+
 /// The node a member forwards its group's probe to: the lowest of the nodes the group forwards to
-/// but itself, or else of its other members, among the mesh's.
+/// but itself, or else of its other members, among the mesh's; one no control plane shares a
+/// network with first, since its answer to that control plane would never cross the link back,
+/// and one that does only where there is no other.
 fn probe_node(
     g: &EdgeGroup,
     member: Uuid,
     entries: &[&Entry],
-    mesh: &BTreeMap<Uuid, Ipv4Addr>,
-) -> Option<(Uuid, Ipv4Addr)> {
+    mesh: MeshView<'_>,
+) -> Option<(Uuid, Mesh)> {
     let targets: BTreeSet<Uuid> =
         entries.iter().filter_map(|e| e.target.as_ref().map(|t| t.node)).collect();
-    let pick = |nodes: &mut dyn Iterator<Item = Uuid>| {
-        nodes.filter(|n| *n != member).find_map(|n| mesh.get(&n).map(|a| (n, *a)))
+    let pick = |apart: bool| {
+        let candidates = targets.iter().copied().chain(g.members.iter().copied());
+        candidates
+            .filter(|n| *n != member && (!apart || !mesh.colocated.contains(n)))
+            .find_map(|n| mesh.addresses.get(&n).map(|a| (n, *a)))
     };
-    pick(&mut targets.into_iter()).or_else(|| pick(&mut g.members.iter().copied()))
+    pick(true).or_else(|| pick(false))
 }
 
 /// What `member` of `g` forwards: every entry of the group, each target with its node's address
@@ -127,21 +153,22 @@ fn probe_node(
 fn forwarding(
     (g, member): (&EdgeGroup, Uuid),
     entries: &[&Entry],
-    mesh: &BTreeMap<Uuid, Ipv4Addr>,
+    view: MeshView<'_>,
     holding: &Holding,
 ) -> Forwarding {
+    let mesh = view.addresses;
     let forwards = entries
         .iter()
         .map(|e| {
             let target = e.target.as_ref().and_then(|t| match mesh.get(&t.node) {
                 _ if t.node == member => Some((t.clone(), None)),
-                Some(a) => Some((t.clone(), Some(*a))),
+                Some(a) => Some((t.clone(), Some(a.v4))),
                 None => None,
             });
             Forward { address: e.address, port: e.port, protocol: e.protocol, target }
         })
         .collect();
-    let probe = probe_node(g, member, entries, mesh);
+    let probe = probe_node(g, member, entries, view);
     let ours = |a: &IpAddr| entries.iter().any(|e| e.address == *a);
     let hold = holding
         .iter()
@@ -166,33 +193,39 @@ fn tunnelled(f: &Forward) -> Option<(Uuid, Admit)> {
 pub fn tables(
     groups: &[EdgeGroup],
     entries: &[Entry],
-    mesh: &BTreeMap<Uuid, Ipv4Addr>,
+    view: MeshView<'_>,
     holding: &Holding,
 ) -> BTreeMap<Uuid, NodeEdges> {
+    let mesh = view.addresses;
     let mut out: BTreeMap<Uuid, NodeEdges> = BTreeMap::new();
     let mut sources: BTreeMap<(Uuid, Uuid), BTreeSet<Admit>> = BTreeMap::new();
     for g in groups.iter().filter(|g| g.serves()) {
         let mine: Vec<&Entry> = entries.iter().filter(|e| e.group == g.id).collect();
         for &m in g.members.iter().filter(|m| mesh.contains_key(m)) {
-            let f = forwarding((g, m), &mine, mesh, holding);
+            let f = forwarding((g, m), &mine, view, holding);
             for (node, admit) in f.forwards.iter().filter_map(tunnelled) {
                 sources.entry((node, m)).or_default().insert(admit);
             }
             if let Some((n, a)) = f.probe {
-                let admit =
-                    Admit { address: IpAddr::V4(a), port: g.probe_port, protocol: Protocol::Udp };
-                sources.entry((n, m)).or_default().insert(admit);
+                let at = std::iter::once(IpAddr::V4(a.v4)).chain(a.v6.map(IpAddr::V6));
+                let admits = at.map(|address| Admit {
+                    address,
+                    port: g.probe_port,
+                    protocol: Protocol::Udp,
+                });
+                sources.entry((n, m)).or_default().extend(admits);
             }
             out.entry(m).or_default().groups.push(f);
         }
     }
     for ((node, edge), admits) in sources {
-        let Some(&mesh_address) = mesh.get(&edge) else { continue };
-        let source = Source { node: edge, mesh_address, admits: admits.into_iter().collect() };
+        let Some(&at) = mesh.get(&edge) else { continue };
+        let source =
+            Source { node: edge, mesh_address: at.v4, admits: admits.into_iter().collect() };
         out.entry(node).or_default().sources.push(source);
     }
     for (node, edges) in &mut out {
-        edges.mesh_address = mesh.get(node).copied();
+        edges.mesh = mesh.get(node).copied();
     }
     out
 }

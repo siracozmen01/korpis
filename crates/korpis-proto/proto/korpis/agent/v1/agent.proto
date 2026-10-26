@@ -539,14 +539,17 @@ message Edges {
   repeated EdgeForwarding groups = 2;
   // Each edge that forwards to a workload of this node, with what it may reach there.
   repeated EdgeSource sources = 3;
+  // This node's own IPv6 address in the mesh, the last of its unique local prefix, at which it
+  // answers the probe of an IPv6 address an edge forwards to it; empty where it has none.
+  string mesh_address_v6 = 4;
 }
 
 // What a member forwards for one group: every address and port of its pools that a `stable`
 // endpoint holds, so a member taking an address over has its forwarding in place.
 message EdgeForwarding {
   string group = 1;
-  // Forwarded over UDP, on the member's own first advertised address and on every address it
-  // holds, to `probe_node`, for the control plane's probe.
+  // Forwarded over UDP, on the member's own first advertised address of each family and on
+  // every address it holds, to `probe_node`, for the control plane's probe.
   uint32 probe_port = 2;
   string probe_node = 3;
   // That node's address in the mesh; empty where it is this node.
@@ -555,6 +558,9 @@ message EdgeForwarding {
   // Each address of the group's pools this member should hold, which it holds once its lease
   // on the address is granted and for as long as it is valid.
   repeated EdgeAddress hold = 6;
+  // The probe node's IPv6 address in the mesh, to which the probe of an IPv6 address is
+  // forwarded through the same link; empty where it has none, and an IPv6 address is not probed.
+  string probe_mesh_address_v6 = 7;
 }
 
 message EdgeAddress {

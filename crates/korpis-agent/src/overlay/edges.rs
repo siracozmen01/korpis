@@ -30,17 +30,53 @@ fn ipv4(text: &str) -> bool {
     text.parse::<IpAddr>().is_ok_and(|a| a.is_ipv4())
 }
 
+fn ipv6(text: &str) -> bool {
+    text.parse::<IpAddr>().is_ok_and(|a| a.is_ipv6())
+}
+
+/// The probe port of each of `probed`, translated into the link of the probe node, whose mesh
+/// address of the address's own family `g` names: IPv4 to its IPv4 address and IPv6 to its IPv6
+/// one, both carried in the one link; an address of a family it has no mesh address of is not
+/// translated, and its probe goes unanswered.
+fn probes<'a>(
+    g: &agent::EdgeForwarding,
+    probed: impl Iterator<Item = &'a String>,
+    tunnels: &mut BTreeSet<String>,
+) -> Vec<helper::EdgeTranslation> {
+    let mut out = Vec::new();
+    if g.probe_mesh_address.is_empty() {
+        return out;
+    }
+    for address in probed {
+        let to = if ipv4(address) { &g.probe_mesh_address } else { &g.probe_mesh_address_v6 };
+        if to.is_empty() {
+            continue;
+        }
+        tunnels.insert(g.probe_mesh_address.clone());
+        out.push(helper::EdgeTranslation {
+            address: address.clone(),
+            port: g.probe_port,
+            transport: helper::Transport::TRANSPORT_UDP.into(),
+            via: g.probe_mesh_address.clone(),
+            to_address: to.clone(),
+            to_port: g.probe_port,
+            ..Default::default()
+        });
+    }
+    out
+}
+
 /// What one group's forwarding asks of the helper, this member advertising `own`: each port of
-/// the group's table, and the probe port of its own first advertised address and of each address
-/// it is named to hold; each mesh address it tunnels to added to `tunnels`. An IPv6 stable address is not forwarded yet (P3.7e
-/// in §4 of docs/20-roadmap.md).
+/// the group's table, IPv4 and IPv6 alike, and the probe port of its own first advertised address
+/// of each family and of each address it is named to hold; each mesh address it tunnels to added
+/// to `tunnels`.
 fn forwarding(
     g: &agent::EdgeForwarding,
     own: &[String],
     tunnels: &mut BTreeSet<String>,
 ) -> Vec<helper::EdgeTranslation> {
     let mut out = Vec::new();
-    for f in g.forwards.iter().filter(|f| ipv4(&f.address)) {
+    for f in &g.forwards {
         if !f.mesh_address.is_empty() {
             tunnels.insert(f.mesh_address.clone());
         }
@@ -54,24 +90,10 @@ fn forwarding(
             ..Default::default()
         });
     }
-    let first = own.iter().find(|a| ipv4(a));
-    let held = g.hold.iter().map(|h| &h.address).filter(|a| ipv4(a));
-    let probed: BTreeSet<&String> = first.into_iter().chain(held).collect();
-    if g.probe_mesh_address.is_empty() {
-        return out;
-    }
-    for address in probed {
-        tunnels.insert(g.probe_mesh_address.clone());
-        out.push(helper::EdgeTranslation {
-            address: address.clone(),
-            port: g.probe_port,
-            transport: helper::Transport::TRANSPORT_UDP.into(),
-            via: g.probe_mesh_address.clone(),
-            to_address: g.probe_mesh_address.clone(),
-            to_port: g.probe_port,
-            ..Default::default()
-        });
-    }
+    let first = own.iter().find(|a| ipv4(a)).into_iter().chain(own.iter().find(|a| ipv6(a)));
+    let held = g.hold.iter().map(|h| &h.address);
+    let probed: BTreeSet<&String> = first.chain(held).collect();
+    out.extend(probes(g, probed.into_iter(), tunnels));
     out
 }
 
@@ -87,22 +109,19 @@ pub(super) fn table(
     let mut admits = Vec::new();
     for s in &told.sources {
         tunnels.insert(s.mesh_address.clone());
-        admits.extend(s.admits.iter().filter(|a| ipv4(&a.workload_address)).map(|a| {
-            helper::EdgeAdmit {
-                source: s.mesh_address.clone(),
-                destination: a.workload_address.clone(),
-                port: a.container_port,
-                transport: transport(a.protocol).into(),
-                ..Default::default()
-            }
+        admits.extend(s.admits.iter().map(|a| helper::EdgeAdmit {
+            source: s.mesh_address.clone(),
+            destination: a.workload_address.clone(),
+            port: a.container_port,
+            transport: transport(a.protocol).into(),
+            ..Default::default()
         }));
     }
-    let holds =
-        holding.iter().filter(|(a, _)| ipv4(a)).map(|(address, (interface, _))| helper::EdgeHold {
-            address: address.clone(),
-            interface: interface.clone(),
-            ..Default::default()
-        });
+    let holds = holding.iter().map(|(address, (interface, _))| helper::EdgeHold {
+        address: address.clone(),
+        interface: interface.clone(),
+        ..Default::default()
+    });
     helper::EdgeTable {
         tunnels: tunnels.into_iter().collect(),
         translations,
@@ -116,15 +135,17 @@ pub(super) fn table(
 mod tests {
     use super::*;
 
-    #[test]
-    fn a_member_translates_its_group_and_its_own_probe_port_and_a_node_admits_its_edges() {
-        let told = agent::Edges {
+    /// A member's table: one IPv4 port forwarded to node A, one IPv6 port refused, and one edge
+    /// forwarding to it.
+    fn told() -> agent::Edges {
+        agent::Edges {
             mesh_address: "10.48.3.255".into(),
             groups: vec![agent::EdgeForwarding {
                 group: "egr_1".into(),
                 probe_port: 65_535,
                 probe_node: "nd_a".into(),
                 probe_mesh_address: "10.48.7.255".into(),
+                probe_mesh_address_v6: "fd00::ffff:ffff:ffff:ffff".into(),
                 forwards: vec![
                     agent::EdgeForward {
                         address: "198.51.100.2".into(),
@@ -156,23 +177,37 @@ mod tests {
                 ..Default::default()
             }],
             ..Default::default()
-        };
+        }
+    }
+
+    #[test]
+    fn a_member_translates_its_group_and_its_own_probe_port_and_a_node_admits_its_edges() {
+        let told = told();
         let holding = super::super::leases::Holding::from([
             ("198.51.100.2".to_owned(), ("eth1".to_owned(), 7)),
             ("2001:db8::2".to_owned(), (String::new(), 8)),
         ]);
-        let t = table(&told, &["203.0.113.5".into()], &holding);
-        assert_eq!(t.holds.len(), 1, "IPv4 alone");
-        assert_eq!(
-            (t.holds[0].address.as_str(), t.holds[0].interface.as_str()),
-            ("198.51.100.2", "eth1")
-        );
+        let own = ["203.0.113.5".into(), "2001:db8:5::5".into()];
+        let t = table(&told, &own, &holding);
+        let held: Vec<(&str, &str)> =
+            t.holds.iter().map(|h| (h.address.as_str(), h.interface.as_str())).collect();
+        assert_eq!(held, [("198.51.100.2", "eth1"), ("2001:db8::2", "")], "both families");
         assert_eq!(t.tunnels, ["10.48.11.255", "10.48.7.255"]);
-        assert_eq!(t.translations.len(), 2, "IPv4 alone, and the probe of its own address");
-        let probe = &t.translations[1];
+        let translated: Vec<(&str, &str, &str)> = t
+            .translations
+            .iter()
+            .map(|t| (t.address.as_str(), t.via.as_str(), t.to_address.as_str()))
+            .collect();
+        let probe = ("10.48.7.255", "fd00::ffff:ffff:ffff:ffff");
         assert_eq!(
-            (probe.address.as_str(), probe.to_address.as_str()),
-            ("203.0.113.5", "10.48.7.255")
+            translated,
+            [
+                ("198.51.100.2", "10.48.7.255", "10.48.4.2"),
+                ("2001:db8::2", "", ""),
+                ("2001:db8:5::5", probe.0, probe.1),
+                ("203.0.113.5", probe.0, probe.0),
+            ],
+            "the group's ports, refused where they run nowhere, and its own probe of each family"
         );
         assert_eq!(t.admits[0].transport.as_known(), Some(helper::Transport::TRANSPORT_TCP));
     }

@@ -112,6 +112,7 @@ struct Case {
     held_cores: BTreeMap<Uuid, Vec<u32>>,
     dedicated: BTreeSet<Uuid>,
     edge_members: Vec<Uuid>,
+    routed: bool,
     mesh: crate::node::mesh::Pairs,
 }
 
@@ -130,6 +131,7 @@ impl Case {
             held_cores: BTreeMap::new(),
             dedicated: BTreeSet::new(),
             edge_members: Vec::new(),
+            routed: false,
             mesh: crate::node::mesh::Pairs::EMPTY,
         }
     }
@@ -148,7 +150,8 @@ impl Case {
             owners: &[ORG],
             body: &self.body,
             current: None,
-            edge_tier: !self.edge_members.is_empty(),
+            edge_tier: !self.edge_members.is_empty() || self.routed,
+            routed: self.routed,
             edge_members: &self.edge_members,
             volumes: &[],
             refused: &NONE_REFUSED,
@@ -279,6 +282,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         body: &b,
         current: Some(Current { node: here.id, reserved: &reserved, devices: &[], cores: &[] }),
         edge_tier: false,
+        routed: false,
         edge_members: &[],
         volumes: &[],
         refused: &NONE_REFUSED,
@@ -318,6 +322,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         body: b,
         current: None,
         edge_tier: false,
+        routed: false,
         edge_members: &[],
         volumes: &[],
         refused: &NONE_REFUSED,

@@ -8,11 +8,11 @@ use crate::{Result, duration, id, invalid, timestamp, wire_id};
 use korpis_core::edge::EdgeGroup;
 use korpis_core::edge::lease::{Health, MemberState};
 use korpis_core::edge::probe::AddressStatus;
-use korpis_core::edge::table::{Admit, Forward, Forwarding, NodeEdges, Source, Target};
+use korpis_core::edge::table::{Admit, Forward, Forwarding, Mesh, NodeEdges, Source, Target};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::SystemTime;
 
 /// The wire form of a group.
@@ -90,11 +90,24 @@ fn v4(field: &str, text: &str) -> Result<Option<Ipv4Addr>> {
     text.parse().map(Some).map_err(|_| invalid(field, "an IPv4 address"))
 }
 
+fn v6(field: &str, text: &str) -> Result<Option<Ipv6Addr>> {
+    if text.is_empty() {
+        return Ok(None);
+    }
+    text.parse().map(Some).map_err(|_| invalid(field, "an IPv6 address"))
+}
+
+/// A node's addresses in the mesh, from their two fields.
+fn mesh(fields: (&str, &str), (v4_text, v6_text): (&str, &str)) -> Result<Option<Mesh>> {
+    let Some(at) = v4(fields.0, v4_text)? else { return Ok(None) };
+    Ok(Some(Mesh { v4: at, v6: v6(fields.1, v6_text)? }))
+}
+
 fn port(field: &str, n: u32) -> Result<u16> {
     u16::try_from(n).map_err(|_| invalid(field, "a port"))
 }
 
-fn text(a: Option<Ipv4Addr>) -> String {
+fn text(a: Option<impl ToString>) -> String {
     a.map(|a| a.to_string()).unwrap_or_default()
 }
 
@@ -119,7 +132,8 @@ fn forwarding_to_pb(f: &Forwarding) -> agent::EdgeForwarding {
         group: wire_id(IdKind::EdgeGroup, f.group),
         probe_port: u32::from(f.probe_port),
         probe_node: f.probe.map(|(n, _)| wire_id(IdKind::Node, n)).unwrap_or_default(),
-        probe_mesh_address: text(f.probe.map(|(_, a)| a)),
+        probe_mesh_address: text(f.probe.map(|(_, a)| a.v4)),
+        probe_mesh_address_v6: text(f.probe.and_then(|(_, a)| a.v6)),
         forwards: f.forwards.iter().map(forward_to_pb).collect(),
         hold: f
             .hold
@@ -153,7 +167,8 @@ pub fn node_edges_to_pb(e: &NodeEdges) -> agent::Edges {
         ..Default::default()
     };
     agent::Edges {
-        mesh_address: text(e.mesh_address),
+        mesh_address: text(e.mesh.map(|m| m.v4)),
+        mesh_address_v6: text(e.mesh.and_then(|m| m.v6)),
         groups: e.groups.iter().map(forwarding_to_pb).collect(),
         sources: e.sources.iter().map(source).collect(),
         ..Default::default()
@@ -180,7 +195,8 @@ fn forward_from_pb(f: &agent::EdgeForward) -> Result<Forward> {
 }
 
 fn forwarding_from_pb(f: &agent::EdgeForwarding) -> Result<Forwarding> {
-    let probe = match v4("group.probe_mesh_address", &f.probe_mesh_address)? {
+    let fields = ("group.probe_mesh_address", "group.probe_mesh_address_v6");
+    let probe = match mesh(fields, (&f.probe_mesh_address, &f.probe_mesh_address_v6))? {
         Some(a) => Some((id(IdKind::Node, "group.probe_node", &f.probe_node)?, a)),
         None => None,
     };
@@ -219,7 +235,10 @@ fn source_from_pb(s: &agent::EdgeSource) -> Result<Source> {
 /// A field that is not what it says.
 pub fn node_edges_from_pb(e: &agent::Edges) -> Result<NodeEdges> {
     Ok(NodeEdges {
-        mesh_address: v4("edges.mesh_address", &e.mesh_address)?,
+        mesh: mesh(
+            ("edges.mesh_address", "edges.mesh_address_v6"),
+            (&e.mesh_address, &e.mesh_address_v6),
+        )?,
         groups: e.groups.iter().map(forwarding_from_pb).collect::<Result<_>>()?,
         sources: e.sources.iter().map(source_from_pb).collect::<Result<_>>()?,
     })
@@ -247,11 +266,17 @@ mod tests {
             target,
         };
         let told = NodeEdges {
-            mesh_address: "10.48.0.255".parse().ok(),
+            mesh: Some(Mesh { v4: "10.48.0.255".parse().unwrap(), v6: None }),
             groups: vec![Forwarding {
                 group: Uuid::from_u128(10),
                 probe_port: 65_535,
-                probe: Some((Uuid::from_u128(3), "10.48.7.255".parse().unwrap())),
+                probe: Some((
+                    Uuid::from_u128(3),
+                    Mesh {
+                        v4: "10.48.7.255".parse().unwrap(),
+                        v6: "fd00::ffff:ffff:ffff:ffff".parse().ok(),
+                    },
+                )),
                 forwards: vec![forward(Some((target, "10.48.7.255".parse().ok()))), forward(None)],
                 hold: vec![("198.51.100.2".parse().unwrap(), "eth1".into())],
             }],

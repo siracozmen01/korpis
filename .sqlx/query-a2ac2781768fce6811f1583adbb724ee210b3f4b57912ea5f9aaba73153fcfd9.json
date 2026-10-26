@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM node_colocated WHERE replica = $1 AND NOT (node_id = ANY($2))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a2ac2781768fce6811f1583adbb724ee210b3f4b57912ea5f9aaba73153fcfd9"
+}

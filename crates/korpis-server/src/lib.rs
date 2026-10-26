@@ -15,6 +15,7 @@ mod flags;
 pub use flags::{metering_interval, metering_lateness, placement_policy, span};
 mod background;
 mod buckets;
+mod colocated;
 pub mod control_backup;
 mod control_jobs;
 pub mod data;

@@ -121,4 +121,7 @@ fn an_ipv6_address_is_found_beside_on_the_same_ports_and_a_node_s_mesh_address_i
     assert_eq!(alongside((&p, &taken), &[(25_565, Udp)], None, at(0)), Some(ip("2001:db8::2")));
     let pools = ["fd00::/64".parse().unwrap(), "10.48.4.0/22".parse().unwrap()];
     assert_eq!(mesh_address(&pools), "10.48.7.255".parse().ok());
+    assert_eq!(mesh_address_v6(&pools), "fd00::ffff:ffff:ffff:ffff".parse().ok());
+    let routed = ["2001:db8:1::/64".parse().unwrap()];
+    assert_eq!(mesh_address_v6(&routed), None, "an operator's routed prefix is not the mesh's");
 }

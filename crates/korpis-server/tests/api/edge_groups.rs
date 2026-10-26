@@ -116,6 +116,21 @@ async fn a_group_is_its_organization_s_own_nodes_and_goes_once_no_pool_names_it(
 }
 
 /// A workload whose game and query endpoints are `stable`, its RCON not reached.
+/// `workload`'s endpoints as its status shows them, once they are placed: as its assignment is
+/// computed, after the placement itself (§3 of docs/07-networking.md), within ten seconds.
+async fn endpoints_shown(h: &Harness, workload: &str) -> Vec<pb::Endpoint> {
+    for _ in 0..100 {
+        let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };
+        let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
+        let shown = got.status.into_option().unwrap().endpoints;
+        if !shown.is_empty() {
+            return shown;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    panic!("its endpoints were never placed");
+}
+
 pub(crate) fn arena_body(repo: &str) -> pb::IntentBody {
     let at = |name: &str, exposure: pb::Exposure| pb::EndpointSpec {
         name: name.into(),
@@ -191,9 +206,7 @@ async fn a_stable_endpoint_holds_its_group_s_address_and_every_member_forwards_i
     let games = project(&h, &root, "games").await;
     let arena = declare(&h, &games, "arena", arena_body(&repo)).await;
     assert_eq!(placement(&h, &arena.id).await.node, host.node, "the node reaching both members");
-    let get = pb::GetWorkloadRequest { id: arena.id.clone(), ..Default::default() };
-    let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
-    let shown = got.status.into_option().unwrap().endpoints;
+    let shown = endpoints_shown(&h, &arena.id).await;
     let at = |e: &pb::Endpoint| e.address.as_option().map(|a| (a.ips.clone(), a.port));
     let reached: Vec<_> = shown.iter().map(|e| (e.name.as_str(), at(e))).collect();
     let stable = Some((vec!["198.51.100.2".to_owned()], 25_565));

@@ -6,6 +6,7 @@
 use super::StoreResult;
 use korpis_core::edge::lease::{Hold, MemberState};
 use korpis_core::edge::probe::AddressStatus;
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::net::IpAddr;
 use std::time::{Duration, SystemTime};
@@ -24,6 +25,12 @@ pub trait EdgeLeaseRead {
         &self,
         group: Uuid,
     ) -> impl Future<Output = StoreResult<Vec<AddressStatus>>> + Send;
+
+    /// The nodes a control plane found sharing its network, as last recorded before `now`.
+    fn colocated_nodes(
+        &self,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<BTreeSet<Uuid>>> + Send;
 }
 
 /// Deciding addresses' leases, under the lock of the address's group.
@@ -55,6 +62,15 @@ pub trait EdgeLeaseWrite {
         &mut self,
         address: IpAddr,
         at: (SystemTime, Duration),
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Records that `replica` shares its network with each of `nodes`, until `until`, and with
+    /// no other node.
+    fn record_colocated(
+        &mut self,
+        replica: Uuid,
+        nodes: &[Uuid],
+        until: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Makes `replica` the prober of every group no other replica holds the probe of at

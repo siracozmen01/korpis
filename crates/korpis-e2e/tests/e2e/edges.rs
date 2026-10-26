@@ -4,9 +4,9 @@
 //! docs/23-walkthroughs.md). Two edges and a node, each with its data plane in a network
 //! namespace of the test's own, share one link with a client, as machines share a network, so
 //! nothing is made in this machine's own namespace. A server on the node, its endpoint `stable`,
-//! is given an address and port of the group's pool on that link; the edge holding it under its
-//! lease puts it on the link and forwards the client's connection through the mesh to the
-//! server. When the holder loses power, its agent stopped and its link down, the control plane
+//! is given an address and port of each of the group's pools on that link, IPv4 and IPv6; the
+//! edge holding each under its lease puts it on the link and forwards the client's connection
+//! through the mesh to the server, IPv6 inside the IPv4 tunnel. When the holder loses power, its agent stopped and its link down, the control plane
 //! hears nothing from it, and once its term has passed grants the other edge the address, which
 //! announces it, and the client reaches the server through it (step 8 of the trace). Needs root,
 //! containerd, and the kernel's WireGuard and GRE; skipped without them.
@@ -26,8 +26,10 @@ use std::process::Command;
 use std::time::Duration;
 
 /// The link's own namespace, holding the bridge every machine is wired to, and the machines: the
-/// client at `198.18.4.254/24`, the edges at `.1` and `.2`, and the node at `.3`, each on its
-/// interface `lan0`. `None` where this kernel makes no WireGuard or GRE link.
+/// client at `198.18.4.254/24` and `2001:db8:4::fe/64`, the edges at `.1` and `::1` and at `.2`
+/// and `::2`, and the node at `.3` and `::3`, each on its interface `lan0`, forwarding IPv6 as
+/// IPv4, so the node gives its workloads IPv6 addresses too. `None` where this kernel makes no
+/// WireGuard or GRE link.
 fn network() -> Option<(Netns, [Netns; 4])> {
     let id = std::process::id();
     let named = |n: &str| Netns::new(format!("korpis-edges-{id}-{n}"));
@@ -43,6 +45,7 @@ fn network() -> Option<(Netns, [Netns; 4])> {
     assert!(lan.run(&["ip", "link", "set", "br0", "up"]));
     let machines = ["c", "e1", "e2", "a"].map(named);
     for (i, (m, at)) in machines.iter().zip(["254", "1", "2", "3"]).enumerate() {
+        let at6 = if at == "254" { "fe" } else { at };
         let port = format!("kedg{}{i}", id % 10_000);
         let made = Command::new("ip")
             .args(["link", "add", &port, "netns", lan.name(), "type", "veth"])
@@ -52,9 +55,15 @@ fn network() -> Option<(Netns, [Netns; 4])> {
         assert!(made.success());
         assert!(lan.run(&["ip", "link", "set", &port, "master", "br0", "up"]));
         assert!(m.run(&["ip", "addr", "add", &format!("198.18.4.{at}/24"), "dev", "lan0"]));
+        let v6 = format!("2001:db8:4::{at6}/64");
+        assert!(m.run(&["ip", "addr", "add", &v6, "dev", "lan0", "nodad"]));
         assert!(m.run(&["ip", "link", "set", "lan0", "up"]));
-        // The test's own namespaces forward, as nodes do; this machine's setting is left be.
+        // The test's own namespaces forward, as nodes do; this machine's settings are left be.
         assert!(m.run(&["sysctl", "-qw", "net.ipv4.ip_forward=1"]));
+        assert!(m.run(&["sysctl", "-qw", "net.ipv6.conf.all.forwarding=1"]));
+    }
+    for m in &machines {
+        settled(m);
     }
     Some((lan, machines))
 }
@@ -67,7 +76,24 @@ fn mutation(key: &str) -> pb::Mutation {
     pb::Mutation { idempotency_key: key.to_owned(), ..Default::default() }
 }
 
-/// The group of `members`, probed once a minute, and its pool on `lan0` of the link.
+/// Waits, five seconds at most, until no address of `m` is still tentative: a link made a
+/// moment ago has its link-local address under duplicate detection, and until that ends the
+/// kernel leaves a neighbour's solicitation unanswered now and then.
+fn settled(m: &Netns) {
+    for _ in 0..50 {
+        let out = Command::new("ip")
+            .args(["-n", m.name(), "-6", "addr", "show", "tentative"])
+            .output()
+            .unwrap();
+        if out.stdout.is_empty() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+/// The group of `members`, probed once a minute, and its pools on `lan0` of the link, one of
+/// each family.
 async fn group_of(cp: &ControlPlane, members: &[&str]) -> pb::EdgeGroup {
     let group = pb::EdgeGroup {
         organization: cp.root_org.clone(),
@@ -83,30 +109,34 @@ async fn group_of(cp: &ControlPlane, members: &[&str]) -> pb::EdgeGroup {
     };
     let made = edges(cp).create_edge_group(r).await.unwrap().into_owned().group.into_option();
     let made = made.unwrap();
-    let pool = pb::AddressPool {
-        organization: cp.root_org.clone(),
-        cidr: "198.18.4.16/28".into(),
-        scope: pb::AddressPoolScope::ADDRESS_POOL_SCOPE_EDGE.into(),
-        group: made.id.clone(),
-        interface: "lan0".into(),
-        ..Default::default()
-    };
-    let r = pb::CreateAddressPoolRequest {
-        mutation: mutation("pool").into(),
-        pool: pool.into(),
-        ..Default::default()
-    };
-    pb::AddressPoolServiceClient::new(cp.http(), cp.config()).create_address_pool(r).await.unwrap();
+    for (key, cidr) in [("pool", "198.18.4.16/28"), ("pool6", "2001:db8:4::10:0/124")] {
+        let pool = pb::AddressPool {
+            organization: cp.root_org.clone(),
+            cidr: cidr.into(),
+            scope: pb::AddressPoolScope::ADDRESS_POOL_SCOPE_EDGE.into(),
+            group: made.id.clone(),
+            interface: "lan0".into(),
+            ..Default::default()
+        };
+        let r = pb::CreateAddressPoolRequest {
+            mutation: mutation(key).into(),
+            pool: pool.into(),
+            ..Default::default()
+        };
+        let pools = pb::AddressPoolServiceClient::new(cp.http(), cp.config());
+        pools.create_address_pool(r).await.unwrap();
+    }
     made
 }
 
 /// Whether `address` is on `lan0` of `machine`.
 fn holds(machine: &Netns, address: &str) -> bool {
     let out = Command::new("ip")
-        .args(["-n", machine.name(), "-4", "-o", "addr", "show", "dev", "lan0"])
+        .args(["-n", machine.name(), "-o", "addr", "show", "dev", "lan0"])
         .output()
         .unwrap();
-    String::from_utf8_lossy(&out.stdout).contains(&format!("{address}/32"))
+    let host = if address.contains(':') { "128" } else { "32" };
+    String::from_utf8_lossy(&out.stdout).contains(&format!("{address}/{host}"))
 }
 
 /// Which of `edges` holds `address`, within a minute.
@@ -118,6 +148,26 @@ async fn holder(edges: [&Netns; 2], address: &str) -> usize {
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
     panic!("no edge came to hold {address}");
+}
+
+/// Whether `machine` comes to hold `address` within three minutes: three heartbeats unheard,
+/// then the rest of its last holder's term.
+async fn comes_to_hold(machine: &Netns, address: &str) -> bool {
+    for _ in 0..360 {
+        if holds(machine, address) {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    false
+}
+
+/// That the server answers at each of `at`, from inside the namespace `from` names.
+async fn answers_at(from: &str, at: [&str; 2], how: &str) {
+    for to in at {
+        let answered = served(from, to).await;
+        assert!(answered.contains("served"), "{how}, at {to}: {answered:?}");
+    }
 }
 
 #[tokio::test]
@@ -156,14 +206,15 @@ async fn a_client_reaches_a_server_at_its_stable_address_through_whichever_edge_
     running(&arena).await;
     let status = cp.status(&arena).await;
     let at = status.endpoints[0].address.as_option().expect("its group's address");
-    let (address, port) = (at.ips[0].clone(), at.port);
-    let to = format!("{address}:{port}");
+    let address = at.ips.iter().find(|a| !a.contains(':')).expect("its IPv4 address").clone();
+    let v6 = at.ips.iter().find(|a| a.contains(':')).expect("its IPv6 address").clone();
+    let (to, to6) = (format!("{address}:{}", at.port), format!("[{v6}]:{}", at.port));
 
     let from = format!("--net={}", client.path().display());
     let machines = [&m1, &m2];
     let first = holder(machines, &address).await;
-    let answered = served(&from, &to).await;
-    assert!(answered.contains("served"), "through the edge holding it: {answered:?}");
+    holder(machines, &v6).await;
+    answers_at(&from, [&to, &to6], "through the edge holding it").await;
     assert!(fetched(&from, &format!("{address}:22"), None).await.is_empty(), "nothing else");
 
     // The holder loses power: what it held goes with it, and its session falls silent.
@@ -171,17 +222,11 @@ async fn a_client_reaches_a_server_at_its_stable_address_through_whichever_edge_
         agent.stop().await;
     }
     assert!(machines[first].run(&["ip", "link", "set", "lan0", "down"]));
-    let other = 1 - first;
-    // Three heartbeats unheard, then the rest of its term.
-    for _ in 0..360 {
-        if holds(machines[other], &address) {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
-    assert!(holds(machines[other], &address), "the other edge is granted it");
-    let answered = served(&from, &to).await;
-    assert!(answered.contains("served"), "through the other edge now: {answered:?}");
+    let other = machines[1 - first];
+    // Each address has a lease of its own, which the other edge holds now if it did not.
+    assert!(comes_to_hold(other, &address).await, "the other edge is granted it");
+    assert!(comes_to_hold(other, &v6).await, "and its IPv6 address");
+    answers_at(&from, [&to, &to6], "through the other edge now").await;
 
     cp.retire(&arena).await;
     for agent in edge_agents.into_iter().flatten() {

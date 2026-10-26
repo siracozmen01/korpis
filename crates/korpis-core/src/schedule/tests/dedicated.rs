@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Dedicated addresses (§3.7 of docs/07-networking.md): a workload with a `dedicated_ip`
-//! endpoint is placed only on a node it may hold its address on, and one without asks nothing.
+//! endpoint is placed only on a node it may hold its address on, and one without asks nothing;
+//! and so is one whose `stable` endpoints are routed at a `cluster` pool's address (§3.1 there).
 
 use super::{Case, checks, node};
 use crate::schedule::Check;
@@ -36,4 +37,18 @@ fn a_dedicated_address_is_held_only_on_a_node_a_pool_reaches() {
     assert_eq!(case.run().chosen, None, "no pool reaches either node");
     case.body.endpoints = vec![endpoint(Exposure::OverlayOnly)];
     assert!(checks(&case.run(), 1).is_empty(), "an endpoint not dedicated asks for no pool");
+}
+
+#[test]
+fn a_routed_stable_endpoint_asks_for_the_address_as_dedicated_ip_does_and_holds_no_node_port() {
+    let mut case = Case::new(vec![node(1, &[]), node(2, &[])]);
+    case.body.endpoints = vec![endpoint(Exposure::Stable)];
+    case.routed = true;
+    case.dedicated.insert(Uuid::from_u128(2));
+    let e = case.run();
+    assert_eq!(checks(&e, 1), [Check::DedicatedIp], "its cluster pool's address is not held there");
+    assert_eq!(e.chosen, Some(Uuid::from_u128(2)));
+    case.routed = false;
+    let bound = case.run();
+    assert!(!checks(&bound, 1).contains(&Check::DedicatedIp), "node_bound asks for no pool");
 }

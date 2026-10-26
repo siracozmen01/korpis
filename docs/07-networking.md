@@ -383,18 +383,24 @@ plane's, whatever the network did.
 group, one replica at a time holding the group's probe for a while as a route is held (§3.7), and
 from outside every node, as a client is, which is what makes the measurement the one Finding 21
 asked for. Every member forwards a probe port of the group's, 65535 unless it says otherwise and
-outside its range, on its own first advertised address and on each address it holds, over UDP, to a
-node the group forwards to, through the same translation and the same GRE link a player's packet
-takes. That node's agent answers a 32-byte nonce with its node key's signature over a message bound
-to the purpose, the group, the address, and the node, as a reachability probe is answered (§9); so
-an answer proves the packet crossed the member's translation and tunnel, and came back through
-them, since the answering node routes its reply into the edge's link. The control plane sends one
-probe a second to each, and a member that misses three in a row is failing; that is the declared
-detection interval, three seconds unless the group sets either figure, and it is shown on the
-group. A member whose own address passes is `ready`. What it does not do: a control plane on the
-very machine of the node it probes through sees its reply delivered locally, so it measures the way
-in and not the way back, and the control plane chooses another node where there is one; and a
-control plane that reaches no member at all suspects itself, not the group, and moves nothing.
+outside its range, on its own first advertised address of each family and on each address it holds,
+over UDP, to a node the group forwards to, through the same translation and the same GRE link a
+player's packet takes; an IPv6 address's probe goes to that node's own IPv6 address in the mesh,
+the last of its unique local prefix, which no workload is given (§4.1). That node's agent answers a
+32-byte nonce with its node key's signature over a message bound to the purpose, the group, the
+address, and the node, as a reachability probe is answered (§9); so an answer proves the packet
+crossed the member's translation and tunnel, and came back through them, since the answering node
+routes its reply into the edge's link. The reply's destination is the prober's address, which the
+node's main table may have no route for, and the kernel restores a packet's mark, and routes it
+again by the mark, only once a first route is found; so a node's own mesh addresses are routed,
+where the main table has none, by a table of Korpis's own whose default is the mesh's interface
+(Finding 195 of `23-walkthroughs.md`). The control plane sends one probe a second to each, and a
+member that misses three in a row is failing; that is the declared detection interval, three
+seconds unless the group sets either figure, and it is shown on the group. A member whose own
+address passes is `ready`. What it does not do: a control plane on the very machine of the node it
+probes through sees its reply delivered locally, so it measures the way in and not the way back,
+and the control plane chooses another node where there is one; and a control plane that reaches no
+member at all suspects itself, not the group, and moves nothing.
 
 *Failover.* When the holder of an address is failing, its session has ended, or it is no longer
 `ready`, and another member is, the control plane asks the holder to release and grants the next
@@ -405,10 +411,12 @@ Each member flushes the connection-tracking entries of an address it stops holdi
 whose target changes, so a UDP flow is not left on a dead path (§10). The group's status names the
 holder, the epoch, each member's last probe, and why each member is not ready.
 
-*When nothing is behind an address.* A forwarded port whose workload is not running, and every
-port of a held address no endpoint holds, is refused at once: a TCP reset or an ICMP port
-unreachable, never a black hole, which is the default this section set. A protocol-aware answer
-where a router is registered (§3.3) is that router's, and arrives with the routers of Phase 4.
+*When nothing is behind an address.* A forwarded port whose workload is not running, and every port
+of a held address no endpoint holds, is refused at once: a TCP reset or an ICMP port unreachable,
+never a black hole, which is the default this section set. A neighbour's solicitation of a held
+IPv6 address is answered, since refusing it would end the neighbour's sending to the address at all
+(Finding 196 of `23-walkthroughs.md`). A protocol-aware answer where a router is registered (§3.3)
+is that router's, and arrives with the routers of Phase 4.
 
 *Where a workload may run, and what it depends on.* `stable` resolves to `stable` for a placement
 where a group of two members or more serves the workload and has an address and port for each of
@@ -473,7 +481,8 @@ with both nodes checking sources strictly and the node behind with no default ro
 reaches the workload at the held address and port, which sees the client's own address; a port
 without a target and a port no endpoint holds are refused at once; a port the node was not told to
 admit is not reached; and the address is taken off when no longer held. Not built yet: the leases,
-the probe and failover (P3.7d), and the rest of P3.7e, with IPv6 forwarding through the links.
+the probe and failover (P3.7d), and the rest of P3.7e, with IPv6 forwarding through the links,
+since built (P3.7e2, below).
 
 Built 2026-10-26, the leases, the probe, and failover (P3.7d). The control plane names, in each
 member's table, the addresses it should hold: a ready holder keeps its address; otherwise a ready
@@ -523,7 +532,7 @@ and dropping it; an edge's link is now judged by the edges' chains alone, as the
 own. What it does not do: an agent that restarts gives up the addresses it held until its leases
 are granted again, a round trip, since it holds nothing it has no lease for. Not built yet: the
 probe on a control plane sharing a machine with the node that answers, which this build does not
-detect (P3.7e).
+detect (P3.7e), since built (P3.7e4, below).
 
 Routed edge pools are built 2026-10-26 (P3.7e1). An edge pool naming a router keeps, with each
 address's lease, the member its router last said it routes the address to, why its last answer was
@@ -541,6 +550,57 @@ for it, and routed to the new holder once it answers. What it does not do: the h
 address from its grant, before the router has routed it, since the lease and not the route keeps
 two members from holding it, so the address is unreached for as long as the router takes; and the
 router is told one holder, never every member, which is question 14 of §11.
+
+IPv6 stable addresses are built 2026-10-26 (P3.7e2). A port of a group's IPv6 pool goes to the
+workload's IPv6 address as its node observes it, and is refused where the workload has none. The
+member translates it with IPv6 rules and sets beside the IPv4 ones and routes it into the same GRE
+link, IPv4 outside and IPv6 within, by rules made in both families; it holds an IPv6 address as a
+host address without duplicate detection, announces it with an unsolicited neighbour
+advertisement whose override flag replaces a neighbour's entry for the last holder, and answers
+the neighbour discovery that confirms it (Finding 196). The node behind admits from each link what
+that edge may reach in either family, and routes the replies back by the link's mark in both.
+Each node has an IPv6 address in the mesh, the last of its unique local prefix, which the helper
+puts on `korpis-overlay` beside the IPv4 one; a member's own first IPv6 address, probed where it
+advertises no IPv4 one, and every IPv6 address it holds are probed through it; and a node's own
+mesh addresses are routed by a table of Korpis's own where its main table has no route (Finding
+195). Tested in namespaces, a client on a link of IPv6 alone reaching a workload behind another
+node at the stable address through the IPv4 mesh, seen at its own address, a port no endpoint
+holds refused, the announcement taking the client's stale entry, and the probe crossing to the
+node's mesh address and back, which failed before the fallback table; and end to end on real
+nodes, the client reaching the server at its IPv6 stable address as at its IPv4 one, and again
+through the other edge once the holder has lost power. What it does not do: a host whose firewall
+checks IPv6 sources by a routing lookup before Korpis has marked the packet refuses what arrives
+through an edge's link, since IPv6 has no counterpart of `src_valid_mark` and the helper leaves the
+host's firewall alone; and a member or a node whose IPv6 forwarding is off forwards no IPv6
+address, as it gives its workloads none (§4.1).
+
+`stable` routed at a `cluster` pool's address where no group serves is built 2026-10-26
+(P3.7e3), as "Where a workload may run" above has it. A placement finding no group to serve a
+workload's `stable` endpoints asks whether the address it holds is a `cluster` pool's, or a
+`cluster` pool serving it has one free; if so the endpoints resolve to `stable`, the placement
+filter asks of each node what the `dedicated_ip` check asks, and the workload holds that pool's
+address in the placement's transaction, a `cluster` pool's alone, which a `dedicated_ip` endpoint
+beside them shares. Its router moves it as it moves any (§3.7), the node holds it once routed,
+and each such endpoint is reached there on its own port and holds no port of its node; a plan
+says such an endpoint resolves to `stable` where a group or a `cluster` pool serves the workload's
+organization or one above it. Tested over the API with a router of the test's own: the address
+given, routed to the node, the endpoint shown at it on its own port, and the node told the
+address and no port of its own for the endpoint. What it does not do: the endpoint's status names
+no group and no reason while the router has not routed the address, which the workload's
+dedicated address status shows instead (§3.7); and a workload holding a `node` pool's address for
+a `dedicated_ip` endpoint gives it back for a `cluster` one when its `stable` endpoints are
+routed, since it holds one address.
+
+The probe's way round a control plane sharing its node's network is built 2026-10-26 (P3.7e4).
+Every twenty seconds each replica tries to bind to each mesh member's own addresses in the mesh,
+which succeeds only where the address is in the replica's own network, and records the nodes it
+could for a minute; the tables name as the node a member forwards its probe to one no record names
+where there is one, and one a record names only where there is none. Tested over the API, the
+members told another node while a record stands and the first again once it lapses. What it does
+not do: a host that lets a process bind to addresses it does not hold finds every node its own,
+and the probe answers as before; a control plane in a network namespace of its own on the node's
+machine is no such replica, and needs none, since the node's answer to it crosses the link; and an
+installation of one node has no other to choose, so its probe still measures the way in alone.
 
 ### 3.2 `ingress`: name-based routing
 

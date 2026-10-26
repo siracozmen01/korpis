@@ -149,11 +149,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 continue;
             }
             // A `stable` endpoint an edge serves, at its group's address and port (§3.1 of
-            // docs/07-networking.md), which no port of its node is.
+            // docs/07-networking.md), which no port of its node is; one routed, at the
+            // `cluster` pool's address its workload holds, on its own port.
             if e.exposure == Exposure::Stable {
                 let at: Vec<_> = stable.iter().filter(|p| p.endpoint == e.name).collect();
-                let port = at.first().map(|p| p.port);
-                let addresses = at.iter().map(|p| p.address).collect();
+                let routed = held.as_ref().filter(|h| h.cluster && at.is_empty());
+                let (port, addresses) = match routed {
+                    Some(h) => (Some(e.container_port), vec![h.address]),
+                    None => (at.first().map(|p| p.port), at.iter().map(|p| p.address).collect()),
+                };
                 endpoints
                     .push((korpis_core::workload::endpoint::Endpoint { port, ..e }, addresses));
                 continue;

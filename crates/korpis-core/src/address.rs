@@ -142,6 +142,13 @@ impl AddressPool {
             }
     }
 
+    /// Whether it is a `cluster` pool, whose router moves each address to whichever node of its
+    /// organization holds it.
+    #[must_use]
+    pub const fn is_cluster(&self) -> bool {
+        matches!(self.scope, Scope::Cluster(_))
+    }
+
     /// The edge group whose members hold its addresses, for an edge pool.
     #[must_use]
     pub fn group(&self) -> Option<Uuid> {

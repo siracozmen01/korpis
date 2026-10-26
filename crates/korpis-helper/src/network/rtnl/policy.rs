@@ -2,9 +2,11 @@
 
 //! The policy routing edges need (§3.1 of docs/07-networking.md): a rule sending packets of one
 //! mark to a table of Korpis's own, and that table's routes, each out of a GRE link; and for
-//! each such link, rules routing what arrives through it by the main table alone. All are
-//! listed, so a call removes what it no longer asks for and leaves the rest in place, and no
-//! packet of a flow is ever routed by the main table while its own is being rewritten.
+//! each such link, rules routing what arrives through it by the main table alone. Every rule is
+//! made for IPv4 and IPv6 alike, since one link carries both, and a table holds the routes of
+//! both. All are listed, so a call removes what it no longer asks for and leaves the rest in
+//! place, and no packet of a flow is ever routed by the main table while its own is being
+//! rewritten.
 
 use super::{Answer, Rtnl, ip_family, route_address};
 use netlink_packet_core::{NLM_F_CREATE, NLM_F_DUMP, NLM_F_REPLACE, NLM_F_REQUEST, NetlinkPayload};
@@ -25,6 +27,10 @@ pub(crate) const PRIORITY: u32 = 1000;
 /// is still there for the kernel's check of its source, which so finds the link it came by.
 pub(crate) const LINK_PRIORITY: u32 = PRIORITY - 2;
 
+/// Where the rules of the node's own addresses in the mesh sit: after the main table's, so they
+/// route only what the main table has no route for.
+pub(crate) const FALLBACK_PRIORITY: u32 = 32_800;
+
 /// One rule: packets whose mark, masked by `mask`, is `mark` look up `table`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct MarkRule {
@@ -33,9 +39,12 @@ pub(crate) struct MarkRule {
     pub(crate) table: u32,
 }
 
-fn rule_message(r: MarkRule) -> RuleMessage {
+/// The families every rule is made in.
+const FAMILIES: [AddressFamily; 2] = [AddressFamily::Inet, AddressFamily::Inet6];
+
+fn rule_message(r: MarkRule, family: AddressFamily) -> RuleMessage {
     let mut m = RuleMessage::default();
-    m.header.family = AddressFamily::Inet;
+    m.header.family = family;
     m.header.action = RuleAction::ToTable;
     m.attributes.push(RuleAttribute::Priority(PRIORITY));
     m.attributes.push(RuleAttribute::FwMark(r.mark));
@@ -44,11 +53,11 @@ fn rule_message(r: MarkRule) -> RuleMessage {
     m
 }
 
-/// Link `name`'s rules, the main table's lookup and then the refusal.
-fn link_messages(name: &str) -> [RuleMessage; 2] {
+/// Link `name`'s rules in `family`, the main table's lookup and then the refusal.
+fn link_messages(name: &str, family: AddressFamily) -> [RuleMessage; 2] {
     let rule = |priority: u32, action: RuleAction| {
         let mut m = RuleMessage::default();
-        m.header.family = AddressFamily::Inet;
+        m.header.family = family;
         m.header.action = action;
         m.attributes.push(RuleAttribute::Priority(priority));
         m.attributes.push(RuleAttribute::Iifname(name.to_owned()));
@@ -58,6 +67,33 @@ fn link_messages(name: &str) -> [RuleMessage; 2] {
     main.header.table = RouteHeader::RT_TABLE_MAIN;
     main.attributes.push(RuleAttribute::Table(u32::from(RouteHeader::RT_TABLE_MAIN)));
     [main, rule(LINK_PRIORITY + 1, RuleAction::Unreachable)]
+}
+
+/// The rule sending what `from` sends, where the main table has no route for it, to `table`.
+fn source_message(from: IpAddr, table: u32) -> RuleMessage {
+    let mut m = RuleMessage::default();
+    m.header.family = ip_family(from);
+    m.header.src_len = if from.is_ipv4() { 32 } else { 128 };
+    m.header.action = RuleAction::ToTable;
+    m.attributes.push(RuleAttribute::Priority(FALLBACK_PRIORITY));
+    m.attributes.push(RuleAttribute::Source(from));
+    m.attributes.push(RuleAttribute::Table(table));
+    m
+}
+
+/// The source of a rule at the fallback priority.
+fn read_source_rule(m: &RuleMessage) -> Option<IpAddr> {
+    let at = m.attributes.iter().find_map(|a| match a {
+        RuleAttribute::Priority(p) => Some(*p),
+        _ => None,
+    });
+    if at != Some(FALLBACK_PRIORITY) {
+        return None;
+    }
+    m.attributes.iter().find_map(|a| match a {
+        RuleAttribute::Source(from) => Some(*from),
+        _ => None,
+    })
 }
 
 /// The link a rule at a link's priority is for.
@@ -112,14 +148,17 @@ fn table_route(table: u32, (dest, prefix): (IpAddr, u8), index: u32) -> RouteMes
 }
 
 impl Rtnl {
-    /// Every IPv4 rule.
+    /// Every rule, IPv4 and IPv6.
     fn all_rules(&mut self) -> io::Result<Vec<RuleMessage>> {
-        let mut ask = RuleMessage::default();
-        ask.header.family = AddressFamily::Inet;
+        let mut answers = Vec::new();
+        for family in FAMILIES {
+            let mut ask = RuleMessage::default();
+            ask.header.family = family;
+            let asked = RouteNetlinkMessage::GetRule(ask);
+            answers.extend(self.exchange(asked, NLM_F_REQUEST | NLM_F_DUMP)?);
+        }
         let mut found = Vec::new();
-        for answer in
-            self.exchange(RouteNetlinkMessage::GetRule(ask), NLM_F_REQUEST | NLM_F_DUMP)?
-        {
+        for answer in answers {
             match answer.payload {
                 NetlinkPayload::InnerMessage(RouteNetlinkMessage::NewRule(m)) => found.push(m),
                 NetlinkPayload::Error(e) if e.code.is_some() => return Err(e.to_io()),
@@ -129,9 +168,12 @@ impl Rtnl {
         Ok(found)
     }
 
-    /// Every rule of Korpis's priority.
+    /// Every rule of Korpis's priority, once each, whichever families it is in.
     pub(crate) fn mark_rules(&mut self) -> io::Result<Vec<MarkRule>> {
-        Ok(self.all_rules()?.iter().filter_map(read_rule).collect())
+        let mut rules: Vec<MarkRule> = self.all_rules()?.iter().filter_map(read_rule).collect();
+        rules.sort_by_key(|r| (r.mark, r.mask, r.table));
+        rules.dedup();
+        Ok(rules)
     }
 
     /// Every link with a rule at a link's priority, once each.
@@ -142,36 +184,76 @@ impl Rtnl {
         Ok(names)
     }
 
-    /// Adds link `name`'s rules, unless they are there.
+    /// Adds link `name`'s rules in both families, unless they are there.
     pub(crate) fn add_link_rules(&mut self, name: &str) -> io::Result<()> {
-        for m in link_messages(name) {
+        for m in FAMILIES.into_iter().flat_map(|f| link_messages(name, f)) {
             self.request(RouteNetlinkMessage::NewRule(m), true)?;
         }
         Ok(())
     }
 
-    /// Removes link `name`'s rules, if they are there.
+    /// Removes link `name`'s rules in both families, if they are there.
     pub(crate) fn delete_link_rules(&mut self, name: &str) -> io::Result<()> {
-        for m in link_messages(name) {
+        for m in FAMILIES.into_iter().flat_map(|f| link_messages(name, f)) {
             self.request(RouteNetlinkMessage::DelRule(m), false)?;
         }
         Ok(())
     }
 
-    /// Adds `r`, unless it is there.
+    /// The source of every rule at the fallback priority.
+    pub(crate) fn source_rules(&mut self) -> io::Result<Vec<IpAddr>> {
+        Ok(self.all_rules()?.iter().filter_map(read_source_rule).collect())
+    }
+
+    /// Adds the fallback rule of `from` to `table`, unless it is there.
+    pub(crate) fn add_source_rule(&mut self, from: IpAddr, table: u32) -> io::Result<()> {
+        self.request(RouteNetlinkMessage::NewRule(source_message(from, table)), true).map(|_| ())
+    }
+
+    /// Removes the fallback rule of `from`, if it is there.
+    pub(crate) fn delete_source_rule(&mut self, from: IpAddr, table: u32) -> io::Result<()> {
+        self.request(RouteNetlinkMessage::DelRule(source_message(from, table)), false).map(|_| ())
+    }
+
+    /// Adds `r` in both families, unless it is there.
     pub(crate) fn add_mark_rule(&mut self, r: MarkRule) -> io::Result<()> {
-        self.request(RouteNetlinkMessage::NewRule(rule_message(r)), true).map(|_| ())
+        for family in FAMILIES {
+            self.request(RouteNetlinkMessage::NewRule(rule_message(r, family)), true)?;
+        }
+        Ok(())
     }
 
-    /// Removes `r`, if it is there.
+    /// Removes `r` from both families, if it is there.
     pub(crate) fn delete_mark_rule(&mut self, r: MarkRule) -> io::Result<()> {
-        self.request(RouteNetlinkMessage::DelRule(rule_message(r)), false).map(|_| ())
+        for family in FAMILIES {
+            self.request(RouteNetlinkMessage::DelRule(rule_message(r, family)), false)?;
+        }
+        Ok(())
     }
 
-    /// The routes of `table`: each destination with its prefix, and the link it leaves by.
+    /// The routes of `table`, IPv4 and IPv6: each destination with its prefix, and the link it
+    /// leaves by.
     pub(crate) fn table_routes(&mut self, table: u32) -> io::Result<Vec<((IpAddr, u8), u32)>> {
+        let mut found = Vec::new();
+        for family in FAMILIES {
+            found.extend(self.family_routes(table, family)?);
+        }
+        Ok(found)
+    }
+
+    /// The routes of `table` in `family`.
+    fn family_routes(
+        &mut self,
+        table: u32,
+        family: AddressFamily,
+    ) -> io::Result<Vec<((IpAddr, u8), u32)>> {
         let mut ask = RouteMessage::default();
-        ask.header.address_family = AddressFamily::Inet;
+        ask.header.address_family = family;
+        let any = if family == AddressFamily::Inet6 {
+            IpAddr::from([0_u16; 8])
+        } else {
+            IpAddr::from([0_u8; 4])
+        };
         let mut found = Vec::new();
         for answer in
             self.exchange(RouteNetlinkMessage::GetRoute(ask), NLM_F_REQUEST | NLM_F_DUMP)?
@@ -190,7 +272,7 @@ impl Rtnl {
                 _ => None,
             });
             let prefix = r.header.destination_prefix_length;
-            let dest = dest.or_else(|| (prefix == 0).then_some(IpAddr::from([0, 0, 0, 0])));
+            let dest = dest.or_else(|| (prefix == 0).then_some(any));
             if let (true, Some(d), Some(i)) = (mine, dest, oif) {
                 found.push(((d, prefix), i));
             }
