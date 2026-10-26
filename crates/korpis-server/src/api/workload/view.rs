@@ -87,10 +87,15 @@ fn endpoints(v: &WorkloadView) -> Vec<pb::Endpoint> {
         .iter()
         .map(|(e, addresses)| {
             let mut shown = korpis_wire::endpoint::endpoint_to_pb(e, addresses);
-            if placed != Some(e.node)
-                && let Some(a) = shown.address.as_option_mut()
-            {
-                a.node = String::new();
+            if let Some(a) = shown.address.as_option_mut() {
+                if placed != Some(e.node) {
+                    a.node = String::new();
+                }
+                // A `stable` endpoint names its edge group, and why it is not reached.
+                if let Some((_, r)) = v.edges.iter().find(|(name, _)| *name == e.name) {
+                    a.edge_group = wire_id(IdKind::EdgeGroup, r.group);
+                    r.unreached.unwrap_or_default().clone_into(&mut a.unreached);
+                }
             }
             shown
         })

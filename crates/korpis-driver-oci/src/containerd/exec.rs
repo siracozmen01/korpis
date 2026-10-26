@@ -114,9 +114,19 @@ impl Containerd {
         let exec = format!("exec-{}", uuid::Uuid::now_v7().simple());
         let fifo = fifo(&streams.state, &exec)?;
         let ran = self.run(id, (&exec, &fifo), process, &c, &out).await;
+        // Deleted already where it ran to its end; this is for one that did not.
+        self.delete_process(id, &exec).await;
+        let _ = std::fs::remove_file(&fifo);
+        ran
+    }
+
+    /// Deletes the process `exec` of container `id` from its task, one gone already being no
+    /// error. The shim waits, before it deletes a process, for the copy of its output into the
+    /// FIFO to finish.
+    async fn delete_process(&self, id: &str, exec: &str) {
         let delete = tasks::DeleteProcessRequest {
             container_id: id.to_owned(),
-            exec_id: exec.clone(),
+            exec_id: exec.to_owned(),
             ..Default::default()
         };
         if let Err(e) = self.tasks().delete_process(delete).await
@@ -124,8 +134,6 @@ impl Containerd {
         {
             tracing::warn!(%id, %exec, error = %e, "a command's process could not be deleted");
         }
-        let _ = std::fs::remove_file(&fifo);
-        ran
     }
 
     /// Starts `process` as `exec` in container `id`, its output on `fifo`, and sends what it
@@ -177,6 +185,10 @@ impl Containerd {
         let mut budget = Budget { left: c.output_limit(), truncated: false };
         let ended = self.follow(id, exec, (&reader, out, &mut budget), waited, c.timeout()).await;
         let (status, timed_out) = ended?;
+        // The exit is reported once the process has ended, which can be before the shim has
+        // copied the last of its output into the FIFO; deleting the process waits for that copy,
+        // so the FIFO is drained only once the process is deleted.
+        self.delete_process(id, exec).await;
         drain(&reader, out, &mut budget).await;
         let exit = Ran::Exit { status, timed_out, truncated: budget.truncated };
         let _ = out.send(exit).await;

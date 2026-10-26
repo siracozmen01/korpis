@@ -30,8 +30,9 @@ fn ipv4(text: &str) -> bool {
     text.parse::<IpAddr>().is_ok_and(|a| a.is_ipv4())
 }
 
-/// What one group's forwarding asks of the helper, this member advertising `own`; each mesh
-/// address it tunnels to added to `tunnels`. An IPv6 stable address is not forwarded yet (P3.7e
+/// What one group's forwarding asks of the helper, this member advertising `own`: each port of
+/// the group's table, and the probe port of its own first advertised address and of each address
+/// it is named to hold; each mesh address it tunnels to added to `tunnels`. An IPv6 stable address is not forwarded yet (P3.7e
 /// in §4 of docs/20-roadmap.md).
 fn forwarding(
     g: &agent::EdgeForwarding,
@@ -54,7 +55,12 @@ fn forwarding(
         });
     }
     let first = own.iter().find(|a| ipv4(a));
-    if let (Some(address), false) = (first, g.probe_mesh_address.is_empty()) {
+    let held = g.hold.iter().map(|h| &h.address).filter(|a| ipv4(a));
+    let probed: BTreeSet<&String> = first.into_iter().chain(held).collect();
+    if g.probe_mesh_address.is_empty() {
+        return out;
+    }
+    for address in probed {
         tunnels.insert(g.probe_mesh_address.clone());
         out.push(helper::EdgeTranslation {
             address: address.clone(),
@@ -69,8 +75,13 @@ fn forwarding(
     out
 }
 
-/// What `told` asks of the helper, this node advertising `own`.
-pub(super) fn table(told: &agent::Edges, own: &[String]) -> helper::EdgeTable {
+/// What `told` asks of the helper, this node advertising `own` and holding the addresses of
+/// `holding`, each under a lease valid now.
+pub(super) fn table(
+    told: &agent::Edges,
+    own: &[String],
+    holding: &super::leases::Holding,
+) -> helper::EdgeTable {
     let mut tunnels = BTreeSet::new();
     let translations = told.groups.iter().flat_map(|g| forwarding(g, own, &mut tunnels)).collect();
     let mut admits = Vec::new();
@@ -86,9 +97,16 @@ pub(super) fn table(told: &agent::Edges, own: &[String]) -> helper::EdgeTable {
             }
         }));
     }
+    let holds =
+        holding.iter().filter(|(a, _)| ipv4(a)).map(|(address, (interface, _))| helper::EdgeHold {
+            address: address.clone(),
+            interface: interface.clone(),
+            ..Default::default()
+        });
     helper::EdgeTable {
         tunnels: tunnels.into_iter().collect(),
         translations,
+        holds: holds.collect(),
         admits,
         ..Default::default()
     }
@@ -139,7 +157,16 @@ mod tests {
             }],
             ..Default::default()
         };
-        let t = table(&told, &["203.0.113.5".into()]);
+        let holding = super::super::leases::Holding::from([
+            ("198.51.100.2".to_owned(), ("eth1".to_owned(), 7)),
+            ("2001:db8::2".to_owned(), (String::new(), 8)),
+        ]);
+        let t = table(&told, &["203.0.113.5".into()], &holding);
+        assert_eq!(t.holds.len(), 1, "IPv4 alone");
+        assert_eq!(
+            (t.holds[0].address.as_str(), t.holds[0].interface.as_str()),
+            ("198.51.100.2", "eth1")
+        );
         assert_eq!(t.tunnels, ["10.48.11.255", "10.48.7.255"]);
         assert_eq!(t.translations.len(), 2, "IPv4 alone, and the probe of its own address");
         let probe = &t.translations[1];

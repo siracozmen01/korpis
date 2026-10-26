@@ -277,52 +277,56 @@ over GRE inside the mesh, the client's address kept, each member's liveness prob
 plane through its forwarding path, and the group's ingress served by its members. Built 2026-10-26,
 its control plane's half: groups, edge pools, the allocation of a `stable` endpoint's address and
 port at placement, the `edge` placement check, and each node's table, tested over the API; and the
-nodes' forwarding, the GRE links, and the refusal, tested in network namespaces. The
-overlay (§9 of `07-networking.md`), so a dependency can cross nodes; designed 2026-10-25 as a
-WireGuard mesh of every node, each with a pool of its own (§9.1 there, trace 74 of
-`23-walkthroughs.md`); each node's pool given at enrollment, the mesh's interfaces, the peers each
-node is told, each pair's reachability, dependencies across the mesh with each destination's
-admission, the scheduler's pair check, and each dependency's status are built, and tested end to
-end with two nodes each in a network namespace of its own. Dedicated addresses (§3 there), routed
-to whichever node a workload runs on; designed 2026-10-26 (§3.7 there, trace 77 of
-`23-walkthroughs.md`) as pools an organization owns, an address allocated with the placement and
-held by translation on its node, a `node` pool's address pinning its workload, and a `cluster`
-pool's moved by an address router extension, whose contract this phase builds and tests with a
-router of the tests' own; the routers that speak BGP or a provider's API are of the core extensions
-of §2 of `16-extensions.md`, built through the contract in Phase 4. Built 2026-10-26: pools on one
-node, routed there or on its link, and the router's contract, with an API test's own router; the
-router told a migration's new node at its cutover is built with migration. HTTP/3 at the ingress,
-on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6 there),
-designed and built 2026-10-26, when it was found that they decide something on one node as on many
-and that the overlay was never what they waited for (Finding 182 of `23-walkthroughs.md`). Devices,
-including GPU. Dedicated cores (§5.2 of `05-scheduling.md`): a `cpuset` per driver and the
-scheduler's accounting of whole cores with their siblings, which the schema accepted from Phase 0
-while nothing held them; homed here 2026-10-25, when it was found that no phase named them and that
-a workload asking for them ran on shared cores (Finding 167 of `23-walkthroughs.md`), and refused
-at declaration until then. `AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads
-for the difference to be measured. Drain and evacuate, as `Operation`s with their policy (§3 of
-`05-scheduling.md`), since draining a node is migrating its workloads off it; and the
-`template_rollout` Operation there, which issues a grant template's newer version to the holders of
-an older one (§3.5 of `08-identity.md`), the one Operation of Phase 2's tenancy that needs this
-machinery. With edges, the count of a node's ports learns them: until then every `stable` endpoint
-reserves a port of its node, which one an edge serves does not use (§3 of `07-networking.md`).
-Application-level health (Rule K-16): the node runs a workload's probes and acts on their verdicts
-(§5 of `04-runtimes.md`), homed here 2026-10-23, when it was found that no phase named it while
-four documents described it (Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are
-built, the `query` probe through its protocol's health provider (§5 of `16-extensions.md`), the
-`heartbeat` probe through the workload's identity socket, the `exec` probe through either driver's
-`Exec`, the `firecracker` driver's through the guest's agent, and the `guest_agent` probe through a
-microVM's vsock channel to its guest. A microVM's `/run/korpis` reaches its guest over that
-channel: its identity socket and API relay served there by its first process (trace 65 there), and
-its managed files and its dependencies' files sent as copies as they change, so a heartbeat probe
-runs on either tier (Finding 154 there, closed). A running microVM's file sessions, the panel's
-file manager and SFTP, are served inside its guest by the file worker its boot drive carries, and a
-stopped one's by the same worker in a service microVM, a guest of Korpis's own holding its volumes
-(§4.4 of `04-runtimes.md`), and so are installs into a stopped microVM's volume, by the helper's
-install job in such a guest (§4 of `09-recipes.md`); a block-device volume's backup is browsed and
-read inside its image by such a guest holding a copy restored for it, through `korpis backup ls`
-and `cat` (§5.4 of `06-storage.md`), and a path of it is restored into a new directory of the live
-volume by a copy in such a guest while the workload is stopped. The driver conformance suite (§8 of
+nodes' forwarding, the GRE links, and the refusal, tested in network namespaces; and the leases on
+the groups' addresses, each held by the member its table names, under a lease fenced as a
+workload's is, and the control plane's probe of each member through its forwarding path, which
+moves an address from a member that stops answering; and a routed edge pool's address, routed by
+the pool's router to the member its lease was issued to. The overlay (§9 of `07-networking.md`), so
+a dependency can cross nodes; designed 2026-10-25 as a WireGuard mesh of every node, each with a
+pool of its own (§9.1 there, trace 74 of `23-walkthroughs.md`); each node's pool given at
+enrollment, the mesh's interfaces, the peers each node is told, each pair's reachability,
+dependencies across the mesh with each destination's admission, the scheduler's pair check, and
+each dependency's status are built, and tested end to end with two nodes each in a network
+namespace of its own. Dedicated addresses (§3 there), routed to whichever node a workload runs on;
+designed 2026-10-26 (§3.7 there, trace 77 of `23-walkthroughs.md`) as pools an organization owns,
+an address allocated with the placement and held by translation on its node, a `node` pool's
+address pinning its workload, and a `cluster` pool's moved by an address router extension, whose
+contract this phase builds and tests with a router of the tests' own; the routers that speak BGP or
+a provider's API are of the core extensions of §2 of `16-extensions.md`, built through the contract
+in Phase 4. Built 2026-10-26: pools on one node, routed there or on its link, and the router's
+contract, with an API test's own router; the router told a migration's new node at its cutover is
+built with migration. HTTP/3 at the ingress, on the UDP path edges bring (§3.2 there). Network
+rules naming workloads by label (§6 there), designed and built 2026-10-26, when it was found that
+they decide something on one node as on many and that the overlay was never what they waited for
+(Finding 182 of `23-walkthroughs.md`). Devices, including GPU. Dedicated cores (§5.2 of
+`05-scheduling.md`): a `cpuset` per driver and the scheduler's accounting of whole cores with their
+siblings, which the schema accepted from Phase 0 while nothing held them; homed here 2026-10-25,
+when it was found that no phase named them and that a workload asking for them ran on shared cores
+(Finding 167 of `23-walkthroughs.md`), and refused at declaration until then. `AssignmentDelta` (§9
+of `10-api.md`), once nodes hold enough workloads for the difference to be measured. Drain and
+evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since draining a node is
+migrating its workloads off it; and the `template_rollout` Operation there, which issues a grant
+template's newer version to the holders of an older one (§3.5 of `08-identity.md`), the one
+Operation of Phase 2's tenancy that needs this machinery. With edges, the count of a node's ports
+learns them: until then every `stable` endpoint reserves a port of its node, which one an edge
+serves does not use (§3 of `07-networking.md`). Application-level health (Rule K-16): the node runs
+a workload's probes and acts on their verdicts (§5 of `04-runtimes.md`), homed here 2026-10-23,
+when it was found that no phase named it while four documents described it (Finding 151 of
+`23-walkthroughs.md`). The `tcp` and `http` probes are built, the `query` probe through its
+protocol's health provider (§5 of `16-extensions.md`), the `heartbeat` probe through the workload's
+identity socket, the `exec` probe through either driver's `Exec`, the `firecracker` driver's
+through the guest's agent, and the `guest_agent` probe through a microVM's vsock channel to its
+guest. A microVM's `/run/korpis` reaches its guest over that channel: its identity socket and API
+relay served there by its first process (trace 65 there), and its managed files and its
+dependencies' files sent as copies as they change, so a heartbeat probe runs on either tier
+(Finding 154 there, closed). A running microVM's file sessions, the panel's file manager and SFTP,
+are served inside its guest by the file worker its boot drive carries, and a stopped one's by the
+same worker in a service microVM, a guest of Korpis's own holding its volumes (§4.4 of
+`04-runtimes.md`), and so are installs into a stopped microVM's volume, by the helper's install job
+in such a guest (§4 of `09-recipes.md`); a block-device volume's backup is browsed and read inside
+its image by such a guest holding a copy restored for it, through `korpis backup ls` and `cat`
+(§5.4 of `06-storage.md`), and a path of it is restored into a new directory of the live volume by
+a copy in such a guest while the workload is stopped. The driver conformance suite (§8 of
 `04-runtimes.md`) is built for the lifecycle, for `Recover` after a driver's crash, a kill for
 memory, and a host's restart, for every limit a driver declares enforced, and for `Exec` as it says
 it runs a command, Apache-2.0 and speaking the driver protocol alone, and both drivers conform to
@@ -518,7 +522,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-eight traces and their 191 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-eight traces and their 194 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

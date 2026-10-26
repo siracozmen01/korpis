@@ -20,7 +20,12 @@ use korpis_core::id::{Id, IdKind};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 
-fn asked(key: &str, org: &str, name: &str, members: &[&str]) -> pb::CreateEdgeGroupRequest {
+pub(crate) fn asked(
+    key: &str,
+    org: &str,
+    name: &str,
+    members: &[&str],
+) -> pb::CreateEdgeGroupRequest {
     let group = pb::EdgeGroup {
         organization: org.into(),
         name: name.into(),
@@ -38,13 +43,18 @@ async fn refusal(h: &Harness, req: pb::CreateEdgeGroupRequest) -> String {
     reason(&h.edges(h.root()).create_edge_group(req).await.unwrap_err())
 }
 
-async fn made(h: &Harness, req: pb::CreateEdgeGroupRequest) -> pb::EdgeGroup {
+pub(crate) async fn made(h: &Harness, req: pb::CreateEdgeGroupRequest) -> pb::EdgeGroup {
     let out = h.edges(h.root()).create_edge_group(req).await.unwrap().into_owned();
     out.group.into_option().unwrap()
 }
 
 /// An edge pool of `cidr` for `group`, on the link its members share, its gateway reserved.
-fn edge_pool(key: &str, org: &str, cidr: &str, group: &str) -> pb::CreateAddressPoolRequest {
+pub(crate) fn edge_pool(
+    key: &str,
+    org: &str,
+    cidr: &str,
+    group: &str,
+) -> pb::CreateAddressPoolRequest {
     let pool = pb::AddressPool {
         organization: org.into(),
         cidr: cidr.into(),
@@ -106,7 +116,7 @@ async fn a_group_is_its_organization_s_own_nodes_and_goes_once_no_pool_names_it(
 }
 
 /// A workload whose game and query endpoints are `stable`, its RCON not reached.
-fn arena_body(repo: &str) -> pb::IntentBody {
+pub(crate) fn arena_body(repo: &str) -> pb::IntentBody {
     let at = |name: &str, exposure: pb::Exposure| pb::EndpointSpec {
         name: name.into(),
         exposure: exposure.into(),
@@ -121,7 +131,10 @@ fn arena_body(repo: &str) -> pb::IntentBody {
 }
 
 /// The edges `s` is told once `done` holds of them.
-async fn edges_once(s: &mut Stream, done: impl Fn(&agent::Edges) -> bool) -> agent::Edges {
+pub(crate) async fn edges_once(
+    s: &mut Stream,
+    done: impl Fn(&agent::Edges) -> bool,
+) -> agent::Edges {
     for _ in 0..30 {
         let told = next_edges(s).await;
         if done(&told) {
@@ -131,7 +144,20 @@ async fn edges_once(s: &mut Stream, done: impl Fn(&agent::Edges) -> bool) -> age
     panic!("the edges told never came to hold");
 }
 
-async fn cordon(h: &Harness, node: &str) {
+/// Has `node` advertise `address`: a member's own address, which the control plane probes it
+/// at, here on the loopback so no probe leaves this machine.
+pub(crate) async fn advertise(h: &Harness, node: &str, address: &str) {
+    let id = Id::parse(IdKind::Node, node).unwrap();
+    let store = h.db.store().await.unwrap();
+    sqlx::query("UPDATE node SET addresses = ARRAY[$2::text] WHERE id = $1")
+        .bind(id.uuid())
+        .bind(address)
+        .execute(store.pool())
+        .await
+        .unwrap();
+}
+
+pub(crate) async fn cordon(h: &Harness, node: &str) {
     let r = pb::CordonNodeRequest {
         mutation: mutation(&format!("cordon-{node}")).into(),
         node: node.to_owned(),
@@ -154,6 +180,8 @@ async fn a_stable_endpoint_holds_its_group_s_address_and_every_member_forwards_i
     let mut sa = opened(&h, &host, side(3, "10.48.8.0/22", &[1, 2])).await;
     cordon(&h, &e1.node).await;
     cordon(&h, &e2.node).await;
+    advertise(&h, &e1.node, "127.0.0.81").await;
+    advertise(&h, &e2.node, "127.0.0.82").await;
     let root = h.root_org();
     let group = made(&h, asked("g1", &root, "edge", &[&e1.node, &e2.node])).await;
     let pool = edge_pool("p1", &root, "198.51.100.0/29", &group.id);
@@ -171,6 +199,9 @@ async fn a_stable_endpoint_holds_its_group_s_address_and_every_member_forwards_i
     let stable = Some((vec!["198.51.100.2".to_owned()], 25_565));
     // The game's TCP port and the query's UDP port share a number, a port per transport.
     assert_eq!(reached[..2], [("game", stable.clone()), ("query", stable)], "{reached:?}");
+    let game = shown[0].address.as_option().unwrap();
+    assert_eq!(game.edge_group, group.id, "its group named");
+    assert!(game.unreached.contains("holds its address"), "nobody holds it: {}", game.unreached);
     let told = assigned(&h, &arena.id).await;
     let game = told.endpoints.iter().find(|e| e.name == "game").unwrap();
     assert_eq!(game.exposure.as_known(), Some(pb::Exposure::EXPOSURE_STABLE));

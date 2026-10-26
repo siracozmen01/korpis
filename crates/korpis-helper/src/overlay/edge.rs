@@ -8,15 +8,16 @@
 //! connection with its link, and routes the replies back into it by the mark, so the workload
 //! sees its client's own address and the edge reverses its translation.
 
+mod flows;
 mod links;
 
-pub(crate) use links::keep;
+pub(crate) use flows::{listed, sweep};
+pub(crate) use links::{Kept, keep};
 
 use crate::error::{HelperError, HelperResult};
 use crate::network::nft::{TABLE, chain};
 use korpis_proto::korpis::helper::v1 as helper;
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 
 /// The mark of what a member sends into a GRE link, and the table routing it there.
@@ -36,11 +37,13 @@ const SOURCES: &str = "edge_sources";
 const ADMITTED: &str = "edge_admitted";
 const SOURCE_MARKS: &str = "edge_marks";
 const HELD: &str = "edge_held";
+/// The member's chain of translations.
+const PREROUTING: &str = "edge_prerouting";
 /// What the helper put each held address on, so it removes only what it put there.
 pub(crate) const HELD_ON: &str = "edge_held_on";
 /// The base chains of the member's side.
 const CHAINS: [(&str, &str, &str, i32); 4] = [
-    ("edge_prerouting", "nat", "prerouting", -105),
+    (PREROUTING, "nat", "prerouting", -105),
     ("edge_marks_in", "filter", "prerouting", -150),
     ("edge_marks_out", "route", "output", -150),
     ("edge_input", "filter", "input", 0),
@@ -243,16 +246,14 @@ fn translate(t: &Translation) -> Option<Value> {
         expr.push(mark(json!({"ct": {"key": "mark"}})));
     }
     expr.push(json!({"dnat": {"family": "ip", "addr": to.to_string(), "port": port}}));
-    Some(rule("edge_prerouting", None, expr))
+    Some(rule(PREROUTING, None, expr))
 }
 
 /// The rules the node's part in edge groups adds: its own base chains and sets, written whole;
 /// and, for the mesh's chains, the rules ahead of their drops and those after, as
 /// `(setup, input_before, forward, input)`.
-pub(crate) fn rules(
-    t: &Table,
-    links: &BTreeMap<Ipv4Addr, (String, u32)>,
-) -> (Vec<Value>, Vec<Value>, Vec<Value>, Vec<Value>) {
+pub(crate) fn rules(t: &Table, kept: &Kept) -> (Vec<Value>, Vec<Value>, Vec<Value>, Vec<Value>) {
+    let links = &kept.links;
     let mut setup = vec![
         set(SOURCES, json!("ipv4_addr"), None),
         set(ADMITTED, json!(["ifname", "ipv4_addr", "inet_proto", "inet_service"]), None),
@@ -276,7 +277,7 @@ pub(crate) fn rules(
     setup.extend(filled("map", SOURCE_MARKS, marks.collect()));
     let held = t.holds.iter().map(|h| json!(h.address.to_string()));
     setup.extend(filled("set", HELD, held.collect()));
-    let on = t.holds.iter().map(|h| json!({"concat": [h.address.to_string(), h.interface]}));
+    let on = kept.owned.iter().map(|(a, i)| json!({"concat": [a.to_string(), i]}));
     setup.extend(filled("set", HELD_ON, on.collect()));
     setup.extend(t.translations.iter().filter_map(translate));
     for c in ["edge_marks_in", "edge_marks_out"] {
@@ -292,8 +293,28 @@ pub(crate) fn rules(
         vec![to_held.clone(), tcp, json!({"reject": {"type": "tcp reset"}})],
     ));
     setup.push(rule("edge_input", Some("edge"), vec![to_held, json!({"reject": null})]));
+    setup.extend(t.mesh.map(outside_mesh));
     let (input_before, forward, input) = admission();
     (setup, input_before, forward, input)
+}
+
+/// GRE to this node's mesh address arriving other than through the mesh, dropped and counted:
+/// the kernel gives a GRE packet to the link its outer addresses name, whatever interface it came
+/// by, so a machine on the node's own network could otherwise send into an edge's link with that
+/// edge's mesh address as its source. Through the mesh, WireGuard has authenticated it.
+fn outside_mesh(mesh: Ipv4Addr) -> Value {
+    let daddr = json!({"payload": {"protocol": "ip", "field": "daddr"}});
+    rule(
+        "edge_input",
+        Some("edge"),
+        vec![
+            meta("==", "l4proto", json!("gre")),
+            json!({"match": {"op": "==", "left": daddr, "right": mesh.to_string()}}),
+            meta("!=", "iifname", json!(super::INTERFACE)),
+            json!({"counter": null}),
+            json!({"drop": null}),
+        ],
+    )
 }
 
 /// The rules of the mesh's chains: GRE from an edge's mesh address, ahead of the mesh's drop;

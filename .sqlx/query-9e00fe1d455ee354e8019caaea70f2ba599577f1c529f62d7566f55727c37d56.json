@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO edge_hold\n                   (address, group_id, node_id, epoch, term_ms, received_at, released_at)\n               VALUES ($1::text::inet, $2, $3, $4, $5, $6, $7)\n               ON CONFLICT (address) DO UPDATE SET\n                   group_id = $2, node_id = $3, epoch = $4, term_ms = $5, received_at = $6,\n                   released_at = $7,\n                   route_reason = CASE WHEN edge_hold.node_id = $3\n                                       THEN edge_hold.route_reason END,\n                   route_attempts = CASE WHEN edge_hold.node_id = $3\n                                         THEN edge_hold.route_attempts ELSE 0 END,\n                   route_due = CASE WHEN edge_hold.node_id = $3 THEN edge_hold.route_due END",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int4",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9e00fe1d455ee354e8019caaea70f2ba599577f1c529f62d7566f55727c37d56"
+}

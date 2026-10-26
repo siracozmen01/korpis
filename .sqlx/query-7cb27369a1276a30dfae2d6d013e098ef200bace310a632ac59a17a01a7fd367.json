@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE edge_group SET probe_holder = $1, probe_held_until = $3\n              WHERE probe_holder = $1 OR probe_held_until IS NULL OR probe_held_until <= $2\n              RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7cb27369a1276a30dfae2d6d013e098ef200bace310a632ac59a17a01a7fd367"
+}

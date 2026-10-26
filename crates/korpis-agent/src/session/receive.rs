@@ -52,6 +52,8 @@ impl Session {
             }
             Some(Down::Peers(p)) => self.event(Event::Peers(*p)),
             Some(Down::Edges(e)) => self.event(Event::Edges(*e)),
+            Some(Down::EdgeLeaseGrant(g)) => self.event(Event::EdgeLeaseGrant(*g)),
+            Some(Down::EdgeLeaseRefusal(r)) => self.event(Event::EdgeLeaseRefusal(*r)),
             Some(Down::TokenKeys(keys)) => {
                 self.keys_in_force(&keys);
                 Vec::new()

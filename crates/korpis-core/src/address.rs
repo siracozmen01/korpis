@@ -188,7 +188,7 @@ pub struct Dedicated {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Route {
     /// The address.
-    pub address: std::net::Ipv4Addr,
+    pub address: IpAddr,
     /// The node that is to hold it; none where it is to be routed nowhere.
     pub node: Option<Uuid>,
     /// The node's advertised addresses, which the network routes it through.
@@ -219,16 +219,29 @@ impl Holding {
     }
 }
 
-/// A cluster pool's address whose router is to be asked, as one control plane took it.
+/// What holds an address a router moves: a workload, for a cluster pool's, or a member of an
+/// edge group under its lease, for a routed edge pool's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Routed {
+    /// A cluster pool's address, which its workload holds on the node it is placed on.
+    Dedicated,
+    /// A routed edge pool's address, which the member holding its lease holds.
+    Edge,
+}
+
+/// An address whose router is to be asked, as one control plane took it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DueRoute {
+    /// What holds it.
+    pub of: Routed,
     /// The address.
-    pub address: std::net::Ipv4Addr,
+    pub address: IpAddr,
     /// The pool's organization, whose providers name its router.
     pub organization: Uuid,
     /// The router, by its provider's name.
     pub router: String,
-    /// The node its holder is placed on; none where no placed workload holds it.
+    /// The node that holds it: the node a cluster pool's holder is placed on, or the member
+    /// holding an edge pool's under an unreleased lease; none where nothing holds it.
     pub wanted: Option<Uuid>,
     /// How many calls have failed since one answered.
     pub attempts: u32,

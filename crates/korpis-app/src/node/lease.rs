@@ -113,7 +113,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
 /// What one node may spend of the epoch issue rate: fifty a second, a hundred at once, a
 /// twentieth of the installation's default cap (§8 of docs/03-state.md). Renewals spend nothing.
-fn node_issue(node: Uuid) -> Bucket {
+pub(crate) fn node_issue(node: Uuid) -> Bucket {
     Bucket {
         policy: "lease-issue-node",
         key: format!("lease:{node}"),

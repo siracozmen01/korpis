@@ -31,13 +31,15 @@ fn when(op: &str, key: &str, right: &str) -> Value {
     json!({"match": {"op": op, "left": {"meta": {"key": key}}, "right": right}})
 }
 
-/// A new connection to a workload's link from outside the node: from neither a workload's link
-/// nor the mesh.
+/// A new connection to a workload's link from outside the node: from neither a workload's link,
+/// nor the mesh, nor an edge's GRE link, which the mesh's and the edges' own chains judge (§9.1,
+/// §3.1 of docs/07-networking.md).
 fn from_outside() -> Vec<Value> {
     vec![
         when("==", "oifname", LINKS),
         when("!=", "iifname", LINKS),
         when("!=", "iifname", crate::overlay::INTERFACE),
+        when("!=", "iifname", crate::overlay::EDGE_LINKS),
         json!({"match": {"op": "in", "left": {"ct": {"key": "state"}}, "right": ["new"]}}),
     ]
 }
@@ -138,5 +140,6 @@ mod tests {
         let rows = Value::Array(base("workload_forward")).to_string();
         assert!(rows.contains("exposure") && rows.contains("dnat") && rows.contains(INWARD));
         assert!(rows.contains(crate::overlay::INTERFACE), "the mesh is judged by its own chains");
+        assert!(rows.contains(crate::overlay::EDGE_LINKS), "and the edges' links by theirs");
     }
 }

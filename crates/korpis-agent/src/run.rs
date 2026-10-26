@@ -184,7 +184,7 @@ fn data_link(identity: crate::state::Identity, link: &Link, handlers: Handlers) 
 /// The node's side of the mesh, where it gives its workloads networks from `pools`, and `facts`
 /// reporting it.
 fn overlay<H: Host + Clone>(
-    state: &StateDir,
+    (state, identity): (&StateDir, &crate::state::Identity),
     host: &H,
     options: &Options,
     facts: Arc<dyn Fn() -> Facts + Send + Sync>,
@@ -194,7 +194,8 @@ fn overlay<H: Host + Clone>(
     let port = options.overlay_port;
     let advertised = facts().advertised.addresses;
     let at = (port, nets.collect());
-    let (overlay, reported) = Overlay::new(host.clone(), state.root(), at, advertised);
+    let signer = (identity.node.clone(), identity.key.clone());
+    let (overlay, reported) = Overlay::new(host.clone(), state.root(), at, (advertised, signer));
     (Some(overlay), with_overlay(facts, reported))
 }
 
@@ -233,7 +234,7 @@ impl Agent {
         options: Options,
     ) -> Result<Self, RunError> {
         let identity = state.load()?;
-        let (overlay, facts) = overlay(state, &host, &options, facts);
+        let (overlay, facts) = overlay((state, &identity), &host, &options, facts);
         let Kept { journal, progress, streams, inventory, network } =
             Kept::open(state, options.journal, options.network)?;
         let (node, data) = (identity.node.clone(), identity.clone());
@@ -288,7 +289,8 @@ impl Agent {
             tokio::spawn(offloader.run()),
             tokio::spawn(sampler.run()),
         ];
-        let overlay = overlay.map(|o| o.spawn(&link.events, link.held.clone()));
+        let up = link.outbound.clone();
+        let overlay = overlay.map(|o| o.spawn((&link.events, link.held.clone()), up));
         let tasks = tasks.into_iter().chain(proxy).chain(overlay).collect();
         Ok(Self { tasks, journal, events: link.events })
     }

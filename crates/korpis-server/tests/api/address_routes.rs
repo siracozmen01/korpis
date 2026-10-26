@@ -24,10 +24,10 @@ use std::time::{Duration, SystemTime};
 
 /// The network, as the router sees it: every route it was asked for, and whether it fails.
 #[derive(Default, Clone)]
-struct Fabric(Arc<Mutex<Vec<pb::RouteAddress>>>, Arc<AtomicBool>);
+pub(crate) struct Fabric(Arc<Mutex<Vec<pb::RouteAddress>>>, pub(crate) Arc<AtomicBool>);
 
 impl Fabric {
-    fn routes(&self) -> Vec<(String, String)> {
+    pub(crate) fn routes(&self) -> Vec<(String, String)> {
         let asked = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         asked.iter().map(|r| (r.address.clone(), r.node.clone())).collect()
     }
@@ -47,7 +47,7 @@ impl AddressRouter for Fabric {
 
 /// A router named `bgp`, installed in the root organization and serving `fabric`; the
 /// installation, whose node's session is kept for as long as it is.
-async fn serving(h: &Harness, fabric: Fabric) -> Installed {
+pub(crate) async fn serving(h: &Harness, fabric: Fabric) -> Installed {
     let document = DNS
         .replace("    - {type: dns, name: cloudflare}", "    - {type: address_router, name: bgp}")
         .replace(

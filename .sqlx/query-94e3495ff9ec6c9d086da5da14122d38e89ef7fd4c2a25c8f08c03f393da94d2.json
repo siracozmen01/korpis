@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE edge_member SET ready = $3, reason = $4, probed_at = $5\n              WHERE group_id = $1 AND node_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Bool",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "94e3495ff9ec6c9d086da5da14122d38e89ef7fd4c2a25c8f08c03f393da94d2"
+}

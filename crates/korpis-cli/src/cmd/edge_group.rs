@@ -137,8 +137,57 @@ async fn get(c: &Connection, group: &str) -> Result<pb::EdgeGroup, CliError> {
     Ok(client.get_edge_group(r).await?.into_owned().group.into_option().unwrap_or_default())
 }
 
+/// A group's status, as reading it shows: each member's probe, and each address's holder.
+/// Where `h`'s router routes it: `-` on a link the members share; the member it routes it to,
+/// or nowhere, where that is its holder or it has none; and otherwise that it waits on the
+/// router, and why where the router failed.
+fn routed(h: &pb::EdgeHolding) -> String {
+    if h.router.is_empty() {
+        return "-".into();
+    }
+    if h.routed_to == h.node || h.node.is_empty() {
+        let to = if h.routed_to.is_empty() { "nowhere" } else { &h.routed_to };
+        return format!("{to} by {}", h.router);
+    }
+    if h.route_failure.is_empty() {
+        format!("waiting on {}", h.router)
+    } else {
+        format!("waiting on {}: {}", h.router, h.route_failure)
+    }
+}
+
+fn status(g: &pb::EdgeGroup) -> String {
+    let mut out = String::new();
+    if !g.member_status.is_empty() {
+        let mut all =
+            vec![["MEMBER", "READY", "LAST PROBE", "WHY NOT"].map(str::to_owned).to_vec()];
+        all.extend(g.member_status.iter().map(|m| {
+            let ready = if m.ready { "yes" } else { "no" };
+            vec![m.node.clone(), ready.into(), time(m.last_probe.as_option()), m.reason.clone()]
+        }));
+        out.push('\n');
+        out.push_str(&table(&all));
+    }
+    if !g.holdings.is_empty() {
+        let head = ["ADDRESS", "HOLDER", "EPOCH", "ANSWERS", "ROUTED"];
+        let mut all = vec![head.map(str::to_owned).to_vec()];
+        all.extend(g.holdings.iter().map(|h| {
+            let answers = match (h.last_probe.as_option(), h.answering) {
+                (None, _) => "not yet probed",
+                (Some(_), true) => "yes",
+                (Some(_), false) => "no",
+            };
+            let holder = if h.node.is_empty() { "none".to_owned() } else { h.node.clone() };
+            vec![h.address.clone(), holder, h.epoch.to_string(), answers.into(), routed(h)]
+        }));
+        out.push('\n');
+        out.push_str(&table(&all));
+    }
+    out
+}
+
 fn one(g: &pb::EdgeGroup) -> Answer {
-    Answer { human: rows(std::slice::from_ref(g)), json: json(g) }
+    Answer { human: format!("{}{}", rows(std::slice::from_ref(g)), status(g)), json: json(g) }
 }
 
 /// Answers `korpis edge-group …`.
@@ -220,5 +269,36 @@ mod tests {
         assert!(human.contains("2s") && human.contains("10s"), "{human}");
         let bad = Settings { ports: Some("20000".into()), ..Settings::default() };
         assert!(apply(pb::EdgeGroup::default(), &bad).is_err());
+
+        let probed = pb::EdgeGroup {
+            member_status: vec![pb::EdgeMemberStatus {
+                node: "nd_2".into(),
+                reason: "it missed 3 probes in a row through its forwarding path".into(),
+                ..Default::default()
+            }],
+            holdings: vec![pb::EdgeHolding {
+                address: "198.51.100.2".into(),
+                node: "nd_1".into(),
+                epoch: 7,
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let shown = status(&probed);
+        assert!(shown.contains("missed 3 probes") && shown.contains("not yet probed"), "{shown}");
+
+        let holding = |routed_to: &str, route_failure: &str| pb::EdgeHolding {
+            node: "nd_1".into(),
+            router: "bgp".into(),
+            routed_to: routed_to.into(),
+            route_failure: route_failure.into(),
+            ..Default::default()
+        };
+        assert_eq!(routed(&holding("nd_1", "")), "nd_1 by bgp");
+        assert_eq!(
+            routed(&holding("nd_2", "bgp.session_down")),
+            "waiting on bgp: bgp.session_down"
+        );
+        assert_eq!(routed(&pb::EdgeHolding::default()), "-", "on a link the members share");
     }
 }

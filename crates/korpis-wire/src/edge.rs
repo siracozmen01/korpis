@@ -6,11 +6,14 @@
 use crate::spec::endpoints::{protocol_from_pb, protocol_to_pb};
 use crate::{Result, duration, id, invalid, timestamp, wire_id};
 use korpis_core::edge::EdgeGroup;
+use korpis_core::edge::lease::{Health, MemberState};
+use korpis_core::edge::probe::AddressStatus;
 use korpis_core::edge::table::{Admit, Forward, Forwarding, NodeEdges, Source, Target};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use std::net::{IpAddr, Ipv4Addr};
+use std::time::SystemTime;
 
 /// The wire form of a group.
 #[must_use]
@@ -29,6 +32,51 @@ pub fn group_to_pb(g: &EdgeGroup) -> pb::EdgeGroup {
         created_at: timestamp(g.created_at).into(),
         ..Default::default()
     }
+}
+
+/// `g` with its status: each of `members` as the control plane knows it, and each of `addresses`
+/// with its holder at `now`.
+#[must_use]
+pub fn with_status(
+    mut g: pb::EdgeGroup,
+    (members, addresses): (&[MemberState], &[AddressStatus]),
+    now: SystemTime,
+) -> pb::EdgeGroup {
+    g.member_status = members
+        .iter()
+        .map(|m| pb::EdgeMemberStatus {
+            node: wire_id(IdKind::Node, m.node),
+            ready: m.health() == Health::Ready,
+            last_probe: m.probed_at.map(timestamp).into(),
+            reason: match m.health() {
+                Health::Ready => String::new(),
+                Health::Disconnected => "its session is down".into(),
+                Health::Unknown => "not yet probed".into(),
+                Health::Failing => m.reason.clone().unwrap_or_default(),
+            },
+            ..Default::default()
+        })
+        .collect();
+    g.holdings = addresses
+        .iter()
+        .map(|a| pb::EdgeHolding {
+            address: a.hold.address.to_string(),
+            node: a.hold.holder(now).map(|n| wire_id(IdKind::Node, n)).unwrap_or_default(),
+            epoch: a.hold.epoch,
+            answering: a.answering == Some(true),
+            last_probe: a.probed_at.map(timestamp).into(),
+            router: a.route.as_ref().map(|r| r.router.clone()).unwrap_or_default(),
+            routed_to: a
+                .route
+                .as_ref()
+                .and_then(|r| r.routed)
+                .map(|n| wire_id(IdKind::Node, n))
+                .unwrap_or_default(),
+            route_failure: a.route.as_ref().and_then(|r| r.failing.clone()).unwrap_or_default(),
+            ..Default::default()
+        })
+        .collect();
+    g
 }
 
 fn ip(field: &str, text: &str) -> Result<IpAddr> {
@@ -73,6 +121,15 @@ fn forwarding_to_pb(f: &Forwarding) -> agent::EdgeForwarding {
         probe_node: f.probe.map(|(n, _)| wire_id(IdKind::Node, n)).unwrap_or_default(),
         probe_mesh_address: text(f.probe.map(|(_, a)| a)),
         forwards: f.forwards.iter().map(forward_to_pb).collect(),
+        hold: f
+            .hold
+            .iter()
+            .map(|(address, interface)| agent::EdgeAddress {
+                address: address.to_string(),
+                interface: interface.clone(),
+                ..Default::default()
+            })
+            .collect(),
         ..Default::default()
     }
 }
@@ -132,6 +189,11 @@ fn forwarding_from_pb(f: &agent::EdgeForwarding) -> Result<Forwarding> {
         probe_port: port("group.probe_port", f.probe_port)?,
         probe,
         forwards: f.forwards.iter().map(forward_from_pb).collect::<Result<_>>()?,
+        hold: f
+            .hold
+            .iter()
+            .map(|h| Ok((ip("group.hold.address", &h.address)?, h.interface.clone())))
+            .collect::<Result<_>>()?,
     })
 }
 
@@ -191,6 +253,7 @@ mod tests {
                 probe_port: 65_535,
                 probe: Some((Uuid::from_u128(3), "10.48.7.255".parse().unwrap())),
                 forwards: vec![forward(Some((target, "10.48.7.255".parse().ok()))), forward(None)],
+                hold: vec![("198.51.100.2".parse().unwrap(), "eth1".into())],
             }],
             sources: vec![Source {
                 node: Uuid::from_u128(2),

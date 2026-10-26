@@ -38,6 +38,6 @@ ruzstd = "0.9.1"
 
 [dev-dependencies]
 # The reference encoder, so the decoder is tested against archives it did not make.
-zstd = "0.13"
+zstd = "0.14.3"
 sha2 = "0.10"
 tempfile = "3"

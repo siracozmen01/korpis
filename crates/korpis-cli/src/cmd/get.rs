@@ -11,6 +11,10 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::subject::Kind as S;
 use std::fmt::Write as _;
 
+mod endpoints;
+
+use endpoints::endpoints;
+
 pub(crate) fn subject(s: Option<&pb::Subject>) -> String {
     match s.and_then(|s| s.kind.as_ref()) {
         Some(S::User(id) | S::Token(id) | S::Workload(id) | S::Extension(id)) => id.clone(),
@@ -208,25 +212,6 @@ pub async fn get(c: &Connection, what: &Get) -> Result<Answer, CliError> {
 }
 
 /// Why nothing holds a workload, as the scheduler explained it to the caller.
-/// One line per endpoint: its name, its exposure, and where a client reaches it, if anywhere.
-fn endpoints(out: &mut String, s: &pb::WorkloadStatus) {
-    for e in &s.endpoints {
-        let exposure = short(e.exposure, "EXPOSURE_");
-        let on_node = matches!(
-            e.exposure.as_known(),
-            Some(pb::Exposure::EXPOSURE_NODE_PORT | pb::Exposure::EXPOSURE_NODE_BOUND)
-        );
-        let at = e.address.as_option().map_or_else(
-            || if on_node { "no free port on its node".to_owned() } else { "-".to_owned() },
-            |a| {
-                let at: Vec<String> = a.ips.iter().map(|ip| format!("{ip}:{}", a.port)).collect();
-                if at.is_empty() { format!("port {}", a.port) } else { at.join(", ") }
-            },
-        );
-        let _ = writeln!(out, "endpoint:  {} {exposure} {at}", e.name);
-    }
-}
-
 fn unplaced(out: &mut String, s: &pb::WorkloadStatus) {
     let Some(u) = s.unplaced.as_option() else { return };
     let _ = writeln!(out, "unplaced since {}:", time(u.since.as_option()));

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE edge_hold SET released_at = $4\n                WHERE address = $1::text::inet AND node_id = $2 AND epoch = $3\n                  AND released_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d013990a4fc7a003c633bf3e15bd399d73a5c29f231621799b5bac5a78543ec2"
+}

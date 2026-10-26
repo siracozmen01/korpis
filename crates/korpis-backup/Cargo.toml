@@ -57,7 +57,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeroize = "1"
 # Objects are compressed before they are sealed: game worlds compress well, and ciphertext does
 # not compress at all.
-zstd = "0.13"
+zstd = "0.14.3"
 
 [dev-dependencies]
 korpis-backup = { path = ".", features = ["testing"] }

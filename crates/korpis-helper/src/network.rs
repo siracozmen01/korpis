@@ -9,8 +9,10 @@
 //! a crash or a reboot left behind.
 
 mod account;
+pub(crate) mod announce;
 mod asked;
 mod bandwidth;
+pub(crate) mod conntrack;
 mod dedicated;
 mod egress;
 mod forward;

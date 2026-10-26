@@ -6,6 +6,7 @@
 mod certificate;
 mod credential;
 mod downlink;
+mod edge_lease;
 mod health;
 mod job;
 mod published;

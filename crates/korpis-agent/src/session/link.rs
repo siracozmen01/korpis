@@ -66,6 +66,10 @@ pub enum Event {
     Peers(agent::Peers),
     /// What the node is told of edges (§3.1 of docs/07-networking.md).
     Edges(agent::Edges),
+    /// A lease on an edge address this member asked for, granted.
+    EdgeLeaseGrant(agent::EdgeLeaseGrant),
+    /// A lease on an edge address this member asked for, refused.
+    EdgeLeaseRefusal(agent::EdgeLeaseRefusal),
     /// The stream ended, and why.
     Disconnected(String),
 }

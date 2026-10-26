@@ -357,6 +357,9 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `JobAccess` | the answer to a `JobAccessRequest`: the workload's data key and scoped access to its repository's store, or the refusal (§5.5 of `06-storage.md`) |
 | `StepResolution` | the answer to a `StepRequest`: what the provider step resolved to, or the refusal (§4 of `09-recipes.md`) |
 | `CertificateKey` | the answer to a `CertificateRequest`: the certificate's chain and key at its revision, or the refusal (§3.2 of `07-networking.md`) |
+| `Peers` | the mesh's other members, each with its key, its endpoint, and its pools, or why this node is outside the mesh; sent when the session opens and when they change (§9.1 of `07-networking.md`) |
+| `Edges` | the node's part in edge groups: as a member, each group's forwarding table and the addresses it should hold; as a node behind edges, each edge and what it may reach (§3.1 of `07-networking.md`) |
+| `EdgeLeaseGrant`, `EdgeLeaseRefusal` | the answer to an `EdgeLeaseRequest`, echoing its nonce: an epoch and a term, or why not, naming the holder where another member holds the address |
 
 **Agent → control plane**
 
@@ -376,6 +379,8 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `JobAccessRequest` | a backup, restore, or offload asks for what it needs; answered only to the node holding the workload's lease whose assignment carries the step (§5.5 of `06-storage.md`) |
 | `StepRequest` | an install asks for one of its provider steps to be resolved; answered only to the node the workload is placed on (§4 of `09-recipes.md`) |
 | `CertificateRequest` | the proxy needs a certificate an assignment names; answered only to a node an endpoint served with it is placed on (§3.2 of `07-networking.md`) |
+| `EdgeLeaseRequest` | acquire or renew the lease on an edge address the member's table names, carrying a nonce; fenced as a workload's lease is (§3.1 of `07-networking.md`) |
+| `EdgeLeaseReleased` | the member has stopped holding an address under an epoch: taken it off and forgotten its connections |
 
 > Corrected 2026-10-16, when the node's certificate fetch was built. These tables lacked the
 > job-access and step-resolution exchanges, which were added to the protocol when backups (P1.3)

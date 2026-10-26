@@ -31,6 +31,10 @@ pub(crate) use wg::Key;
 
 /// The interface's name.
 pub const INTERFACE: &str = "korpis-overlay";
+
+/// The GRE links to and from edges (§3.1 of docs/07-networking.md), as nftables matches their
+/// names.
+pub(crate) const EDGE_LINKS: &str = "kg*";
 /// Its MTU: a 1,500-byte link less WireGuard's 80 bytes over IPv6 (§5 of
 /// docs/research/evidence.md).
 pub const MTU: u32 = 1420;
@@ -193,10 +197,18 @@ impl Overlay {
         wg.set(device(private, port, (&peers, &stale))).map_err(failed)?;
         rtnl.set_up(index).map_err(failed)?;
         routes(&mut rtnl, index, &peers).map_err(failed)?;
-        let links = edge::keep(&mut rtnl, index, &edges).map_err(failed)?;
-        let (setup, input_before, forward, input) = edge::rules(&edges, &links);
+        let was = edge::listed().map_err(failed)?;
+        let kept = edge::keep(&mut rtnl, index, &edges).map_err(failed)?;
+        let (setup, input_before, forward, input) = edge::rules(&edges, &kept);
         let edge_rules = admit::EdgeRules { setup, input_before, forward, input };
         crate::network::nft::apply(&admit::rules(&admitted, edge_rules)).map_err(failed)?;
+        // The table is in place either way; a connection left stale is the lesser fault, so a
+        // failure to forget one is logged rather than failing what was kept.
+        match edge::sweep(&edges, &was) {
+            Ok(0) => {}
+            Ok(forgotten) => tracing::info!(forgotten, "edge connections forgotten"),
+            Err(e) => tracing::warn!(error = %e, "stale edge connections were not forgotten"),
+        }
         let device = wg.get(INTERFACE).map_err(failed)?;
         Ok(answer(&device))
     }

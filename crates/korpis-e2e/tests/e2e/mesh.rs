@@ -146,7 +146,7 @@ fn counted(ns: &Netns, chain: &str, comment: &str) -> u64 {
 }
 
 /// Waits until the API says `node` is in the mesh and reaches every member it is paired with.
-async fn until_available(cp: &ControlPlane, node: &str) {
+pub(crate) async fn until_available(cp: &ControlPlane, node: &str) {
     for _ in 0..120 {
         let request = pb::GetNodeRequest { id: node.to_owned(), ..Default::default() };
         let got = cp.nodes().get_node(request).await.unwrap().into_owned();
@@ -166,7 +166,7 @@ fn exposed(exposure: pb::Exposure) -> pb::IntentBody {
 }
 
 /// Cordons `node`, so nothing more is placed there.
-async fn cordon(cp: &ControlPlane, node: &str) {
+pub(crate) async fn cordon(cp: &ControlPlane, node: &str) {
     let request = pb::CordonNodeRequest {
         mutation: pb::Mutation { idempotency_key: format!("cordon-{node}"), ..Default::default() }
             .into(),

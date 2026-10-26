@@ -6,6 +6,7 @@
 //! link they came by, and the addresses a member holds on their interfaces.
 
 use super::{EDGE_MARK, HELD_ON, LINKS, MTU, SOURCE_MARK, Table, link_name};
+use crate::network::announce::announce;
 use crate::network::nft::TABLE;
 use crate::network::rtnl::{MarkRule, Rtnl};
 use serde_json::Value;
@@ -141,43 +142,69 @@ fn held_before() -> io::Result<Vec<(Ipv4Addr, String)>> {
         .collect())
 }
 
+/// Announces `address`, just put on link `index`, to the link's neighbours. An announcement that
+/// cannot be sent is logged: the address is held, and the neighbours learn it as their entries
+/// for its last holder go stale.
+fn announced(rtnl: &mut Rtnl, index: u32, address: Ipv4Addr) {
+    let sent = rtnl.link_address(index).and_then(|mac| announce(index, &mac, address));
+    if let Err(e) = sent {
+        tracing::warn!(%address, error = %e, "a held address was not announced");
+    }
+}
+
+/// What the helper keeps of edges outside nftables, for the rules naming it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Kept {
+    /// Each GRE link by the mesh address at its other end, with its name and index.
+    pub(crate) links: BTreeMap<Ipv4Addr, (String, u32)>,
+    /// The held addresses the helper put on their interfaces, and so takes off again.
+    pub(crate) owned: Vec<(Ipv4Addr, String)>,
+}
+
 /// Puts each address `t` holds on its interface, and takes off each the helper put on one
-/// before that `t` no longer holds there.
-fn keep_holds(rtnl: &mut Rtnl, t: &Table) -> io::Result<()> {
+/// before that `t` no longer holds there; what it put on, and so owns. An address the interface
+/// had already, which the helper did not put there, is the operator's: it is left as it is,
+/// held or not, and never taken off.
+fn keep_holds(rtnl: &mut Rtnl, t: &Table) -> io::Result<Vec<(Ipv4Addr, String)>> {
     let wanted: Vec<(Ipv4Addr, String)> =
         t.holds.iter().map(|h| (h.address, h.interface.clone())).collect();
-    for (address, interface) in held_before()? {
-        if !wanted.contains(&(address, interface.clone()))
-            && let Some(index) = rtnl.link_index(&interface)?
+    let before = held_before()?;
+    for (address, interface) in &before {
+        if !wanted.contains(&(*address, interface.clone()))
+            && let Some(index) = rtnl.link_index(interface)?
         {
-            rtnl.delete_host_address(index, address)?;
+            rtnl.delete_host_address(index, *address)?;
         }
     }
-    for (address, interface) in &wanted {
+    let mut owned = Vec::new();
+    for held in wanted {
+        let (address, interface) = &held;
         let index = rtnl
             .link_index(interface)?
             .ok_or_else(|| io::Error::other(format!("no interface {interface:?} to hold on")))?;
-        rtnl.add_host_address(index, *address)?;
+        if rtnl.add_host_address(index, *address)? {
+            if interface != "lo" {
+                announced(rtnl, index, *address);
+            }
+            owned.push(held);
+        } else if before.contains(&held) {
+            owned.push(held);
+        }
     }
-    Ok(())
+    Ok(owned)
 }
 
-/// Keeps everything `t` asks for outside nftables, the mesh's interface being link
-/// `overlay`; each GRE link by the mesh address at its other end, with its name and index.
+/// Keeps everything `t` asks for outside nftables, the mesh's interface being link `overlay`.
 ///
 /// # Errors
 /// Netlink refusing a change, or an interface to hold an address on missing.
-pub(crate) fn keep(
-    rtnl: &mut Rtnl,
-    overlay: u32,
-    t: &Table,
-) -> io::Result<BTreeMap<Ipv4Addr, (String, u32)>> {
+pub(crate) fn keep(rtnl: &mut Rtnl, overlay: u32, t: &Table) -> io::Result<Kept> {
     if let Some(mesh) = t.mesh {
         rtnl.add_host_address(overlay, mesh)?;
     }
     let links = tunnels(rtnl, t)?;
     keep_link_rules(rtnl, &links.values().map(|(name, _)| name).collect::<Vec<_>>())?;
     keep_routing(rtnl, &routing(t, &links))?;
-    keep_holds(rtnl, t)?;
-    Ok(links)
+    let owned = keep_holds(rtnl, t)?;
+    Ok(Kept { links, owned })
 }

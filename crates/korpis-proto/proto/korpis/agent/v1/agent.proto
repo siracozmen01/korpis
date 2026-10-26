@@ -91,6 +91,8 @@ message AgentMessage {
     CertificateRequest certificate_request = 15;
     Presented presented = 16;
     HealthQuery health_query = 17;
+    EdgeLeaseRequest edge_lease_request = 18;
+    EdgeLeaseReleased edge_lease_released = 19;
   }
 }
 
@@ -120,6 +122,8 @@ message ControlMessage {
     HealthAnswer health_answer = 20;
     Peers peers = 21;
     Edges edges = 22;
+    EdgeLeaseGrant edge_lease_grant = 23;
+    EdgeLeaseRefusal edge_lease_refusal = 24;
   }
 }
 
@@ -548,6 +552,16 @@ message EdgeForwarding {
   // That node's address in the mesh; empty where it is this node.
   string probe_mesh_address = 4;
   repeated EdgeForward forwards = 5;
+  // Each address of the group's pools this member should hold, which it holds once its lease
+  // on the address is granted and for as long as it is valid.
+  repeated EdgeAddress hold = 6;
+}
+
+message EdgeAddress {
+  string address = 1;
+  // The pool's interface on the members' shared link, which the holder puts the address on and
+  // announces it on; empty where the pool's router routes the address to the holder.
+  string interface = 2;
 }
 
 message EdgeForward {
@@ -854,6 +868,47 @@ message LeaseRevoke {
 // The node has stopped acting under an epoch. Also written to the journal.
 message LeaseReleased {
   string workload = 1;
+  uint64 epoch = 2;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Edge leases (§3.1 of docs/07-networking.md)
+
+// Asks for, or renews, the lease on an address this member is told to hold. Fenced as a
+// workload's lease is: the member's runs from the send, valid until sent_at + term × (1 − ρ) on
+// its own monotonic clock, and the grantor's from receipt.
+message EdgeLeaseRequest {
+  string address = 1;
+  // Echoed by the answer.
+  bytes nonce = 2;
+  // The epoch the member holds the address under, zero if none.
+  uint64 held_epoch = 3;
+}
+
+message EdgeLeaseGrant {
+  string address = 1;
+  bytes nonce = 2;
+  uint64 epoch = 3;
+  google.protobuf.Duration term = 4;
+  // The declared bound on clock-rate error, in parts per million.
+  uint32 rho_ppm = 5;
+}
+
+// Why an address's lease was not granted: SUPERSEDED where another member holds it and this one
+// should not, NOT_ASSIGNED where this member should not hold it, UNAVAILABLE where it should but
+// the last holder's lease is not over yet.
+message EdgeLeaseRefusal {
+  string address = 1;
+  bytes nonce = 2;
+  LeaseRefusalReason reason = 3;
+  // For SUPERSEDED: the member holding it, `nd_...`.
+  string superseded_by = 4;
+}
+
+// The member has stopped holding the address under `epoch`: it is off the member's interface,
+// its connections forgotten.
+message EdgeLeaseReleased {
+  string address = 1;
   uint64 epoch = 2;
 }
 

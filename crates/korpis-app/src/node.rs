@@ -27,6 +27,7 @@ pub use enroll::{
 };
 pub use identity::{CredentialRefusal, IssuedCredential};
 pub use lease::LeaseAnswer;
+pub(crate) use lease::node_issue;
 pub use reachability::ProbeDue;
 pub use session::{AGENT_PROTOCOLS, Hello, NodeProof, Session, SessionTerms};
 

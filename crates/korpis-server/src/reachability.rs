@@ -41,6 +41,8 @@ const LISTEN: Duration = Duration::from_secs(10);
 const ANSWER: Duration = Duration::from_secs(3);
 /// How many datagrams are sent before UDP is judged unreachable.
 const DATAGRAMS: usize = 3;
+/// How many ports a node is asked to listen on, one after another, before an attempt fails.
+const PORTS: u32 = 3;
 
 /// Where a node's last attempt stands.
 #[derive(Debug, Clone, Copy)]
@@ -106,33 +108,47 @@ async fn answers(due: &ProbeDue, node: &str, address: IpAddr, port: u16) -> bool
     by_tcp && over_udp(at, &udp).await.is_some_and(|a| signed(due, node, port, &udp, &a))
 }
 
+/// Asks `node` to listen on a free port of its range, the next free one each time it says it
+/// cannot, up to [`PORTS`] of them; the port it listens on.
+async fn listen(api: &Api, node: Uuid, due: &ProbeDue) -> Result<u16, String> {
+    let first = random::<4>().map(u32::from_le_bytes).ok_or("no randomness")?;
+    let mut why = String::new();
+    for next in 0..PORTS {
+        let pick = first.wrapping_add(next);
+        let port = due.free_port(pick).ok_or("every port of the node's range is held")?;
+        let probe = hex(&random::<16>().ok_or("no randomness")?);
+        let sender = api.sessions().sender(node).ok_or("the node's session ended")?;
+        let answered = api.sessions().expect_probe(&probe);
+        let ask = agent::ReachabilityProbe {
+            probe: probe.clone(),
+            port: u32::from(port),
+            ..Default::default()
+        };
+        let message = agent::ControlMessage {
+            message: Some(Down::ReachabilityProbe(Box::new(ask))),
+            ..Default::default()
+        };
+        if sender.send(message).await.is_err() {
+            api.sessions().forget_probe(&probe);
+            return Err("the node's session ended".into());
+        }
+        let Ok(Ok(error)) = tokio::time::timeout(LISTEN, answered).await else {
+            api.sessions().forget_probe(&probe);
+            return Err("the node did not say it was listening".into());
+        };
+        if error.is_empty() {
+            return Ok(port);
+        }
+        // A port taken on the node's machine, or forwarded to a workload, says nothing of the
+        // node's reachability: another port is asked for at once.
+        why = error;
+    }
+    Err(why)
+}
+
 /// One measurement of `node`.
 async fn measure(api: &Api, node: Uuid, due: &ProbeDue) -> Result<Reachability, String> {
-    let pick = random::<4>().map(u32::from_le_bytes).ok_or("no randomness")?;
-    let port = due.free_port(pick).ok_or("every port of the node's range is held")?;
-    let probe = hex(&random::<16>().ok_or("no randomness")?);
-    let sender = api.sessions().sender(node).ok_or("the node's session ended")?;
-    let answered = api.sessions().expect_probe(&probe);
-    let ask = agent::ReachabilityProbe {
-        probe: probe.clone(),
-        port: u32::from(port),
-        ..Default::default()
-    };
-    let message = agent::ControlMessage {
-        message: Some(Down::ReachabilityProbe(Box::new(ask))),
-        ..Default::default()
-    };
-    if sender.send(message).await.is_err() {
-        api.sessions().forget_probe(&probe);
-        return Err("the node's session ended".into());
-    }
-    let Ok(Ok(error)) = tokio::time::timeout(LISTEN, answered).await else {
-        api.sessions().forget_probe(&probe);
-        return Err("the node did not say it was listening".into());
-    };
-    if !error.is_empty() {
-        return Err(error);
-    }
+    let port = listen(api, node, due).await?;
     let name = wire_id(IdKind::Node, node);
     for address in &due.advertised.addresses {
         if answers(due, &name, *address, port).await {

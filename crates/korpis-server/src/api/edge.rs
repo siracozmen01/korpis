@@ -10,7 +10,7 @@ use korpis_app::idempotency::Idempotent;
 use korpis_core::edge::EdgeGroup;
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
-use korpis_wire::edge::group_to_pb;
+use korpis_wire::edge::{group_to_pb, with_status};
 
 fn created(g: &EdgeGroup) -> pb::CreateEdgeGroupResponse {
     pb::CreateEdgeGroupResponse { group: group_to_pb(g).into(), ..Default::default() }
@@ -82,10 +82,10 @@ impl pb::EdgeGroupService for Api {
         let req = request.to_owned_message();
         let id = wire::id(IdKind::EdgeGroup, "id", &req.id).refuse()?;
         let group = self.app.edge_group(&caller, id).await.map_err(error::from_app)?;
-        Response::ok(pb::GetEdgeGroupResponse {
-            group: group_to_pb(&group).into(),
-            ..Default::default()
-        })
+        let (members, addresses) =
+            self.app.edge_group_status(group.id).await.map_err(error::from_app)?;
+        let shown = with_status(group_to_pb(&group), (&members, &addresses), self.app.now());
+        Response::ok(pb::GetEdgeGroupResponse { group: shown.into(), ..Default::default() })
     }
 
     async fn list_edge_groups(

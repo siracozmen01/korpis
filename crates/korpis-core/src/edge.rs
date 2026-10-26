@@ -13,6 +13,8 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
+pub mod lease;
+pub mod probe;
 pub mod table;
 
 /// The ports a group gives `stable` endpoints unless it says otherwise.

@@ -59,7 +59,11 @@ fn mesh(nodes: &[Uuid]) -> BTreeMap<Uuid, Ipv4Addr> {
 #[test]
 fn every_member_forwards_the_whole_group_and_the_node_behind_admits_each_member() {
     let all = mesh(&[E1, E2, A]);
-    let t = tables(&[group(&[E1, E2])], &[entry(25_565, Some(A)), entry(25_575, None)], &all);
+    let holding = Holding::from([(ip("198.51.100.2"), (E2, "eth1".to_owned()))]);
+    let entries = [entry(25_565, Some(A)), entry(25_575, None)];
+    let t = tables(&[group(&[E1, E2])], &entries, &all, &holding);
+    assert!(t[&E1].groups[0].hold.is_empty());
+    assert_eq!(t[&E2].groups[0].hold, [(ip("198.51.100.2"), "eth1".to_owned())], "one holds it");
     for edge in [E1, E2] {
         let f = &t[&edge].groups[0];
         assert_eq!(f.forwards.len(), 2, "the whole table, whichever holds the address");
@@ -81,15 +85,16 @@ fn every_member_forwards_the_whole_group_and_the_node_behind_admits_each_member(
 
 #[test]
 fn a_workload_on_a_member_needs_no_tunnel_and_a_lone_member_or_one_outside_forwards_nothing() {
-    let t = tables(&[group(&[E1, E2])], &[entry(25_565, Some(E1))], &mesh(&[E1, E2]));
+    let none = Holding::new();
+    let t = tables(&[group(&[E1, E2])], &[entry(25_565, Some(E1))], &mesh(&[E1, E2]), &none);
     let own = &t[&E1].groups[0];
     assert_eq!(own.forwards[0].target.as_ref().unwrap().1, None, "on the member itself");
     assert_eq!(own.probe, Some((E2, v4("10.48.2.255"))), "probed through the other member");
     let from_e2: Vec<Uuid> = t[&E1].sources.iter().map(|s| s.node).collect();
     assert_eq!(from_e2, [E2], "the other member tunnels to it");
 
-    let lone = tables(&[group(&[E1])], &[entry(25_565, Some(A))], &mesh(&[E1, A]));
+    let lone = tables(&[group(&[E1])], &[entry(25_565, Some(A))], &mesh(&[E1, A]), &none);
     assert!(lone.is_empty(), "one machine serves nothing");
-    let outside = tables(&[group(&[E1, E2])], &[entry(25_565, Some(B))], &mesh(&[E1, E2]));
+    let outside = tables(&[group(&[E1, E2])], &[entry(25_565, Some(B))], &mesh(&[E1, E2]), &none);
     assert!(outside[&E1].groups[0].forwards[0].target.is_none(), "its node is not in the mesh");
 }

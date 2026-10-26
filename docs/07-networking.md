@@ -330,13 +330,18 @@ address, and its container port, or no target when it is not running. So a membe
 address has its forwarding already in place, and only the address itself moves. Which member holds
 an address is decided by the control plane under a lease with an epoch, below; the pool's routing
 says how the network learns it. A `static` edge pool is on a link the members share: the holder
-adds the address to the pool's interface as a host address, as a dedicated one is added (§3.7), and
+adds the address to the pool's interface as a host address, as a dedicated one is added (§3.7), an
+address the interface had already being the operator's and never taken off (Finding 193), and
 announces it with gratuitous ARP for IPv4 and an unsolicited neighbour advertisement for IPv6,
 which is the floating address of VRRP's row in §5 of `18-operations.md`, without VRRP's own
 election, since the lease decides. A `bgp` or `provider_api` pool names an address router, and the
 control plane asks it to route the address to the holder (§3.7), which is the BGP row; the holder
-translates what arrives without adding the address. One holder at a time is the design; several
-members forwarding one address at once, which ECMP's row needs, is question 14 of §11.
+adds the address to its loopback, announcing nothing, so that a port of it no endpoint holds is
+refused there rather than routed back out towards the router that delivered it. (Corrected
+2026-10-26, Finding 194 of `23-walkthroughs.md`: this sentence had the holder translate what
+arrives without adding the address, which left every other port of it to the routing table.) One
+holder at a time is the design; several members forwarding one address at once, which ECMP's row
+needs, is question 14 of §11.
 
 *The tunnel, which keeps the client's address.* Edges are members of the mesh (§9.1), since they
 are nodes; a node behind NAT dials the edges it is paired with, which is why `stable` needs only an
@@ -355,11 +360,13 @@ link's mark before it is routed, and the kernel checks its source by that mark, 
 back into the link; the link's arrivals are themselves routed by the main table alone, and refused
 where it has no route. The helper leaves the host's own reverse-path setting as it is, strict or
 loose, and both pass, where a link with no address of its own and a client's source fails either
-without the mark (Finding 191). So the workload sees the client's own address over TCP and UDP
-(§3.4). Direct server return, detected per node and never assumed (§3.4), is not built with the
-first build of edges, and replies cross the edge. What it costs: 24 bytes of each packet, so TCP's
-segment size is clamped to the GRE link's MTU, 1,396, as it is into the mesh; a link per pair on
-each side; and a conntrack entry per flow on the holder (question 1).
+without the mark (Finding 191). GRE to a node's mesh address that arrives other than through the
+mesh is dropped before the kernel takes it, since the kernel gives a GRE packet to the link its
+outer addresses name whatever interface brought it (Finding 192). So the workload sees the client's
+own address over TCP and UDP (§3.4). Direct server return, detected per node and never assumed
+(§3.4), is not built with the first build of edges, and replies cross the edge. What it costs: 24
+bytes of each packet, so TCP's segment size is clamped to the GRE link's MTU, 1,396, as it is into
+the mesh; a link per pair on each side; and a conntrack entry per flow on the holder (question 1).
 
 *The lease.* An address held by an edge is fenced as a workload is (§4.5 of `02-architecture.md`):
 the member acquires and renews it by request, its term runs from the send on the holder's side and
@@ -467,6 +474,73 @@ reaches the workload at the held address and port, which sees the client's own a
 without a target and a port no endpoint holds are refused at once; a port the node was not told to
 admit is not reached; and the address is taken off when no longer held. Not built yet: the leases,
 the probe and failover (P3.7d), and the rest of P3.7e, with IPv6 forwarding through the links.
+
+Built 2026-10-26, the leases, the probe, and failover (P3.7d). The control plane names, in each
+member's table, the addresses it should hold: a ready holder keeps its address; otherwise a ready
+member takes it, each address going to the member a hash of the address and the member weighs
+heaviest, so a group's addresses spread over its members and a member joining or leaving moves only
+its own. Where no member is ready, the control plane suspects its own probe first and judges by
+sessions alone: a holder still connected keeps its address, and only one whose session is down, as
+its heartbeats say, or no holder at all, gives way to a connected member; so a control plane that
+reaches no member through its probe still has every address held. The named member asks for the
+address's lease up its session, and the control plane decides under the group's row lock, as a
+workload's lease is decided: its own unreleased lease is renewed under its epoch with the group's
+term, another member's is issued a new epoch, from the sequence workloads' come from, only once the
+last holder released or its term passed, and a member not named is told who holds the address. The
+member holds the address only while its lease is valid on its own clock, renews it a third of the
+way through its term, and once the helper has taken it off says it released it, so the next member
+need not wait out the term; a holder no longer named stops being renewed and so lets go, which is
+how the control plane asks it to release. The helper announces an address it puts on a link with a
+gratuitous ARP, and forgets, over the kernel's connection tracking, every connection to an address
+it stops holding and every one to a port whose target moved, so a UDP flow follows its port at its
+next datagram. Tested over the API (the member named granted, the other told who holds it, the
+renewal under the same epoch, a new epoch after a release, and an address no endpoint holds
+refused) and in namespaces (the announcement taking a client's stale entry, and a flow following
+its port). The probe is built as designed above: one replica claims each group's probe, holding it
+ten seconds and renewing it every two, and sends each interval one datagram to the probe port of
+every member's own first advertised IPv4 address and of each address it holds, carrying a nonce,
+the group, and the address; every member translates that port, on those addresses, to the node its
+table names, and that node's agent, listening on its mesh address on each probe port an edge
+forwards to it, answers with its node key's signature over the purpose, the group, the address,
+itself, and the nonce. An answer verified within the interval, a second at most, passes; the
+group's count of misses in a row makes a member failing, with why, and one answer makes it ready
+again. A member that advertises no IPv4 address, or whose probe no node answers yet, is failing for
+that reason. What changes is recorded at once, and the rest every ten seconds. Reading a group
+shows each member's readiness, its last probe, and why it is not ready, and each address's holder,
+epoch, and whether it answers through its holder (`korpis edge-group get`). Tested over the API,
+the test answering at each member's address as the node behind it would: the member answering is
+named and granted the address, the one silent is shown failing with why, and when the holder falls
+silent and the other answers, the other is named, refused until the holder releases, and then
+granted the next epoch. A `stable` endpoint's status names its group, and says why it is not known
+to be reached where no member holds its address or none passes the probe (Finding 190), the
+workload keeping its state and placement. Tested end to end on real nodes, each machine's data
+plane in a namespace of the test's own and the client on the edges' link: the client reaches the
+server through the edge holding its address, and when that edge loses power, its agent stopped and
+its link down, the other edge is granted the address once the holder's term has passed and the
+client reaches the server through it. That test found the node behind the edges judging a
+connection from an edge's link by the workload's own exposure chain, which knows nothing of edges,
+and dropping it; an edge's link is now judged by the edges' chains alone, as the mesh is by its
+own. What it does not do: an agent that restarts gives up the addresses it held until its leases
+are granted again, a round trip, since it holds nothing it has no lease for. Not built yet: the
+probe on a control plane sharing a machine with the node that answers, which this build does not
+detect (P3.7e).
+
+Routed edge pools are built 2026-10-26 (P3.7e1). An edge pool naming a router keeps, with each
+address's lease, the member its router last said it routes the address to, why its last answer was
+not that, and when it is asked again, as a cluster pool's address keeps them (§3.7); the reconciler
+that asks a cluster pool's routers asks it too, woken by a lease issued to another member, by one
+released, and by a port given back, and asks the router to route the address to the member its
+lease was last issued to while that member has not released it and a `stable` port holds the
+address, at the member's advertised addresses, and nowhere otherwise. A lease whose term passes
+unrenewed moves nothing by itself, since the next member is asked for at its grant. The group's
+status shows, for each address, its router, where the router last routed it, and why not to its
+holder; and a `stable` endpoint whose address the router has not routed to its holder is shown
+unreached with that reason. Tested over the API with a router of the test's own: routed to the
+member granted the lease, the router failing when the lease moves and the endpoint shown unreached
+for it, and routed to the new holder once it answers. What it does not do: the holder holds the
+address from its grant, before the router has routed it, since the lease and not the route keeps
+two members from holding it, so the address is unreached for as long as the router takes; and the
+router is told one holder, never every member, which is question 14 of §11.
 
 ### 3.2 `ingress`: name-based routing
 
@@ -2024,7 +2098,12 @@ measured. Corrected 2026-10-15, Finding 53 of `23-walkthroughs.md`: the port was
 and once endpoints hold ports of it (§3) the probe could pick one the node forwards to a workload,
 so its nonces would reach the workload and the node would be judged unreachable, or reachable on
 the strength of a workload that answered. The control plane holds every allocation on the node, so
-it picks among the free ones, and the node refuses to listen on a port it forwards.
+it picks among the free ones, and the node refuses to listen on a port it forwards. Corrected
+2026-10-26: a port the node could not listen on, because a process of its machine held it or the
+node forwarded it, failed the attempt, and the node waited thirty seconds to be measured, though
+the port says nothing of whether the node is reached; the prober now asks at once for the next free
+port of the range, up to three, and only an attempt failing on all three waits. It was found by a
+test whose node was refused a port another test's node held.
 
 What the probe does not do, stated plainly. It measures from where the control plane runs. A
 prober inside the node's network reaches a private address no client outside can, and a prober

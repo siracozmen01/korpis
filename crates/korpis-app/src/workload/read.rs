@@ -68,6 +68,9 @@ pub struct WorkloadView {
     /// The dedicated address it holds, if any, and whether it waits on its router to be routed
     /// to its node (§3.7 of docs/07-networking.md).
     pub dedicated: Option<(korpis_core::address::Holding, bool)>,
+    /// Each of its `stable` endpoints, by name, with its edge group and why it is not reached
+    /// (§3.1 of docs/07-networking.md).
+    pub edges: Vec<(String, crate::edge_group::EdgeReach)>,
 }
 
 /// Its endpoints as placed, each with the addresses a client reaches it at, and the dedicated
@@ -75,6 +78,7 @@ pub struct WorkloadView {
 struct Reached {
     endpoints: Vec<(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)>,
     dedicated: Option<(korpis_core::address::Holding, bool)>,
+    edges: Vec<(String, crate::edge_group::EdgeReach)>,
 }
 
 /// The keys whose values a view left out, by intent.
@@ -162,7 +166,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let waits = h.waits_on_router(node);
             (h, waits)
         });
-        Ok(Reached { endpoints, dedicated })
+        let edges = self.edge_reach(&stable).await?;
+        Ok(Reached { endpoints, dedicated, edges })
     }
 
     async fn unrendered(&self, workload: Workload) -> Result<(WorkloadView, Found), AppError> {
@@ -188,7 +193,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }),
             None => None,
         };
-        let Reached { endpoints, dedicated } = self.endpoints_advertised(id, found.node()).await?;
+        let Reached { endpoints, dedicated, edges } =
+            self.endpoints_advertised(id, found.node()).await?;
         let mut certificates = Vec::new();
         for (endpoint, c) in self.store.routed_certificates(id).await? {
             if let Some(found) = self.store.certificate(c).await? {
@@ -202,6 +208,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let named_rules = self.named_rule_status(&workload, target.as_ref()).await?;
         let view = WorkloadView {
             dedicated,
+            edges,
             dependencies,
             named_rules,
             newest_run,

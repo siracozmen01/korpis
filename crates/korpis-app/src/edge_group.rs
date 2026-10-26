@@ -19,9 +19,15 @@ use korpis_core::edge::EdgeGroup;
 use std::time::Duration;
 use uuid::Uuid;
 
+mod lease;
 mod placed;
+mod probe;
+mod reach;
 mod tables;
 
+pub use lease::EdgeLeaseAnswer;
+pub use probe::{ProbePlan, ProbeTarget};
+pub use reach::EdgeReach;
 pub use tables::EdgeTables;
 
 /// A group as its maker asks for it: everything but its id and creation time, each setting

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE edge_hold SET answering = $2, probed_at = $3 WHERE address = $1::text::inet",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4e2aaaa4cb4d9cc7d3e08accaf1d530934056b9b671bfeb1928e49cc8c620df5"
+}

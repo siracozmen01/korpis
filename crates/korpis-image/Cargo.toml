@@ -34,7 +34,7 @@ tar = { version = "0.4", default-features = false }
 thiserror = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-zstd = "0.13"
+zstd = "0.14.3"
 
 [dev-dependencies]
 korpis-image = { path = ".", features = ["testing"] }

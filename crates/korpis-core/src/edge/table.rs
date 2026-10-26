@@ -63,6 +63,9 @@ pub struct Forwarding {
     pub probe: Option<(Uuid, Ipv4Addr)>,
     /// Every forwarded port.
     pub forwards: Vec<Forward>,
+    /// Each address of the group it should hold, with the interface it puts the address on;
+    /// empty where the address is routed to it.
+    pub hold: Vec<(IpAddr, String)>,
 }
 
 /// What a node may be reached at by one edge's GRE link.
@@ -86,6 +89,10 @@ pub struct Source {
     /// What it may reach.
     pub admits: Vec<Admit>,
 }
+
+/// The member that should hold each address, with the interface of its pool on the members'
+/// link, empty where its pool's router routes it.
+pub type Holding = BTreeMap<IpAddr, (Uuid, String)>;
 
 /// What one node is told of edges.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -115,12 +122,13 @@ fn probe_node(
 }
 
 /// What `member` of `g` forwards: every entry of the group, each target with its node's address
-/// in the mesh, and refused where that node is outside it.
+/// in the mesh, and refused where that node is outside it; and the addresses of `holding` it
+/// should hold.
 fn forwarding(
-    g: &EdgeGroup,
-    member: Uuid,
+    (g, member): (&EdgeGroup, Uuid),
     entries: &[&Entry],
     mesh: &BTreeMap<Uuid, Ipv4Addr>,
+    holding: &Holding,
 ) -> Forwarding {
     let forwards = entries
         .iter()
@@ -134,7 +142,13 @@ fn forwarding(
         })
         .collect();
     let probe = probe_node(g, member, entries, mesh);
-    Forwarding { group: g.id, probe_port: g.probe_port, probe, forwards }
+    let ours = |a: &IpAddr| entries.iter().any(|e| e.address == *a);
+    let hold = holding
+        .iter()
+        .filter(|(a, (m, _))| *m == member && ours(a))
+        .map(|(a, (_, interface))| (*a, interface.clone()))
+        .collect();
+    Forwarding { group: g.id, probe_port: g.probe_port, probe, forwards, hold }
 }
 
 /// Where `f` goes through a tunnel, the node at its other end and what that node admits of it.
@@ -153,13 +167,14 @@ pub fn tables(
     groups: &[EdgeGroup],
     entries: &[Entry],
     mesh: &BTreeMap<Uuid, Ipv4Addr>,
+    holding: &Holding,
 ) -> BTreeMap<Uuid, NodeEdges> {
     let mut out: BTreeMap<Uuid, NodeEdges> = BTreeMap::new();
     let mut sources: BTreeMap<(Uuid, Uuid), BTreeSet<Admit>> = BTreeMap::new();
     for g in groups.iter().filter(|g| g.serves()) {
         let mine: Vec<&Entry> = entries.iter().filter(|e| e.group == g.id).collect();
         for &m in g.members.iter().filter(|m| mesh.contains_key(m)) {
-            let f = forwarding(g, m, &mine, mesh);
+            let f = forwarding((g, m), &mine, mesh, holding);
             for (node, admit) in f.forwards.iter().filter_map(tunnelled) {
                 sources.entry((node, m)).or_default().insert(admit);
             }

@@ -1455,6 +1455,9 @@ the same mechanism", and that is the price of having made core and extensions th
 | 189 | Liveness through the forwarding path was required and nothing could measure it | §78 | `07-networking.md` §3.1 |
 | 190 | The dependents of a failed edge were made a state their nodes cannot observe | §78 | `07-networking.md` §3.1 |
 | 191 | The node behind an edge took connections its own reverse-path check refuses | §78 | `07-networking.md` §3.1 |
+| 192 | GRE spoofing an edge's mesh address reached its link from the node's own network | §78 | `07-networking.md` §3.1 |
+| 193 | A member taking its hold off removed an address the operator had put on the interface | §78 | `07-networking.md` §3.1 |
+| 194 | A routed edge address was to be held without being added, leaving its other ports to the routing table | §78 | `07-networking.md` §3.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6705,7 +6708,16 @@ reseller's node, the pool refusing a group of another organization, `arena` plac
 reaches both members, its game's TCP port and its query's UDP port sharing 25565 at `198.51.100.2`
 with no port of A held, and E1 told the table with A's mesh address while A is told both members'.
 Step 5 is built 2026-10-26 (P3.7c) and tested in namespaces, where building it found the step the
-design had left to the kernel (Finding 191).
+design had left to the kernel (Finding 191). Step 3's lease, and step 11's flushing, are built the
+same day (P3.7d): the member named in its table holds the address under a lease granted to it
+alone, and forgets the flows of a port whose target moved; and so are steps 6 and 7, the probe
+through each member's forwarding and failover by it, tested over the API with the probe answered as
+A would answer it; step 8 on real nodes in namespaces, the holder losing power; and step 10's
+display, the endpoint unreached with its group named (Finding 190). Step 7's router, for a pool a
+router moves, is built the same day (P3.7e1) and tested over the API with a router of the test's
+own: asked for the member granted the lease, failing when the lease moves with the endpoint shown
+unreached for it, and asked again until it routes the address to the new holder; building it found
+the document and the helper disagreeing on how a routed address is held (Finding 194).
 
 **Finding 191.** §3.1 of `07-networking.md` had the workload's node take each connection from an
 edge's GRE link and mark it for its replies, and said nothing of the kernel's check of a packet's
@@ -6719,3 +6731,33 @@ namespace test's SYN reached A's link and no further, counted as a reverse-path 
 kernel checks its source by the mark, which finds the route back into the link, and the link's
 arrivals are routed by the main table alone, so the mark never sends them back. What it costs: two
 routing rules per link, and a mark on each packet a link brings.
+
+**Finding 192.** Found by an automated security review of the commit that built step 5. §3.1 of
+`07-networking.md` rested the GRE link's authenticity on WireGuard: the outer header is the edge's
+mesh address, which WireGuard accepts only from that edge. But the kernel hands a GRE packet to the
+link its outer addresses name whatever interface it arrived by, and the node's mesh address is
+the node's own on every interface, so a machine on the node's own network sending GRE with the
+edge's mesh address as its source reached the edge's link, past WireGuard altogether. It could
+reach only the ports the edge may reach, and the replies went to the edge, but it chose the source
+the workload saw. Strict reverse-path checking stops it, and loose checking, which many hosts use,
+does not. Resolved in §3.1 there: GRE to the node's mesh address arriving other than through the
+mesh is dropped and counted before the kernel takes it. The namespace test sends such a packet
+across the edge's and the node's own link, and failed before the rule. What it costs: one rule.
+
+**Finding 193.** Found by the same review. The helper recorded every address it was asked to hold
+as one it had put on the interface, and took each off when the hold ended, so an address the
+operator had configured there, a member holding it, was removed when the member stopped. Resolved
+in §3.1 there, as §3.7 already had it for a dedicated address: the helper owns only what it added,
+and an address the interface had already is the operator's, held or not, and never taken off.
+What it costs: an operator who configures a pool's address on a member by hand keeps it on that
+member when another holds it, which is the operator's choice to make.
+
+**Finding 194.** Found building the routed edge pool (P3.7e1). §3.1 of `07-networking.md` had the
+holder of a routed pool's address translate what arrives without adding the address, while the
+helper, built with step 5, put it on the holder's loopback; the code and the document disagreed.
+The document was wrong: without the address, a packet to a port of it that no endpoint holds is
+not the node's own, so the holder routes it by its table, back out towards the router that
+delivered it, where step 9 requires it refused at once. Resolved in §3.1 there: the holder adds a
+routed address to its loopback and announces nothing, so every port of it is the holder's own and
+judged by its table of targets. What it costs: nothing the static pool does not already pay, an
+address on an interface of the member while it holds the lease.

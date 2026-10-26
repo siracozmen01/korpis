@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE edge_hold\n            SET route_reason = $2, route_attempts = $3, route_due = $4, route_held_until = NULL\n          WHERE address = $1::text::inet",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "77356587e5814cabbf2209abbbdd3586b11ea438ed51baea93281b1d6f93a27e"
+}

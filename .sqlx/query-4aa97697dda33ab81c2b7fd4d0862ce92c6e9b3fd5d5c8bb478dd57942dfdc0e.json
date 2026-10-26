@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE edge_hold\n            SET routed_node_id = $2, route_reason = NULL, route_attempts = 0, route_due = NULL,\n                route_held_until = NULL\n          WHERE address = $1::text::inet",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4aa97697dda33ab81c2b7fd4d0862ce92c6e9b3fd5d5c8bb478dd57942dfdc0e"
+}

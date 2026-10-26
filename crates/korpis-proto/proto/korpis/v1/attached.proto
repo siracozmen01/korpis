@@ -86,6 +86,10 @@ message Address {
   string node = 3;
   // For stable: the edge failover group serving it.
   string edge_group = 4;
+  // For stable: why the control plane does not know it reached now, which its group's probe
+  // and its address's lease say; empty where they do not. The workload keeps its state and
+  // placement either way (§3.1 of docs/07-networking.md).
+  string unreached = 5;
 }
 
 // A durable, addressable channel of output from a workload.
@@ -377,6 +381,18 @@ message EdgeHolding {
   string node = 2;
   // The epoch of its lease, raised at every change of holder.
   uint64 epoch = 3;
+  // Whether the address answered its last probes through its holder; meaningful once
+  // `last_probe` is set.
+  bool answering = 4;
+  google.protobuf.Timestamp last_probe = 5;
+  // The router moving it, by its provider's name; empty where its pool is on a link the members
+  // share.
+  string router = 6;
+  // The member its router last said it routes it to, `nd_...`; empty until it has, and where it
+  // routes it nowhere.
+  string routed_to = 7;
+  // Why the router's last answer was not that it routes it, while it is asked again.
+  string route_failure = 8;
 }
 
 enum AddressPoolScope {

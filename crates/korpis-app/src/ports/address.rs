@@ -4,10 +4,10 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::address::{AddressPool, DueRoute, Holding, Taken};
+use korpis_core::address::{AddressPool, DueRoute, Holding, Routed, Taken};
 use std::collections::BTreeMap;
 use std::future::Future;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::IpAddr;
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -84,27 +84,30 @@ pub trait AddressWrite {
 
 /// Asking a cluster pool's router to route its addresses (§3.7 of docs/07-networking.md).
 pub trait AddressRoute {
-    /// Takes the first address due: one whose holder is placed on another node than its router
-    /// last said it routes it to, or that no placed workload holds and is still routed, whose
-    /// backoff has passed and that no control plane holds; held until `until`.
+    /// Takes the first address due: one whose holder is on another node than its router last
+    /// said it routes it to, or that nothing holds and is still routed, whose backoff has passed
+    /// and that no control plane holds; held until `until`. A cluster pool's address is held by
+    /// its workload where it is placed, a routed edge pool's by its lease's member; the cluster
+    /// pools' are taken first.
     fn take_due_route(
         &mut self,
         now: SystemTime,
         until: SystemTime,
     ) -> impl Future<Output = StoreResult<Option<DueRoute>>> + Send;
 
-    /// Records that the router routes `address` to `node`, or nowhere, and lets it go.
+    /// Records that the router routes `address`, held as it says, to `node`, or nowhere, and
+    /// lets it go.
     fn route_answered(
         &mut self,
-        address: Ipv4Addr,
+        address: (Routed, IpAddr),
         node: Option<Uuid>,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Records the router's failure to route `address`, with its reason and how many calls have
-    /// failed in a row, to be asked again at `due`, and lets it go.
+    /// Records the router's failure to route `address`, held as it says, with its reason and
+    /// how many calls have failed in a row, to be asked again at `due`, and lets it go.
     fn route_failed(
         &mut self,
-        address: Ipv4Addr,
+        address: (Routed, IpAddr),
         failure: (&str, u32),
         due: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;

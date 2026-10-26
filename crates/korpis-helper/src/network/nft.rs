@@ -91,7 +91,7 @@ pub(crate) fn host(chains: &[String]) -> Vec<Value> {
 
 /// The marker of this version of the host table's base: raised whenever what [`host`] writes
 /// changes, so a node's table is written anew once and then left to count.
-const BASE: &str = "base_v5";
+const BASE: &str = "base_v6";
 
 /// The chains [`host`] writes, which a table of another version has deleted first.
 const BASE_CHAINS: [&str; 10] = [

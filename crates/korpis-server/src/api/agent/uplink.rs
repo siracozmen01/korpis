@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What comes up a session after the Hello: heartbeats, acknowledgements, and lease requests and
-//! releases (§4.2, §4.5 of docs/02-architecture.md). A lease request is answered on the same
-//! stream, echoing its nonce.
+//! releases (§4.2, §4.5 of docs/02-architecture.md), a workload's and an edge address's
+//! (§3.1 of docs/07-networking.md). A lease request is answered on the same stream, echoing its
+//! nonce.
 
 use super::credential;
 use super::session::facts;
@@ -37,6 +38,21 @@ pub(super) struct Uplink {
     pub(super) ended: tokio::sync::watch::Receiver<bool>,
 }
 
+/// A refusal's reason on the wire, with the holder that superseded the asking node.
+pub(super) fn refusal(r: Refusal) -> (agent::LeaseRefusalReason, String) {
+    match r {
+        Refusal::Superseded { by } => {
+            (agent::LeaseRefusalReason::LEASE_REFUSAL_REASON_SUPERSEDED, wire_id(IdKind::Node, by))
+        }
+        Refusal::NotAssigned => {
+            (agent::LeaseRefusalReason::LEASE_REFUSAL_REASON_NOT_ASSIGNED, String::new())
+        }
+        Refusal::Unavailable => {
+            (agent::LeaseRefusalReason::LEASE_REFUSAL_REASON_UNAVAILABLE, String::new())
+        }
+    }
+}
+
 fn answer(request: &agent::LeaseRequest, a: LeaseAnswer) -> agent::ControlMessage {
     let (workload, nonce) = (request.workload.clone(), request.nonce.clone());
     let message = match a {
@@ -52,18 +68,7 @@ fn answer(request: &agent::LeaseRequest, a: LeaseAnswer) -> agent::ControlMessag
             }))
         }
         LeaseAnswer::Refused(r) => {
-            let (reason, superseded_by) = match r {
-                Refusal::Superseded { by } => (
-                    agent::LeaseRefusalReason::LEASE_REFUSAL_REASON_SUPERSEDED,
-                    wire_id(IdKind::Node, by),
-                ),
-                Refusal::NotAssigned => {
-                    (agent::LeaseRefusalReason::LEASE_REFUSAL_REASON_NOT_ASSIGNED, String::new())
-                }
-                Refusal::Unavailable => {
-                    (agent::LeaseRefusalReason::LEASE_REFUSAL_REASON_UNAVAILABLE, String::new())
-                }
-            };
+            let (reason, superseded_by) = refusal(r);
             Down::LeaseRefusal(Box::new(agent::LeaseRefusal {
                 workload,
                 nonce,
@@ -131,6 +136,8 @@ impl Uplink {
             },
             Some(Up::LeaseRequest(r)) => self.lease(r).await,
             Some(Up::LeaseReleased(r)) => self.released(r).await,
+            Some(Up::EdgeLeaseRequest(r)) => super::edge_lease::request(self, r).await,
+            Some(Up::EdgeLeaseReleased(r)) => super::edge_lease::released(self, r).await,
             Some(Up::Journal(j)) => self.journal(j).await,
             Some(Up::Observation(o)) => self.observed(o).await,
             Some(Up::CredentialRequest(r)) => self.credential(r).await,

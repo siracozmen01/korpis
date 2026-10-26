@@ -365,11 +365,13 @@ create 198.51.100.0/28 --organization pinecone --edge-group egr_… --interface 
 addresses on a link its members share, which an operator attests as every pool, or `--router` with
 `--routing bgp` where a router moves each address to its holder. `korpis edge-group get egr_…`
 shows each member ready or failing with its last probe and why, and each address with the member
-holding it and the epoch; `korpis edge-group set` adds or removes members, and `korpis edge-group
-delete` deletes one no pool names. `korpis status` shows a `stable` endpoint at its group's address
-and port, or unreached with the group named. (Designed 2026-10-26; groups, their members and
-settings, edge pools, and `korpis status` at the group's address built the same day; members'
-probes, holders, and the group named on an unreached endpoint arrive with the leases.)
+holding it, the epoch, whether it answers its probe through that member, and, where a router moves
+it, where the router routes it or why it does not yet route it to that member; `korpis edge-group
+set` adds or removes members, and `korpis edge-group delete` deletes one no pool names. `korpis
+status` shows a `stable` endpoint at its group's address and port, or unreached with the group
+named. (Designed 2026-10-26; groups, their members and settings, edge pools, and `korpis status` at
+the group's address built the same day, and members' probes and holders, and the group named on an
+unreached endpoint, with the leases (P3.7d), and where a router routes each address (P3.7e1).)
 
 The landing screen an organization composes for those it serves (question 2 of §10 of
 `11-surface-web.md`) is read with `korpis layout show`, which names the organization it comes

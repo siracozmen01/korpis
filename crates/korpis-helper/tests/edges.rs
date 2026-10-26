@@ -7,8 +7,11 @@
 //! workload a namespace behind it; so nothing is made in this machine's own namespace. The
 //! client reaches the workload at the address the edge holds, and the workload sees the
 //! client's own address; a port nothing is behind is refused at once; a port the node was not
-//! told to admit is not reached; and an address no longer held is taken off. Needs root, the
-//! kernel's WireGuard and GRE, and nftables; skipped without them.
+//! told to admit is not reached; the address is announced on its link when taken; a UDP flow
+//! follows its port when the port's target moves; GRE from the edge's mesh address arriving other than through
+//! the mesh is dropped; and an address no longer held is taken off, unless it was the
+//! operator's before. Needs root, the kernel's WireGuard and GRE, and nftables; skipped without
+//! them.
 
 #![allow(
     clippy::unwrap_used,
@@ -20,7 +23,7 @@
 use korpis_helper::overlay::Overlay;
 use korpis_proto::korpis::helper::v1 as helper;
 use std::io::ErrorKind;
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
@@ -102,6 +105,15 @@ fn translated(port: u32) -> helper::EdgeTranslation {
     }
 }
 
+/// The edge translating UDP `port` of the stable address to the workload's `to_port`.
+fn udp_translated(port: u32, to_port: u32) -> helper::EdgeTranslation {
+    helper::EdgeTranslation {
+        transport: helper::Transport::TRANSPORT_UDP.into(),
+        to_port,
+        ..translated(port)
+    }
+}
+
 /// The edge's request: its peer the node, its tunnel to the node, `translations`, and `holds`.
 fn edge(
     node_key: &[u8],
@@ -141,13 +153,19 @@ fn node(edge_key: &[u8]) -> helper::KeepOverlayRequest {
         mesh_address: "10.48.7.255".into(),
         edges: helper::EdgeTable {
             tunnels: vec!["10.48.3.255".into()],
-            admits: vec![helper::EdgeAdmit {
+            admits: [
+                (25_565, helper::Transport::TRANSPORT_TCP),
+                (25_570, helper::Transport::TRANSPORT_UDP),
+                (25_571, helper::Transport::TRANSPORT_UDP),
+            ]
+            .map(|(port, transport)| helper::EdgeAdmit {
                 source: "10.48.3.255".into(),
                 destination: "10.48.4.2".into(),
-                port: 25_565,
-                transport: helper::Transport::TRANSPORT_TCP.into(),
+                port,
+                transport: transport.into(),
                 ..Default::default()
-            }],
+            })
+            .into(),
             ..Default::default()
         }
         .into(),
@@ -179,13 +197,78 @@ fn capable(ns: &Netns) -> bool {
     wg && gre
 }
 
-#[test]
-fn a_client_reaches_a_workload_behind_an_edge_at_its_stable_address_and_keeps_its_own() {
-    if !rustix::process::geteuid().is_root() {
-        eprintln!("edges need root: not run");
-        return;
-    }
-    let id = std::process::id() % 100_000;
+/// A UDP socket bound to `at` inside `ns`, reading for two seconds at most.
+fn udp_in(ns: &Netns, at: (&'static str, u16)) -> UdpSocket {
+    let socket = ns.within(move || UdpSocket::bind(at).unwrap());
+    socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    socket
+}
+
+fn received(socket: &UdpSocket) -> Option<Vec<u8>> {
+    let mut buffer = [0; 16];
+    let n = socket.recv(&mut buffer).ok()?;
+    buffer.get(..n).map(<[u8]>::to_vec)
+}
+
+/// A player's UDP flow to the stable address keeps going where its port goes once `retarget`
+/// moves the port to the workload's other port: the edge forgets the flow's translation, so its
+/// next datagram is translated afresh rather than sent where the port went before.
+fn a_flow_follows_its_port(client: &Netns, w: &Netns, retarget: impl FnOnce()) {
+    let (old, new) = (udp_in(w, ("10.48.4.2", 25_570)), udp_in(w, ("10.48.4.2", 25_571)));
+    let player = udp_in(client, ("198.18.1.2", 40_000));
+    player.send_to(b"a", "198.18.1.10:25570").unwrap();
+    assert_eq!(received(&old).as_deref(), Some(&b"a"[..]), "the flow reaches the workload");
+    retarget();
+    player.send_to(b"b", "198.18.1.10:25570").unwrap();
+    assert_eq!(received(&new).as_deref(), Some(&b"b"[..]), "the flow follows its port");
+}
+
+/// The client's entry for the stable address naming another machine, as it would after the
+/// address's last holder; the client takes an announcement at once.
+fn stale_neighbour(client: &Netns, link: &str) {
+    assert!(client.run(&["sysctl", "-qw", &format!("net.ipv4.neigh.{link}.locktime=0")]));
+    let fake = ["lladdr", "02:00:00:00:00:99", "nud", "stale"];
+    let args = [&["ip", "neigh", "replace", "198.18.1.10"][..], &fake, &["dev", link]].concat();
+    assert!(client.run(&args));
+}
+
+/// Whether the client's entry for the stable address names the edge's link `lan`.
+fn announced(client: &Netns, e: &Netns, lan: &str) -> bool {
+    let mac = |ns: &Netns, args: &[&str]| {
+        let mut all = vec!["-n", &ns.0];
+        all.extend_from_slice(args);
+        String::from_utf8_lossy(&Command::new("ip").args(&all).output().unwrap().stdout).to_string()
+    };
+    let link = mac(e, &["-br", "link", "show", "dev", lan]);
+    let ours = link.split_whitespace().nth(2).unwrap().to_owned();
+    mac(client, &["neigh", "show", "198.18.1.10"]).contains(&ours)
+}
+
+/// A machine on the node's own network sending GRE with the edge's mesh address as its source:
+/// here the edge itself, its GRE routed across the link outside the mesh. The node checks
+/// sources loosely, as many hosts do, so its table alone stops it.
+fn outside_the_mesh(client: &Netns, e: &Netns, n: &Netns) {
+    assert!(n.run(&["sysctl", "-qw", "net.ipv4.conf.all.rp_filter=2"]));
+    assert!(e.run(&["ip", "route", "add", "10.48.7.255/32", "via", "198.18.0.2", "table", "99"]));
+    assert!(e.run(&["ip", "rule", "add", "to", "10.48.7.255", "ipproto", "gre", "lookup", "99"]));
+    assert!(connect(client, 25_565).is_err(), "GRE from outside the mesh reaches no link");
+}
+
+/// The addresses the edge holds on `lan`: the stable address, and one the interface had already.
+fn held(lan: &str) -> Vec<helper::EdgeHold> {
+    ["198.18.1.10", "198.18.1.11"]
+        .map(|a| helper::EdgeHold {
+            address: a.into(),
+            interface: lan.into(),
+            ..Default::default()
+        })
+        .into()
+}
+
+/// The test's namespaces, wired: the client and the edge on one link, the edge and the node on
+/// another, and the workload behind the node; none where the kernel makes no WireGuard or GRE
+/// link.
+fn network(id: u32) -> Option<(Netns, Netns, Netns, Netns)> {
     let named = |n: &str| Netns::new(format!("korpis-edg-{id}-{n}"));
     let (client, e, n, w) = (named("c"), named("e"), named("n"), named("w"));
     let lan = format!("kec{id}e");
@@ -193,7 +276,7 @@ fn a_client_reaches_a_workload_behind_an_edge_at_its_stable_address_and_keeps_it
     wire((&e, &format!("kem{id}e"), "198.18.0.1/30"), (&n, &format!("kem{id}n"), "198.18.0.2/30"));
     if !capable(&e) {
         eprintln!("this kernel makes no WireGuard or GRE link: not run");
-        return;
+        return None;
     }
     let link = format!("kw{id}n");
     wire((&n, &link, "10.48.4.1/30"), (&w, &format!("{link}w"), "10.48.4.2/30"));
@@ -204,6 +287,18 @@ fn a_client_reaches_a_workload_behind_an_edge_at_its_stable_address_and_keeps_it
         assert!(ns.run(&["sysctl", "-qw", "net.ipv4.ip_forward=1"]));
         assert!(ns.run(&["sysctl", "-qw", "net.ipv4.conf.all.rp_filter=1"]));
     }
+    Some((client, e, n, w))
+}
+
+#[test]
+fn a_client_reaches_a_workload_behind_an_edge_at_its_stable_address_and_keeps_its_own() {
+    if !rustix::process::geteuid().is_root() {
+        eprintln!("edges need root: not run");
+        return;
+    }
+    let id = std::process::id() % 100_000;
+    let Some((client, e, n, w)) = network(id) else { return };
+    let lan = format!("kec{id}e");
     let listeners: Vec<TcpListener> = [25_565, 25_567]
         .map(|p| w.within(move || TcpListener::bind(("10.48.4.2", p)).unwrap()))
         .into();
@@ -212,22 +307,22 @@ fn a_client_reaches_a_workload_behind_an_edge_at_its_stable_address_and_keeps_it
     let (oe, on) = (Overlay::new(dir.path().join("e.key")), Overlay::new(dir.path().join("n.key")));
     let bare = || helper::KeepOverlayRequest { port: 51820, ..Default::default() };
     let (ke, kn) = (e.keep(&oe, bare()), n.keep(&on, bare()));
-    let held = || {
-        vec![helper::EdgeHold {
-            address: "198.18.1.10".into(),
-            interface: lan.clone(),
-            ..Default::default()
-        }]
-    };
+    // An address the edge's interface had already is the operator's.
+    assert!(e.run(&["ip", "addr", "add", "198.18.1.11/32", "dev", &lan]));
     let refused = helper::EdgeTranslation {
         via: String::new(),
         to_address: String::new(),
         to_port: 0,
         ..translated(25_566)
     };
-    let table = || vec![translated(25_565), refused.clone(), translated(25_567)];
+    let table = || {
+        let udp = udp_translated(25_570, 25_570);
+        vec![translated(25_565), refused.clone(), translated(25_567), udp]
+    };
     n.keep(&on, node(&ke.public_key));
-    e.keep(&oe, edge(&kn.public_key, table(), held()));
+    stale_neighbour(&client, &format!("kec{id}c"));
+    e.keep(&oe, edge(&kn.public_key, table(), held(&lan)));
+    assert!(announced(&client, &e, &lan), "the address taken is announced on its link");
 
     let seen = listeners[0].try_clone().unwrap();
     let accepted = std::thread::spawn(move || seen.accept().map(|(_, from)| from.ip()));
@@ -240,10 +335,20 @@ fn a_client_reaches_a_workload_behind_an_edge_at_its_stable_address_and_keeps_it
     let closed = connect(&client, 22).unwrap_err();
     assert_eq!(closed.kind(), ErrorKind::ConnectionRefused, "a port no endpoint holds");
     assert!(connect(&client, 25_567).is_err(), "the node admits what it was told and no more");
+
+    a_flow_follows_its_port(&client, &w, || {
+        let mut moved = table();
+        moved.pop();
+        moved.push(udp_translated(25_570, 25_571));
+        e.keep(&oe, edge(&kn.public_key, moved, held(&lan)));
+    });
+    outside_the_mesh(&client, &e, &n);
     drop(listeners);
 
     e.keep(&oe, edge(&kn.public_key, table(), Vec::new()));
     let shown =
         Command::new("ip").args(["-n", &e.0, "addr", "show", "dev", &lan]).output().unwrap();
-    assert!(!String::from_utf8_lossy(&shown.stdout).contains("198.18.1.10"), "no longer held");
+    let shown = String::from_utf8_lossy(&shown.stdout);
+    assert!(!shown.contains("198.18.1.10"), "no longer held");
+    assert!(shown.contains("198.18.1.11"), "the operator's own address stays");
 }

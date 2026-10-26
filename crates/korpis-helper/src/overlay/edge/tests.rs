@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
 
 use super::*;
+use std::collections::BTreeMap;
 
 fn asked(edges: helper::EdgeTable) -> helper::KeepOverlayRequest {
     helper::KeepOverlayRequest {
@@ -45,12 +46,15 @@ fn a_table_is_checked_and_a_member_s_translation_is_marked_into_its_tunnel() {
     assert_eq!(link_name("10.48.7.255".parse().unwrap()), "kg0a3007ff");
     let links =
         BTreeMap::from([("10.48.7.255".parse().unwrap(), ("kg0a3007ff".to_owned(), 7_u32))]);
-    let (setup, before, forward, input) = rules(&t, &links);
+    let kept = Kept { links, owned: Vec::new() };
+    let (setup, before, forward, input) = rules(&t, &kept);
     let text = serde_json::to_string(&setup).unwrap();
     assert!(text.contains(r#"{"dnat":{"addr":"10.48.4.2","family":"ip","port":25565}}"#), "{text}");
     assert!(text.contains(&EDGE_MARK.to_string()), "marked into its tunnel");
     assert!(text.contains(r#"["kg0a3007ff",1262878727]"#), "the link's own mark: {text}");
     assert!(text.contains(r#"{"reject":{"type":"tcp reset"}}"#), "refused, never dropped");
+    assert!(text.contains(r#""op":"!=","right":"korpis-overlay""#), "GRE by the mesh alone");
+    assert!(!text.contains(r#""elem":[{"concat":["198.51.100.2""#), "the operator's own stays");
     assert!(serde_json::to_string(&before).unwrap().contains(r#""right":"gre""#));
     let admitted = serde_json::to_string(&[forward, input].concat()).unwrap();
     assert!(admitted.contains(r#""comment":"edge""#) && admitted.contains(r#""drop":null"#));

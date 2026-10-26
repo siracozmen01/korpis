@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The reconciler of the routes of cluster pools' addresses (§3.7 of docs/07-networking.md):
-//! whenever an endpoint is placed, moved, or removed, which is when a workload holding such an
-//! address moves or goes, and every thirty seconds besides, it asks each address's router to
-//! route it to the node its holder is placed on, or nowhere, a few at once. Each address is taken
-//! under a hold, so replicas share the work rather than repeat it.
+//! The reconciler of the routes of cluster pools' and routed edge pools' addresses (§3.7 and
+//! §3.1 of docs/07-networking.md): whenever an endpoint is placed, moved, or removed, which is
+//! when a workload holding a cluster pool's address moves or goes, whenever an edge address's
+//! lease is issued to another member or released, or its port given back, and every thirty
+//! seconds besides, it asks each address's router to route it to the node that holds it, or
+//! nowhere, a few at once. Each address is taken under a hold, so replicas share the work rather
+//! than repeat it.
 
 use crate::api::Api;
 use korpis_app::ports::{Store as _, Wakeups as _};

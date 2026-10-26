@@ -8,13 +8,14 @@
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store};
-use korpis_core::edge::table::{Entry, NodeEdges, Target, tables};
+use korpis_core::edge::lease::assigned;
+use korpis_core::edge::table::{Entry, Holding, NodeEdges, Target, tables};
 use korpis_core::edge::{StablePort, mesh_address};
 use korpis_core::workload::endpoint::Endpoint;
 use korpis_core::workload::observation::ObservedState;
 use korpis_core::workload::spec::endpoints::Protocol;
-use std::collections::BTreeMap;
-use std::net::Ipv4Addr;
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, Ipv4Addr};
 use uuid::Uuid;
 
 /// What every node is told of edges; a node absent is told nothing.
@@ -69,6 +70,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .filter_map(|m| mesh_address(&m.pools).map(|a| (m.node, a)))
             .collect();
         let held = self.store.stable_all().await?;
+        let holding = self.holding(&groups, &held).await?;
         let mut placed: BTreeMap<Uuid, Placed> = BTreeMap::new();
         let mut entries = Vec::with_capacity(held.len());
         for (group, port) in held {
@@ -80,7 +82,34 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             };
             entries.push(entry(group, &port, p));
         }
-        Ok(EdgeTables(tables(&groups, &entries, &addresses)))
+        Ok(EdgeTables(tables(&groups, &entries, &addresses, &holding)))
+    }
+
+    /// The member that should hold each address `held` names, with its pool's interface.
+    async fn holding(
+        &self,
+        groups: &[korpis_core::edge::EdgeGroup],
+        held: &[(Uuid, StablePort)],
+    ) -> Result<Holding, AppError> {
+        let in_use: BTreeSet<(Uuid, IpAddr)> = held.iter().map(|(g, p)| (*g, p.address)).collect();
+        let in_use: Vec<(Uuid, IpAddr)> = in_use.into_iter().collect();
+        let states = self.store.edge_members_all().await?;
+        let holds = self.store.edge_holds_all().await?;
+        let who = assigned(groups, &in_use, (&states, &holds), self.clock.now());
+        let mut interfaces: BTreeMap<Uuid, String> = BTreeMap::new();
+        let mut out = Holding::new();
+        for (_, port) in held {
+            let Some(member) = who.get(&port.address) else { continue };
+            let interface = match interfaces.entry(port.pool) {
+                std::collections::btree_map::Entry::Occupied(o) => o.get().clone(),
+                std::collections::btree_map::Entry::Vacant(v) => {
+                    let pool = self.store.address_pool(port.pool).await?;
+                    v.insert(pool.map(|p| p.interface).unwrap_or_default()).clone()
+                }
+            };
+            out.insert(port.address, (*member, interface));
+        }
+        Ok(out)
     }
 }
 

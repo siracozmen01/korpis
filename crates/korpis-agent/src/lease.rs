@@ -44,7 +44,7 @@ fn on_expiry(v: buffa::EnumValue<pb::OnLeaseExpiry>) -> OnExpiry {
     }
 }
 
-fn nonce() -> Vec<u8> {
+pub(crate) fn nonce() -> Vec<u8> {
     let mut n = [0u8; 16];
     if getrandom::fill(&mut n).is_err() {
         // A nonce only has to differ from the last one; it guards nothing secret.

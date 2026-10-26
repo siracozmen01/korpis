@@ -20,6 +20,7 @@ mod cores;
 mod dedicated;
 mod dependencies;
 mod devices;
+mod edges;
 mod exec_probe;
 mod extension;
 mod files;
