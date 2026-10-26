@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO stable_port (address, port, transport, pool_id, workload_id, endpoint,\n                                      held_at, released_at)\n             VALUES ($1::text::inet, $2, $7, $3, $4, $5, $6, NULL)\n             ON CONFLICT (address, port, transport) DO UPDATE\n                SET pool_id = $3, workload_id = $4, endpoint = $5, held_at = $6, released_at = NULL\n              WHERE stable_port.workload_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5f25b2cd0df200bf49bf27e1bb1296f39c7ec829e204b935f6e7150684a274c4"
+}

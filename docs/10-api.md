@@ -190,6 +190,7 @@ certificate.read · certificate.write                 TLS certificates an organi
 portal.read · portal.write                           an org's own addresses (07-networking.md §3.6)
 address_pool.read · address_pool.write · address_pool.attest
                                                      an org's address pools (07-networking.md §3.7)
+edge_group.read · edge_group.write                   an org's edges (07-networking.md §3.1)
 stream.share
 grant.read · grant.revoke
 template.write                                       make, edit, retire an org's grant templates
@@ -312,6 +313,13 @@ ext.<extension>.<action>              extensions define their own, namespaced
   > `address_pool.write` on an organization made pools too, of any range, and pools never
   > overlap, so a tenant holding it could take another's address space, its own or one it had
   > yet to bring, and leave that organization unable to make its pool.
+- **`edge_group.read` and `edge_group.write` are new actions implied by nothing.** Added
+  2026-10-26, when edges were designed (§3.1 of `07-networking.md`). A group decides which of an
+  organization's nodes forward its workloads' stable addresses, which no existing action covered.
+  `edge_group.write` on an organization makes, changes, and deletes its groups, whose members are
+  its own nodes alone, so it gives no power over another's machines; what gives a group addresses
+  is a pool of scope `edge`, which an operator attests as every pool. `edge_group.read` reads them,
+  with each member's probes and each address's holder.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold

@@ -1,0 +1,143 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT g.id, g.organization_id, g.name, g.first_port, g.last_port, g.probe_port,\n                      g.probe_interval_ms, g.probe_misses, g.term_ms, g.created_at,\n                      ARRAY(SELECT node_id FROM edge_member m WHERE m.group_id = g.id) AS members\n                 FROM edge_group g WHERE g.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "first_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "first_port"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "last_port"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "probe_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "probe_port"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "probe_interval_ms",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "probe_interval_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "probe_misses",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "probe_misses"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "term_ms",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "term_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "edge_group",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "members",
+        "type_info": "UuidArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "07997e3cd43469eef947cba09703c663aff092959acfc8e64f0b946b99c0d4ba"
+}

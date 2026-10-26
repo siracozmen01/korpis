@@ -21,7 +21,8 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::Page;
 use crate::ports::{
-    AddressWrite as _, Clock, EffectWrite, RecipeSource, RetirementWrite, Store, WorkloadWrite,
+    AddressWrite as _, Clock, EdgeWrite as _, EffectWrite, RecipeSource, RetirementWrite, Store,
+    WorkloadWrite,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
@@ -248,6 +249,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.rehold(tx, w.id).await?;
         self.place_target(tx, w, None).await?;
         tx.release_address(w.id, now).await?;
+        tx.release_stable(w.id, &[], now).await?;
         let mut e = Effect::new(
             Principal::System(SystemActor::Reconciler),
             "workload.retire",

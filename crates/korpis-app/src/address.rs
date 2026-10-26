@@ -12,8 +12,8 @@ use crate::extension::CallTarget;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged};
 use crate::ports::{
-    AddressWrite as _, Clock, EffectWrite as _, PlacementWrite as _, RecipeSource, Store,
-    StoreError, Unique,
+    AddressWrite as _, Clock, EdgeWrite as _, EffectWrite as _, PlacementWrite as _, RecipeSource,
+    Store, StoreError, Unique,
 };
 use korpis_core::address::{AddressPool, DEFAULT_QUARANTINE, Dedicated, Routing, Scope, Taken};
 use korpis_core::audit::{Effect, Outcome, details};
@@ -67,7 +67,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Refuses a pool that could not be held where it says.
     async fn pool_holdable(&self, p: &AddressPool) -> Result<(), AppError> {
         p.validate().map_err(|e| AppError::invalid("pool", e.to_string()))?;
-        if p.cidr.addr().is_ipv6() && !matches!(p.scope, Scope::Edge) {
+        if p.cidr.addr().is_ipv6() && p.group().is_none() {
             return Err(AppError::invalid(
                 "pool.cidr",
                 "a dedicated address is IPv4: a workload's IPv6 address is its own already \
@@ -86,23 +86,34 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 }
                 Ok(())
             }
-            // Edges arrive with the edge tier.
-            Scope::Edge => Err(AppError::NotYet { what: "edge address pools", phase: 3 }),
-            Scope::Cluster(router) => {
-                let target = CallTarget {
-                    organization: p.organization,
-                    kind: ProviderType::AddressRouter,
-                    name: router.clone(),
-                };
-                if self.provider_owner(&target).await?.is_none() {
+            Scope::Edge { group, router } => {
+                let found = self.store.edge_group(*group).await?;
+                if found.is_none_or(|g| g.organization != p.organization) {
                     return Err(AppError::invalid(
-                        "pool.router",
-                        "no address_router provider of this name is seen by the organization",
+                        "pool.group",
+                        "an edge pool names a group of its own organization",
                     ));
                 }
-                Ok(())
+                match router {
+                    Some(r) => self.router_seen(p.organization, r).await,
+                    None => Ok(()),
+                }
             }
+            Scope::Cluster(router) => self.router_seen(p.organization, router).await,
         }
+    }
+
+    /// Refuses a router `organization` sees no `address_router` provider of.
+    async fn router_seen(&self, organization: Uuid, router: &str) -> Result<(), AppError> {
+        let target =
+            CallTarget { organization, kind: ProviderType::AddressRouter, name: router.to_owned() };
+        if self.provider_owner(&target).await?.is_none() {
+            return Err(AppError::invalid(
+                "pool.router",
+                "no address_router provider of this name is seen by the organization",
+            ));
+        }
+        Ok(())
     }
 
     /// The dedicated address `workload` holds, as `node` holds it: none where it holds none, or
@@ -207,7 +218,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         tx.lock_placement().await?;
         let taken = tx.pool_taken(id).await?;
-        let held = taken.values().filter(|t| matches!(t, Taken::Held(_))).count();
+        let mut held = taken.values().filter(|t| matches!(t, Taken::Held(_))).count();
+        held += usize::from(tx.stable_held_in(id).await?.is_some());
         if held > 0 {
             let why = format!("{held} of its addresses are held; retire their workloads first");
             return Err(AppError::conflict("address_pool.held", why));

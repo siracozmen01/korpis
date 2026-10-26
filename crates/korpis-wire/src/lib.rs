@@ -40,6 +40,7 @@ pub mod body;
 pub mod certificate;
 pub mod dns;
 pub mod domain;
+pub mod edge;
 pub mod endpoint;
 pub mod event;
 pub mod extension;

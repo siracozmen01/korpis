@@ -21,8 +21,15 @@ pub const DEFAULT_QUARANTINE: Duration = Duration::from_secs(24 * 60 * 60);
 pub enum Scope {
     /// Routed to this one node.
     Node(Uuid),
-    /// Held by an edge of the edge tier (§3.1 of docs/07-networking.md).
-    Edge,
+    /// Held by a member of this edge group (§3.1 of docs/07-networking.md): on a link the
+    /// members share where no router is named, and otherwise moved to the holding member by the
+    /// `address_router` provider of this name the pool's organization sees.
+    Edge {
+        /// The group.
+        group: Uuid,
+        /// The router, for an edge pool whose routing is not static.
+        router: Option<String>,
+    },
     /// Moved to whichever node holds one by the `address_router` provider of this name that
     /// the pool's organization sees.
     Cluster(String),
@@ -66,8 +73,12 @@ pub struct AddressPool {
 /// Why a pool is refused.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PoolError {
-    /// A `node` pool's routing is static, and only a `node` pool's is.
-    #[error("a node pool's addresses are routed statically to it, and only a node pool's are")]
+    /// A `node` pool's routing is static, a `cluster` pool's is not, and an `edge` pool's is
+    /// static exactly where it names no router.
+    #[error(
+        "a node pool is routed statically, a cluster pool by its router, and an edge pool \
+         statically on its members' link or by the router it names"
+    )]
     Routing,
     /// A reserved address is outside the pool.
     #[error("reserved address {0} is not in the pool")]
@@ -89,7 +100,13 @@ impl AddressPool {
     /// # Errors
     /// The first thing it says that could not hold.
     pub fn validate(&self) -> Result<(), PoolError> {
-        if matches!(self.scope, Scope::Node(_)) != (self.routing == Routing::Static) {
+        let r#static = self.routing == Routing::Static;
+        let as_routed = match &self.scope {
+            Scope::Node(_) => r#static,
+            Scope::Cluster(_) => !r#static,
+            Scope::Edge { router, .. } => router.is_none() == r#static,
+        };
+        if !as_routed {
             return Err(PoolError::Routing);
         }
         if let Some(a) = self.reserved.iter().find(|a| !self.cidr.contains(*a)) {
@@ -105,7 +122,9 @@ impl AddressPool {
             return Err(PoolError::Empty);
         }
         match &self.scope {
-            Scope::Cluster(router) if !crate::extension::slug(router) => {
+            Scope::Cluster(router) | Scope::Edge { router: Some(router), .. }
+                if !crate::extension::slug(router) =>
+            {
                 Err(PoolError::Router(router.clone()))
             }
             _ => Ok(()),
@@ -119,14 +138,39 @@ impl AddressPool {
             && match self.scope {
                 Scope::Node(n) => n == node,
                 Scope::Cluster(_) => true,
-                Scope::Edge => false,
+                Scope::Edge { .. } => false,
             }
+    }
+
+    /// The edge group whose members hold its addresses, for an edge pool.
+    #[must_use]
+    pub fn group(&self) -> Option<Uuid> {
+        match self.scope {
+            Scope::Edge { group, .. } => Some(group),
+            _ => None,
+        }
+    }
+
+    /// The `address_router` provider that moves its addresses, by name, where one does.
+    #[must_use]
+    pub fn router(&self) -> Option<&str> {
+        match &self.scope {
+            Scope::Cluster(r) | Scope::Edge { router: Some(r), .. } => Some(r),
+            _ => None,
+        }
     }
 
     /// Every address of it that may be given, lowest first: neither reserved nor the network's
     /// first or last, which some routers drop even where the network is routed to the node.
     pub fn addresses(&self) -> impl Iterator<Item = IpAddr> + '_ {
-        self.cidr.hosts().filter(|a| !self.reserved.contains(a))
+        // IPv6's hosts include the subnet's first address, its routers' anycast address.
+        let ends = match self.cidr {
+            IpNet::V6(n) if n.prefix_len() < 127 => {
+                vec![self.cidr.network(), self.cidr.broadcast()]
+            }
+            _ => Vec::new(),
+        };
+        self.cidr.hosts().filter(move |a| !self.reserved.contains(a) && !ends.contains(a))
     }
 }
 

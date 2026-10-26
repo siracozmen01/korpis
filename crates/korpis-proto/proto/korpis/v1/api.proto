@@ -1131,6 +1131,68 @@ message DeleteAddressPoolRequest {
 
 message DeleteAddressPoolResponse {}
 
+// An organization's edge groups (§3.1 of docs/07-networking.md): made, changed, and deleted under
+// edge_group.write on their organization, and read under edge_group.read. Added 2026-10-26.
+service EdgeGroupService {
+  // Makes a group of nodes of its organization.
+  rpc CreateEdgeGroup(CreateEdgeGroupRequest) returns (CreateEdgeGroupResponse);
+  rpc GetEdgeGroup(GetEdgeGroupRequest) returns (GetEdgeGroupResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListEdgeGroups(ListEdgeGroupsRequest) returns (ListEdgeGroupsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Replaces a group's members and settings with those given; its name and organization stay.
+  rpc UpdateEdgeGroup(UpdateEdgeGroupRequest) returns (UpdateEdgeGroupResponse);
+  // Deletes a group no address pool names.
+  rpc DeleteEdgeGroup(DeleteEdgeGroupRequest) returns (DeleteEdgeGroupResponse);
+}
+
+message CreateEdgeGroupRequest {
+  Mutation mutation = 1;
+  // The group asked for: its id, status, and creation time are the control plane's.
+  EdgeGroup group = 2;
+}
+
+message CreateEdgeGroupResponse {
+  EdgeGroup group = 1;
+}
+
+message GetEdgeGroupRequest {
+  string id = 1;
+}
+
+message GetEdgeGroupResponse {
+  EdgeGroup group = 1;
+}
+
+message ListEdgeGroupsRequest {
+  string organization = 1;
+  PageRequest page = 2;
+}
+
+message ListEdgeGroupsResponse {
+  repeated EdgeGroup groups = 1;
+  PageResponse page = 2;
+}
+
+message UpdateEdgeGroupRequest {
+  Mutation mutation = 1;
+  // The group as it is to be, by its id.
+  EdgeGroup group = 2;
+}
+
+message UpdateEdgeGroupResponse {
+  EdgeGroup group = 1;
+}
+
+message DeleteEdgeGroupRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message DeleteEdgeGroupResponse {}
+
 // Backups (§5 of docs/06-storage.md), authorized on the workload whose volume they are of.
 service BackupService {
   // Proposes backing a volume up into a repository, under backup.create on the volume's

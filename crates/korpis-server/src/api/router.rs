@@ -6,11 +6,12 @@ use super::Api;
 use connectrpc::Router;
 use korpis_proto::korpis::v1::{
     AccountServiceExt, AddressPoolServiceExt, BackupServiceExt, CertificateServiceExt,
-    DeclaredSetServiceExt, DomainServiceExt, EffectServiceExt, EventServiceExt,
-    ExtensionServiceExt, GrantServiceExt, IdentityServiceExt, MeteringServiceExt, NodeServiceExt,
-    OrganizationServiceExt, PlanServiceExt, PortalServiceExt, ProfileServiceExt, ProjectServiceExt,
-    ProviderServiceExt, RepositoryServiceExt, RunServiceExt, ServerInfoServiceExt,
-    SessionServiceExt, StreamServiceExt, VolumeServiceExt, WorkloadServiceExt,
+    DeclaredSetServiceExt, DomainServiceExt, EdgeGroupServiceExt, EffectServiceExt,
+    EventServiceExt, ExtensionServiceExt, GrantServiceExt, IdentityServiceExt, MeteringServiceExt,
+    NodeServiceExt, OrganizationServiceExt, PlanServiceExt, PortalServiceExt, ProfileServiceExt,
+    ProjectServiceExt, ProviderServiceExt, RepositoryServiceExt, RunServiceExt,
+    ServerInfoServiceExt, SessionServiceExt, StreamServiceExt, VolumeServiceExt,
+    WorkloadServiceExt,
 };
 use std::sync::Arc;
 
@@ -40,6 +41,7 @@ impl Api {
         let router = CertificateServiceExt::register(Arc::clone(&self), router);
         let router = PortalServiceExt::register(Arc::clone(&self), router);
         let router = AddressPoolServiceExt::register(Arc::clone(&self), router);
+        let router = EdgeGroupServiceExt::register(Arc::clone(&self), router);
         let router = BackupServiceExt::register(Arc::clone(&self), router);
         let router = RunServiceExt::register(Arc::clone(&self), router);
         let router = AccountServiceExt::register(Arc::clone(&self), router);

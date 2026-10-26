@@ -1451,6 +1451,9 @@ the same mechanism", and that is the price of having made core and extensions th
 | 185 | Admission counted an address for each `dedicated_ip` endpoint of a workload that holds one | §77 | `07-networking.md` §3.7 |
 | 186 | A cluster pool named its router by an extension, which no provider call is addressed by | §77 | `01-model.md` §3.6 |
 | 187 | Any organization holding `address_pool.write` could make a pool of any range, squatting another's | §77 | `07-networking.md` §3.7, `10-api.md` §5 |
+| 188 | An edge's tunnel kept the player's address inside WireGuard, which drops a source outside the sender's pools | §78 | `07-networking.md` §3.1, §3.4 |
+| 189 | Liveness through the forwarding path was required and nothing could measure it | §78 | `07-networking.md` §3.1 |
+| 190 | The dependents of a failed edge were made a state their nodes cannot observe | §78 | `07-networking.md` §3.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6622,3 +6625,81 @@ making a pool is an operator's attestation, `address_pool.attest` on the install
 organization, as `domain.attest` is for a name, for any organization in its subtree; the
 organization deletes its own with `address_pool.write`. What it costs: a reseller bringing its
 own addresses asks the host to vouch for them, as it does for a domain it cannot prove in DNS.
+
+## 78. A game server keeps its address while the edge holding it fails twice
+
+Written 2026-10-26, as edges were designed (§3.1 of `07-networking.md`), and chosen by that task:
+§3.1 had been crossed by two traces (§3 and §13), both written before anything was built, and each
+found a property asserted with nothing to hold it. A host has two edges, E1 and E2, on a link
+carrying `198.51.100.0/28`, and nodes A and B behind them, B behind NAT. A customer's `arena`, a
+game server whose game endpoint is `stable` over UDP on 25565, runs on A. The trace asks the
+algebra question of every step.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The host makes edge group `edge` of E1 and E2; an operator attests an `edge` pool of `198.51.100.0/28` on their `eth0` | `07-networking.md` §3.1, §3.7; `01-model.md` §3.6 |
+| 2 | The customer declares `arena`; its game endpoint resolves to `stable`, A is a candidate because it reaches E1 and E2 through the mesh, and `198.51.100.2:25565` is allocated in the placement's transaction, no port of A's | `05-scheduling.md` §2.1; `07-networking.md` §3, §3.1 |
+| 3 | The control plane leases `198.51.100.2` to E1 at epoch 1; E1 adds it to `eth0` and announces it | `07-networking.md` §3.1; `02-architecture.md` §4.5 |
+| 4 | Every member's assignment carries the group's table: `198.51.100.2`, UDP, 25565 to A, `arena`'s address, 25565 | `07-networking.md` §3.1 |
+| 5 | A player's packet reaches E1, is translated, and crosses to A in E1's GRE link inside the mesh; A admits it to that port alone, marks it with E1, and routes the reply back by the mark; `arena` sees the player's address | `07-networking.md` §3.1, §3.4, §9.1 |
+| 6 | The control plane probes each member every second, through its own address and each it holds, to A's signed answer | `07-networking.md` §3.1, §9 |
+| 7 | E1's forwarding is broken while its host and agent are well; three probes are missed, E1 is asked to release, and E2 is granted epoch 2 and announces the address | `07-networking.md` §3.1, §10; `18-operations.md` §5 |
+| 8 | E2 loses power; its session ends, and E1 is granted epoch 3 once E2's term has passed | `07-networking.md` §3.1; `02-architecture.md` §4.5 |
+| 9 | `arena` is stopped; a player's packet to 25565 is refused at once, as is a scan of port 22 at the address | `07-networking.md` §3.1 |
+| 10 | Both members fail; `arena` stays placed on A, shown with its endpoint unreached and the group named | `07-networking.md` §3.1; `05-scheduling.md` §7 |
+| 11 | `arena` is placed on B; every member's table names B, and each flushes the old flows of the port | `07-networking.md` §3.1, §10 |
+
+Step 1 asks whose nodes may be members: the group's organization's own, which the control plane
+judges from each node's organization, for the reason a pool's node is its owner's own (§3.7 there).
+Step 2 asks what knows that the group can serve `arena` on A: the control plane, which holds the
+group, its pool's free addresses and ports, and each pair's handshakes as the nodes report them
+(§9.1 there). Step 3 asks what keeps two members from answering for the address: the lease, whose
+grantor writes the holder under the group's row lock and grants another member only after a
+release or the grantor's end of the term, and whose holder stops at its own end, which comes
+first. Step 4 asks what E2 needs to take over at once: the whole table, which is why every member
+gets it. Step 5 asks what carries a packet whose source is the player's across a mesh whose peers
+accept only their own pools, and found nothing did (Finding 188). Step 6 asks who sends the
+synthetic connection §3.1 required, and found no one could as written (Finding 189). Step 7 asks
+how long the outage lasts: three seconds of detection and a round trip, since E1 still hears the
+control plane and releases. Step 8 asks the same of a member no one can hear: the rest of its term,
+ten seconds, which is what the lease costs and the plan states. Step 9 asks what answers when
+nothing is behind the address: the holder, from its table, which says no target. Step 10 asks what
+evaluates "dependents of a failed edge become `unsatisfiable`", and found it was an agent that
+cannot see the edge (Finding 190). Step 11 asks whether a flow lingers on A: no, the members flush
+it when the target changes.
+
+**Finding 188.** §3.4 of `07-networking.md` had an edge encapsulate the player's packet in
+WireGuard between Korpis machines and deliver it with the player's address as its source. WireGuard
+accepts a decrypted packet only if its source lies within the allowed IPs of the peer that sent it,
+and §9.1 makes a node's allowed IPs its own pools, so A would drop every such packet; widening an
+edge's allowed IPs to the internet would route A's own traffic to the edge. Resolved in §3.1 and
+§3.4 there: the edge carries it in GRE inside the mesh, one link per pair of an edge and a node,
+the outer header from the edge's own mesh address, the last of its pool, which no workload is
+given. What it costs: 24 bytes a packet, and a link per pair on each side.
+
+**Finding 189.** §3.1 of `07-networking.md` required liveness "measured through the forwarding
+path", a synthetic connection through the path a player takes, and named nothing to make it. The
+edge cannot, being what is measured; a peer edge probing the holder sends from its own address,
+and a responder on its own machine sees that address as local and answers it locally, never back
+through the holder; the agent behind it knows nothing of the edge. Resolved in §3.1 there: the
+control plane probes from outside every node, through each member's own address and each address
+it holds, to a node that answers with its node key's signature, and a member that misses three
+probes a second apart is failing. What it costs: a probe a second per member, and a control plane
+that reaches no member suspecting itself and moving nothing.
+
+**Finding 190.** §3.1 of `07-networking.md` said the dependents of a failed edge become
+`unsatisfiable`, "the same treatment §7 of `05-scheduling.md` gives every other unsatisfiable
+condition". That state is one the agent of the workload's node observes, and the scheduler answers
+it by placing the workload elsewhere; the agent cannot see the edge, and moving the workload mends
+nothing. Resolved in §3.1 there: the control plane, which probes the group, shows the endpoints
+behind it unreached with the group named, and leaves the workload's state and placement alone.
+What it costs: nothing; a hibernated workload behind a dead edge is still shown unreachable, by the
+component that knows.
+
+Steps 1 to 11 were designed with nothing built. Building them is P3.7 in §4 of `20-roadmap.md`.
+Steps 1, 2, and 4 are built 2026-10-26 (P3.7b) and tested over the API: the group refusing a
+reseller's node, the pool refusing a group of another organization, `arena` placed on A because it
+reaches both members, its game's TCP port and its query's UDP port sharing 25565 at `198.51.100.2`
+with no port of A held, and E1 told the table with A's mesh address while A is told both members'.

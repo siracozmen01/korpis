@@ -20,6 +20,7 @@ pub mod certificate;
 pub mod control;
 pub mod dns;
 pub mod domain;
+pub mod edge_group;
 pub mod error;
 pub mod event;
 pub mod extension;

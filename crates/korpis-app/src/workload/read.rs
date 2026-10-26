@@ -133,13 +133,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         id: Uuid,
         node: Option<Uuid>,
     ) -> Result<Reached, AppError> {
+        use korpis_core::workload::spec::endpoints::Exposure;
         let mut endpoints = Vec::new();
         let held = self.store.dedicated_of(id).await?;
         let dedicated = held.as_ref().map(|h| h.address);
+        let stable = self.store.stable_of(id).await?;
         for e in self.store.endpoints(id).await? {
             // A `dedicated_ip` endpoint is reached at its workload's own address alone.
-            if e.exposure == korpis_core::workload::spec::endpoints::Exposure::DedicatedIp {
+            if e.exposure == Exposure::DedicatedIp {
                 endpoints.push((e, dedicated.into_iter().collect()));
+                continue;
+            }
+            // A `stable` endpoint an edge serves, at its group's address and port (§3.1 of
+            // docs/07-networking.md), which no port of its node is.
+            if e.exposure == Exposure::Stable {
+                let at: Vec<_> = stable.iter().filter(|p| p.endpoint == e.name).collect();
+                let port = at.first().map(|p| p.port);
+                let addresses = at.iter().map(|p| p.address).collect();
+                endpoints
+                    .push((korpis_core::workload::endpoint::Endpoint { port, ..e }, addresses));
                 continue;
             }
             let node = self.store.node(e.node).await?;

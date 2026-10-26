@@ -111,6 +111,8 @@ struct Case {
     held: BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>>,
     held_cores: BTreeMap<Uuid, Vec<u32>>,
     dedicated: BTreeSet<Uuid>,
+    edge_members: Vec<Uuid>,
+    mesh: crate::node::mesh::Pairs,
 }
 
 impl Case {
@@ -127,6 +129,8 @@ impl Case {
             held: BTreeMap::new(),
             held_cores: BTreeMap::new(),
             dedicated: BTreeSet::new(),
+            edge_members: Vec::new(),
+            mesh: crate::node::mesh::Pairs::EMPTY,
         }
     }
 
@@ -144,13 +148,14 @@ impl Case {
             owners: &[ORG],
             body: &self.body,
             current: None,
-            edge_tier: false,
+            edge_tier: !self.edge_members.is_empty(),
+            edge_members: &self.edge_members,
             volumes: &[],
             refused: &NONE_REFUSED,
             content: &self.content,
             churn: &self.churn,
             dependencies: &[],
-            mesh: &NO_MESH,
+            mesh: &self.mesh,
             quota: &[],
             devices: &self.held,
             cores: &self.held_cores,
@@ -274,6 +279,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         body: &b,
         current: Some(Current { node: here.id, reserved: &reserved, devices: &[], cores: &[] }),
         edge_tier: false,
+        edge_members: &[],
         volumes: &[],
         refused: &NONE_REFUSED,
         content: &NONE_HELD,
@@ -299,7 +305,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
 fn reservation_counts_only_what_placement_guarantees() {
     let mut b = body(GIB);
     b.resources.pids_limit = 100;
-    let r = reservation(&b);
+    let r = reservation(&b, false);
     assert_eq!(r, Bounds::from([(Dimension::Cpu, 1_000), (Dimension::Memory, GIB)]));
 }
 
@@ -312,6 +318,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         body: b,
         current: None,
         edge_tier: false,
+        edge_members: &[],
         volumes: &[],
         refused: &NONE_REFUSED,
         content: &NONE_HELD,
@@ -378,6 +385,7 @@ mod colocation;
 mod cores;
 mod dedicated;
 mod devices;
+mod edge;
 mod fixtures;
 mod ingress;
 mod owners;

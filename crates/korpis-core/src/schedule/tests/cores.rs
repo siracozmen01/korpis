@@ -63,6 +63,6 @@ fn a_placement_holding_cores_reserves_their_threads_and_not_its_declared_cpu() {
     use crate::tenancy::quota::Dimension;
     let node = pinned(2);
     let body = asking(2, Vec::new()).body;
-    assert_eq!(reservation_on(&body, &node, &[1, 3]).get(&Dimension::Cpu), Some(&4_000));
-    assert_eq!(reservation_on(&body, &node, &[]).get(&Dimension::Cpu), Some(&2_000));
+    assert_eq!(reservation_on((&body, false), &node, &[1, 3]).get(&Dimension::Cpu), Some(&4_000));
+    assert_eq!(reservation_on((&body, false), &node, &[]).get(&Dimension::Cpu), Some(&2_000));
 }

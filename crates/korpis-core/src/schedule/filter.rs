@@ -192,7 +192,7 @@ fn taints(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
 fn capacity(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
     // Dedicated cores reserve what they take here; too few free is the cores check's to say.
     let held = super::cores::given(req, c.node).unwrap_or_default();
-    let need = super::cores::reservation_on(req.body, c.node, &held);
+    let need = super::cores::reservation_on((req.body, req.edge_tier), c.node, &held);
     let own = req.current.filter(|cur| cur.node == c.node.id).map(|cur| cur.reserved);
     RESERVED
         .into_iter()
@@ -290,6 +290,19 @@ fn dedicated(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     })
 }
 
+/// A workload whose `stable` endpoints an edge group serves is reached through a GRE link from
+/// each member to its node inside the mesh, so the node reaches every member, or is one (§3.1 of
+/// docs/07-networking.md).
+fn edge(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    let stable =
+        req.body.endpoints.iter().any(|e| e.exposure.resolved(req.edge_tier) == Exposure::Stable);
+    let node = c.node.id;
+    let apart = req.edge_members.iter().find(|m| **m != node && !req.mesh.joins(node, **m));
+    apart.filter(|_| stable).map(|m| {
+        (Check::Edge, format!("does not reach edge {m} of the group serving it through the mesh"))
+    })
+}
+
 /// Every quota entry counting what runs on the candidate that what this placement would run
 /// there exceeds (§5.1 of docs/05-scheduling.md, "Where a workload runs"). Only growth is
 /// refused, as at declaration: what an entry already counts of the workload is its before. The
@@ -329,6 +342,7 @@ pub(super) fn rejections(
     out.extend(affinity(req, c, fleet, peers, policy));
     out.extend(dependencies(req, c, peers));
     out.extend(dedicated(req, c));
+    out.extend(edge(req, c));
     out.extend(quota(req, c));
     if let Some(why) = req.refused.get(&c.node.id) {
         out.push((Check::Prepare, format!("its driver refused it: {why}")));

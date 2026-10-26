@@ -7,6 +7,7 @@ use crate::cmd::address_pool::AddressPoolAction;
 use crate::cmd::backup::BackupAction;
 use crate::cmd::certificate::CertificateAction;
 use crate::cmd::domain::DomainAction;
+use crate::cmd::edge_group::EdgeGroupAction;
 use crate::cmd::event::EventAction;
 use crate::cmd::extension::ExtensionAction;
 use crate::cmd::identity::IdentityAction;
@@ -106,6 +107,10 @@ pub enum Command {
     /// dedicated addresses from.
     #[command(subcommand)]
     AddressPool(AddressPoolAction),
+    /// Makes, changes, lists, shows, and deletes the edge groups that hold an organization's
+    /// stable addresses.
+    #[command(subcommand)]
+    EdgeGroup(EdgeGroupAction),
     /// Shows, sets, and clears an organization's theme in the panel.
     #[command(subcommand)]
     Theme(theme::ThemeAction),

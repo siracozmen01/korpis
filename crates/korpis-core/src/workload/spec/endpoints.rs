@@ -14,7 +14,7 @@ pub use clients::{
 };
 
 /// The protocol an endpoint speaks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Protocol {
     /// TCP.
     Tcp,

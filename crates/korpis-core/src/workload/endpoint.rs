@@ -8,7 +8,7 @@ use super::spec::endpoints::{EndpointSpec, Exposure, Protocol, TlsSpec};
 use uuid::Uuid;
 
 /// The transport a protocol rides on, which is what a node forwards.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Transport {
     /// TCP: `tcp`, `http`, and `https`.
     Tcp,

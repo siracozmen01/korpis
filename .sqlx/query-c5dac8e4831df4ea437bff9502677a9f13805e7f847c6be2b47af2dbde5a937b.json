@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE edge_group SET first_port = $2, last_port = $3, probe_port = $4,\n                                   probe_interval_ms = $5, probe_misses = $6, term_ms = $7\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c5dac8e4831df4ea437bff9502677a9f13805e7f847c6be2b47af2dbde5a937b"
+}

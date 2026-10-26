@@ -209,8 +209,10 @@ impl Held {
             (D::Volumes, count(created.len())),
             (D::Endpoints, count(body.endpoints.len())),
             (D::DedicatedIpv4, u64::from(dedicated)),
-            // Counted as if no edge serves it, which is every installation until edges arrive
-            // (§4 of docs/20-roadmap.md): a `stable` endpoint holds a port of its node.
+            // Counted as declared, a `stable` endpoint as a port of its node whatever serves
+            // it: admission comes before the placement that resolves it, and a quota's totals do
+            // not move when an edge group is made or loses a member. What its node reserves
+            // knows the edge (`schedule::reservation`, §3.1 of docs/07-networking.md).
             (D::NodePorts, crate::workload::endpoint::node_ports(&body.endpoints, false)),
         ];
         let devices = body.devices.iter().map(|d| (D::Devices(d.class), u64::from(d.count)));

@@ -5,6 +5,7 @@
 //! allocated on them, and the workload's placed peers, all read in one transaction under the
 //! placement lock, so the answer is consistent with what the bind will write.
 
+mod check;
 pub mod churn;
 pub mod cores;
 pub mod devices;
@@ -14,6 +15,7 @@ mod score;
 mod topology;
 pub mod view;
 
+pub use check::Check;
 pub use policy::{
     MAX_SPREAD, PlacementPolicy, Policies, Signal, SpreadConstraint, SpreadScope, Strategy,
 };
@@ -34,13 +36,19 @@ pub const RESERVED: [Dimension; 5] = [
     Dimension::NodePorts,
 ];
 
-/// What a placement of `body` reserves on its node.
+/// What a placement of `body` reserves on its node, where an edge group does or does not serve
+/// it: a `stable` endpoint an edge serves holds no port of its node (§3.1 of
+/// docs/07-networking.md).
 #[must_use]
-pub fn reservation(body: &IntentBody) -> Bounds {
+pub fn reservation(body: &IntentBody, edge_tier: bool) -> Bounds {
     let held = Held::of(body);
+    let ports = crate::workload::endpoint::node_ports(&body.endpoints, edge_tier);
     RESERVED
         .into_iter()
-        .map(|d| (d, held.reservations.get(&d).copied().unwrap_or(0)))
+        .map(|d| match d {
+            Dimension::NodePorts => (d, ports),
+            _ => (d, held.reservations.get(&d).copied().unwrap_or(0)),
+        })
         .filter(|(_, n)| *n > 0)
         .collect()
 }
@@ -63,9 +71,13 @@ pub struct Request<'a> {
     /// Where it is placed now, and what that placement reserves, when it is re-placed for a
     /// new target.
     pub current: Option<Current<'a>>,
-    /// Whether an edge tier serves it, which decides what a declared `stable` endpoint
-    /// resolves to and so what it needs of a node (§3 of docs/07-networking.md).
+    /// Whether an edge group serves it with an address and port for each of its `stable`
+    /// endpoints, which decides what a declared `stable` endpoint resolves to and so what it
+    /// needs of a node (§3 and §3.1 of docs/07-networking.md).
     pub edge_tier: bool,
+    /// That group's members, which a node it is placed on reaches through the mesh; empty where
+    /// no group serves it.
+    pub edge_members: &'a [Uuid],
     /// Each existing volume the intent attaches, with the node holding it: a node-local volume
     /// is reachable from its node alone (§7 of docs/06-storage.md).
     pub volumes: &'a [(Uuid, Uuid)],
@@ -158,116 +170,6 @@ pub struct Peer {
     pub node: Uuid,
     /// Its labels.
     pub labels: BTreeMap<String, String>,
-}
-
-/// A filter check (§2.1 of docs/05-scheduling.md).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Check {
-    /// The node serves the workload's organization.
-    Owner,
-    /// The node is ready.
-    Status,
-    /// A healthy driver of the requested name.
-    Driver,
-    /// The driver implements the requested tier.
-    Tier,
-    /// The driver offers the requested console.
-    Console,
-    /// The driver can run every probe the intent declares that needs it (§5 of
-    /// docs/04-runtimes.md).
-    Probe,
-    /// The driver holds every limit the intent sets (Rule K-3).
-    Enforcement,
-    /// The node can be reached the way the endpoints need.
-    Reachability,
-    /// The intent's node selector.
-    Selector,
-    /// Every taint is tolerated.
-    Taint,
-    /// Unallocated capacity for every reservation.
-    Capacity,
-    /// Free devices for every request, of a class and mode its driver gives (§6.3 of
-    /// docs/05-scheduling.md).
-    Device,
-    /// Enough free cores offered for dedication, where they are asked for (§5.2 of
-    /// docs/05-scheduling.md).
-    Cores,
-    /// Every named storage class is offered.
-    StorageClass,
-    /// Every existing volume attached is on the node.
-    Volume,
-    /// Every required affinity and anti-affinity rule.
-    Affinity,
-    /// Every dependency's targets are reachable from the node (§5 of docs/07-networking.md).
-    Dependency,
-    /// It may hold a dedicated address there, where an endpoint of it is `dedicated_ip` (§3.7
-    /// of docs/07-networking.md).
-    DedicatedIp,
-    /// Every quota entry counting what runs on the node admits it (§5.1 of
-    /// docs/05-scheduling.md).
-    Quota,
-    /// The node's driver accepted the intent when the shortlist asked it, or after it was bound
-    /// there (§2.1 of docs/05-scheduling.md).
-    Prepare,
-}
-
-impl Check {
-    /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 20] = [
-        Self::Owner,
-        Self::Status,
-        Self::Driver,
-        Self::Tier,
-        Self::Console,
-        Self::Probe,
-        Self::Enforcement,
-        Self::Reachability,
-        Self::Selector,
-        Self::Taint,
-        Self::Capacity,
-        Self::Device,
-        Self::Cores,
-        Self::StorageClass,
-        Self::Volume,
-        Self::Affinity,
-        Self::Dependency,
-        Self::DedicatedIp,
-        Self::Quota,
-        Self::Prepare,
-    ];
-
-    /// The check a name names.
-    #[must_use]
-    pub fn parse(s: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|c| c.as_str() == s)
-    }
-
-    /// Its name in an explanation.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Owner => "owner",
-            Self::Status => "status",
-            Self::Driver => "driver",
-            Self::Tier => "tier",
-            Self::Console => "console",
-            Self::Probe => "probe",
-            Self::Enforcement => "enforcement",
-            Self::Reachability => "reachability",
-            Self::Selector => "selector",
-            Self::Taint => "taint",
-            Self::Capacity => "capacity",
-            Self::Device => "device",
-            Self::Cores => "cores",
-            Self::StorageClass => "storage_class",
-            Self::Volume => "volume",
-            Self::Affinity => "affinity",
-            Self::Dependency => "dependency",
-            Self::DedicatedIp => "dedicated_ip",
-            Self::Quota => "quota",
-            Self::Prepare => "prepare",
-        }
-    }
 }
 
 /// One node failing one check.

@@ -270,24 +270,31 @@ iSCSI) of §2 of `06-storage.md`, whose question 3 decides whether one class cov
 `shared_access` is what live migration and failover need; homed here 2026-10-19, when Phase 1
 closed and §2 there was found pointing at this section for them while no phase named them. Edges in
 failover groups, which is what `stable` exposure requires to exist at all and what lets it survive
-the move (§3.1 of `07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can
-cross nodes; designed 2026-10-25 as a WireGuard mesh of every node, each with a pool of its own
-(§9.1 there, trace 74 of `23-walkthroughs.md`); each node's pool given at enrollment, the mesh's
-interfaces, the peers each node is told, each pair's reachability, dependencies across the mesh
-with each destination's admission, the scheduler's pair check, and each dependency's status are
-built, and tested end to end with two nodes each in a network namespace of its own. Dedicated
-addresses (§3 there), routed to whichever node a workload runs on; designed 2026-10-26 (§3.7 there,
-trace 77 of `23-walkthroughs.md`) as pools an organization owns, an address allocated with the
-placement and held by translation on its node, a `node` pool's address pinning its workload, and a
-`cluster` pool's moved by an address router extension, whose contract this phase builds and tests
-with a router of the tests' own; the routers that speak BGP or a provider's API are of the core
-extensions of §2 of `16-extensions.md`, built through the contract in Phase 4. Built 2026-10-26:
-pools on one node, routed there or on its link, and the router's contract, with an API test's own
-router; the router told a migration's new node at its cutover is built with migration. HTTP/3 at the
-ingress, on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6
-there), designed and built 2026-10-26, when it was found that they decide something on one node as
-on many and that the overlay was never what they waited for (Finding 182 of `23-walkthroughs.md`).
-Devices, including GPU. Dedicated cores (§5.2 of `05-scheduling.md`): a `cpuset` per driver and the
+the move (§3.1 of `07-networking.md`); designed 2026-10-26 (§3.1 there, trace 78 of
+`23-walkthroughs.md`) as groups of two or more of an organization's own nodes, each stable address
+held by one member under a lease with an epoch and forwarded by every member to the workload's node
+over GRE inside the mesh, the client's address kept, each member's liveness probed by the control
+plane through its forwarding path, and the group's ingress served by its members. Built 2026-10-26,
+its control plane's half: groups, edge pools, the allocation of a `stable` endpoint's address and
+port at placement, the `edge` placement check, and each node's table, tested over the API. The
+overlay (§9 of `07-networking.md`), so a dependency can cross nodes; designed 2026-10-25 as a
+WireGuard mesh of every node, each with a pool of its own (§9.1 there, trace 74 of
+`23-walkthroughs.md`); each node's pool given at enrollment, the mesh's interfaces, the peers each
+node is told, each pair's reachability, dependencies across the mesh with each destination's
+admission, the scheduler's pair check, and each dependency's status are built, and tested end to
+end with two nodes each in a network namespace of its own. Dedicated addresses (§3 there), routed
+to whichever node a workload runs on; designed 2026-10-26 (§3.7 there, trace 77 of
+`23-walkthroughs.md`) as pools an organization owns, an address allocated with the placement and
+held by translation on its node, a `node` pool's address pinning its workload, and a `cluster`
+pool's moved by an address router extension, whose contract this phase builds and tests with a
+router of the tests' own; the routers that speak BGP or a provider's API are of the core extensions
+of §2 of `16-extensions.md`, built through the contract in Phase 4. Built 2026-10-26: pools on one
+node, routed there or on its link, and the router's contract, with an API test's own router; the
+router told a migration's new node at its cutover is built with migration. HTTP/3 at the ingress,
+on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6 there),
+designed and built 2026-10-26, when it was found that they decide something on one node as on many
+and that the overlay was never what they waited for (Finding 182 of `23-walkthroughs.md`). Devices,
+including GPU. Dedicated cores (§5.2 of `05-scheduling.md`): a `cpuset` per driver and the
 scheduler's accounting of whole cores with their siblings, which the schema accepted from Phase 0
 while nothing held them; homed here 2026-10-25, when it was found that no phase named them and that
 a workload asking for them ran on shared cores (Finding 167 of `23-walkthroughs.md`), and refused
@@ -510,7 +517,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-seven traces and their 187 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-eight traces and their 190 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
@@ -518,9 +525,9 @@ than architecture.
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
 | `ARCHITECTURE.md`, `crates/`, `web/` | Phases 0 to 2 built: twenty-six crates and the panel, about 209,000 lines of Rust and 17,100 of TypeScript, 1,262 Rust tests and 136 of the panel's, 122 migrations, and the 162 calls of the public API |
 
-Seventy-one numbered open questions remain open, of 144 recorded. Sixteen of them are a question
+Seventy-two numbered open questions remain open, of 145 recorded. Sixteen of them are a question
 restated in a second document, carried there by name or pointing on to the one that will settle
-it, so fifty-five decisions are open, each assigned to the one that will settle it. They
+it, so fifty-six decisions are open, each assigned to the one that will settle it. They
 are the design's honest edges, not omissions: an open question with an owner is a decision
 deferred deliberately, and every one of them was recorded where the person who hits it will find
 it.

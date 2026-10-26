@@ -325,9 +325,58 @@ message AddressPool {
   google.protobuf.Duration quarantine = 9;
   // Addresses of it never given: a link's network, gateway, and broadcast addresses.
   repeated string reserved = 10;
-  // How many of its addresses workloads hold now.
+  // How many of its addresses workloads hold now; for an edge pool, how many of its addresses
+  // and ports `stable` endpoints hold.
   uint64 held = 11;
   google.protobuf.Timestamp created_at = 12;
+  // For an edge pool, the edge group whose members hold its addresses, `egr_...` (§3.1 of
+  // docs/07-networking.md); its router, where it names one, is `router`. Added 2026-10-26.
+  string group = 13;
+}
+
+// Two or more of an organization's nodes holding the stable addresses of its `stable` endpoints,
+// and those of the organizations below it, each address on one member at a time (§3.1 of
+// docs/07-networking.md, §3.6 of docs/01-model.md). Added 2026-10-26.
+message EdgeGroup {
+  string id = 1;
+  string organization = 2;
+  // Lowercase letters, digits, and hyphens; unique within its organization.
+  string name = 3;
+  // Its members, `nd_...`, nodes of its organization; fewer than two serve nothing.
+  repeated string members = 4;
+  // The ports given to `stable` endpoints, inclusive; 1024 to 65534 where none is asked.
+  uint32 first_port = 5;
+  uint32 last_port = 6;
+  // The port every member forwards for the control plane's probe; 65535 where none is asked.
+  uint32 probe_port = 7;
+  // Between two probes of a member; a second where none is asked.
+  google.protobuf.Duration probe_interval = 8;
+  // Missed in a row before a member is failing; three where none is asked.
+  uint32 probe_misses = 9;
+  // A member's lease on an address; ten seconds where none is asked, at least three.
+  google.protobuf.Duration term = 10;
+  google.protobuf.Timestamp created_at = 11;
+  // Each member as the control plane last probed it.
+  repeated EdgeMemberStatus member_status = 12;
+  // Each address of its pools, with the member holding it.
+  repeated EdgeHolding holdings = 13;
+}
+
+message EdgeMemberStatus {
+  string node = 1;
+  // Whether its own address passes the probe through its forwarding path.
+  bool ready = 2;
+  google.protobuf.Timestamp last_probe = 3;
+  // Why it is not ready; empty where it is.
+  string reason = 4;
+}
+
+message EdgeHolding {
+  string address = 1;
+  // The member holding it, `nd_...`; empty where none does.
+  string node = 2;
+  // The epoch of its lease, raised at every change of holder.
+  uint64 epoch = 3;
 }
 
 enum AddressPoolScope {

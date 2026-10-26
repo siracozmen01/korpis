@@ -12,11 +12,14 @@ use korpis_proto::korpis::v1 as pb;
 #[must_use]
 pub fn pool_to_pb(p: &AddressPool, held: u64) -> pb::AddressPool {
     use pb::AddressPoolScope as S;
-    let (scope, node, router) = match &p.scope {
+    let (scope, node, group) = match &p.scope {
         Scope::Node(n) => (S::ADDRESS_POOL_SCOPE_NODE, wire_id(IdKind::Node, *n), String::new()),
-        Scope::Edge => (S::ADDRESS_POOL_SCOPE_EDGE, String::new(), String::new()),
-        Scope::Cluster(r) => (S::ADDRESS_POOL_SCOPE_CLUSTER, String::new(), r.clone()),
+        Scope::Edge { group, .. } => {
+            (S::ADDRESS_POOL_SCOPE_EDGE, String::new(), wire_id(IdKind::EdgeGroup, *group))
+        }
+        Scope::Cluster(_) => (S::ADDRESS_POOL_SCOPE_CLUSTER, String::new(), String::new()),
     };
+    let router = p.router().unwrap_or_default().to_owned();
     pb::AddressPool {
         id: wire_id(IdKind::AddressPool, p.id),
         organization: wire_id(IdKind::Organization, p.organization),
@@ -30,6 +33,7 @@ pub fn pool_to_pb(p: &AddressPool, held: u64) -> pb::AddressPool {
         reserved: p.reserved.iter().map(ToString::to_string).collect(),
         held,
         created_at: timestamp(p.created_at).into(),
+        group,
         ..Default::default()
     }
 }
@@ -44,8 +48,8 @@ pub fn routing_to_pb(r: Routing) -> pb::AddressRouting {
     }
 }
 
-/// Where a pool asked for from the wire holds its addresses: its `scope`, with the `node` or
-/// `router` it names.
+/// Where a pool asked for from the wire holds its addresses: its `scope`, with the `node`,
+/// `group`, or `router` it names; an edge pool names a router exactly where it is routed.
 ///
 /// # Errors
 /// A scope unset, or the identifier it needs missing or malformed.
@@ -54,7 +58,10 @@ pub fn scope_from_pb(p: &pb::AddressPool) -> Result<Scope> {
         Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_NODE) => {
             Ok(Scope::Node(id(IdKind::Node, "pool.node", &p.node)?))
         }
-        Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_EDGE) => Ok(Scope::Edge),
+        Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_EDGE) => Ok(Scope::Edge {
+            group: id(IdKind::EdgeGroup, "pool.group", &p.group)?,
+            router: (!p.router.is_empty()).then(|| p.router.clone()),
+        }),
         Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_CLUSTER) => {
             Ok(Scope::Cluster(p.router.clone()))
         }
@@ -62,7 +69,8 @@ pub fn scope_from_pb(p: &pb::AddressPool) -> Result<Scope> {
     }
 }
 
-/// How a pool asked for from the wire reaches its node; a node pool's static where unset.
+/// How a pool asked for from the wire reaches its node; a node pool's static where unset, and an
+/// edge pool's where it names no router.
 ///
 /// # Errors
 /// A routing that is not one.
@@ -72,7 +80,9 @@ pub fn routing_from_pb(p: &pb::AddressPool) -> Result<Routing> {
         Some(pb::AddressRouting::ADDRESS_ROUTING_BGP) => Ok(Routing::Bgp),
         Some(pb::AddressRouting::ADDRESS_ROUTING_PROVIDER_API) => Ok(Routing::ProviderApi),
         Some(pb::AddressRouting::ADDRESS_ROUTING_UNSPECIFIED)
-            if p.scope.as_known() == Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_NODE) =>
+            if p.scope.as_known() == Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_NODE)
+                || (p.scope.as_known() == Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_EDGE)
+                    && p.router.is_empty()) =>
         {
             Ok(Routing::Static)
         }

@@ -33,6 +33,8 @@ mod data;
 mod device;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod domain;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod edge;
 pub mod error;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod event;
@@ -124,6 +126,8 @@ pub struct Api {
     named_relays: Arc<crate::named_relays::NamedRelays>,
     /// The mesh between nodes this process tells the nodes it holds sessions with.
     mesh: Arc<crate::mesh::KeptMesh>,
+    /// What this process tells the nodes it holds sessions with of edges.
+    edges: Arc<crate::edges::KeptEdges>,
     /// The key page tokens are sealed under (§8 of docs/10-api.md).
     cursors: Arc<cursor::Cursors>,
     /// The SFTP servers named to clients.
@@ -151,6 +155,7 @@ impl Api {
             serves_relay: true,
             named_relays: Arc::default(),
             mesh: Arc::default(),
+            edges: Arc::default(),
             cursors: Arc::new(cursor::Cursors::of_this_process()),
             sftp: crate::sftp::Advertised::default(),
             settling: std::sync::Mutex::new(None),
@@ -214,6 +219,12 @@ impl Api {
     #[must_use]
     pub fn mesh(&self) -> &crate::mesh::KeptMesh {
         &self.mesh
+    }
+
+    /// What the nodes are told of edges, for the composition root's background work.
+    #[must_use]
+    pub fn edges(&self) -> &crate::edges::KeptEdges {
+        &self.edges
     }
 
     /// The relay role in this process, for the composition root to give it the token keys.

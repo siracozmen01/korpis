@@ -103,7 +103,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let action = "workload.create";
         let (head, target, extension) = (None, None, None);
         let applied = None;
-        Ok(Base { workload, power, head, target, applied, permit, proposing, action, extension })
+        let edge = self.edge_serves(workload.organization).await?;
+        Ok(Base {
+            workload,
+            power,
+            head,
+            target,
+            applied,
+            permit,
+            proposing,
+            action,
+            extension,
+            edge,
+        })
     }
 
     pub(super) async fn base_existing(
@@ -140,6 +152,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or_else(|| AppError::Internal(format!("workload {id} has no power")))?;
         let action = "workload.write";
         let extension = self.store.extension_of_workload(id).await?.map(|e| e.artifact_digest);
-        Ok(Base { workload, power, head, target, applied, permit, proposing, action, extension })
+        let edge = self.edge_serves(workload.organization).await?;
+        Ok(Base {
+            workload,
+            power,
+            head,
+            target,
+            applied,
+            permit,
+            proposing,
+            action,
+            extension,
+            edge,
+        })
     }
 }

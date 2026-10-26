@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, routing,\n                      interface, quarantine_secs, reserved::text[] AS reserved, created_at\n                 FROM address_pool WHERE organization_id = $1 ORDER BY id",
+  "query": "SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, group_id,\n                      routing,\n                      interface, quarantine_secs, reserved::text[] AS reserved, created_at\n                 FROM address_pool\n                WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)\n                ORDER BY id LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -66,6 +66,17 @@
       },
       {
         "ordinal": 6,
+        "name": "group_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "address_pool",
+            "name": "group_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "routing",
         "type_info": "Text",
         "origin": {
@@ -76,7 +87,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "interface",
         "type_info": "Text",
         "origin": {
@@ -87,7 +98,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "quarantine_secs",
         "type_info": "Int8",
         "origin": {
@@ -98,13 +109,13 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "reserved",
         "type_info": "TextArray",
         "origin": "Expression"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -117,7 +128,9 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Uuid",
+        "Int8"
       ]
     },
     "nullable": [
@@ -127,6 +140,7 @@
       false,
       true,
       true,
+      true,
       false,
       false,
       false,
@@ -134,5 +148,5 @@
       false
     ]
   },
-  "hash": "9c25b9ae7797d56204073271d83c427bf4d4a5fd9e83b3da393a50dfaacfaef0"
+  "hash": "4e00c1abae13ff0b56a342264c8dd718e9cf996776ab2fd9d69765c5d16ca160"
 }

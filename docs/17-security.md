@@ -430,6 +430,19 @@ it with a chain for another key; a new chain for the same key is still exposed. 
 does not do: reach a client that does not check, and many do not, so the protection that holds
 regardless is a certificate's short life; revocation shortens the window for the clients that look.
 
+**A compromised edge.** Designed 2026-10-26, with edges (§3.1 of `07-networking.md`). A member of
+an edge group sees every connection to the addresses it holds as any router does, and its
+ingress proxy terminates every name the group serves, so its blast radius is the reachability and
+the plaintext of every workload behind the group, which is its organization's and those below it,
+and the keys of those names' certificates. Into a workload's node it reaches less: the node takes
+from its GRE link only connections to the ports its group forwards to that node's workloads, from
+whatever source address it claims, which is what a client of those ports could send anyway. A
+probe does not catch it, since a member that forwards the probe and drops the rest passes. The
+recovery is a node's: removing it as compromised ends its session, its lease on each address runs
+out within the group's term and the next member's raises the epoch, and the certificates whose
+keys it was given are revoked and renewed as above. What it does not reach: workloads of an
+organization its group does not serve, since a group is its organization's own nodes (§3.1 there).
+
 ### 9.1 Egress is enforced by the party being contained
 
 > Resolves open question 6 of `07-networking.md`; Finding 8 of `23-walkthroughs.md`.

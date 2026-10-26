@@ -200,15 +200,22 @@ pub fn welcome(m: &agent::ControlMessage) -> agent::Welcome {
 }
 
 /// The next message on a session, within five seconds, passing over revocation lists, the relays
-/// named, and the mesh's peers, which arrive on their own schedule (§6.3 of
-/// docs/08-identity.md, §3.1 of docs/02-architecture.md, §9.1 of docs/07-networking.md);
-/// [`next_list`], [`next_relays`], and [`next_peers`] read those.
+/// named, the mesh's peers, and the edges' tables, which arrive on their own schedule (§6.3 of
+/// docs/08-identity.md, §3.1 of docs/02-architecture.md, §9.1 and §3.1 of
+/// docs/07-networking.md); [`next_list`], [`next_relays`], [`next_peers`], and [`next_edges`]
+/// read those.
 pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
     loop {
         let m = any(stream).await;
         if !matches!(
             m.message,
-            Some(Down::RevocationList(_) | Down::Relays(_) | Down::TokenKeys(_) | Down::Peers(_))
+            Some(
+                Down::RevocationList(_)
+                    | Down::Relays(_)
+                    | Down::TokenKeys(_)
+                    | Down::Peers(_)
+                    | Down::Edges(_)
+            )
         ) {
             return m;
         }
@@ -229,6 +236,15 @@ pub async fn next_peers(stream: &mut Stream) -> agent::Peers {
     loop {
         if let Some(Down::Peers(peers)) = any(stream).await.message {
             return *peers;
+        }
+    }
+}
+
+/// The next table of edges a session is told, within five seconds of each message before it.
+pub async fn next_edges(stream: &mut Stream) -> agent::Edges {
+    loop {
+        if let Some(Down::Edges(edges)) = any(stream).await.message {
+            return *edges;
         }
     }
 }

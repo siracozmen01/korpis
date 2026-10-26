@@ -8,7 +8,6 @@
 
 use crate::error::AppError;
 use crate::ports::Tx;
-use crate::workload::EDGE_TIER;
 use korpis_core::node::advertised::PortRange;
 use korpis_core::workload::IntentBody;
 use korpis_core::workload::endpoint::Endpoint;
@@ -17,13 +16,14 @@ use std::time::SystemTime;
 use uuid::Uuid;
 
 /// `body`'s endpoints placed on `node` for `workload`, sorted by name, the node advertising the
-/// ports in `range`. An endpoint that needs a port when none is free is placed without one,
+/// ports in `range`, an edge serving those named in `edged` (§3.1 of docs/07-networking.md),
+/// which hold no port of the node. An endpoint that needs a port when none is free is placed without one,
 /// and its status says it is not reached; placement keeps this from happening by reserving
 /// the node's ports (§2.1 of docs/05-scheduling.md), so only a range narrowed under it does.
 pub(super) async fn placed<T: Tx>(
     tx: &mut T,
     (node, workload): (Uuid, Uuid),
-    body: &IntentBody,
+    (body, edged): (&IntentBody, &[String]),
     range: Option<PortRange>,
     at: SystemTime,
 ) -> Result<Vec<Endpoint>, AppError> {
@@ -34,7 +34,7 @@ pub(super) async fn placed<T: Tx>(
     let mut out = Vec::with_capacity(body.endpoints.len());
     for declared in &body.endpoints {
         let before = held.iter().find(|e| e.name == declared.name);
-        let exposure = declared.exposure.resolved(EDGE_TIER);
+        let exposure = declared.exposure.resolved(edged.contains(&declared.name));
         let mut port = before.and_then(|e| e.port).filter(|_| exposure.holds_node_port());
         if exposure.holds_node_port() && port.is_none() {
             port = match range {

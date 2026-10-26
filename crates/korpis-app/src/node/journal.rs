@@ -11,8 +11,8 @@
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    AddressWrite as _, Clock, EffectWrite, JournalWrite, LeaseWrite, PlacementWrite, RecipeSource,
-    RetirementWrite, Store, StreamWrite as _, Tx, WorkloadWrite,
+    AddressWrite as _, Clock, EdgeWrite as _, EffectWrite, JournalWrite, LeaseWrite,
+    PlacementWrite, RecipeSource, RetirementWrite, Store, StreamWrite as _, Tx, WorkloadWrite,
 };
 use korpis_core::audit::{Effect, JournalOrigin, Outcome, details};
 use korpis_core::authz::{Action, Kind, ObjectRef};
@@ -315,9 +315,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.retire_workload(w.id, self.clock.now()).await?;
         self.rehold(tx, w.id).await?;
         self.place_target(tx, &w, None).await?;
-        // Under the placement lock, its dedicated address goes back to rest (§3.7 of
-        // docs/07-networking.md).
+        // Under the placement lock, its dedicated address and its stable addresses and ports go
+        // back to rest (§3.1 and §3.7 of docs/07-networking.md).
         tx.release_address(w.id, self.clock.now()).await?;
+        tx.release_stable(w.id, &[], self.clock.now()).await?;
         let mut e = system("workload.retire", Outcome::Succeeded);
         e.workload = Some(w.id);
         e.plan = Some(plan.id);

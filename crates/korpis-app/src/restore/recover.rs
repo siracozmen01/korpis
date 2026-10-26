@@ -80,9 +80,12 @@ fn recovered_placement(
         workload: opened.workload,
         node: opened.node,
         intent: opened.target.id,
+        // As if no edge serves it: a recovered placement may reserve a port of its node for a
+        // `stable` endpoint an edge serves, which only ever errs towards holding too much, until
+        // the workload is next placed (§3.1 of docs/07-networking.md).
         reserved: node.map_or_else(
-            || reservation(body),
-            |n| korpis_core::schedule::cores::reservation_on(body, n, &opened.cores),
+            || reservation(body, false),
+            |n| korpis_core::schedule::cores::reservation_on((body, false), n, &opened.cores),
         ),
         bound_at: now,
         bound_by: BoundBy::Recovery,

@@ -613,6 +613,19 @@ Failover advances the epoch. Without that, all three rows above answer a questio
 asking, because a half-failed edge on a healthy host was not detected at all (Finding 21 of
 `23-walkthroughs.md`).
 
+How Korpis takes each row, as designed 2026-10-26 (§3.1 of `07-networking.md`, trace 78 of
+`23-walkthroughs.md`). The floating address is the VRRP row without VRRP's election: an edge
+group's members share a link, and the one the control plane leases an address to adds it and
+announces it with gratuitous ARP, the lease and its epoch deciding who holds it, so two members
+never answer for one address. The BGP row is the group's pool naming an address router, asked to
+route each address to its holder, as a dedicated address is routed (§3.7 there). Anycast through
+such a router is the same with one holder. ECMP's several members at once is not taken yet, and
+the reasons are question 14 there. Detection is the control plane's probe through each member's
+forwarding path, three missed probes a second apart unless the group says otherwise, and the
+handoff is a round trip where the holder still hears the control plane and the rest of its ten
+second term where it does not, so an operator reads a failover of about three seconds after a
+failure that leaves the holder connected, and up to thirteen after one that does not.
+
 Forwarding state is derivable from placements, so a replacement edge reconstructs it from the
 control plane rather than needing state replication, an edge holds no truth of its own. On one
 machine there is no edge tier and no `stable` mode; endpoints are `node_bound`, which on one machine

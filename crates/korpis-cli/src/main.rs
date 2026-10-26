@@ -10,6 +10,7 @@ use korpis_cli::cmd::backup::{self, BackupAction};
 use korpis_cli::cmd::certificate;
 use korpis_cli::cmd::clone;
 use korpis_cli::cmd::domain;
+use korpis_cli::cmd::edge_group;
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension;
 use korpis_cli::cmd::files::files as remote_files;
@@ -201,6 +202,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         | Command::Domain(_)
         | Command::Portal(_)
         | Command::AddressPool(_)
+        | Command::EdgeGroup(_)
         | Command::Theme(_)
         | Command::Layout(_) => answer(cli, object(&cli.required().await?, &cli.command).await),
         Command::Status { workload } => {
@@ -267,6 +269,7 @@ async fn object(c: &Connection, command: &Command) -> Result<Answer, CliError> {
         Command::Domain(a) => domain::domain(c, a).await,
         Command::Portal(a) => portal::portal(c, a).await,
         Command::AddressPool(a) => address_pool::address_pool(c, a).await,
+        Command::EdgeGroup(a) => edge_group::edge_group(c, a).await,
         Command::Theme(a) => theme::theme(c, a).await,
         Command::Layout(a) => layout::layout(c, a).await,
         _ => Err(CliError::Local("not a command about one kind of object".into())),

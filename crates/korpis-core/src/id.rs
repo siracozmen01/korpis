@@ -81,6 +81,8 @@ pub enum IdKind {
     SshKey,
     /// An address pool (`apl_`).
     AddressPool,
+    /// An edge group (`egr_`).
+    EdgeGroup,
 }
 
 impl IdKind {
@@ -122,6 +124,7 @@ impl IdKind {
             Self::Usage => "use",
             Self::SshKey => "ssk",
             Self::AddressPool => "apl",
+            Self::EdgeGroup => "egr",
         }
     }
 }

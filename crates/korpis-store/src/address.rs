@@ -22,6 +22,7 @@ struct PoolRow {
     scope: String,
     node_id: Option<Uuid>,
     router: Option<String>,
+    group_id: Option<Uuid>,
     routing: String,
     interface: String,
     quarantine_secs: i64,
@@ -34,10 +35,10 @@ impl TryFrom<PoolRow> for AddressPool {
 
     fn try_from(r: PoolRow) -> StoreResult<Self> {
         let corrupt = |what: &str| StoreError::Corrupt(format!("address pool {}: {what}", r.id));
-        let scope = match (r.scope.as_str(), r.node_id, r.router.clone()) {
-            ("node", Some(n), _) => Scope::Node(n),
-            ("edge", _, _) => Scope::Edge,
-            ("cluster", _, Some(router)) => Scope::Cluster(router),
+        let scope = match (r.scope.as_str(), r.node_id, r.router.clone(), r.group_id) {
+            ("node", Some(n), _, _) => Scope::Node(n),
+            ("edge", _, router, Some(group)) => Scope::Edge { group, router },
+            ("cluster", _, Some(router), _) => Scope::Cluster(router),
             _ => return Err(corrupt("scope")),
         };
         let routing = match r.routing.as_str() {
@@ -75,7 +76,8 @@ impl AddressRead for PgStore {
     async fn address_pool(&self, id: Uuid) -> StoreResult<Option<AddressPool>> {
         let row = sqlx::query_as!(
             PoolRow,
-            r#"SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, routing,
+            r#"SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, group_id,
+                      routing,
                       interface, quarantine_secs, reserved::text[] AS reserved, created_at
                  FROM address_pool WHERE id = $1"#,
             id
@@ -93,7 +95,8 @@ impl AddressRead for PgStore {
     ) -> StoreResult<Vec<AddressPool>> {
         let rows = sqlx::query_as!(
             PoolRow,
-            r#"SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, routing,
+            r#"SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, group_id,
+                      routing,
                       interface, quarantine_secs, reserved::text[] AS reserved, created_at
                  FROM address_pool
                 WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)
@@ -132,9 +135,12 @@ impl AddressRead for PgStore {
     }
 
     async fn pool_held(&self, pool: Uuid) -> StoreResult<u64> {
+        // An edge pool's are its addresses and ports that `stable` endpoints hold.
         let n = sqlx::query_scalar!(
-            r#"SELECT count(*) AS "n!" FROM dedicated_address
-                WHERE pool_id = $1 AND workload_id IS NOT NULL"#,
+            r#"SELECT (SELECT count(*) FROM dedicated_address
+                        WHERE pool_id = $1 AND workload_id IS NOT NULL)
+                    + (SELECT count(*) FROM stable_port
+                        WHERE pool_id = $1 AND workload_id IS NOT NULL) AS "n!""#,
             pool
         )
         .fetch_one(&self.pool)
@@ -146,11 +152,12 @@ impl AddressRead for PgStore {
 
 impl AddressWrite for PgTx {
     async fn insert_address_pool(&mut self, p: &AddressPool) -> StoreResult<()> {
-        let (scope, node, router) = match &p.scope {
+        let (scope, node, group) = match &p.scope {
             Scope::Node(n) => ("node", Some(*n), None),
-            Scope::Edge => ("edge", None, None),
-            Scope::Cluster(r) => ("cluster", None, Some(r.as_str())),
+            Scope::Edge { group, .. } => ("edge", None, Some(*group)),
+            Scope::Cluster(_) => ("cluster", None, None),
         };
+        let router = p.router();
         let routing = match p.routing {
             Routing::Static => "static",
             Routing::Bgp => "bgp",
@@ -161,8 +168,10 @@ impl AddressWrite for PgTx {
         let quarantine = i64::try_from(p.quarantine.as_secs()).unwrap_or(i64::MAX);
         sqlx::query!(
             "INSERT INTO address_pool (id, organization_id, family, cidr, scope, node_id, router,
-                                       routing, interface, quarantine_secs, reserved, created_at)
-             VALUES ($1, $2, $3, $4::text::cidr, $5, $6, $7, $8, $9, $10, $11::text[]::inet[], $12)",
+                                       group_id, routing, interface, quarantine_secs, reserved,
+                                       created_at)
+             VALUES ($1, $2, $3, $4::text::cidr, $5, $6, $7, $8, $9, $10, $11,
+                     $12::text[]::inet[], $13)",
             p.id,
             p.organization,
             family,
@@ -170,6 +179,7 @@ impl AddressWrite for PgTx {
             scope,
             node,
             router,
+            group,
             routing,
             p.interface,
             quarantine,
@@ -193,7 +203,8 @@ impl AddressWrite for PgTx {
     async fn address_pools_now(&mut self, organization: Uuid) -> StoreResult<Vec<AddressPool>> {
         let rows = sqlx::query_as!(
             PoolRow,
-            r#"SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, routing,
+            r#"SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, group_id,
+                      routing,
                       interface, quarantine_secs, reserved::text[] AS reserved, created_at
                  FROM address_pool WHERE organization_id = $1 ORDER BY id"#,
             organization

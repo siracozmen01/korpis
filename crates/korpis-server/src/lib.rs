@@ -18,6 +18,7 @@ mod buckets;
 pub mod control_backup;
 mod control_jobs;
 pub mod data;
+pub mod edges;
 pub mod factor_vault;
 pub mod feasibility;
 pub mod front;

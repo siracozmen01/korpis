@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, routing,\n                      interface, quarantine_secs, reserved::text[] AS reserved, created_at\n                 FROM address_pool WHERE id = $1",
+  "query": "SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, group_id,\n                      routing,\n                      interface, quarantine_secs, reserved::text[] AS reserved, created_at\n                 FROM address_pool WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -66,6 +66,17 @@
       },
       {
         "ordinal": 6,
+        "name": "group_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "address_pool",
+            "name": "group_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "routing",
         "type_info": "Text",
         "origin": {
@@ -76,7 +87,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "interface",
         "type_info": "Text",
         "origin": {
@@ -87,7 +98,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "quarantine_secs",
         "type_info": "Int8",
         "origin": {
@@ -98,13 +109,13 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "reserved",
         "type_info": "TextArray",
         "origin": "Expression"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -127,6 +138,7 @@
       false,
       true,
       true,
+      true,
       false,
       false,
       false,
@@ -134,5 +146,5 @@
       false
     ]
   },
-  "hash": "ee31411f257a5e7cda2e774a95de23815c6d07ea6c45c2332424ebcd2e292cc8"
+  "hash": "90ba08bd62167eec2faba91338ab51b03b3bdbf7195f4b96300c5033c83cdf2b"
 }

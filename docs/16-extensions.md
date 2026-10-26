@@ -495,7 +495,7 @@ to infer the cause from a graph.
 | `step` | the install step fails with its reason, and the plan stops at that step |
 | `health` | the health it judges is `unknown`, never `unhealthy` |
 | `console`, `chat_adapter` | the request that needed it fails as unavailable and may be retried |
-| `address_router` | fail closed for a move: no node holds an address the router has not said it routes there, and what it routes stays; the workload's status names the router and its reason, and the call is retried on a backoff (§3.7 of `07-networking.md`; added 2026-10-26) |
+| `address_router` | fail closed for a move: no node holds an address the router has not said it routes there, and what it routes stays; the workload's status names the router and its reason, and the call is retried on a backoff (§3.7 of `07-networking.md`; added 2026-10-26); for an edge pool's address it is asked for the member holding it, which holds it unrouted meanwhile (§3.1 there) |
 
 A health provider that is down reports nothing about the workloads it probes, and treating that as
 `unhealthy` would let a failed prober get every workload it probes restarted; so it is `unknown`,

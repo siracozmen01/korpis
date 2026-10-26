@@ -13,6 +13,7 @@ pub mod classify;
 pub mod clone;
 pub mod console;
 pub mod domain;
+pub mod edge_group;
 pub mod event;
 pub mod extension;
 pub mod files;

@@ -46,6 +46,7 @@ mod device_grant;
 mod devices;
 mod dns;
 mod domains;
+mod edge_groups;
 mod effects;
 mod egress;
 mod egress_budget;

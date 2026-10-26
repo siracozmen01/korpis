@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM address_pool WHERE group_id = $1) AS \"named!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "named!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1e5c77cf9aa04ee8f5ad24d1c7b41059144374060e636d3d10a2ecceb85a9f2b"
+}

@@ -131,9 +131,10 @@ workload's status lists them, each with where a client reaches it. What it costs
 counted as if no edge serves the installation, which is true of every installation until edges
 arrive (§4 of `20-roadmap.md`); once one does, a `stable` endpoint it serves still reserves a port
 of its node it does not use, until the count is made to know the edge, which Phase 3 does with
-edges (§4 of `20-roadmap.md`). A range narrowed below what its endpoints hold leaves an endpoint
-asking for a new port without one, and its status says so; placement keeps this from happening
-otherwise.
+edges (§4 of `20-roadmap.md`); designed 2026-10-26 (§3.1), an endpoint resolved to `stable` holds
+an address and port of its edge group and no port of its node. A range narrowed below what its
+endpoints hold leaves an endpoint asking for a new port without one, and its status says so;
+placement keeps this from happening otherwise.
 
 **How the node forwards, as built.** Added 2026-10-15. The host's table has one map, from a port of
 the node to the chain of the workload holding it, consulted for every new connection to an address
@@ -245,10 +246,25 @@ So:
   concentration lasts before it is noticed. §5 of `18-operations.md` carries the failover
   mechanisms; this is the detection that has to precede any of them.
 
+> Corrected 2026-10-26 (Finding 189 of `23-walkthroughs.md`), when edges were designed: the list
+> above required a synthetic connection through the forwarding path and named nothing to make it.
+> The edge cannot, being what is measured; a peer edge sending through the holder sees the
+> answer of a responder on its own machine delivered locally, never back through the holder; and
+> the agent of the workload's node knows nothing of the edge. The control plane makes it, from
+> outside every node, through each member's own address and each address it holds, to a node
+> that answers with its key (below, "Liveness, measured through the forwarding path").
+
 Dependents of a failed edge become `unsatisfiable` with the edge named, the same treatment §7 of
 `05-scheduling.md` gives every other unsatisfiable condition, which is also what makes a hibernated
 workload behind a dead edge visible: its wake trigger lives in the edge, so an edge that fails
 silently would leave it in a state that is accurate and unreachable at once.
+
+> Corrected 2026-10-26 (Finding 190 of `23-walkthroughs.md`), when edges were designed:
+> `unsatisfiable` is a state the agent of a workload's node observes, and from which the scheduler
+> places the workload elsewhere (§7 of `05-scheduling.md`). That agent cannot see an edge, and
+> moving the workload does not mend it. The control plane, which probes the group, shows each
+> endpoint behind it unreached with the group named, and leaves the workload's own state and its
+> placement alone (below, "Where a workload may run").
 
 **When there is nothing to forward to.**
 
@@ -277,6 +293,160 @@ An edge is a role a node holds, not separate hardware: a deployment can run its 
 that also run workloads, as long as there are at least two in the failover group. Forwarding is
 kernel-level, which matters for latency-sensitive game traffic, and it is a tunnel rather than a
 NAT, for the reason §3.4 gives.
+
+**Edges in failover groups, as designed.** Designed 2026-10-26, for Phase 3 (§4 of
+`20-roadmap.md`, trace 78 of `23-walkthroughs.md`). Each step names what decides it, where, and
+with what information.
+
+*A group, its members, and its addresses.* An edge group (§3.6 of `01-model.md`) belongs to an
+organization and names two or more of that organization's own nodes as its members, for the reason
+a pool's node is its organization's own (§3.7): an edge translates every connection to the
+addresses it holds, so a group on another's node would take that node's traffic. Its addresses
+are address pools of scope `edge` naming the group, made as every pool is, by an operator's
+attestation (§3.7); an IPv4 pool, an IPv6 pool, or both. The group serves the workloads of its
+organization and of those below it, the nearest group first, a workload's own organization's before
+its ancestors', as a provider's name is resolved (§5 of `16-extensions.md`). A group with fewer
+than two members serves nothing, since an address held by one machine is `node_bound` whatever it
+is called. Korpis limits neither the members nor the addresses (P10).
+
+*Which address and port a `stable` endpoint gets.* The control plane allocates them in the
+transaction that places the workload, once the endpoint resolves to `stable` (§3), and keeps them
+for as long as the workload declares the endpoint, across every move and stop: the address outlives
+the placement, which is the point. Addresses are shared by port, which is what stretches IPv4
+(question 3 of §11): a workload's `stable` endpoints all get one address, the lowest of the group's
+pool on which each can have its declared container port, or else a port of the group's range (1024
+to 65534 unless the group says otherwise); a game server's players keep typing 25565. A port is
+held per transport, unlike a node's (§3), since the edge's table is keyed by address, transport,
+and port: a game's TCP port and its query's UDP port share a number, as Minecraft's do. With an
+IPv6 pool as well, each endpoint gets the same port at an IPv6 address too. Released when the
+workload is retired or stops declaring the endpoint, an address and port rest for the pool's
+quarantine before another workload is given them (§3.7). The plan says the address is not the
+node's, and the endpoint shows it.
+
+*Every member forwards the whole group; one holds each address.* Each member is told the group's
+forwarding table, beside its assignments and kept on its disk as the mesh's peers are (§9.1): for
+every allocated address, transport, and port, the node its workload is placed on, that workload's
+address, and its container port, or no target when it is not running. So a member taking over an
+address has its forwarding already in place, and only the address itself moves. Which member holds
+an address is decided by the control plane under a lease with an epoch, below; the pool's routing
+says how the network learns it. A `static` edge pool is on a link the members share: the holder
+adds the address to the pool's interface as a host address, as a dedicated one is added (§3.7), and
+announces it with gratuitous ARP for IPv4 and an unsolicited neighbour advertisement for IPv6,
+which is the floating address of VRRP's row in §5 of `18-operations.md`, without VRRP's own
+election, since the lease decides. A `bgp` or `provider_api` pool names an address router, and the
+control plane asks it to route the address to the holder (§3.7), which is the BGP row; the holder
+translates what arrives without adding the address. One holder at a time is the design; several
+members forwarding one address at once, which ECMP's row needs, is question 14 of §11.
+
+*The tunnel, which keeps the client's address.* Edges are members of the mesh (§9.1), since they
+are nodes; a node behind NAT dials the edges it is paired with, which is why `stable` needs only
+an outbound tunnel of a node (§9). The holder translates a new connection's destination, the
+stable address and port, into the workload's address and port, and carries it to the workload's
+node over GRE inside the mesh: one GRE link per pair of an edge and a node its group forwards to,
+from the pool's last address on each side, which no workload is ever given (§4.1) and which the
+helper puts on `korpis-overlay` as the node's own address in the mesh. GRE carries IPv4 and IPv6
+alike in one link, and its outer header is from the edge's own pool, which WireGuard's allowed IPs
+accept as authentically the edge's, while the inner one keeps the client's address, which WireGuard
+alone would refuse (§5 of `research/evidence.md`). The workload's node takes from an edge's GRE
+link only connections to the ports its group forwards to that node's workloads, marks each with the
+edge it came through, and routes the replies back into that edge's link by the mark; the edge
+reverses the translation and replies from the stable address. So the workload sees the client's
+own address over TCP and UDP (§3.4). Direct server return, detected per node and never assumed
+(§3.4), is not built with the first build of edges, and replies cross the edge. What it costs: 24
+bytes of each packet, so TCP's segment size is clamped to the GRE link's MTU, 1,396, as it is into
+the mesh; a link per pair on each side; and a conntrack entry per flow on the holder (question 1).
+
+*The lease.* An address held by an edge is fenced as a workload is (§4.5 of `02-architecture.md`):
+the member acquires and renews it by request, its term runs from the send on the holder's side and
+from the receipt on the control plane's, and a new epoch for another member is issued only once
+the holder has said it released the address, having removed it and stopped forwarding it, or the
+control plane's end of the term has passed. Its term is the group's, ten seconds unless the group
+says otherwise and never under three, shorter than a workload's since a held address that
+answers nothing is an outage and not a pause. What evaluates "two edges never hold one address":
+the control plane, which writes the holder and epoch under the group's row lock and grants only by
+that rule; and the member, which stops holding at its own end of the term, before the control
+plane's, whatever the network did.
+
+*Liveness, measured through the forwarding path.* The control plane probes each member of each
+group, one replica at a time holding the group's probe for a while as a route is held (§3.7), and
+from outside every node, as a client is, which is what makes the measurement the one Finding 21
+asked for. Every member forwards a probe port of the group's, 65535 unless it says otherwise and
+outside its range, on its own first advertised address and on each address it holds, over UDP, to a
+node the group forwards to, through the same translation and the same GRE link a player's packet
+takes. That node's agent answers a 32-byte nonce with its node key's signature over a message bound
+to the purpose, the group, the address, and the node, as a reachability probe is answered (§9); so
+an answer proves the packet crossed the member's translation and tunnel, and came back through
+them, since the answering node routes its reply into the edge's link. The control plane sends one
+probe a second to each, and a member that misses three in a row is failing; that is the declared
+detection interval, three seconds unless the group sets either figure, and it is shown on the
+group. A member whose own address passes is `ready`. What it does not do: a control plane on the
+very machine of the node it probes through sees its reply delivered locally, so it measures the way
+in and not the way back, and the control plane chooses another node where there is one; and a
+control plane that reaches no member at all suspects itself, not the group, and moves nothing.
+
+*Failover.* When the holder of an address is failing, its session has ended, or it is no longer
+`ready`, and another member is, the control plane asks the holder to release and grants the next
+ready member the address at the next epoch once the rule above allows it, then asks the pool's
+router where there is one. A connected holder that still hears the control plane releases at once,
+so failover takes the detection interval and a round trip; one that does not, the rest of its term.
+Each member flushes the connection-tracking entries of an address it stops holding, and of a port
+whose target changes, so a UDP flow is not left on a dead path (§10). The group's status names the
+holder, the epoch, each member's last probe, and why each member is not ready.
+
+*When nothing is behind an address.* A forwarded port whose workload is not running, and every
+port of a held address no endpoint holds, is refused at once: a TCP reset or an ICMP port
+unreachable, never a black hole, which is the default this section set. A protocol-aware answer
+where a router is registered (§3.3) is that router's, and arrives with the routers of Phase 4.
+
+*Where a workload may run, and what it depends on.* `stable` resolves to `stable` for a placement
+where a group of two members or more serves the workload and has an address and port for each of
+its `stable` endpoints; where none does and a `cluster` pool serving it has a free address, to that
+address, which the workload holds and its router moves as a `dedicated_ip` workload's (§3.7), each
+`stable` endpoint reached there on its own port, which is the routed pool §3.1 offers in place of a
+group, at the cost of a whole address; and otherwise to `node_bound`, as before (§3). The placement
+filter then asks of the candidate node what a dependency asks (§2.1 of `05-scheduling.md`): that it
+reaches every member of the group through the mesh. Such an endpoint holds no port of its node, so
+what the node reserves of `node_ports` counts it no more; a quota entry bounding `node_ports` still
+counts it (§5.1 of `05-scheduling.md`), since admission comes before the placement that resolves it
+and a quota's totals do not move when a group is made or loses a member, so an organization whose
+quota bounds node ports spends one on each `stable` endpoint. A workload whose group has no ready
+member, or whose address has no holder, stays running and placed where it is, and is shown with its
+`stable` endpoints unreached, the group named, which the control plane knows from its own probes;
+it is not `unsatisfiable`, which its node cannot observe and which would move it to no avail
+(Finding 190).
+
+*`ingress` through the group.* An `ingress` endpoint a group serves is reached at the group's
+ingress address, one address of its pool kept for ports 80 and 443 over TCP and UDP, and every
+member runs the ingress proxy of §3.2 with the routes and certificates of every name the group
+serves; the holder translates the address's two ports to its own proxy, so the proxy sees the
+client's address, and the proxy reaches each workload through the mesh as a dependent does (§9.1),
+the workload's node admitting the member's own mesh address to the endpoint's port. A workload on
+the holder itself is reached without a tunnel, as is any port the holder forwards to a workload of
+its own. HTTP/3 is served
+there, on UDP port 443 of the address, and at a node's own ingress where the node is its own edge,
+which is the UDP path this section's edges bring.
+
+What it costs, beyond the hop already stated: two machines or more doing an edge's work, whose
+addresses must reach every node behind them; a GRE link per pair; a probe a second per member from
+the control plane; and, for a held address whose holder dies unheard, up to one term of nothing.
+What it does not do: it does not hide traffic from the members, which see it as any router does,
+so a group is its organization's own nodes; it does not spread one address over several members at
+once (question 14); and a member compromised can drop what it forwards, which the probe sees only
+if it drops the probe too.
+
+Built 2026-10-26, the control plane's half (P3.7b in §4 of `20-roadmap.md`): groups
+(`EdgeGroupService`, `korpis edge-group`, §2 of `13-surface-cli.md`), whose members are their
+organization's own nodes; `edge` pools naming a group of their own organization, on the members'
+link or with a router; a `stable` endpoint's address and port allocated in the transaction that
+places its workload, from the group of what it holds or else the nearest serving group with room,
+a port per transport, kept across moves and released at retirement; the `edge` placement check,
+and no port of the node reserved for such an endpoint; the endpoint shown at its group's address
+and port; and every member told the group's table, and every node behind a member that member's
+mesh address and what it may reach there, recomputed every two seconds and sent when it changes,
+as the mesh's peers are. Tested over the API with two members and a node behind them. Not built
+yet: the nodes' forwarding, the GRE links, the leases, the probe and failover, the refusal, the
+ingress through the group, HTTP/3, and `stable` resolved to a cluster pool's address (P3.7c to
+P3.7e).
 
 ### 3.2 `ingress`: name-based routing
 
@@ -605,10 +775,17 @@ the first version said what a workload sees when traffic arrives through an edge
 node, and the obvious implementation, DNAT on the way in and SNAT on the way back, replaces every
 player's address with the edge's.
 
+> Corrected 2026-10-26 (Finding 188 of `23-walkthroughs.md`), when edges were designed: the
+> paragraph below had the inbound packet encapsulated in WireGuard between Korpis machines, and
+> WireGuard accepts a decrypted packet only from a source within the sending peer's allowed IPs
+> (§9.1), so a packet keeping a player's address is dropped by the node it is sent to. The edge
+> carries it in GRE inside the mesh instead, the outer header from the edge's own address (§3.1).
+
 **Edges and forwarding nodes tunnel; they do not translate the source.** The inbound packet is
 encapsulated (WireGuard between Korpis machines, which the overlay already provides, §9) and
 delivered to the workload's network namespace with its original source address. The reply follows
-policy routing back into the tunnel to the edge, which sends it from the stable address. The
+policy routing back into the tunnel to the edge, which sends it from the stable address (as
+designed 2026-10-26 in §3.1: GRE inside the mesh, so the outer header is the edge's own). The
 workload sees the real client address for TCP and UDP alike, with no cooperation from the
 application. Where the node's upstream permits sending packets with the edge's address as source,
 replies may leave the node directly (direct server return) and skip the return hop; many networks
@@ -885,10 +1062,11 @@ contract and the SDK (`provider.address_router`, §6 of `16-extensions.md`), the
 each address's routed node with a reconciler like the one publishing names, retried ten seconds
 after a failure and doubling to ten minutes, a node's assignment carries a cluster pool's address
 only for the node recorded, and `korpis status` shows an address waiting on its router with the
-router's reason; a router of the tests' own exercises it. Not built yet: `edge` pools, refused when
-made until the edge tier is built (§3.1); and moving a workload holding an address, since no
-workload migrates yet (§8 of `05-scheduling.md`): a cluster pool's address follows its workload to
-whichever node it is placed on next, and one holding a node pool's is placed on no other node.
+router's reason; a router of the tests' own exercises it. Edge pools are made since 2026-10-26,
+naming the edge group that holds them (§3.1). Not built yet: moving a workload holding an address,
+since no workload migrates yet (§8 of `05-scheduling.md`): a cluster pool's address follows its
+workload to whichever node it is placed on next, and one holding a node pool's is placed on no
+other node.
 
 ---
 
@@ -934,7 +1112,9 @@ nodes, of `kind` IPv4 or IPv6, `scope` node, edge, or cluster, and `routing` sta
 provider's API. `routing` determines whether a `dedicated_ip` can move between nodes. Static
 routing means the IP belongs to one node and a workload holding it cannot migrate. BGP or a
 provider API means the IP can follow the workload, which is what makes `dedicated_ip` compatible
-with migration rather than an anchor. How each is held is §3.7.
+with migration rather than an anchor. How each is held is §3.7. A pool of scope `edge` names an
+edge group, whose members hold its addresses for `stable` endpoints (§3.1): static on a link the
+members share, or moved to the holding member by its router.
 
 > Moved 2026-10-26, when dedicated addresses were designed (§3.7): the pool was defined here as a
 > block of fields with no owner, no node, no router, and no quarantine, and who owns a pool, where
@@ -1997,11 +2177,13 @@ What the overlay does not do. It does not relay: two nodes neither of which is r
 other share no dependency, and the scheduler says why. Edges are not members yet: §3.4 has an edge
 tunnel to a node over WireGuard between Korpis machines, and how an edge joins this mesh is settled
 with the edge tier (§3.1); until then nothing from the internet is routed into it. It does not hide
-which nodes talk to which from someone watching the network between them. And it is tested on the
-machine this project is built on with each node's data plane in a network namespace of its own and
-a link between them, so that no interface is made in the host's namespace and no UDP port is opened
-on its addresses; the paths between machines on separate networks, NAT among them, are argued from
-WireGuard's documented behaviour rather than run there.
+which nodes talk to which from someone watching the network between them. (Settled 2026-10-26 in
+§3.1: an edge is a node and so a member, and what it forwards from the internet crosses the mesh in
+a GRE link of its own pair, from each side's own mesh address, the last of its pool.) And it is
+tested on the machine this project is built on with each node's data plane in a network namespace
+of its own and a link between them, so that no interface is made in the host's namespace and no UDP
+port is opened on its addresses; the paths between machines on separate networks, NAT among them,
+are argued from WireGuard's documented behaviour rather than run there.
 
 ---
 
@@ -2108,3 +2290,12 @@ promise, and it is now the one the document makes.
     so a key read off a node's disk stays good until the node is enrolled again. Whether the helper
     rotates it on a schedule, the agent reporting the new key and both keys being allowed while
     every peer learns it, is undecided. → here
+14. **One address on several edges at once.** ECMP spreads one address's flows over every
+    member that announces it and fails over in a rehash, faster than a lease's handoff (§5 of
+    `18-operations.md`); §3.1 holds each address on one member at a time, fenced by an epoch,
+    because a floating address on a shared link is answered by one machine, and two answering it
+    is the split brain the lease prevents. Several members forwarding one address is safe where a
+    router chooses among them, since every member forwards the same table; what it needs is a
+    router contract naming several next hops, a liveness rule that withdraws a member rather than
+    moving an address, and replies that find their edge after a rehash, which the mark per edge on
+    the workload's node gives. Until then an ECMP or anycast router is told one holder. → here

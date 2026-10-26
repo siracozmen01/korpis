@@ -119,6 +119,7 @@ message ControlMessage {
     TokenKeys token_keys = 19;
     HealthAnswer health_answer = 20;
     Peers peers = 21;
+    Edges edges = 22;
   }
 }
 
@@ -521,6 +522,59 @@ message Peer {
   string endpoint = 3;
   // Its pools, as CIDR text.
   repeated string allowed_ips = 4;
+}
+
+// What this node forwards as a member of edge groups, and what it takes from edges as a node they
+// forward to (§3.1 of docs/07-networking.md); sent when a session opens and whenever it changes.
+// The node keeps it on disk, so forwarding runs without the control plane. Added 2026-10-26.
+message Edges {
+  // This node's own address in the mesh, the last of its IPv4 pool, from which its GRE links
+  // are made; empty for a node outside the mesh, which is told nothing else.
+  string mesh_address = 1;
+  // Each group this node is a member of.
+  repeated EdgeForwarding groups = 2;
+  // Each edge that forwards to a workload of this node, with what it may reach there.
+  repeated EdgeSource sources = 3;
+}
+
+// What a member forwards for one group: every address and port of its pools that a `stable`
+// endpoint holds, so a member taking an address over has its forwarding in place.
+message EdgeForwarding {
+  string group = 1;
+  // Forwarded over UDP, on the member's own first advertised address and on every address it
+  // holds, to `probe_node`, for the control plane's probe.
+  uint32 probe_port = 2;
+  string probe_node = 3;
+  // That node's address in the mesh; empty where it is this node.
+  string probe_mesh_address = 4;
+  repeated EdgeForward forwards = 5;
+}
+
+message EdgeForward {
+  string address = 1;
+  uint32 port = 2;
+  korpis.v1.EndpointProtocol protocol = 3;
+  // The node its workload runs on, `nd_...`, and that node's address in the mesh, empty where it
+  // is this node; both empty where the workload is not running, and the port is refused.
+  string node = 4;
+  string mesh_address = 5;
+  // The workload's address on that node, as the node observed it, and its port there.
+  string workload_address = 6;
+  uint32 container_port = 7;
+}
+
+// An edge forwarding to this node's workloads: its address in the mesh, and each workload
+// address and port it may reach.
+message EdgeSource {
+  string node = 1;
+  string mesh_address = 2;
+  repeated EdgeAdmit admits = 3;
+}
+
+message EdgeAdmit {
+  string workload_address = 1;
+  uint32 container_port = 2;
+  korpis.v1.EndpointProtocol protocol = 3;
 }
 
 // What the node offers for inbound traffic, before anything has measured it.

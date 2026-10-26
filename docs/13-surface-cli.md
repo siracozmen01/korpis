@@ -357,6 +357,20 @@ why. `korpis address-pool list` shows each with how many of its addresses are he
 address-pool delete apl_…` deletes one none of whose addresses is, which its organization may do
 itself. (Designed and built 2026-10-26.)
 
+An organization's edges are its edge groups (§3.1 of `07-networking.md`): `korpis edge-group create
+edge --organization pinecone --member nd_… --member nd_…` makes one of two of its own nodes,
+`--ports 20000-40000` narrowing the ports its `stable` endpoints are given, `--term`,
+`--probe-interval`, and `--probe-misses` changing how fast it fails over; `korpis address-pool
+create 198.51.100.0/28 --organization pinecone --edge-group egr_… --interface eth0` gives it
+addresses on a link its members share, which an operator attests as every pool, or `--router` with
+`--routing bgp` where a router moves each address to its holder. `korpis edge-group get egr_…`
+shows each member ready or failing with its last probe and why, and each address with the member
+holding it and the epoch; `korpis edge-group set` adds or removes members, and `korpis edge-group
+delete` deletes one no pool names. `korpis status` shows a `stable` endpoint at its group's address
+and port, or unreached with the group named. (Designed 2026-10-26; groups, their members and
+settings, edge pools, and `korpis status` at the group's address built the same day; members'
+probes, holders, and the group named on an unreached endpoint arrive with the leases.)
+
 The landing screen an organization composes for those it serves (question 2 of §10 of
 `11-surface-web.md`) is read with `korpis layout show`, which names the organization it comes
 from, set with `korpis layout set --from layout.json`, whose file is the `layout` that `korpis

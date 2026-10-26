@@ -57,6 +57,8 @@ pub const CORE: &[&str] = &[
     "address_pool.read",
     "address_pool.write",
     "address_pool.attest",
+    "edge_group.read",
+    "edge_group.write",
     "stream.share",
     "grant.read",
     "grant.revoke",

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE stable_port SET workload_id = NULL, endpoint = NULL, released_at = $3\n              WHERE workload_id = $1 AND NOT (endpoint = ANY($2))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "34f3a7fdb5ca594d7b8ab6c18dcbac7445446229aa62e90da81c3a6b1575bea8"
+}

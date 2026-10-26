@@ -19,6 +19,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("domain_organization_id_name_key") => Unique::DomainName,
         Some("portal_name_key") => Unique::PortalName,
         Some("address_pool_disjoint") => Unique::AddressPool,
+        Some("edge_group_organization_id_name_key") => Unique::EdgeGroupName,
         Some("node_name_key") => Unique::NodeName,
         Some("account_name_key") => Unique::AccountName,
         Some("passkey_pkey") => Unique::Passkey,

@@ -17,6 +17,7 @@ pub mod build;
 #[cfg(feature = "content")]
 pub mod content;
 pub mod dns;
+pub mod edge;
 pub mod event;
 pub mod extension;
 pub mod id;

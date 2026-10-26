@@ -25,8 +25,8 @@ pub enum Routing {
 /// `korpis address-pool …`.
 #[derive(Debug, Clone, Subcommand)]
 pub enum AddressPoolAction {
-    /// Makes a pool of addresses routed to one node of the organization's, or moved between
-    /// them by an address router: an operator's, vouching that the organization holds the range
+    /// Makes a pool of addresses routed to one node of the organization's, moved between them by
+    /// an address router, or held by an edge group's members: an operator's, vouching that the organization holds the range
     /// (`address_pool.attest`). One overlapping any other pool is refused.
     Create {
         /// Its addresses, as a network, e.g. `203.0.113.0/28`.
@@ -36,8 +36,16 @@ pub enum AddressPoolAction {
         #[arg(long)]
         organization: Option<String>,
         /// The node its addresses are routed to, `nd_…`.
-        #[arg(long, required_unless_present = "router", conflicts_with = "router")]
+        #[arg(
+            long,
+            required_unless_present_any = ["router", "edge_group"],
+            conflicts_with_all = ["router", "edge_group"]
+        )]
         node: Option<String>,
+        /// The edge group whose members hold its addresses for `stable` endpoints, `egr_…`: on
+        /// the link they share with `--interface`, or moved by `--router`.
+        #[arg(long)]
+        edge_group: Option<String>,
         /// The address router that moves each address to the node holding it: the name of an
         /// `address_router` provider the organization sees.
         #[arg(long, requires = "routing")]
@@ -74,7 +82,8 @@ fn rows(list: &[pb::AddressPool]) -> String {
     let head = ["ID", "CIDR", "SCOPE", "ON", "ROUTING", "HELD", "MADE"];
     let mut all = vec![head.map(str::to_owned).to_vec()];
     all.extend(list.iter().map(|p| {
-        let on = if p.node.is_empty() { p.router.clone() } else { p.node.clone() };
+        let on = [&p.node, &p.group, &p.router].into_iter().find(|s| !s.is_empty());
+        let on = on.cloned().unwrap_or_default();
         vec![
             p.id.clone(),
             p.cidr.clone(),
@@ -102,6 +111,7 @@ async fn asked(c: &Connection, action: &AddressPoolAction) -> Result<pb::Address
         cidr,
         organization,
         node,
+        edge_group,
         router,
         routing,
         interface,
@@ -117,10 +127,10 @@ async fn asked(c: &Connection, action: &AddressPoolAction) -> Result<pb::Address
         })?),
         None => None,
     };
-    let scope = if node.is_some() {
-        pb::AddressPoolScope::ADDRESS_POOL_SCOPE_NODE
-    } else {
-        pb::AddressPoolScope::ADDRESS_POOL_SCOPE_CLUSTER
+    let scope = match (node, edge_group) {
+        (Some(_), _) => pb::AddressPoolScope::ADDRESS_POOL_SCOPE_NODE,
+        (None, Some(_)) => pb::AddressPoolScope::ADDRESS_POOL_SCOPE_EDGE,
+        (None, None) => pb::AddressPoolScope::ADDRESS_POOL_SCOPE_CLUSTER,
     };
     Ok(pb::AddressPool {
         organization: resolve::organization(c, organization.as_deref()).await?,
@@ -128,6 +138,7 @@ async fn asked(c: &Connection, action: &AddressPoolAction) -> Result<pb::Address
         scope: scope.into(),
         node: node.clone().unwrap_or_default(),
         router: router.clone().unwrap_or_default(),
+        group: edge_group.clone().unwrap_or_default(),
         routing: routing.map(routing_to_pb).unwrap_or_default().into(),
         interface: interface.clone().unwrap_or_default(),
         quarantine: quarantine.map(korpis_wire::duration).into(),

@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 /// The node's utilization per reserved dimension it declares, after this placement.
 fn utilization(req: &Request<'_>, c: &Candidate<'_>, strategy: Strategy) -> f64 {
-    let need = reservation(req.body);
+    let need = reservation(req.body, req.edge_tier);
     let own = req.current.filter(|cur| cur.node == c.node.id).map(|cur| cur.reserved);
     let fractions: Vec<f64> = RESERVED
         .into_iter()

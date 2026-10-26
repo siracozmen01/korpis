@@ -87,6 +87,10 @@ impl Harness {
         pb::AddressPoolServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn edges(&self, config: ClientConfig) -> pb::EdgeGroupServiceClient<HttpClient> {
+        pb::EdgeGroupServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn nodes(&self, config: ClientConfig) -> pb::NodeServiceClient<HttpClient> {
         pb::NodeServiceClient::new(self.http.clone(), config)
     }

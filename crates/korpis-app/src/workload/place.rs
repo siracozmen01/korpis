@@ -25,11 +25,6 @@ use korpis_core::tenancy::quota::Bounds;
 use korpis_core::workload::{Intent, Workload};
 use uuid::Uuid;
 
-/// Whether an edge tier serves the installation's workloads. Edges arrive in Phase 3 (§4 of
-/// docs/20-roadmap.md); until then a declared `stable` endpoint is placed as the `node_bound` it
-/// resolves to, which needs a node reachable on its own address (§3 of docs/07-networking.md).
-pub(crate) const EDGE_TIER: bool = false;
-
 /// What a bind writes, beside its explanation.
 struct Binding<'a> {
     w: &'a Workload,
@@ -78,7 +73,8 @@ pub(super) fn given_on(req: &Request<'_>, nodes: &[Node], node: Uuid) -> Result<
         nodes.iter().find(|n| n.id == node).ok_or_else(|| disagree("not a candidate".into()))?;
     let devices = korpis_core::schedule::devices::given(req, n).map_err(disagree)?;
     let cores = korpis_core::schedule::cores::given(req, n).map_err(disagree)?;
-    let reserved = korpis_core::schedule::cores::reservation_on(req.body, n, &cores);
+    let reserved =
+        korpis_core::schedule::cores::reservation_on((req.body, req.edge_tier), n, &cores);
     Ok(Given { devices, cores, reserved })
 }
 
@@ -225,7 +221,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let (entries, placed) = self.placed_entries(tx, w).await?;
         let promised = self.placed_promises(tx, w, (&entries, placed.as_ref())).await?;
         let quota = super::placed_quota::counting(&entries, placed.as_ref(), promised);
-        let dedicated = self.dedicated_nodes(tx, (w.id, &target.body), &owners, &nodes).await?;
+        let addressing = self.addressing(tx, (w.id, &target.body), &owners, &nodes).await?;
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -233,7 +229,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             owners: &owners,
             body: &target.body,
             current: current.as_ref().map(current_of),
-            edge_tier: EDGE_TIER,
+            edge_tier: addressing.edge.is_some(),
+            edge_members: addressing.edge_members(),
             volumes: &volumes,
             refused: &refused,
             content: &learned.content,
@@ -243,7 +240,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             quota: &quota,
             devices: &held,
             cores: &held_cores,
-            dedicated: &dedicated,
+            dedicated: &addressing.dedicated,
         };
         let explanation = place(&req, &candidates, &peers, &self.policies(&owners).await?);
         let Some(node) = explanation.chosen else {
@@ -251,7 +248,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let given = given_on(&req, &nodes, node)?;
         if let Some(n) = nodes.iter().find(|n| n.id == node) {
-            self.hold_dedicated(tx, (w.id, &target.body), &owners, n).await?;
+            let at = (owners.as_slice(), n);
+            self.hold_addressing(tx, (w.id, &target.body), at, &addressing).await?;
         }
         let binding = Binding { w, target, current, node, given };
         self.bind_chosen(tx, binding, explanation).await

@@ -22,6 +22,7 @@ mod clock;
 mod condition;
 mod device_grant;
 mod domain;
+mod edge;
 mod egress;
 mod endpoint;
 mod enrollment;
@@ -92,6 +93,7 @@ pub use clock::{Clock, SystemClock, Timer};
 pub use condition::{ConditionRead, ConditionWrite};
 pub use device_grant::{DeviceGrantRead, DeviceGrantWrite, Polled};
 pub use domain::{DomainRead, DomainWrite};
+pub use edge::{EdgeRead, EdgeWrite};
 pub use egress::{EgressAt, EgressRead, EgressWrite};
 pub use endpoint::{EndpointRead, EndpointWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
@@ -182,6 +184,8 @@ pub enum Unique {
     PortalName,
     /// No two address pools overlap.
     AddressPool,
+    /// An edge group's name is unique within its organization.
+    EdgeGroupName,
     /// A sign-in name names one account.
     AccountName,
     /// A passkey's credential is registered once.
@@ -265,6 +269,7 @@ pub trait Store:
     + DomainRead
     + PortalRead
     + AddressRead
+    + EdgeRead
     + CertificateRead
     + TemplateRead
     + BindingRead
@@ -361,6 +366,7 @@ pub trait Tx:
     + PortalWrite
     + AddressWrite
     + AddressRoute
+    + EdgeWrite
     + CertificateWrite
     + TemplateWrite
     + BindingWrite

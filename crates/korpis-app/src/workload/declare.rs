@@ -127,6 +127,9 @@ struct Base {
     action: &'static str,
     /// The digest of the extension the workload was installed from, when it is an extension's.
     extension: Option<String>,
+    /// Whether an edge group serves its organization, which its plans say a declared `stable`
+    /// endpoint resolves by (§3.1 of docs/07-networking.md).
+    edge: bool,
 }
 
 impl Base {
@@ -354,7 +357,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             exposures: korpis_core::workload::endpoint::exposures(
                 from.map(|(_, b)| b.endpoints.as_slice()),
                 &to.body.endpoints,
-                super::EDGE_TIER,
+                base.edge,
             ),
             steps,
             proposing: &base.proposing,

@@ -6,7 +6,6 @@
 //! nothing else: a node that cannot run the workload, or that its tenant's declaration excludes,
 //! is refused whoever chooses it. A workload already on a node moves only by migration.
 
-use super::place::EDGE_TIER;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -147,7 +146,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let promised = self.placed_promises(tx, w, (&entries, placed.as_ref())).await?;
         let quota = super::placed_quota::counting(&entries, placed.as_ref(), promised);
         let one = std::slice::from_ref(node);
-        let dedicated = self.dedicated_nodes(tx, (w.id, &target.body), &owners, one).await?;
+        let addressing = self.addressing(tx, (w.id, &target.body), &owners, one).await?;
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -155,7 +154,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             owners: &owners,
             body: &target.body,
             current: None,
-            edge_tier: EDGE_TIER,
+            edge_tier: addressing.edge.is_some(),
+            edge_members: addressing.edge_members(),
             volumes: &volumes,
             refused: &drivers_refused,
             content: &learned.content,
@@ -165,7 +165,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             quota: &quota,
             devices: &held,
             cores: &held_cores,
-            dedicated: &dedicated,
+            dedicated: &addressing.dedicated,
         };
         let policies = self.policies(&owners).await?;
         let standing = operator_refusals(&req, &c, &peers, &policies);
@@ -175,7 +175,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut explanation = place(&req, &[c], &peers, &policies);
         explanation.chosen = Some(node.id);
         let given = super::place::given_on(&req, one, node.id)?;
-        self.hold_dedicated(tx, (w.id, &target.body), &owners, node).await?;
+        let at = (owners.as_slice(), node);
+        self.hold_addressing(tx, (w.id, &target.body), at, &addressing).await?;
         Ok((explanation, given))
     }
 }

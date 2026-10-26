@@ -1428,10 +1428,13 @@ AddressPool
   scope         node | edge | cluster
   node          NodeID           for scope node: the one node its addresses are routed to, its
                                  organization's own
-  router        string           for scope cluster: the name of the `address_router` provider
-                                 its organization sees that moves an address to whichever of its
-                                 nodes holds it
-  routing       static | bgp | provider_api   static for scope node, and only for it
+  router        string           for scope cluster, and scope edge routed bgp or provider_api:
+                                 the name of the `address_router` provider its organization sees
+                                 that moves an address to whichever of its nodes holds it
+  group         EdgeGroupID      for scope edge: the group whose members hold its addresses, its
+                                 organization's own; added 2026-10-26 (§3.1 of 07-networking.md)
+  routing       static | bgp | provider_api   static for scope node, and for scope edge on
+                                 a link the members share; never for cluster
   interface     string           where the node answers for its addresses on its link; empty
                                  where they are routed to the node
   quarantine    Duration         how long an address rests after its holder is retired; a day
@@ -1448,6 +1451,41 @@ of its addresses is held.
 > addressed by an extension: a call names an organization, a kind, and a provider's name, the
 > organization's own shadowing its ancestors' (§5 of `16-extensions.md`). A pool names its router
 > by that name, as a backup repository names its backup target provider.
+
+#### EdgeGroup
+
+> Two or more of an organization's nodes that hold the stable addresses of its `stable` endpoints,
+> and those of the organizations below it, each address on one of them at a time, and forward
+> them to wherever each workload runs.
+
+> Added 2026-10-26, when edges were designed (§3.1 of `07-networking.md`, trace 78 of
+> `23-walkthroughs.md`): until then an edge was a role §3.1 there described and nothing in the
+> model held, so no component could say which machines were an organization's edges or which
+> held an address.
+
+```
+EdgeGroup
+  id            EdgeGroupID      egr_…
+  organization  OrganizationID   whose workloads, and those below it, it serves
+  name          string           unique within its organization
+  members       []NodeID         two or more of its organization's own nodes; fewer serves nothing
+  ports         PortRange        allocated to `stable` endpoints; 1024 to 65534 by default
+  probe_port    uint32           forwarded by every member to a node it forwards to, for the
+                                 control plane's probe; 65535 by default, outside `ports`
+  probe_interval Duration        between probes of a member; one second by default
+  probe_misses  uint32           missed in a row before a member is failing; three by default
+  term          Duration         of a member's lease on an address; ten seconds by default, at
+                                 least three
+  status
+    members     []EdgeMemberStatus  each member: ready or failing, its last probe, and why
+    holdings    []EdgeHolding    each address: the member holding it and the epoch, or none
+```
+
+**Invariants.** An address of the group's pools is held by one member at a time, under a lease
+whose epoch advances at every change of holder (§4.5 of `02-architecture.md`), and only by a member
+of the group; a stable address and port is allocated to one endpoint at most, and to none while it
+rests. A member is a node of the group's organization. A group is deleted only while no pool names
+it.
 
 #### Stream
 

@@ -231,6 +231,11 @@ table! {
     "korpis.v1.AddressPoolService/CreateAddressPool" => AddressPoolServiceClient::create_address_pool(CreateAddressPoolRequest);
     "korpis.v1.AddressPoolService/ListAddressPools" => AddressPoolServiceClient::list_address_pools(ListAddressPoolsRequest);
     "korpis.v1.AddressPoolService/DeleteAddressPool" => AddressPoolServiceClient::delete_address_pool(DeleteAddressPoolRequest);
+    "korpis.v1.EdgeGroupService/CreateEdgeGroup" => EdgeGroupServiceClient::create_edge_group(CreateEdgeGroupRequest);
+    "korpis.v1.EdgeGroupService/GetEdgeGroup" => EdgeGroupServiceClient::get_edge_group(GetEdgeGroupRequest);
+    "korpis.v1.EdgeGroupService/ListEdgeGroups" => EdgeGroupServiceClient::list_edge_groups(ListEdgeGroupsRequest);
+    "korpis.v1.EdgeGroupService/UpdateEdgeGroup" => EdgeGroupServiceClient::update_edge_group(UpdateEdgeGroupRequest);
+    "korpis.v1.EdgeGroupService/DeleteEdgeGroup" => EdgeGroupServiceClient::delete_edge_group(DeleteEdgeGroupRequest);
     "korpis.v1.BackupService/CreateBackup" => BackupServiceClient::create_backup(CreateBackupRequest);
     "korpis.v1.BackupService/GetBackup" => BackupServiceClient::get_backup(GetBackupRequest);
     "korpis.v1.BackupService/ListBackups" => BackupServiceClient::list_backups(ListBackupsRequest);

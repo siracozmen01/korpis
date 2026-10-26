@@ -69,11 +69,16 @@ pub fn given(req: &Request<'_>, node: &Node) -> Result<Vec<u32>, String> {
     choose(&node.cores, held, count, keep)
 }
 
-/// What a placement of `body` reserves on `node` holding `cores`: its reservation, its CPU
+/// What a placement of `body`, where an edge group does or does not serve it, reserves on `node`
+/// holding `cores`: its reservation, its CPU
 /// replaced by every logical CPU of those cores where it holds any.
 #[must_use]
-pub fn reservation_on(body: &IntentBody, node: &Node, cores: &[u32]) -> Bounds {
-    let mut reserved = reservation(body);
+pub fn reservation_on(
+    (body, edge_tier): (&IntentBody, bool),
+    node: &Node,
+    cores: &[u32],
+) -> Bounds {
+    let mut reserved = reservation(body, edge_tier);
     if !cores.is_empty() {
         let millis =
             node.cores.iter().filter(|c| cores.contains(&c.id)).map(Core::millis).sum::<u64>();

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO edge_group (id, organization_id, name, first_port, last_port, probe_port,\n                                     probe_interval_ms, probe_misses, term_ms, created_at)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "eabc226aa42fd8e7e29d4ffebcb587df9bbdd50d4465d4a66b47584e8167a68d"
+}
