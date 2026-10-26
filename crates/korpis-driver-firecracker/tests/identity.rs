@@ -129,7 +129,10 @@ async fn a_guest_s_entry_starts_with_its_files_and_sees_them_change_as_the_node_
     std::fs::write(own.join("config/app.toml"), "greeting = \"merhaba\"\n").unwrap();
     // Longer than a part, so it arrives in three.
     std::fs::write(own.join("deps/db.json"), "x".repeat(150_000)).unwrap();
-    let entry = "cat /run/korpis/config/app.toml > /data/seen; while true; do sleep 1; done";
+    // Written beside and renamed, so `/data/seen` is never read between its creation and its
+    // contents: an entry that started without its files leaves it empty, and the test sees that.
+    let entry = "cat /run/korpis/config/app.toml > /data/seen.part; mv /data/seen.part /data/seen; \
+                 while true; do sleep 1; done";
     let mut spec = rig.spec("wl_files", entry);
     spec.identity_dir = own.to_string_lossy().into_owned();
     let id = rig.machine.create(spec).await.unwrap();

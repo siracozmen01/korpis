@@ -36,7 +36,7 @@ fn candidate(n: u128, enrolled: u64, pool: &str, address: Option<&str>) -> Candi
 }
 
 #[test]
-fn a_node_whose_pool_overlaps_an_earlier_member_s_is_outside_and_says_with_which() {
+fn a_node_whose_pool_overlaps_an_earlier_member_s_is_outside_naming_no_other_node() {
     let m = mesh(vec![
         candidate(2, 20, "10.47.0.0/16", None),
         candidate(1, 10, "10.47.0.0/16", Some("203.0.113.1")),
@@ -46,7 +46,8 @@ fn a_node_whose_pool_overlaps_an_earlier_member_s_is_outside_and_says_with_which
     assert_eq!(members, [1, 3], "the earlier of the two old defaults stays");
     assert_eq!(m.members[0].endpoint, Some("203.0.113.1:51820".parse().unwrap()));
     assert_eq!(m.outside.len(), 1);
-    assert!(m.outside[0].1.contains(&Uuid::from_u128(1).to_string()), "{:?}", m.outside);
+    assert!(m.outside[0].1.contains("overlaps an earlier member's"), "{:?}", m.outside);
+    assert!(!m.outside[0].1.contains(&Uuid::from_u128(1).to_string()), "naming no other node");
 }
 
 #[test]

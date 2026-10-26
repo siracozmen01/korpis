@@ -3,7 +3,7 @@
 //! The node's privileged helper, serving from a thread of the test process as `korpis-helper`
 //! serves from its own.
 
-use crate::node::built;
+use crate::node::built as built_binary;
 use korpis_helper::cores::{Cores, CoresConfig};
 use std::path::{Path, PathBuf};
 
@@ -15,14 +15,34 @@ use std::path::{Path, PathBuf};
 pub(crate) fn helper(
     socket: &Path,
     volumes: &Path,
-    (state, content, netns): (&Path, &Path, &Path),
+    dirs: (&Path, &Path, &Path),
     parent: Option<&str>,
 ) {
+    serve_on(socket, built(volumes, dirs, parent), None);
+}
+
+/// As [`helper`], serving from a thread inside the network namespace at `node`, as a node's own
+/// helper runs in its host's, and keeping the mesh's interface there, its key with the rest of
+/// its state (§9.1 of docs/07-networking.md). Nothing it makes is in this machine's own
+/// namespace.
+#[allow(dead_code, reason = "the browser test, a binary of its own, runs no mesh")]
+pub(crate) fn helper_in(socket: &Path, volumes: &Path, dirs: (&Path, &Path, &Path), node: &Path) {
+    let overlay = korpis_helper::overlay::Overlay::new(dirs.0.join("overlay.key"));
+    serve_on(socket, built(volumes, dirs, None).with_overlay(overlay), Some(node.to_owned()));
+}
+
+/// The helper with its storage, jobs, network, ingress, and file sessions, and the cpusets
+/// beneath `parent` where one is named.
+fn built(
+    volumes: &Path,
+    (state, content, netns): (&Path, &Path, &Path),
+    parent: Option<&str>,
+) -> korpis_helper::helper::Helper {
     let class = korpis_helper::storage::Class::open("local", volumes).unwrap();
     let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
     let jobs = korpis_helper::job::JobConfig {
-        binary: built("korpis-backup", "korpis-backup-job"),
-        install_binary: Some(built("korpis-install", "korpis-install-job")),
+        binary: built_binary("korpis-backup", "korpis-backup-job"),
+        install_binary: Some(built_binary("korpis-install", "korpis-install-job")),
         state: state.to_owned(),
         cgroups: None,
         content: Some(content.to_owned()),
@@ -37,7 +57,7 @@ pub(crate) fn helper(
         .with_network(network)
         .with_ingress(korpis_helper::ingress::Ingress::new(ingress))
         .with_files(korpis_helper::files::Files::new(korpis_helper::files::FilesConfig {
-            binary: built("korpis-files", "korpis-fsworker"),
+            binary: built_binary("korpis-files", "korpis-fsworker"),
             state: state.to_owned(),
             cgroups: None,
         }));
@@ -49,14 +69,27 @@ pub(crate) fn helper(
         };
         h = h.with_cores(Cores::new(config).unwrap());
     }
+    h
+}
+
+/// Serves `h` on `socket` from its own thread for the rest of the process, entering the network
+/// namespace at `netns` first where one is named.
+fn serve_on(socket: &Path, mut h: korpis_helper::helper::Helper, netns: Option<PathBuf>) {
     let listener = korpis_helper::serve::bound(socket).unwrap();
-    std::thread::spawn(move || korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None));
+    std::thread::spawn(move || {
+        if let Some(ns) = netns {
+            let ns = std::fs::File::open(ns).unwrap();
+            let kind = Some(rustix::thread::LinkNameSpaceType::Network);
+            rustix::thread::move_into_link_name_space(std::os::fd::AsFd::as_fd(&ns), kind).unwrap();
+        }
+        korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None)
+    });
 }
 
 /// The ingress proxy, built where this test was, once per test process.
 fn proxy() -> PathBuf {
     static BUILT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
-    BUILT.get_or_init(|| built("korpis-ingress", "korpis-ingress")).clone()
+    BUILT.get_or_init(|| built_binary("korpis-ingress", "korpis-ingress")).clone()
 }
 
 /// The cgroup the helper whose state is at `state` makes its ingress proxy's beneath: one of

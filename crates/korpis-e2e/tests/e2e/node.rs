@@ -64,6 +64,9 @@ pub struct Node {
     pub cdi: PathBuf,
     /// The cores the agent offers for dedication: none, unless the node was joined holding them.
     pub cores: Vec<Core>,
+    /// The node's address on the link joining its network namespace to another's, for a node
+    /// whose data plane is in a namespace of the test's own; none for one in this machine's.
+    inside: Option<std::net::Ipv4Addr>,
 }
 
 /// The device kind the tests' spec files name, which the agent maps to `serial` as
@@ -161,7 +164,7 @@ impl Node {
     pub async fn join(cp: &ControlPlane, name: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let volumes = dir.path().join("volumes");
-        Self::join_with(cp, name, dir, (volumes, None), Vec::new()).await
+        Self::join_with(cp, name, dir, (volumes, None), Vec::new(), None).await
     }
 
     /// As [`Self::join`], its agent offering the machine's last core for dedication and its
@@ -171,7 +174,7 @@ impl Node {
         let core = korpis_topology::cores(Path::new("/sys/devices/system"), None).pop()?;
         let dir = tempfile::tempdir().unwrap();
         let volumes = dir.path().join("volumes");
-        Some(Self::join_with(cp, name, dir, (volumes, None), vec![core]).await)
+        Some(Self::join_with(cp, name, dir, (volumes, None), vec![core], None).await)
     }
 
     /// As [`Self::join`], with its volumes on a btrfs made for it, qgroups on, so its class can
@@ -192,15 +195,18 @@ impl Node {
             && ok(Command::new("btrfs").args(["quota", "rescan", "-w"]).arg(&at));
         assert!(quota, "qgroups on the test's own filesystem");
         let volumes = at.join("volumes");
-        Some(Self::join_with(cp, name, dir, (volumes, Some(at)), Vec::new()).await)
+        Some(Self::join_with(cp, name, dir, (volumes, Some(at)), Vec::new(), None).await)
     }
 
-    async fn join_with(
+    /// A node named `name` in `dir`, its helper serving inside the network namespace `inside`
+    /// names, with its address there, where it names one.
+    pub(crate) async fn join_with(
         cp: &ControlPlane,
         name: &str,
         dir: tempfile::TempDir,
         (volumes, mounted): (PathBuf, Option<PathBuf>),
         offered: Vec<Core>,
+        inside: Option<(&Path, std::net::Ipv4Addr)>,
     ) -> Self {
         let state = StateDir::new(dir.path().join("agent"));
         let (token, ca) = cp.token(name).await;
@@ -213,7 +219,12 @@ impl Node {
         let netns = dir.path().join("netns");
         let cores = crate::containers::own(name);
         let parent = (!offered.is_empty()).then_some(cores.parent.as_str());
-        helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content, &netns), parent);
+        let helper_state = dir.path().join("helper");
+        let dirs = (helper_state.as_path(), content.as_path(), netns.as_path());
+        match inside {
+            Some((ns, _)) => crate::helper::helper_in(&helper_socket, &volumes, dirs, ns),
+            None => helper(&helper_socket, &volumes, dirs, parent),
+        }
         let cdi = dir.path().join("cdi");
         std::fs::create_dir(&cdi).unwrap();
         let containers = cores.root.join(cores.parent.trim_start_matches('/'));
@@ -233,6 +244,7 @@ impl Node {
             microvms: None,
             cdi,
             cores: offered,
+            inside: inside.map(|(_, address)| address),
         }
     }
 
@@ -289,7 +301,8 @@ impl Node {
         // As `--advertise-address` with this machine's own address would: the test's control
         // plane is on this machine, and the node forwards its endpoints' ports on every address
         // but loopback (§3 of docs/07-networking.md).
-        let advertise = Advertise::new(vec![host_address().into()], self.ports, &server);
+        let address = self.inside.unwrap_or_else(host_address);
+        let advertise = Advertise::new(vec![address.into()], self.ports, &server);
         let ingress = ingress.then(|| advertise.ingress());
         let cores = self.cores.iter().map(korpis_wire::node::core_to_pb).collect();
         let offer = (Reserve::default(), [].as_slice(), cores);
@@ -302,8 +315,11 @@ impl Node {
         };
         let (devices, _) = korpis_agent::devices::watch(config).await;
         let facts = facts_of(&runtime, &host, offer, (advertise, devices.clone())).await.unwrap();
-        // As `--workload-ipv4` with the node's own pool would.
-        let network = korpis_agent::network::offered(&runtime, &host, &id, (self.pool, None)).await;
+        // As `--workload-ipv4` with the node's own pool would; a node in a namespace of its own
+        // uses the pool it was given, as the mesh requires (§9.1 of docs/07-networking.md).
+        let given = korpis_agent::network::ipv4_pool(None, &identity.keys.workload_ipv4);
+        let pool = if self.inside.is_some() { given } else { self.pool };
+        let network = korpis_agent::network::offered(&runtime, &host, &id, (pool, None)).await;
         let period = Duration::from_millis(500);
         let options =
             Options { period, network, ingress, devices: Some(devices), ..Options::default() };

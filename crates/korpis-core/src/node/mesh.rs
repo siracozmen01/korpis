@@ -121,8 +121,13 @@ pub fn mesh(mut candidates: Vec<Candidate>) -> Mesh {
                 continue;
             }
         };
-        if let Some(m) = out.members.iter().find(|m| overlaps(&m.pools, &pools)) {
-            let why = format!("its workload pool overlaps node {}'s", m.node);
+        // The other node is not named: it may be another tenant's (Finding 179 of
+        // docs/23-walkthroughs.md); whoever may read both sees their pools.
+        if out.members.iter().any(|m| overlaps(&m.pools, &pools)) {
+            let why =
+                "its workload pool overlaps an earlier member's: enrolled again, it is given \
+                       a pool of its own"
+                    .to_owned();
             out.outside.push((c.node, why));
             continue;
         }

@@ -1665,6 +1665,13 @@ outside the mesh until it is given a pool; the operator is told which, and how.
 > two nodes on the old default the later stays outside until enrolled again, since no pool can be
 > given to a node that keeps its workloads numbered.
 
+> Corrected again 2026-10-26 (Finding 179, from an automated security review of that
+> correction). A node outside because its pool overlaps an earlier member's was told, and shown in
+> `overlay_outside`, which node, whatever organization that node is in. It is now told only that
+> its pool overlaps an earlier member's, and that enrolled again it is given a pool of its own;
+> who may read both nodes sees their pools. The paragraph above saying "with which node" is
+> superseded.
+
 **The control plane tells each node its peers; the peers authenticate the traffic.** Every enrolled
 node is a member, whatever organization it belongs to (§3.4 of `01-model.md`), since membership
 reaches no workload by itself: a destination accepts only its workloads' dependents (below). Two
@@ -1722,8 +1729,11 @@ and keeps them on disk, so the mesh runs with the control plane gone (§4.6 of
 > namespaces of the test's own, where a dependent's workload reaches its target's admitted port
 > and no other. A dependent's status says, of each target, whether it is reached through the mesh
 > or unreached now (§5). `Node` shows its key, port, pools, and each pair with it (§3.4 of
-> `01-model.md`). Not built: the end-to-end test of two nodes each in a network namespace of its
-> own.
+> `01-model.md`). Tested end to end with two nodes whose data planes are each in a network
+> namespace of the test's own, joined by a veth: a web application on one fetches its database's
+> page on the other through the mesh alone, a port the database's endpoint does not declare is
+> not reached, and what the first node sends from an address of its own pool that is admitted for
+> nothing is dropped and counted (trace 74 of `23-walkthroughs.md`).
 
 **A pair is reachable when both its nodes say a handshake is fresh.** A node behind NAT advertises
 no address (§9 above), so it has no endpoint; it reaches a peer that has one, keeping the NAT

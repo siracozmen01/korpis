@@ -14,7 +14,7 @@ use std::process::Command;
 use std::time::Duration;
 
 /// The address the node gave `w`.
-fn address_of(node: &Node, w: &str) -> Option<String> {
+pub(crate) fn address_of(node: &Node, w: &str) -> Option<String> {
     let kept = std::fs::read_to_string(node.state.root().join("addresses")).unwrap_or_default();
     kept.lines().find_map(|l| l.strip_prefix(&format!("{w} ")).map(str::to_owned))
 }

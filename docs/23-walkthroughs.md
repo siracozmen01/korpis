@@ -1442,6 +1442,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 176 | A dependency's status was promised and did not exist | §74 | `07-networking.md` §5 |
 | 177 | Transactions waiting for the placement lock held every connection its holder needed to read | §75 | `18-operations.md` §5 |
 | 178 | A node's reported pools were routed to it by every other node, and every node was told of every other | §74 | `07-networking.md` §9.1, `17-security.md` §9.1 |
+| 179 | A node outside the mesh was told which node its pool overlapped, whatever that node's organization | §74 | `07-networking.md` §9.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6335,9 +6336,10 @@ requires, cannot route one prefix to two nodes, so every installation of more th
 would have had the overlay unable to carry any dependency. Resolved in §9.1 there: the control
 plane gives each node a /22 of an installation range when it enrolls, which its agent uses unless
 `--workload-ipv4` names another, a node enrolled before pools were given keeps `10.47.0.0/16`, and
-a node whose pool overlaps another member's is outside the mesh, saying with which. §4.1 is
-corrected in place. What it costs: an installation upgrading with two nodes on the old default
-keeps one outside the mesh until its operator gives it a pool.
+a node whose pool overlaps another member's is outside the mesh, saying with which (since Finding
+179, below, the reason names no node). §4.1 is corrected in place. What it costs: an installation
+upgrading with two nodes on the old default keeps one outside the mesh until its operator gives it
+a pool.
 
 Steps 1 to 9 are designed, and none is built yet (§4 of `20-roadmap.md`).
 
@@ -6368,6 +6370,16 @@ one field in every observation.
 > `db` as reached through the mesh, or unreached once the pair's handshakes go stale, evaluated by
 > the control plane when the workload is read, from both placements and the mesh's pairs, which
 > it alone holds. Asking where that status lived found it had never existed (Finding 176, below).
+>
+> Revisited a fourth time 2026-10-26: steps 1 to 7 are tested end to end, with two nodes whose
+> data planes are each in a network namespace of the test's own, joined by a veth as two machines
+> by a network (P3.4e2 in §4 of `20-roadmap.md`). `web` on B fetches `db`'s page on A through
+> the mesh, counted under `dependency`; a port `db`'s endpoint does not declare is not reached;
+> and what B sends from an address of its own pool that A admitted for nothing is dropped, and
+> counted under `overlay`. Building it asked what a node with no public address can place: `db`
+> declared at `node_port`, as the recipe's default, was never placed, since that exposure needs a
+> public address (§2.1 of `05-scheduling.md`), as it should. A database reached by its dependents
+> alone is declared `overlay_only`, which the trace now assumes.
 
 **Finding 178.** Found by an automated security review of the commit that built the mesh, not
 by a step of this trace, which asked what makes a packet's source trustworthy (step 3) and not
@@ -6379,6 +6391,14 @@ And step 3 told every node of every other, whatever their organizations. Resolve
 derives, a node reporting another is outside saying why, two nodes are paired only where one's
 organization is the other's or above it, and `Node.peers` lists only nodes the caller may read.
 What it costs: an operator-named pool takes its node out of the mesh.
+
+**Finding 179.** Found by an automated security review of Finding 178's correction. A node
+outside the mesh because its pool overlapped an earlier member's was told the other node's
+identifier, and so was whoever read it in the API, though the other node may be another
+tenant's: the pairing Finding 178 scoped by organization was not applied to the reason. Since
+Finding 178 only nodes on the old default can overlap, and those of two tenants can. Resolved in
+§9.1 of `07-networking.md`: the reason names no node. What it costs: an operator with two nodes
+on the old default reads their pools to see which overlaps which.
 
 **Finding 176.** §5 of `07-networking.md` said, as built in Phase 1, that a selector's match with
 several endpoints is left out of the dependency "and the dependency's status says so". No such

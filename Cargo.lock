@@ -3307,6 +3307,7 @@ dependencies = [
  "ppp",
  "rcgen",
  "reqwest",
+ "rustix",
  "rustls",
  "serde_json",
  "sha2 0.10.9",

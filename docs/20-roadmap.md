@@ -275,7 +275,7 @@ cross nodes; designed 2026-10-25 as a WireGuard mesh of every node, each with a 
 (§9.1 there, trace 74 of `23-walkthroughs.md`); each node's pool given at enrollment, the mesh's
 interfaces, the peers each node is told, each pair's reachability, dependencies across the mesh
 with each destination's admission, the scheduler's pair check, and each dependency's status are
-built; the end-to-end test of two nodes each in a network namespace of its own is not. Dedicated
+built, and tested end to end with two nodes each in a network namespace of its own. Dedicated
 addresses (§3 there), routed to whichever node a workload runs on. HTTP/3 at the ingress, on the
 UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6 there), which only
 reaching workloads on other nodes makes necessary. Devices, including GPU. Dedicated cores (§5.2 of
@@ -502,7 +502,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-five traces and their 178 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-five traces and their 179 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
