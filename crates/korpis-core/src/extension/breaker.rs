@@ -57,7 +57,9 @@ impl ProviderType {
             Self::Dns | Self::BackupTarget | Self::EdgeRouter => FailurePolicy::Unsatisfiable,
             // A key it cannot open is a backup no one reads and one no one writes: there is no
             // other key to fall back to, and there must not be.
-            Self::Identity | Self::KeyManagement => FailurePolicy::FailClosed,
+            // And no node holds an address its router has not said it routes there, so a move
+            // waits and what is routed stays (§3.7 of docs/07-networking.md).
+            Self::Identity | Self::KeyManagement | Self::AddressRouter => FailurePolicy::FailClosed,
             Self::Step => FailurePolicy::StepFails,
             Self::Health => FailurePolicy::Unknown,
             Self::Console | Self::ChatAdapter => FailurePolicy::Unavailable,

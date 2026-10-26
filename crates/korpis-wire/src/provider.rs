@@ -93,6 +93,12 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
         CallRequest::HealthStep(step) => {
             Request::HealthStep(Box::new(crate::health::step_to_pb(step)))
         }
+        CallRequest::RouteAddress(r) => Request::RouteAddress(Box::new(pb::RouteAddress {
+            address: r.address.to_string(),
+            node: r.node.map(|n| wire_id(IdKind::Node, n)).unwrap_or_default(),
+            next_hops: r.next_hops.iter().map(ToString::to_string).collect(),
+            ..Default::default()
+        })),
         CallRequest::ApplyRecords { owner, records } => {
             Request::ApplyRecords(Box::new(pb::ApplyRecords {
                 owner: owner.clone(),
@@ -129,6 +135,7 @@ pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
         Some(o @ Outcome::KeyMaterial(_)) => {
             crate::keys::outcome_from_pb(o).unwrap_or(CallOutcome::Failed(CallFailure::malformed()))
         }
+        Some(Outcome::AddressRouted(_)) => CallOutcome::AddressRouted,
         Some(Outcome::RecordsApplied(a)) => CallOutcome::RecordsApplied {
             created: a.created,
             updated: a.updated,

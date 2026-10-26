@@ -17,14 +17,15 @@ use uuid::Uuid;
 pub const DEFAULT_QUARANTINE: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// Where a pool's addresses are held.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     /// Routed to this one node.
     Node(Uuid),
     /// Held by an edge of the edge tier (§3.1 of docs/07-networking.md).
     Edge,
-    /// Moved by this address router, an extension installation, to whichever node holds one.
-    Cluster(Uuid),
+    /// Moved to whichever node holds one by the `address_router` provider of this name that
+    /// the pool's organization sees.
+    Cluster(String),
 }
 
 /// How a pool's addresses reach the node that holds one.
@@ -77,6 +78,9 @@ pub enum PoolError {
     /// The pool holds no address that could be given.
     #[error("the pool holds no address to give")]
     Empty,
+    /// The router is not a name a provider may have.
+    #[error("{0:?} is not a provider's name")]
+    Router(String),
 }
 
 impl AddressPool {
@@ -100,7 +104,12 @@ impl AddressPool {
         if self.addresses().next().is_none() {
             return Err(PoolError::Empty);
         }
-        Ok(())
+        match &self.scope {
+            Scope::Cluster(router) if !crate::extension::slug(router) => {
+                Err(PoolError::Router(router.clone()))
+            }
+            _ => Ok(()),
+        }
     }
 
     /// Whether its addresses may be held on `node`, which belongs to `organization`.
@@ -129,6 +138,64 @@ pub struct Dedicated {
     /// The node's interface it is answered for on, where its pool's addresses are on the node's
     /// link; empty where they are routed to the node.
     pub interface: String,
+}
+
+/// What a router is asked to make so of one address (§3.7 of docs/07-networking.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Route {
+    /// The address.
+    pub address: std::net::Ipv4Addr,
+    /// The node that is to hold it; none where it is to be routed nowhere.
+    pub node: Option<Uuid>,
+    /// The node's advertised addresses, which the network routes it through.
+    pub next_hops: Vec<IpAddr>,
+}
+
+/// The address a workload holds, as the control plane keeps it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Holding {
+    /// The address.
+    pub address: IpAddr,
+    /// Its pool.
+    pub pool: Uuid,
+    /// Whether its pool is a cluster pool, whose router moves it.
+    pub cluster: bool,
+    /// For a cluster pool's address, the node its router last said it routes it to.
+    pub routed: Option<Uuid>,
+    /// Why the router's last answer was not that it routes it, while it is asked again.
+    pub failing: Option<String>,
+}
+
+impl Holding {
+    /// Whether it waits on its router to be routed to `node`, where its holder is placed: a
+    /// cluster pool's address its router has not said it routes there.
+    #[must_use]
+    pub fn waits_on_router(&self, node: Option<Uuid>) -> bool {
+        self.cluster && node.is_some() && self.routed != node
+    }
+}
+
+/// A cluster pool's address whose router is to be asked, as one control plane took it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DueRoute {
+    /// The address.
+    pub address: std::net::Ipv4Addr,
+    /// The pool's organization, whose providers name its router.
+    pub organization: Uuid,
+    /// The router, by its provider's name.
+    pub router: String,
+    /// The node its holder is placed on; none where no placed workload holds it.
+    pub wanted: Option<Uuid>,
+    /// How many calls have failed since one answered.
+    pub attempts: u32,
+}
+
+/// How long after its `attempts`th failure in a row a router is asked again: ten seconds,
+/// doubling, at most ten minutes, so a router back from an outage is asked within ten minutes.
+#[must_use]
+pub fn route_backoff(attempts: u32) -> Duration {
+    let seconds = 10u64.saturating_mul(1u64 << attempts.saturating_sub(1).min(16));
+    Duration::from_secs(seconds).min(Duration::from_secs(600))
 }
 
 /// What holds an address now.

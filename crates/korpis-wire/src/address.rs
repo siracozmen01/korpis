@@ -12,12 +12,10 @@ use korpis_proto::korpis::v1 as pb;
 #[must_use]
 pub fn pool_to_pb(p: &AddressPool, held: u64) -> pb::AddressPool {
     use pb::AddressPoolScope as S;
-    let (scope, node, router) = match p.scope {
-        Scope::Node(n) => (S::ADDRESS_POOL_SCOPE_NODE, wire_id(IdKind::Node, n), String::new()),
+    let (scope, node, router) = match &p.scope {
+        Scope::Node(n) => (S::ADDRESS_POOL_SCOPE_NODE, wire_id(IdKind::Node, *n), String::new()),
         Scope::Edge => (S::ADDRESS_POOL_SCOPE_EDGE, String::new(), String::new()),
-        Scope::Cluster(r) => {
-            (S::ADDRESS_POOL_SCOPE_CLUSTER, String::new(), wire_id(IdKind::Extension, r))
-        }
+        Scope::Cluster(r) => (S::ADDRESS_POOL_SCOPE_CLUSTER, String::new(), r.clone()),
     };
     pb::AddressPool {
         id: wire_id(IdKind::AddressPool, p.id),
@@ -58,7 +56,7 @@ pub fn scope_from_pb(p: &pb::AddressPool) -> Result<Scope> {
         }
         Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_EDGE) => Ok(Scope::Edge),
         Some(pb::AddressPoolScope::ADDRESS_POOL_SCOPE_CLUSTER) => {
-            Ok(Scope::Cluster(id(IdKind::Extension, "pool.router", &p.router)?))
+            Ok(Scope::Cluster(p.router.clone()))
         }
         _ => Err(invalid("pool.scope", "node, edge, or cluster")),
     }
@@ -79,5 +77,19 @@ pub fn routing_from_pb(p: &pb::AddressPool) -> Result<Routing> {
             Ok(Routing::Static)
         }
         _ => Err(invalid("pool.routing", "static, bgp, or provider_api")),
+    }
+}
+
+/// A workload's dedicated address as its status shows it: `held`, and whether it waits on its
+/// router.
+#[must_use]
+pub fn dedicated_status_to_pb(
+    (held, waiting): &(korpis_core::address::Holding, bool),
+) -> pb::DedicatedAddressStatus {
+    pb::DedicatedAddressStatus {
+        address: held.address.to_string(),
+        waiting_on_router: *waiting,
+        reason: held.failing.clone().unwrap_or_default(),
+        ..Default::default()
     }
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router_id, routing,\n                      interface, quarantine_secs, reserved::text[] AS reserved, created_at\n                 FROM address_pool WHERE id = $1",
+  "query": "SELECT id, organization_id, cidr::text AS cidr, scope, node_id, router, routing,\n                      interface, quarantine_secs, reserved::text[] AS reserved, created_at\n                 FROM address_pool WHERE organization_id = $1 ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -55,12 +55,12 @@
       },
       {
         "ordinal": 5,
-        "name": "router_id",
-        "type_info": "Uuid",
+        "name": "router",
+        "type_info": "Text",
         "origin": {
           "Table": {
             "table": "address_pool",
-            "name": "router_id"
+            "name": "router"
           }
         }
       },
@@ -134,5 +134,5 @@
       false
     ]
   },
-  "hash": "33bcae3b0d7926c26b248640fc96dd057b02da17577738cadadcc6a44112ffe2"
+  "hash": "9c25b9ae7797d56204073271d83c427bf4d4a5fd9e83b3da393a50dfaacfaef0"
 }

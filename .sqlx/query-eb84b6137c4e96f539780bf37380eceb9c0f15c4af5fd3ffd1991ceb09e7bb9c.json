@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE dedicated_address\n                SET route_reason = $2, route_attempts = $3, route_due = $4,\n                    route_held_until = NULL\n              WHERE address = $1::text::inet",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "eb84b6137c4e96f539780bf37380eceb9c0f15c4af5fd3ffd1991ceb09e7bb9c"
+}

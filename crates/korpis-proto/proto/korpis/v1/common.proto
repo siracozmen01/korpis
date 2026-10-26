@@ -160,6 +160,9 @@ enum ProviderType {
   // A key management service holding a repository's key-encryption key for its tenant (§5.5 of
   // docs/06-storage.md).
   PROVIDER_TYPE_KEY_MANAGEMENT = 9;
+  // A router moving a cluster pool's addresses to the node holding each (§3.7 of
+  // docs/07-networking.md). Added 2026-10-26.
+  PROVIDER_TYPE_ADDRESS_ROUTER = 10;
 }
 
 // A class of device a driver can give a workload (§6 of docs/05-scheduling.md).

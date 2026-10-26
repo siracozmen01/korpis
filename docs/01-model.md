@@ -1428,8 +1428,9 @@ AddressPool
   scope         node | edge | cluster
   node          NodeID           for scope node: the one node its addresses are routed to, its
                                  organization's own
-  router        ExtensionID      for scope cluster: the address router that moves an address to
-                                 whichever of its organization's nodes holds it
+  router        string           for scope cluster: the name of the `address_router` provider
+                                 its organization sees that moves an address to whichever of its
+                                 nodes holds it
   routing       static | bgp | provider_api   static for scope node, and only for it
   interface     string           where the node answers for its addresses on its link; empty
                                  where they are routed to the node
@@ -1441,6 +1442,12 @@ AddressPool
 **Invariants.** An address is held by one workload at most, and by none while it rests; a workload
 holds one at most, which all its `dedicated_ip` endpoints share. A pool is deleted only while none
 of its addresses is held.
+
+> Corrected 2026-10-26 (Finding 186 of `23-walkthroughs.md`), when the router's contract was
+> designed (§3.7 of `07-networking.md`): the router was an `ExtensionID`, and no provider call is
+> addressed by an extension: a call names an organization, a kind, and a provider's name, the
+> organization's own shadowing its ancestors' (§5 of `16-extensions.md`). A pool names its router
+> by that name, as a backup repository names its backup target provider.
 
 #### Stream
 

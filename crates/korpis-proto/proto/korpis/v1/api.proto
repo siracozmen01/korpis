@@ -637,6 +637,20 @@ message WorkloadStatus {
   // and those it names at no address on its node, with why; nodes are not named. None while it
   // is not placed, since what a rule names depends on its node. Added 2026-10-26.
   repeated NamedRuleStatus named_rules = 16;
+  // The address of its own it holds, where an endpoint of it is `dedicated_ip` (§3.7 of
+  // docs/07-networking.md); unset where it holds none. Added 2026-10-26.
+  DedicatedAddressStatus dedicated = 17;
+}
+
+// A workload's dedicated address as its status shows it.
+message DedicatedAddressStatus {
+  string address = 1;
+  // Its pool's router has not yet said it routes the address to the workload's node, which
+  // holds it only once it has; a node pool's address never waits.
+  bool waiting_on_router = 2;
+  // Why the router's last answer was not that it routes it, while it is asked again; the
+  // router is named.
+  string reason = 3;
 }
 
 // One rule naming workloads as its workload's status shows it.
@@ -1076,8 +1090,10 @@ message DeletePortalRequest {
 
 message DeletePortalResponse {}
 
-// Address pools (§3.7 of docs/07-networking.md): made and deleted under address_pool.write on
-// their organization, and read under address_pool.read. Added 2026-10-26.
+// Address pools (§3.7 of docs/07-networking.md): made under address_pool.attest on the
+// installation's root organization, an operator vouching that the organization holds the range,
+// deleted under address_pool.write on their organization, and read under address_pool.read.
+// Added 2026-10-26.
 service AddressPoolService {
   // Makes a pool. One overlapping any other pool is refused, without saying whose.
   rpc CreateAddressPool(CreateAddressPoolRequest) returns (CreateAddressPoolResponse);

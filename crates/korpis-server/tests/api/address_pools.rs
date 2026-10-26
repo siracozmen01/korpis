@@ -5,15 +5,19 @@
 //! nodes alone and overlaps no other; a workload with `dedicated_ip` endpoints is placed only
 //! where a pool reaches with a free address, holds one however many such endpoints it has, is
 //! told it in its assignment and shows it on its endpoints; and a pool is deleted only while none
-//! of its addresses is held.
+//! of its addresses is held. Making one is an operator's attestation, since nothing proves who
+//! holds a range (Finding 187 of docs/23-walkthroughs.md), and deleting one is its owner's.
 
 use crate::dependencies::{declare, node, placement};
 use crate::domains::child;
 use crate::egress::assigned;
 use crate::recipes::{body, project, push_paper};
-use crate::support::{Harness, mutation, reason};
+use crate::support::{Harness, mutation, org_scope, reason};
+use connectrpc::ErrorCode;
 use korpis_core::id::{Id, IdKind};
+use korpis_core::principal::Principal;
 use korpis_proto::korpis::v1 as pb;
+use korpis_wire::principal;
 
 fn asked(key: &str, org: &str, cidr: &str, node: &str) -> pb::CreateAddressPoolRequest {
     let pool = pb::AddressPool {
@@ -108,4 +112,42 @@ async fn a_pool_s_addresses_are_held_on_its_organization_s_own_nodes_one_to_a_wo
     };
     let held = h.pools(h.root()).delete_address_pool(delete).await.unwrap_err();
     assert_eq!(reason(&held), "address_pool.held");
+}
+
+#[tokio::test]
+async fn making_a_pool_is_an_operator_s_attestation_and_deleting_it_its_owner_s() {
+    let h = Harness::new().await;
+    let reseller = child(&h, "pinecone").await;
+    let reseller_id = Id::parse(IdKind::Organization, &reseller).unwrap().uuid();
+    let theirs = h.node(Some(reseller_id), "pool-r", &[]).await;
+    let (tenant, tenant_secret) = h.bare_token().await;
+    h.grants(h.root())
+        .issue_grant(pb::IssueGrantRequest {
+            mutation: mutation("g1").into(),
+            parent: h.root_grant(),
+            subject: principal::to_pb(&Principal::Token(tenant)).into(),
+            actions: vec!["address_pool.write".into(), "address_pool.read".into()],
+            scope: org_scope(&reseller).into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let tenants = h.pools(h.config(Some(tenant_secret.expose())));
+    let squat = asked("t1", &reseller, "203.0.113.0/29", &theirs);
+    let e = tenants.create_address_pool(squat).await.unwrap_err();
+    assert_eq!(e.code, ErrorCode::NotFound, "a range is vouched for by an operator: {e:?}");
+
+    let (operator, operator_secret) = h.bare_token().await;
+    h.issue_to(operator, "g2", &["address_pool.attest"]).await;
+    let operators = h.pools(h.config(Some(operator_secret.expose())));
+    let made = operators.create_address_pool(asked("o1", &reseller, "203.0.113.0/29", &theirs));
+    let pool = made.await.expect("attested for a descendant").into_owned().pool.into_option();
+    let pool = pool.unwrap();
+    assert_eq!(pool.organization, reseller);
+    let delete = pb::DeleteAddressPoolRequest {
+        mutation: mutation("t2").into(),
+        id: pool.id.clone(),
+        ..Default::default()
+    };
+    tenants.delete_address_pool(delete).await.expect("its own pool, none of it held");
 }

@@ -102,7 +102,8 @@ fn pinged(c: &Called) -> pb::PingProviderResponse {
             | CallOutcome::Members(_)
             | CallOutcome::Asserted(_)
             | CallOutcome::Authorization(_)
-            | CallOutcome::HealthNext(_) => None.into(),
+            | CallOutcome::HealthNext(_)
+            | CallOutcome::AddressRouted => None.into(),
         },
         ..Default::default()
     }

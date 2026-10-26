@@ -188,7 +188,8 @@ repository.read · repository.write                   where an organization's ba
 domain.read · domain.write · domain.attest           names an org holds (07-networking.md §3.2)
 certificate.read · certificate.write                 TLS certificates an organization uploads
 portal.read · portal.write                           an org's own addresses (07-networking.md §3.6)
-address_pool.read · address_pool.write               an org's address pools (07-networking.md §3.7)
+address_pool.read · address_pool.write · address_pool.attest
+                                                     an org's address pools (07-networking.md §3.7)
 stream.share
 grant.read · grant.revoke
 template.write                                       make, edit, retire an org's grant templates
@@ -296,12 +297,21 @@ ext.<extension>.<action>              extensions define their own, namespaced
   meet there, which no existing action covered. `portal.write` on an organization makes a portal
   of a name it holds, changes its certificate, and deletes it; naming a provided certificate takes
   `certificate.read` on it beside. `portal.read` reads them, with what a deletion would leave.
-- **`address_pool.read` and `address_pool.write` are new actions implied by nothing.** Added
-  2026-10-26, when dedicated addresses were designed (§3.7 of `07-networking.md`). A pool decides
-  which addresses an organization's nodes answer for, and so what traffic those nodes take, which
-  no existing action covered. `address_pool.write` on an organization makes a pool, on one of its
-  own nodes or through a router, and deletes one none of whose addresses is held;
-  `address_pool.read` lists them, with how many of each one's addresses are held.
+- **`address_pool.read`, `address_pool.write`, and `address_pool.attest` are new actions implied
+  by nothing.** Added 2026-10-26, when dedicated addresses were designed (§3.7 of
+  `07-networking.md`). A pool decides which addresses an organization's nodes answer for, and so
+  what traffic those nodes take, which no existing action covered. `address_pool.attest` is
+  vouching that an organization holds an address range, which nothing in the protocol can prove,
+  so it is an operator's power, held on the installation's root organization, as `domain.attest`
+  is, and makes a pool for any organization in its subtree, on one of that organization's own
+  nodes or through its router; `address_pool.write` on an organization deletes its pools none of
+  whose addresses is held; `address_pool.read` lists them, with how many of each one's addresses
+  are held.
+
+  > Corrected 2026-10-26 (Finding 187 of `23-walkthroughs.md`, from an automated security review):
+  > `address_pool.write` on an organization made pools too, of any range, and pools never
+  > overlap, so a tenant holding it could take another's address space, its own or one it had
+  > yet to bring, and leave that organization unable to make its pool.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold

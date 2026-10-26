@@ -38,6 +38,7 @@ pub mod relying_party;
 mod repos;
 pub mod restore;
 pub mod revocations;
+pub mod routes;
 pub mod sealer;
 pub mod sessions;
 pub mod sftp;

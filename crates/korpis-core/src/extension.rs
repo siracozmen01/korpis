@@ -32,7 +32,6 @@ pub use installation::Installation;
 pub use registration::{MAX_CONCURRENCY, MAX_VERSION, Registration};
 pub use step::{MAX_ARTIFACTS, Platform, StepArtifact, StepResult, check_arguments};
 pub use validate::qualified;
-#[cfg(feature = "authz")]
 pub(crate) use validate::slug;
 
 use crate::authz::action::Action;
@@ -136,11 +135,14 @@ pub enum ProviderType {
     ChatAdapter,
     /// A key management service holding a repository's key-encryption key for its tenant.
     KeyManagement,
+    /// A router moving a cluster pool's addresses to the node holding each (§3.7 of
+    /// docs/07-networking.md).
+    AddressRouter,
 }
 
 impl ProviderType {
     /// Every type, in declaration order.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Dns,
         Self::BackupTarget,
         Self::Step,
@@ -150,6 +152,7 @@ impl ProviderType {
         Self::EdgeRouter,
         Self::ChatAdapter,
         Self::KeyManagement,
+        Self::AddressRouter,
     ];
 
     /// The name a document writes.
@@ -165,6 +168,7 @@ impl ProviderType {
             Self::EdgeRouter => "edge_router",
             Self::ChatAdapter => "chat_adapter",
             Self::KeyManagement => "key_management",
+            Self::AddressRouter => "address_router",
         }
     }
 

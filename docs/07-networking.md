@@ -787,16 +787,25 @@ port; what it sends beyond its node leaves from that address too, which is what 
 means. IPv6 has no dedicated mode: every workload's IPv6 address is its own already (§4), so a
 `dedicated_ip` endpoint is reached over IPv6 as any endpoint exposed at the workload's address is.
 
-*Whose pool.* An address pool belongs to an organization, which creates and deletes it with the
-action `address_pool.write`; a host's is the root's. It serves the workloads of that organization
-and of those below it, and its addresses are held on that organization's own nodes alone: a pool
-of scope `node` names one of them, the one its addresses are routed to, and a pool of scope
-`cluster` names the router that moves an address to whichever of them holds it. Not on a node of
-an organization above: a node that holds an address translates every connection to it, and
-answers for it on its link where the pool says so, so a pool on another's node would let its
-owner take that node's traffic to any address it named, a public resolver's or the node's own
-gateway, into its own workload. Korpis gates none of this by size or count (P10): a host gives
-itself as many pools and addresses as its networks hold.
+*Whose pool.* An address pool belongs to an organization. An operator makes it for that
+organization with `address_pool.attest` on the installation's root organization, vouching that the
+organization holds the range, as `domain.attest` vouches for a name (§3.2), and the organization
+deletes it with `address_pool.write`; a host's is the root's. It serves the workloads of that
+organization and of those below it, and its addresses are held on that organization's own nodes
+alone: a pool of scope `node` names one of them, the one its addresses are routed to, and a pool of
+scope `cluster` names the router that moves an address to whichever of them holds it. Not on a node
+of an organization above: a node that holds an address translates every connection to it, and
+answers for it on its link where the pool says so, so a pool on another's node would let its owner
+take that node's traffic to any address it named, a public resolver's or the node's own gateway,
+into its own workload. Korpis gates none of this by size or count (P10): a host gives itself as
+many pools and addresses as its networks hold.
+
+> Corrected 2026-10-26 (Finding 187 of `23-walkthroughs.md`, from an automated security review of
+> the commit that built pools): the organization made its pools itself, with `address_pool.write`.
+> Nothing proves who holds an address range, and no two pools overlap, so a tenant could take a
+> range another organization holds and leave it unable to make its pool, a squat the owner could
+> only ask an operator to clear. Making a pool is now the operator's attestation. Not a limit on
+> its size: an operator vouching for a range is the check, and P10 rules out the other.
 
 *Which address, and when.* The control plane allocates the address in the transaction that places
 the workload, the lowest free one of a pool that serves it and reaches the chosen node, and records
@@ -828,8 +837,28 @@ and which tells it back once the network routes it there; the node holds the add
 router has said so, so two nodes never hold one address at once. The router does what the network
 needs: announces the address over BGP with the node as its next hop, or moves a provider's floating
 address through the provider's API (`routing: bgp | provider_api`). A cluster pool naming no router
-installed is refused when it is created. At a migration's cutover the router is told the new node
-after the lease's epoch has changed (§10).
+its organization sees is refused when it is created. At a migration's cutover the router is told
+the new node after the lease's epoch has changed (§10).
+
+*The router's contract.* Designed 2026-10-26 (P3.6d in §4 of `20-roadmap.md`). A pool names its
+router as a backup repository names its target (§5.6 of `06-storage.md`): by the name of an
+`address_router` provider its organization sees, its own before its ancestors'. One call,
+`RouteAddress`, carries an address, the node that is to hold it or none, and that node's advertised
+addresses as the next hops, and asks the router to make the network route the address so, as
+`ApplyRecords` asks a DNS provider to make an owner's records so: the whole of what is wanted in
+every call, so a retry or a repeat changes nothing. The control plane keeps, for each address of a
+cluster pool, the node the router last said it routes the address to. A loop like the one
+publishing names takes each address whose holder is placed on another node, or that rests and is
+still routed, holds it for a while so that one control plane asks, and asks the router; a failure
+is retried on a backoff and shown on the workload, with the router named and its reason. A node's
+assignment carries the address only once the router has answered for that node, so what evaluates
+"two nodes never hold one address" is the control plane, which writes the routed node only on the
+router's answer and gives the address to that node's assignment alone, and the router is asked only
+for the node of a placement already committed, whose old node's assignment has already lost the
+workload. What it does not do: the node the address left answers for it until it applies its new
+set, one assignment round, which is what any move of an address costs; and the router's own view of
+the network is the router's, so an address it says it routes and does not is the router's defect,
+shown only as the workload unreached.
 
 What it costs: an address idle for its quarantine after every retirement; a router extension, and
 the network or provider that does what it asks, for an address that moves; and a workload of a
@@ -840,9 +869,9 @@ workload sends from.
 
 Built 2026-10-26 for `node` pools, with their addresses routed to the node or on its link. The
 control plane keeps the pools and their addresses (`korpis address-pool`, §2 of
-`13-surface-cli.md`), each address with the workload holding it or the instant it was released;
-the placement filter's `dedicated_ip` check and the allocation both run under the placement lock,
-the allocation in the transaction that binds the workload; and a retirement gives the address back
+`13-surface-cli.md`), each address with the workload holding it or the instant it was released; the
+placement filter's `dedicated_ip` check and the allocation both run under the placement lock, the
+allocation in the transaction that binds the workload; and a retirement gives the address back
 under that lock. The node's helper keeps two maps in the host's table: from each address to its
 workload's chain, translating every new connection to it in chains of priority -110, ahead of the
 node's forwarded ports (-100) and of any other table's translation of a destination, and from each
@@ -850,9 +879,16 @@ workload's link to its address, translating what it sends beyond the node in the
 `postrouting` chain ahead of its masquerade. An address on the node's link is added to the pool's
 interface as a host address, `/32`, with no route of its prefix; the workload's chain records in a
 rule's comment that the helper added it, so an address the operator had already put on the
-interface is never removed. Not built yet: `cluster` and `edge` pools, refused when made, until the
-router's contract and the edge tier are built; and the refusal of a migration, since no workload
-migrates yet (§8 of `05-scheduling.md`).
+interface is never removed. The router's contract followed the same day (P3.6d): `cluster` pools
+are made naming an `address_router` provider their organization sees, `RouteAddress` is in the
+contract and the SDK (`provider.address_router`, §6 of `16-extensions.md`), the control plane keeps
+each address's routed node with a reconciler like the one publishing names, retried ten seconds
+after a failure and doubling to ten minutes, a node's assignment carries a cluster pool's address
+only for the node recorded, and `korpis status` shows an address waiting on its router with the
+router's reason; a router of the tests' own exercises it. Not built yet: `edge` pools, refused when
+made until the edge tier is built (§3.1); and moving a workload holding an address, since no
+workload migrates yet (§8 of `05-scheduling.md`): a cluster pool's address follows its workload to
+whichever node it is placed on next, and one holding a node pool's is placed on no other node.
 
 ---
 

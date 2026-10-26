@@ -17,6 +17,9 @@ pub const CAPABILITIES: &[&str] = &[
     "events.subscribe",
     // The workload credential socket of §9.5 of docs/08-identity.md.
     "identity.credential",
+    // Address routers' calls: routing an address to a node, or nowhere, §3.7 of
+    // docs/07-networking.md.
+    "provider.address_router",
     // Backup targets' calls: scoped access, listing, and deletion, §5.6 of docs/06-storage.md.
     "provider.backup_target",
     // DNS providers' calls: applying an owner's records, §3.5 of docs/07-networking.md.

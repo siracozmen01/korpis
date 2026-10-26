@@ -317,6 +317,17 @@ fn named_rules(out: &mut String, s: &pb::WorkloadStatus) {
     }
 }
 
+/// The address of its own it holds, and whether it waits on its router (§3.7 of
+/// docs/07-networking.md).
+fn dedicated(out: &mut String, s: &pb::WorkloadStatus) {
+    let Some(d) = s.dedicated.as_option() else { return };
+    let waits = if d.waiting_on_router { ", waiting on its router" } else { "" };
+    let _ = writeln!(out, "address:   {}{waits}", d.address);
+    if !d.reason.is_empty() {
+        let _ = writeln!(out, "           {}", d.reason);
+    }
+}
+
 /// Answers `korpis status`: where the workload is, what it is doing, and what it waits for.
 pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> {
     let id = resolve::workload(c, workload).await?;
@@ -348,6 +359,7 @@ pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> 
         let _ = writeln!(out, "plan:      {} {}", p.id, short(p.status, "PLAN_STATUS_"));
     }
     endpoints(&mut out, &s);
+    dedicated(&mut out, &s);
     dependencies(&mut out, &s);
     named_rules(&mut out, &s);
     unplaced(&mut out, &s);

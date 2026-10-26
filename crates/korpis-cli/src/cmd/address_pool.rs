@@ -26,7 +26,8 @@ pub enum Routing {
 #[derive(Debug, Clone, Subcommand)]
 pub enum AddressPoolAction {
     /// Makes a pool of addresses routed to one node of the organization's, or moved between
-    /// them by an address router. One overlapping any other pool is refused.
+    /// them by an address router: an operator's, vouching that the organization holds the range
+    /// (`address_pool.attest`). One overlapping any other pool is refused.
     Create {
         /// Its addresses, as a network, e.g. `203.0.113.0/28`.
         cidr: String,
@@ -37,7 +38,8 @@ pub enum AddressPoolAction {
         /// The node its addresses are routed to, `nd_…`.
         #[arg(long, required_unless_present = "router", conflicts_with = "router")]
         node: Option<String>,
-        /// The address router that moves each address to the node holding it, `ext_…`.
+        /// The address router that moves each address to the node holding it: the name of an
+        /// `address_router` provider the organization sees.
         #[arg(long, requires = "routing")]
         router: Option<String>,
         /// How a router moves the addresses; a node pool's are static.

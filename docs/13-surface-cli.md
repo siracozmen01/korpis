@@ -345,14 +345,17 @@ sessions begun at it and removes its passkeys and so takes `--yes`, as removing 
 2026-10-22.)
 
 The addresses an organization's nodes hold for its workloads' `dedicated_ip` endpoints are its
-address pools (§3.7 of `07-networking.md`). `korpis address-pool create 203.0.113.0/28 --node nd_…`
-makes one whose addresses the network routes to that node, `--interface eth0` where they are on the
-node's link instead, with `--reserve` for each address of it never to be given, such as the link's
-gateway, and `--quarantine 12h` for how long a released address rests, a day unless said; `--router
-ext_… --routing bgp` names an address router in place of a node (§5 of `16-extensions.md`), which
-is refused until the router's contract is built. `korpis address-pool list` shows each with how
-many of its addresses are held, and `korpis address-pool delete apl_…` deletes one none of whose
-addresses is. (Designed and built 2026-10-26.)
+address pools (§3.7 of `07-networking.md`). An operator holding `address_pool.attest` makes one for
+an organization, vouching that it holds the range: `korpis address-pool create 203.0.113.0/28
+--organization pinecone --node nd_…` makes one whose addresses the network routes to that node,
+`--interface eth0` where they are on the node's link instead, with `--reserve` for each address of
+it never to be given, such as the link's gateway, and `--quarantine 12h` for how long a released
+address rests, a day unless said; `--router bgp --routing bgp` names, in place of a node, the
+`address_router` provider the organization sees that moves each address to the node holding it (§5
+of `16-extensions.md`), and `korpis status` says when a workload's address waits on its router, and
+why. `korpis address-pool list` shows each with how many of its addresses are held, and `korpis
+address-pool delete apl_…` deletes one none of whose addresses is, which its organization may do
+itself. (Designed and built 2026-10-26.)
 
 The landing screen an organization composes for those it serves (question 2 of §10 of
 `11-surface-web.md`) is read with `korpis layout show`, which names the organization it comes

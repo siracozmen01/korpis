@@ -1,0 +1,72 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH due AS (\n                   SELECT d.address, p.organization_id, p.router, pl.node_id AS wanted\n                     FROM dedicated_address d\n                     JOIN address_pool p ON p.id = d.pool_id AND p.scope = 'cluster'\n                     LEFT JOIN placement pl\n                       ON pl.workload_id = d.workload_id AND pl.authoritative\n                    WHERE pl.node_id IS DISTINCT FROM d.routed_node_id\n                      AND (d.route_due IS NULL OR d.route_due <= $1)\n                      AND (d.route_held_until IS NULL OR d.route_held_until <= $1)\n                    ORDER BY d.address\n                    LIMIT 1\n                      FOR UPDATE OF d SKIP LOCKED)\n               UPDATE dedicated_address d SET route_held_until = $2\n                 FROM due WHERE d.address = due.address\n               RETURNING host(d.address) AS \"address!\", due.organization_id,\n                         due.router AS \"router!\", due.wanted AS \"wanted?\", d.route_attempts",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "address!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "address_pool",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "router!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "address_pool",
+            "name": "router"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "wanted?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "route_attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "dedicated_address",
+            "name": "route_attempts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "ee87b56e8a0385cdaf04450f5009235830bd4e1a26a78b51aeb71b9b0030b49a"
+}

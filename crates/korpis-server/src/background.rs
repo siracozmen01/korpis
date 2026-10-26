@@ -2,13 +2,13 @@
 
 //! The control plane's own work, beside answering requests: placements retried, runs made,
 //! silent nodes swept, changes dispatched, conditions tracked, certificates watched, offloads
-//! expired, events pruned, and the rest, each a task that ends with the process.
+//! expired, events pruned, addresses routed, and the rest, each a task that ends with the process.
 
 use crate::ServeConfig;
 use crate::api::Api;
 use crate::{
     buckets, control_jobs, issuer, mesh, named_relays, provider_calls, reachability, records,
-    revocations,
+    revocations, routes,
 };
 use korpis_store::PgStore;
 use std::sync::Arc;
@@ -38,6 +38,7 @@ pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(control_jobs::work(Arc::clone(api)));
     tokio::spawn(issuer::keep(Arc::clone(api)));
     tokio::spawn(records::keep(Arc::clone(api)));
+    tokio::spawn(routes::keep(Arc::clone(api)));
     tokio::spawn(buckets::forget(Arc::clone(api)));
     tokio::spawn(buckets::forget_sessions(Arc::clone(api)));
 }

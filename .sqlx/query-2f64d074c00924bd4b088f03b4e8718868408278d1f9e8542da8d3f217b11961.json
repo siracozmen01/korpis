@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT host(d.address) AS \"address!\", d.pool_id, p.scope, d.routed_node_id,\n                      d.route_reason\n                 FROM dedicated_address d JOIN address_pool p ON p.id = d.pool_id\n                WHERE d.workload_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "address!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "pool_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "dedicated_address",
+            "name": "pool_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "scope",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "address_pool",
+            "name": "scope"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "routed_node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "dedicated_address",
+            "name": "routed_node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "route_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "dedicated_address",
+            "name": "route_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "2f64d074c00924bd4b088f03b4e8718868408278d1f9e8542da8d3f217b11961"
+}

@@ -41,11 +41,14 @@ fn a_pool_says_what_can_hold_and_reaches_its_own_organization_s_nodes_alone() {
     assert!(!p.reaches(Uuid::from_u128(3), ORG), "another node");
     assert!(!p.reaches(NODE, Uuid::from_u128(4)), "a node of another organization");
     let cluster = AddressPool {
-        scope: Scope::Cluster(Uuid::from_u128(5)),
+        scope: Scope::Cluster("bgp".into()),
         routing: Routing::ProviderApi,
         ..pool("203.0.113.0/28")
     };
     assert!(cluster.reaches(Uuid::from_u128(3), ORG) && !cluster.reaches(NODE, Uuid::from_u128(4)));
+    assert_eq!(cluster.validate(), Ok(()));
+    let unnamed = AddressPool { scope: Scope::Cluster("BGP speaker".into()), ..cluster };
+    assert!(matches!(unnamed.validate(), Err(PoolError::Router(_))), "a provider's name");
 }
 
 #[test]
@@ -63,4 +66,11 @@ fn the_lowest_address_neither_held_nor_resting_is_given() {
     let all: BTreeMap<IpAddr, Taken> =
         p.addresses().map(|a| (a, Taken::Held(Uuid::from_u128(8)))).collect();
     assert_eq!(lowest_free(&p, &all, at(0)), None);
+}
+
+#[test]
+fn a_router_failing_is_asked_again_ever_less_often_and_at_least_every_ten_minutes() {
+    let waits: Vec<u64> = (1..=8).map(|n| route_backoff(n).as_secs()).collect();
+    assert_eq!(waits, [10, 20, 40, 80, 160, 320, 600, 600]);
+    assert_eq!(route_backoff(u32::MAX), Duration::from_secs(600));
 }

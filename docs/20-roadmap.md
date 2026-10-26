@@ -281,7 +281,9 @@ trace 77 of `23-walkthroughs.md`) as pools an organization owns, an address allo
 placement and held by translation on its node, a `node` pool's address pinning its workload, and a
 `cluster` pool's moved by an address router extension, whose contract this phase builds and tests
 with a router of the tests' own; the routers that speak BGP or a provider's API are of the core
-extensions of §2 of `16-extensions.md`, built through the contract in Phase 4. HTTP/3 at the
+extensions of §2 of `16-extensions.md`, built through the contract in Phase 4. Built 2026-10-26:
+pools on one node, routed there or on its link, and the router's contract, with an API test's own
+router; the router told a migration's new node at its cutover is built with migration. HTTP/3 at the
 ingress, on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6
 there), designed and built 2026-10-26, when it was found that they decide something on one node as
 on many and that the overlay was never what they waited for (Finding 182 of `23-walkthroughs.md`).
@@ -508,7 +510,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-seven traces and their 185 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: seventy-seven traces and their 187 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

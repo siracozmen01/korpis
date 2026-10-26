@@ -65,6 +65,16 @@ pub struct WorkloadView {
     /// Each of its rules naming workloads: what it matched, and what it names at no address on
     /// its node, with why (§6 of docs/07-networking.md); none while it is not placed.
     pub named_rules: Vec<korpis_core::workload::peers::Resolved>,
+    /// The dedicated address it holds, if any, and whether it waits on its router to be routed
+    /// to its node (§3.7 of docs/07-networking.md).
+    pub dedicated: Option<(korpis_core::address::Holding, bool)>,
+}
+
+/// Its endpoints as placed, each with the addresses a client reaches it at, and the dedicated
+/// address it holds, with whether that waits on its router.
+struct Reached {
+    endpoints: Vec<(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)>,
+    dedicated: Option<(korpis_core::address::Holding, bool)>,
 }
 
 /// The keys whose values a view left out, by intent.
@@ -116,14 +126,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(names)
     }
 
-    /// `id`'s endpoints as placed, each with the addresses its node advertises.
+    /// `id`'s endpoints as placed, each with the addresses its node advertises, and the
+    /// dedicated address it holds, placed on `node`.
     async fn endpoints_advertised(
         &self,
         id: Uuid,
-    ) -> Result<Vec<(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)>, AppError>
-    {
+        node: Option<Uuid>,
+    ) -> Result<Reached, AppError> {
         let mut endpoints = Vec::new();
-        let dedicated = self.store.dedicated_of(id).await?.map(|(a, _)| a);
+        let held = self.store.dedicated_of(id).await?;
+        let dedicated = held.as_ref().map(|h| h.address);
         for e in self.store.endpoints(id).await? {
             // A `dedicated_ip` endpoint is reached at its workload's own address alone.
             if e.exposure == korpis_core::workload::spec::endpoints::Exposure::DedicatedIp {
@@ -134,7 +146,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let addresses = node.and_then(|n| n.advertised).map(|a| a.addresses);
             endpoints.push((e, addresses.unwrap_or_default()));
         }
-        Ok(endpoints)
+        let dedicated = held.map(|h| {
+            let waits = h.waits_on_router(node);
+            (h, waits)
+        });
+        Ok(Reached { endpoints, dedicated })
     }
 
     async fn unrendered(&self, workload: Workload) -> Result<(WorkloadView, Found), AppError> {
@@ -160,7 +176,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }),
             None => None,
         };
-        let endpoints = self.endpoints_advertised(id).await?;
+        let Reached { endpoints, dedicated } = self.endpoints_advertised(id, found.node()).await?;
         let mut certificates = Vec::new();
         for (endpoint, c) in self.store.routed_certificates(id).await? {
             if let Some(found) = self.store.certificate(c).await? {
@@ -173,6 +189,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let dependencies = self.dependency_status(&workload, target.as_ref()).await?;
         let named_rules = self.named_rule_status(&workload, target.as_ref()).await?;
         let view = WorkloadView {
+            dedicated,
             dependencies,
             named_rules,
             newest_run,

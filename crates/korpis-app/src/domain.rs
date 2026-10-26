@@ -99,7 +99,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The installation's root organization, above `organization`.
-    async fn root_of(&self, organization: Uuid) -> Result<Uuid, AppError> {
+    pub(crate) async fn root_of(&self, organization: Uuid) -> Result<Uuid, AppError> {
         let chain = self.store.ancestry(ObjectRef::new(Kind::Organization, organization)).await?;
         chain.last().map(|n| n.object.id).ok_or(AppError::NotFound { kind: "organization" })
     }

@@ -68,7 +68,7 @@ pub use account::{
     AccountRead, AccountWrite, FactorVault, InPlace, PasswordFuture, Passwords, TotpFactor,
 };
 pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish};
-pub use address::{AddressRead, AddressWrite};
+pub use address::{AddressRead, AddressRoute, AddressWrite};
 pub use assertion::AssertionWrite;
 pub use assignment::{
     AssignmentRead, AssignmentSealer, AssignmentWrite, Opened, SealError, Sealed, StoredAssignment,
@@ -360,6 +360,7 @@ pub trait Tx:
     + DomainWrite
     + PortalWrite
     + AddressWrite
+    + AddressRoute
     + CertificateWrite
     + TemplateWrite
     + BindingWrite

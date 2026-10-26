@@ -1449,6 +1449,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 183 | A rule on every address of a family was accepted at declaration and refused by every node | §76 | `07-networking.md` §6 |
 | 184 | A rule named a matched workload's last observed address whatever the workload was doing | §76 | `07-networking.md` §6 |
 | 185 | Admission counted an address for each `dedicated_ip` endpoint of a workload that holds one | §77 | `07-networking.md` §3.7 |
+| 186 | A cluster pool named its router by an extension, which no provider call is addressed by | §77 | `01-model.md` §3.6 |
+| 187 | Any organization holding `address_pool.write` could make a pool of any range, squatting another's | §77 | `07-networking.md` §3.7, `10-api.md` §5 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6568,19 +6570,20 @@ moves it, and moves from node B to node C. The trace asks the algebra question o
 
 Step 1 asks who may make a pool for A: whoever may write address pools in A's own organization,
 which the control plane judges from the grants it holds and the node's organization, and no one
-below it. The design first let a pool name any node of its owner's line, and asking what A does
-with an address it holds answered why not: A translates every connection to it, so a reseller's
-pool on the host's node would take that node's traffic to any address it named. Step 2 asks what is
-counted, and found admission counting each `dedicated_ip` endpoint as an address, two for `arena`,
-which holds one (Finding 185). Step 3 asks who keeps two placements from taking one address: the
-placement lock, which every placement holds (§2.3 of `05-scheduling.md`), and the allocation is in
-its transaction. Step 4 asks what the helper needs: the address and the workload's own, both in A's
-assignment and its own allocation. Step 6 asks what knows the address cannot follow: the pool's
-scope, which the placement filter reads, so no node but A is ever a candidate. Step 7 asks who
-keeps time: the control plane, which allocates only an address whose rest has ended. Step 8 asks
-what keeps two nodes from holding the address: the control plane, which gives it to C's assignment
-only once the router has answered, after B's placement has ended. Step 9 holds as a negative:
-`relay` waits on the router and says so, and nothing reaches it meanwhile.
+below it (corrected by Finding 187: an operator vouching for the range, for A's organization). The
+design first let a pool name any node of its owner's line, and asking what A does with an address
+it holds answered why not: A translates every connection to it, so a reseller's pool on the host's
+node would take that node's traffic to any address it named. Step 2 asks what is counted, and found
+admission counting each `dedicated_ip` endpoint as an address, two for `arena`, which holds one
+(Finding 185). Step 3 asks who keeps two placements from taking one address: the placement lock,
+which every placement holds (§2.3 of `05-scheduling.md`), and the allocation is in its transaction.
+Step 4 asks what the helper needs: the address and the workload's own, both in A's assignment and
+its own allocation. Step 6 asks what knows the address cannot follow: the pool's scope, which the
+placement filter reads, so no node but A is ever a candidate. Step 7 asks who keeps time: the
+control plane, which allocates only an address whose rest has ended. Step 8 asks what keeps two
+nodes from holding the address: the control plane, which gives it to C's assignment only once the
+router has answered, after B's placement has ended. Step 9 holds as a negative: `relay` waits on
+the router and says so, and nothing reaches it meanwhile.
 
 **Finding 185.** §3 of `07-networking.md` says a `dedicated_ip` endpoint's address belongs to its
 workload, and admission counted one `dedicated_ipv4` for each such endpoint, so a game server with
@@ -6591,5 +6594,31 @@ addresses is two workloads.
 
 Steps 1 to 9 were designed with no step built but step 2's count, corrected with this trace.
 Steps 1 to 5 and 7 are built 2026-10-26 (P3.6 in §4 of `20-roadmap.md`) and tested end to end,
-the pool on the node's link; step 6 waits on migration, which nothing does yet (§8 of
-`05-scheduling.md`), and steps 8 and 9 on the router's contract, which this phase builds next.
+the pool on the node's link. The router's contract was built the same day, and with it step 9 and
+step 8 but for its cutover: a cluster pool's address is routed by its router to whichever node its
+workload is placed on, held by that node only once the router has answered, and a router failing
+leaves the workload waiting and saying why, which an API test drives with a router of its own.
+Building it found Finding 186, and a security review of what was built found Finding 187. Step 6,
+and step 8's cutover, wait on migration, which nothing does yet (§8 of `05-scheduling.md`).
+
+**Finding 186.** Step 8 asks what the control plane calls to move an address, and the answer was
+a pool's router, an `ExtensionID` (§3.6 of `01-model.md`, as designed that morning). No provider
+call is addressed by an extension: a call names an organization, a provider kind, and a provider's
+name, the organization's own provider shadowing its ancestors' (§5 of `16-extensions.md`), so the
+control plane holding a pool had no call it could make. Resolved in §3.6 of `01-model.md` and §3.7
+of `07-networking.md`: a pool names its router by the name of an `address_router` provider its
+organization sees, as a backup repository names its target, and a pool naming none is refused
+when made; migration 0131 changes the column, which no pool could yet have filled. What it costs:
+nothing; an organization that installs a router under another name renames it in its pools.
+
+**Finding 187.** Found by an automated security review of the commit that built pools, and a
+question step 1 should have asked: who checks that the organization holds the range? Nothing did.
+`address_pool.write` on an organization made its pools, of any range, and no two pools overlap,
+so a tenant holding it could take a range another organization holds, or one it had yet to
+bring, and leave that organization unable to make its pool; its addresses would be held only on
+the squatter's own nodes, so no traffic was taken, but the range was. Nothing in the protocol can
+prove who holds an address range. Resolved in §3.7 of `07-networking.md` and §5 of `10-api.md`:
+making a pool is an operator's attestation, `address_pool.attest` on the installation's root
+organization, as `domain.attest` is for a name, for any organization in its subtree; the
+organization deletes its own with `address_pool.write`. What it costs: a reseller bringing its
+own addresses asks the host to vouch for them, as it does for a domain it cannot prove in DNS.

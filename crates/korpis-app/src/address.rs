@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Address pools (§3.7 of docs/07-networking.md, §3.6 of docs/01-model.md): made and deleted by
-//! whoever may write them in their organization, and their addresses held on that organization's
-//! own nodes alone, since a node holding one translates every connection to it.
+//! Address pools (§3.7 of docs/07-networking.md, §3.6 of docs/01-model.md): made by an operator
+//! vouching for the range, for any organization, deleted by whoever may write them in that
+//! organization, and their addresses held on that organization's own nodes alone, since a node
+//! holding one translates every connection to it.
 
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
+use crate::extension::CallTarget;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged};
 use crate::ports::{
@@ -16,11 +18,13 @@ use crate::ports::{
 use korpis_core::address::{AddressPool, DEFAULT_QUARANTINE, Dedicated, Routing, Scope, Taken};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
+use korpis_core::extension::ProviderType;
 use std::net::IpAddr;
 use std::time::Duration;
 use uuid::Uuid;
 
 mod placed;
+mod route;
 
 /// What a pool is made of, as its maker asks for it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,9 +74,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                  (§3.7 of docs/07-networking.md)",
             ));
         }
-        match p.scope {
+        match &p.scope {
             Scope::Node(node) => {
-                let found = self.store.node(node).await?;
+                let found = self.store.node(*node).await?;
                 if found.is_none_or(|n| n.organization != p.organization) {
                     return Err(AppError::invalid(
                         "pool.node",
@@ -82,9 +86,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 }
                 Ok(())
             }
-            // Edges arrive with the edge tier, and routers with their contract.
+            // Edges arrive with the edge tier.
             Scope::Edge => Err(AppError::NotYet { what: "edge address pools", phase: 3 }),
-            Scope::Cluster(_) => Err(AppError::NotYet { what: "address routers", phase: 3 }),
+            Scope::Cluster(router) => {
+                let target = CallTarget {
+                    organization: p.organization,
+                    kind: ProviderType::AddressRouter,
+                    name: router.clone(),
+                };
+                if self.provider_owner(&target).await?.is_none() {
+                    return Err(AppError::invalid(
+                        "pool.router",
+                        "no address_router provider of this name is seen by the organization",
+                    ));
+                }
+                Ok(())
+            }
         }
     }
 
@@ -95,9 +112,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         workload: Uuid,
         node: Uuid,
     ) -> Result<Option<Dedicated>, AppError> {
-        let Some((address, pool)) = self.store.dedicated_of(workload).await? else {
-            return Ok(None);
-        };
+        let Some(held) = self.store.dedicated_of(workload).await? else { return Ok(None) };
+        let (address, pool) = (held.address, held.pool);
         let (Some(pool), Some(n)) =
             (self.store.address_pool(pool).await?, self.store.node(node).await?)
         else {
@@ -106,7 +122,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let IpAddr::V4(address) = address else {
             return Err(AppError::Internal(format!("dedicated address {address} is not IPv4")));
         };
-        let reached = pool.reaches(n.id, n.organization);
+        // A cluster pool's address is held only on the node its router says it routes it to.
+        let routed = !matches!(pool.scope, Scope::Cluster(_)) || held.routed == Some(n.id);
+        let reached = routed && pool.reaches(n.id, n.organization);
         Ok(reached.then_some(Dedicated { address, interface: pool.interface }))
     }
 
@@ -121,8 +139,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(r) = self.replay(caller, idem, OPERATION).await? {
             return Ok(Reply::Replayed(r));
         }
-        let org = ObjectRef::new(Kind::Organization, cmd.organization);
-        let permit = self.authorize(caller, "address_pool.write", org).await?;
+        // Nothing in the protocol proves who holds an address range, and pools never overlap, so
+        // making one is an operator vouching for it, as `domain.attest` vouches for a name: held
+        // on the installation's root organization, for any organization beneath it (Finding 187
+        // of docs/23-walkthroughs.md).
+        let root = ObjectRef::new(Kind::Organization, self.root_of(cmd.organization).await?);
+        let permit = self.authorize(caller, "address_pool.attest", root).await?;
         let pool = AddressPool {
             id: Uuid::now_v7(),
             organization: cmd.organization,

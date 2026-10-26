@@ -92,6 +92,8 @@ message ProviderCall {
     Authorize authorize = 29;
     // health: a query probe's next round, or its verdict.
     HealthStep health_step = 30;
+    // address_router: make the network route an address to a node, or nowhere.
+    RouteAddress route_address = 31;
   }
 }
 
@@ -111,6 +113,7 @@ message CallResult {
     Assertion assertion = 27;
     Authorization authorization = 28;
     HealthNext health_next = 29;
+    AddressRouted address_routed = 30;
   }
 }
 
@@ -234,6 +237,23 @@ message RecordsApplied {
   uint32 updated = 2;
   uint32 deleted = 3;
 }
+
+// Address routers (§3.7 of docs/07-networking.md). The control plane holds which node each
+// address of a cluster pool is to be routed to, and asks the pool's router to make the network
+// route it so: announcing it over BGP with the node as its next hop, or moving a provider's
+// floating address to the node. Each call says the whole of what is wanted, so a repeat changes
+// nothing; the node holds the address only once the router has answered.
+message RouteAddress {
+  // The IPv4 address.
+  string address = 1;
+  // The node to route it to, `nd_...`; empty to route it nowhere.
+  string node = 2;
+  // That node's advertised addresses, through which the network is to route it.
+  repeated string next_hops = 3;
+}
+
+// The network routes the address as asked.
+message AddressRouted {}
 
 // Recipe steps (§4 of docs/09-recipes.md). A step provider resolves a step into content-addressed
 // artifacts; the node's content store fetches each by its hash and the workload's own filesystem

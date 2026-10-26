@@ -96,15 +96,15 @@ into, so the installation narrows them. A document that subscribes must need `ev
 delivery reaches only what that grant reaches, and a subscription without it would install cleanly
 and deliver nothing, forever. `provides` entries are `{type, name}`, with a step's `arguments`
 (§5), the type one of `dns`, `backup_target`, `step`, `health`, `console`, `identity`,
-`edge_router`, `chat_adapter`, `key_management`, the name a lowercase word, and for `step`
-`<publisher>/<step>`, the step part one or more lowercase words joined by dots
-(`valve/steam.app`; corrected 2026-10-13, when the first step provider was built: the rule had left
-the step part undefined, the validation read it as one word, and every example in §4 of
-`09-recipes.md` and §4 of `22-first-party.md` failed it). The extension's name, its document's
-`metadata.name`, is a lowercase word, because it names its actions (`ext.<name>.<action>`). A
-document of kind `Recipe` with an `extension` block, or of kind `Extension` without one, does not
-load. Everything else in the document is read as any recipe's, by the same parser, so a driver
-preparing the extension's workload reads it unchanged.
+`edge_router`, `chat_adapter`, `key_management`, `address_router` (added 2026-10-26, §3.7 of
+`07-networking.md`), the name a lowercase word, and for `step` `<publisher>/<step>`, the step part
+one or more lowercase words joined by dots (`valve/steam.app`; corrected 2026-10-13, when the first
+step provider was built: the rule had left the step part undefined, the validation read it as one
+word, and every example in §4 of `09-recipes.md` and §4 of `22-first-party.md` failed it). The
+extension's name, its document's `metadata.name`, is a lowercase word, because it names its actions
+(`ext.<name>.<action>`). A document of kind `Recipe` with an `extension` block, or of kind
+`Extension` without one, does not load. Everything else in the document is read as any recipe's, by
+the same parser, so a driver preparing the extension's workload reads it unchanged.
 
 One format means one signing path and one trust policy: an extension is admitted by the trust
 policy that admits recipes (§7 of `09-recipes.md`), and nothing about extensions needs a second
@@ -406,8 +406,8 @@ Calling out is the direction that carries risk, so the contract is strict:
   unreachable fails closed, because failing open there is an authentication bypass. An address
   router that is unreachable fails closed for a move and leaves what it routes alone: an address
   is held by a new node only once the router says the network routes it there, so a workload
-  placed elsewhere waits, its `dedicated_ip` endpoints saying which router it waits on, and an
-  address already held stays where it is (§3.7 of `07-networking.md`; added 2026-10-26).
+  placed elsewhere waits, its status saying which router it waits on and why, and an address
+  already held stays where it is (§3.7 of `07-networking.md`; added 2026-10-26).
 - Providers are circuit-broken. A provider failing consistently is marked down, its dependents are
   marked `unsatisfiable` with the provider named, and it is retried on a backoff, instead of every
   reconciliation loop in the fleet queueing behind it.
@@ -495,6 +495,7 @@ to infer the cause from a graph.
 | `step` | the install step fails with its reason, and the plan stops at that step |
 | `health` | the health it judges is `unknown`, never `unhealthy` |
 | `console`, `chat_adapter` | the request that needed it fails as unavailable and may be retried |
+| `address_router` | fail closed for a move: no node holds an address the router has not said it routes there, and what it routes stays; the workload's status names the router and its reason, and the call is retried on a backoff (§3.7 of `07-networking.md`; added 2026-10-26) |
 
 A health provider that is down reports nothing about the workloads it probes, and treating that as
 `unhealthy` would let a failed prober get every workload it probes restarted; so it is `unknown`,
@@ -661,18 +662,18 @@ provider's stream, §3.3: registering, being pinged, being cancelled), and the c
 types: `provider.backup_target` (§5.6 of `06-storage.md`), `provider.dns` (§3.5 of
 `07-networking.md`), `provider.identity` (re-verification and assertion, §5.1 and §5.2 of
 `08-identity.md`, added in Phase 2), `provider.key_management` (§5.5 of `06-storage.md`), and
-`provider.step` (§4 of `09-recipes.md`), with `provider.health` (§5) joining on 2026-10-23. The
-`provider.<type>` of console, edge router, and chat adapter providers is added when that type's own
-calls join the contract; until then an extension requiring one is refused, because installing it
-would leave it waiting for calls nothing makes, the failure six weeks later this section forbids. A
-capability is offered once its calls are in the contract and the SDK, even while the control
-plane's own use of them is still being built (DNS records are published for endpoints, which Phase
-1 creates later), since the provider is then correct to wait. The check runs at install, a dry run
-included, so the installer reads the refusal before approving anything: an unknown contract
-version, or every required capability that is missing, at once, is refused as
-`extension.incompatible` naming what is missing and what is offered. A client reads both lists from
-`ServerInfo` (`extension_contracts` and `capabilities`), which is how an extension's SDK negotiates
-rather than compares version numbers.
+`provider.step` (§4 of `09-recipes.md`), with `provider.health` (§5) joining on 2026-10-23 and
+`provider.address_router` (§3.7 of `07-networking.md`) on 2026-10-26. The `provider.<type>` of
+console, edge router, and chat adapter providers is added when that type's own calls join the
+contract; until then an extension requiring one is refused, because installing it would leave it
+waiting for calls nothing makes, the failure six weeks later this section forbids. A capability is
+offered once its calls are in the contract and the SDK, even while the control plane's own use of
+them is still being built (DNS records are published for endpoints, which Phase 1 creates later),
+since the provider is then correct to wait. The check runs at install, a dry run included, so the
+installer reads the refusal before approving anything: an unknown contract version, or every
+required capability that is missing, at once, is refused as `extension.incompatible` naming what is
+missing and what is offered. A client reads both lists from `ServerInfo` (`extension_contracts` and
+`capabilities`), which is how an extension's SDK negotiates rather than compares version numbers.
 
 **Signing in, designed 2026-10-20** (§9.7 of `08-identity.md`). `provider.identity` grows, as the
 rules above allow, by addition alone. An identity provider that can sign people in says so when it

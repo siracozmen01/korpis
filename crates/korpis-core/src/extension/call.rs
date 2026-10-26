@@ -81,6 +81,9 @@ pub enum CallRequest {
     Authorize(super::identity::SignIn),
     /// `health`: a query probe's next round, or its verdict (§5 of docs/04-runtimes.md).
     HealthStep(super::health::HealthStep),
+    /// `address_router`: make the network route an address to a node, or to none (§3.7 of
+    /// docs/07-networking.md).
+    RouteAddress(crate::address::Route),
     /// `step`: resolve an install step (§4 of docs/09-recipes.md).
     RunStep {
         /// The step kind, `<publisher>/<step>`.
@@ -151,6 +154,8 @@ pub enum CallOutcome {
     Authorization(super::identity::Authorization),
     /// The answer to [`CallRequest::HealthStep`].
     HealthNext(super::health::HealthNext),
+    /// The answer to [`CallRequest::RouteAddress`]: the network routes it so.
+    AddressRouted,
     /// The provider, or the control plane on its behalf, failed the call.
     Failed(CallFailure),
 }
@@ -164,7 +169,8 @@ impl CallRequest {
         match (self, outcome) {
             (_, CallOutcome::Failed(_))
             | (Self::Ping { .. }, CallOutcome::Pong { .. })
-            | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. }) => true,
+            | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. })
+            | (Self::RouteAddress(_), CallOutcome::AddressRouted) => true,
             (Self::RunStep { .. }, CallOutcome::StepResult(r)) => r.problem().is_none(),
             (Self::HealthStep(step), CallOutcome::HealthNext(next)) => next.answers(step),
             (Self::GrantAccess { prefix, .. }, CallOutcome::Access(a)) => {
