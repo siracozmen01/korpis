@@ -80,6 +80,7 @@ pub(crate) fn host(chains: &[String]) -> Vec<Value> {
     ]);
     commands.extend(super::forward::base());
     commands.extend(super::egress::base());
+    commands.extend(super::inward::base("workload_forward"));
     commands.extend(super::account::base());
     commands.push(json!({"add": {"chain": {"family": "inet", "table": TABLE, "name": BASE}}}));
     commands
@@ -87,7 +88,7 @@ pub(crate) fn host(chains: &[String]) -> Vec<Value> {
 
 /// The marker of this version of the host table's base: raised whenever what [`host`] writes
 /// changes, so a node's table is written anew once and then left to count.
-const BASE: &str = "base_v3";
+const BASE: &str = "base_v4";
 
 /// The chains [`host`] writes, which a table of another version has deleted first.
 const BASE_CHAINS: [&str; 8] = [

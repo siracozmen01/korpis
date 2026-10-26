@@ -151,4 +151,7 @@ pub struct Observation {
     /// Its IPv4 address on its node, which the node gave it (§4.1 of docs/07-networking.md);
     /// none where it has no network.
     pub address: Option<std::net::Ipv4Addr>,
+    /// Its IPv6 address on its node, where the node gave it one, which a rule naming workloads
+    /// names of it (§6 of docs/07-networking.md).
+    pub address_ipv6: Option<std::net::Ipv6Addr>,
 }

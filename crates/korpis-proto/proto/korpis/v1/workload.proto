@@ -200,6 +200,9 @@ message Observation {
   // The workload's IPv4 address on its node, which the node gave it (§4.1 of
   // docs/07-networking.md); empty where it has no network.
   string address = 19;
+  // Its IPv6 address on its node, where the node gave it one; what a rule naming workloads
+  // names of it (§6 of docs/07-networking.md). Added 2026-10-26.
+  string address_ipv6 = 20;
 }
 
 message PowerSeen {

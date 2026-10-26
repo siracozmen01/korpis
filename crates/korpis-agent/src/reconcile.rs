@@ -341,7 +341,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         self.serve_resolvers(&held).await;
         self.publish_ingress(&held);
         self.serve_relays(&held);
-        self.refresh_dependencies(&held).await;
+        self.refresh_dependency_files(&held);
+        self.refresh_networks(&held).await;
         self.tail(&held).await;
         self.reap(&held).await;
         self.publish_runtimes();

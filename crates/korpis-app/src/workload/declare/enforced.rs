@@ -12,7 +12,7 @@ use crate::error::AppError;
 use korpis_core::workload::IntentBody;
 use korpis_core::workload::spec::egress::{DEFAULT_MAX_CONNECTIONS, DEFAULT_NEW_PER_SEC};
 use korpis_core::workload::spec::endpoints::{
-    ConntrackLimits, EndpointSpec, Exposure, NetworkRule, Peer,
+    ConntrackLimits, EndpointSpec, Exposure, NetworkAction, NetworkRule, Peer,
 };
 
 /// Refuses what no node of this release would enforce in `body`: its endpoints' and its own.
@@ -21,7 +21,16 @@ pub(super) fn refuse_unenforced(body: &IntentBody) -> Result<(), AppError> {
         endpoint(&format!("body.endpoints[{i}]"), e)?;
     }
     for (j, r) in body.egress.rules.iter().enumerate() {
-        peer(&format!("body.egress.rules[{j}]"), r)?;
+        let at = format!("body.egress.rules[{j}]");
+        peer(&at, r)?;
+        if matches!(r.peer, Peer::Workloads(_)) && r.action == NetworkAction::Allow {
+            return Err(AppError::invalid(
+                format!("{at}.action"),
+                "an egress allow returns a connection to the default, which denies every other \
+                 workload, so one naming workloads could open nothing: a dependency is what \
+                 opens one workload to another (§5 and §6 of docs/07-networking.md)",
+            ));
+        }
     }
     limits(body.egress.limits)
 }
@@ -76,18 +85,15 @@ fn endpoint(at: &str, e: &EndpointSpec) -> Result<(), AppError> {
 
 fn peer(at: &str, r: &NetworkRule) -> Result<(), AppError> {
     match &r.peer {
-        Peer::Cidr(_) => Ok(()),
+        // Resolved by the control plane to the addresses of the workloads a selector matches
+        // (§6 of docs/07-networking.md); an egress allow naming them is refused above.
+        Peer::Cidr(_) | Peer::Workloads(_) => Ok(()),
         Peer::Domain(_) => Err(AppError::invalid(
             format!("{at}.peer"),
             "a packet filter sees addresses, not names, and what a name resolves to changes \
              under it, so a rule naming a domain is not yet one a node can hold (question 8 of \
              §11 of docs/07-networking.md)",
         )),
-        // On one node another workload is denied by the default and opened by a dependency, so
-        // a rule naming workloads by label decides nothing those do not; it is needed where
-        // workloads on other nodes are reached, which the overlay brings (§6 of
-        // docs/07-networking.md).
-        Peer::Workloads(_) => Err(AppError::NotYet { what: "rules naming workloads", phase: 3 }),
     }
 }
 

@@ -99,7 +99,9 @@ async fn two_nodes_on_one_machine_each_run_one_of_two_workloads_that_must_stay_a
         why.filtered.iter().filter(|f| f.check == "affinity").map(|f| f.node.as_str()).collect();
     assert_eq!(refused, ids.iter().map(String::as_str).collect(), "each node holds one: {why:?}");
     declared.push(third);
-    for w in &declared {
+    // The unplaced one first: retiring either placed one frees a node it would be placed on
+    // between its deletion's proposal and its approval, which then refuses.
+    for w in declared.iter().rev() {
         cp.retire(w).await;
     }
 }

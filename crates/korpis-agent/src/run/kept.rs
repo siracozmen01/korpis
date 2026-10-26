@@ -42,7 +42,7 @@ impl Kept {
                     addresses: Addresses::open(&root.join("addresses"))
                         .map_err(io("the workloads' addresses"))?,
                     resolvers: std::collections::BTreeMap::new(),
-                    dependencies_opened: std::collections::BTreeMap::new(),
+                    asked: std::collections::BTreeMap::new(),
                 }),
                 None => None,
             },

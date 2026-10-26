@@ -59,6 +59,9 @@ pub(crate) struct ObservationDoc {
     /// Absent from observations recorded before addresses were.
     #[serde(default)]
     address: Option<std::net::Ipv4Addr>,
+    /// Absent from observations recorded before IPv6 addresses were.
+    #[serde(default)]
+    address_ipv6: Option<std::net::Ipv6Addr>,
 }
 
 pub(crate) fn state_str(s: ObservedState) -> &'static str {
@@ -151,6 +154,7 @@ impl ObservationDoc {
                 .collect(),
             since: o.since.map(from_time),
             address: o.address,
+            address_ipv6: o.address_ipv6,
         }
     }
 
@@ -210,6 +214,7 @@ impl ObservationDoc {
                 .collect(),
             since: self.since.map(to_time),
             address: self.address,
+            address_ipv6: self.address_ipv6,
         })
     }
 }

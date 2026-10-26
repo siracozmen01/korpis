@@ -113,3 +113,24 @@ pub fn status_to_pb(d: &DependencyStatus) -> pb::DependencyStatus {
         ..Default::default()
     }
 }
+
+/// The wire form of a rule naming workloads as its workload's status shows it (§6 of
+/// docs/07-networking.md): what it matched, and what it names at no address, with why.
+#[must_use]
+pub fn named_rule_to_pb(r: &korpis_core::workload::peers::Resolved) -> pb::NamedRuleStatus {
+    pb::NamedRuleStatus {
+        endpoint: r.place.endpoint.clone().unwrap_or_default(),
+        rule: r.place.index,
+        matched: r.matched.iter().map(|w| wire_id(IdKind::Workload, *w)).collect(),
+        left_out: r
+            .left_out
+            .iter()
+            .map(|(w, why)| pb::DependencyLeftOut {
+                workload: wire_id(IdKind::Workload, *w),
+                reason: why.reason().to_owned(),
+                ..Default::default()
+            })
+            .collect(),
+        ..Default::default()
+    }
+}

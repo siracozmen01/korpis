@@ -1443,6 +1443,10 @@ the same mechanism", and that is the price of having made core and extensions th
 | 177 | Transactions waiting for the placement lock held every connection its holder needed to read | §75 | `18-operations.md` §5 |
 | 178 | A node's reported pools were routed to it by every other node, and every node was told of every other | §74 | `07-networking.md` §9.1, `17-security.md` §9.1 |
 | 179 | A node outside the mesh was told which node its pool overlapped, whatever that node's organization | §74 | `07-networking.md` §9.1 |
+| 180 | A workload's declared port was reached from outside its node whatever its exposure | §76 | `07-networking.md` §4, `17-security.md` §9.1 |
+| 181 | A spent egress budget reached a running workload's network only when it was next created | §76 | `05-scheduling.md` §5.1 |
+| 182 | Rules naming workloads were deferred for a reason their own definitions contradict | §76 | `07-networking.md` §6 |
+| 183 | A rule on every address of a family was accepted at declaration and refused by every node | §76 | `07-networking.md` §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6444,3 +6448,87 @@ answer to the sizing question is the same section's: connections are sized by wo
 by nodes, since no node holds one. What it costs: half the connections idle while the work is all
 of one kind. Tested in `korpis-store` with more transactions waiting for the placement lock than
 the store has connections, the holder reading as placement does: all finish at once.
+
+## 76. A shop keeps its database to its own web servers
+
+Written 2026-10-26, as rules naming workloads were designed (§6 of `07-networking.md`), and chosen
+by that task rather than by coverage, like trace 75; it is the first to cross §4 of
+`07-networking.md` from outside a node. A shop runs `db`, whose endpoint `pg` is `overlay_only`, on
+node A, which has a routed IPv6 prefix; `web-1` on A and `web-2` on B, a node paired with A in the
+mesh, both labelled `role=web` and both depending on `db`; and a nightly `report`, labelled
+`role=batch`, which depends on `db` too and which the shop wants kept off it. The trace asks the
+algebra question of every step.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `db` is placed on A; its address there is from A's IPv4 pool and A's routed IPv6 prefix | `07-networking.md` §4, §4.1 |
+| 2 | Someone on the internet connects to `db`'s IPv6 address, on `pg`'s port | `07-networking.md` §3, §4 |
+| 3 | The shop gives `pg` three rules: allow workloads `role=web`, deny `0.0.0.0/0`, deny `::/0` | `07-networking.md` §6 |
+| 4 | The control plane resolves the first rule to `web-1`'s addresses on A and `web-2`'s in B's pools | `07-networking.md` §6, §9.1 |
+| 5 | `web-2` connects through the mesh: A admits it as `db`'s dependent, and `pg`'s first rule lets it in | `07-networking.md` §6, §9.1 |
+| 6 | `report` starts on A; its dependency lets it out of its own chain, and `pg`'s rules drop it | `07-networking.md` §5, §6 |
+| 7 | `web-3` is added on B; A's running `db` is told the rule's new addresses | `07-networking.md` §6; `05-scheduling.md` §5.1 |
+| 8 | `web-1` retires, and before A is told, A gives its address to another tenant's workload | `07-networking.md` §4.1, §6 |
+| 9 | The control plane is down for an hour; `db` keeps its rules as last resolved | `02-architecture.md` §4.6; `07-networking.md` §6 |
+
+Step 2 asks what stops the connection, since `overlay_only` is "reachable by other workloads
+only" (§3 of `07-networking.md`): nothing did. The firewall in `db`'s namespace accepted `pg`'s
+port from anyone, and nothing on the host asked where a connection came from (Finding 180). Step
+3 asks what a rule naming workloads would decide that the dependency does not, since §6 had said
+"nothing", and found `report` (step 6): its dependency opens its way out, and only `pg`'s rules
+can keep it from `db` (Finding 182). Step 4 asks which addresses name `web-2` on A: those in B's
+routed pools, which the mesh keeps disjoint from A's, and none of a node A is not paired with,
+whose private pool may be A's own. Step 7 asks how a new address reaches a network that is
+already made, and found that a running workload's network was made again only when its own
+dependencies' destinations changed; `db` has none, and a spent egress budget rode the same path
+(Finding 181). Step 8 asks what the stale allow lets in: the other tenant's workload is held by
+its own chain, which opens nothing it does not depend on, and it can depend on nothing of the
+shop's; so nothing. Step 9 holds because the rules are on A's disk with the assignment.
+
+**Finding 180.** §4 of `07-networking.md` said inbound was closed except where declared, and §3
+that an `overlay_only` endpoint is reachable by other workloads only. A workload's firewall
+accepted every declared port from wherever a packet came, and the host forwarded to a workload's
+link from any interface, so on a node with a routed IPv6 prefix an `overlay_only` endpoint was
+reachable from the internet, and an `ingress` endpoint directly, past the proxy's TLS, client
+certificates, and limits; from a network routing a node's IPv4 pool to it, over IPv4 too.
+Resolved in §4 there: a new connection to a workload's link from neither a workload's link nor
+the mesh is let in only where the node translated it from a port of its own, or to a port of an
+endpoint exposed `node_port`, `node_bound`, or `dedicated_ip`, and the rest is dropped and counted
+under `exposure`; `17-security.md` §9.1 says so. What it costs: an `ingress` or `stable` endpoint
+is no longer reached at the workload's own IPv6 address, which nothing promised. Tested in
+`korpis-helper` with the node and the network outside it each a namespace of the test's own.
+
+**Finding 181.** §5.1 of `05-scheduling.md` said a workload whose budget is spent is held to its
+floor or cut off from its next assignment. The agent handed the hold to the helper only when it
+made the workload's network, at the container's creation and when its dependencies' destinations
+changed, so a running workload went on at its limit until it was next created, and one let go
+went on held; the API test saw the assignment say it, and no test saw a node do it. Resolved in
+§5.1 there: the agent makes a running workload's network again whenever what it would ask the
+helper differs from what it last asked, and once after it starts. What it costs: the counts of a
+workload's own rows start again whenever its network is made again; what is metered does not.
+Tested in `korpis-agent` against a real control plane: a running workload is held when its row
+is written and let go when it is removed, and is not created again; without the change it is
+never held.
+
+**Finding 182.** §6 of `07-networking.md` deferred rules naming workloads to Phase 3 because on
+one node they would decide nothing a dependency and the default do not, and the overlay would make
+them necessary. Step 6 is a rule deciding what neither does, on one node; and the mesh admits only
+dependents, as one node's default does, so the overlay made nothing newly necessary. The deferral
+stood on a claim its own definitions contradict: §5 says a target's endpoint rules still hold
+over its dependents. Resolved in §6 there, where they are designed: an endpoint's rule may name
+workloads, to allow or deny, an egress rule only to deny, each resolved by the control plane to
+addresses the rule's node routes to the matched workload. What it costs: the addresses ride in
+the assignments, and a project's changes wake the nodes of its workloads with such rules.
+
+**Finding 183.** Found by the end-to-end test of steps 3 and 6, not by a step's question. Step 3's
+`deny 0.0.0.0/0` was accepted at declaration, and every node refused it: the helper read a rule's
+range with the parser of a pool, which refuses a prefix of length zero, so `db`'s network failed
+and it never ran. The trace asked what each rule decides and not whether the node could read it,
+which is the question a declaration that a node then refuses should have raised. Resolved in §6
+of `07-networking.md`: a rule's range is read as a range, which may be every address of its
+family. What it costs: nothing.
+
+Steps 2 to 8 are built (P3.5a to P3.5c in §4 of `20-roadmap.md`), and tested where step 3 and
+step 6 meet: on one node, `web` reaches `db` and `report`, let out by its dependency, does not.

@@ -16,6 +16,7 @@ use korpis_core::workload::dependency::{
     TargetStatus, resolve,
 };
 use korpis_core::workload::observation::{Observation, ObservedState};
+use korpis_core::workload::peers::RuleAddresses;
 use korpis_core::workload::spec::dependencies::DependencyTarget;
 use std::collections::BTreeSet;
 use uuid::Uuid;
@@ -26,6 +27,8 @@ use uuid::Uuid;
 pub(crate) struct Members {
     nodes: BTreeSet<Uuid>,
     pairs: Pairs,
+    /// Each member's routed pools, which no other member's overlap.
+    pub(crate) pools: std::collections::BTreeMap<Uuid, Vec<ipnet::IpNet>>,
 }
 
 impl Members {
@@ -37,6 +40,16 @@ impl Members {
     fn contains(&self, node: &Uuid) -> bool {
         self.nodes.contains(node)
     }
+}
+
+/// What a node is told of a workload that other workloads of its project decide.
+pub(crate) struct Across {
+    /// Its dependencies, resolved.
+    pub(crate) dependencies: Vec<ResolvedDependency>,
+    /// Its dependents on other nodes, which its node admits.
+    pub(crate) dependents: Vec<OverlayDependent>,
+    /// The addresses each of its rules naming workloads names.
+    pub(crate) peers: Vec<RuleAddresses>,
 }
 
 /// One dependency in a project: `dependent` reaches `target`.
@@ -56,7 +69,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The members of the mesh now, and the pairs that reach each other.
     pub(crate) async fn members(&self) -> Result<Members, AppError> {
         let judged = self.judged().await?;
-        Ok(Members { nodes: judged.member_nodes(), pairs: judged.pairs() })
+        let pools = judged.member_pools();
+        Ok(Members { nodes: judged.member_nodes(), pairs: judged.pairs(), pools })
     }
 
     /// Where `workload` runs on another node than `node`, both in the mesh, with what that
@@ -98,17 +112,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// `w`'s dependencies as `node` is told them, each target elsewhere in the mesh located, and
-    /// its dependents on other nodes, which `node` admits.
+    /// What `node` is told of `w` that other workloads of its project decide: its dependencies,
+    /// each target elsewhere in the mesh located; its dependents on other nodes, which `node`
+    /// admits; and the addresses each of its rules naming workloads names on `node`.
     pub(crate) async fn across(
         &self,
         (node, members): (Uuid, &Members),
         w: &Workload,
         body: &korpis_core::workload::spec::IntentBody,
-    ) -> Result<(Vec<ResolvedDependency>, Vec<OverlayDependent>), AppError> {
+    ) -> Result<Across, AppError> {
         let mut dependencies = self.resolve_dependencies((w.project, w.id), body).await?;
         self.locate(node, &mut dependencies, members).await?;
-        Ok((dependencies, self.dependents(node, w, members).await?))
+        let dependents = self.dependents(node, w, members).await?;
+        let peers = self.rule_peers((node, members), w, body).await?;
+        let peers = peers.iter().map(RuleAddresses::from).collect();
+        Ok(Across { dependencies, dependents, peers })
     }
 
     /// `w`'s dependencies as its status shows them: each target and how `w` reaches it, and
@@ -267,6 +285,7 @@ mod tests {
             volumes: Vec::new(),
             since: None,
             address: Some([10, 48, 0, 2].into()),
+            address_ipv6: None,
         };
         assert!(!ready(&seen, &target), "no endpoint seen");
         seen.endpoints.push(EndpointSeen {

@@ -13,6 +13,7 @@ mod asked;
 mod bandwidth;
 mod egress;
 mod forward;
+mod inward;
 mod netns;
 pub(crate) mod nft;
 mod policy;
@@ -22,7 +23,7 @@ mod shape;
 mod tap;
 
 use crate::error::{HelperError, HelperResult, identifier};
-use asked::{Asked, Prefix, asked, port, prefix};
+use asked::{Asked, Prefix, asked, port, range};
 use korpis_proto::korpis::helper::v1 as helper;
 use rtnl::Rtnl;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -165,6 +166,7 @@ impl Network {
         host.extend(forward::hold(&link, (a.ipv4, ipv6), &a.forwards, &listed.ports));
         let own = egress::Own { opened: &a.opened, rules: &a.rules, limits: a.limits };
         host.extend(egress::hold(&link, &own, listed.outward.contains(&link)));
+        host.extend(inward::hold(&link, &a.inbound, listed.inward.contains(&link)));
         let class = bandwidth::class(&link, &a.shaping, &listed.account)?;
         let own = account::Own { ports: &a.inbound, class, cut_off: a.shaping.cut_off };
         host.extend(account::held(&link, &own, &listed.account));
@@ -241,6 +243,8 @@ impl Network {
         let mut unforwarded = forward::release(&link, &listed);
         let chained = listed.chains.contains(&egress::chain_of(&link));
         unforwarded.extend(egress::release(&link, (listed.outward.contains(&link), chained)));
+        let chained = listed.chains.contains(&inward::chain_of(&link));
+        unforwarded.extend(inward::release(&link, (listed.inward.contains(&link), chained)));
         bandwidth::unclass(&link, &listed.account)?;
         unforwarded.extend(account::release(&link, &listed.account));
         if !unforwarded.is_empty() {

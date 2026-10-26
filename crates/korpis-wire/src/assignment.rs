@@ -50,6 +50,15 @@ fn dependent_to_pb(d: &OverlayDependent) -> agent::OverlayDependent {
     }
 }
 
+fn peers_to_pb(r: &korpis_core::workload::peers::RuleAddresses) -> agent::RulePeers {
+    agent::RulePeers {
+        endpoint: r.place.endpoint.clone().unwrap_or_default(),
+        rule: r.place.index,
+        addresses: r.addresses.iter().map(ToString::to_string).collect(),
+        ..Default::default()
+    }
+}
+
 /// What a spent egress budget holds the workload to, as its node is told it.
 fn shaping_to_pb(held: Option<Exhaustion>) -> agent::Shaping {
     match held {
@@ -128,6 +137,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         devices: crate::node::holds_to_pb(&a.devices),
         cores: a.cores.clone(),
         dependents: a.dependents.iter().map(dependent_to_pb).collect(),
+        peers: a.peers.iter().map(peers_to_pb).collect(),
         ..Default::default()
     }
 }

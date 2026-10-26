@@ -474,6 +474,17 @@ peer's key.
 > it, so a tenant's node learns nothing of a sibling tenant's. What a node still learns, of each
 > node it is paired with, is its public key, the address it advertises, which its clients are
 > told anyway, and its pools.
+>
+> Corrected again 2026-10-26 (Finding 180 of `23-walkthroughs.md`, found designing rules that name
+> workloads). The destination enforced at the mesh and not at the node's other doors: a
+> connection from outside the node, which a routed IPv6 prefix makes the whole internet and a
+> network routing a node's IPv4 pool to it makes that network, reached every declared port of a
+> workload whatever its exposure. An `overlay_only` endpoint, which other workloads alone reach,
+> was reached by anyone who could route to it, and an `ingress` endpoint directly, past its
+> proxy's TLS, client certificates, and limits. The node now lets in from outside only what it
+> translated from a port of its own and the ports of endpoints exposed at the workload's own
+> address, `node_port`, `node_bound`, and `dedicated_ip`, and drops and counts the rest under
+> `exposure` (§4 of `07-networking.md`).
 
 **North-south egress is uncontained on a compromised node, and this is stated rather than
 implied.** Only the source, or a chokepoint the operator owns, can enforce it, and nothing at this

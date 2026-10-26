@@ -794,6 +794,23 @@ firewall in its network namespace; everything else inbound is dropped. A routabl
 an address, not an invitation, and the first version, which made every workload IPv6-reachable,
 never said so (finding S44).
 
+> Corrected 2026-10-26 (Finding 180 of `23-walkthroughs.md`). The firewall in the workload's
+> namespace accepted a declared port from whoever sent to it, and nothing on the host asked where
+> a connection came from, so "where declared" meant any declared port from anywhere a packet
+> could be routed: on a node with a routed IPv6 prefix, the internet. An `overlay_only` endpoint
+> was reached past its node by anyone, though §3 says other workloads alone reach it, and an
+> `ingress` endpoint directly, past the proxy's TLS, client certificates, and limits (§3.2). A
+> new connection forwarded to a workload's link from outside the node, from neither another
+> workload's link nor the mesh, is now let in only where the node translated it from a port of
+> its own, or to a port of an endpoint exposed at the workload's own address: `node_port`,
+> `node_bound`, and `dedicated_ip`. The rest is dropped and counted under the comment
+> `exposure`. The helper holds it in a chain of the workload's own in the host's table, reached
+> through a map keyed by its link, as its egress is (§6). What it does not do: the node's own
+> processes reach every declared port, which is how the ingress proxy reaches its workloads, and
+> what the mesh carries is judged by the mesh's own chains (§9.1). What it costs: an `ingress` or
+> `stable` endpoint is no longer reached at the workload's own IPv6 address, which nothing said
+> it was; one that should be is declared `node_port`.
+
 This inverts what every panel in this market does, and it is worth doing because IPv4 is the single
 largest per-workload cost a hosting operator carries. An operator who can serve IPv6-capable
 clients natively and reserve IPv4 for those who need it has a materially cheaper cost structure.
@@ -1298,6 +1315,94 @@ no limit of their own to declare (above), and a declaration that sets one is ref
 costs: an endpoint's limits are for the endpoint as a whole and not for each client, so they
 protect the workload from a flood and not one player from another, which is the workload's own to
 judge.
+
+> Corrected 2026-10-26 (Finding 182 of `23-walkthroughs.md`), when rules naming workloads were
+> designed. The paragraph above deferred them because on one node another workload is denied by
+> the default and opened by a dependency, so such a rule "would decide nothing those do not", and
+> because the overlay would make them necessary. Asked what such a rule decides, both halves
+> fail. A dependency opens the dependent's way out of its own chain, and what arrives at the
+> target's endpoint is still judged by the endpoint's rules (§5), so a rule naming workloads on
+> an endpoint decides which of the workloads that may reach it are let in, on one node as on
+> many. And the mesh admits from another node only the dependents of a node's workloads (§9.1),
+> as one node's default does, so the overlay made nothing newly necessary. What it changed is
+> where a workload's address is known: no longer on its own node alone.
+
+**Rules naming workloads, as designed.** Decided 2026-10-26, for Phase 3 (§4 of `20-roadmap.md`).
+An endpoint's rule may name workloads by a label selector, to allow or to deny. A workload's
+egress rule may name workloads only to deny: an allow returns a connection to the default, which
+denies every other workload, so it could open nothing, and is refused at declaration naming the
+dependency (§5), which is what opens one workload to another. An egress deny naming workloads
+decides what the default does today, goes on deciding it where an operator's default opens
+private ranges (question 7 of §11), and counts what it drops under `policy`; a deny naming a
+workload the declaring workload depends on does not hold against the dependency, which is opened
+before its rules (above), since the workload declared both. The selector matches workloads of
+the rule's own workload's project, as a dependency's does (§5), and a rule naming another
+project's is refused, since nothing yet reaches across projects (question 9 of §11).
+
+*What it names.* A packet filter judges addresses, so the control plane resolves each such rule,
+when it computes the assignment of the rule's workload, to the addresses of the workloads it
+matches, as their nodes observed them (§4.1). An address is named only where the rule's node
+would route a packet for it to the matched workload: a workload on the rule's own node, at its
+addresses there, and one on a node paired with the rule's in the mesh, at its addresses in that
+node's routed pools, which are disjoint from every other member's (§9.1). A matched workload
+anywhere else is left out of an allow, since its private address may be one the rule's node gave
+a workload of its own (two nodes on the old default both hold `10.47.0.0/16`), and naming it
+there would let in another workload, perhaps another tenant's. A deny names, besides, every
+global IPv6 address a matched workload is observed at, since a workload with one reaches an
+endpoint exposed at a global address from anywhere; naming it there drops more and never lets
+more in. So the node observes a workload's IPv6 address as it does its IPv4 one, which until now
+it did not.
+
+*How the node holds it.* The assignment carries each such rule's addresses, which may be none.
+The agent hands them to the helper as the rule's addresses, and the helper writes the rule over
+that set for each family that has any; a rule naming no address now is written as none, which
+matches nothing, which is what it means. A rule naming workloads that arrives without its
+addresses fails the workload's network, as any rule a node cannot hold does.
+
+*When it changes.* A workload of the project placed, retired, relabelled, or observed at a new
+address wakes the node of every workload of the project whose rules name workloads, which is
+told its rules' addresses again, and the agent makes a running workload's network again when what
+it would ask the helper changes (Finding 181 of `23-walkthroughs.md`). Until it is told, a rule
+holds the addresses it was given last: a workload newly matched is neither let in by an allow
+nor dropped by a deny, and an address a matched workload left is judged as its, even if its node
+gives it to another workload meanwhile. That workload is still held by its own node's default and
+by the mesh's admission, which open nothing to it but its own dependencies. While the control
+plane is unreachable the rules keep their last addresses, as dependencies keep theirs.
+
+*What it shows.* The workload's status carries, for each such rule, the workloads it matched and
+those it left out, with why, as a dependency's status does (§5).
+
+What it costs: each change to a project's workloads recomputes the assignments of those of its
+workloads whose rules name workloads, so a project of many such workloads that changes often
+costs passes in proportion, and the addresses ride in every such assignment. What it does not do:
+it judges a connection by its source address, so it matches a workload only where the connection
+arrives from that workload's own address, which is through a dependency, on one node or through
+the mesh, or over a global IPv6 address. A connection that reaches the endpoint through the
+ingress proxy arrives from the proxy, and one through another node's port arrives translated to
+that node's address; no rule naming workloads matches either.
+
+> Built 2026-10-26. The control plane resolves each rule when it computes the assignment
+> (`Assignment.peers`), from the nodes' observations, which carry a workload's IPv6 address
+> beside its IPv4 one (`Observation.address_ipv6`), and a change to any workload of a project
+> wakes the nodes of the others whose rules name workloads. The agent hands each rule its
+> addresses, and the helper holds a rule for each family it names and none where it names none.
+> The declaration accepts a rule naming workloads on an endpoint, to allow or deny, and on the
+> egress, to deny, and refuses an egress allow naming them, naming §5. The status carries what
+> each rule matched and left out (`WorkloadStatus.named_rules`), and `korpis status` prints it.
+> Tested in `korpis-core` (a workload's own node's addresses, a paired member's routed pools, a
+> node on the old default left out of an allow, and a deny's global address), over the API (a
+> database's rule resolved to a web application's address on the other node of the mesh, and its
+> status), in the agent and the helper (never left out; a rule for each family), and end to end
+> on one node: a web application the rule names reaches its database, and a report that depends
+> on it does not.
+>
+> Corrected 2026-10-26 (Finding 183 of `23-walkthroughs.md`, found by that end-to-end test). A
+> rule naming every address of a family, `0.0.0.0/0` or `::/0`, which is how an endpoint says
+> "and no one else" after its allows, was accepted at declaration and refused by every node: the
+> helper read a rule's range as it reads a pool, and a prefix of length zero is no pool. The
+> workload's network failed and it never ran, whatever the rest of its rules. The helper now
+> reads a rule's range as a range, which may be every address of its family; a pool still may
+> not be. Nothing else in the declaration and the node's reading of a rule differed.
 
 ---
 

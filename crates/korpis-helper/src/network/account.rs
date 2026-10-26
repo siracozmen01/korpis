@@ -302,6 +302,7 @@ mod tests {
             shaping: (0, ingress),
             accounted,
             class: 0x11,
+            outside: false,
         }
     }
 

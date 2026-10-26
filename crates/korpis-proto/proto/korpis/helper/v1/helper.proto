@@ -443,6 +443,11 @@ message Port {
   uint64 ingress_limit = 7;
   // Whether what it carries is counted, in and out, in the host's table.
   bool accounted = 8;
+  // Whether it is reached from outside the node at the workload's own address: an endpoint
+  // exposed `node_port`, `node_bound`, or `dedicated_ip`. A port that is not is reached from
+  // outside only through what the node translates or proxies, and otherwise only by other
+  // workloads (§4 of docs/07-networking.md). Added 2026-10-26.
+  bool outside = 9;
 }
 
 // A rule of a workload's own policy (§6 of docs/07-networking.md), naming an address range.
@@ -450,12 +455,17 @@ message Rule {
   // Allow: inbound, let in; outbound, on to the egress default, which decides the rest. Deny:
   // dropped, and counted.
   bool allow = 1;
-  // The peer's range, as address/length.
+  // The peer's range, as address/length; empty for a rule naming workloads, which names
+  // `addresses` instead.
   string cidr = 2;
   // The peer's ports; empty for any.
   repeated PortSpan ports = 3;
   // Unspecified for any.
   Transport transport = 4;
+  // The addresses of the workloads a rule naming workloads names on this node, which the
+  // control plane resolved (§6 of docs/07-networking.md); none matches nothing. Added
+  // 2026-10-26.
+  repeated string addresses = 5;
 }
 
 // An inclusive range of ports.

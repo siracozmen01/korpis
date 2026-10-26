@@ -22,10 +22,10 @@ use std::process::Command;
 use std::time::Duration;
 
 /// A network namespace of the test's own, standing in for a machine; removed when dropped.
-struct Netns(String);
+pub(crate) struct Netns(String);
 
 impl Netns {
-    fn new(name: String) -> Self {
+    pub(crate) fn new(name: String) -> Self {
         assert!(ip(&["netns", "add", &name]), "netns {name}");
         assert!(ip(&["-n", &name, "link", "set", "lo", "up"]));
         Self(name)
@@ -36,7 +36,7 @@ impl Netns {
     }
 
     /// `args` run inside it; whether they succeeded.
-    fn run(&self, args: &[&str]) -> bool {
+    pub(crate) fn run(&self, args: &[&str]) -> bool {
         let mut all = vec!["netns", "exec", &self.0];
         all.extend_from_slice(args);
         ip(&all)
@@ -78,7 +78,7 @@ fn machines() -> Option<(Netns, Netns)> {
 }
 
 /// A node named `name` whose data plane is in `ns`, at `address` there.
-async fn node_in(cp: &ControlPlane, name: &str, ns: &Netns, address: Ipv4Addr) -> Node {
+pub(crate) async fn node_in(cp: &ControlPlane, name: &str, ns: &Netns, address: Ipv4Addr) -> Node {
     let dir = tempfile::tempdir().unwrap();
     let volumes = dir.path().join("volumes");
     let inside = Some((ns.path(), address));
@@ -88,7 +88,7 @@ async fn node_in(cp: &ControlPlane, name: &str, ns: &Netns, address: Ipv4Addr) -
 
 /// What is answered asking for `/` over TCP at `to`, from `source` where one is named, from
 /// inside the network namespace at `net`; empty if nothing answers within two seconds.
-async fn fetched(net: &str, to: &str, source: Option<&str>) -> String {
+pub(crate) async fn fetched(net: &str, to: &str, source: Option<&str>) -> String {
     let (host, port) = to.split_once(':').unwrap();
     let bind = source.map(|s| format!(" s.bind(('{s}', 0))\n")).unwrap_or_default();
     let script = format!(
@@ -104,7 +104,7 @@ async fn fetched(net: &str, to: &str, source: Option<&str>) -> String {
 
 /// What is answered at `to` from inside `net`, asking each second for up to a minute until the
 /// server's page is.
-async fn served(net: &str, to: &str) -> String {
+pub(crate) async fn served(net: &str, to: &str) -> String {
     let mut answered = String::new();
     for _ in 0..60 {
         answered = fetched(net, to, None).await;
@@ -117,7 +117,7 @@ async fn served(net: &str, to: &str) -> String {
 }
 
 /// The `--net` argument entering `w`'s own network namespace on `node`.
-fn net_of(node: &Node, w: &str) -> String {
+pub(crate) fn net_of(node: &Node, w: &str) -> String {
     format!("--net={}", node.netns.join(w).join("net").display())
 }
 

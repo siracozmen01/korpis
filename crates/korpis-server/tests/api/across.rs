@@ -20,7 +20,7 @@ use korpis_proto::korpis::v1::__buffa::oneof::dependency::Target;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// `workload` observed running at `address`, its `game` endpoint ready, down `s`.
-async fn running_at(s: &mut Stream, workload: &str, address: &str) {
+pub(crate) async fn running_at(s: &mut Stream, workload: &str, address: &str) {
     let since = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let o = pb::Observation {
         workload: workload.to_owned(),
@@ -45,7 +45,7 @@ async fn running_at(s: &mut Stream, workload: &str, address: &str) {
 }
 
 /// `workload`'s assignment once `done` holds of it.
-async fn assigned_once(
+pub(crate) async fn assigned_once(
     h: &Harness,
     workload: &str,
     done: impl Fn(&agent::Assignment) -> bool,

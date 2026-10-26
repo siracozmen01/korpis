@@ -3,11 +3,14 @@
 //! A workload's own policy (§6 of docs/07-networking.md), as the helper holds it: the rules of
 //! its intent's egress policy, applied in its chain on the host before the egress default, and
 //! each endpoint's rules and limits on who connects to it, applied in its own namespace. Every
-//! rule names an address range, because a packet filter judges addresses; the control plane
-//! refuses the rules a node could not hold before any reaches here.
+//! rule names addresses, because a packet filter judges addresses: a range, or, for a rule
+//! naming workloads, the addresses the control plane resolved it to on this node, which are held
+//! as a rule for each family that has any, and as none where there are none, since such a rule
+//! matches nothing. The control plane refuses the rules a node could not hold before any reaches
+//! here.
 
 use super::forward::Transport;
-use super::{Prefix, port, prefix};
+use super::{Prefix, port, range};
 use crate::error::{HelperError, HelperResult};
 use korpis_core::workload::spec::egress::{
     DEFAULT_BURST, DEFAULT_MAX_CONNECTIONS, DEFAULT_NEW_PER_SEC,
@@ -21,9 +24,34 @@ use std::net::IpAddr;
 pub(crate) struct Rule {
     /// Whether it lets the connection on.
     pub(crate) allow: bool,
-    peer: Prefix,
+    peer: Peer,
     ports: Vec<(u16, u16)>,
     transport: Option<Transport>,
+}
+
+/// Whom a rule names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Peer {
+    /// An address range.
+    Range(Prefix),
+    /// Addresses of one family, at least one.
+    Addresses(Vec<IpAddr>),
+}
+
+/// The peers `r` names: its range, or its addresses, one peer for each family that has any.
+fn peers(r: &helper::Rule) -> HelperResult<Vec<Peer>> {
+    match (r.cidr.is_empty(), r.addresses.is_empty()) {
+        (false, false) => return Err(refuse("a rule names a range or addresses, not both")),
+        (false, true) => return Ok(vec![Peer::Range(range("a rule's peer", &r.cidr)?)]),
+        _ => {}
+    }
+    let addresses = r
+        .addresses
+        .iter()
+        .map(|a| a.parse::<IpAddr>().map_err(|_| refuse("a rule's address is an IP address")))
+        .collect::<HelperResult<Vec<_>>>()?;
+    let (v4, v6): (Vec<IpAddr>, Vec<IpAddr>) = addresses.into_iter().partition(IpAddr::is_ipv4);
+    Ok([v4, v6].into_iter().filter(|a| !a.is_empty()).map(Peer::Addresses).collect())
 }
 
 /// A port the workload accepts connections on, with who may connect and how many.
@@ -47,6 +75,8 @@ pub(crate) struct Inbound {
     /// Its class on the workload's link, where it has a limit of its own: by its place among
     /// the workload's ports, from the first a workload is given.
     pub(crate) class: u32,
+    /// Whether it is reached from outside the node at the workload's own address.
+    pub(crate) outside: bool,
 }
 
 /// The limits on the connections a workload opens, the default's where it sets none.
@@ -96,9 +126,11 @@ pub(crate) fn rules(rules: &[helper::Rule]) -> HelperResult<Vec<Rule>> {
                 })
                 .collect::<HelperResult<Vec<_>>>()?;
             let transport = optional_transport(r.transport)?;
-            Ok(Rule { allow: r.allow, peer: prefix("a rule's peer", &r.cidr)?, ports, transport })
+            let rule = |peer| Rule { allow: r.allow, peer, ports: ports.clone(), transport };
+            Ok(peers(r)?.into_iter().map(rule).collect::<Vec<_>>())
         })
-        .collect()
+        .collect::<HelperResult<Vec<Vec<Rule>>>>()
+        .map(|each| each.into_iter().flatten().collect())
 }
 
 /// The ports `ports` a workload accepts connections on, checked.
@@ -125,6 +157,7 @@ pub(crate) fn inbound(ports: &[helper::Port]) -> HelperResult<Vec<Inbound>> {
                 shaping: (p.egress_limit, p.ingress_limit),
                 accounted: p.accounted,
                 class,
+                outside: p.outside,
             })
         })
         .collect()
@@ -155,11 +188,16 @@ fn matched(left: Value, right: Value) -> Value {
 
 /// What `r` matches, with the peer's address in the field `field`, `saddr` or `daddr`.
 pub(crate) fn matches(r: &Rule, field: &str) -> Vec<Value> {
-    let family = match r.peer.addr {
-        IpAddr::V4(_) => "ip",
-        IpAddr::V6(_) => "ip6",
+    let (v4, peer) = match &r.peer {
+        Peer::Range(p) => {
+            (p.addr.is_ipv4(), json!({"prefix": {"addr": p.addr.to_string(), "len": p.len}}))
+        }
+        Peer::Addresses(a) => {
+            let each: Vec<String> = a.iter().map(ToString::to_string).collect();
+            (a.first().is_some_and(IpAddr::is_ipv4), json!({ "set": each }))
+        }
     };
-    let peer = json!({"prefix": {"addr": r.peer.addr.to_string(), "len": r.peer.len}});
+    let family = if v4 { "ip" } else { "ip6" };
     let mut m = vec![matched(json!({"payload": {"protocol": family, "field": field}}), peer)];
     if let Some(t) = r.transport {
         m.push(matched(json!({"meta": {"key": "l4proto"}}), json!(t.name())));
@@ -194,4 +232,37 @@ pub(crate) fn limited(max: u32, (rate, burst): (u32, u32)) -> Vec<(Vec<Value>, &
         rules.push((e, "limit"));
     }
     rules
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
+
+    use super::*;
+
+    fn named(addresses: &[&str]) -> helper::Rule {
+        helper::Rule {
+            allow: true,
+            addresses: addresses.iter().map(|a| (*a).to_owned()).collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_rule_naming_workloads_is_a_rule_for_each_family_it_names_and_none_for_none() {
+        let both = rules(&[named(&["10.48.4.2", "fd00::2", "10.48.0.2"])]).unwrap();
+        assert_eq!(both.len(), 2);
+        let v4 = Value::Array(matches(&both[0], "saddr")).to_string();
+        assert!(v4.contains(r#""ip""#) && v4.contains("10.48.4.2") && v4.contains("10.48.0.2"));
+        let v6 = Value::Array(matches(&both[1], "saddr")).to_string();
+        assert!(v6.contains(r#""ip6""#) && v6.contains("fd00::2") && !v6.contains("10.48"));
+        assert!(rules(&[named(&[])]).unwrap().is_empty(), "naming none, it matches nothing");
+        let mut mixed = named(&["10.48.4.2"]);
+        mixed.cidr = "10.0.0.0/8".into();
+        assert!(rules(&[mixed]).is_err(), "a range or addresses, not both");
+        assert!(rules(&[named(&["not an address"])]).is_err());
+        let every = helper::Rule { cidr: "0.0.0.0/0".into(), ..Default::default() };
+        let every = Value::Array(matches(&rules(&[every]).unwrap()[0], "saddr")).to_string();
+        assert!(every.contains(r#""len":0"#), "every address of a family, as a rule may name");
+    }
 }

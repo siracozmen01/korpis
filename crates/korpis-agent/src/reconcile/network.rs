@@ -29,7 +29,10 @@ pub(crate) fn transport(p: &pb::Endpoint) -> helper::Transport {
 /// and whether it is counted (§7 there). An endpoint of exposure
 /// `none` is not reachable, so its port stays closed. Only `node_port` and `node_bound` hold a
 /// port of the node; an `ingress` endpoint's address is the proxy's, on 443, and the proxy
-/// reaches the workload at its own address.
+/// reaches the workload at its own address. A port is reached from outside the node at the
+/// workload's own address only where its exposure is `node_port`, `node_bound`, or
+/// `dedicated_ip`; any other, from outside, only through what the node translates or proxies
+/// (§4 there).
 fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>) {
     let reachable =
         endpoints.iter().filter(|e| e.exposure.as_known() != Some(pb::Exposure::EXPOSURE_NONE));
@@ -42,6 +45,14 @@ fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>
                 egress_limit: shaping.map_or(0, |s| s.egress_bits_per_sec),
                 ingress_limit: shaping.map_or(0, |s| s.ingress_bits_per_sec),
                 accounted: e.accounting,
+                outside: matches!(
+                    e.exposure.as_known(),
+                    Some(
+                        pb::Exposure::EXPOSURE_NODE_PORT
+                            | pb::Exposure::EXPOSURE_NODE_BOUND
+                            | pb::Exposure::EXPOSURE_DEDICATED_IP
+                    )
+                ),
                 ..Default::default()
             }
         })
@@ -88,15 +99,15 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(())
     }
 
-    /// Asks the helper to make `a`'s workload's network what `a` says now, allocating its
-    /// addresses if it has none, with a tap where its driver's workloads hold one: what was
-    /// asked, and what was made, or `None` where the node gives no networks.
-    pub(super) async fn ensure_network(
+    /// What the helper would be asked to make `a`'s workload's network now, allocating its
+    /// addresses if it has none, with a tap where its driver's workloads hold one; `None` where
+    /// the node gives no networks.
+    fn network_request(
         &mut self,
         a: &agent::Assignment,
-    ) -> Result<Option<(helper::EnsureNetworkRequest, helper::EnsureNetworkResponse)>, Failure>
-    {
+    ) -> Result<Option<helper::EnsureNetworkRequest>, Failure> {
         let dependencies = self.dependency_destinations(a);
+        let tap = self.wiring.driver_kinds.tap(super::volume::driver_of(a));
         let Some(net) = self.wiring.network.as_mut() else { return Ok(None) };
         let assigned = net
             .addresses
@@ -106,15 +117,61 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         (request.uid_base, request.uid_count) = (a.uid_base, a.uid_count);
         (request.inbound, request.forwards) = ports(&a.endpoints);
         let body = a.target.as_option().and_then(|t| t.body.as_option());
-        super::policy::apply(&mut request, body)?;
+        super::policy::apply(&mut request, body, &a.peers)?;
         super::policy::spent(&mut request, a.shaping.as_option());
-        request.opened.clone_from(&dependencies);
-        request.tap = self.wiring.driver_kinds.tap(super::volume::driver_of(a));
+        request.opened = dependencies;
+        request.tap = tap;
+        Ok(Some(request))
+    }
+
+    /// Asks the helper to make `a`'s workload's network what `a` says now: what was asked, and
+    /// what was made, or `None` where the node gives no networks.
+    pub(super) async fn ensure_network(
+        &mut self,
+        a: &agent::Assignment,
+    ) -> Result<Option<(helper::EnsureNetworkRequest, helper::EnsureNetworkResponse)>, Failure>
+    {
+        let Some(request) = self.network_request(a)? else { return Ok(None) };
         let made = self.host.ensure_network(&request).await?;
         if let Some(n) = self.wiring.network.as_mut() {
-            n.dependencies_opened.insert(a.workload.clone(), dependencies);
+            n.asked.insert(a.workload.clone(), request.clone());
         }
         Ok(Some((request, made)))
+    }
+
+    /// Makes every running workload's network again where what it would be asked differs from
+    /// what it was last asked: the destinations its dependencies open, its spent egress budget,
+    /// its policy; and once after the agent starts, which has asked nothing yet, so a node's
+    /// table written anew by an upgraded helper holds every running workload's chains again.
+    /// One that cannot be made now is tried again at the next pass.
+    pub(super) async fn refresh_networks(&mut self, held: &crate::held::HeldSet) {
+        let running: Vec<agent::Assignment> = held
+            .assignments
+            .values()
+            .filter(|a| self.tracked.get(&a.workload).is_some_and(|t| t.runtime.is_some()))
+            .cloned()
+            .collect();
+        for a in running {
+            let request = match self.network_request(&a) {
+                Ok(Some(request)) => request,
+                Ok(None) => return,
+                Err(e) => {
+                    tracing::warn!(workload = %a.workload, error = %e.0, "its network cannot be made as asked");
+                    continue;
+                }
+            };
+            let asked = self.wiring.network.as_ref().and_then(|n| n.asked.get(&a.workload));
+            if asked == Some(&request) {
+                continue;
+            }
+            if let Err(e) = self.host.ensure_network(&request).await {
+                tracing::warn!(workload = %a.workload, error = %e, "its network could not be made again yet");
+                continue;
+            }
+            if let Some(n) = self.wiring.network.as_mut() {
+                n.asked.insert(a.workload.clone(), request);
+            }
+        }
     }
 
     /// Serves `workload`'s resolver on the sockets the helper opens in its namespace, unless it
@@ -220,7 +277,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 continue;
             }
             if let Some(n) = self.wiring.network.as_mut() {
-                n.dependencies_opened.remove(&workload);
+                n.asked.remove(&workload);
             }
             let freed = self.wiring.network.as_mut().map(|n| n.addresses.release(&workload));
             if let Some(Err(e)) = freed {
@@ -274,6 +331,8 @@ mod tests {
             [Some(helper::Transport::TRANSPORT_UDP), Some(helper::Transport::TRANSPORT_TCP)],
             "an endpoint of exposure none stays closed"
         );
+        let outside: Vec<bool> = inbound.iter().map(|p| p.outside).collect();
+        assert_eq!(outside, [true, false], "an overlay_only port is reached by workloads alone");
         assert_eq!(forwards.len(), 1);
         assert_eq!((forwards[0].node_port, forwards[0].container_port), (30001, 25565));
         assert_eq!(forwards[0].transport.as_known(), Some(helper::Transport::TRANSPORT_UDP));
@@ -287,6 +346,7 @@ mod tests {
             endpoint(http, pb::Exposure::EXPOSURE_INGRESS, Some(443)),
         ]);
         assert_eq!(inbound.len(), 2, "its port is open to the proxy");
+        assert!(!inbound[1].outside, "and to no one outside the node past it");
         assert_eq!(forwards.iter().map(|f| f.node_port).collect::<Vec<_>>(), [30001]);
     }
 }

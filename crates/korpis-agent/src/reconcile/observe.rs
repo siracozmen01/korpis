@@ -119,6 +119,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         } else {
             Health::Unknown
         };
+        // The addresses the node gave it, where it gives networks.
+        let address = self.wiring.network.as_ref().and_then(|n| n.addresses.of(&a.workload));
         pb::Observation {
             endpoints,
             workload: a.workload.clone(),
@@ -138,15 +140,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             health: health_to_pb(health).into(),
             exit_code: t.status.as_ref().filter(|s| !running(s)).and_then(|s| s.exit_code),
             runtime_id: t.runtime.clone().unwrap_or_default(),
-            address: self.address_of(&a.workload),
+            address: address.as_ref().map(|h| h.ipv4.to_string()).unwrap_or_default(),
+            address_ipv6: address.and_then(|h| h.ipv6).map(|a| a.to_string()).unwrap_or_default(),
             ..Default::default()
         }
-    }
-
-    /// The IPv4 address the node gave `workload`, as text; empty where it has none.
-    fn address_of(&self, workload: &str) -> String {
-        let held = self.wiring.network.as_ref().and_then(|n| n.addresses.of(workload));
-        held.map(|h| h.ipv4.to_string()).unwrap_or_default()
     }
 
     /// Sends the observation of `a` if it changed since the last one sent.

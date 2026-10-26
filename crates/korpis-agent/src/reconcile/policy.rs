@@ -25,9 +25,18 @@ fn transport(p: buffa::EnumValue<pb::EndpointProtocol>) -> helper::Transport {
     }
 }
 
-fn rule(r: &pb::NetworkRule) -> Result<helper::Rule, Failure> {
-    let Some(Peer::Cidr(cidr)) = &r.peer else {
-        return Err(Failure("a network rule names a peer no node can judge by address".into()));
+/// The helper's rule for `r`, a rule naming workloads naming `named`, the addresses the control
+/// plane resolved it to.
+fn rule(r: &pb::NetworkRule, named: Option<&agent::RulePeers>) -> Result<helper::Rule, Failure> {
+    let (cidr, addresses) = match (&r.peer, named) {
+        (Some(Peer::Cidr(cidr)), _) => (cidr.clone(), Vec::new()),
+        (Some(Peer::Workloads(_)), Some(named)) => (String::new(), named.addresses.clone()),
+        (Some(Peer::Workloads(_)), None) => {
+            return Err(Failure("a rule naming workloads arrived without its addresses".into()));
+        }
+        _ => {
+            return Err(Failure("a network rule names a peer no node can judge by address".into()));
+        }
     };
     let allow = match r.action.as_known() {
         Some(pb::NetworkAction::NETWORK_ACTION_ALLOW) => true,
@@ -41,15 +50,25 @@ fn rule(r: &pb::NetworkRule) -> Result<helper::Rule, Failure> {
         .collect();
     Ok(helper::Rule {
         allow,
-        cidr: cidr.clone(),
+        cidr,
+        addresses,
         ports,
         transport: transport(r.protocol).into(),
         ..Default::default()
     })
 }
 
-fn rules(rules: &[pb::NetworkRule]) -> Result<Vec<helper::Rule>, Failure> {
-    rules.iter().map(rule).collect()
+/// The helper's rules for `rules`, the policy of `endpoint`, or the egress where none, each
+/// naming workloads with what `peers` resolved it to.
+fn rules(
+    rules: &[pb::NetworkRule],
+    (endpoint, peers): (&str, &[agent::RulePeers]),
+) -> Result<Vec<helper::Rule>, Failure> {
+    rules
+        .iter()
+        .zip(0_u32..)
+        .map(|(r, i)| rule(r, peers.iter().find(|p| p.endpoint == endpoint && p.rule == i)))
+        .collect()
 }
 
 /// What `body` may send and be sent, as the helper holds it (§7 of docs/07-networking.md): an
@@ -78,15 +97,17 @@ pub(super) fn spent(request: &mut helper::EnsureNetworkRequest, shaping: Option<
 }
 
 /// Sets on `request` the workload's own outbound rules and limits, and on each of its inbound
-/// ports the rules and limits of the endpoint listening there, from `body`.
+/// ports the rules and limits of the endpoint listening there, from `body`, each rule naming
+/// workloads naming what `peers` resolved it to (§6 of docs/07-networking.md).
 pub(super) fn apply(
     request: &mut helper::EnsureNetworkRequest,
     body: Option<&pb::IntentBody>,
+    peers: &[agent::RulePeers],
 ) -> Result<(), Failure> {
     let Some(body) = body else { return Ok(()) };
     request.bandwidth = bandwidth(body).into();
     if let Some(egress) = body.egress.as_option() {
-        request.egress = rules(&egress.rules)?;
+        request.egress = rules(&egress.rules, ("", peers))?;
         if let Some(l) = egress.limits.as_option() {
             (request.max_connections, request.new_per_sec) = (l.max_connections, l.new_per_sec);
         }
@@ -97,7 +118,7 @@ pub(super) fn apply(
             .filter(|e| transport(e.protocol) == port.transport.as_known().unwrap_or_default());
         for e in declared {
             let Some(policy) = e.policy.as_option() else { continue };
-            port.rules.extend(rules(&policy.ingress)?);
+            port.rules.extend(rules(&policy.ingress, (e.name.as_str(), peers))?);
             if let Some(c) = policy.conntrack.as_option() {
                 port.max_connections = nonzero_min(port.max_connections, c.max_connections);
                 port.new_per_sec = nonzero_min(port.new_per_sec, c.new_per_sec);
@@ -125,16 +146,37 @@ mod tests {
     }
 
     #[test]
-    fn a_rule_naming_a_peer_by_label_fails_rather_than_being_left_out() {
+    fn a_rule_no_node_can_hold_fails_rather_than_being_left_out() {
         let r = pb::NetworkRule {
             action: pb::NetworkAction::NETWORK_ACTION_DENY.into(),
             peer: Some(Peer::Domain("example.org".into())),
             ..Default::default()
         };
-        assert!(rule(&r).is_err());
+        assert!(rule(&r, None).is_err());
         let r = pb::NetworkRule { peer: Some(Peer::Cidr("10.1.0.0/16".into())), ..r };
-        let made = rule(&r).ok().map(|h| (h.allow, h.cidr));
+        let made = rule(&r, None).ok().map(|h| (h.allow, h.cidr));
         assert_eq!(made, Some((false, "10.1.0.0/16".to_owned())));
+    }
+
+    #[test]
+    fn a_rule_naming_workloads_names_what_the_control_plane_resolved_or_fails() {
+        let named = pb::NetworkRule {
+            action: pb::NetworkAction::NETWORK_ACTION_ALLOW.into(),
+            peer: Some(Peer::Workloads(Box::default())),
+            ..Default::default()
+        };
+        let egress = pb::EgressPolicy { rules: vec![named.clone()], ..Default::default() };
+        let body = pb::IntentBody { egress: egress.into(), ..Default::default() };
+        let mut request = helper::EnsureNetworkRequest::default();
+        assert!(apply(&mut request, Some(&body), &[]).is_err(), "never left out");
+        let peers = agent::RulePeers {
+            rule: 0,
+            addresses: vec!["10.48.4.2".into(), "fd00::2".into()],
+            ..Default::default()
+        };
+        apply(&mut request, Some(&body), &[peers]).unwrap();
+        assert_eq!(request.egress[0].addresses, ["10.48.4.2", "fd00::2"]);
+        assert!(request.egress[0].cidr.is_empty());
     }
 
     #[test]

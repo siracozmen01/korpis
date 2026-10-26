@@ -187,8 +187,9 @@ pub struct Networking {
     /// The resolver this agent serves for each workload, on sockets of its namespace (§5.1
     /// there); dropping one closes them.
     pub resolvers: std::collections::BTreeMap<String, tokio::task::JoinHandle<()>>,
-    /// What each workload's network opens for its dependencies, as last made (§5 there).
-    pub dependencies_opened: std::collections::BTreeMap<String, Vec<helper::Destination>>,
+    /// What the helper was last asked to make each workload's network, so a running one's is
+    /// made again when what it would be asked changes (§5, §6 there).
+    pub asked: std::collections::BTreeMap<String, helper::EnsureNetworkRequest>,
 }
 
 /// The host and port of the URL a node enrolled with, `server`: where it reaches the control

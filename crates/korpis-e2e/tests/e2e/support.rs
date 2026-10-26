@@ -194,6 +194,17 @@ impl ControlPlane {
         repo: &str,
         body: pb::IntentBody,
     ) -> String {
+        self.declare_labelled(project, (name, &[]), repo, body).await
+    }
+
+    /// As [`Self::declare_body`], the workload labelled `labels` when it is made.
+    pub async fn declare_labelled(
+        &self,
+        project: &str,
+        (name, labels): (&str, &[(&str, &str)]),
+        repo: &str,
+        body: pb::IntentBody,
+    ) -> String {
         let recipe = pb::RecipeRef {
             name: repo.to_owned(),
             version: crate::recipes::VERSION.into(),
@@ -204,6 +215,7 @@ impl ControlPlane {
             target: Some(Target::Create(Box::new(pb::NewWorkload {
                 project: project.to_owned(),
                 name: name.to_owned(),
+                labels: labels.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect(),
                 ..Default::default()
             }))),
             body: pb::IntentBody { recipe: recipe.into(), ..body }.into(),

@@ -31,6 +31,11 @@ pub(super) fn status(v: &WorkloadView) -> pb::WorkloadStatus {
             .iter()
             .map(korpis_wire::spec::dependencies::status_to_pb)
             .collect(),
+        named_rules: v
+            .named_rules
+            .iter()
+            .map(korpis_wire::spec::dependencies::named_rule_to_pb)
+            .collect(),
         workload: workload_to_pb(&v.workload, &v.power).into(),
         target: v.target.as_ref().map(|t| shown_intent_to_pb(t, &v.withheld.target)).into(),
         head: shown_intent_to_pb(&v.head, &v.withheld.head).into(),

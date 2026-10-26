@@ -29,6 +29,11 @@ impl Judged {
         self.mesh.members.iter().map(|m| m.node).collect()
     }
 
+    /// Each member's routed pools.
+    pub(crate) fn member_pools(&self) -> std::collections::BTreeMap<Uuid, Vec<ipnet::IpNet>> {
+        self.mesh.members.iter().map(|m| (m.node, m.pools.clone())).collect()
+    }
+
     /// The pairs of members that reach each other.
     pub(crate) fn pairs(&self) -> Pairs {
         Pairs::of(&self.mesh, &self.candidates, self.now)

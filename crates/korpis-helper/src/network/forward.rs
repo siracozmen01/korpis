@@ -164,6 +164,8 @@ pub(crate) struct Listed {
     pub(crate) chains: Vec<String>,
     /// The links its egress map names.
     pub(crate) outward: Vec<String>,
+    /// The links its map of what reaches a workload from outside names.
+    pub(crate) inward: Vec<String>,
     /// Its accounting: the chains' maps, the classes, and the counters.
     pub(crate) account: super::account::Listed,
 }
@@ -192,13 +194,16 @@ pub(crate) fn listed() -> io::Result<Listed> {
             Some((port, target.to_owned()))
         })
         .collect();
-    let outward = items
-        .iter()
-        .filter(|i| i.pointer("/map/name").and_then(Value::as_str) == Some(super::egress::OUTWARD))
-        .filter_map(|i| i.pointer("/map/elem").and_then(Value::as_array))
-        .flatten()
-        .filter_map(|e| e.get(0)?.as_str().map(str::to_owned))
-        .collect();
+    let links = |map: &str| -> Vec<String> {
+        items
+            .iter()
+            .filter(|i| i.pointer("/map/name").and_then(Value::as_str) == Some(map))
+            .filter_map(|i| i.pointer("/map/elem").and_then(Value::as_array))
+            .flatten()
+            .filter_map(|e| e.get(0)?.as_str().map(str::to_owned))
+            .collect()
+    };
+    let (outward, inward) = (links(super::egress::OUTWARD), links(super::inward::INWARD));
     let account = super::account::listed(&items);
-    Ok(Listed { ports, chains, outward, account })
+    Ok(Listed { ports, chains, outward, inward, account })
 }

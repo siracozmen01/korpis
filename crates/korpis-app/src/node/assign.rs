@@ -228,17 +228,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The nodes whose sets a change to `workload` may alter.
     pub async fn nodes_concerned(&self, workload: Uuid) -> Result<Vec<Uuid>, AppError> {
         let mut nodes = self.store.nodes_of(workload).await?;
-        // Across nodes, a workload's address and readiness reach its dependents' nodes, and
-        // its placement its targets' (§9.1 of docs/07-networking.md).
-        if let Some(w) = self.store.workload(workload).await?
-            && self.members().await?.len() > 1
-        {
-            for related in self.related(&w).await? {
-                nodes.extend(self.store.nodes_of(related).await?);
-            }
-            nodes.sort_unstable();
-            nodes.dedup();
+        let Some(w) = self.store.workload(workload).await? else { return Ok(nodes) };
+        // Its labels, placement, and addresses reach the rules naming workloads of the others
+        // of its project (§6 of docs/07-networking.md); across nodes, its address and readiness
+        // reach its dependents' nodes, and its placement its targets' (§9.1 there).
+        let mut others = self.naming_in_project(&w).await?;
+        if self.members().await?.len() > 1 {
+            others.extend(self.related(&w).await?);
         }
+        for other in others {
+            nodes.extend(self.store.nodes_of(other).await?);
+        }
+        nodes.sort_unstable();
+        nodes.dedup();
         Ok(nodes)
     }
 
@@ -296,7 +298,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let reaches_api = self.reaches_api(workload).await?;
         let month = korpis_core::tenancy::quota::month_of(self.clock.now()).0;
         let egress = self.store.workload_egress(workload, month).await?;
-        let (dependencies, dependents) = self.across((node, members), &w, &target.body).await?;
+        let across = self.across((node, members), &w, &target.body).await?;
         Ok(Some(Desired {
             assignment: Assignment {
                 workload,
@@ -319,14 +321,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 endpoints: Vec::new(),
                 reaches_api,
                 egress,
-                dependencies,
+                dependencies: across.dependencies,
                 challenges: Vec::new(),
                 alpn_challenges: Vec::new(),
                 runs: Vec::new(),
                 kept_runs: Vec::new(),
                 devices: Vec::new(),
                 cores: Vec::new(),
-                dependents,
+                dependents: across.dependents,
+                peers: across.peers,
             },
             plan,
             held,
@@ -386,6 +389,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 devices: Vec::new(),
                 cores: Vec::new(),
                 dependents: Vec::new(),
+                peers: Vec::new(),
             },
             plan: Some(plan),
             held: false,

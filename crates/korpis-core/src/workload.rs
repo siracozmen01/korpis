@@ -11,6 +11,7 @@ pub mod health;
 pub mod lease;
 pub mod network;
 pub mod observation;
+pub mod peers;
 pub mod plan;
 pub mod run;
 pub mod set;

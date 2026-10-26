@@ -62,6 +62,9 @@ pub struct WorkloadView {
     /// Its dependencies: what each reaches and how, and what each names and does not reach
     /// (§5 of docs/07-networking.md).
     pub dependencies: Vec<korpis_core::workload::dependency::DependencyStatus>,
+    /// Each of its rules naming workloads: what it matched, and what it names at no address on
+    /// its node, with why (§6 of docs/07-networking.md); none while it is not placed.
+    pub named_rules: Vec<korpis_core::workload::peers::Resolved>,
 }
 
 /// The keys whose values a view left out, by intent.
@@ -113,6 +116,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(names)
     }
 
+    /// `id`'s endpoints as placed, each with the addresses its node advertises.
+    async fn endpoints_advertised(
+        &self,
+        id: Uuid,
+    ) -> Result<Vec<(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)>, AppError>
+    {
+        let mut endpoints = Vec::new();
+        for e in self.store.endpoints(id).await? {
+            let node = self.store.node(e.node).await?;
+            let addresses = node.and_then(|n| n.advertised).map(|a| a.addresses);
+            endpoints.push((e, addresses.unwrap_or_default()));
+        }
+        Ok(endpoints)
+    }
+
     async fn unrendered(&self, workload: Workload) -> Result<(WorkloadView, Found), AppError> {
         let id = workload.id;
         let missing = |what: &str| AppError::Internal(format!("workload {id} has no {what}"));
@@ -136,12 +154,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }),
             None => None,
         };
-        let mut endpoints = Vec::new();
-        for e in self.store.endpoints(id).await? {
-            let node = self.store.node(e.node).await?;
-            let addresses = node.and_then(|n| n.advertised).map(|a| a.addresses);
-            endpoints.push((e, addresses.unwrap_or_default()));
-        }
+        let endpoints = self.endpoints_advertised(id).await?;
         let mut certificates = Vec::new();
         for (endpoint, c) in self.store.routed_certificates(id).await? {
             if let Some(found) = self.store.certificate(c).await? {
@@ -152,8 +165,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let newest = crate::page::Page { after: None, size: 1 };
         let newest_run = self.store.runs(id, newest).await?.into_iter().next();
         let dependencies = self.dependency_status(&workload, target.as_ref()).await?;
+        let named_rules = self.named_rule_status(&workload, target.as_ref()).await?;
         let view = WorkloadView {
             dependencies,
+            named_rules,
             newest_run,
             names,
             certificates,

@@ -651,6 +651,20 @@ message Assignment {
   // endpoint each depends on, and nothing else (§9.1 of docs/07-networking.md). Decided by the
   // control plane, which alone sees both nodes. Added 2026-10-25.
   repeated OverlayDependent dependents = 30;
+  // The addresses each of its rules naming workloads names on this node (§6 of
+  // docs/07-networking.md): resolved by the control plane, which alone sees where every
+  // workload of its project runs and at what address. Added 2026-10-26.
+  repeated RulePeers peers = 31;
+}
+
+// One rule naming workloads, resolved for the node it is sent to (§6 of docs/07-networking.md).
+message RulePeers {
+  // The endpoint whose rule it is; empty for the workload's egress.
+  string endpoint = 1;
+  // Its place among that policy's rules, from zero.
+  uint32 rule = 2;
+  // The addresses it names; none where it names none now, which matches nothing.
+  repeated string addresses = 3;
 }
 
 // One run a node is to execute: what it is, and what the node enforces of it. Also what a

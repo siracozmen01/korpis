@@ -78,8 +78,12 @@ fn what_no_node_of_this_release_enforces_is_refused_with_where_it_is_built() {
     let mut ported = rule(NetworkAction::Deny, cidr("5.6.7.0/24"));
     ported.ports = vec![PortRange { first: 1, last: 2 }];
     assert_eq!(refused(|e| e.policy.ingress = vec![ported]), "e.policy.ingress[0]");
-    let named = rule(NetworkAction::Deny, Peer::Workloads(LabelSelector::default()));
-    assert_eq!(refused(|e| e.policy.ingress = vec![named]), "rules naming workloads in phase 3");
+    for action in [NetworkAction::Allow, NetworkAction::Deny] {
+        let named = rule(action, Peer::Workloads(LabelSelector::default()));
+        let mut e = declared();
+        e.policy.ingress = vec![named];
+        assert!(super::endpoint("e", &e).is_ok(), "an endpoint's rule may name workloads");
+    }
     let domain = rule(NetworkAction::Deny, Peer::Domain("example.org".into()));
     assert_eq!(why(peer("r", &domain)), "r.peer");
 }
@@ -115,4 +119,14 @@ fn devices_are_declared_now_that_a_node_gives_them() {
         mode: korpis_core::node::device::DeviceMode::Passthrough,
     }];
     assert!(refuse_unenforced(&body).is_ok());
+}
+
+#[test]
+fn an_egress_rule_may_name_workloads_to_deny_and_never_to_allow() {
+    let named = |action| rule(action, Peer::Workloads(LabelSelector::default()));
+    let mut body = korpis_core::workload::spec::fixture();
+    body.egress.rules = vec![named(NetworkAction::Deny)];
+    assert!(refuse_unenforced(&body).is_ok());
+    body.egress.rules = vec![named(NetworkAction::Allow)];
+    assert_eq!(why(refuse_unenforced(&body)), "body.egress.rules[0].action");
 }

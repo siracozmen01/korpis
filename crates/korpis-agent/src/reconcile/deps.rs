@@ -226,10 +226,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Keeps every running workload's dependencies current: its files rewritten, and its network
-    /// made again where what its dependencies reach changed, so a workload that watches its file
-    /// reaches a new address at once. Its environment changes at its next start.
-    pub(super) async fn refresh_dependencies(&mut self, held: &crate::held::HeldSet) {
+    /// Keeps every running workload's dependency files current, so a workload that watches its
+    /// file reaches a new address at once; its network is made again to reach it by
+    /// `refresh_networks`. Its environment changes at its next start.
+    pub(super) fn refresh_dependency_files(&mut self, held: &crate::held::HeldSet) {
         let assignments: Vec<agent::Assignment> =
             held.assignments.values().filter(|a| !a.dependencies.is_empty()).cloned().collect();
         for a in assignments {
@@ -237,13 +237,6 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 continue;
             }
             self.refresh_files(&a);
-            let opened =
-                self.wiring.network.as_ref().and_then(|n| n.dependencies_opened.get(&a.workload));
-            if opened.is_some_and(|o| *o != self.dependency_destinations(&a))
-                && let Err(e) = self.ensure_network(&a).await
-            {
-                tracing::warn!(workload = %a.workload, error = %e.0, "its dependencies could not be opened");
-            }
         }
     }
 }

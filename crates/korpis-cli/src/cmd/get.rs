@@ -305,6 +305,18 @@ fn dependencies(out: &mut String, s: &pb::WorkloadStatus) {
     }
 }
 
+/// Each rule naming workloads: what it matched, and what it names at no address, with why (§6
+/// of docs/07-networking.md).
+fn named_rules(out: &mut String, s: &pb::WorkloadStatus) {
+    for r in &s.named_rules {
+        let at = if r.endpoint.is_empty() { "egress".to_owned() } else { r.endpoint.clone() };
+        let _ = writeln!(out, "names:     {at} rule {}: {}", r.rule, r.matched.join(", "));
+        for l in &r.left_out {
+            let _ = writeln!(out, "           {} left out: {}", l.workload, l.reason);
+        }
+    }
+}
+
 /// Answers `korpis status`: where the workload is, what it is doing, and what it waits for.
 pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> {
     let id = resolve::workload(c, workload).await?;
@@ -337,6 +349,7 @@ pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> 
     }
     endpoints(&mut out, &s);
     dependencies(&mut out, &s);
+    named_rules(&mut out, &s);
     unplaced(&mut out, &s);
     drift(c, &mut out, &s).await?;
     Ok(Answer { json: json(&s), human: out })

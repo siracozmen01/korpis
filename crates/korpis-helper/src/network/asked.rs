@@ -17,12 +17,22 @@ pub(super) struct Prefix {
 }
 
 pub(super) fn prefix(what: &str, text: &str) -> HelperResult<Prefix> {
+    parsed(what, text, 1)
+}
+
+/// As [`prefix`], a length of zero allowed: every address of its family, which a rule may name
+/// (§6 of docs/07-networking.md) and a pool may not be.
+pub(super) fn range(what: &str, text: &str) -> HelperResult<Prefix> {
+    parsed(what, text, 0)
+}
+
+fn parsed(what: &str, text: &str, shortest: u8) -> HelperResult<Prefix> {
     let bad = || HelperError::Refused(format!("{what} is not a prefix"));
     let (addr, len) = text.split_once('/').ok_or_else(bad)?;
     let addr: IpAddr = addr.parse().map_err(|_| bad())?;
     let len: u8 = len.parse().map_err(|_| bad())?;
     let max = if addr.is_ipv4() { 32 } else { 128 };
-    if len > max || len == 0 {
+    if len > max || len < shortest {
         return Err(bad());
     }
     Ok(Prefix { addr, len })

@@ -1135,6 +1135,19 @@ the world on the workload's behalf, and traffic between two workloads of a node 
 > record. What it costs: a row per entry and workload it selects in a month, forgotten when the
 > month ends, and a parent who narrows an entry's selector mid-month sees its budget keep counting
 > what it counted until the month turns.
+>
+> Corrected 2026-10-26 (Finding 181 of `23-walkthroughs.md`, found reading the agent while
+> designing rules that name workloads). The agent handed the hold to the helper only when it made
+> the workload's network, which it did when it created the workload's container and when what its
+> dependencies reach changed. A workload running when its budget was spent went on at its limit
+> until it was next created, and one let go went on held: the API test saw the assignment say it,
+> and no test saw the node do it. The agent now makes a running workload's network again whenever
+> what it would ask the helper differs from what it last asked, the hold among it, and once after
+> it starts, so a hold is in the kernel within one pass of its assignment; the agent's test holds a
+> running workload and lets it go without creating it again. What it costs: a running workload's
+> network made again on each change, which rewrites its chains and classes; its connections
+> survive, what is metered goes on into named counters a rewritten chain keeps counting into, and
+> the counts of its own rows, under `dependency` and `policy`, start again.
 
 ### 5.2 Reservation and limit are different numbers
 

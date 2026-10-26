@@ -15,6 +15,7 @@ mod declare;
 mod dependency;
 mod explain;
 mod hold;
+mod naming;
 
 pub(crate) use across::Members;
 pub(crate) use hold::reckon;

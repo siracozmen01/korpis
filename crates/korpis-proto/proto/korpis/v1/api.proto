@@ -633,6 +633,22 @@ message WorkloadStatus {
   // dependency names and does not reach, with why (§5 and §9.1 of docs/07-networking.md).
   // Nodes are not named: whoever reads the workload may not read them. Added 2026-10-25.
   repeated DependencyStatus dependencies = 15;
+  // Each of its rules naming workloads (§6 of docs/07-networking.md): the workloads it matched,
+  // and those it names at no address on its node, with why; nodes are not named. None while it
+  // is not placed, since what a rule names depends on its node. Added 2026-10-26.
+  repeated NamedRuleStatus named_rules = 16;
+}
+
+// One rule naming workloads as its workload's status shows it.
+message NamedRuleStatus {
+  // The endpoint whose rule it is; empty for the workload's egress.
+  string endpoint = 1;
+  // Its place among that policy's rules, from zero.
+  uint32 rule = 2;
+  // Each workload it matched.
+  repeated string matched = 3;
+  // Each it matched and names at no address, with why.
+  repeated DependencyLeftOut left_out = 4;
 }
 
 // One dependency as its dependent's status shows it.

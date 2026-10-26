@@ -19,6 +19,12 @@ impl InMemoryHost {
         self.with(|k| k.held_cores.clone()).unwrap_or_default()
     }
 
+    /// What the network of `workload` was last asked to be.
+    #[must_use]
+    pub fn network(&self, workload: &str) -> Option<helper::EnsureNetworkRequest> {
+        self.with(|k| k.networks.get(workload).cloned()).ok().flatten()
+    }
+
     /// The content fetched.
     #[must_use]
     pub fn content(&self) -> BTreeSet<String> {
