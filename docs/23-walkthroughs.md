@@ -1448,6 +1448,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 182 | Rules naming workloads were deferred for a reason their own definitions contradict | §76 | `07-networking.md` §6 |
 | 183 | A rule on every address of a family was accepted at declaration and refused by every node | §76 | `07-networking.md` §6 |
 | 184 | A rule named a matched workload's last observed address whatever the workload was doing | §76 | `07-networking.md` §6 |
+| 185 | Admission counted an address for each `dedicated_ip` endpoint of a workload that holds one | §77 | `07-networking.md` §3.7 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6541,3 +6542,54 @@ starting, running, or stopping. What it costs: nothing a running workload notice
 
 Steps 2 to 8 are built (P3.5a to P3.5c in §4 of `20-roadmap.md`), and tested where step 3 and
 step 6 meet: on one node, `web` reaches `db` and `report`, let out by its dependency, does not.
+
+## 77. A game host gives a customer's server an address of its own
+
+Written 2026-10-26, as dedicated addresses were designed (§3.7 of `07-networking.md`), and chosen
+by that task: no trace before it crossed `dedicated_ip`, and §4 of `07-networking.md` had described
+an address pool with no one to own it. A host whose provider routes `203.0.113.0/28` to node A
+sells a customer `arena`, a game server with a game endpoint and a query endpoint, both
+`dedicated_ip`; and another customer's `relay` holds an address of a `cluster` pool whose router
+moves it, and moves from node B to node C. The trace asks the algebra question of every step.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The host creates a `node` pool of `203.0.113.0/28` for A, its addresses routed to A | `07-networking.md` §3.7, §4 |
+| 2 | The customer declares `arena`; admission counts one `dedicated_ipv4` | `05-scheduling.md` §5.1; `07-networking.md` §3.7 |
+| 3 | Placement takes A, the one node a pool serving the customer reaches with a free address, and allocates `203.0.113.2` in its transaction | `05-scheduling.md` §2.1; `07-networking.md` §3.7 |
+| 4 | A's helper translates `203.0.113.2` into `arena`'s address, and what `arena` sends beyond A out of it | `07-networking.md` §3.7, §4.1 |
+| 5 | A player reaches `203.0.113.2` on the game port; a scan of port 22 there is dropped | `07-networking.md` §4 |
+| 6 | The customer asks to move `arena` to node D; it is refused, saying why | `05-scheduling.md` §8; `07-networking.md` §3.7, §10 |
+| 7 | `arena` is retired; the address rests a day, then is free | `07-networking.md` §3.7 |
+| 8 | `relay` moves from B to C: the router is told C after the lease's epoch changes, and C holds the address once the router says it routes it there | `07-networking.md` §3.7, §10; `16-extensions.md` §5 |
+| 9 | The router is unreachable during a later move; the address stays routed where it was | `16-extensions.md` §5 |
+
+Step 1 asks who may make a pool for A: whoever may write address pools in A's own organization,
+which the control plane judges from the grants it holds and the node's organization, and no one
+below it. The design first let a pool name any node of its owner's line, and asking what A does
+with an address it holds answered why not: A translates every connection to it, so a reseller's
+pool on the host's node would take that node's traffic to any address it named. Step 2 asks what is
+counted, and found admission counting each `dedicated_ip` endpoint as an address, two for `arena`,
+which holds one (Finding 185). Step 3 asks who keeps two placements from taking one address: the
+placement lock, which every placement holds (§2.3 of `05-scheduling.md`), and the allocation is in
+its transaction. Step 4 asks what the helper needs: the address and the workload's own, both in A's
+assignment and its own allocation. Step 6 asks what knows the address cannot follow: the pool's
+scope, which the placement filter reads, so no node but A is ever a candidate. Step 7 asks who
+keeps time: the control plane, which allocates only an address whose rest has ended. Step 8 asks
+what keeps two nodes from holding the address: the control plane, which gives it to C's assignment
+only once the router has answered, after B's placement has ended. Step 9 holds as a negative:
+`relay` waits on the router and says so, and nothing reaches it meanwhile.
+
+**Finding 185.** §3 of `07-networking.md` says a `dedicated_ip` endpoint's address belongs to its
+workload, and admission counted one `dedicated_ipv4` for each such endpoint, so a game server with
+a game port and a query port, both `dedicated_ip`, was charged two addresses for the one it would
+hold, and a customer with a quota of one could not declare it. Resolved in §3.7 there: a workload
+with any `dedicated_ip` endpoint counts one. What it costs: nothing; a workload that wants two
+addresses is two workloads.
+
+Steps 1 to 9 were designed with no step built but step 2's count, corrected with this trace.
+Steps 1 to 5 and 7 are built 2026-10-26 (P3.6 in §4 of `20-roadmap.md`) and tested end to end,
+the pool on the node's link; step 6 waits on migration, which nothing does yet (§8 of
+`05-scheduling.md`), and steps 8 and 9 on the router's contract, which this phase builds next.

@@ -146,6 +146,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let (entries, placed) = self.placed_entries(tx, w).await?;
         let promised = self.placed_promises(tx, w, (&entries, placed.as_ref())).await?;
         let quota = super::placed_quota::counting(&entries, placed.as_ref(), promised);
+        let one = std::slice::from_ref(node);
+        let dedicated = self.dedicated_nodes(tx, (w.id, &target.body), &owners, one).await?;
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -163,6 +165,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             quota: &quota,
             devices: &held,
             cores: &held_cores,
+            dedicated: &dedicated,
         };
         let policies = self.policies(&owners).await?;
         let standing = operator_refusals(&req, &c, &peers, &policies);
@@ -171,7 +174,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let mut explanation = place(&req, &[c], &peers, &policies);
         explanation.chosen = Some(node.id);
-        let given = super::place::given_on(&req, std::slice::from_ref(node), node.id)?;
+        let given = super::place::given_on(&req, one, node.id)?;
+        self.hold_dedicated(tx, (w.id, &target.body), &owners, node).await?;
         Ok((explanation, given))
     }
 }

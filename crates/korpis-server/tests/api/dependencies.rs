@@ -15,7 +15,7 @@ use korpis_proto::korpis::v1::__buffa::oneof::dependency::Target;
 use std::time::SystemTime;
 
 /// A node of this test with its session open.
-async fn node(h: &Harness, name: &str, seed: u8) -> (String, Stream) {
+pub(crate) async fn node(h: &Harness, name: &str, seed: u8) -> (String, Stream) {
     let a = TestAgent::enroll(h, name, seed).await;
     let (s, first) = TestAgent::open(h, a.hello_at(SystemTime::now(), &[seed; 16])).await;
     welcome(&first.unwrap());

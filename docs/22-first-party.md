@@ -33,6 +33,7 @@ The generality sells itself later, to people who arrived for something else.
 | RCON and non-stdout consoles | extension | console provider |
 | SteamCMD application install | extension | recipe step provider |
 | Minecraft handshake router | extension | edge router provider |
+| Address routers: a BGP speaker, and providers' floating addresses | extension | address router provider |
 | Mod and plugin sources: Modrinth, CurseForge, Paper/Spigot | extension | recipe step provider |
 | Hibernation and wake-on-connect | extension | health consumer + edge hook |
 | Core recipes: Minecraft (Paper/Fabric/Vanilla), Source engine, Rust, ARK, Valheim, Palworld, Terraria | recipes | none |

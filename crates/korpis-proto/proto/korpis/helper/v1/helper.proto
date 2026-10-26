@@ -235,6 +235,21 @@ message EnsureNetworkRequest {
   // namespace routes between the tap and its link, which the VMM, running as the range's first
   // id, alone may open. A network made for one kind of interface is made anew for the other.
   bool tap = 16;
+  // The address of the workload's own it holds, where it holds one (§3.7 of
+  // docs/07-networking.md): every new connection to it translated to the workload's IPv4 address,
+  // all ports alike, ahead of every other translation on the node; and what the workload sends
+  // beyond the node leaving from it. Added 2026-10-26.
+  DedicatedAddress dedicated = 17;
+}
+
+// A dedicated address as the node holds it.
+message DedicatedAddress {
+  // The IPv4 address.
+  string address = 1;
+  // The node's interface it is answered on, as a host address added there and removed when the
+  // workload leaves, where its pool's addresses are on the node's link; empty where they are
+  // routed to the node. An address the node held already is left to it.
+  string interface = 2;
 }
 
 // A workload's bandwidth, in bits a second; zero for none of each. A reservation is held on

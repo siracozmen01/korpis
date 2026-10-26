@@ -280,6 +280,16 @@ fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Ref
     out
 }
 
+/// A workload with a `dedicated_ip` endpoint holds one address, which a node may hold only where
+/// a pool of that node's organization reaches it (§3.7 of docs/07-networking.md).
+fn dedicated(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    let asked = req.body.endpoints.iter().any(|e| e.exposure == Exposure::DedicatedIp);
+    (asked && !req.dedicated.contains(&c.node.id)).then(|| {
+        let why = "no address pool serving it reaches this node with an address it may hold";
+        (Check::DedicatedIp, why.to_owned())
+    })
+}
+
 /// Every quota entry counting what runs on the candidate that what this placement would run
 /// there exceeds (§5.1 of docs/05-scheduling.md, "Where a workload runs"). Only growth is
 /// refused, as at declaration: what an entry already counts of the workload is its before. The
@@ -318,6 +328,7 @@ pub(super) fn rejections(
     out.extend(volumes(req, c));
     out.extend(affinity(req, c, fleet, peers, policy));
     out.extend(dependencies(req, c, peers));
+    out.extend(dedicated(req, c));
     out.extend(quota(req, c));
     if let Some(why) = req.refused.get(&c.node.id) {
         out.push((Check::Prepare, format!("its driver refused it: {why}")));

@@ -11,6 +11,7 @@
 mod account;
 mod asked;
 mod bandwidth;
+mod dedicated;
 mod egress;
 mod forward;
 mod inward;
@@ -167,6 +168,7 @@ impl Network {
         let own = egress::Own { opened: &a.opened, rules: &a.rules, limits: a.limits };
         host.extend(egress::hold(&link, &own, listed.outward.contains(&link)));
         host.extend(inward::hold(&link, &a.inbound, listed.inward.contains(&link)));
+        host.extend(dedicated::ensure((&link, a.ipv4), a.dedicated.as_ref(), &listed.dedicated)?);
         let class = bandwidth::class(&link, &a.shaping, &listed.account)?;
         let own = account::Own { ports: &a.inbound, class, cut_off: a.shaping.cut_off };
         host.extend(account::held(&link, &own, &listed.account));
@@ -245,6 +247,8 @@ impl Network {
         unforwarded.extend(egress::release(&link, (listed.outward.contains(&link), chained)));
         let chained = listed.chains.contains(&inward::chain_of(&link));
         unforwarded.extend(inward::release(&link, (listed.inward.contains(&link), chained)));
+        let chained = listed.chains.contains(&dedicated::chain_of(&link));
+        unforwarded.extend(dedicated::unheld(&link, &listed.dedicated, chained)?);
         bandwidth::unclass(&link, &listed.account)?;
         unforwarded.extend(account::release(&link, &listed.account));
         if !unforwarded.is_empty() {

@@ -123,7 +123,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Vec<(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)>, AppError>
     {
         let mut endpoints = Vec::new();
+        let dedicated = self.store.dedicated_of(id).await?.map(|(a, _)| a);
         for e in self.store.endpoints(id).await? {
+            // A `dedicated_ip` endpoint is reached at its workload's own address alone.
+            if e.exposure == korpis_core::workload::spec::endpoints::Exposure::DedicatedIp {
+                endpoints.push((e, dedicated.into_iter().collect()));
+                continue;
+            }
             let node = self.store.node(e.node).await?;
             let addresses = node.and_then(|n| n.advertised).map(|a| a.addresses);
             endpoints.push((e, addresses.unwrap_or_default()));

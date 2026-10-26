@@ -303,6 +303,53 @@ message Portal {
   google.protobuf.Timestamp created_at = 8;
 }
 
+// An address pool (§3.6 of docs/01-model.md, §3.7 of docs/07-networking.md): addresses an
+// organization's nodes hold for the workloads with a `dedicated_ip` endpoint that it and those
+// below it run. Added 2026-10-26.
+message AddressPool {
+  string id = 1;
+  string organization = 2;
+  // Its addresses, as a network in CIDR notation: IPv4, but for an edge pool.
+  string cidr = 3;
+  AddressPoolScope scope = 4;
+  // For a node pool, the node its addresses are routed to.
+  string node = 5;
+  // For a cluster pool, the address router that moves each to the node holding it: an extension
+  // installation providing the `address_router` kind (§5 of docs/16-extensions.md).
+  string router = 6;
+  AddressRouting routing = 7;
+  // The node's interface its addresses are answered for on, where they are on the node's link;
+  // empty where they are routed to the node.
+  string interface = 8;
+  // How long a released address rests before it is given again; a day where none is asked.
+  google.protobuf.Duration quarantine = 9;
+  // Addresses of it never given: a link's network, gateway, and broadcast addresses.
+  repeated string reserved = 10;
+  // How many of its addresses workloads hold now.
+  uint64 held = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+
+enum AddressPoolScope {
+  ADDRESS_POOL_SCOPE_UNSPECIFIED = 0;
+  // Routed to one node.
+  ADDRESS_POOL_SCOPE_NODE = 1;
+  // Held by an edge of the edge tier.
+  ADDRESS_POOL_SCOPE_EDGE = 2;
+  // Moved by an address router to whichever of the organization's nodes holds one.
+  ADDRESS_POOL_SCOPE_CLUSTER = 3;
+}
+
+enum AddressRouting {
+  ADDRESS_ROUTING_UNSPECIFIED = 0;
+  // The network routes them to one node; a node pool's.
+  ADDRESS_ROUTING_STATIC = 1;
+  // The router announces each over BGP from the node holding it.
+  ADDRESS_ROUTING_BGP = 2;
+  // The router moves each through its provider's API.
+  ADDRESS_ROUTING_PROVIDER_API = 3;
+}
+
 enum CertificateSource {
   CERTIFICATE_SOURCE_UNSPECIFIED = 0;
   // Issued and renewed by the control plane from an ACME directory.

@@ -83,6 +83,10 @@ impl Harness {
         pb::EffectServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn pools(&self, config: ClientConfig) -> pb::AddressPoolServiceClient<HttpClient> {
+        pb::AddressPoolServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn nodes(&self, config: ClientConfig) -> pb::NodeServiceClient<HttpClient> {
         pb::NodeServiceClient::new(self.http.clone(), config)
     }

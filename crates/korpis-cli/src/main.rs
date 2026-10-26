@@ -5,6 +5,7 @@
 use clap::{CommandFactory as _, Parser};
 use clap_complete::CompleteEnv;
 use korpis_cli::call::{METHODS, call};
+use korpis_cli::cmd::address_pool;
 use korpis_cli::cmd::backup::{self, BackupAction};
 use korpis_cli::cmd::certificate;
 use korpis_cli::cmd::clone;
@@ -169,12 +170,15 @@ fn printer(json: bool) -> impl FnMut(String, Value) {
     move |text, value| if json { print(&value) } else { println!("{text}") }
 }
 
+/// `korpis version`: this CLI's, and the server's where one is configured.
+async fn version(cli: &Cli) -> Result<(), CliError> {
+    answer(cli, korpis_cli::version::answer(cli.connection().await?.as_ref()).await)
+}
+
 async fn run(cli: &Cli) -> Result<(), CliError> {
     match &cli.command {
         Command::Completion { shell } => registration(*shell),
-        Command::Version => {
-            answer(cli, korpis_cli::version::answer(cli.connection().await?.as_ref()).await)
-        }
+        Command::Version => version(cli).await,
         Command::Login { no_store, command } => login(cli, *no_store, command).await,
         Command::Logout => session::log_out(&cli.anonymous()?).await,
         Command::Heartbeat { every } => heartbeat(cli, every.as_deref()).await,
@@ -196,6 +200,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         | Command::Certificate(_)
         | Command::Domain(_)
         | Command::Portal(_)
+        | Command::AddressPool(_)
         | Command::Theme(_)
         | Command::Layout(_) => answer(cli, object(&cli.required().await?, &cli.command).await),
         Command::Status { workload } => {
@@ -261,6 +266,7 @@ async fn object(c: &Connection, command: &Command) -> Result<Answer, CliError> {
         Command::Certificate(a) => certificate::certificate(c, a).await,
         Command::Domain(a) => domain::domain(c, a).await,
         Command::Portal(a) => portal::portal(c, a).await,
+        Command::AddressPool(a) => address_pool::address_pool(c, a).await,
         Command::Theme(a) => theme::theme(c, a).await,
         Command::Layout(a) => layout::layout(c, a).await,
         _ => Err(CliError::Local("not a command about one kind of object".into())),

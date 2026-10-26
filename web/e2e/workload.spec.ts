@@ -51,7 +51,9 @@ async function uploadResumed(page: Page): Promise<void> {
     return sent <= 3 ? route.continue() : route.abort("internetdisconnected");
   });
   await files.getByLabel("Upload files").setInputFiles(file);
-  await expect(files.getByText("a request could not be sent")).toBeVisible({ timeout: 15_000 });
+  // The stat and both chunks each wait for the node through the relay before the cut, which a
+  // loaded machine stretches past fifteen seconds; the client gives up within seconds of it.
+  await expect(files.getByText("a request could not be sent")).toBeVisible({ timeout: 60_000 });
   await expect(
     files.getByText(/^The upload of world\.bin stopped at 2 MiB of 5 MiB\.$/),
   ).toBeVisible();

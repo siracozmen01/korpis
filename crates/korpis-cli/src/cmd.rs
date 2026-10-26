@@ -5,6 +5,7 @@
 //! prints whichever was asked for.
 
 pub mod act;
+pub mod address_pool;
 pub mod backup;
 pub mod ceiling;
 pub mod certificate;

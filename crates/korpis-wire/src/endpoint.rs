@@ -21,7 +21,14 @@ pub fn endpoint_to_pb(e: &Endpoint, addresses: &[IpAddr]) -> pb::Endpoint {
     let ingress = e.exposure == Exposure::Ingress;
     // An ingress endpoint is reached on 443 of its node's addresses, where its node's proxy
     // listens, and on 80 for the redirect and ACME's challenge (§3.2 of docs/07-networking.md).
-    let port = if ingress { Some(INGRESS_PORT) } else { e.port };
+    // A dedicated address is the workload's own, reached on the endpoint's own port, once it
+    // holds one (§3.7 of docs/07-networking.md).
+    let dedicated = e.exposure == Exposure::DedicatedIp;
+    let port = match e.exposure {
+        Exposure::Ingress => Some(INGRESS_PORT),
+        Exposure::DedicatedIp => (!addresses.is_empty()).then_some(e.container_port),
+        _ => e.port,
+    };
     let address = port.map(|port| pb::Address {
         ips: addresses.iter().map(ToString::to_string).collect(),
         port: u32::from(port),
@@ -44,7 +51,7 @@ pub fn endpoint_to_pb(e: &Endpoint, addresses: &[IpAddr]) -> pb::Endpoint {
             pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL.into()
         } else if ingress {
             pb::ClientAddress::CLIENT_ADDRESS_TRANSLATED.into()
-        } else if e.port.is_some() {
+        } else if e.port.is_some() || dedicated {
             pb::ClientAddress::CLIENT_ADDRESS_PRESERVED.into()
         } else {
             pb::ClientAddress::CLIENT_ADDRESS_UNSPECIFIED.into()

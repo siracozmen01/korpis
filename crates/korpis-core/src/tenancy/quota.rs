@@ -201,12 +201,14 @@ impl Held {
         };
         let stream_bytes = body.streams.disk_bound().saturating_mul(streams);
         let created_bytes = volume_bytes.saturating_add(stream_bytes);
-        let dedicated = body.endpoints.iter().filter(|e| e.exposure == Exposure::DedicatedIp);
+        // A workload's `dedicated_ip` endpoints share its one address (§3.7 of
+        // docs/07-networking.md, Finding 185 of docs/23-walkthroughs.md).
+        let dedicated = body.endpoints.iter().any(|e| e.exposure == Exposure::DedicatedIp);
         let counts = [
             (D::Workloads, 1),
             (D::Volumes, count(created.len())),
             (D::Endpoints, count(body.endpoints.len())),
-            (D::DedicatedIpv4, count(dedicated.count())),
+            (D::DedicatedIpv4, u64::from(dedicated)),
             // Counted as if no edge serves it, which is every installation until edges arrive
             // (§4 of docs/20-roadmap.md): a `stable` endpoint holds a port of its node.
             (D::NodePorts, crate::workload::endpoint::node_ports(&body.endpoints, false)),

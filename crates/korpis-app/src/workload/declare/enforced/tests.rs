@@ -3,7 +3,7 @@
 use super::*;
 use korpis_core::labels::LabelSelector;
 use korpis_core::workload::spec::endpoints::{
-    NetworkAction, NetworkPolicy, PortRange, Protocol, ShapingSpec, TlsSpec,
+    Exposure, NetworkAction, NetworkPolicy, PortRange, Protocol, ShapingSpec, TlsSpec,
 };
 use korpis_core::workload::spec::resources::{CpuIsolation, CpuSpec};
 
@@ -63,7 +63,9 @@ fn what_a_node_enforces_is_accepted() {
 
 #[test]
 fn what_no_node_of_this_release_enforces_is_refused_with_where_it_is_built() {
-    assert_eq!(refused(|e| e.exposure = Exposure::DedicatedIp), "dedicated addresses in phase 3");
+    let mut dedicated = declared();
+    dedicated.exposure = Exposure::DedicatedIp;
+    assert!(super::endpoint("e", &dedicated).is_ok(), "dedicated addresses are built");
     let mut ingress = declared();
     (ingress.exposure, ingress.tls) = (Exposure::Ingress, Some(TlsSpec::Acme { clients: None }));
     ingress.domains = vec!["shop.example.com".into()];

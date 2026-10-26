@@ -10,6 +10,7 @@
 #![warn(missing_docs)]
 
 mod account;
+mod address;
 mod assertion;
 mod assignment;
 mod audit;

@@ -655,6 +655,21 @@ message Assignment {
   // docs/07-networking.md): resolved by the control plane, which alone sees where every
   // workload of its project runs and at what address. Added 2026-10-26.
   repeated RulePeers peers = 31;
+  // The dedicated address it holds, where an endpoint of it is `dedicated_ip` and the address
+  // may be held on this node (§3.7 of docs/07-networking.md); unset where it holds none. Added
+  // 2026-10-26.
+  DedicatedAddress dedicated = 32;
+}
+
+// An address of a workload's own, as its node holds it (§3.7 of docs/07-networking.md): every
+// connection to it translated to the workload's address, and what the workload sends beyond the
+// node leaving from it.
+message DedicatedAddress {
+  // The IPv4 address.
+  string address = 1;
+  // The node's interface the address is answered for on, where its pool's addresses are on the
+  // node's link; empty where they are routed to the node.
+  string interface = 2;
 }
 
 // One rule naming workloads, resolved for the node it is sent to (§6 of docs/07-networking.md).

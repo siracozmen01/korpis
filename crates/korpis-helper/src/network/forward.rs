@@ -168,6 +168,8 @@ pub(crate) struct Listed {
     pub(crate) inward: Vec<String>,
     /// Its accounting: the chains' maps, the classes, and the counters.
     pub(crate) account: super::account::Listed,
+    /// Its dedicated addresses.
+    pub(crate) dedicated: super::dedicated::Listed,
 }
 
 /// What the host table holds; nothing where it is not there yet.
@@ -204,6 +206,6 @@ pub(crate) fn listed() -> io::Result<Listed> {
             .collect()
     };
     let (outward, inward) = (links(super::egress::OUTWARD), links(super::inward::INWARD));
-    let account = super::account::listed(&items);
-    Ok(Listed { ports, chains, outward, inward, account })
+    let (account, dedicated) = (super::account::listed(&items), super::dedicated::listed(&items));
+    Ok(Listed { ports, chains, outward, inward, account, dedicated })
 }

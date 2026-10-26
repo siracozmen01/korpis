@@ -1408,6 +1408,40 @@ portals never share one; no portal is the installation's own host or a `--web-or
 registered at a portal is used only there, and deleting the portal removes its passkeys and ends
 the sessions begun at it.
 
+#### AddressPool
+
+> Addresses an organization's network routes to its nodes, of which its workloads and those below
+> it hold one each for their `dedicated_ip` endpoints.
+
+> Added 2026-10-26, when dedicated addresses were designed (§3.7 of `07-networking.md`, trace 77
+> of `23-walkthroughs.md`); defined until then in §4 there, without an owner, a node, a router, or
+> a quarantine, which its decisions needed.
+
+```
+AddressPool
+  id            AddressPoolID    apl_…
+  organization  OrganizationID   whose workloads, and those below it, it serves, on its own
+                                 nodes alone
+  kind          ipv4 | ipv6      its prefix's family; a dedicated address is IPv4, and IPv6
+                                 pools are for the edge tier
+  cidr          Prefix           its addresses; no two pools overlap
+  scope         node | edge | cluster
+  node          NodeID           for scope node: the one node its addresses are routed to, its
+                                 organization's own
+  router        ExtensionID      for scope cluster: the address router that moves an address to
+                                 whichever of its organization's nodes holds it
+  routing       static | bgp | provider_api   static for scope node, and only for it
+  interface     string           where the node answers for its addresses on its link; empty
+                                 where they are routed to the node
+  quarantine    Duration         how long an address rests after its holder is retired; a day
+                                 by default
+  reserved      []Address        never given; nor are the prefix's first and last addresses
+```
+
+**Invariants.** An address is held by one workload at most, and by none while it rests; a workload
+holds one at most, which all its `dedicated_ip` endpoints share. A pool is deleted only while none
+of its addresses is held.
+
 #### Stream
 
 > A durable, addressable channel of output from a workload.

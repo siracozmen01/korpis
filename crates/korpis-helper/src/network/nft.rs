@@ -72,9 +72,12 @@ pub(crate) fn host(chains: &[String]) -> Vec<Value> {
     for c in chains.iter().filter(stale) {
         commands.push(json!({"delete": {"chain": {"family": "inet", "table": TABLE, "name": c}}}));
     }
+    // The dedicated addresses' maps first, which the `postrouting` chain names.
+    commands.extend(super::dedicated::base());
     commands.extend([
         chain("postrouting", "nat", "postrouting", 100, "accept"),
         flush("postrouting"),
+        super::dedicated::outward("postrouting"),
         masquerade("ipv4", false),
         masquerade("ipv6", true),
     ]);
@@ -88,11 +91,13 @@ pub(crate) fn host(chains: &[String]) -> Vec<Value> {
 
 /// The marker of this version of the host table's base: raised whenever what [`host`] writes
 /// changes, so a node's table is written anew once and then left to count.
-const BASE: &str = "base_v4";
+const BASE: &str = "base_v5";
 
 /// The chains [`host`] writes, which a table of another version has deleted first.
-const BASE_CHAINS: [&str; 8] = [
+const BASE_CHAINS: [&str; 10] = [
     "postrouting",
+    "dedicated_prerouting",
+    "dedicated_output",
     "forward_prerouting",
     "forward_output",
     "workload_forward",

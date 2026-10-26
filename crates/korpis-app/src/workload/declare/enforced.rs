@@ -12,7 +12,7 @@ use crate::error::AppError;
 use korpis_core::workload::IntentBody;
 use korpis_core::workload::spec::egress::{DEFAULT_MAX_CONNECTIONS, DEFAULT_NEW_PER_SEC};
 use korpis_core::workload::spec::endpoints::{
-    ConntrackLimits, EndpointSpec, Exposure, NetworkAction, NetworkRule, Peer,
+    ConntrackLimits, EndpointSpec, NetworkAction, NetworkRule, Peer,
 };
 
 /// Refuses what no node of this release would enforce in `body`: its endpoints' and its own.
@@ -65,10 +65,6 @@ fn half_open(at: &str, limits: ConntrackLimits) -> Result<(), AppError> {
 }
 
 fn endpoint(at: &str, e: &EndpointSpec) -> Result<(), AppError> {
-    // An address of a workload's own needs a routed address (§3 of docs/07-networking.md).
-    if e.exposure == Exposure::DedicatedIp {
-        return Err(AppError::NotYet { what: "dedicated addresses", phase: 3 });
-    }
     half_open(&format!("{at}.policy.conntrack"), e.policy.conntrack)?;
     for (j, r) in e.policy.ingress.iter().enumerate() {
         let here = format!("{at}.policy.ingress[{j}]");

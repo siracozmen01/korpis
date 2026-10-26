@@ -59,6 +59,14 @@ fn peers_to_pb(r: &korpis_core::workload::peers::RuleAddresses) -> agent::RulePe
     }
 }
 
+fn dedicated_to_pb(d: &korpis_core::address::Dedicated) -> agent::DedicatedAddress {
+    agent::DedicatedAddress {
+        address: d.address.to_string(),
+        interface: d.interface.clone(),
+        ..Default::default()
+    }
+}
+
 /// What a spent egress budget holds the workload to, as its node is told it.
 fn shaping_to_pb(held: Option<Exhaustion>) -> agent::Shaping {
     match held {
@@ -138,6 +146,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         cores: a.cores.clone(),
         dependents: a.dependents.iter().map(dependent_to_pb).collect(),
         peers: a.peers.iter().map(peers_to_pb).collect(),
+        dedicated: a.dedicated.as_ref().map(dedicated_to_pb).into(),
         ..Default::default()
     }
 }

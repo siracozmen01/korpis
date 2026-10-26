@@ -8,6 +8,7 @@
 
 mod account;
 mod acme;
+mod address;
 mod assertion;
 mod assignment;
 mod audit;
@@ -67,6 +68,7 @@ pub use account::{
     AccountRead, AccountWrite, FactorVault, InPlace, PasswordFuture, Passwords, TotpFactor,
 };
 pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish};
+pub use address::{AddressRead, AddressWrite};
 pub use assertion::AssertionWrite;
 pub use assignment::{
     AssignmentRead, AssignmentSealer, AssignmentWrite, Opened, SealError, Sealed, StoredAssignment,
@@ -178,6 +180,8 @@ pub enum Unique {
     DomainName,
     /// A name is one portal's at most.
     PortalName,
+    /// No two address pools overlap.
+    AddressPool,
     /// A sign-in name names one account.
     AccountName,
     /// A passkey's credential is registered once.
@@ -260,6 +264,7 @@ pub trait Store:
     + PruneRead
     + DomainRead
     + PortalRead
+    + AddressRead
     + CertificateRead
     + TemplateRead
     + BindingRead
@@ -354,6 +359,7 @@ pub trait Tx:
     + PruneWrite
     + DomainWrite
     + PortalWrite
+    + AddressWrite
     + CertificateWrite
     + TemplateWrite
     + BindingWrite

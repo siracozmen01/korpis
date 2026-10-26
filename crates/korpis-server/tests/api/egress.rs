@@ -9,7 +9,6 @@ use crate::providers::installed;
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::{Harness, detail, mutation, org_scope};
 use buffa::Message as _;
-use connectrpc::ErrorCode;
 use korpis_core::principal::Principal;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
@@ -168,11 +167,12 @@ async fn a_declaration_asking_what_no_node_enforces_is_refused_saying_why() {
         async move { workloads.declare_intent(declare).await.unwrap_err() }
     };
 
+    // A dedicated address is built (§3.7 of docs/07-networking.md): declared, it waits for a
+    // pool to reach a node with one free, which address_pools.rs tests.
     let mut dedicated = body(&repo, &[]);
     dedicated.endpoints = vec![endpoint(pb::Exposure::EXPOSURE_DEDICATED_IP)];
-    let e = refused(dedicated, "dedicated").await;
-    assert_eq!(e.code, ErrorCode::Unimplemented);
-    assert!(e.message.as_deref().unwrap_or_default().contains("Phase 3"), "{e:?}");
+    let declared = create("dedicated", &project, "dedicated", dedicated);
+    h.workloads(h.root()).declare_intent(declared).await.expect("declared");
 
     let mut outbound = body(&repo, &[]);
     let mut game = endpoint(pb::Exposure::EXPOSURE_NODE_BOUND);

@@ -72,6 +72,7 @@ pub(super) struct Asked {
     pub(super) limits: policy::Limits,
     pub(super) shaping: bandwidth::Shaping,
     pub(super) tap: bool,
+    pub(super) dedicated: Option<super::dedicated::Dedicated>,
 }
 
 pub(super) fn transport(t: buffa::EnumValue<helper::Transport>) -> HelperResult<Transport> {
@@ -114,6 +115,38 @@ pub(super) fn ports(r: &helper::EnsureNetworkRequest) -> HelperResult<Ports> {
         return Err(HelperError::Refused("a node's port is forwarded twice".into()));
     }
     Ok((inbound, forwards))
+}
+
+/// The dedicated address `r` asks the workload to hold, checked: an IPv4 address a host may
+/// hold, outside the node's pool of workload addresses, and an interface's name, where it names
+/// one.
+fn dedicated(
+    r: &helper::EnsureNetworkRequest,
+    pool: Prefix,
+) -> HelperResult<Option<super::dedicated::Dedicated>> {
+    let Some(d) = r.dedicated.as_option() else { return Ok(None) };
+    let refuse = |m: &str| HelperError::Refused(format!("the dedicated address {m}"));
+    let address: Ipv4Addr = d.address.parse().map_err(|_| refuse("is not an IPv4 address"))?;
+    let unheld = address.is_unspecified()
+        || address.is_loopback()
+        || address.is_multicast()
+        || address.is_broadcast()
+        || address.is_link_local();
+    let (a, p) = (bits(IpAddr::V4(address)).0, bits(pool.addr).0);
+    let mask = u128::from(u32::MAX.checked_shl(32 - u32::from(pool.len)).unwrap_or(0));
+    if unheld || a & mask == p & mask {
+        return Err(refuse("is not one a host holds for a workload"));
+    }
+    let name = d.interface.as_str();
+    let named = name.len() < 16
+        && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+        && name != "."
+        && name != "..";
+    if !named {
+        return Err(refuse("names no interface"));
+    }
+    let interface = (!name.is_empty()).then(|| name.to_owned());
+    Ok(Some(super::dedicated::Dedicated { address, interface }))
 }
 
 pub(super) fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
@@ -159,6 +192,19 @@ pub(super) fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
     let ids = (r.uid_base, r.uid_count);
     let (rules, limits) = (policy::rules(&r.egress)?, policy::limits(r)?);
     let shaping = bandwidth::asked(r.bandwidth.as_option())?;
-    let (workload, tap) = (r.workload.clone(), r.tap);
-    Ok(Asked { workload, ipv4, ipv6, ids, inbound, forwards, opened, rules, limits, shaping, tap })
+    let (workload, tap, dedicated) = (r.workload.clone(), r.tap, dedicated(r, ipv4_pool)?);
+    Ok(Asked {
+        workload,
+        ipv4,
+        ipv6,
+        ids,
+        inbound,
+        forwards,
+        opened,
+        rules,
+        limits,
+        shaping,
+        tap,
+        dedicated,
+    })
 }

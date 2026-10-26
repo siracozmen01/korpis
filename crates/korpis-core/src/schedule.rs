@@ -21,7 +21,7 @@ pub use policy::{
 use crate::node::Node;
 use crate::tenancy::quota::{Bounds, Dimension, Held, QuotaEntry, Totals};
 use crate::workload::IntentBody;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
 /// The dimensions placement guarantees: a reservation in one of these is capacity a node sets
@@ -92,6 +92,10 @@ pub struct Request<'a> {
     /// By node, the cores its other placements hold (§5.2 of docs/05-scheduling.md); a node
     /// absent holds none.
     pub cores: &'a BTreeMap<Uuid, Vec<u32>>,
+    /// The nodes it may hold a dedicated address on: those the address it holds reaches, or a
+    /// pool serving it reaches with one free (§3.7 of docs/07-networking.md). Asked only where
+    /// an endpoint of it is `dedicated_ip`.
+    pub dedicated: &'a BTreeSet<Uuid>,
 }
 
 /// A quota entry that counts where workloads run, as placement checks it: the entry, what
@@ -196,6 +200,9 @@ pub enum Check {
     Affinity,
     /// Every dependency's targets are reachable from the node (§5 of docs/07-networking.md).
     Dependency,
+    /// It may hold a dedicated address there, where an endpoint of it is `dedicated_ip` (§3.7
+    /// of docs/07-networking.md).
+    DedicatedIp,
     /// Every quota entry counting what runs on the node admits it (§5.1 of
     /// docs/05-scheduling.md).
     Quota,
@@ -206,7 +213,7 @@ pub enum Check {
 
 impl Check {
     /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 20] = [
         Self::Owner,
         Self::Status,
         Self::Driver,
@@ -224,6 +231,7 @@ impl Check {
         Self::Volume,
         Self::Affinity,
         Self::Dependency,
+        Self::DedicatedIp,
         Self::Quota,
         Self::Prepare,
     ];
@@ -255,6 +263,7 @@ impl Check {
             Self::Volume => "volume",
             Self::Affinity => "affinity",
             Self::Dependency => "dependency",
+            Self::DedicatedIp => "dedicated_ip",
             Self::Quota => "quota",
             Self::Prepare => "prepare",
         }

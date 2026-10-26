@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO dedicated_address (address, pool_id, workload_id, held_at, released_at)\n             VALUES ($1::text::inet, $2, $3, $4, NULL)\n             ON CONFLICT (address) DO UPDATE\n                SET pool_id = $2, workload_id = $3, held_at = $4, released_at = NULL\n              WHERE dedicated_address.workload_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f24eebb609cf2a8aacf99e1a141aa338a02f21b442e96843e454db37438a4753"
+}

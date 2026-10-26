@@ -31,8 +31,13 @@ impl Netns {
         Self(name)
     }
 
-    fn path(&self) -> PathBuf {
+    pub(crate) fn path(&self) -> PathBuf {
         Path::new("/run/netns").join(&self.0)
+    }
+
+    /// Its name, as `ip netns` knows it.
+    pub(crate) fn name(&self) -> &str {
+        &self.0
     }
 
     /// `args` run inside it; whether they succeeded.
@@ -87,14 +92,16 @@ pub(crate) async fn node_in(cp: &ControlPlane, name: &str, ns: &Netns, address: 
 }
 
 /// What is answered asking for `/` over TCP at `to`, from `source` where one is named, from
-/// inside the network namespace at `net`; empty if nothing answers within two seconds.
+/// inside the network namespace at `net`, read until the server closes, since an answer may come
+/// in more than one segment; empty if nothing answers within two seconds.
 pub(crate) async fn fetched(net: &str, to: &str, source: Option<&str>) -> String {
     let (host, port) = to.split_once(':').unwrap();
     let bind = source.map(|s| format!(" s.bind(('{s}', 0))\n")).unwrap_or_default();
     let script = format!(
-        "import socket\ntry:\n s=socket.socket()\n{bind} s.settimeout(2)\n \
+        "import socket\ngot=b''\ntry:\n s=socket.socket()\n{bind} s.settimeout(2)\n \
          s.connect(('{host}',{port}))\n s.sendall(b'GET / HTTP/1.0\\r\\n\\r\\n')\n \
-         print(s.recv(4096).decode(errors='replace'))\nexcept Exception: pass"
+         while True:\n  b=s.recv(4096)\n  if not b: break\n  got+=b\nexcept Exception: pass\n\
+         print(got.decode(errors='replace'), end='')"
     );
     let net = net.to_owned();
     let run = move || Command::new("nsenter").arg(net).args(["python3", "-c", &script]).output();

@@ -18,6 +18,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("repository_streams") => Unique::RepositoryStreams,
         Some("domain_organization_id_name_key") => Unique::DomainName,
         Some("portal_name_key") => Unique::PortalName,
+        Some("address_pool_disjoint") => Unique::AddressPool,
         Some("node_name_key") => Unique::NodeName,
         Some("account_name_key") => Unique::AccountName,
         Some("passkey_pkey") => Unique::Passkey,
@@ -33,7 +34,10 @@ fn unique(constraint: Option<&str>) -> Unique {
 /// A database error as a store error.
 pub(crate) fn from_sqlx(e: sqlx::Error) -> StoreError {
     match e {
-        sqlx::Error::Database(d) if d.is_unique_violation() => {
+        // exclusion_violation: an exclusion constraint is a uniqueness rule over ranges.
+        sqlx::Error::Database(d)
+            if d.is_unique_violation() || d.code().as_deref() == Some("23P01") =>
+        {
             StoreError::Duplicate(unique(d.constraint()))
         }
         // deadlock_detected and serialization_failure: the database undid this transaction so

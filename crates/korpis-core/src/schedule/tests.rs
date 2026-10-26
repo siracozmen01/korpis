@@ -33,6 +33,7 @@ use fixtures::driver;
 /// No placement holding a device.
 static NO_HOLDS: BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>> = BTreeMap::new();
 static NO_CORES: BTreeMap<Uuid, Vec<u32>> = BTreeMap::new();
+static NO_DEDICATED: BTreeSet<Uuid> = BTreeSet::new();
 
 fn node(n: u128, labels: &[(&str, &str)]) -> Node {
     let cap = Bounds::from([(Dimension::Cpu, 4_000), (Dimension::Memory, 8 * GIB)]);
@@ -109,6 +110,7 @@ struct Case {
     churn: BTreeMap<Uuid, f64>,
     held: BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>>,
     held_cores: BTreeMap<Uuid, Vec<u32>>,
+    dedicated: BTreeSet<Uuid>,
 }
 
 impl Case {
@@ -124,6 +126,7 @@ impl Case {
             churn: BTreeMap::new(),
             held: BTreeMap::new(),
             held_cores: BTreeMap::new(),
+            dedicated: BTreeSet::new(),
         }
     }
 
@@ -151,6 +154,7 @@ impl Case {
             quota: &[],
             devices: &self.held,
             cores: &self.held_cores,
+            dedicated: &self.dedicated,
         };
         place(&req, &candidates, &self.peers, &Policies::single(self.policy.clone()))
     }
@@ -279,6 +283,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         quota: &[],
         devices: &NO_HOLDS,
         cores: &NO_CORES,
+        dedicated: &NO_DEDICATED,
     };
     let e =
         place(&req, &[Candidate { node: &here, allocated: &allocated }], &[], &Policies::default());
@@ -316,6 +321,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         quota: &[],
         devices: &NO_HOLDS,
         cores: &NO_CORES,
+        dedicated: &NO_DEDICATED,
     }
 }
 
@@ -370,6 +376,7 @@ fn the_driver_layer_is_the_union_of_what_every_driver_that_could_run_the_tier_de
 mod bandwidth;
 mod colocation;
 mod cores;
+mod dedicated;
 mod devices;
 mod fixtures;
 mod ingress;

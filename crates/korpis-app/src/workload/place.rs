@@ -195,6 +195,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.clear_unplaced(w.id).await?;
             return Ok(());
         }
+        self.place_new(tx, (w, target), current, screened).await
+    }
+
+    /// Places `w` for `target`, which it is not placed for: on its node, where it is placed, or
+    /// wherever the policy prefers.
+    async fn place_new(
+        &self,
+        tx: &mut S::Tx,
+        (w, target): (&Workload, &Intent),
+        current: Option<Placement>,
+        screened: &Screened,
+    ) -> Result<(), AppError> {
         let owners = self.owners(w.organization).await?;
         let mut nodes = tx.serving_nodes(&owners).await?;
         if let Some(p) = &current {
@@ -213,6 +225,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let (entries, placed) = self.placed_entries(tx, w).await?;
         let promised = self.placed_promises(tx, w, (&entries, placed.as_ref())).await?;
         let quota = super::placed_quota::counting(&entries, placed.as_ref(), promised);
+        let dedicated = self.dedicated_nodes(tx, (w.id, &target.body), &owners, &nodes).await?;
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -230,16 +243,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             quota: &quota,
             devices: &held,
             cores: &held_cores,
+            dedicated: &dedicated,
         };
         let explanation = place(&req, &candidates, &peers, &self.policies(&owners).await?);
-        match explanation.chosen {
-            Some(node) => {
-                let binding =
-                    Binding { given: given_on(&req, &nodes, node)?, w, target, current, node };
-                self.bind_chosen(tx, binding, explanation).await
-            }
-            None => self.record_unplaced(tx, w, target, explanation).await,
+        let Some(node) = explanation.chosen else {
+            return self.record_unplaced(tx, w, target, explanation).await;
+        };
+        let given = given_on(&req, &nodes, node)?;
+        if let Some(n) = nodes.iter().find(|n| n.id == node) {
+            self.hold_dedicated(tx, (w.id, &target.body), &owners, n).await?;
         }
+        let binding = Binding { w, target, current, node, given };
+        self.bind_chosen(tx, binding, explanation).await
     }
 
     /// Every driver's refusal of `target`: those the shortlist just found, recorded, with those

@@ -121,6 +121,15 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         super::policy::spent(&mut request, a.shaping.as_option());
         request.opened = dependencies;
         request.tap = tap;
+        request.dedicated = a
+            .dedicated
+            .as_option()
+            .map(|d| helper::DedicatedAddress {
+                address: d.address.clone(),
+                interface: d.interface.clone(),
+                ..Default::default()
+            })
+            .into();
         Ok(Some(request))
     }
 

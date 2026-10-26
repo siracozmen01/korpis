@@ -5,6 +5,7 @@
 //! its hardware address, bringing one up, and adding an address, a route, or a neighbour. A socket belongs to the namespace it was opened in,
 //! so one opened on a thread inside a workload's namespace configures that namespace.
 
+mod addresses;
 mod links;
 
 use netlink_packet_core::{

@@ -1076,6 +1076,45 @@ message DeletePortalRequest {
 
 message DeletePortalResponse {}
 
+// Address pools (§3.7 of docs/07-networking.md): made and deleted under address_pool.write on
+// their organization, and read under address_pool.read. Added 2026-10-26.
+service AddressPoolService {
+  // Makes a pool. One overlapping any other pool is refused, without saying whose.
+  rpc CreateAddressPool(CreateAddressPoolRequest) returns (CreateAddressPoolResponse);
+  rpc ListAddressPools(ListAddressPoolsRequest) returns (ListAddressPoolsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Deletes a pool none of whose addresses is held.
+  rpc DeleteAddressPool(DeleteAddressPoolRequest) returns (DeleteAddressPoolResponse);
+}
+
+message CreateAddressPoolRequest {
+  Mutation mutation = 1;
+  // The pool asked for: its id, held count, and creation time are the control plane's.
+  AddressPool pool = 2;
+}
+
+message CreateAddressPoolResponse {
+  AddressPool pool = 1;
+}
+
+message ListAddressPoolsRequest {
+  string organization = 1;
+  PageRequest page = 2;
+}
+
+message ListAddressPoolsResponse {
+  repeated AddressPool pools = 1;
+  PageResponse page = 2;
+}
+
+message DeleteAddressPoolRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message DeleteAddressPoolResponse {}
+
 // Backups (§5 of docs/06-storage.md), authorized on the workload whose volume they are of.
 service BackupService {
   // Proposes backing a volume up into a repository, under backup.create on the volume's

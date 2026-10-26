@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE dedicated_address SET workload_id = NULL, released_at = $2\n              WHERE workload_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ec8d3e38857471c532a204b66b2e6b02f44eef40861d60a3a6bdd0f250e95d43"
+}

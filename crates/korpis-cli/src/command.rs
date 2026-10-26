@@ -3,6 +3,7 @@
 //! The `korpis` command line's commands (§2 of docs/13-surface-cli.md): what each is called, the
 //! help it prints, and the arguments it takes. The binary parses them and runs each.
 
+use crate::cmd::address_pool::AddressPoolAction;
 use crate::cmd::backup::BackupAction;
 use crate::cmd::certificate::CertificateAction;
 use crate::cmd::domain::DomainAction;
@@ -101,6 +102,10 @@ pub enum Command {
     /// an organization, with its theme and sign-in.
     #[command(subcommand)]
     Portal(PortalAction),
+    /// Makes, lists, and deletes the address pools an organization's nodes hold its workloads'
+    /// dedicated addresses from.
+    #[command(subcommand)]
+    AddressPool(AddressPoolAction),
     /// Shows, sets, and clears an organization's theme in the panel.
     #[command(subcommand)]
     Theme(theme::ThemeAction),

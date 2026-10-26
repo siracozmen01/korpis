@@ -17,6 +17,7 @@ mod conformance;
 mod console;
 mod containers;
 mod cores;
+mod dedicated;
 mod dependencies;
 mod devices;
 mod exec_probe;

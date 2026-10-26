@@ -778,6 +778,82 @@ information, and the same source page at it as at home.
 > listener, verifies the served chain for the portal's name against Pebble's issuing root, and
 > finds the 421 and the cross-origin rule.
 
+### 3.7 `dedicated_ip`: an address of the workload's own
+
+Designed 2026-10-26, for Phase 3 (§4 of `20-roadmap.md`, trace 77 of `23-walkthroughs.md`). A
+workload with any endpoint exposed `dedicated_ip` holds one IPv4 address of its own, from an
+operator's address pool (§4), and every such endpoint of it is reached at that address on its own
+port; what it sends beyond its node leaves from that address too, which is what IP reputation
+means. IPv6 has no dedicated mode: every workload's IPv6 address is its own already (§4), so a
+`dedicated_ip` endpoint is reached over IPv6 as any endpoint exposed at the workload's address is.
+
+*Whose pool.* An address pool belongs to an organization, which creates and deletes it with the
+action `address_pool.write`; a host's is the root's. It serves the workloads of that organization
+and of those below it, and its addresses are held on that organization's own nodes alone: a pool
+of scope `node` names one of them, the one its addresses are routed to, and a pool of scope
+`cluster` names the router that moves an address to whichever of them holds it. Not on a node of
+an organization above: a node that holds an address translates every connection to it, and
+answers for it on its link where the pool says so, so a pool on another's node would let its
+owner take that node's traffic to any address it named, a public resolver's or the node's own
+gateway, into its own workload. Korpis gates none of this by size or count (P10): a host gives
+itself as many pools and addresses as its networks hold.
+
+*Which address, and when.* The control plane allocates the address in the transaction that places
+the workload, the lowest free one of a pool that serves it and reaches the chosen node, and records
+it against the workload; every `dedicated_ip` endpoint of the workload's shows it. The placement
+filter takes a node only where such a pool has a free address, or where the address the workload
+holds already reaches it (§2.1 of `05-scheduling.md`). Admission counts one `dedicated_ipv4` for a
+workload with any `dedicated_ip` endpoint, however many it has, since they share the address
+(Finding 185 of `23-walkthroughs.md`). When the workload is retired the address goes back to its
+pool after the pool's quarantine, a day unless the pool says otherwise, so that what still points
+at it, a client's cache or a name not yet changed, does not reach the next holder at once.
+
+*How the node holds it.* The assignment carries the address. The helper translates every
+connection to it into the workload's own address, all ports alike, ahead of everything else on the
+node, so the workload's namespace still accepts only its declared ports (§4) and the client's own
+address is kept (§3.4); and what the workload sends beyond the node, by any interface but another
+workload's link and the mesh's, leaves translated to the address rather than the node's. A pool
+whose addresses are routed to the node, which is how hosting providers deliver an additional
+subnet, needs nothing more; one whose addresses are on the node's link, answered by address
+resolution, names the node's interface, and the helper adds the address there, as a host address
+without a route, and removes it when the workload leaves. A connection to the address from outside
+the node is one the node translated, so the rule of §4 lets it in.
+
+*Where it may run.* An address of a `node` pool is routed to that node alone, so a workload holding
+one is placed there and nowhere else, and a migration of it is refused, saying why; this is
+`routing: static`. An address of a `cluster` pool follows the workload: the pool names an address
+router, an extension providing the `address_router` kind (§5 of `16-extensions.md`), which the
+control plane tells, for each address, the node that holds it and that node's advertised address,
+and which tells it back once the network routes it there; the node holds the address only once the
+router has said so, so two nodes never hold one address at once. The router does what the network
+needs: announces the address over BGP with the node as its next hop, or moves a provider's floating
+address through the provider's API (`routing: bgp | provider_api`). A cluster pool naming no router
+installed is refused when it is created. At a migration's cutover the router is told the new node
+after the lease's epoch has changed (§10).
+
+What it costs: an address idle for its quarantine after every retirement; a router extension, and
+the network or provider that does what it asks, for an address that moves; and a workload of a
+`node` pool that cannot move off its node. What it does not do: it gives a workload one address
+and no more; it does not announce anything itself, since BGP sessions and provider credentials are
+the router's; and it does not make the host's own processes use the address, which only the
+workload sends from.
+
+Built 2026-10-26 for `node` pools, with their addresses routed to the node or on its link. The
+control plane keeps the pools and their addresses (`korpis address-pool`, §2 of
+`13-surface-cli.md`), each address with the workload holding it or the instant it was released;
+the placement filter's `dedicated_ip` check and the allocation both run under the placement lock,
+the allocation in the transaction that binds the workload; and a retirement gives the address back
+under that lock. The node's helper keeps two maps in the host's table: from each address to its
+workload's chain, translating every new connection to it in chains of priority -110, ahead of the
+node's forwarded ports (-100) and of any other table's translation of a destination, and from each
+workload's link to its address, translating what it sends beyond the node in the host's
+`postrouting` chain ahead of its masquerade. An address on the node's link is added to the pool's
+interface as a host address, `/32`, with no route of its prefix; the workload's chain records in a
+rule's comment that the helper added it, so an address the operator had already put on the
+interface is never removed. Not built yet: `cluster` and `edge` pools, refused when made, until the
+router's contract and the edge tier are built; and the refusal of a migration, since no workload
+migrates yet (§8 of `05-scheduling.md`).
+
 ---
 
 ## 4. Addressing
@@ -817,18 +893,17 @@ clients natively and reserve IPv4 for those who need it has a materially cheaper
 Pelican added IPv6 allocations; treating IPv6 as the default rather than an option is the next
 step.
 
-```
-AddressPool
-  id, kind          ipv4 | ipv6
-  cidr, scope       node | edge | cluster
-  routing           static | bgp | provider_api
-  reserved          []Address
-```
+An `AddressPool` (§3.6 of `01-model.md`) is a prefix an organization's network routes to its
+nodes, of `kind` IPv4 or IPv6, `scope` node, edge, or cluster, and `routing` static, BGP, or a
+provider's API. `routing` determines whether a `dedicated_ip` can move between nodes. Static
+routing means the IP belongs to one node and a workload holding it cannot migrate. BGP or a
+provider API means the IP can follow the workload, which is what makes `dedicated_ip` compatible
+with migration rather than an anchor. How each is held is §3.7.
 
-`routing` determines whether a `dedicated_ip` can move between nodes. Static routing means the IP
-belongs to one node and a workload holding it cannot migrate. BGP or a provider API means the IP
-can follow the workload, which is what makes `dedicated_ip` compatible with migration rather than
-an anchor.
+> Moved 2026-10-26, when dedicated addresses were designed (§3.7): the pool was defined here as a
+> block of fields with no owner, no node, no router, and no quarantine, and who owns a pool, where
+> its addresses go, and when one is free again had no field to be decided by. Its definition is
+> now in `01-model.md`, the owner of the model's nouns, with those fields.
 
 ### 4.1 A workload's network on a node, as built
 

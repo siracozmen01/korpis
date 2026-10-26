@@ -9,6 +9,7 @@
 
 #[cfg(feature = "accounts")]
 pub mod account;
+pub mod address;
 pub mod audit;
 pub mod authz;
 pub mod backup;

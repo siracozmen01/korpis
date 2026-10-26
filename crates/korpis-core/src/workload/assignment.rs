@@ -91,6 +91,9 @@ pub struct Assignment {
     /// The addresses each of its rules naming workloads names on its node (§6 of
     /// docs/07-networking.md).
     pub peers: Vec<super::peers::RuleAddresses>,
+    /// The dedicated address it holds, where an endpoint of it is `dedicated_ip` and the address
+    /// may be held on this node (§3.7 of docs/07-networking.md).
+    pub dedicated: Option<crate::address::Dedicated>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

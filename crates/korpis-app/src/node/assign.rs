@@ -264,6 +264,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
+    /// What a spent egress budget holds `workload` to this month, if one does.
+    async fn egress_held(
+        &self,
+        workload: Uuid,
+    ) -> Result<Option<korpis_core::tenancy::quota::Exhaustion>, AppError> {
+        let month = korpis_core::tenancy::quota::month_of(self.clock.now()).0;
+        Ok(self.store.workload_egress(workload, month).await?)
+    }
+
     /// What `node` is to be told about `workload`, with the plan that becomes applying by being
     /// told; `None` if nothing approved reaches a node yet. While a suspension holds it, it is
     /// told stopped, and a plan waiting to apply waits on, unless it retires the workload; one
@@ -296,8 +305,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let lease_epoch = self.store.lease_epoch(workload, node).await?.unwrap_or(0);
         let volume_ids = self.existing_ids(&target.body).await?;
         let reaches_api = self.reaches_api(workload).await?;
-        let month = korpis_core::tenancy::quota::month_of(self.clock.now()).0;
-        let egress = self.store.workload_egress(workload, month).await?;
+        let egress = self.egress_held(workload).await?;
         let across = self.across((node, members), &w, &target.body).await?;
         Ok(Some(Desired {
             assignment: Assignment {
@@ -330,69 +338,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 cores: Vec::new(),
                 dependents: across.dependents,
                 peers: across.peers,
+                dedicated: self.dedicated_on(workload, node).await?,
             },
             plan,
             held,
         }))
     }
-
-    /// The residual assignment of `workload` on `node`: the plan deleting a volume it left there,
-    /// with the last target and power it had for the record. No ids, no lease, no recipe it
-    /// needs; `None` once nothing is left to do there.
-    async fn residual(&self, node: Uuid, workload: Uuid) -> Result<Option<Desired>, AppError> {
-        let Some(w) = self.store.workload(workload).await? else { return Ok(None) };
-        let missing = |what: &str| AppError::Internal(format!("{what} of workload {workload}"));
-        let id = w.target.ok_or_else(|| missing("target"))?;
-        let target = self.store.intent(id).await?.ok_or_else(|| missing("target"))?;
-        let power = self
-            .store
-            .power_at(workload, w.power_target_version)
-            .await?
-            .ok_or_else(|| missing("power target"))?;
-        let mut here = Vec::new();
-        for p in self.store.open_plans(workload).await? {
-            if let Some(v) = p.target.volume()
-                && self.store.volume(v).await?.is_some_and(|v| v.node == node)
-            {
-                here.push(p);
-            }
-        }
-        let Some(plan) = active_plan(here, self.clock.now()) else { return Ok(None) };
-        let on_lease_expiry = target.body.continuity.resolved(false);
-        Ok(Some(Desired {
-            assignment: Assignment {
-                workload,
-                project: w.project,
-                organization: w.organization,
-                name: w.name.clone(),
-                labels: w.labels.clone(),
-                generation: 0,
-                target,
-                power,
-                on_lease_expiry,
-                plan: NodePlan::of(&plan),
-                retire: None,
-                recipe_manifest: Vec::new(),
-                node,
-                lease_epoch: 0,
-                ids: IdRange { base: 0, count: 0 },
-                residual: true,
-                volume_ids: BTreeMap::new(),
-                endpoints: Vec::new(),
-                reaches_api: false,
-                egress: None,
-                dependencies: Vec::new(),
-                challenges: Vec::new(),
-                alpn_challenges: Vec::new(),
-                runs: Vec::new(),
-                kept_runs: Vec::new(),
-                devices: Vec::new(),
-                cores: Vec::new(),
-                dependents: Vec::new(),
-                peers: Vec::new(),
-            },
-            plan: Some(plan),
-            held: false,
-        }))
-    }
 }
+
+mod residual;

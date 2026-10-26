@@ -228,6 +228,9 @@ table! {
     "korpis.v1.PortalService/ListPortals" => PortalServiceClient::list_portals(ListPortalsRequest);
     "korpis.v1.PortalService/SetPortalCertificate" => PortalServiceClient::set_portal_certificate(SetPortalCertificateRequest);
     "korpis.v1.PortalService/DeletePortal" => PortalServiceClient::delete_portal(DeletePortalRequest);
+    "korpis.v1.AddressPoolService/CreateAddressPool" => AddressPoolServiceClient::create_address_pool(CreateAddressPoolRequest);
+    "korpis.v1.AddressPoolService/ListAddressPools" => AddressPoolServiceClient::list_address_pools(ListAddressPoolsRequest);
+    "korpis.v1.AddressPoolService/DeleteAddressPool" => AddressPoolServiceClient::delete_address_pool(DeleteAddressPoolRequest);
     "korpis.v1.BackupService/CreateBackup" => BackupServiceClient::create_backup(CreateBackupRequest);
     "korpis.v1.BackupService/GetBackup" => BackupServiceClient::get_backup(GetBackupRequest);
     "korpis.v1.BackupService/ListBackups" => BackupServiceClient::list_backups(ListBackupsRequest);

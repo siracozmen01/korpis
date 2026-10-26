@@ -14,6 +14,7 @@
 mod accounts;
 mod acme;
 mod across;
+mod address_pools;
 mod agent;
 mod assertion;
 mod assignments;

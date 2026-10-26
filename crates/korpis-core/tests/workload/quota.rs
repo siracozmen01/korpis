@@ -60,6 +60,23 @@ fn a_workload_holds_its_reservations_its_volumes_and_itself() {
 }
 
 #[test]
+fn a_workload_with_dedicated_ip_endpoints_counts_the_one_address_they_share() {
+    use korpis_core::workload::spec::endpoints::Exposure;
+    let mut b = body();
+    let mut query = b.endpoints[0].clone();
+    query.name = "query".into();
+    query.container_port += 1;
+    b.endpoints.push(query);
+    for e in &mut b.endpoints {
+        e.exposure = Exposure::DedicatedIp;
+    }
+    assert_eq!(b.endpoints.len(), 2);
+    let held = Held::of(&b);
+    assert_eq!(held.reservations[&D::DedicatedIpv4], 1, "Finding 185 of docs/23-walkthroughs.md");
+    assert_eq!(Held::of(&body()).reservations[&D::DedicatedIpv4], 0);
+}
+
+#[test]
 fn growth_past_a_bound_is_refused_and_naming_the_dimension() {
     let held = Held::of(&body());
     let e = entry(Bounds::from([(D::Memory, 8 * GIB)]), Bounds::new());

@@ -32,6 +32,7 @@ not ship.** These are extensions in Korpis, not core code with an extension API 
 | object-storage backup targets | backup target provider |
 | OIDC, SAML, LDAP, Discord identity sources | identity provider, in the trust base (§5.3 of `08-identity.md`) |
 | protocol-aware routers (Minecraft handshake, TLS SNI) | edge router provider |
+| address routers: a BGP speaker, a provider's floating addresses (§3.7 of `07-networking.md`) | address router provider |
 | alert routing beyond the built-in minimum | event consumer |
 | **the Discord client**: and the chat-adapter interface behind it | actions + events + streams |
 
@@ -402,7 +403,11 @@ Calling out is the direction that carries risk, so the contract is strict:
   the workload's status with the provider and the reason attached, and reconciliation retries (§3.5
   of `07-networking.md`). (Corrected 2026-10-16: this said the endpoint's observation became
   `unsatisfiable`, but an observation is what a node reports.) An identity provider that is
-  unreachable fails closed, because failing open there is an authentication bypass.
+  unreachable fails closed, because failing open there is an authentication bypass. An address
+  router that is unreachable fails closed for a move and leaves what it routes alone: an address
+  is held by a new node only once the router says the network routes it there, so a workload
+  placed elsewhere waits, its `dedicated_ip` endpoints saying which router it waits on, and an
+  address already held stays where it is (§3.7 of `07-networking.md`; added 2026-10-26).
 - Providers are circuit-broken. A provider failing consistently is marked down, its dependents are
   marked `unsatisfiable` with the provider named, and it is retried on a backoff, instead of every
   reconciliation loop in the fleet queueing behind it.

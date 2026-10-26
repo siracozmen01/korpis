@@ -79,6 +79,8 @@ pub enum IdKind {
     Usage,
     /// An SSH key a person registered for SFTP (`ssk_`).
     SshKey,
+    /// An address pool (`apl_`).
+    AddressPool,
 }
 
 impl IdKind {
@@ -119,6 +121,7 @@ impl IdKind {
             Self::Binding => "idb",
             Self::Usage => "use",
             Self::SshKey => "ssk",
+            Self::AddressPool => "apl",
         }
     }
 }
