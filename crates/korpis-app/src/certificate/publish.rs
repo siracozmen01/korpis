@@ -234,16 +234,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Carries the HTTP-01 challenges `http` and the TLS-ALPN-01 ones `alpn` to the order's
-    /// nodes through their assignments, answering once every one has acknowledged a set carrying
-    /// them, and its proxy has had a moment to take them.
+    /// nodes through their assignments, and to its edge group members through their tables,
+    /// answering once every node has acknowledged a set carrying them and every member has said
+    /// its proxy holds them, and the proxies have had a moment to take them.
     async fn publish_nodes(
         &self,
         order: &Order,
         http: &[(String, HttpOffer)],
         alpn: &[AlpnChallenge],
     ) -> Result<(), AcmeError> {
-        if order.nodes.is_empty() {
-            let why = "its endpoint is placed on no node, and no DNS provider serves its zone";
+        if order.nodes.is_empty() && order.members.is_empty() {
+            let why = "its endpoint is placed on no node, no member of an edge group serving it \
+                       is connected, and no DNS provider serves its zone";
             return Err(AcmeError::Unavailable(why.into()));
         }
         let store = |e: AppError| unavailable(e);
@@ -259,6 +261,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 let set = self.sync_assignments(node).await.map_err(store)?;
                 let acked = self.store.acked_set(node).await.map_err(|e| store(e.into()))?;
                 held &= acked.as_deref() == Some(set.digest.as_str());
+            }
+            for &member in &order.members {
+                let has = self.store.edge_challenges_held(member).await;
+                let has = has.map_err(|e| store(e.into()))?;
+                held &= http.iter().all(|(_, offer)| has.tokens.contains(&offer.token))
+                    && alpn.iter().all(|c| has.digests.contains(&c.digest));
             }
             if held {
                 timer.sleep(GRACE).await;

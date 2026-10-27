@@ -3,12 +3,16 @@
 //! Edge groups, `korpis.v1.EdgeGroup`, and what a node is told of edges, `korpis.agent.v1.Edges`
 //! (§3.1 of docs/07-networking.md, §3.6 of docs/01-model.md).
 
+use crate::assignment::{alpn_challenge_to_pb, http_challenge_to_pb};
+use crate::endpoint::{endpoint_to_pb, ingress_endpoint_from_pb};
 use crate::spec::endpoints::{protocol_from_pb, protocol_to_pb};
 use crate::{Result, duration, id, invalid, timestamp, wire_id};
 use korpis_core::edge::EdgeGroup;
 use korpis_core::edge::lease::{Health, MemberState};
 use korpis_core::edge::probe::AddressStatus;
-use korpis_core::edge::table::{Admit, Forward, Forwarding, Mesh, NodeEdges, Source, Target};
+use korpis_core::edge::table::{
+    Admit, Forward, Forwarding, Mesh, NodeEdges, Proxied, Source, Target,
+};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
@@ -127,6 +131,15 @@ fn forward_to_pb(f: &Forward) -> agent::EdgeForward {
     out
 }
 
+fn proxied_to_pb(p: &Proxied) -> agent::EdgeProxied {
+    agent::EdgeProxied {
+        endpoint: endpoint_to_pb(&p.endpoint, &[]).into(),
+        node: text(p.target.as_ref().map(|t| wire_id(IdKind::Node, t.node))),
+        workload_address: text(p.target.as_ref().map(|t| t.workload_address)),
+        ..Default::default()
+    }
+}
+
 fn forwarding_to_pb(f: &Forwarding) -> agent::EdgeForwarding {
     agent::EdgeForwarding {
         group: wire_id(IdKind::EdgeGroup, f.group),
@@ -144,6 +157,8 @@ fn forwarding_to_pb(f: &Forwarding) -> agent::EdgeForwarding {
                 ..Default::default()
             })
             .collect(),
+        ingress: f.ingress.iter().map(ToString::to_string).collect(),
+        proxied: f.proxied.iter().map(proxied_to_pb).collect(),
         ..Default::default()
     }
 }
@@ -164,6 +179,7 @@ pub fn node_edges_to_pb(e: &NodeEdges) -> agent::Edges {
         node: wire_id(IdKind::Node, s.node),
         mesh_address: s.mesh_address.to_string(),
         admits: s.admits.iter().map(admit_to_pb).collect(),
+        proxied: s.proxied.iter().map(admit_to_pb).collect(),
         ..Default::default()
     };
     agent::Edges {
@@ -171,6 +187,8 @@ pub fn node_edges_to_pb(e: &NodeEdges) -> agent::Edges {
         mesh_address_v6: text(e.mesh.and_then(|m| m.v6)),
         groups: e.groups.iter().map(forwarding_to_pb).collect(),
         sources: e.sources.iter().map(source).collect(),
+        challenges: e.challenges.iter().map(http_challenge_to_pb).collect(),
+        alpn_challenges: e.alpn_challenges.iter().map(alpn_challenge_to_pb).collect(),
         ..Default::default()
     }
 }
@@ -194,14 +212,31 @@ fn forward_from_pb(f: &agent::EdgeForward) -> Result<Forward> {
     })
 }
 
+fn proxied_from_pb(group: uuid::Uuid, p: &agent::EdgeProxied) -> Result<Proxied> {
+    let missing = || invalid("proxied.endpoint", "an endpoint");
+    let endpoint =
+        ingress_endpoint_from_pb("proxied.endpoint", p.endpoint.as_option().ok_or_else(missing)?)?;
+    let target = if p.node.is_empty() {
+        None
+    } else {
+        Some(Target {
+            node: id(IdKind::Node, "proxied.node", &p.node)?,
+            workload_address: ip("proxied.workload_address", &p.workload_address)?,
+            container_port: endpoint.container_port,
+        })
+    };
+    Ok(Proxied { group, endpoint, target })
+}
+
 fn forwarding_from_pb(f: &agent::EdgeForwarding) -> Result<Forwarding> {
     let fields = ("group.probe_mesh_address", "group.probe_mesh_address_v6");
     let probe = match mesh(fields, (&f.probe_mesh_address, &f.probe_mesh_address_v6))? {
         Some(a) => Some((id(IdKind::Node, "group.probe_node", &f.probe_node)?, a)),
         None => None,
     };
+    let group = id(IdKind::EdgeGroup, "group.group", &f.group)?;
     Ok(Forwarding {
-        group: id(IdKind::EdgeGroup, "group.group", &f.group)?,
+        group,
         probe_port: port("group.probe_port", f.probe_port)?,
         probe,
         forwards: f.forwards.iter().map(forward_from_pb).collect::<Result<_>>()?,
@@ -210,6 +245,8 @@ fn forwarding_from_pb(f: &agent::EdgeForwarding) -> Result<Forwarding> {
             .iter()
             .map(|h| Ok((ip("group.hold.address", &h.address)?, h.interface.clone())))
             .collect::<Result<_>>()?,
+        ingress: f.ingress.iter().map(|a| ip("group.ingress", a)).collect::<Result<_>>()?,
+        proxied: f.proxied.iter().map(|p| proxied_from_pb(group, p)).collect::<Result<_>>()?,
     })
 }
 
@@ -226,6 +263,7 @@ fn source_from_pb(s: &agent::EdgeSource) -> Result<Source> {
         node: id(IdKind::Node, "source.node", &s.node)?,
         mesh_address: mesh.ok_or_else(|| invalid("source.mesh_address", "an IPv4 address"))?,
         admits: s.admits.iter().map(admit).collect::<Result<_>>()?,
+        proxied: s.proxied.iter().map(admit).collect::<Result<_>>()?,
     })
 }
 
@@ -241,6 +279,22 @@ pub fn node_edges_from_pb(e: &agent::Edges) -> Result<NodeEdges> {
         )?,
         groups: e.groups.iter().map(forwarding_from_pb).collect::<Result<_>>()?,
         sources: e.sources.iter().map(source_from_pb).collect::<Result<_>>()?,
+        challenges: e
+            .challenges
+            .iter()
+            .map(|c| korpis_core::dns::certificate::HttpChallenge {
+                token: c.token.clone(),
+                key_authorization: c.key_authorization.clone(),
+            })
+            .collect(),
+        alpn_challenges: e
+            .alpn_challenges
+            .iter()
+            .map(|c| korpis_core::dns::certificate::AlpnChallenge {
+                name: c.name.clone(),
+                digest: c.digest.clone(),
+            })
+            .collect(),
     })
 }
 
@@ -249,8 +303,29 @@ mod tests {
     #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
 
     use super::*;
-    use korpis_core::workload::spec::endpoints::Protocol;
+    use korpis_core::dns::certificate::{AlpnChallenge, HttpChallenge};
+    use korpis_core::workload::endpoint::{Endpoint, Served};
+    use korpis_core::workload::spec::endpoints::{Exposure, Protocol, TlsSpec};
     use uuid::Uuid;
+
+    /// An `ingress` endpoint on node 3, its workload at `target`, its TLS passed through with
+    /// a PROXY header.
+    fn proxied(target: Option<Target>) -> Proxied {
+        let endpoint = Endpoint {
+            id: Uuid::from_u128(20),
+            workload: Uuid::from_u128(21),
+            name: "web".into(),
+            protocol: Protocol::Https,
+            container_port: 25_565,
+            exposure: Exposure::Ingress,
+            node: Uuid::from_u128(3),
+            port: None,
+            domains: vec!["shop.example.com".into()],
+            tls: Some(TlsSpec::Passthrough { proxy_protocol: true }),
+            certificate: Some(Served { id: Uuid::from_u128(22), revision: 4 }),
+        };
+        Proxied { group: Uuid::from_u128(10), endpoint, target }
+    }
 
     #[test]
     fn what_a_node_is_told_of_edges_crosses_the_wire_unchanged() {
@@ -277,8 +352,13 @@ mod tests {
                         v6: "fd00::ffff:ffff:ffff:ffff".parse().ok(),
                     },
                 )),
-                forwards: vec![forward(Some((target, "10.48.7.255".parse().ok()))), forward(None)],
+                forwards: vec![
+                    forward(Some((target.clone(), "10.48.7.255".parse().ok()))),
+                    forward(None),
+                ],
                 hold: vec![("198.51.100.2".parse().unwrap(), "eth1".into())],
+                ingress: vec!["198.51.100.1".parse().unwrap()],
+                proxied: vec![proxied(Some(target.clone())), proxied(None)],
             }],
             sources: vec![Source {
                 node: Uuid::from_u128(2),
@@ -288,6 +368,16 @@ mod tests {
                     port: 80,
                     protocol: Protocol::Tcp,
                 }],
+                proxied: vec![Admit {
+                    address: "10.48.0.3".parse().unwrap(),
+                    port: 8080,
+                    protocol: Protocol::Tcp,
+                }],
+            }],
+            challenges: vec![HttpChallenge { token: "t".into(), key_authorization: "t.k".into() }],
+            alpn_challenges: vec![AlpnChallenge {
+                name: "shop.example.com".into(),
+                digest: vec![7; 32],
             }],
         };
         assert_eq!(node_edges_from_pb(&node_edges_to_pb(&told)).unwrap(), told);

@@ -242,6 +242,35 @@ pub fn alongside(
     addresses.find(|a| all_free(*a))
 }
 
+/// The ports of a group's ingress address its members' proxies serve: plain HTTP and TLS.
+pub const INGRESS_PORTS: [u16; 2] = [80, 443];
+
+/// A group's ingress address of one family (§3.1 of docs/07-networking.md): an address of one
+/// of its pools whose ports [`INGRESS_PORTS`] go, over TCP and UDP, to its holder's own proxy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IngressAddress {
+    /// The address.
+    pub address: IpAddr,
+    /// The group.
+    pub group: Uuid,
+    /// The pool it is of.
+    pub pool: Uuid,
+}
+
+/// The ports and transports a group's ingress address keeps from `stable` endpoints.
+#[must_use]
+pub fn ingress_ports() -> [(u16, Transport); 4] {
+    let [http, tls] = INGRESS_PORTS;
+    [(http, Transport::Tcp), (tls, Transport::Tcp), (http, Transport::Udp), (tls, Transport::Udp)]
+}
+
+/// The address of `pool` a group's ingress address is chosen at, at `now`: its lowest on which
+/// [`ingress_ports`] are all free, so it may also be a `stable` endpoint's on other ports.
+#[must_use]
+pub fn ingress_room((pool, taken): (&AddressPool, &TakenPorts), now: SystemTime) -> Option<IpAddr> {
+    alongside((pool, taken), &ingress_ports(), None, now)
+}
+
 /// A node's own address in the mesh: the last of its IPv4 pool, which no workload is ever given
 /// (§4.1 of docs/07-networking.md), from which its GRE links to and from edges are made.
 #[must_use]

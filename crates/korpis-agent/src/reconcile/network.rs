@@ -9,6 +9,7 @@ use crate::held::HeldSet;
 use crate::host::Host;
 use crate::runtime::Runtime;
 use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
@@ -210,18 +211,22 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Publishes what the node's ingress proxy serves for the set held, when it changed.
-    pub(super) fn publish_ingress(&self, held: &HeldSet) {
+    /// Publishes what the node's ingress proxy serves for the set held and for its edge groups
+    /// (§3.1 of docs/07-networking.md), when it changed; and says once the proxy has been given
+    /// the groups' challenges.
+    pub(super) async fn publish_ingress(&mut self, held: &HeldSet) {
         let (Some(publish), Some(net)) = (&self.wiring.ingress, &self.wiring.network) else {
             return;
         };
+        let edges = self.wiring.edges.as_ref().map(|e| e.borrow().clone()).unwrap_or_default();
         let certificates = &self.wiring.certificates;
-        let wanted = crate::ingress::wanted(held);
+        let mut wanted = crate::ingress::wanted(held);
+        let config = crate::ingress::config(held, &net.addresses, Vec::new());
+        let mut config = crate::ingress::with_edges(config, (&edges, held), &mut wanted);
         for (id, revision) in &wanted {
             certificates.want(id, *revision);
         }
-        let served = certificates.serve(&wanted.into_keys().collect());
-        let config = crate::ingress::config(held, &net.addresses, served);
+        config.certificates = certificates.serve(&wanted.into_keys().collect());
         publish.send_if_modified(|served| {
             let changed = *served != config;
             if changed {
@@ -229,6 +234,16 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
             changed
         });
+        let proofs = crate::ingress::held_proofs(&edges);
+        if self.proofs.as_ref() != Some(&proofs) {
+            let up = agent::AgentMessage {
+                message: Some(Up::EdgeChallengesHeld(Box::new(proofs.clone()))),
+                ..Default::default()
+            };
+            if self.wiring.outbound.send(up).await.is_ok() {
+                self.proofs = Some(proofs);
+            }
+        }
     }
 
     /// Serves the resolver of every workload holding a network the set holds, which is how a

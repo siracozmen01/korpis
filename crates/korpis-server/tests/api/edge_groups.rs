@@ -115,10 +115,9 @@ async fn a_group_is_its_organization_s_own_nodes_and_goes_once_no_pool_names_it(
     edges.delete_edge_group(delete("d3")).await.expect("no pool names it now");
 }
 
-/// A workload whose game and query endpoints are `stable`, its RCON not reached.
 /// `workload`'s endpoints as its status shows them, once they are placed: as its assignment is
 /// computed, after the placement itself (§3 of docs/07-networking.md), within ten seconds.
-async fn endpoints_shown(h: &Harness, workload: &str) -> Vec<pb::Endpoint> {
+pub(crate) async fn endpoints_shown(h: &Harness, workload: &str) -> Vec<pb::Endpoint> {
     for _ in 0..100 {
         let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };
         let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
@@ -131,6 +130,7 @@ async fn endpoints_shown(h: &Harness, workload: &str) -> Vec<pb::Endpoint> {
     panic!("its endpoints were never placed");
 }
 
+/// A workload whose game and query endpoints are `stable`, its RCON not reached.
 pub(crate) fn arena_body(repo: &str) -> pb::IntentBody {
     let at = |name: &str, exposure: pb::Exposure| pb::EndpointSpec {
         name: name.into(),

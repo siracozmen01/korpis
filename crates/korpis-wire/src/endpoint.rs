@@ -63,3 +63,44 @@ pub fn endpoint_to_pb(e: &Endpoint, addresses: &[IpAddr]) -> pb::Endpoint {
         ..Default::default()
     }
 }
+
+/// An `ingress` endpoint as placed, from the wire form [`endpoint_to_pb`] gives it: the node it
+/// is placed on is its address's, and it holds no port of its node.
+///
+/// # Errors
+/// A field that is not what it says, or an endpoint of another exposure.
+pub fn ingress_endpoint_from_pb(field: &str, e: &pb::Endpoint) -> crate::Result<Endpoint> {
+    use crate::spec::endpoints::{exposure_from_pb, protocol_from_pb, tls_from_pb};
+    use crate::{fits, id, invalid};
+    let f = |name: &str| format!("{field}.{name}");
+    if exposure_from_pb(&f("exposure"), e.exposure)? != Exposure::Ingress {
+        return Err(invalid(&f("exposure"), "an ingress endpoint"));
+    }
+    let tls = match e.tls.as_option().map(|t| tls_from_pb(&f("tls"), t)).transpose()? {
+        Some(TlsSpec::Passthrough { .. }) => Some(TlsSpec::Passthrough {
+            proxy_protocol: e.client_address.as_known()
+                == Some(pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL),
+        }),
+        other => other,
+    };
+    let node = e.address.as_option().map_or("", |a| a.node.as_str());
+    let certificate = if e.certificate.is_empty() {
+        None
+    } else {
+        let at = id(IdKind::Certificate, &f("certificate"), &e.certificate)?;
+        Some(korpis_core::workload::endpoint::Served { id: at, revision: e.certificate_revision })
+    };
+    Ok(Endpoint {
+        id: id(IdKind::Endpoint, &f("id"), &e.id)?,
+        workload: id(IdKind::Workload, &f("workload"), &e.workload)?,
+        name: e.name.clone(),
+        protocol: protocol_from_pb(&f("protocol"), e.protocol)?,
+        container_port: fits(&f("container_port"), u64::from(e.container_port))?,
+        exposure: Exposure::Ingress,
+        node: id(IdKind::Node, &f("address.node"), node)?,
+        port: None,
+        domains: e.domains.clone(),
+        tls,
+        certificate,
+    })
+}

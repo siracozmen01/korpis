@@ -64,16 +64,21 @@ pub fn connect(path: &Path) -> io::Result<(UnixStream, Listeners)> {
     Ok((s, listeners))
 }
 
-/// The sockets attached, as the message says: `http` plain ones, then `https` TLS ones.
+/// The sockets attached, as the message says: `http` plain ones, then `https` TLS ones, then
+/// `quic` UDP ones.
 fn split(said: &pb::Listeners, attached: Vec<OwnedFd>) -> io::Result<Listeners> {
-    let http = usize::try_from(said.http).unwrap_or(usize::MAX);
-    let https = usize::try_from(said.https).unwrap_or(usize::MAX);
-    if http.checked_add(https) != Some(attached.len()) {
-        return Err(invalid(format!("{} sockets attached, {http} + {https} said", attached.len())));
+    let count = |n: u32| usize::try_from(n).unwrap_or(usize::MAX);
+    let (http, https, quic) = (count(said.http), count(said.https), count(said.quic));
+    if http.checked_add(https).and_then(|n| n.checked_add(quic)) != Some(attached.len()) {
+        let said = format!("{http} + {https} + {quic} said");
+        return Err(invalid(format!("{} sockets attached, {said}", attached.len())));
     }
-    let mut all = attached.into_iter().map(std::net::TcpListener::from);
-    let http = all.by_ref().take(http).collect();
-    Ok(Listeners { http, https: all.collect() })
+    let mut all = attached.into_iter();
+    let tcp = |n: usize, all: &mut std::vec::IntoIter<OwnedFd>| {
+        all.take(n).map(std::net::TcpListener::from).collect::<Vec<_>>()
+    };
+    let (http, https) = (tcp(http, &mut all), tcp(https, &mut all));
+    Ok(Listeners { http, https, quic: all.map(std::net::UdpSocket::from).collect() })
 }
 
 /// Reads configurations from `r` until the agent closes it, publishing each one that holds.

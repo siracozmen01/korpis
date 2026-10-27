@@ -316,8 +316,9 @@ traffic is `--advertise-address`, repeatable, for an address clients reach it at
 itself (a router forwarding to it, or a LAN address), and `--ports`, the range its endpoints' ports
 are allocated from (30000-32767 by default); both are measured before anything relies on them (§9
 of `07-networking.md`). A node serves the ingress unless its agent runs with `--ingress false`: the
-helper opens ports 80 and 443 on the advertised addresses and starts `korpis-ingress`, from beside
-its own binary or where `--ingress-binary` says (§3.2 of `07-networking.md`).
+helper opens ports 80 and 443 over TCP, and 443 over UDP for HTTP/3, on the advertised addresses
+and starts `korpis-ingress`, from beside its own binary or where `--ingress-binary` says (§3.2 of
+`07-networking.md`).
 
 The container tier is a separate process, `korpis-driver-oci`, run as its own user with access to
 containerd's socket and to nothing else the agent holds (§6.1 of `02-architecture.md`). It serves

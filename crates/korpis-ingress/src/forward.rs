@@ -11,7 +11,7 @@ use crate::table::{Mode, Route};
 use bytes::Bytes;
 use http::header::{self, HeaderValue};
 use http::{Request, Response, StatusCode, Uri, Version};
-use http_body_util::combinators::BoxBody;
+use http_body_util::combinators::{BoxBody, UnsyncBoxBody};
 use http_body_util::{BodyExt as _, Empty, Full};
 use hyper::body::Incoming;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
@@ -26,6 +26,13 @@ use tokio::net::TcpStream;
 
 /// A response body: a workload's, or one the proxy makes.
 pub type Body = BoxBody<Bytes, hyper::Error>;
+
+/// What failed reading a request's body, whatever protocol the client spoke.
+pub type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+/// A request body as it is sent to a workload: hyper's, from HTTP/1.1 and HTTP/2, or one an
+/// HTTP/3 stream delivers.
+type Sent = UnsyncBoxBody<Bytes, BoxError>;
 
 /// A response the proxy makes itself, of `status` with `text`.
 #[must_use]
@@ -59,7 +66,7 @@ pub struct Origin {
 /// nothing for a workload that serves its own certificate.
 #[derive(Debug, Clone)]
 pub struct Backends {
-    pooled: Client<HttpsConnector<HttpConnector>, Incoming>,
+    pooled: Client<HttpsConnector<HttpConnector>, Sent>,
     tls: Arc<rustls::ClientConfig>,
 }
 
@@ -84,8 +91,13 @@ impl Backends {
 
     /// Forwards `req` from `origin` to its workload and answers with the workload's response, or
     /// 502 when the workload cannot be reached.
-    pub async fn forward(&self, origin: &Origin, req: Request<Incoming>) -> Response<Body> {
+    pub async fn forward<B>(&self, origin: &Origin, req: Request<B>) -> Response<Body>
+    where
+        B: hyper::body::Body<Data = Bytes> + Send + 'static,
+        B::Error: Into<BoxError>,
+    {
         let (mut parts, body) = req.into_parts();
+        let body: Sent = body.map_err(Into::into).boxed_unsync();
         let Some(uri) = backend_uri(&origin.route, parts.uri.path_and_query()) else {
             return answer(StatusCode::BAD_REQUEST, "a request target the proxy cannot forward\n");
         };

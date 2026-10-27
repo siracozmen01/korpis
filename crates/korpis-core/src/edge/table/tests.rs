@@ -77,7 +77,7 @@ fn every_member_forwards_the_whole_group_and_the_node_behind_admits_each_member(
     let all = mesh(&[E1, E2, A]);
     let holding = Holding::from([(ip("198.51.100.2"), (E2, "eth1".to_owned()))]);
     let entries = [entry(25_565, Some(A)), entry(25_575, None)];
-    let t = tables(&[group(&[E1, E2])], &entries, view(&all), &holding);
+    let t = tables(&[group(&[E1, E2])], Served::stable(&entries), view(&all), &holding);
     assert!(t[&E1].groups[0].hold.is_empty());
     assert_eq!(t[&E2].groups[0].hold, [(ip("198.51.100.2"), "eth1".to_owned())], "one holds it");
     for edge in [E1, E2] {
@@ -104,7 +104,8 @@ fn every_member_forwards_the_whole_group_and_the_node_behind_admits_each_member(
 fn a_workload_on_a_member_needs_no_tunnel_and_a_lone_member_or_one_outside_forwards_nothing() {
     let none = Holding::new();
     let pair = mesh(&[E1, E2]);
-    let t = tables(&[group(&[E1, E2])], &[entry(25_565, Some(E1))], view(&pair), &none);
+    let t =
+        tables(&[group(&[E1, E2])], Served::stable(&[entry(25_565, Some(E1))]), view(&pair), &none);
     let own = &t[&E1].groups[0];
     assert_eq!(own.forwards[0].target.as_ref().unwrap().1, None, "on the member itself");
     assert_eq!(own.probe, Some((E2, at(&pair, E2))), "probed through the other member");
@@ -112,9 +113,11 @@ fn a_workload_on_a_member_needs_no_tunnel_and_a_lone_member_or_one_outside_forwa
     assert_eq!(from_e2, [E2], "the other member tunnels to it");
 
     let lone_mesh = mesh(&[E1, A]);
-    let lone = tables(&[group(&[E1])], &[entry(25_565, Some(A))], view(&lone_mesh), &none);
+    let lone =
+        tables(&[group(&[E1])], Served::stable(&[entry(25_565, Some(A))]), view(&lone_mesh), &none);
     assert!(lone.is_empty(), "one machine serves nothing");
-    let outside = tables(&[group(&[E1, E2])], &[entry(25_565, Some(B))], view(&pair), &none);
+    let outside =
+        tables(&[group(&[E1, E2])], Served::stable(&[entry(25_565, Some(B))]), view(&pair), &none);
     assert!(outside[&E1].groups[0].forwards[0].target.is_none(), "its node is not in the mesh");
 }
 
@@ -125,10 +128,67 @@ fn the_probe_goes_through_a_node_no_control_plane_shares_a_network_with_where_th
     let entries = [entry(25_565, Some(A)), entry(25_575, Some(B))];
     let near = BTreeSet::from([A]);
     let seen = MeshView { addresses: &all, colocated: &near };
-    let t = tables(&[group(&[E1, E2])], &entries, seen, &none);
+    let t = tables(&[group(&[E1, E2])], Served::stable(&entries), seen, &none);
     assert_eq!(t[&E1].groups[0].probe.map(|(n, _)| n), Some(B), "A's answer would stay local");
     let both = BTreeSet::from([A, B, E2]);
     let crowded = MeshView { addresses: &all, colocated: &both };
-    let t = tables(&[group(&[E1, E2])], &entries, crowded, &none);
+    let t = tables(&[group(&[E1, E2])], Served::stable(&entries), crowded, &none);
     assert_eq!(t[&E1].groups[0].probe.map(|(n, _)| n), Some(A), "none apart: the first still");
+}
+
+/// An `ingress` endpoint of the group, its workload on `on` at 10.48.4.3.
+fn proxied(on: Option<Uuid>) -> Proxied {
+    let endpoint = Endpoint {
+        id: Uuid::from_u128(20),
+        workload: Uuid::from_u128(21),
+        name: "web".into(),
+        protocol: Protocol::Http,
+        container_port: 8080,
+        exposure: crate::workload::spec::endpoints::Exposure::Ingress,
+        node: on.unwrap_or(A),
+        port: None,
+        domains: vec!["shop.example.com".into()],
+        tls: None,
+        certificate: None,
+    };
+    let target =
+        on.map(|node| Target { node, workload_address: ip("10.48.4.3"), container_port: 8080 });
+    Proxied { group: GROUP, endpoint, target }
+}
+
+#[test]
+fn every_member_routes_the_group_s_names_at_its_ingress_address_and_the_node_admits_its_proxy() {
+    let all = mesh(&[E1, E2, A]);
+    let ingress = [IngressAddress { address: ip("198.51.100.1"), group: GROUP, pool: GROUP }];
+    let holding = Holding::from([(ip("198.51.100.1"), (E1, "eth1".to_owned()))]);
+    let routes = [proxied(Some(A)), proxied(Some(B)), proxied(None)];
+    let served = Served { entries: &[], ingress: &ingress, proxied: &routes };
+    let t = tables(&[group(&[E1, E2])], served, view(&all), &holding);
+    for edge in [E1, E2] {
+        let f = &t[&edge].groups[0];
+        assert_eq!(f.ingress, [ip("198.51.100.1")]);
+        let to: Vec<Option<Uuid>> =
+            f.proxied.iter().map(|p| p.target.as_ref().map(|t| t.node)).collect();
+        assert_eq!(to, [Some(A), None, None], "a node outside the mesh, or none: no route");
+    }
+    assert_eq!(t[&E1].groups[0].hold, [(ip("198.51.100.1"), "eth1".to_owned())], "held as any");
+    let behind = &t[&A];
+    let web = Admit { address: ip("10.48.4.3"), port: 8080, protocol: Protocol::Tcp };
+    for s in &behind.sources {
+        assert_eq!(s.proxied, std::slice::from_ref(&web), "each member's proxy, through the mesh");
+        assert!(s.admits.is_empty(), "nothing through a GRE link");
+    }
+    let own = tables(
+        &[group(&[E1, E2])],
+        served_on(&ingress, &[proxied(Some(E1))]),
+        view(&all),
+        &holding,
+    );
+    let from: Vec<Uuid> = own[&E1].sources.iter().map(|s| s.node).collect();
+    assert_eq!(from, [E2], "the other member's proxy; its own reaches it on its link");
+    assert_eq!(own[&E2].groups[0].proxied[0].target.as_ref().map(|t| t.node), Some(E1));
+}
+
+fn served_on<'a>(ingress: &'a [IngressAddress], proxied: &'a [Proxied]) -> Served<'a> {
+    Served { entries: &[], ingress, proxied }
 }

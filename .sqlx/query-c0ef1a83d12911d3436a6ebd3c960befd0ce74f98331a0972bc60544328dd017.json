@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.workload_id FROM ingress_served s\n               JOIN edge_member m ON m.group_id = s.group_id\n              WHERE m.node_id = $1 ORDER BY s.workload_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "ingress_served",
+            "name": "workload_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c0ef1a83d12911d3436a6ebd3c960befd0ce74f98331a0972bc60544328dd017"
+}

@@ -76,34 +76,59 @@ fn addresses(asked: &[String]) -> HelperResult<Vec<IpAddr>> {
         .collect()
 }
 
-/// Ports 80 and 443 of each of `asked`: every port 80, then every 443.
+/// A UDP socket bound to `at`, for HTTP/3, with the address reusable as a restarted proxy needs.
+fn bound_udp(at: SocketAddr) -> std::io::Result<OwnedFd> {
+    let family = if at.is_ipv4() { AddressFamily::INET } else { AddressFamily::INET6 };
+    let fd = socket(family, SocketType::DGRAM, None)?;
+    rustix::net::sockopt::set_socket_reuseaddr(&fd, true)?;
+    if at.is_ipv6() {
+        rustix::net::sockopt::set_ipv6_v6only(&fd, true)?;
+    }
+    bind(&fd, &SocketAddrAny::from(at))?;
+    Ok(fd)
+}
+
+/// Ports 80 and 443 of each of `asked`: every port 80, then every 443 over TCP, then every 443
+/// over UDP, for HTTP/3 (§3.2 of docs/07-networking.md).
 pub fn open(asked: &[String]) -> HelperResult<Vec<OwnedFd>> {
     let ips = addresses(asked)?;
-    let mut out = Vec::with_capacity(ips.len() * PORTS.len());
+    let failed =
+        |at: SocketAddr| move |e: std::io::Error| HelperError::Failed(format!("{at}: {e}"));
+    let mut out = Vec::with_capacity(ips.len() * (PORTS.len() + 1));
     for port in PORTS {
         for ip in &ips {
             let at = SocketAddr::new(*ip, port);
-            out.push(listening(at).map_err(|e| HelperError::Failed(format!("{at}: {e}")))?);
+            out.push(listening(at).map_err(failed(at))?);
         }
+    }
+    for ip in &ips {
+        let at = SocketAddr::new(*ip, PORTS[1]);
+        out.push(bound_udp(at).map_err(failed(at))?);
     }
     Ok(out)
 }
 
-/// The rule that lets the proxy in `cgroup`, `level` components below the root, open new
-/// connections only through a workload's link, in `nft`'s own syntax: its JSON input does not
-/// take a cgroup match in the versions nodes run (nftables 1.0.9 refuses the key it prints).
-/// `None` when the path holds a character that has no place in a cgroup the helper names.
+/// The rules that let the proxy in `cgroup`, `level` components below the root, open new
+/// connections only through a workload's link, or over TCP through the mesh to a workload of
+/// another node, which that node admits from this one for an `ingress` endpoint an edge group
+/// serves (§3.1 of docs/07-networking.md); in `nft`'s own syntax: its JSON input does not take a
+/// cgroup match in the versions nodes run (nftables 1.0.9 refuses the key it prints). `None`
+/// when the path holds a character that has no place in a cgroup the helper names.
 fn confining(cgroup: &str, level: usize) -> Option<String> {
     let plain = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/');
     if cgroup.is_empty() || !cgroup.chars().all(plain) {
         return None;
     }
+    let (mesh, ours) =
+        (crate::overlay::INTERFACE, format!("socket cgroupv2 level {level} \"{cgroup}\""));
     Some(format!(
         "add table inet {TABLE}\n\
          add chain inet {TABLE} {CHAIN} {{ type filter hook output priority 0; policy accept; }}\n\
          flush chain inet {TABLE} {CHAIN}\n\
-         add rule inet {TABLE} {CHAIN} socket cgroupv2 level {level} \"{cgroup}\" \
-         ct state new oifname != \"kw*\" drop\n"
+         add rule inet {TABLE} {CHAIN} {ours} ct state new oifname \"{mesh}\" \
+         meta l4proto != tcp drop\n\
+         add rule inet {TABLE} {CHAIN} {ours} ct state new oifname != \"kw*\" \
+         oifname != \"{mesh}\" drop\n"
     ))
 }
 
@@ -257,11 +282,12 @@ mod tests {
     }
 
     #[test]
-    fn the_proxys_new_connections_leave_only_through_a_workloads_link() {
+    fn the_proxys_new_connections_leave_only_through_a_workloads_link_or_the_mesh_over_tcp() {
         let rule = confining("korpis/ingress", 2).unwrap();
-        let wanted =
-            r#"socket cgroupv2 level 2 "korpis/ingress" ct state new oifname != "kw*" drop"#;
-        assert!(rule.contains(wanted), "{rule}");
+        let ours = r#"socket cgroupv2 level 2 "korpis/ingress" ct state new"#;
+        let links = format!(r#"{ours} oifname != "kw*" oifname != "korpis-overlay" drop"#);
+        let mesh = format!(r#"{ours} oifname "korpis-overlay" meta l4proto != tcp drop"#);
+        assert!(rule.contains(&links) && rule.contains(&mesh), "{rule}");
         assert!(confining("korpis/x\"; flush ruleset", 2).is_none(), "nothing but a path");
     }
 }

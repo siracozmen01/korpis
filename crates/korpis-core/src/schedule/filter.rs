@@ -150,10 +150,11 @@ fn enforcement(req: &Request<'_>, d: &DriverInfo) -> Option<Refusal> {
 
 /// The exposures that need the node itself to be reachable (§9 of docs/07-networking.md),
 /// judged on what each declared exposure resolves to (§3 there): `stable` without an edge tier
-/// is `node_bound`. `ingress` without one is served by the node's own proxy, on ports 80 and 443
-/// it holds (§3.2 there). `stable` and `ingress` with an edge tier reach the node through a
-/// tunnel it dials, and `overlay_only` needs the overlay only for a consumer on another node,
-/// which is a cross-node dependency.
+/// is `node_bound`. `ingress` an edge group does not serve is served by the node's own proxy, on
+/// ports 80 and 443 it holds (§3.2 there), whatever serves the workload's `stable` endpoints
+/// (Finding 197 of docs/23-walkthroughs.md). `stable` with an edge tier and `ingress` a group
+/// serves reach the node through the mesh, and `overlay_only` needs the overlay only for a
+/// consumer on another node, which is a cross-node dependency.
 fn reachability(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     let public = c.node.reachability == Reachability::Public;
     let serves_ingress = c.node.advertised.as_ref().is_some_and(|a| a.ingress);
@@ -162,7 +163,7 @@ fn reachability(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
             let without = if e.exposure == Exposure::Stable { " without an edge tier" } else { "" };
             Some((Check::Reachability, format!("{:?} needs a public address{without}", e.name)))
         }
-        Exposure::Ingress if !req.edge_tier && !serves_ingress => Some((
+        Exposure::Ingress if !req.ingress_edge && !serves_ingress => Some((
             Check::Reachability,
             format!("{:?} needs a node serving the ingress, holding ports 80 and 443", e.name),
         )),
@@ -293,14 +294,15 @@ fn dedicated(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
 }
 
 /// A workload whose `stable` endpoints an edge group serves is reached through a GRE link from
-/// each member to its node inside the mesh, so the node reaches every member, or is one (§3.1 of
+/// each member to its node inside the mesh, and one whose `ingress` endpoints a group serves by
+/// each member's proxy through the mesh, so the node reaches every member, or is one (§3.1 of
 /// docs/07-networking.md).
 fn edge(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     let stable =
         req.body.endpoints.iter().any(|e| e.exposure.resolved(req.edge_tier) == Exposure::Stable);
     let node = c.node.id;
     let apart = req.edge_members.iter().find(|m| **m != node && !req.mesh.joins(node, **m));
-    apart.filter(|_| stable).map(|m| {
+    apart.filter(|_| stable || req.ingress_edge).map(|m| {
         (Check::Edge, format!("does not reach edge {m} of the group serving it through the mesh"))
     })
 }

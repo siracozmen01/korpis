@@ -153,6 +153,9 @@ pub struct Wiring {
     pub ingress: Option<watch::Sender<korpis_proto::korpis::ingress::v1::IngressConfig>>,
     /// The certificates its proxy serves with, asked of the control plane and kept.
     pub certificates: Arc<crate::ingress::Certificates>,
+    /// The table of edges the mesh keeps, whose groups' routes the proxy serves too (§3.1 of
+    /// docs/07-networking.md); none where the node keeps no mesh.
+    pub edges: Option<watch::Receiver<agent::Edges>>,
     /// What each of the node's drivers is: whether it takes block devices, and holds a tap.
     pub driver_kinds: DriverKinds,
     /// Where query probes ask their health provider's rounds (§5 of docs/16-extensions.md).
@@ -183,6 +186,8 @@ pub struct Reconciler<R, H> {
     outcomes: health::Outcomes,
     /// The CPUs the helper keeps out of every cpuset but their holders'.
     cores_kept: cores::Kept,
+    /// What it last said the proxy holds of its edge groups' challenges, this session.
+    proofs: Option<agent::EdgeChallengesHeld>,
 }
 
 /// A string value.
@@ -190,6 +195,14 @@ fn text(s: &str) -> pb::Value {
     pb::Value {
         kind: Some(pb::__buffa::oneof::value::Kind::StringValue(s.to_owned())),
         ..Default::default()
+    }
+}
+
+/// Resolves when the table of edges changes; never, once nothing keeps it.
+async fn edges_changed(edges: &mut Option<watch::Receiver<agent::Edges>>) {
+    let Some(rx) = edges else { return std::future::pending().await };
+    if rx.changed().await.is_err() {
+        *edges = None;
     }
 }
 
@@ -245,6 +258,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             reaped,
             outcomes,
             cores_kept,
+            proofs: None,
         }
     }
 
@@ -281,6 +295,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 _ = tick.tick() => true,
                 () = reported(&mut reports) => true,
                 e = self.wiring.events.recv() => if self.heard(&e) { true } else { return },
+                () = edges_changed(&mut self.wiring.edges) => true,
                 () = until(due) => self.probe().await,
                 Some(o) = self.outcomes.rx.recv() => self.judged(&o),
             };
@@ -294,6 +309,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 for t in self.tracked.values_mut() {
                     t.sent = None;
                 }
+                self.proofs = None;
                 self.wiring.inventory.resend();
                 true
             }
@@ -339,7 +355,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         self.release_networks(&held).await;
         self.keep_cores().await;
         self.serve_resolvers(&held).await;
-        self.publish_ingress(&held);
+        self.publish_ingress(&held).await;
         self.serve_relays(&held);
         self.refresh_dependency_files(&held);
         self.refresh_networks(&held).await;

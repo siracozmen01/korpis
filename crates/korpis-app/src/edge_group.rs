@@ -19,6 +19,7 @@ use korpis_core::edge::EdgeGroup;
 use std::time::Duration;
 use uuid::Uuid;
 
+mod ingress;
 mod lease;
 mod placed;
 mod probe;

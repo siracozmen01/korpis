@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT g.id, g.term_ms FROM edge_group g\n                 JOIN address_pool p ON p.group_id = g.id\n                WHERE p.cidr >>= $1::text::inet\n                  AND EXISTS (SELECT 1 FROM stable_port s\n                               WHERE s.address = $1::text::inet AND s.workload_id IS NOT NULL)\n                  FOR UPDATE OF g",
+  "query": "SELECT g.id, g.term_ms FROM edge_group g\n                 JOIN address_pool p ON p.group_id = g.id\n                WHERE p.cidr >>= $1::text::inet\n                  AND (EXISTS (SELECT 1 FROM stable_port s\n                                WHERE s.address = $1::text::inet AND s.workload_id IS NOT NULL)\n                       OR EXISTS (SELECT 1 FROM edge_ingress i\n                                   WHERE i.address = $1::text::inet))\n                  FOR UPDATE OF g",
   "describe": {
     "columns": [
       {
@@ -36,5 +36,5 @@
       false
     ]
   },
-  "hash": "f44ff34fdf401d4752cddd8197450b4b34c335287d0b85833ddcb6e87c0724d8"
+  "hash": "6377c70b95c6ba69ee3f78b5bf7201511cb82b58d11fcd7eb068f19eddadf6ec"
 }

@@ -30,6 +30,9 @@ korpis-extension = { path = "../korpis-extension" }
 korpis-helper = { path = "../korpis-helper" }
 korpis-idp-oidc = { path = "../korpis-idp-oidc" }
 http = "1"
+# HTTP/3 at the ingress driven from a client's namespace, as a browser told by `Alt-Svc` drives it.
+h3 = "0.0.8"
+h3-quinn = "0.0.10"
 http-body-util = "0.1"
 # The ingress's features driven as a browser drives them: HTTP/2, and a WebSocket opened on it.
 hyper = { version = "1", features = ["client", "http2"] }
@@ -45,6 +48,7 @@ korpis-topology = { workspace = true }
 korpis-wire = { workspace = true }
 # The PROXY header a passthrough workload is sent, read by a parser that is not Korpis's.
 ppp = "2.3"
+quinn = { version = "0.11", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 # A node's helper served from inside a network namespace of the test's own (§9.1 of

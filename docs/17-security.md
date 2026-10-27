@@ -273,7 +273,14 @@ the OCI driver does not, and a merged runtime would grant both to both.
 - **The ingress proxy holds the private keys of the endpoints it serves.** It must, to terminate
   their TLS (§3.2 of `07-networking.md`). It is the process most exposed to the internet, which is
   why it is a process of its own, holding nothing else: a bug in it reaches those keys and the
-  traffic through it, and not the agent's session, the helper, or any workload's data.
+  traffic through it, and not the agent's session, the helper, or any workload's data. On a member
+  of an edge group it serves every name the group serves, so a bug in it there reaches those
+  keys too; and its node lets it open TCP connections through the mesh as well as through a
+  workload's link, to any address the mesh routes, of which each node admits from it only the
+  ports of the routes its group serves there (§3.1 of `07-networking.md`). Over HTTP/3 it parses
+  QUIC as well, in user space, from any client that reaches UDP port 443 (built 2026-10-27, §3.2
+  of `07-networking.md`): that widens what can reach a bug in it, not what such a bug reaches, as
+  its sockets are handed to it and it opens no new kind of connection.
 
 - **A client certificate the ingress accepts is not checked for revocation** (built
   2026-10-22, §3.2 of `07-networking.md`). The proxy verifies it against the authorities the
@@ -436,7 +443,9 @@ ingress proxy terminates every name the group serves, so its blast radius is the
 the plaintext of every workload behind the group, which is its organization's and those below it,
 and the keys of those names' certificates. Into a workload's node it reaches less: the node takes
 from its GRE link only connections to the ports its group forwards to that node's workloads, from
-whatever source address it claims, which is what a client of those ports could send anyway. A
+whatever source address it claims, which is what a client of those ports could send anyway, and
+from the mesh, from the member's own mesh address, only connections to the ports of the `ingress`
+endpoints its group serves there, which its proxy would carry anyway (built 2026-10-27). A
 probe does not catch it, since a member that forwards the probe and drops the rest passes. The
 recovery is a node's: removing it as compromised ends its session, its lease on each address runs
 out within the group's term and the next member's raises the epoch, and the certificates whose

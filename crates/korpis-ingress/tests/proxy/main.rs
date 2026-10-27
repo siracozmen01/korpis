@@ -14,6 +14,7 @@
 mod alpn;
 mod clients;
 mod control;
+mod http3;
 mod passthrough;
 mod plain;
 mod support;

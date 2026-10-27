@@ -138,6 +138,7 @@ impl Uplink {
             Some(Up::LeaseReleased(r)) => self.released(r).await,
             Some(Up::EdgeLeaseRequest(r)) => super::edge_lease::request(self, r).await,
             Some(Up::EdgeLeaseReleased(r)) => super::edge_lease::released(self, r).await,
+            Some(Up::EdgeChallengesHeld(h)) => super::edge_lease::challenges(self, h).await,
             Some(Up::Journal(j)) => self.journal(j).await,
             Some(Up::Observation(o)) => self.observed(o).await,
             Some(Up::CredentialRequest(r)) => self.credential(r).await,

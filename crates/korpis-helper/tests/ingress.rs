@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The node's ingress, as the helper keeps it (§3.2 of docs/07-networking.md): ports 80 and 443
-//! opened on the addresses asked, and the proxy started as its asker in a cgroup of its own whose
+//! opened on the addresses asked, and UDP port 443 for HTTP/3, and the proxy started as its asker in a cgroup of its own whose
 //! new connections leave only through a workload's link. Needs root, cgroup v2, and nftables;
 //! skipped without them.
 
@@ -13,7 +13,7 @@
 )]
 
 use korpis_helper::ingress::{Ingress, IngressConfig, open};
-use std::net::{IpAddr, TcpListener};
+use std::net::{IpAddr, TcpListener, UdpSocket};
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::PathBuf;
 use std::process::Command;
@@ -37,11 +37,13 @@ fn host_address() -> Option<IpAddr> {
 #[test]
 fn ports_80_and_443_are_opened_listening_on_the_address_asked() {
     let Some(address) = host_address().filter(|_| root()) else { return };
-    let opened = open(&[address.to_string()]).unwrap();
-    let ports: Vec<_> =
-        opened.into_iter().map(|fd| TcpListener::from(fd).local_addr().unwrap()).collect();
-    assert_eq!(ports.iter().map(std::net::SocketAddr::port).collect::<Vec<_>>(), [80, 443]);
-    assert!(ports.iter().all(|p| p.ip() == address));
+    let mut opened = open(&[address.to_string()]).unwrap().into_iter();
+    let tcp: Vec<_> =
+        opened.by_ref().take(2).map(|fd| TcpListener::from(fd).local_addr().unwrap()).collect();
+    let udp: Vec<_> = opened.map(|fd| UdpSocket::from(fd).local_addr().unwrap()).collect();
+    assert_eq!(tcp.iter().map(std::net::SocketAddr::port).collect::<Vec<_>>(), [80, 443]);
+    assert_eq!(udp.iter().map(std::net::SocketAddr::port).collect::<Vec<_>>(), [443], "HTTP/3");
+    assert!(tcp.iter().chain(&udp).all(|p| p.ip() == address));
     assert!(open(&["127.0.0.1".into()]).is_err(), "loopback serves no one outside");
 }
 

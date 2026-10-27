@@ -47,8 +47,8 @@ struct Allot<'a> {
 }
 
 /// What a placement gives a workload of the operator's addresses: the nodes it may hold a
-/// dedicated address on (§3.7 of docs/07-networking.md), and the group serving its `stable`
-/// endpoints (§3.1 there).
+/// dedicated address on (§3.7 of docs/07-networking.md), and the groups serving its `stable` and
+/// its `ingress` endpoints (§3.1 there).
 pub(crate) struct Addressing {
     /// The nodes it may hold a dedicated address on.
     pub(crate) dedicated: std::collections::BTreeSet<Uuid>,
@@ -57,12 +57,17 @@ pub(crate) struct Addressing {
     /// Whether, no group serving them, its `stable` endpoints are reached at a `cluster`
     /// pool's address it holds, which its router moves (§3.1 of docs/07-networking.md).
     pub(crate) routed: bool,
+    /// The group serving its `ingress` endpoints, and that group's ingress addresses.
+    pub(crate) ingress: Option<super::ingress::IngressServing>,
+    /// The members of the groups serving it.
+    members: Vec<Uuid>,
 }
 
 impl Addressing {
-    /// The members of the group serving it; none where none does.
+    /// The members of the groups serving it, which a node it is placed on reaches through the
+    /// mesh; none where none does.
     pub(crate) fn edge_members(&self) -> &[Uuid] {
-        self.edge.as_ref().map_or(&[], |e| e.group.members.as_slice())
+        &self.members
     }
 
     /// Whether a declared `stable` endpoint of it resolves to `stable`: a group serves it, or
@@ -82,15 +87,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         nodes: &[korpis_core::node::Node],
     ) -> Result<Addressing, AppError> {
         let edge = self.edge_serving(tx, (workload, body), owners).await?;
+        let ingress = self.ingress_serving(tx, (workload, body), owners, edge.as_ref()).await?;
         let routed = edge.is_none()
             && !stable_endpoints(body).is_empty()
             && self.routable(tx, workload, owners).await?;
         let dedicated = self.dedicated_nodes(tx, (workload, body, routed), owners, nodes).await?;
-        Ok(Addressing { dedicated, edge, routed })
+        let groups = edge.iter().map(|e| &e.group).chain(ingress.iter().map(|i| &i.group));
+        let mut members: Vec<Uuid> = groups.flat_map(|g| g.members.iter().copied()).collect();
+        members.sort_unstable();
+        members.dedup();
+        Ok(Addressing { dedicated, edge, routed, ingress, members })
     }
 
-    /// Records what binding `workload` to `node` gives it: its dedicated address, and its
-    /// stable addresses and ports.
+    /// Records what binding `workload` to `node` gives it: its dedicated address, its stable
+    /// addresses and ports, and the group serving its ingress.
     pub(crate) async fn hold_addressing(
         &self,
         tx: &mut S::Tx,
@@ -99,7 +109,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         addressing: &Addressing,
     ) -> Result<(), AppError> {
         self.hold_dedicated(tx, (workload, body, addressing.routed), owners, node).await?;
-        self.hold_stable(tx, (workload, body), addressing.edge.as_ref()).await
+        self.hold_stable(tx, (workload, body), addressing.edge.as_ref()).await?;
+        self.hold_ingress(tx, workload, addressing.ingress.as_ref()).await
     }
 
     /// Whether a declared `stable` endpoint of a workload of `organization` resolves to

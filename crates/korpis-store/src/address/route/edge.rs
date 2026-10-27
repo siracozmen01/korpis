@@ -2,7 +2,8 @@
 
 //! The routes of routed edge pools' addresses (migration 0134, §3.1 of docs/07-networking.md).
 //! An address is wanted at the member its lease was last issued to while that member has not
-//! released it and a `stable` port holds the address, and nowhere otherwise; a lease whose term
+//! released it and a `stable` port holds the address or it is its group's ingress address, and
+//! nowhere otherwise; a lease whose term
 //! has passed unrenewed moves nothing by itself, since the member that holds the address next is
 //! asked for at its grant.
 
@@ -27,10 +28,12 @@ pub(super) async fn take_due(
                  JOIN address_pool p
                    ON p.group_id = h.group_id AND p.cidr >>= h.address AND p.router IS NOT NULL
                 CROSS JOIN LATERAL (
-                       SELECT CASE WHEN h.released_at IS NULL AND EXISTS (
+                       SELECT CASE WHEN h.released_at IS NULL AND (EXISTS (
                                        SELECT 1 FROM stable_port s
                                         WHERE s.address = h.address
                                           AND s.workload_id IS NOT NULL)
+                                     OR EXISTS (SELECT 1 FROM edge_ingress i
+                                                 WHERE i.address = h.address))
                                    THEN h.node_id END AS wanted) w
                 WHERE w.wanted IS DISTINCT FROM h.routed_node_id
                   AND (h.route_due IS NULL OR h.route_due <= $1)

@@ -272,19 +272,17 @@ impl Host for InMemoryHost {
         ready(opened.map_err(|e| HostError(e.to_string())))
     }
 
-    /// Listeners on loopback in place of each address's ports 80 and 443, so a test reaches
-    /// what the agent serves on them.
+    /// Listeners on loopback in place of each address's ports 80 and 443, and sockets in place
+    /// of its UDP port 443, so a test reaches what the agent serves on them.
     fn open_ingress(
         &self,
         addresses: &[String],
     ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send {
-        let opened = (0..addresses.len() * 2)
-            .map(|_| {
-                std::net::TcpListener::bind("127.0.0.1:0")
-                    .map(std::os::fd::OwnedFd::from)
-                    .map_err(|e| HostError(e.to_string()))
-            })
-            .collect();
+        let tcp = (0..addresses.len() * 2)
+            .map(|_| std::net::TcpListener::bind("127.0.0.1:0").map(std::os::fd::OwnedFd::from));
+        let udp = (0..addresses.len())
+            .map(|_| std::net::UdpSocket::bind("127.0.0.1:0").map(std::os::fd::OwnedFd::from));
+        let opened = tcp.chain(udp).map(|r| r.map_err(|e| HostError(e.to_string()))).collect();
         ready(opened)
     }
 

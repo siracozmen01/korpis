@@ -28,11 +28,11 @@ use std::time::Duration;
 /// The link's own namespace, holding the bridge every machine is wired to, and the machines: the
 /// client at `198.18.4.254/24` and `2001:db8:4::fe/64`, the edges at `.1` and `::1` and at `.2`
 /// and `::2`, and the node at `.3` and `::3`, each on its interface `lan0`, forwarding IPv6 as
-/// IPv4, so the node gives its workloads IPv6 addresses too. `None` where this kernel makes no
-/// WireGuard or GRE link.
-fn network() -> Option<(Netns, [Netns; 4])> {
+/// IPv4, so the node gives its workloads IPv6 addresses too; their names carry `tag`, two
+/// letters each test of its own. `None` where this kernel makes no WireGuard or GRE link.
+pub(crate) fn network(tag: &str) -> Option<(Netns, [Netns; 4])> {
     let id = std::process::id();
-    let named = |n: &str| Netns::new(format!("korpis-edges-{id}-{n}"));
+    let named = |n: &str| Netns::new(format!("korpis-{tag}-{id}-{n}"));
     let lan = named("lan");
     let capable = lan.run(&["ip", "link", "add", "kedge-wg", "type", "wireguard"])
         && lan.run(&["ip", "link", "del", "kedge-wg"])
@@ -46,7 +46,7 @@ fn network() -> Option<(Netns, [Netns; 4])> {
     let machines = ["c", "e1", "e2", "a"].map(named);
     for (i, (m, at)) in machines.iter().zip(["254", "1", "2", "3"]).enumerate() {
         let at6 = if at == "254" { "fe" } else { at };
-        let port = format!("kedg{}{i}", id % 10_000);
+        let port = format!("k{tag}{}{i}", id % 10_000);
         let made = Command::new("ip")
             .args(["link", "add", &port, "netns", lan.name(), "type", "veth"])
             .args(["peer", "name", "lan0", "netns", m.name()])
@@ -94,7 +94,7 @@ fn settled(m: &Netns) {
 
 /// The group of `members`, probed once a minute, and its pools on `lan0` of the link, one of
 /// each family.
-async fn group_of(cp: &ControlPlane, members: &[&str]) -> pb::EdgeGroup {
+pub(crate) async fn group_of(cp: &ControlPlane, members: &[&str]) -> pb::EdgeGroup {
     let group = pb::EdgeGroup {
         organization: cp.root_org.clone(),
         name: "edge".into(),
@@ -140,7 +140,7 @@ fn holds(machine: &Netns, address: &str) -> bool {
 }
 
 /// Which of `edges` holds `address`, within a minute.
-async fn holder(edges: [&Netns; 2], address: &str) -> usize {
+pub(crate) async fn holder(edges: [&Netns; 2], address: &str) -> usize {
     for _ in 0..120 {
         if let Some(i) = edges.iter().position(|m| holds(m, address)) {
             return i;
@@ -152,7 +152,7 @@ async fn holder(edges: [&Netns; 2], address: &str) -> usize {
 
 /// Whether `machine` comes to hold `address` within three minutes: three heartbeats unheard,
 /// then the rest of its last holder's term.
-async fn comes_to_hold(machine: &Netns, address: &str) -> bool {
+pub(crate) async fn comes_to_hold(machine: &Netns, address: &str) -> bool {
     for _ in 0..360 {
         if holds(machine, address) {
             return true;
@@ -175,7 +175,7 @@ async fn a_client_reaches_a_server_at_its_stable_address_through_whichever_edge_
     if !live() {
         return;
     }
-    let Some((_lan, [client, m1, m2, ma])) = network() else {
+    let Some((_lan, [client, m1, m2, ma])) = network("ed") else {
         eprintln!("this kernel makes no WireGuard or GRE link: not run");
         return;
     };

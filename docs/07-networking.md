@@ -446,6 +446,34 @@ its own. HTTP/3 is served
 there, on UDP port 443 of the address, and at a node's own ingress where the node is its own edge,
 which is the UDP path this section's edges bring.
 
+Which group serves a workload's `ingress` endpoints is decided where it is placed, as its
+`stable` endpoints' is: the group serving those where it can, else the one serving its ingress
+already where it still can, else the nearest organization's group that can, and the node's own
+proxy where none can. A group can where two of its members or more serve the ingress, holding
+ports 80 and 443 for their proxies, and it has an IPv4 ingress address or a pool with room for
+one. The ingress address of each family is chosen at the first placement that needs one: the
+lowest address of the group's first pool of that family whose ports 80 and 443, over both
+transports, no `stable` endpoint holds, and no `stable` endpoint is given them after; an address
+whose other ports `stable` endpoints hold is shared, as their addresses are. It is kept for as long
+as its pool is, so the names that resolve to it do not move when the workloads behind them do, and
+it is held as any of the group's addresses is, under a lease, by a member serving the ingress
+alone: the control plane names its holder among those members and grants its lease only to them.
+The workload's names resolve to the group's ingress addresses (§3.5), its status shows them with
+the group named and why they are not reached, as a `stable` endpoint's are (Finding 190), and the
+placement filter then asks no proxy of the node, only that it reaches every member through the
+mesh. A certificate for those names is served by every member, which is given it as a node an
+endpoint is placed on is; an order's HTTP-01 and TLS-ALPN-01 challenges reach the members in their
+tables, and the issuer tells the directory to look once every connected member serving the ingress
+has said its proxy holds them, since whichever holds the address when the directory looks must
+answer. What it costs: a member's proxy routes every name its group serves, and the workloads
+behind are reached by one more hop than through their own node's proxy; an address of each family
+the group serves names at, whether or not a `stable` endpoint would have used it; and an order
+waits on every connected member, so one whose session is up but whose proxy is not taking its
+configuration holds the order until its minute passes and it is retried. What it does not do: move
+an endpoint a group starts or stops serving before its workload is placed again, since resolution
+is a placement's; or serve the ingress address of a family the holder advertises no address of,
+which its proxy does not listen on, so that address refuses until a member that does holds it.
+
 What it costs, beyond the hop already stated: two machines or more doing an edge's work, whose
 addresses must reach every node behind them; a GRE link per pair; a probe a second per member from
 the control plane; and, for a held address whose holder dies unheard, up to one term of nothing.
@@ -455,7 +483,7 @@ once (question 14); and a member compromised can drop what it forwards, which th
 if it drops the probe too.
 
 Built 2026-10-26, the control plane's half (P3.7b in §4 of `20-roadmap.md`): groups
-(`EdgeGroupService`, `korpis edge-group`, §2 of `13-surface-cli.md`), whose members are their
+(`EdgeGroupService`, `korpis edge-group`, §5 of `13-surface-cli.md`), whose members are their
 organization's own nodes; `edge` pools naming a group of their own organization, on the members'
 link or with a router; a `stable` endpoint's address and port allocated in the transaction that
 places its workload, from the group of what it holds or else the nearest serving group with room,
@@ -466,7 +494,7 @@ mesh address and what it may reach there, recomputed every two seconds and sent 
 as the mesh's peers are. Tested over the API with two members and a node behind them. Not built
 yet: the nodes' forwarding, the GRE links, the leases, the probe and failover, the refusal, the
 ingress through the group, HTTP/3, and `stable` resolved to a cluster pool's address (P3.7c to
-P3.7e).
+P3.7e), all of them since built (below, and HTTP/3 in §3.2).
 
 Built 2026-10-26, the nodes' forwarding (P3.7c): the helper's `KeepOverlay` takes the node's mesh
 address and its part in the groups' table, puts the address on `korpis-overlay`, keeps a GRE link
@@ -602,6 +630,32 @@ and the probe answers as before; a control plane in a network namespace of its o
 machine is no such replica, and needs none, since the node's answer to it crosses the link; and an
 installation of one node has no other to choose, so its probe still measures the way in alone.
 
+`ingress` through the group is built 2026-10-27 (P3.7e5), as designed above, for HTTP/1.1, HTTP/2,
+and TLS passed through, over TCP. The placement that resolves a workload's `ingress` endpoints to a
+group records the group and, the first time, its ingress addresses; its retirement forgets it.
+Each member's table carries the group's ingress addresses, every route the group serves with its
+workload's address as its node observes it, left out where the workload is not running or runs on a
+node outside the mesh, and the challenges standing for those names; the member translates ports 80
+and 443 of an ingress address over TCP, and UDP port 443 since HTTP/3 was built (§3.2), to its own
+first advertised address of the address's family, where its proxy listens, and its proxy serves
+those routes beside its own node's, fetching their certificates. The node behind admits each
+member's mesh address to the endpoint's port from the mesh, as it admits a dependent, and is made
+no GRE link for that alone; the proxy's new connections may leave by the mesh over TCP. The member
+says which challenges its proxy has been given, on every new session and whenever they change, and
+the issuer waits on that. `korpis edge-group get` shows the group's ingress addresses (§5 of
+`13-surface-cli.md`). Tested over the API (a workload placed on a node serving no ingress, its
+endpoint shown at the ingress address on 443 with its group, its names resolving there, the route
+and the challenge in every member's table, a member given the certificate, the node behind
+admitting both proxies; a `stable` endpoint asking for 443 over UDP given the next address; and a
+certificate ordered only once both connected members held its challenge), and end to end on real
+nodes, a client reaching the name over TLS at the ingress address through the holder's proxy and
+the mesh, and again through the other edge once the holder has lost power. Building it found that a
+group serving a workload's `stable` endpoints let it be placed on a node serving no ingress for its
+`ingress` ones, which nothing then served (Finding 197 of `23-walkthroughs.md`): the filter now
+asks a node to serve the ingress unless a group serves the `ingress` endpoints themselves. Not
+built yet: HTTP/3 on UDP port 443 (P3.7e6), which the address keeps its port for; built 2026-10-27,
+below in §3.2.
+
 ### 3.2 `ingress`: name-based routing
 
 For HTTP, HTTPS, and TLS-with-SNI, routing is by name and one address serves everything:
@@ -683,49 +737,53 @@ makes it survive without the records changing.
 requests from anyone on the internet. So it is not the agent: `korpis-ingress` is a separate
 program the agent supervises, confined like a backup job (§5.5 of `06-storage.md`): no filesystem,
 no capability, no port of its own to bind, and its only network the sockets it is given and new
-connections out through the node's workload links. The helper opens ports 80 and 443 on the node's
-advertised addresses, which needs a privilege neither the agent nor the proxy has, and passes the
-sockets to the agent, which hands them to the proxy, as the resolver's are handed (§5.1). The agent
-has the helper start the proxy, as the agent's own user and in a cgroup of its own, because only
-the helper can make a cgroup and the cgroup is what confines where the proxy connects: the node's
-table drops a new connection from it that leaves by anything but a workload's link, which Landlock,
-naming ports and not addresses, could not express. Where the node cannot make the cgroup or the
-rule, the agent says the proxy runs without that part of its confinement. When the proxy goes away
-the agent has it started again, waiting longer each time it fails quickly; the node says it serves
-the ingress while the agent holds the sockets, and says so as soon as it holds them rather than at
-its next heartbeat, so placement does not wait on it; an operator who wants a node to serve none
-runs its agent with `--ingress false`. The agent gives the proxy its routes and certificates whole,
-again whenever they change, over a Unix socket it names when it starts the proxy, and hands the
-listening sockets over the same connection as `SCM_RIGHTS`, so the proxy adopts them without
-inheriting descriptors by number; the proxy keeps nothing on disk. (Corrected 2026-10-15, when the
-proxy was built: this said a pipe, which carries no descriptors.) It accepts HTTP/1.1 and HTTP/2
-from clients over TLS 1.2 and 1.3, chooses the certificate by SNI, redirects plain HTTP to HTTPS
-except for ACME's challenge path, routes by the `Host` header among the names the connection's
-certificate serves, and forwards to the workload's address over HTTP/1.1, with WebSocket upgrades
-carried through; for an endpoint whose protocol is `https`, within TLS to a workload serving its
-own certificate, which the proxy does not verify, since the workload made it for itself and no
-authority the proxy holds vouches for it, and checks only that the workload holds its key. That TLS
-hop costs a handshake and protects nothing the node could not already see, since it never leaves
-the node; it exists for workloads that serve only HTTPS. It removes any `Forwarded` and
-`X-Forwarded-*` header a client sent and sets its own, so the workload learns the client's address
-from a header only the proxy writes; the endpoint's `client_address` is `translated`, since the
-workload's peer is the proxy (§3.4). A `passthrough` endpoint is routed by the SNI of the client's
-first message and spliced to the workload unread, which then terminates TLS itself and sees the
-proxy as its peer. It bounds what it accepts: header size and count, the time a client may take to
-send them, the time a connection may stay idle, and connections in all, where a WebSocket opened
-on a stream of an HTTP/2 connection counts as a connection of its own while it is open, since it
-holds a connection to its workload, and an HTTP/2 connection carries at most 100 streams at once
-(corrected 2026-10-22, Finding 138 of `23-walkthroughs.md`: such a WebSocket was not counted, so
-one connection could hold as many to its workload as it opened streams). A head too large or with
-too many fields is refused 431; a connection beyond the bound is answered 503 on port 80 and closed
-on 443, where there is no TLS yet to answer in, and a WebSocket beyond it is answered 503 on its
-stream; a head not sent in time, a TLS greeting not sent in
-time, and a connection idle past its bound are closed, as HTTP lets a server do with a connection
-it gives up on. A request naming a name its connection's route does not serve is refused 421,
-and a client asking for a name nobody routes, or one with no certificate yet, gets no handshake.
-What it costs: one more process per node, and a hop through it for every request; and a request's
-body is streamed, not buffered, so a slow workload holds the client's connection open as long as
-the workload does.
+connections out through the node's workload links, and over TCP through the mesh to the workloads
+of an edge group's routes (§3.1). The helper opens ports 80 and 443 over TCP, and port 443 over UDP
+for HTTP/3 (below), on the node's advertised addresses, which needs a privilege neither the agent
+nor the proxy has, and passes the sockets to the agent, which hands them to the proxy, as the
+resolver's are handed (§5.1). The agent has the helper start the proxy, as the agent's own user and
+in a cgroup of its own, because only the helper can make a cgroup and the cgroup is what confines
+where the proxy connects: the node's table drops a new connection from it that leaves by anything
+but a workload's link or, over TCP, the mesh's interface, which Landlock, naming ports and not
+addresses, could not express. (Added 2026-10-27, when `ingress` through a group was built: the mesh
+is allowed since a member's proxy reaches a workload on another node through it, and what the proxy
+reaches there is what that node admits from the member's mesh address, the ports of the routes its
+group serves.) Where the node cannot make the cgroup or the rule, the agent says the proxy runs
+without that part of its confinement. When the proxy goes away the agent has it started again,
+waiting longer each time it fails quickly; the node says it serves the ingress while the agent
+holds the sockets, and says so as soon as it holds them rather than at its next heartbeat, so
+placement does not wait on it; an operator who wants a node to serve none runs its agent with
+`--ingress false`. The agent gives the proxy its routes and certificates whole, again whenever they
+change, over a Unix socket it names when it starts the proxy, and hands the listening sockets over
+the same connection as `SCM_RIGHTS`, so the proxy adopts them without inheriting descriptors by
+number; the proxy keeps nothing on disk. (Corrected 2026-10-15, when the proxy was built: this said
+a pipe, which carries no descriptors.) It accepts HTTP/1.1 and HTTP/2 from clients over TLS 1.2 and
+1.3, chooses the certificate by SNI, redirects plain HTTP to HTTPS except for ACME's challenge
+path, routes by the `Host` header among the names the connection's certificate serves, and forwards
+to the workload's address over HTTP/1.1, with WebSocket upgrades carried through; for an endpoint
+whose protocol is `https`, within TLS to a workload serving its own certificate, which the proxy
+does not verify, since the workload made it for itself and no authority the proxy holds vouches for
+it, and checks only that the workload holds its key. That TLS hop costs a handshake and protects
+nothing the node could not already see, since it never leaves the node; it exists for workloads
+that serve only HTTPS. It removes any `Forwarded` and `X-Forwarded-*` header a client sent and sets
+its own, so the workload learns the client's address from a header only the proxy writes; the
+endpoint's `client_address` is `translated`, since the workload's peer is the proxy (§3.4). A
+`passthrough` endpoint is routed by the SNI of the client's first message and spliced to the
+workload unread, which then terminates TLS itself and sees the proxy as its peer. It bounds what it
+accepts: header size and count, the time a client may take to send them, the time a connection may
+stay idle, and connections in all, where a WebSocket opened on a stream of an HTTP/2 connection
+counts as a connection of its own while it is open, since it holds a connection to its workload,
+and an HTTP/2 connection carries at most 100 streams at once (corrected 2026-10-22, Finding 138 of
+`23-walkthroughs.md`: such a WebSocket was not counted, so one connection could hold as many to its
+workload as it opened streams). A head too large or with too many fields is refused 431; a
+connection beyond the bound is answered 503 on port 80 and closed on 443, where there is no TLS yet
+to answer in, and a WebSocket beyond it is answered 503 on its stream; a head not sent in time, a
+TLS greeting not sent in time, and a connection idle past its bound are closed, as HTTP lets a
+server do with a connection it gives up on. A request naming a name its connection's route does not
+serve is refused 421, and a client asking for a name nobody routes, or one with no certificate yet,
+gets no handshake. What it costs: one more process per node, and a hop through it for every
+request; and a request's body is streamed, not buffered, so a slow workload holds the client's
+connection open as long as the workload does.
 
 > Corrected 2026-10-22 (Finding 137 of `23-walkthroughs.md`). This said a request naming a name
 > its connection's certificate does not serve is refused, which a wildcard certificate shared by
@@ -814,7 +872,8 @@ three of them were built, below, and proven on a real node: WebSocket over HTTP/
 certificates, and the PROXY protocol. This paragraph also placed the TLS-ALPN challenge at a
 node's ingress in Phase 2, which §4 of `20-roadmap.md` did not list; it was listed there, and
 built the same day, below. What the ingress still does not do is HTTP/3 and the backend's
-protocol.)
+protocol. Corrected again 2026-10-27, when HTTP/3 was built, below: what it still does not do is
+the backend's protocol.)
 
 **WebSocket over HTTP/2, client certificates, and the PROXY protocol, designed 2026-10-22** for
 Phase 2, and built the same day. Each is decided by what evaluates it, where, and with what: all
@@ -908,6 +967,40 @@ directory counts and five minutes of back-off, before it succeeds; and a node re
 port at the name's address is proven neither way, and stays `failed` with the directory's reason,
 as before.
 
+**HTTP/3, designed and built 2026-10-27** (P3.7e6 in §4 of `20-roadmap.md`). The helper opens UDP
+port 443 of each address it opens TCP ports 80 and 443 of, and hands those sockets to the proxy
+with the others; the proxy serves QUIC (RFC 9000) on them, with TLS 1.3, which QUIC requires,
+`h3` the only protocol, and no early data, since a request an attacker replays in it would reach
+the workload twice. The certificate is chosen by the name the client asks for, as over TCP, but
+only of a route the proxy terminates that asks for no client certificate: a `passthrough` route
+has no HTTP for the proxy to speak, and a route asking for certificates is held to the one TLS
+configuration of its own that §3.2 gives it above, over TCP. A handshake for any other name finds
+no certificate and fails, and its client keeps to TCP, which is where such a route is served. A
+request is forwarded only when its `:authority` is one of the names of the route the connection's
+own name chose, and any other is refused 421, as over HTTP/2 and for the reason Finding 137 of
+`23-walkthroughs.md` gives; it reaches the workload as one over HTTP/2 does, over HTTP/1.1 with
+`Host` and `Forwarded` set by the proxy. The proxy does not announce extended `CONNECT` on HTTP/3
+(RFC 9220), so a browser opens its WebSockets over TCP, and a `CONNECT` sent anyway is refused 501.
+Every response a terminated route without client certificates sends over TCP carries
+`Alt-Svc: h3=":443"; ma=86400` (RFC 7838) when the proxy serves HTTP/3, which is how a browser
+learns to try it; a browser that cannot reach UDP 443 keeps to TCP, as browsers do. Every QUIC
+connection counts against the proxy's connection limit, and its idle timeout and header limit are
+the ones TCP connections have. At an edge group's ingress address (§3.1), the holder translates
+UDP port 443 to its own proxy as it does TCP 80 and 443, so HTTP/3 reaches the same proxy, which
+reaches the workload through the mesh over TCP, as for any other request. **What evaluates this,
+where, and with what information:** whether a route is served over HTTP/3, the proxy, from the
+route its agent gave it; whether a client uses it, the client, from the header. What it costs: a
+fourth socket per address, held by a proxy confined as above, whose confinement is unchanged,
+since a socket it is given is not a connection it opens; a QUIC stack in user space parsing what
+any client sends, which widens what can reach a bug in the proxy though not what such a bug
+reaches (§6 of `17-security.md`); and QUIC's own CPU, which in user space is more than TCP's in
+the kernel for the same bytes. What it
+does not do: it does not serve HTTP/3 to the workload, only to the client, since a backend's
+protocol beyond HTTP/1.1 is question 12 of §11; it does not migrate a QUIC connection when the
+group's holder changes, since the new holder's proxy has no state of the old one's connections,
+so the client opens a new one, as for TCP; and its UDP 443 is not served through a NAT or a
+provider's firewall that drops it, which the browser's fallback to TCP covers.
+
 ### 3.3 Protocol-aware routers are extensions
 
 Some protocols carry a hostname in their handshake. Minecraft Java sends the server address it was
@@ -982,7 +1075,8 @@ holding it (§3.2). (Corrected 2026-10-16, when endpoints' records were built: t
 not objects, so a provider published whatever its organization's endpoints asked for until zones
 became objects. Zones still are not, but domains are, and holding a domain is the check.) **As
 built for endpoints.** Each name an ingress endpoint routes resolves to the addresses its node
-advertises, an `A` set and an `AAAA` set with a time to live of a minute, so a workload that moves
+advertises, or to its edge group's ingress addresses where a group serves it (§3.1, added
+2026-10-27), an `A` set and an `AAAA` set with a time to live of a minute, so a workload that moves
 is found at its new node a minute after its records change. Each name is applied for an owner of
 its own, the endpoint and a digest of the name (`ep_…/…`), so each is published through whichever
 provider serves its zone, asked in the order of §3.2: the one that published it before, then the

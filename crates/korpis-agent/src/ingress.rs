@@ -5,6 +5,7 @@
 //! then feeds and watches.
 
 mod certificates;
+mod edges;
 mod supervise;
 
 use crate::held::HeldSet;
@@ -14,6 +15,7 @@ use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeMap;
 
 pub use certificates::Certificates;
+pub use edges::{held_proofs, with_edges};
 pub use supervise::Supervisor;
 
 /// How the proxy serves `e`: terminated and forwarded over HTTP or within TLS, or passed through.
@@ -116,24 +118,27 @@ pub fn config(
         let ingress = a.endpoints.iter().filter(|e| {
             e.exposure.as_known() == Some(pb::Exposure::EXPOSURE_INGRESS) && !e.domains.is_empty()
         });
-        routes.extend(ingress.map(|e| {
-            let (client_certificates, client_ca) = clients(e);
-            ingress::Route {
-                names: e.domains.clone(),
-                backend: format!("{}:{}", assigned.ipv4, e.container_port),
-                mode: mode(e).into(),
-                workload: workload.clone(),
-                endpoint: e.name.clone(),
-                certificate: e.certificate.clone(),
-                proxy_protocol: e.client_address.as_known()
-                    == Some(pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL),
-                client_certificates: client_certificates.into(),
-                client_ca,
-                ..Default::default()
-            }
-        }));
+        routes.extend(ingress.map(|e| route(workload, e, &assigned.ipv4.to_string())));
     }
     ingress::IngressConfig { routes, certificates, ..Default::default() }
+}
+
+/// The route of `workload`'s endpoint `e`, its workload reached at `address`.
+fn route(workload: &str, e: &pb::Endpoint, address: &str) -> ingress::Route {
+    let (client_certificates, client_ca) = clients(e);
+    ingress::Route {
+        names: e.domains.clone(),
+        backend: format!("{address}:{}", e.container_port),
+        mode: mode(e).into(),
+        workload: workload.to_owned(),
+        endpoint: e.name.clone(),
+        certificate: e.certificate.clone(),
+        proxy_protocol: e.client_address.as_known()
+            == Some(pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL),
+        client_certificates: client_certificates.into(),
+        client_ca,
+        ..Default::default()
+    }
 }
 
 #[cfg(test)]

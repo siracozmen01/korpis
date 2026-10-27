@@ -364,6 +364,10 @@ message EdgeGroup {
   repeated EdgeMemberStatus member_status = 12;
   // Each address of its pools, with the member holding it.
   repeated EdgeHolding holdings = 13;
+  // Its ingress addresses, one of each family at most, at which its members' proxies serve the
+  // names of the `ingress` endpoints it serves (§3.1 of docs/07-networking.md); none until a
+  // placement first needs one.
+  repeated string ingress_addresses = 14;
 }
 
 message EdgeMemberStatus {

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ingress_served (workload_id, group_id, held_at) VALUES ($1, $2, $3)\n             ON CONFLICT (workload_id) DO UPDATE SET group_id = $2, held_at = $3\n              WHERE ingress_served.group_id <> $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "22b435bf41525032b217661a930b4b4c6ae8b0e1e08a1547ebfc8245a9999e6a"
+}

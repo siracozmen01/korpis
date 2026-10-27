@@ -23,6 +23,7 @@ mod condition;
 mod device_grant;
 mod domain;
 mod edge;
+mod edge_ingress;
 mod edge_lease;
 mod egress;
 mod endpoint;
@@ -95,6 +96,7 @@ pub use condition::{ConditionRead, ConditionWrite};
 pub use device_grant::{DeviceGrantRead, DeviceGrantWrite, Polled};
 pub use domain::{DomainRead, DomainWrite};
 pub use edge::{EdgeRead, EdgeWrite};
+pub use edge_ingress::{ChallengesHeld, EdgeIngressRead, EdgeIngressWrite};
 pub use edge_lease::{EdgeLeaseRead, EdgeLeaseWrite};
 pub use egress::{EgressAt, EgressRead, EgressWrite};
 pub use endpoint::{EndpointRead, EndpointWrite};
@@ -273,6 +275,7 @@ pub trait Store:
     + AddressRead
     + EdgeRead
     + EdgeLeaseRead
+    + EdgeIngressRead
     + CertificateRead
     + TemplateRead
     + BindingRead
@@ -371,6 +374,7 @@ pub trait Tx:
     + AddressRoute
     + EdgeWrite
     + EdgeLeaseWrite
+    + EdgeIngressWrite
     + CertificateWrite
     + TemplateWrite
     + BindingWrite

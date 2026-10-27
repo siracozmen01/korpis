@@ -73,6 +73,18 @@ impl Pki {
     }
 }
 
+/// What a QUIC client trusting `pki` and speaking HTTP/3 connects with.
+pub fn quic_client(pki: &Pki) -> quinn::ClientConfig {
+    let mut tls = rustls::ClientConfig::builder_with_provider(provider())
+        .with_protocol_versions(&[&rustls::version::TLS13])
+        .unwrap()
+        .with_root_certificates(pki.roots())
+        .with_no_client_auth();
+    tls.alpn_protocols = vec![b"h3".to_vec()];
+    let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(tls).unwrap();
+    quinn::ClientConfig::new(Arc::new(crypto))
+}
+
 fn provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls::crypto::ring::default_provider())
 }
@@ -166,6 +178,8 @@ pub async fn workload(name: &'static str, tls: Option<Arc<rustls::ServerConfig>>
 pub struct Proxy {
     pub http: SocketAddr,
     pub https: SocketAddr,
+    /// HTTP/3's UDP socket.
+    pub quic: SocketAddr,
     publish: watch::Sender<Arc<Table>>,
 }
 
@@ -173,11 +187,13 @@ impl Proxy {
     pub fn start(config: &pb::IngressConfig) -> Self {
         let http = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let https = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let quic = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
         let (h, s) = (http.local_addr().unwrap(), https.local_addr().unwrap());
+        let q = quic.local_addr().unwrap();
         let (publish, table) = watch::channel(Arc::new(Table::from_pb(config).unwrap()));
-        let listeners = Listeners { http: vec![http], https: vec![https] };
+        let listeners = Listeners { http: vec![http], https: vec![https], quic: vec![quic] };
         tokio::spawn(korpis_ingress::serve(listeners, table));
-        Self { http: h, https: s, publish }
+        Self { http: h, https: s, quic: q, publish }
     }
 
     pub fn set(&self, config: &pb::IngressConfig) {

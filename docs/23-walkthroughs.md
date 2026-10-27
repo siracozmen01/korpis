@@ -1460,6 +1460,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 194 | A routed edge address was to be held without being added, leaving its other ports to the routing table | §78 | `07-networking.md` §3.1 |
 | 195 | A node's answer to a probe needed a route of its family before its mark could send it back | §78 | `07-networking.md` §3.1 |
 | 196 | Refusing everything at a held IPv6 address refused the neighbour discovery that keeps it reached | §78 | `07-networking.md` §3.1 |
+| 197 | A group serving a workload's `stable` endpoints let its `ingress` ones land on a node with no proxy | §79 | `05-scheduling.md` §2.1, `07-networking.md` §3.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6790,3 +6791,64 @@ neighbour solicitations a client sends to confirm the address is still reachable
 would end the client's sending to the address after its entry went stale. Resolved in §3.1
 there: neighbour discovery to a held IPv6 address is answered, and everything else not translated
 is refused as before. What it costs: nothing; ARP was never refused, since it is not IP.
+
+## 79. A shop's name is served by its organization's edge group
+
+Written 2026-10-27, when `ingress` through an edge group was built (P3.7e5 in §4 of
+`20-roadmap.md`). The host of §78 has edge group `edge`, E1 and E2, both serving the ingress, with
+an `edge` pool of `198.51.100.0/28` on their `eth0`, and node A behind them, which serves none. A
+customer's `shop` serves `shop.example.com` from its `web` endpoint, HTTP on 8080, its certificate
+left to `acme`. The trace asks the algebra question of every step.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The customer, holding `example.com`, declares `shop`; the placement finds the group can serve its ingress, two members serving it and room for an ingress address, chooses `198.51.100.2` with its ports 80 and 443 over both transports, and places `shop` on A, which reaches E1 and E2 through the mesh | `05-scheduling.md` §2.1; `07-networking.md` §3.1, §3.2 |
+| 2 | `shop.example.com` is published to `198.51.100.2`, and `korpis status` shows `web` there on 443 with the group named | `07-networking.md` §3.1, §3.5; `13-surface-cli.md` §5 |
+| 3 | E1, a member serving the ingress, is named to hold `198.51.100.2` and granted its lease; it translates 80 and 443 to its own proxy | `07-networking.md` §3.1; `02-architecture.md` §4.5 |
+| 4 | The issuer orders the certificate; the HTTP-01 challenge reaches E1 and E2 in their tables, each says its proxy holds it, and only then is the directory told to look | `07-networking.md` §3.1, §3.2; `02-architecture.md` §4.8 |
+| 5 | The directory fetches the token at `198.51.100.2:80`; E1's proxy answers it; the certificate is issued, and E1 and E2 are each given it as members of the group serving `web` | `07-networking.md` §3.2; `17-security.md` §9 |
+| 6 | A client opens TLS to `198.51.100.2:443` for `shop.example.com`; E1's proxy terminates it and forwards through the mesh, from E1's mesh address, to `shop` on A, which admits that address to 8080 alone | `07-networking.md` §3.1, §3.4, §9.1 |
+| 7 | E1 loses power; E2 is granted the address once E1's term has passed and serves the name with the route and certificate it already holds | `07-networking.md` §3.1 |
+| 8 | Another workload's `stable` endpoint asks for 443 over UDP; it is given `198.51.100.3` | `07-networking.md` §3.1 |
+| 9 | The browser, told by step 6's response that HTTP/3 is served on 443, opens QUIC to `198.51.100.2:443`; the holder translates UDP 443 to its proxy, which answers for `shop.example.com` and forwards each request over TCP through the mesh to `shop` on A | `07-networking.md` §3.1, §3.2; `17-security.md` §6 |
+
+Step 1 asks what knows the group can serve the ingress: the control plane, which holds each
+member's report that it serves the ingress, the group's pools, and what `stable` ports hold, all
+read in the placement's transaction under its lock. It also asks what the filter does with A, which
+serves no proxy, and found the answer depended on the wrong thing (Finding 197). Step 2 asks what
+the names resolve to while the group serves them: the group's ingress addresses, which the
+control plane holds and which do not move when `shop` does. Step 3 asks what keeps a member that
+serves no ingress from holding the address, where nothing would answer 443: the control plane
+names its holder, and grants its lease, among the members serving the ingress alone, and both
+sides of the lease read the same membership. Step 4 asks what evaluates "the proxy holds the
+challenge" for a node no assignment reaches: the member itself, which says so up its session once
+its proxy has been given its table, and the issuer, which waits for every connected member serving
+the ingress, since any of them may hold the address when the directory looks. A member whose
+session is down is not waited on; it cannot be granted the address meanwhile, though one whose
+lease still runs may answer for the rest of its term, and an order that meets it fails and is tried
+again after its back-off. Step 5 asks who may be given the key: a node an endpoint served with it
+is placed on, or a member of a group serving that endpoint, which the control plane judges from
+what it records of both. Step 6 asks what admits E1's proxy on A: A's table, which names E1's
+mesh address and `shop`'s port, and the kernel's choice of E1's mesh address as the source, the
+only address E1 has on the mesh's interface; and what lets the proxy, confined to workload links,
+open that connection at all: the confinement rule, which now allows the mesh over TCP. Step 7 asks
+what E2 needs at once: the route, the certificate, and the translation, which every member holds
+whether or not it holds the address. Step 8 asks what keeps a `stable` endpoint off the ingress
+ports: the allocation, which counts the ingress address's ports as held. Step 9, added when HTTP/3
+was built (P3.7e6), asks what decides that `web` is served over QUIC: the proxy, from the route
+its member's table gave it, terminated and asking for no client certificate, which is also what
+decides that its responses over TCP say so; and what A must admit for it: nothing new, since the
+proxy reaches `shop` over TCP whatever its client spoke, from the same mesh address. It also asks
+what step 7 does to a QUIC connection: it ends with E1, as a TCP one does, and the browser opens
+another to E2, which holds no state of E1's connections.
+
+**Finding 197.** §2.1 of `05-scheduling.md` and the placement filter had one flag say both that a
+workload's `stable` endpoints resolve to `stable` and that its `ingress` endpoints need no proxy on
+the node, so a workload with both, whose `stable` endpoints a group served, or which held a
+`cluster` pool's address for them, could be placed on a node serving no ingress, and nothing then
+served its names. Found tracing step 1 of §79 against the filter's code before `ingress` through a
+group existed. Resolved in §2.1 there and §3.1 of `07-networking.md`: whether a group serves the
+`ingress` endpoints is decided for them, and only that excuses the node from serving the ingress.
+What it costs: nothing; a workload a group serves wholly is placed as before.

@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 mod colocated;
 mod hold;
+mod ingress;
 mod rows;
 
 use rows::{GroupRow, PortRow, groups, millis, port_of, transport, transport_text};
@@ -210,9 +211,18 @@ impl EdgeWrite for PgTx {
     }
 
     async fn stable_taken(&mut self, pool: Uuid) -> StoreResult<TakenPorts> {
+        // A group's ingress address keeps its ports 80 and 443, over both transports, for the
+        // group's proxies (§3.1 of docs/07-networking.md).
         let rows = sqlx::query!(
-            r#"SELECT host(address) AS "address!", port, transport, workload_id, released_at
-                 FROM stable_port WHERE pool_id = $1"#,
+            r#"SELECT host(address) AS "address!", port AS "port!", transport AS "transport!",
+                      workload_id AS "workload_id?", released_at AS "released_at?"
+                 FROM stable_port WHERE pool_id = $1
+               UNION ALL
+               SELECT host(i.address), p.port, t.transport, i.group_id, NULL
+                 FROM edge_ingress i
+                CROSS JOIN (VALUES (80), (443)) AS p (port)
+                CROSS JOIN (VALUES ('tcp'), ('udp')) AS t (transport)
+                WHERE i.pool_id = $1"#,
             pool
         )
         .fetch_all(&mut *self.tx)

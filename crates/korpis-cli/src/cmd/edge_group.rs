@@ -158,6 +158,11 @@ fn routed(h: &pb::EdgeHolding) -> String {
 
 fn status(g: &pb::EdgeGroup) -> String {
     let mut out = String::new();
+    if !g.ingress_addresses.is_empty() {
+        out.push_str("\ningress at ");
+        out.push_str(&g.ingress_addresses.join(", "));
+        out.push('\n');
+    }
     if !g.member_status.is_empty() {
         let mut all =
             vec![["MEMBER", "READY", "LAST PROBE", "WHY NOT"].map(str::to_owned).to_vec()];
@@ -282,10 +287,12 @@ mod tests {
                 epoch: 7,
                 ..Default::default()
             }],
+            ingress_addresses: vec!["198.51.100.1".into()],
             ..Default::default()
         };
         let shown = status(&probed);
         assert!(shown.contains("missed 3 probes") && shown.contains("not yet probed"), "{shown}");
+        assert!(shown.contains("ingress at 198.51.100.1"), "{shown}");
 
         let holding = |routed_to: &str, route_failure: &str| pb::EdgeHolding {
             node: "nd_1".into(),

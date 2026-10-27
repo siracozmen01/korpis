@@ -79,6 +79,10 @@ pub struct Request<'a> {
     /// pool's address it holds, which its router moves; a node must then be one it may hold
     /// that address on, as for a `dedicated_ip` endpoint.
     pub routed: bool,
+    /// Whether its `ingress` endpoints are served by an edge group's members' proxies at the
+    /// group's ingress address, rather than by its node's own (§3.1 of docs/07-networking.md);
+    /// a node then need not serve the ingress.
+    pub ingress_edge: bool,
     /// That group's members, which a node it is placed on reaches through the mesh; empty where
     /// no group serves it.
     pub edge_members: &'a [Uuid],

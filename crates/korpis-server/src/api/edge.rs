@@ -84,7 +84,9 @@ impl pb::EdgeGroupService for Api {
         let group = self.app.edge_group(&caller, id).await.map_err(error::from_app)?;
         let (members, addresses) =
             self.app.edge_group_status(group.id).await.map_err(error::from_app)?;
-        let shown = with_status(group_to_pb(&group), (&members, &addresses), self.app.now());
+        let mut shown = with_status(group_to_pb(&group), (&members, &addresses), self.app.now());
+        let ingress = self.app.edge_group_ingress(group.id).await.map_err(error::from_app)?;
+        shown.ingress_addresses = ingress.iter().map(ToString::to_string).collect();
         Response::ok(pb::GetEdgeGroupResponse { group: shown.into(), ..Default::default() })
     }
 

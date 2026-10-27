@@ -122,24 +122,8 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         endpoints: a.endpoints.iter().map(|e| endpoint_to_pb(e, &[])).collect(),
         reaches_api: a.reaches_api,
         dependencies: a.dependencies.iter().map(resolved_to_pb).collect(),
-        challenges: a
-            .challenges
-            .iter()
-            .map(|c| agent::AcmeChallenge {
-                token: c.token.clone(),
-                key_authorization: c.key_authorization.clone(),
-                ..Default::default()
-            })
-            .collect(),
-        alpn_challenges: a
-            .alpn_challenges
-            .iter()
-            .map(|c| agent::AlpnChallenge {
-                name: c.name.clone(),
-                digest: c.digest.clone(),
-                ..Default::default()
-            })
-            .collect(),
+        challenges: a.challenges.iter().map(http_challenge_to_pb).collect(),
+        alpn_challenges: a.alpn_challenges.iter().map(alpn_challenge_to_pb).collect(),
         runs: a.runs.iter().map(crate::run::ref_to_pb).collect(),
         kept_runs: a.kept_runs.iter().map(|r| wire_id(IdKind::Run, *r)).collect(),
         devices: crate::node::holds_to_pb(&a.devices),
@@ -149,4 +133,22 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         dedicated: a.dedicated.as_ref().map(dedicated_to_pb).into(),
         ..Default::default()
     }
+}
+
+/// The wire form of an HTTP-01 challenge a node's proxy answers.
+pub(crate) fn http_challenge_to_pb(
+    c: &korpis_core::dns::certificate::HttpChallenge,
+) -> agent::AcmeChallenge {
+    agent::AcmeChallenge {
+        token: c.token.clone(),
+        key_authorization: c.key_authorization.clone(),
+        ..Default::default()
+    }
+}
+
+/// The wire form of a TLS-ALPN-01 challenge a node's proxy answers.
+pub(crate) fn alpn_challenge_to_pb(
+    c: &korpis_core::dns::certificate::AlpnChallenge,
+) -> agent::AlpnChallenge {
+    agent::AlpnChallenge { name: c.name.clone(), digest: c.digest.clone(), ..Default::default() }
 }

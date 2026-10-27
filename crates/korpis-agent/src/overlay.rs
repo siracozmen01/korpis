@@ -48,6 +48,7 @@ pub struct Overlay<H> {
     advertised: Vec<String>,
     signer: (String, SigningKey),
     kept: watch::Sender<Option<agent::OverlayFacts>>,
+    told: watch::Sender<agent::Edges>,
 }
 
 /// What the node admits from the mesh, by what `held` names: each dependent on another node, to
@@ -79,14 +80,19 @@ fn admitted(held: &HeldSet) -> Vec<helper::OverlayAdmitted> {
     out
 }
 
-/// The request that keeps the interface to `peers` on `port`, admitting `admitted`, with the
-/// node's part in edge groups as `edges` tells it (§3.1 of docs/07-networking.md), holding the
-/// addresses of `holding`, the node advertising `own`.
+/// The request that keeps the interface to `peers` on `port`, admitting `admitted` and what the
+/// edges' proxies may reach here, with the node's part in edge groups as `edges` tells it (§3.1
+/// of docs/07-networking.md), holding the addresses of `holding`, the node advertising `own`.
 fn request(
     (port, own): (u16, &[String]),
     (peers, edges, holding): (&agent::Peers, &agent::Edges, &Holding),
-    admitted: Vec<helper::OverlayAdmitted>,
+    mut admitted: Vec<helper::OverlayAdmitted>,
 ) -> helper::KeepOverlayRequest {
+    admitted.extend(edges::proxied(edges));
+    admitted.sort_by(|x, y| {
+        (&x.source, &x.destination, x.port).cmp(&(&y.source, &y.destination, y.port))
+    });
+    admitted.dedup();
     let peers = peers.peers.iter().map(|p| helper::OverlayPeer {
         public_key: p.public_key.clone(),
         endpoint: p.endpoint.clone(),
@@ -117,6 +123,15 @@ async fn sent(
     true
 }
 
+/// Puts `now` in `was`; whether that changed it.
+fn replaced(was: &mut agent::Edges, now: &agent::Edges) -> bool {
+    let changed = was != now;
+    if changed {
+        was.clone_from(now);
+    }
+    changed
+}
+
 /// What the node reports of what the helper answered.
 fn facts(port: u16, pools: &[String], kept: helper::KeepOverlayResponse) -> agent::OverlayFacts {
     let handshakes = kept.handshakes.into_iter().map(|h| agent::OverlayHandshake {
@@ -145,7 +160,15 @@ impl<H: Host> Overlay<H> {
     ) -> (Self, watch::Receiver<Option<agent::OverlayFacts>>) {
         let (kept, reported) = watch::channel(None);
         let (peers, edges) = (state.join(PEERS), state.join(edges::EDGES));
-        (Self { host, peers, edges, port, pools, advertised, signer, kept }, reported)
+        let told = watch::Sender::new(agent::Edges::default());
+        (Self { host, peers, edges, port, pools, advertised, signer, kept, told }, reported)
+    }
+
+    /// The table of edges last told, as it changes: what the node's proxy serves for its groups
+    /// is read from it (§3.1 of docs/07-networking.md).
+    #[must_use]
+    pub fn edges(&self) -> watch::Receiver<agent::Edges> {
+        self.told.subscribe()
     }
 
     /// The table of edges last told; none before the first.
@@ -271,6 +294,7 @@ impl<H: Host> Overlay<H> {
         loop {
             let admitted = admitted(&held.borrow_and_update());
             let told = self.edges_told();
+            self.told.send_if_modified(|was| replaced(was, &told));
             let holding = leases.holding(&told, Instant::now());
             let kept = self.keep(admitted.clone(), (&told, &holding)).await;
             if kept {

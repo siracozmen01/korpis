@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO endpoint_record (endpoint_id, name, workload_id, organization_id, owner,\n                                      wanted, state)\n         SELECT e.id, d.name, e.workload_id, w.organization_id,\n                'ep_' || replace(e.id::text, '-', '') || '/'\n                    || left(encode(sha256(convert_to(d.name, 'UTF8')), 'hex'), 16),\n                COALESCE(NULLIF(ARRAY(SELECT host(i.address) FROM ingress_served s\n                                        JOIN edge_ingress i ON i.group_id = s.group_id\n                                       WHERE s.workload_id = e.workload_id\n                                       ORDER BY family(i.address)), '{}'),\n                         n.addresses),\n                'pending'\n           FROM endpoint e\n           JOIN workload w ON w.id = e.workload_id\n           JOIN node n ON n.id = e.node_id\n          CROSS JOIN LATERAL unnest(e.domains) AS d(name)\n          WHERE e.exposure = 'ingress'\n         ON CONFLICT (endpoint_id, name) DO UPDATE\n            SET wanted = EXCLUDED.wanted, next_attempt_at = NULL\n          WHERE endpoint_record.wanted IS DISTINCT FROM EXCLUDED.wanted",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "6a46d6b49b6fca9db511a3a327591462e9927f1d7af681449f76bd2ad4c499e7"
+}

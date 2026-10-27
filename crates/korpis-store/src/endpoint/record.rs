@@ -89,7 +89,12 @@ pub(super) async fn sync(tx: &mut PgTx, now: SystemTime) -> StoreResult<()> {
          SELECT e.id, d.name, e.workload_id, w.organization_id,
                 'ep_' || replace(e.id::text, '-', '') || '/'
                     || left(encode(sha256(convert_to(d.name, 'UTF8')), 'hex'), 16),
-                n.addresses, 'pending'
+                COALESCE(NULLIF(ARRAY(SELECT host(i.address) FROM ingress_served s
+                                        JOIN edge_ingress i ON i.group_id = s.group_id
+                                       WHERE s.workload_id = e.workload_id
+                                       ORDER BY family(i.address)), '{}'),
+                         n.addresses),
+                'pending'
            FROM endpoint e
            JOIN workload w ON w.id = e.workload_id
            JOIN node n ON n.id = e.node_id

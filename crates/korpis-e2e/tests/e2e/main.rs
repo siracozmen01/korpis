@@ -20,6 +20,7 @@ mod cores;
 mod dedicated;
 mod dependencies;
 mod devices;
+mod edge_ingress;
 mod edges;
 mod exec_probe;
 mod extension;

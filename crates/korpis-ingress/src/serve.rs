@@ -5,7 +5,8 @@
 //! reads the name the client asks for, then either splices the connection to a `passthrough`
 //! workload unread or terminates TLS with the route's certificate and serves HTTP/1.1 and
 //! HTTP/2, routing each request whose `Host` is one of the route's names, and a WebSocket opened
-//! on either.
+//! on either; and over UDP on 443 it serves HTTP/3 (`quic`), which its responses over TCP
+//! advertise.
 
 use crate::forward::{Backends, Body, Origin, answer};
 use crate::headers::{wants_websocket, wants_websocket_h2};
@@ -35,11 +36,19 @@ pub struct Listeners {
     pub http: Vec<std::net::TcpListener>,
     /// TLS, port 443 of each address.
     pub https: Vec<std::net::TcpListener>,
+    /// HTTP/3, UDP port 443 of each address.
+    pub quic: Vec<std::net::UdpSocket>,
 }
 
 /// The streams one HTTP/2 connection carries at once: the floor RFC 9113 §6.5.2 recommends, so
 /// a client gets the concurrency it expects, and one connection does not stand for hundreds.
 const MAX_STREAMS: u32 = 100;
+
+/// What a response over TCP says of HTTP/3 where the route is served there (RFC 7838): on the
+/// same port, for a day.
+const ALT_SVC: &str = "h3=\":443\"; ma=86400";
+
+mod quic;
 
 /// What every connection shares.
 #[derive(Debug)]
@@ -48,6 +57,8 @@ struct Shared {
     backends: Backends,
     tls: Arc<rustls::ServerConfig>,
     open: AtomicUsize,
+    /// Whether HTTP/3 is served.
+    quic: bool,
 }
 
 /// One open connection, counted until it ends.
@@ -77,8 +88,12 @@ impl Shared {
 pub async fn serve(listeners: Listeners, table: watch::Receiver<Arc<Table>>) -> io::Result<()> {
     let tls = crate::tls::server_config(table.clone()).map_err(io::Error::other)?;
     let backends = Backends::new().map_err(io::Error::other)?;
-    let shared = Arc::new(Shared { table, backends, tls, open: AtomicUsize::new(0) });
+    let quic = !listeners.quic.is_empty();
+    let shared = Arc::new(Shared { table, backends, tls, open: AtomicUsize::new(0), quic });
     let mut tasks = tokio::task::JoinSet::new();
+    for socket in listeners.quic {
+        tasks.spawn(quic::serve(socket, Arc::clone(&shared)));
+    }
     for (listener, secure) in listeners
         .http
         .into_iter()
@@ -226,10 +241,19 @@ async fn secure_connection(shared: &Arc<Shared>, stream: TcpStream, client: Sock
         .max_concurrent_streams(MAX_STREAMS)
         .enable_connect_protocol();
     let shared = Arc::clone(shared);
+    // A route asking for client certificates is not served over HTTP/3 (crate::tls).
+    let advertised = shared.quic && route.tls.is_none();
     let service = service_fn(move |req| {
         let (shared, route) = (Arc::clone(&shared), Arc::clone(&route));
         let origin = Origin { client, route, host: String::new(), presented: presented.clone() };
-        async move { Ok::<_, Infallible>(request(&shared, origin, req).await) }
+        async move {
+            let mut answered = request(&shared, origin, req).await;
+            if advertised {
+                let h3 = http::HeaderValue::from_static(ALT_SVC);
+                answered.headers_mut().insert(header::ALT_SVC, h3);
+            }
+            Ok::<_, Infallible>(answered)
+        }
     });
     let _ = builder.serve_connection_with_upgrades(TokioIo::new(tls), service).await;
 }

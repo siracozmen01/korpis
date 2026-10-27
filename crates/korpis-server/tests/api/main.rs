@@ -48,6 +48,7 @@ mod dns;
 mod domains;
 mod edge_colocated;
 mod edge_groups;
+mod edge_ingress;
 mod edge_leases;
 mod edge_probes;
 mod edge_routes;

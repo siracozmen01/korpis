@@ -314,9 +314,10 @@ async fn the_proxy_redirects_on_80_terminates_and_passes_tls_through_by_name_on_
     let unrouted = passed((host, 443).into(), &client_hello("other.example.org")).await;
     assert!(unrouted.is_empty(), "a name it does not route is closed");
     let chain = ["list", "chain", "inet", "korpis", "ingress_output"];
-    let listed = Command::new("nft").args(chain).output().unwrap();
-    let listed = String::from_utf8_lossy(&listed.stdout).into_owned();
-    assert!(listed.contains("socket cgroupv2") && listed.contains("kw*"), "{listed}");
+    let out = Command::new("nft").args(chain).output().unwrap();
+    let (listed, why) =
+        (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(listed.contains("socket cgroupv2") && listed.contains("kw*"), "{listed}{why}");
 
     cp.retire(&w).await;
     let gone = |a: &str| a.starts_with("HTTP/1.1 404");

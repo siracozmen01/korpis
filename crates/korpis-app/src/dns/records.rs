@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Publishing the names of ingress endpoints (§3.5 of docs/07-networking.md). Each name an
-//! endpoint the ingress serves routes resolves to its node's advertised addresses, published
+//! endpoint the ingress serves routes resolves to its node's advertised addresses, or, where an
+//! edge group serves it, to the group's ingress addresses (§3.1 there), published
 //! through a DNS provider of the endpoint's organization: the one that published it before, then
 //! the others it sees, its own before its ancestors', until one serves the name's zone. A name no
 //! provider serves is its holder's to publish, and its status says so; the providers are asked
@@ -29,7 +30,7 @@ const CALL_WITHIN: Duration = Duration::from_secs(30);
 const ZONE_NOT_FOUND: &str = "dns.zone_not_found";
 /// What a name no provider serves says.
 const UNMANAGED: &str = "no DNS provider of its organization serves its zone: its holder \
-                         publishes A and AAAA records for the node's addresses";
+                         publishes A and AAAA records for the addresses its endpoint shows";
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Makes the names in DNS follow the endpoints the ingress serves.

@@ -223,8 +223,10 @@ impl EdgeLeaseWrite for PgTx {
             r#"SELECT g.id, g.term_ms FROM edge_group g
                  JOIN address_pool p ON p.group_id = g.id
                 WHERE p.cidr >>= $1::text::inet
-                  AND EXISTS (SELECT 1 FROM stable_port s
-                               WHERE s.address = $1::text::inet AND s.workload_id IS NOT NULL)
+                  AND (EXISTS (SELECT 1 FROM stable_port s
+                                WHERE s.address = $1::text::inet AND s.workload_id IS NOT NULL)
+                       OR EXISTS (SELECT 1 FROM edge_ingress i
+                                   WHERE i.address = $1::text::inet))
                   FOR UPDATE OF g"#,
             at.to_string()
         )

@@ -59,17 +59,20 @@ async fn connect(
     running
 }
 
-/// Waits until the control plane has ingested through `seq`.
+/// Waits, a minute at most, until the control plane has ingested through `seq`. What is tested
+/// is what is ingested, not how soon: with every test of the suite starting a control plane of
+/// its own on one database, an ingestion of ten records has taken more than ten seconds. A
+/// failure names the cursor it stopped at.
 async fn ingested(cp: &ControlPlane, seq: i64) {
-    for _ in 0..200 {
-        let through: Option<i64> =
-            cp.scalar("SELECT max(ingested_through) FROM node_journal_cursor").await;
+    let mut through = None;
+    for _ in 0..1200 {
+        through = cp.scalar("SELECT max(ingested_through) FROM node_journal_cursor").await;
         if through == Some(seq) {
             return;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    panic!("the control plane did not ingest through {seq}");
+    panic!("the control plane did not ingest through {seq}: its cursor is at {through:?}");
 }
 
 #[tokio::test]

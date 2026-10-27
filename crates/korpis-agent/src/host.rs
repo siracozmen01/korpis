@@ -150,7 +150,8 @@ pub trait Host: Send + Sync + 'static {
     ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send;
 
     /// Ports 80 and 443 of each of `addresses`, opened listening for the ingress proxy: every
-    /// port 80, then every 443 (§3.2 of docs/07-networking.md).
+    /// port 80, then every 443, then every UDP port 443 for HTTP/3 (§3.2 of
+    /// docs/07-networking.md).
     fn open_ingress(
         &self,
         addresses: &[String],

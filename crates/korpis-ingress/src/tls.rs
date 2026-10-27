@@ -41,6 +41,38 @@ pub fn server_config(
     Ok(Arc::new(config))
 }
 
+/// Chooses the certificate of the route the client's SNI names, for HTTP/3: only a route that
+/// is terminated and asks for no client certificate is served over QUIC, so a handshake for any
+/// other finds no certificate, and its client keeps to TCP.
+#[derive(Debug)]
+struct OverQuic(watch::Receiver<Arc<Table>>);
+
+impl ResolvesServerCert for OverQuic {
+    fn resolve(&self, hello: ClientHello<'_>) -> Option<Arc<CertifiedKey>> {
+        let table = Arc::clone(&self.0.borrow());
+        let route = table.route(hello.server_name()?)?;
+        if route.tls.is_some() || matches!(route.mode, crate::table::Mode::Passthrough { .. }) {
+            return None;
+        }
+        route.certificate.clone()
+    }
+}
+
+/// The configuration HTTP/3 connections are accepted with: TLS 1.3, which QUIC requires, `h3`
+/// the one protocol spoken, the certificate chosen as [`OverQuic`] does, and no early data,
+/// since a request replayed by an attacker would reach the workload twice.
+pub fn quic_config(
+    table: watch::Receiver<Arc<Table>>,
+) -> Result<Arc<rustls::ServerConfig>, rustls::Error> {
+    let mut config = rustls::ServerConfig::builder_with_provider(crate::unverified::provider())
+        .with_protocol_versions(&[&rustls::version::TLS13])?
+        .with_no_client_auth()
+        .with_cert_resolver(Arc::new(OverQuic(table)));
+    config.alpn_protocols = vec![b"h3".to_vec()];
+    config.max_early_data_size = 0;
+    Ok(Arc::new(config))
+}
+
 /// Serves one route's certificate, or none while it has none.
 #[derive(Debug)]
 struct Fixed(Option<Arc<CertifiedKey>>);

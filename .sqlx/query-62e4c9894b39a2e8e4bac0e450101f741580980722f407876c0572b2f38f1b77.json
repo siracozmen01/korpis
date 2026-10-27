@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT host(address) AS \"address!\", port AS \"port!\", transport AS \"transport!\",\n                      workload_id AS \"workload_id?\", released_at AS \"released_at?\"\n                 FROM stable_port WHERE pool_id = $1\n               UNION ALL\n               SELECT host(i.address), p.port, t.transport, i.group_id, NULL\n                 FROM edge_ingress i\n                CROSS JOIN (VALUES (80), (443)) AS p (port)\n                CROSS JOIN (VALUES ('tcp'), ('udp')) AS t (transport)\n                WHERE i.pool_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "address!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "port!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "transport!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "workload_id?",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "released_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "62e4c9894b39a2e8e4bac0e450101f741580980722f407876c0572b2f38f1b77"
+}

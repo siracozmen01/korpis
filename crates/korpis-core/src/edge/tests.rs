@@ -125,3 +125,18 @@ fn an_ipv6_address_is_found_beside_on_the_same_ports_and_a_node_s_mesh_address_i
     let routed = ["2001:db8:1::/64".parse().unwrap()];
     assert_eq!(mesh_address_v6(&routed), None, "an operator's routed prefix is not the mesh's");
 }
+
+#[test]
+fn a_group_s_ingress_address_is_the_lowest_whose_80_and_443_are_free_over_both_transports() {
+    let p = pool("198.51.100.0/29");
+    let none = TakenPorts::new();
+    let first = ingress_room((&p, &none), at(0)).unwrap();
+    // A `stable` endpoint's port on it beside its ingress ports leaves it the ingress address.
+    let beside = TakenPorts::from([((first, 25_565, Tcp), Taken::Held(ORG))]);
+    assert_eq!(ingress_room((&p, &beside), at(0)), Some(first));
+    // One holding its 443 over UDP alone moves it to the next.
+    let held = TakenPorts::from([((first, 443, Udp), Taken::Held(ORG))]);
+    let next = ingress_room((&p, &held), at(0)).unwrap();
+    assert_ne!(next, first);
+    assert_eq!(ingress_ports().len(), 4, "80 and 443, each over TCP and UDP");
+}

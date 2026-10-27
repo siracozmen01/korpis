@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tokens, digests FROM edge_challenges_held WHERE node_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tokens",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "edge_challenges_held",
+            "name": "tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "digests",
+        "type_info": "ByteaArray",
+        "origin": {
+          "Table": {
+            "table": "edge_challenges_held",
+            "name": "digests"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "41cc770075bafaecb2e18bc7269e5da749a4ec2801116641f18a5fd44083754f"
+}

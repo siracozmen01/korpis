@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*) FROM dedicated_address\n                        WHERE pool_id = $1 AND workload_id IS NOT NULL)\n                    + (SELECT count(*) FROM stable_port\n                        WHERE pool_id = $1 AND workload_id IS NOT NULL)\n                    + (SELECT count(*) FROM edge_ingress i\n                        WHERE i.pool_id = $1\n                          AND EXISTS (SELECT 1 FROM ingress_served s\n                                       WHERE s.group_id = i.group_id)) AS \"n!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2819e5449f198e6a57c510d3302dba54f246428f86fe2158a33814b276b0cfb6"
+}

@@ -9,7 +9,9 @@
 use crate::App;
 use crate::error::AppError;
 use crate::node::node_issue;
-use crate::ports::{Clock, EdgeLeaseWrite, EffectWrite, EpochIssue, RecipeSource, Store, Tx};
+use crate::ports::{
+    Clock, EdgeIngressWrite as _, EdgeLeaseWrite, EffectWrite, EpochIssue, RecipeSource, Store, Tx,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::edge::lease::{Hold, decide, designate};
@@ -85,8 +87,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Some((group, term)) = tx.lock_edge_group_of(address).await? else {
             return Ok(EdgeLeaseAnswer::Refused(Refusal::NotAssigned));
         };
-        let members: Vec<_> =
+        let mut members: Vec<_> =
             tx.edge_members_now(group).await?.iter().map(|m| (m.node, m.health())).collect();
+        // A group's ingress address is held by a member serving the ingress alone.
+        if tx.ingress_addresses_now(group).await?.iter().any(|i| i.address == address) {
+            let nodes: Vec<Uuid> = members.iter().map(|(n, _)| *n).collect();
+            let proxying = self.proxying(&nodes).await?;
+            members.retain(|(n, _)| proxying.contains(n));
+        }
         let current = tx.edge_hold_for_update(address).await?;
         let designated = designate(address, &members, current.as_ref(), now);
         let epoch = match decide(node, designated, current.as_ref(), now) {

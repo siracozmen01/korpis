@@ -37,8 +37,13 @@ pub(super) struct Order {
     pub(super) organization: Uuid,
     /// The DNS providers, by name, the organization's own first.
     pub(super) providers: Vec<String>,
-    /// The nodes its endpoint is placed on; none for a portal's.
+    /// The nodes its endpoint is placed on, where an edge group does not serve it; none for a
+    /// portal's.
     pub(super) nodes: Vec<Uuid>,
+    /// The members of each edge group serving its endpoint that serve the ingress and are
+    /// connected, which say what their proxies hold of the challenges themselves (§3.1 of
+    /// docs/07-networking.md).
+    pub(super) members: Vec<Uuid>,
     /// Whether it is a portal's, which no node serves, so HTTP-01 has nowhere to be answered
     /// (§3.6 of docs/07-networking.md).
     pub(super) portal: bool,
@@ -88,17 +93,30 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(true)
     }
 
-    /// The nodes the workloads served with certificate `id` are placed on.
-    async fn serving(&self, id: Uuid) -> Result<Vec<Uuid>, AppError> {
-        let mut nodes = Vec::new();
+    /// The nodes whose proxies serve the workloads served with certificate `id`: the node each
+    /// is placed on, and, for one whose ingress an edge group serves, every member serving the
+    /// ingress whose session is up, any of which may hold the group's ingress address while the
+    /// directory looks.
+    async fn serving(&self, id: Uuid) -> Result<(Vec<Uuid>, Vec<Uuid>), AppError> {
+        let (mut nodes, mut members) = (Vec::new(), Vec::new());
         for w in self.store.routed_with(id).await? {
-            if let Some(p) = self.store.placement(w).await? {
+            if let Some(group) = self.store.ingress_served_of(w).await? {
+                let states = self.store.edge_members_all().await?;
+                let up: Vec<Uuid> = states
+                    .iter()
+                    .filter(|m| m.group == group && m.connected)
+                    .map(|m| m.node)
+                    .collect();
+                members.extend(self.proxying(&up).await?);
+            } else if let Some(p) = self.store.placement(w).await? {
                 nodes.push(p.node);
             }
         }
-        nodes.sort();
-        nodes.dedup();
-        Ok(nodes)
+        for found in [&mut nodes, &mut members] {
+            found.sort();
+            found.dedup();
+        }
+        Ok((nodes, members))
     }
 
     async fn issue(&self, c: Certificate) -> Result<(), AppError> {
@@ -107,8 +125,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return self.attempt_failed(c, &none).await;
         };
         let providers = self.dns_providers(c.organization).await?;
-        let nodes = self.serving(c.id).await?;
-        if nodes.is_empty() && providers.is_empty() && c.portal.is_none() {
+        let (nodes, members) = self.serving(c.id).await?;
+        if nodes.is_empty() && members.is_empty() && providers.is_empty() && c.portal.is_none() {
             let waiting = Certificate {
                 reason: Some("its endpoint is placed on no node yet".into()),
                 next_attempt: Some(self.clock.now() + UNPLACED),
@@ -123,6 +141,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             organization: c.organization,
             providers,
             nodes,
+            members,
             portal,
             way,
             proved: OnceLock::new(),

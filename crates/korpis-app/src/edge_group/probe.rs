@@ -125,6 +125,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok((members, self.store.edge_addresses_of(group).await?))
     }
 
+    /// `group`'s ingress addresses, IPv4 first.
+    ///
+    /// # Errors
+    /// The store failed.
+    pub async fn edge_group_ingress(&self, group: Uuid) -> Result<Vec<IpAddr>, AppError> {
+        let found = self.store.ingress_addresses_of(group).await?;
+        Ok(found.into_iter().map(|a| a.address).collect())
+    }
+
     /// Records `member`'s own probe of `group`: whether it passes and, where it does not, why.
     ///
     /// # Errors

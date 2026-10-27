@@ -148,7 +148,8 @@ async fn the_agent_hands_its_proxy_the_sockets_and_the_routes_and_restarts_it() 
     let control = started(&host, 1).await;
     let (mut proxy, listeners, fds) =
         tokio::task::spawn_blocking(move || connect(&control)).await.unwrap();
-    assert_eq!((listeners.http, listeners.https, fds.len()), (1, 1, 2), "port 80, then 443");
+    let counts = (listeners.http, listeners.https, listeners.quic, fds.len());
+    assert_eq!(counts, (1, 1, 1, 3), "port 80, then 443, then UDP 443");
     assert!(serving.load(Ordering::Relaxed), "the node says it serves the ingress");
     let (proxy, first) = tokio::task::spawn_blocking(move || {
         let c = next_config(&mut proxy);

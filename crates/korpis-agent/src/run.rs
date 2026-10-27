@@ -273,6 +273,7 @@ impl Agent {
             network,
             ingress,
             certificates: link.certificates.clone(),
+            edges: overlay.as_ref().map(Overlay::edges),
             driver_kinds,
             identity: Some(sockets),
             reading,
@@ -289,8 +290,7 @@ impl Agent {
             tokio::spawn(offloader.run()),
             tokio::spawn(sampler.run()),
         ];
-        let up = link.outbound.clone();
-        let overlay = overlay.map(|o| o.spawn((&link.events, link.held.clone()), up));
+        let overlay = overlay.map(|o| o.spawn((&link.events, link.held.clone()), link.outbound));
         let tasks = tasks.into_iter().chain(proxy).chain(overlay).collect();
         Ok(Self { tasks, journal, events: link.events })
     }

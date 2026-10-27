@@ -113,6 +113,7 @@ struct Case {
     dedicated: BTreeSet<Uuid>,
     edge_members: Vec<Uuid>,
     routed: bool,
+    ingress_edge: bool,
     mesh: crate::node::mesh::Pairs,
 }
 
@@ -132,6 +133,7 @@ impl Case {
             dedicated: BTreeSet::new(),
             edge_members: Vec::new(),
             routed: false,
+            ingress_edge: false,
             mesh: crate::node::mesh::Pairs::EMPTY,
         }
     }
@@ -152,6 +154,7 @@ impl Case {
             current: None,
             edge_tier: !self.edge_members.is_empty() || self.routed,
             routed: self.routed,
+            ingress_edge: self.ingress_edge,
             edge_members: &self.edge_members,
             volumes: &[],
             refused: &NONE_REFUSED,
@@ -274,27 +277,8 @@ fn a_cordoned_node_keeps_what_is_already_there() {
     let allocated = reserved.clone();
     let labels = BTreeMap::new();
     let b = body(7 * GIB);
-    let req = Request {
-        workload: Uuid::from_u128(1000),
-        project: PROJECT,
-        labels: &labels,
-        owners: &[ORG],
-        body: &b,
-        current: Some(Current { node: here.id, reserved: &reserved, devices: &[], cores: &[] }),
-        edge_tier: false,
-        routed: false,
-        edge_members: &[],
-        volumes: &[],
-        refused: &NONE_REFUSED,
-        content: &NONE_HELD,
-        churn: &NONE_LOST,
-        dependencies: &[],
-        mesh: &NO_MESH,
-        quota: &[],
-        devices: &NO_HOLDS,
-        cores: &NO_CORES,
-        dedicated: &NO_DEDICATED,
-    };
+    let current = Some(Current { node: here.id, reserved: &reserved, devices: &[], cores: &[] });
+    let req = Request { current, ..req(&labels, &b) };
     let e =
         place(&req, &[Candidate { node: &here, allocated: &allocated }], &[], &Policies::default());
     assert_eq!(e.chosen, Some(here.id), "its own reservation is counted as free for itself");
@@ -323,6 +307,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         current: None,
         edge_tier: false,
         routed: false,
+        ingress_edge: false,
         edge_members: &[],
         volumes: &[],
         refused: &NONE_REFUSED,

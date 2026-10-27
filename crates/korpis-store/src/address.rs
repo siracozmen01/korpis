@@ -135,12 +135,17 @@ impl AddressRead for PgStore {
     }
 
     async fn pool_held(&self, pool: Uuid) -> StoreResult<u64> {
-        // An edge pool's are its addresses and ports that `stable` endpoints hold.
+        // An edge pool's are its addresses and ports that `stable` endpoints hold, and its
+        // group's ingress address while the group serves a workload's ingress.
         let n = sqlx::query_scalar!(
             r#"SELECT (SELECT count(*) FROM dedicated_address
                         WHERE pool_id = $1 AND workload_id IS NOT NULL)
                     + (SELECT count(*) FROM stable_port
-                        WHERE pool_id = $1 AND workload_id IS NOT NULL) AS "n!""#,
+                        WHERE pool_id = $1 AND workload_id IS NOT NULL)
+                    + (SELECT count(*) FROM edge_ingress i
+                        WHERE i.pool_id = $1
+                          AND EXISTS (SELECT 1 FROM ingress_served s
+                                       WHERE s.group_id = i.group_id)) AS "n!""#,
             pool
         )
         .fetch_one(&self.pool)

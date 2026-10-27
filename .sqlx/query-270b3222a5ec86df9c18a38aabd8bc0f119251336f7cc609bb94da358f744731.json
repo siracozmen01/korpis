@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO edge_challenges_held (node_id, tokens, digests, held_at)\n             SELECT $1::uuid, $2::text[], $3::bytea[], $4::timestamptz\n              WHERE EXISTS (SELECT 1 FROM node WHERE id = $1)\n             ON CONFLICT (node_id) DO UPDATE SET tokens = $2, digests = $3, held_at = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "ByteaArray",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "270b3222a5ec86df9c18a38aabd8bc0f119251336f7cc609bb94da358f744731"
+}

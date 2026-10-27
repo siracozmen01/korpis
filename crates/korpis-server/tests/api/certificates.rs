@@ -45,7 +45,7 @@ pub async fn upload(
 }
 
 /// `web` serving its names with the provided certificate `id`.
-fn served(repo: &str, names: &[&str], id: &str) -> pb::IntentBody {
+pub(crate) fn served(repo: &str, names: &[&str], id: &str) -> pb::IntentBody {
     let mut body = web(repo, names);
     body.endpoints[0].tls = pb::TlsSpec {
         source: pb::TlsSource::TLS_SOURCE_PROVIDED.into(),
@@ -132,7 +132,7 @@ async fn an_endpoint_serves_with_a_certificate_of_its_own_covering_its_names() {
 }
 
 /// Asks for `certificate` as the node of stream `s`; the outcome.
-async fn fetch(s: &mut Stream, request: &str, certificate: &str) -> Outcome {
+pub(crate) async fn fetch(s: &mut Stream, request: &str, certificate: &str) -> Outcome {
     let up = agent::CertificateRequest {
         request: request.into(),
         certificate: certificate.into(),

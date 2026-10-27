@@ -156,6 +156,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             current: None,
             edge_tier: addressing.stable(),
             routed: addressing.routed,
+            ingress_edge: addressing.ingress.is_some(),
             edge_members: addressing.edge_members(),
             volumes: &volumes,
             refused: &drivers_refused,

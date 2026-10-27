@@ -16,6 +16,9 @@ base64 = "0.22"
 buffa = { version = "=0.9.2" }
 bytes = "1"
 clap = { version = "4", features = ["derive"] }
+# HTTP/3 on UDP port 443: QUIC by quinn, the HTTP/3 framing by h3.
+h3 = "0.0.8"
+h3-quinn = "0.0.10"
 http = "1"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["server", "client", "http1", "http2"] }
@@ -27,6 +30,7 @@ korpis-proto = { workspace = true }
 landlock = "0.4"
 # The certificate a TLS-ALPN-01 validation is answered with, made for its name and digest.
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
+quinn = { version = "0.11", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
 rustix = { version = "1", features = ["net", "std", "thread"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 thiserror = { workspace = true }

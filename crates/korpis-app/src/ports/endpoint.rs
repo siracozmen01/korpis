@@ -56,8 +56,9 @@ pub trait EndpointWrite {
     ) -> impl Future<Output = StoreResult<Option<u16>>> + Send;
 
     /// Makes the names in DNS follow the endpoints the ingress serves: a name routed and not yet
-    /// recorded is recorded pending, one whose node's addresses changed is due again, and one no
-    /// longer routed is due to be withdrawn, or forgotten if nothing was published for it.
+    /// recorded is recorded pending, one whose addresses changed, its node's or its edge group's
+    /// ingress addresses where a group serves it, is due again, and one no longer routed is due
+    /// to be withdrawn, or forgotten if nothing was published for it.
     fn sync_endpoint_records(
         &mut self,
         now: SystemTime,

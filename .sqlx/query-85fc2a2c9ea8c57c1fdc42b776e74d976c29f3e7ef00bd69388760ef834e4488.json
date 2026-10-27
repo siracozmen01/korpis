@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT host(address) AS \"address!\", group_id, pool_id FROM edge_ingress\n                ORDER BY group_id, family(address), address",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "address!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "group_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "edge_ingress",
+            "name": "group_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "pool_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "edge_ingress",
+            "name": "pool_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "85fc2a2c9ea8c57c1fdc42b776e74d976c29f3e7ef00bd69388760ef834e4488"
+}

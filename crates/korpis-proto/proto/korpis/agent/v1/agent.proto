@@ -93,6 +93,7 @@ message AgentMessage {
     HealthQuery health_query = 17;
     EdgeLeaseRequest edge_lease_request = 18;
     EdgeLeaseReleased edge_lease_released = 19;
+    EdgeChallengesHeld edge_challenges_held = 20;
   }
 }
 
@@ -542,6 +543,11 @@ message Edges {
   // This node's own IPv6 address in the mesh, the last of its unique local prefix, at which it
   // answers the probe of an IPv6 address an edge forwards to it; empty where it has none.
   string mesh_address_v6 = 4;
+  // The challenges standing for the certificates of the names its groups serve, which its proxy
+  // answers as it answers those of its own workloads' names; it says which it holds with
+  // EdgeChallengesHeld.
+  repeated AcmeChallenge challenges = 5;
+  repeated AlpnChallenge alpn_challenges = 6;
 }
 
 // What a member forwards for one group: every address and port of its pools that a `stable`
@@ -561,6 +567,21 @@ message EdgeForwarding {
   // The probe node's IPv6 address in the mesh, to which the probe of an IPv6 address is
   // forwarded through the same link; empty where it has none, and an IPv6 address is not probed.
   string probe_mesh_address_v6 = 7;
+  // The group's ingress addresses, one of each family at most, whose ports 80 and 443 over TCP
+  // the member that holds one translates to its own proxy.
+  repeated string ingress = 8;
+  // Every `ingress` endpoint the group serves, which the member's proxy routes.
+  repeated EdgeProxied proxied = 9;
+}
+
+// An `ingress` endpoint an edge group serves (§3.1 of docs/07-networking.md): its names and how
+// they are served, and where its workload is reached, through the mesh where it runs on another
+// node; `workload_address` is empty where it is not running, or on a node outside the mesh, and
+// no route is made for it.
+message EdgeProxied {
+  korpis.v1.Endpoint endpoint = 1;
+  string node = 2;
+  string workload_address = 3;
 }
 
 message EdgeAddress {
@@ -589,6 +610,9 @@ message EdgeSource {
   string node = 1;
   string mesh_address = 2;
   repeated EdgeAdmit admits = 3;
+  // What its ingress proxy may reach here through the mesh, from its mesh address, for the
+  // `ingress` endpoints its groups serve; no GRE link is made for these alone.
+  repeated EdgeAdmit proxied = 4;
 }
 
 message EdgeAdmit {
@@ -883,6 +907,13 @@ message LeaseReleased {
 // Asks for, or renews, the lease on an address this member is told to hold. Fenced as a
 // workload's lease is: the member's runs from the send, valid until sent_at + term × (1 − ρ) on
 // its own monotonic clock, and the grantor's from receipt.
+// The challenges of Edges the node's proxy has been given (§3.1 of docs/07-networking.md): every
+// HTTP-01 token and TLS-ALPN-01 digest, sent whenever they change and on every new session.
+message EdgeChallengesHeld {
+  repeated string tokens = 1;
+  repeated bytes alpn_digests = 2;
+}
+
 message EdgeLeaseRequest {
   string address = 1;
   // Echoed by the answer.

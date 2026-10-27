@@ -142,7 +142,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let held = self.store.dedicated_of(id).await?;
         let dedicated = held.as_ref().map(|h| h.address);
         let stable = self.store.stable_of(id).await?;
+        // `ingress` an edge group serves is reached at the group's ingress addresses (§3.1 of
+        // docs/07-networking.md).
+        let group = self.store.ingress_served_of(id).await?;
+        let proxied = match group {
+            Some(g) => self.store.ingress_addresses_of(g).await?,
+            None => Vec::new(),
+        };
+        let mut ingress = Vec::new();
         for e in self.store.endpoints(id).await? {
+            if e.exposure == Exposure::Ingress && group.is_some() {
+                ingress.push(e.name.clone());
+                endpoints.push((e, proxied.iter().map(|a| a.address).collect()));
+                continue;
+            }
             // A `dedicated_ip` endpoint is reached at its workload's own address alone.
             if e.exposure == Exposure::DedicatedIp {
                 endpoints.push((e, dedicated.into_iter().collect()));
@@ -170,7 +183,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let waits = h.waits_on_router(node);
             (h, waits)
         });
-        let edges = self.edge_reach(&stable).await?;
+        let mut edges = self.edge_reach(&stable).await?;
+        if let Some(g) = group {
+            edges.extend(self.ingress_reach(g, &ingress, &proxied).await?);
+        }
         Ok(Reached { endpoints, dedicated, edges })
     }
 

@@ -12,10 +12,11 @@ syntax = "proto3";
 package korpis.ingress.v1;
 
 // The listening sockets attached to the first message: `http` of them for plain HTTP (port 80),
-// then `https` for TLS (port 443).
+// then `https` for TLS (port 443), then `quic` bound UDP sockets for HTTP/3 (port 443).
 message Listeners {
   uint32 http = 1;
   uint32 https = 2;
+  uint32 quic = 3;
 }
 
 // Everything the proxy serves.

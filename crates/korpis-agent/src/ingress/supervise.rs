@@ -46,7 +46,7 @@ fn framed(body: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 /// Sends the first message, `Listeners`, with `sockets` attached: `per_port` plain ones, then as
-/// many TLS ones.
+/// many TLS ones, then as many UDP ones for HTTP/3.
 async fn hand_over(
     stream: &mut UnixStream,
     sockets: &[OwnedFd],
@@ -55,7 +55,8 @@ async fn hand_over(
     use rustix::net::{SendAncillaryBuffer, SendAncillaryMessage, SendFlags, sendmsg};
     let count = u32::try_from(per_port).map_err(io::Error::other)?;
     let first = framed(
-        &ingress::Listeners { http: count, https: count, ..Default::default() }.encode_to_vec(),
+        &ingress::Listeners { http: count, https: count, quic: count, ..Default::default() }
+            .encode_to_vec(),
     )?;
     let fds: Vec<_> = sockets.iter().map(AsFd::as_fd).collect();
     let mut space =
@@ -83,13 +84,17 @@ impl<H: Host> Supervisor<H> {
         Self { host, addresses, control, config, held, serving, offered }
     }
 
-    /// What the proxy is sent now: the routes and certificates published, and the challenges
-    /// of the set held.
+    /// What the proxy is sent now: the routes, certificates, and edge groups' challenges
+    /// published, and the challenges of the set held.
     fn current(&mut self) -> ingress::IngressConfig {
         let mut config = self.config.borrow_and_update().clone();
         let held = self.held.borrow_and_update();
-        config.challenges = super::challenges(&held);
-        config.alpn_challenges = super::alpn_challenges(&held);
+        config.challenges.extend(super::challenges(&held));
+        config.challenges.sort_by(|a, b| a.token.cmp(&b.token));
+        config.challenges.dedup_by(|a, b| a.token == b.token);
+        config.alpn_challenges.extend(super::alpn_challenges(&held));
+        config.alpn_challenges.sort_by(|a, b| a.name.cmp(&b.name));
+        config.alpn_challenges.dedup_by(|a, b| a.name == b.name);
         drop(held);
         config
     }

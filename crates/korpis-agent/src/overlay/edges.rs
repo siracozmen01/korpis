@@ -4,8 +4,9 @@
 //! last told it, kept on disk beside the mesh's members so forwarding runs with the control plane
 //! gone, and asked of the helper with the mesh. As a member: every address and port of its
 //! groups' tables translated, each into the GRE link of its workload's node, and the probe port
-//! of its own address into the link of the node the probe is answered by. As a node behind
-//! edges: a link to each, and what each may reach here.
+//! of its own address into the link of the node the probe is answered by, and ports 80 and 443
+//! of each group's ingress address to its own proxy. As a node behind edges: a link to each that
+//! forwards here, and what each may reach here through it or, from its proxy, through the mesh.
 
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::helper::v1 as helper;
@@ -97,6 +98,47 @@ fn forwarding(
     out
 }
 
+/// Ports 80 and 443 of each of `g`'s ingress addresses over TCP, and 443 over UDP for HTTP/3,
+/// translated to the same port of this member's own first advertised address of the address's
+/// family, where its proxy listens; an address of a family it advertises none of is not
+/// translated, and is refused.
+fn to_proxy(g: &agent::EdgeForwarding, own: &[String]) -> Vec<helper::EdgeTranslation> {
+    let mut out = Vec::new();
+    for address in &g.ingress {
+        let v4 = ipv4(address);
+        let Some(proxy) = own.iter().find(|a| if v4 { ipv4(a) } else { ipv6(a) }) else {
+            continue;
+        };
+        let tcp = helper::Transport::TRANSPORT_TCP;
+        let ports = [(80, tcp), (443, tcp), (443, helper::Transport::TRANSPORT_UDP)];
+        out.extend(ports.map(|(port, transport)| helper::EdgeTranslation {
+            address: address.clone(),
+            port,
+            transport: transport.into(),
+            via: String::new(),
+            to_address: proxy.clone(),
+            to_port: port,
+            ..Default::default()
+        }));
+    }
+    out
+}
+
+/// What the edges' proxies may reach here through the mesh, each from its mesh address.
+pub(super) fn proxied(told: &agent::Edges) -> Vec<helper::OverlayAdmitted> {
+    let mut out = Vec::new();
+    for s in &told.sources {
+        out.extend(s.proxied.iter().map(|a| helper::OverlayAdmitted {
+            source: s.mesh_address.clone(),
+            destination: a.workload_address.clone(),
+            port: a.container_port,
+            transport: helper::Transport::TRANSPORT_TCP.into(),
+            ..Default::default()
+        }));
+    }
+    out
+}
+
 /// What `told` asks of the helper, this node advertising `own` and holding the addresses of
 /// `holding`, each under a lease valid now.
 pub(super) fn table(
@@ -105,9 +147,12 @@ pub(super) fn table(
     holding: &super::leases::Holding,
 ) -> helper::EdgeTable {
     let mut tunnels = BTreeSet::new();
-    let translations = told.groups.iter().flat_map(|g| forwarding(g, own, &mut tunnels)).collect();
+    let mut translations: Vec<helper::EdgeTranslation> =
+        told.groups.iter().flat_map(|g| forwarding(g, own, &mut tunnels)).collect();
+    translations.extend(told.groups.iter().flat_map(|g| to_proxy(g, own)));
     let mut admits = Vec::new();
-    for s in &told.sources {
+    // A member that only proxies here needs no link: its proxy comes through the mesh.
+    for s in told.sources.iter().filter(|s| !s.admits.is_empty()) {
         tunnels.insert(s.mesh_address.clone());
         admits.extend(s.admits.iter().map(|a| helper::EdgeAdmit {
             source: s.mesh_address.clone(),
@@ -210,5 +255,42 @@ mod tests {
             "the group's ports, refused where they run nowhere, and its own probe of each family"
         );
         assert_eq!(t.admits[0].transport.as_known(), Some(helper::Transport::TRANSPORT_TCP));
+    }
+
+    #[test]
+    fn a_member_sends_its_ingress_ports_to_its_proxy_and_a_node_admits_proxies_through_the_mesh() {
+        let mut told = told();
+        told.groups[0].forwards.clear();
+        told.groups[0].ingress = vec!["198.51.100.1".into(), "2001:db8::1".into()];
+        told.sources.push(agent::EdgeSource {
+            node: "nd_e3".into(),
+            mesh_address: "10.48.15.255".into(),
+            proxied: vec![agent::EdgeAdmit {
+                workload_address: "10.48.0.3".into(),
+                container_port: 8080,
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        let own = ["203.0.113.5".into()];
+        let t = table(&told, &own, &super::super::leases::Holding::new());
+        let proxy: Vec<(&str, u32, bool, &str)> = t
+            .translations
+            .iter()
+            .filter(|t| t.address == "198.51.100.1" || t.address == "2001:db8::1")
+            .filter(|t| t.port != 65_535)
+            .map(|t| {
+                let udp = t.transport.as_known() == Some(helper::Transport::TRANSPORT_UDP);
+                assert!(t.via.is_empty(), "to its own proxy, through no link");
+                (t.address.as_str(), t.port, udp, t.to_address.as_str())
+            })
+            .collect();
+        let to = |port, udp| ("198.51.100.1", port, udp, "203.0.113.5");
+        let expected = [to(80, false), to(443, false), to(443, true)];
+        assert_eq!(proxy, expected, "HTTP/3 too; no IPv6 address to listen on: refused");
+        assert!(!t.tunnels.contains(&"10.48.15.255".to_owned()), "a proxy needs no link");
+        let admitted = proxied(&told);
+        assert_eq!(admitted.len(), 1);
+        assert_eq!((admitted[0].source.as_str(), admitted[0].port), ("10.48.15.255", 8080));
     }
 }

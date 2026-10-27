@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO edge_ingress (address, group_id, pool_id, held_at)\n             VALUES ($1::text::inet, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4dca9145173d85ade00287f6d7689e35ca9f3b3f03d8638c7d8fd4592e391318"
+}

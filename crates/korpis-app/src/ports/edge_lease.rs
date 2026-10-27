@@ -36,7 +36,7 @@ pub trait EdgeLeaseRead {
 /// Deciding addresses' leases, under the lock of the address's group.
 pub trait EdgeLeaseWrite {
     /// The group whose pool `address` is of, locked, with its term, where a `stable` endpoint
-    /// holds a port of the address; none otherwise.
+    /// holds a port of the address or it is the group's ingress address; none otherwise.
     fn lock_edge_group_of(
         &mut self,
         address: IpAddr,

@@ -54,7 +54,8 @@ pub(crate) fn servable(
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The certificate `id` and its key, for `node` to serve: answered only if an endpoint served
-    /// with it is placed on that node, and only once it holds a key (§3.2 of
+    /// with it is placed on that node, or is an `ingress` endpoint an edge group the node is a
+    /// member of serves (§3.1 there), and only once it holds a key (§3.2 of
     /// docs/07-networking.md). That the node was given it is recorded first, so removing the
     /// node as compromised knows what to revoke (§9 of docs/17-security.md).
     pub async fn certificate_for_node(
@@ -63,10 +64,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         id: Uuid,
     ) -> Result<(Certificate, zeroize::Zeroizing<String>), AppError> {
         let not_here = || {
-            let why = "no endpoint placed on this node is served with it";
+            let why = "no endpoint placed on this node, or served by its edge groups, is served \
+                       with it";
             AppError::conflict("certificate.not_here", why)
         };
-        let placed = self.store.placed_on(node).await?;
+        let mut placed = self.store.placed_on(node).await?;
+        placed.extend(self.store.proxied_by(node).await?);
         let routed = self.store.routed_with(id).await?;
         if !routed.iter().any(|w| placed.contains(w)) {
             return Err(not_here());

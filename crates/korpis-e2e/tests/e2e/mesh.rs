@@ -48,6 +48,21 @@ impl Netns {
     }
 }
 
+impl Netns {
+    /// A UDP socket bound inside it, to any port of any of its addresses: what it sends leaves
+    /// from there, whichever thread or runtime then drives it.
+    pub(crate) fn udp(&self) -> std::net::UdpSocket {
+        let path = self.path();
+        let bound = std::thread::spawn(move || {
+            let ns = std::fs::File::open(path).unwrap();
+            let kind = Some(rustix::thread::LinkNameSpaceType::Network);
+            rustix::thread::move_into_link_name_space(std::os::fd::AsFd::as_fd(&ns), kind).unwrap();
+            std::net::UdpSocket::bind("0.0.0.0:0").unwrap()
+        });
+        bound.join().unwrap()
+    }
+}
+
 impl Drop for Netns {
     fn drop(&mut self) {
         let _ = ip(&["netns", "del", &self.0]);
