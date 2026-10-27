@@ -7052,3 +7052,48 @@ the mesh reaches the port was false. Resolved in §9.1 of `07-networking.md`: th
 node has a mesh address and not only while it is told of a sender; and the agent refuses a
 connection whose peer is not the mesh address of a node it was told sends it a replica before it
 reads anything. Tested in the helper's rules. What it costs: one rule in the host's table.
+
+## 81. A database on a block class follows its workload to another node
+
+Written 2026-10-27, as the control plane's half of block classes was built (P3.8e2 in §4 of
+`20-roadmap.md`), and chosen because trace 80 crossed §2.1 of `06-storage.md` only for a shared
+filesystem, while a block class moves the fence from the agents to the storage. A host has nodes A
+and B of one organization, each offering the block class `fast`, attached by iSCSI, and an extension
+serving the `block_storage` provider `fast` that the organization sees, registered saying its attach
+fences. A customer runs `db`, whose volume is in `fast`, on A when A loses power, and later deletes
+`db` and its volume. The trace asks the algebra question of every step.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | A's and B's helpers report `fast` reached over the network, attached by iSCSI, declaring `multi_node_attach` and no store; the control plane sets its store to `block/<organization>/fast` on each Hello | `06-storage.md` §2.1 |
+| 2 | `db` is declared with its volume in `fast`; its `on_lease_expiry` is derived as `stop`; it is placed on A | `02-architecture.md` §4.5; `05-scheduling.md` §2.1 |
+| 3 | The control plane wants a device for the volume, by the store and the identifier the volume will have there, and asks `fast` to create it, then, once A holds `db`'s lease, to attach it to A for that epoch; the provider fences every other node and answers the target and a credential, which is sealed to the device | `06-storage.md` §2.1; `16-extensions.md` §5 |
+| 4 | A's assignment carries the attachment, its credential opened for A alone; A reports the volume made, and it takes the device's identifier | `06-storage.md` §2.1; `02-architecture.md` §4.2 |
+| 5 | A loses power; once the sweep marks it unreachable and the grantor's end of the lease has passed, `db` is placed again on B by failover, and B is granted a new epoch | `05-scheduling.md` §2.4; `02-architecture.md` §4.5 |
+| 6 | The control plane asks `fast` to attach the device to B for B's epoch; the provider fences A and answers; B's assignment carries the attachment and `korpis status` shows the device attached | `06-storage.md` §2.1; `13-surface-cli.md` §5 |
+| 7 | `db` is retired keeping its volume; its lease ends, and the device is detached; the volume is then deleted by a plan B executes, and the provider is asked to delete the device | `06-storage.md` §2.1, §7; `01-model.md` §3.6 |
+
+Step 1 asks what evaluates "this class's volumes are this organization's": the control plane,
+which names the store itself from the organization of the node's enrolment, so no node's word can
+name another organization's devices (Finding 201 asked the same of a shared store, whose name is
+the node's). Step 2 asks what derives `stop`: the classes as the node declared them, which is why
+a block class not declaring `multi_node_attach` is refused at the Hello rather than left to derive
+`keep_running` and never fail over. Step 3 asks what evaluates "attached for this lease": the
+control plane that took the device, reading the lease and its grantor's end from the store, and
+the provider, told the epoch at the attach, which is what lets the storage refuse a node holding
+an older one. Step 4 asks who may read the credential: the control plane, which holds the device
+key, and the node the device is attached to, for the epoch it is attached for; another node's
+assignment never carries it. Step 5 asks what fences A from the device while A is cut off from the
+control plane and not from the storage, before the grantor's end: A's agent, which stops `db` by
+its own clock, and nothing else, since the provider is not yet asked; after the grantor's end the
+storage does, at B's attach. Step 7 asks what deletes the device, and with what information: the
+control plane, once the volume record is deleted, the only record of the bytes being unwanted;
+until then, a retained volume's device stays, detached, and the storage keeps its bytes.
+
+As built (P3.8e2a and P3.8e2b), steps 1 to 7 are tested over the API with a provider of the tests'
+own whose devices are kept in memory, and the node's half of steps 4 and 6, the helper attaching
+the device, is P3.8e3. No defect was found that a document asserted; one was found in the code as
+written, before it was committed: a block class that did not declare `multi_node_attach` was
+accepted, and its workload would have been left on the silent node, which step 2 now refuses.

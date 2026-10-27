@@ -76,6 +76,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     limiter: rate::Limiter,
     relying_party: Option<korpis_core::webauthn::RelyingParty>,
     factor_vault: Option<Arc<dyn ports::FactorVault>>,
+    device_vault: Option<Arc<dyn ports::DeviceVault>>,
     passwords: Arc<dyn ports::Passwords>,
     session_limits: korpis_core::account::session::SessionLimits,
     zones: Arc<dyn ports::Zones>,
@@ -108,6 +109,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             limiter: rate::Limiter::default(),
             relying_party: None,
             factor_vault: None,
+            device_vault: None,
             passwords: Arc::new(ports::InPlace),
             zones: Arc::new(ports::UtcOnly),
             session_limits: korpis_core::account::session::SessionLimits::default(),
@@ -244,6 +246,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_factor_vault(mut self, vault: Arc<dyn ports::FactorVault>) -> Self {
         self.factor_vault = Some(vault);
+        self
+    }
+
+    /// Seals block devices' credentials with `vault` (§2.1 of docs/06-storage.md): without one,
+    /// no device is attached.
+    #[must_use]
+    pub fn with_device_vault(mut self, vault: Arc<dyn ports::DeviceVault>) -> Self {
+        self.device_vault = Some(vault);
         self
     }
 

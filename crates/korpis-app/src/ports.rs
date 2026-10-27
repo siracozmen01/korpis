@@ -15,6 +15,7 @@ mod audit;
 mod authz;
 mod backup;
 mod binding;
+mod block;
 mod breaker;
 mod certificate;
 mod changes;
@@ -86,6 +87,7 @@ pub use authz::{
 };
 pub use backup::{BackupRead, BackupWrite, DataKey, KeyRecipient, KeyVault, SealedKey, VaultError};
 pub use binding::{BindingRead, BindingWrite};
+pub use block::{BlockRead, BlockWrite, DeviceVault, HeldDevice, SealedAttachment};
 pub use breaker::{BreakerWrite, ProviderKey};
 pub use certificate::{
     CertificateRead, CertificateWrite, Expiry, Exposure, PendingRevocation, ReadError,
@@ -268,6 +270,7 @@ pub trait Store:
     + StreamRead
     + VolumeRead
     + ReplicaRead
+    + BlockRead
     + SnapshotRead
     + BackupRead
     + RunRead
@@ -367,6 +370,7 @@ pub trait Tx:
     + StreamWrite
     + VolumeWrite
     + ReplicaWrite
+    + BlockWrite
     + SnapshotWrite
     + BackupWrite
     + RunWrite

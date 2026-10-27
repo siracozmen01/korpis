@@ -294,6 +294,10 @@ message StorageClassInfo {
   // of the filesystem the operator mounted, which every node reaching that storage reads alike
   // (§2.1 of docs/06-storage.md). Empty for a class on the node's own disk.
   string store = 6;
+  // For a block class, how the node's helper attaches its devices, as its operator named it
+  // (§2.1 of docs/06-storage.md); its store is then the control plane's, for the node's
+  // organization and the class's name, and not the node's to say.
+  BlockProtocol block_protocol = 7;
 }
 
 enum StorageBackend {

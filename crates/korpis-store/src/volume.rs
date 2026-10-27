@@ -291,7 +291,9 @@ async fn ensured(
 /// the helper's identifier there, whichever node reports it, and kept by the node that last did.
 /// One already there is the reporting workload's only if it is attached to it, which an adopting
 /// workload's is from its approval; any other is left as it is, and the report refused, since a
-/// node's word names the store (Finding 201 of docs/23-walkthroughs.md). Whether it was kept.
+/// node's word names the store (Finding 201 of docs/23-walkthroughs.md). A volume of a block
+/// class takes the identifier of the device made for it (§2.1 of docs/06-storage.md). Whether it
+/// was kept.
 async fn shared_ensured(
     tx: &mut PgTx,
     (node, store): (Uuid, &str),
@@ -303,7 +305,10 @@ async fn shared_ensured(
     let done = sqlx::query!(
         "INSERT INTO volume (id, project_id, created_by, attached_to, name, kind, node_id, store,
                              helper_id, storage_class, size_bytes, quota_enforced, created_at)
-         SELECT $1, w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10, $11
+         SELECT coalesce((SELECT b.id FROM block_device b
+                           WHERE b.store = $6 AND b.helper_id = $7 AND b.deleted_at IS NULL),
+                         $1),
+                w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10, $11
            FROM workload w WHERE w.id = $2
          ON CONFLICT (store, helper_id) WHERE deleted_at IS NULL AND store IS NOT NULL DO UPDATE
             SET attached_to = EXCLUDED.attached_to,

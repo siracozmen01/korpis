@@ -295,11 +295,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if held {
             power.power.desired = PowerState::Stopped;
         }
-        let manifest = self
-            .store
-            .cached_recipe(&target.body.recipe.digest)
-            .await?
-            .ok_or_else(|| missing("recipe document"))?;
+        let manifest = self.store.cached_recipe(&target.body.recipe.digest).await?;
+        let manifest = manifest.ok_or_else(|| missing("recipe document"))?;
         let on_lease_expiry = self.on_expiry(node, &target.body).await?;
         let lease_epoch = self.store.lease_epoch(workload, node).await?.unwrap_or(0);
         let volume_ids = self.existing_ids(workload, &target.body).await?;
@@ -338,6 +335,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 dependents: across.dependents,
                 peers: across.peers,
                 dedicated: self.dedicated_on(workload, node).await?,
+                block_attachments: self.attached_on(workload, (node, lease_epoch)).await?,
             },
             plan,
             held,

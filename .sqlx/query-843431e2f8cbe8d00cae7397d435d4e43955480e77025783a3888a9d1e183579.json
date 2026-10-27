@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE block_device\n                SET attached_node_id = NULL, attached_epoch = NULL, protocol = NULL,\n                    target = NULL, credential = NULL, sealed_by = NULL, reason = NULL,\n                    attempts = 0, due = NULL, held_until = NULL\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "843431e2f8cbe8d00cae7397d435d4e43955480e77025783a3888a9d1e183579"
+}

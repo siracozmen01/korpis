@@ -25,6 +25,7 @@ fn local(sends: bool, free: u64) -> StorageClass {
         capacity_bytes: free,
         free_bytes: free,
         store: None,
+        block: None,
     }
 }
 

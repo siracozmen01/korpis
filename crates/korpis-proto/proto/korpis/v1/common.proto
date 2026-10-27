@@ -191,3 +191,15 @@ enum DeviceMode {
   // The same device as up to its shares of other holders.
   DEVICE_MODE_TIMESLICE = 4;
 }
+
+// How a node attaches a block class's device (§2.1 of docs/06-storage.md).
+enum BlockProtocol {
+  BLOCK_PROTOCOL_UNSPECIFIED = 0;
+  // An iSCSI LUN, logged in with open-iscsi.
+  BLOCK_PROTOCOL_ISCSI = 1;
+  // A Ceph RBD image, mapped through the kernel's RBD interface.
+  BLOCK_PROTOCOL_RBD = 2;
+  // A file in a directory the node's operator named, attached through a loop device: for tests
+  // and for a storage the operator mounts on every node.
+  BLOCK_PROTOCOL_LOOP = 3;
+}

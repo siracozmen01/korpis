@@ -255,6 +255,36 @@ routers that speak BGP are (§3.7 of `07-networking.md`). That is where a vendor
 belongs: a block class whose provisioning were in the helper would put every vendor's management
 API, and its credential, on every node.
 
+**As built so far (P3.8e1, P3.8e2).** The contract is built: its calls, a provider's registration
+saying how its attach fences, and the SDK's handler (§5 of `16-extensions.md`). A node declares a
+block class through its helper as reached over the network, naming the protocol its node attaches
+by, declaring `multi_node_attach` (so a workload on it stops when its lease ends and may fail
+over), and naming no store: a block class's store is its organization's,
+`block/<organization>/<class>`, set by the control plane when the node connects, so every node of
+one organization offering the class reaches the same volumes and no node's word names another
+organization's (Finding 201). A class saying otherwise is refused at the node's connection. The
+control plane keeps a device for each volume a placed workload declares in a block class of its
+node, in its table `block_device`, by the store and the identifier its volume will have there,
+since the device is wanted before the volume exists; the volume the node then reports takes the
+device's identifier. One control plane at a time takes each device due a call and asks the
+`block_storage` provider named for the class that the workload's organization sees: to create it;
+to attach it to the node the workload holds its lease on, for that lease's epoch, and again
+whenever the lease is held on another node or for another epoch, as after a failover, the
+provider fencing the node that held it before; to detach it once no lease is held for the node
+and epoch it was attached for, released or past the grantor's end; and to delete it once its
+volume is deleted, or once its workload is and no volume was made of it, a device never made
+being forgotten unasked. **What evaluates "attached for this lease":** that control plane, which
+reads the lease, and the grantor's end of it, from the store it keeps them in. A failure is kept
+with its reason and asked again after ten seconds doubling to ten minutes, and the workload's
+status shows each device by its volume's name, whether it is made and attached for the lease held,
+and the provider's last failure (`korpis status` prints one line each). The credential answered is
+sealed to the device by the control plane's device key, `device-1` in its data directory beside its
+other keys, and opened only into the assignment of the node it was attached to, for the epoch it
+was attached for, which a change of either sends again. What it costs: a device of a workload
+whose node falls silent stays attached to that node until the grantor's end of its lease, and is
+then detached, or attached elsewhere, by the provider; until a provider answers, the device is
+where it was. Not built yet: the helper's attach (P3.8e3).
+
 ### 2.2 Replicated volumes
 
 **Designed 2026-10-27** (P3.8a). A volume on a local class may be replicated: it declares

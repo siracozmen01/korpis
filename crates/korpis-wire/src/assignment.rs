@@ -131,6 +131,17 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         dependents: a.dependents.iter().map(dependent_to_pb).collect(),
         peers: a.peers.iter().map(peers_to_pb).collect(),
         dedicated: a.dedicated.as_ref().map(dedicated_to_pb).into(),
+        block_attachments: a
+            .block_attachments
+            .iter()
+            .map(|(helper_id, at)| agent::BlockVolumeAttachment {
+                helper_id: helper_id.clone(),
+                protocol: crate::block::protocol_to_pb(at.protocol).into(),
+                target: at.target.clone(),
+                credential: at.credential.clone(),
+                ..Default::default()
+            })
+            .collect(),
         ..Default::default()
     }
 }

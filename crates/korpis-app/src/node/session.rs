@@ -161,6 +161,12 @@ fn unsupported(theirs: &str) -> String {
     }
 }
 
+/// The store of the block class `class` of `organization`'s nodes (§2.1 of
+/// docs/06-storage.md): one storage, which its provider of that name serves.
+pub(crate) fn block_store(organization: Uuid, class: &str) -> String {
+    format!("block/{organization}/{class}")
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Opens a session for the node a Hello names, if the Hello proves it holds the node's key.
     /// Every refusal of the proof is `Unauthenticated`, except a timestamp outside the window,
@@ -198,7 +204,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// holds it, and strikes from its class a store another organization holds, so that a node's
     /// word about its mount never reaches another organization's volumes (§2.1 of
     /// docs/06-storage.md, Findings 201 and 203 of docs/23-walkthroughs.md); each strike, and
-    /// each store bound away from the organization that held it, is an effect.
+    /// each store bound away from the organization that held it, is an effect. A block class's
+    /// store is not the node's to say: it is the organization's storage of that class's name,
+    /// which every node of the organization offering the class reaches through its provider.
     async fn bind_stores(
         &self,
         tx: &mut S::Tx,
@@ -207,11 +215,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         now: SystemTime,
     ) -> Result<(), AppError> {
         let Some(classes) = facts.storage_classes.as_mut() else { return Ok(()) };
-        if classes.iter().all(|c| c.store.is_none()) {
+        if classes.iter().all(|c| c.store.is_none() && c.block.is_none()) {
             return Ok(());
         }
         let organization = self.store.node(node).await?.ok_or(AppError::Unauthenticated)?;
         let organization = organization.organization;
+        for class in classes.iter_mut().filter(|c| c.block.is_some()) {
+            class.store = Some(block_store(organization, &class.name));
+        }
         for class in classes.iter_mut() {
             let Some(store) = class.store.clone() else { continue };
             let (before, owner) = tx.bind_store(&store, (node, organization), now).await?;

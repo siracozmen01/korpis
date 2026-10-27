@@ -19,6 +19,8 @@ mod colocated;
 pub mod control_backup;
 mod control_jobs;
 pub mod data;
+pub mod device_vault;
+mod devices;
 mod edge_probes;
 pub mod edges;
 pub mod factor_vault;
@@ -213,6 +215,7 @@ fn application(
                 .map_err(|e| ServeError::Config(format!("DNS resolver: {e}")))?,
         ))
         .with_factor_vault(Arc::new(factor_vault::FactorKeys::load_or_create(&config.data)?))
+        .with_device_vault(Arc::new(device_vault::DeviceKeys::load_or_create(&config.data)?))
         .with_passwords(Arc::new(passwords::Bounded::per_core()))
         .with_zones(Arc::new(zones::SystemZones))
         .with_session_limits(config.session_limits);

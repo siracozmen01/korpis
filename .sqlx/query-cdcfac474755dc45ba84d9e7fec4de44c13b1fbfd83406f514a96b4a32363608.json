@@ -1,0 +1,151 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The first device due a call at $1, held until $2 (§2.1 of docs/06-storage.md): one not made\n-- yet; one whose workload holds its lease, on the node it is placed on, for another node or\n-- epoch than the device was attached for; one attached for a lease no longer held, released or\n-- past its grantor's end; and one gone, its volume deleted, or its workload deleted with no\n-- volume made of it. With the lease held, its node's way of attaching the device's class, and\n-- whether it is gone.\nWITH due AS (\n    SELECT b.id, h.node_id AS lease_node, h.epoch AS lease_epoch, n.storage_classes AS classes,\n           (EXISTS (SELECT 1 FROM volume v WHERE v.id = b.id AND v.deleted_at IS NOT NULL)\n            OR (NOT EXISTS (SELECT 1 FROM volume v WHERE v.id = b.id)\n                AND EXISTS (SELECT 1 FROM workload w\n                             WHERE w.id = b.workload_id AND w.deleted_at IS NOT NULL)))\n               AS gone\n      FROM block_device b\n      LEFT JOIN placement pl ON pl.workload_id = b.workload_id AND pl.authoritative\n      LEFT JOIN lease h\n        ON h.workload_id = b.workload_id AND h.node_id = pl.node_id AND h.released_at IS NULL\n       AND h.grantor_expiry > $1\n      LEFT JOIN node n ON n.id = h.node_id\n     WHERE b.deleted_at IS NULL\n       AND (b.due IS NULL OR b.due <= $1)\n       AND (b.held_until IS NULL OR b.held_until <= $1)),\npicked AS (\n    SELECT due.* FROM due JOIN block_device b ON b.id = due.id\n     WHERE b.device IS NULL OR due.gone\n        OR b.attached_node_id IS DISTINCT FROM due.lease_node\n        OR b.attached_epoch IS DISTINCT FROM due.lease_epoch\n     ORDER BY due.id\n     LIMIT 1\n       FOR UPDATE OF b SKIP LOCKED)\nUPDATE block_device b SET held_until = $2\n  FROM picked WHERE b.id = picked.id\nRETURNING b.id, b.organization_id, b.storage_class, b.size_bytes, b.device, b.attached_node_id,\n          b.attached_epoch, b.attempts, picked.lease_node AS \"lease_node?\",\n          picked.lease_epoch AS \"lease_epoch?\", picked.gone AS \"gone!\",\n          (SELECT c ->> 'block' FROM jsonb_array_elements(picked.classes) c\n            WHERE c ->> 'name' = b.storage_class) AS \"protocol?\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "storage_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "storage_class"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "size_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "size_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "device",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "device"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "attached_node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "attached_node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "attached_epoch",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "attached_epoch"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "lease_node?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "lease",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "lease_epoch?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "lease",
+            "name": "epoch"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "gone!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "protocol?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "cdcfac474755dc45ba84d9e7fec4de44c13b1fbfd83406f514a96b4a32363608"
+}

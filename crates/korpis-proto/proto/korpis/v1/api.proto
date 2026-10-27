@@ -640,6 +640,22 @@ message WorkloadStatus {
   // The address of its own it holds, where an endpoint of it is `dedicated_ip` (§3.7 of
   // docs/07-networking.md); unset where it holds none. Added 2026-10-26.
   DedicatedAddressStatus dedicated = 17;
+  // The device of each of its volumes in a block class, by the volume's name: whether its
+  // class's provider has made it and attached it for the lease the workload holds, and why its
+  // last answer failed while it is asked again (§2.1 of docs/06-storage.md). Added 2026-10-27.
+  repeated BlockDeviceStatus block_devices = 18;
+}
+
+// A volume's device in a block class as its workload's status shows it.
+message BlockDeviceStatus {
+  // The volume's name in the workload's declaration.
+  string volume = 1;
+  // The class, and so the name of the `block_storage` provider asked for it.
+  string storage_class = 2;
+  bool made = 3;
+  bool attached = 4;
+  // Why the provider's last answer failed, the provider named; empty once one answered.
+  string reason = 5;
 }
 
 // A workload's dedicated address as its status shows it.

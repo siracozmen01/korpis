@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT b.name, b.storage_class, b.device IS NOT NULL AS \"made!\", b.reason,\n                      EXISTS (SELECT 1 FROM lease l\n                               WHERE l.workload_id = b.workload_id\n                                 AND l.node_id = b.attached_node_id\n                                 AND l.epoch = b.attached_epoch\n                                 AND l.released_at IS NULL AND l.grantor_expiry > $2)\n                          AS \"attached!\"\n                 FROM block_device b\n                WHERE b.workload_id = $1 AND b.deleted_at IS NULL\n                ORDER BY b.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "storage_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "storage_class"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "made!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "attached!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      true,
+      null
+    ]
+  },
+  "hash": "bb18142c0ae61bc553ed4a5583d76729f9d214f746a110f295882257fdc1baec"
+}

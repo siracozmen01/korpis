@@ -4,6 +4,7 @@
 
 use super::from_json;
 use korpis_app::ports::{StoreError, StoreResult};
+use korpis_core::extension::block::BlockProtocol;
 use korpis_core::node::driver::{
     DeviceClass, DeviceMode, Fencing, FileAccess, IdMapCaps, NetworkMode, RootfsSource,
     SnapshotCaps, StorageBackend, StorageCaps, StorageFeature, VolumeSemantics,
@@ -132,6 +133,9 @@ pub(crate) struct StorageClassDoc {
     // own disk, and from every class stored before shared ones existed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     store: Option<String>,
+    // A block class's protocol (§2.1 of docs/06-storage.md); absent from every other class.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    block: Option<String>,
 }
 
 mirror!(
@@ -301,6 +305,7 @@ pub(crate) fn node_docs(
         capacity_bytes: c.capacity_bytes,
         free_bytes: c.free_bytes,
         store: c.store.clone(),
+        block: c.block.map(|b| b.as_str().to_owned()),
     });
     (taints.collect(), drivers.collect(), classes.collect())
 }
@@ -342,6 +347,7 @@ pub(crate) fn storage_classes(v: Value) -> StoreResult<Vec<StorageClass>> {
             capacity_bytes: c.capacity_bytes,
             free_bytes: c.free_bytes,
             store: c.store,
+            block: c.block.as_deref().and_then(BlockProtocol::parse),
         })
         .collect())
 }

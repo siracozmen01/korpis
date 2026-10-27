@@ -94,6 +94,9 @@ pub struct Assignment {
     /// The dedicated address it holds, where an endpoint of it is `dedicated_ip` and the address
     /// may be held on this node (§3.7 of docs/07-networking.md).
     pub dedicated: Option<crate::address::Dedicated>,
+    /// The devices of its volumes in block classes attached for it to this node at its lease's
+    /// epoch, by the helper's identifier of each volume (§2.1 of docs/06-storage.md).
+    pub block_attachments: Vec<(String, crate::extension::block::Attachment)>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

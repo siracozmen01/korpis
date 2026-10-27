@@ -14,7 +14,7 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_proto::korpis::v1 as pb;
 
-fn delete_volume(key: &str, id: &str) -> pb::DeleteVolumeRequest {
+pub(crate) fn delete_volume(key: &str, id: &str) -> pb::DeleteVolumeRequest {
     pb::DeleteVolumeRequest {
         mutation: mutation(key).into(),
         id: id.to_owned(),
@@ -22,7 +22,7 @@ fn delete_volume(key: &str, id: &str) -> pb::DeleteVolumeRequest {
     }
 }
 
-fn empty_set(d: &Down) -> Option<()> {
+pub(crate) fn empty_set(d: &Down) -> Option<()> {
     matches!(d, Down::AssignmentSet(s) if s.assignments.is_empty()).then_some(())
 }
 

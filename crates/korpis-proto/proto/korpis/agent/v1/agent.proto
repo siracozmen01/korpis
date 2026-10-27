@@ -759,6 +759,21 @@ message Assignment {
   // may be held on this node (§3.7 of docs/07-networking.md); unset where it holds none. Added
   // 2026-10-26.
   DedicatedAddress dedicated = 32;
+  // The devices of its volumes in block classes, each attached for it to this node at its lease's
+  // epoch, with what the helper needs to attach it (§2.1 of docs/06-storage.md); a volume of a
+  // block class with none here is not attached yet, and the step making it waits. Added
+  // 2026-10-27.
+  repeated BlockVolumeAttachment block_attachments = 33;
+}
+
+// A block class's device as the node attaches it: the volume it is, by the helper's identifier,
+// and what the storage's provider answered for this node.
+message BlockVolumeAttachment {
+  string helper_id = 1;
+  korpis.v1.BlockProtocol protocol = 2;
+  string target = 3;
+  // What the node presents for the device alone; empty where none is needed.
+  string credential = 4;
 }
 
 // An address of a workload's own, as its node holds it (§3.7 of docs/07-networking.md): every

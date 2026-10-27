@@ -37,6 +37,7 @@ pub(super) fn status(v: &WorkloadView) -> pb::WorkloadStatus {
             .map(korpis_wire::spec::dependencies::named_rule_to_pb)
             .collect(),
         dedicated: v.dedicated.as_ref().map(korpis_wire::address::dedicated_status_to_pb).into(),
+        block_devices: korpis_wire::block::device_statuses_to_pb(&v.block_devices),
         workload: workload_to_pb(&v.workload, &v.power).into(),
         target: v.target.as_ref().map(|t| shown_intent_to_pb(t, &v.withheld.target)).into(),
         head: shown_intent_to_pb(&v.head, &v.withheld.head).into(),

@@ -75,12 +75,29 @@ pub(crate) const fn fencing_to_pb(f: Fencing) -> pb::Fencing {
 }
 
 /// A shared class's store: a UUID, the form the helper writes it in, and only on a class reached
-/// over the network, since a class on one node's disk is no storage another node shares.
+/// over the network, since a class on one node's disk is no storage another node shares. A block
+/// class is reached over the network too, and names no store: its store is its organization's,
+/// which the control plane sets (§2.1 of docs/06-storage.md); and it declares
+/// `multi_node_attach`, which makes `stop` the derived answer to a lease's end for a workload
+/// holding one of its volumes, so that it can fail over (§2 of docs/06-storage.md).
 fn store_from_pb(field: &str, c: &pb::StorageClassInfo) -> Result<Option<String>> {
+    let network = c.backend.as_known() == Some(pb::StorageBackend::STORAGE_BACKEND_NETWORK);
+    if crate::block::protocol_from_pb(c.block_protocol).is_some() {
+        if !network {
+            return Err(invalid(field, "a block class is reached over the network"));
+        }
+        if !c.store.is_empty() {
+            return Err(invalid(field, "a block class's store is its organization's"));
+        }
+        if !c.capabilities.as_option().is_some_and(|caps| caps.multi_node_attach) {
+            return Err(invalid(field, "a block class is attachable from another node"));
+        }
+        return Ok(None);
+    }
     if c.store.is_empty() {
         return Ok(None);
     }
-    if c.backend.as_known() != Some(pb::StorageBackend::STORAGE_BACKEND_NETWORK) {
+    if !network {
         return Err(invalid(field, "only a class reached over the network has a store"));
     }
     let store = uuid::Uuid::parse_str(&c.store).map_err(|_| invalid(field, "not a UUID"))?;
@@ -115,6 +132,7 @@ pub fn storage_classes_from_pb(
                 capacity_bytes: c.capacity_bytes,
                 free_bytes: c.free_bytes,
                 store: store_from_pb(&at("store"), c)?,
+                block: crate::block::protocol_from_pb(c.block_protocol),
             })
         })
         .collect()
@@ -150,6 +168,7 @@ pub fn storage_class_to_pb(c: &StorageClass) -> pb::StorageClassInfo {
         capacity_bytes: c.capacity_bytes,
         free_bytes: c.free_bytes,
         store: c.store.clone().unwrap_or_default(),
+        block_protocol: c.block.map(crate::block::protocol_to_pb).unwrap_or_default().into(),
         ..Default::default()
     }
 }
@@ -158,6 +177,7 @@ pub fn storage_class_to_pb(c: &StorageClass) -> pb::StorageClassInfo {
 mod tests {
     #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
     use super::*;
+    use korpis_core::extension::block::BlockProtocol;
 
     fn class(backend: pb::StorageBackend, store: &str) -> pb::StorageClassInfo {
         pb::StorageClassInfo {
@@ -188,5 +208,23 @@ mod tests {
         assert!(storage_classes_from_pb("c", &[class(network, "nfs-1")]).is_err());
         let none = storage_classes_from_pb("c", &[class(network, "")]).unwrap();
         assert_eq!(none[0].store, None);
+    }
+
+    #[test]
+    fn a_block_class_is_reached_over_the_network_and_names_no_store() {
+        let block = |backend, store| pb::StorageClassInfo {
+            block_protocol: pb::BlockProtocol::BLOCK_PROTOCOL_ISCSI.into(),
+            ..class(backend, store)
+        };
+        let network = pb::StorageBackend::STORAGE_BACKEND_NETWORK;
+        let read = storage_classes_from_pb("c", &[block(network, "")]).unwrap();
+        assert_eq!((read[0].block, read[0].store.as_deref()), (Some(BlockProtocol::Iscsi), None));
+        let store = "0b9c1f40-3d2e-4c55-9f0a-7e6d5c4b3a21";
+        assert!(storage_classes_from_pb("c", &[block(network, store)]).is_err(), "its own store");
+        let local = block(pb::StorageBackend::STORAGE_BACKEND_BTRFS, "");
+        assert!(storage_classes_from_pb("c", &[local]).is_err(), "on a node's own disk");
+        let mut one = block(network, "");
+        one.capabilities.as_option_mut().unwrap().multi_node_attach = false;
+        assert!(storage_classes_from_pb("c", &[one]).is_err(), "attachable from one node alone");
     }
 }

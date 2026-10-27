@@ -4,6 +4,7 @@
 //! for it, its power declaration, and the plans that move it from one to the next.
 
 pub mod assignment;
+pub mod block;
 pub mod declare;
 pub mod dependency;
 pub mod endpoint;

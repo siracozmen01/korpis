@@ -43,6 +43,7 @@ fn shared(store: &str) -> StorageClass {
         capacity_bytes: 0,
         free_bytes: 0,
         store: Some(store.into()),
+        block: None,
     }
 }
 
@@ -136,6 +137,7 @@ fn local(sends: bool) -> StorageClass {
         capacity_bytes: 100 * GIB,
         free_bytes: 100 * GIB,
         store: None,
+        block: None,
     }
 }
 

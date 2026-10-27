@@ -2,12 +2,18 @@
 
 //! The block storage contract (§2.1 of docs/06-storage.md, §5 of docs/16-extensions.md): an
 //! extension requiring `provider.block_storage` installs, and a provider written with the SDK
-//! registers saying its attach fences, which the registration shows. The storage here is the
+//! registers saying its attach fences, which the registration shows; and a workload placed on a
+//! node offering its class has a device made for its volume and attached to that node for the
+//! epoch of the lease it holds there, which its assignment then carries. The storage here is the
 //! tests' own: devices kept in memory, each attached to one node for one epoch, a lower epoch
 //! refused.
 
+use crate::agent::{TestAgent, welcome};
 use crate::extensions::{DNS, push_document};
+use crate::journal::{assignment, until};
 use crate::providers::{Installed, installed_from};
+use crate::recipes::{body, create, project, push_paper};
+use crate::streams::held;
 use crate::support::Harness;
 use korpis_extension::block::{BlockStorage, Failure, Storage};
 use korpis_extension::provider::{Provider, Registration};
@@ -30,7 +36,7 @@ pub(crate) struct Device {
 pub(crate) struct Disks(pub(crate) Arc<Mutex<BTreeMap<String, Device>>>);
 
 impl Disks {
-    fn with<T>(&self, f: impl FnOnce(&mut BTreeMap<String, Device>) -> T) -> T {
+    pub(crate) fn with<T>(&self, f: impl FnOnce(&mut BTreeMap<String, Device>) -> T) -> T {
         f(&mut self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
     }
 }
@@ -167,4 +173,54 @@ async fn a_block_storage_provider_installs_and_registers_saying_its_attach_fence
     assert_eq!(p.extension, x.extension.id);
     assert_eq!(p.r#type.as_known(), Some(pb::ProviderType::PROVIDER_TYPE_BLOCK_STORAGE));
     assert_eq!(p.fencing.as_known(), Some(pb::Fencing::FENCING_STORAGE_ENFORCED));
+}
+
+/// A block class `fast` reached over the network, its devices attached by a loop device from any
+/// node of the organization, one at a time, their size the bound on their bytes.
+pub(crate) fn fast() -> pb::StorageClassInfo {
+    pb::StorageClassInfo {
+        name: "fast".into(),
+        backend: pb::StorageBackend::STORAGE_BACKEND_NETWORK.into(),
+        capabilities: pb::StorageCapabilities {
+            multi_node_attach: true,
+            quota_enforced: true,
+            fencing: pb::Fencing::FENCING_STORAGE_ENFORCED.into(),
+            ..Default::default()
+        }
+        .into(),
+        block_protocol: pb::BlockProtocol::BLOCK_PROTOCOL_LOOP.into(),
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn a_placed_workload_s_device_is_made_and_attached_for_the_epoch_of_its_lease() {
+    let h = Harness::new().await;
+    let disks = Disks::default();
+    serving(&h, disks.clone()).await;
+    let a = TestAgent::enroll(&h, "fra-1", 1).await;
+    let hello = a.hello_with(SystemTime::now(), &[1; 16], vec![fast()]);
+    let (mut s, first) = TestAgent::open(&h, hello).await;
+    welcome(&first.unwrap());
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "games").await;
+    let mut b = body(&repo, &[]);
+    b.volumes = vec![pb::VolumeSpec {
+        name: "data".into(),
+        storage_class: "fast".into(),
+        size_bytes: 1 << 30,
+        ..Default::default()
+    }];
+    let workloads = h.workloads(h.root());
+    let declared = workloads.declare_intent(create("db", &project, "db", b));
+    let db = declared.await.unwrap().into_owned().workload.into_option().unwrap().id;
+    until(&mut s, assignment(|t| t.plan.is_set())).await;
+    let epoch = held(&mut s, &db).await;
+    let told = until(&mut s, assignment(|t| !t.block_attachments.is_empty())).await;
+    let [attached] = told.block_attachments.as_slice() else { panic!("one: {told:?}") };
+    assert_eq!(attached.helper_id, format!("{db}.data"), "by its volume's identifier");
+    assert_eq!(attached.protocol.as_known(), Some(pb::BlockProtocol::BLOCK_PROTOCOL_LOOP));
+    let device = disks.with(|d| d.get(&attached.target).cloned()).expect("made");
+    assert_eq!(device.size_bytes, 1 << 30);
+    assert_eq!(device.attached, Some((a.node.clone(), epoch)), "for the lease's epoch");
 }

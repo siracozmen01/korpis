@@ -13,6 +13,7 @@ mod configure;
 mod decide;
 mod declare;
 mod dependency;
+mod devices;
 mod explain;
 mod failover;
 mod hold;

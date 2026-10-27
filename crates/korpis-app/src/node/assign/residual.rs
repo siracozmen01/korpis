@@ -71,6 +71,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 dependents: Vec::new(),
                 peers: Vec::new(),
                 dedicated: None,
+                block_attachments: Vec::new(),
             },
             plan: Some(plan),
             held: false,

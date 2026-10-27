@@ -20,6 +20,24 @@ pub const fn protocol_to_pb(p: BlockProtocol) -> pb::BlockProtocol {
     }
 }
 
+/// The devices of a workload's volumes in block classes as its status shows them.
+#[must_use]
+pub fn device_statuses_to_pb(
+    devices: &[korpis_core::workload::block::DeviceStatus],
+) -> Vec<pb::BlockDeviceStatus> {
+    devices
+        .iter()
+        .map(|d| pb::BlockDeviceStatus {
+            volume: d.name.clone(),
+            storage_class: d.storage_class.clone(),
+            made: d.made,
+            attached: d.attached,
+            reason: d.reason.clone().unwrap_or_default(),
+            ..Default::default()
+        })
+        .collect()
+}
+
 /// A protocol from the wire; none for one this control plane does not know.
 #[must_use]
 pub fn protocol_from_pb(p: buffa::EnumValue<pb::BlockProtocol>) -> Option<BlockProtocol> {

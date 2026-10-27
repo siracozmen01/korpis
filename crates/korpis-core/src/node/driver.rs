@@ -225,6 +225,9 @@ pub struct StorageClass {
     /// every node reaching the same storage reads alike (§2.1 of docs/06-storage.md); `None` for
     /// a class on the node's own disk.
     pub store: Option<String>,
+    /// For a block class, how the node's helper attaches its devices (§2.1 of
+    /// docs/06-storage.md); its store is then the control plane's to say, not the node's.
+    pub block: Option<crate::extension::block::BlockProtocol>,
 }
 
 /// What implements a storage class.

@@ -17,6 +17,7 @@ mod audit;
 mod authz;
 mod backup;
 mod binding;
+mod block;
 mod breaker;
 mod certificate;
 mod condition;

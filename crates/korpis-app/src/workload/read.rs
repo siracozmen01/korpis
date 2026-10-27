@@ -68,6 +68,9 @@ pub struct WorkloadView {
     /// The dedicated address it holds, if any, and whether it waits on its router to be routed
     /// to its node (§3.7 of docs/07-networking.md).
     pub dedicated: Option<(korpis_core::address::Holding, bool)>,
+    /// The device of each of its volumes in a block class, and what its provider last answered
+    /// (§2.1 of docs/06-storage.md).
+    pub block_devices: Vec<korpis_core::workload::block::DeviceStatus>,
     /// Each of its `stable` endpoints, by name, with its edge group and why it is not reached
     /// (§3.1 of docs/07-networking.md).
     pub edges: Vec<(String, crate::edge_group::EdgeReach)>,
@@ -190,6 +193,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Reached { endpoints, dedicated, edges })
     }
 
+    /// The certificate each of `id`'s ingress endpoints is served with, by endpoint name.
+    async fn served_certificates(
+        &self,
+        id: Uuid,
+    ) -> Result<Vec<(String, korpis_core::dns::certificate::Certificate)>, AppError> {
+        let mut certificates = Vec::new();
+        for (endpoint, c) in self.store.routed_certificates(id).await? {
+            if let Some(found) = self.store.certificate(c).await? {
+                certificates.push((endpoint, found));
+            }
+        }
+        Ok(certificates)
+    }
+
     async fn unrendered(&self, workload: Workload) -> Result<(WorkloadView, Found), AppError> {
         let id = workload.id;
         let missing = |what: &str| AppError::Internal(format!("workload {id} has no {what}"));
@@ -215,12 +232,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let Reached { endpoints, dedicated, edges } =
             self.endpoints_advertised(id, found.node()).await?;
-        let mut certificates = Vec::new();
-        for (endpoint, c) in self.store.routed_certificates(id).await? {
-            if let Some(found) = self.store.certificate(c).await? {
-                certificates.push((endpoint, found));
-            }
-        }
+        let certificates = self.served_certificates(id).await?;
         let names = self.endpoint_names(id, &endpoints).await?;
         let newest = crate::page::Page { after: None, size: 1 };
         let newest_run = self.store.runs(id, newest).await?.into_iter().next();
@@ -228,6 +240,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let named_rules = self.named_rule_status(&workload, target.as_ref()).await?;
         let view = WorkloadView {
             dedicated,
+            block_devices: self.store.device_status(id, self.clock.now()).await?,
             edges,
             dependencies,
             named_rules,

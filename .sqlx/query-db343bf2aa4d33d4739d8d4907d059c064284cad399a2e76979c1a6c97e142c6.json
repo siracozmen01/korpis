@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE block_device\n                SET reason = $2, attempts = $3, due = $4, held_until = NULL\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "db343bf2aa4d33d4739d8d4907d059c064284cad399a2e76979c1a6c97e142c6"
+}

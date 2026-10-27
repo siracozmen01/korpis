@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's own work, beside answering requests: placements retried, runs made,
-//! silent nodes swept, changes dispatched, conditions tracked, certificates watched, offloads
-//! expired, events pruned, addresses routed, and the rest, each a task that ends with the process.
+//! The control plane's own work, beside answering requests: placements retried, runs made, silent
+//! nodes swept, changes dispatched, conditions tracked, certificates watched, offloads expired,
+//! events pruned, addresses routed, block devices made and attached, and the rest, each a task
+//! that ends with the process.
 
 use crate::ServeConfig;
 use crate::api::Api;
 use crate::{
-    buckets, colocated, control_jobs, edge_probes, edges, issuer, mesh, named_relays,
+    buckets, colocated, control_jobs, devices, edge_probes, edges, issuer, mesh, named_relays,
     provider_calls, reachability, records, replicas, revocations, routes,
 };
 use korpis_store::PgStore;
@@ -43,6 +44,7 @@ pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(issuer::keep(Arc::clone(api)));
     tokio::spawn(records::keep(Arc::clone(api)));
     tokio::spawn(routes::keep(Arc::clone(api)));
+    tokio::spawn(devices::keep(Arc::clone(api)));
     tokio::spawn(buckets::forget(Arc::clone(api)));
     tokio::spawn(buckets::forget_sessions(Arc::clone(api)));
 }

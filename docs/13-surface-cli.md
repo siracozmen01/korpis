@@ -368,6 +368,12 @@ why. `korpis address-pool list` shows each with how many of its addresses are he
 address-pool delete apl_…` deletes one none of whose addresses is, which its organization may do
 itself. (Designed and built 2026-10-26.)
 
+A workload's volume in a block class (§2.1 of `06-storage.md`) is a device its class's provider
+makes and attaches, and `korpis status` shows each as a `device:` line: the volume's name, its
+class, which names the provider, whether the device is made and attached for the lease the
+workload holds, and beneath it the provider's last failure while it is asked again. (Built
+2026-10-27.)
+
 An organization's edges are its edge groups (§3.1 of `07-networking.md`): `korpis edge-group create
 edge --organization pinecone --member nd_… --member nd_…` makes one of two of its own nodes,
 `--ports 20000-40000` narrowing the ports its `stable` endpoints are given, `--term`,

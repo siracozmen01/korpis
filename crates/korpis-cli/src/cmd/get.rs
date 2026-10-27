@@ -11,6 +11,7 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::subject::Kind as S;
 use std::fmt::Write as _;
 
+mod devices;
 mod endpoints;
 
 use endpoints::endpoints;
@@ -351,6 +352,7 @@ pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> 
     }
     endpoints(&mut out, &s);
     dedicated(&mut out, &s);
+    devices::block_devices(&mut out, &s);
     dependencies(&mut out, &s);
     named_rules(&mut out, &s);
     unplaced(&mut out, &s);
