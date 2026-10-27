@@ -63,6 +63,7 @@ fn serve<H: korpis_extension::provider::Handler>(
         version: env!("CARGO_PKG_VERSION").to_owned(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(Arc::clone(connection), registration, handler));
     tokio::spawn(async move { provider.run().await });

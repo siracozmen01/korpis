@@ -46,6 +46,7 @@ async fn main() -> ExitCode {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         concurrency: config.concurrency,
         sign_in: true,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Identity(Oidc::new(http, config.settings));
     let connection = Arc::new(Connection::new(IdentitySocket::default()));

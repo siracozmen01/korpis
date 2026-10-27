@@ -95,6 +95,7 @@ pub async fn serving(
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let directory = Identity(Directory { present: Arc::clone(present) });
     let provider = Arc::new(Provider::new(connection, registration, directory));

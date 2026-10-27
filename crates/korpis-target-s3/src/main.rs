@@ -51,6 +51,7 @@ async fn main() -> ExitCode {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         concurrency: config.concurrency,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let connection = Arc::new(Connection::new(IdentitySocket::default()));
     let e = Provider::new(connection, registration, Backup(target)).run().await;

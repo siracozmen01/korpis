@@ -12,6 +12,7 @@
 
 pub mod address;
 pub mod backup;
+pub mod block;
 pub mod consumer;
 pub mod dns;
 pub mod error;

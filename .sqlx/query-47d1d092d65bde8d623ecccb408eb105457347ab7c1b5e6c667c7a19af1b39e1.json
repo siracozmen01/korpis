@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE provider_call\n                  SET outcome = jsonb_set(outcome, '{block_attached,credential}', '\"\"')\n                WHERE finished_at < $1\n                  AND (outcome #>> '{block_attached,credential}') <> ''",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "47d1d092d65bde8d623ecccb408eb105457347ab7c1b5e6c667c7a19af1b39e1"
+}

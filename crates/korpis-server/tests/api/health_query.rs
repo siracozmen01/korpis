@@ -69,6 +69,7 @@ pub async fn serving(h: &Harness) -> pb::Extension {
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(connection, registration, Health(Echo)));
     let mut registered = provider.registered();

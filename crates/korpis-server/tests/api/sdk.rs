@@ -101,6 +101,7 @@ async fn serves_and_consumes(h: &Harness, n: u8, relay: Option<PathBuf>) {
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(Arc::clone(&connection), registration, Unsupported));
     let mut registered = provider.registered();

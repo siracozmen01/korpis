@@ -111,6 +111,7 @@ pub async fn serving_with<T: BackupTarget + Send + Sync + 'static>(
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(connection, registration, Backup(target)));
     let mut registered = provider.registered();

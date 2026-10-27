@@ -30,6 +30,7 @@ enum_map!(provider_type_to_pb, provider_type_from_pb, ProviderType, pb::Provider
     ProviderType::ChatAdapter => pb::ProviderType::PROVIDER_TYPE_CHAT_ADAPTER,
     ProviderType::KeyManagement => pb::ProviderType::PROVIDER_TYPE_KEY_MANAGEMENT,
     ProviderType::AddressRouter => pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER,
+    ProviderType::BlockStorage => pb::ProviderType::PROVIDER_TYPE_BLOCK_STORAGE,
 });
 
 /// The wire form of a need.

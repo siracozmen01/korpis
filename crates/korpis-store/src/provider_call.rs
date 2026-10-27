@@ -4,6 +4,7 @@
 
 mod address;
 mod backup;
+mod block;
 mod health;
 mod identity;
 mod json;
@@ -93,7 +94,7 @@ impl ProviderCallRead for PgStore {
         let rows = sqlx::query_as!(
             RegistrationRow,
             r#"SELECT id, extension_id, organization_id, type AS kind, name, version,
-                      concurrency, sign_in, replica, connected_at, seen_at
+                      concurrency, sign_in, fencing, replica, connected_at, seen_at
                  FROM provider_registration
                 WHERE organization_id = $1 ORDER BY type, name, connected_at, id"#,
             organization
@@ -313,7 +314,17 @@ impl ProviderCallWrite for PgTx {
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(done.rows_affected() + signing_in.rows_affected())
+        let attached = sqlx::query!(
+            r#"UPDATE provider_call
+                  SET outcome = jsonb_set(outcome, '{block_attached,credential}', '""')
+                WHERE finished_at < $1
+                  AND (outcome #>> '{block_attached,credential}') <> ''"#,
+            from_time(before)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(done.rows_affected() + signing_in.rows_affected() + attached.rows_affected())
     }
 
     async fn prune_calls(&mut self, before: SystemTime) -> StoreResult<u64> {

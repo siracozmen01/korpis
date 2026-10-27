@@ -105,6 +105,7 @@ async fn an_owners_records_are_made_exactly_so_and_a_refusal_names_why() {
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(connection, registration, Dns(zone.clone())));
     let mut registered = provider.registered();

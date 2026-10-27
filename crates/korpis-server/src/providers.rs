@@ -134,6 +134,7 @@ mod tests {
             version: "1.0.0".into(),
             concurrency: 1,
             sign_in: false,
+            fencing: korpis_core::node::driver::Fencing::None,
             replica: p.replica(),
             connected_at: SystemTime::now(),
             seen_at: SystemTime::now(),

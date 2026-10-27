@@ -22,6 +22,9 @@ pub const CAPABILITIES: &[&str] = &[
     "provider.address_router",
     // Backup targets' calls: scoped access, listing, and deletion, §5.6 of docs/06-storage.md.
     "provider.backup_target",
+    // Block storage providers' calls: a device made, attached to one node for one lease epoch,
+    // detached, deleted, and described, §2.1 of docs/06-storage.md.
+    "provider.block_storage",
     // DNS providers' calls: applying an owner's records, §3.5 of docs/07-networking.md.
     "provider.dns",
     // Health providers' calls: a query probe's next round, or its verdict, §5 of

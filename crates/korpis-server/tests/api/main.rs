@@ -28,6 +28,7 @@ mod backup_target;
 mod backups;
 mod bandwidth;
 mod bindings;
+mod block_storage;
 mod bootstrap;
 mod cancel;
 mod ceiling;

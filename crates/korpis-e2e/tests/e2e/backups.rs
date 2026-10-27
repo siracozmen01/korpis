@@ -87,6 +87,7 @@ pub(crate) async fn serve(socket: PathBuf, minio: &Minio) {
         version: VERSION.into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(connection, registration, Backup(real(minio))));
     let mut registered = provider.registered();

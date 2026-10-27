@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "DELETE FROM provider_registration WHERE seen_at < $1\n               RETURNING id, extension_id, organization_id, type AS kind, name, version,\n                         concurrency, sign_in, replica, connected_at, seen_at",
+  "query": "SELECT id, extension_id, organization_id, type AS kind, name, version,\n                      concurrency, sign_in, fencing, replica, connected_at, seen_at\n                 FROM provider_registration\n                WHERE organization_id = $1 AND type = $2 AND name = $3 ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -93,6 +93,17 @@
       },
       {
         "ordinal": 8,
+        "name": "fencing",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "fencing"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
         "name": "replica",
         "type_info": "Uuid",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "connected_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "seen_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -127,7 +138,9 @@
     ],
     "parameters": {
       "Left": [
-        "Timestamptz"
+        "Uuid",
+        "Text",
+        "Text"
       ]
     },
     "nullable": [
@@ -141,8 +154,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "cf1df89fe086627c8865438f675ef012cd0ed5d2a2f2b7c902999bff20c427fb"
+  "hash": "888c0c47d0e638ec64857a2f68e76e8b16901096c5a79c01c0e5c700912003f3"
 }

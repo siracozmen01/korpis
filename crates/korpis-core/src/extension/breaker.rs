@@ -58,8 +58,12 @@ impl ProviderType {
             // A key it cannot open is a backup no one reads and one no one writes: there is no
             // other key to fall back to, and there must not be.
             // And no node holds an address its router has not said it routes there, so a move
-            // waits and what is routed stays (§3.7 of docs/07-networking.md).
-            Self::Identity | Self::KeyManagement | Self::AddressRouter => FailurePolicy::FailClosed,
+            // waits and what is routed stays (§3.7 of docs/07-networking.md). And no node attaches
+            // a device its storage has not refused every other node, so an attach waits and what
+            // is attached stays (§2.1 of docs/06-storage.md).
+            Self::Identity | Self::KeyManagement | Self::AddressRouter | Self::BlockStorage => {
+                FailurePolicy::FailClosed
+            }
             Self::Step => FailurePolicy::StepFails,
             Self::Health => FailurePolicy::Unknown,
             Self::Console | Self::ChatAdapter => FailurePolicy::Unavailable,

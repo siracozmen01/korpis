@@ -16,6 +16,7 @@ use korpis_core::extension::{
     CallFailure, CallOutcome, MAX_CONCURRENCY, MAX_VERSION, ProvidedInterface, ProviderType,
     Registration,
 };
+use korpis_core::node::driver::Fencing;
 use korpis_core::principal::{Principal, SystemActor};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -33,6 +34,9 @@ pub struct Register {
     pub concurrency: u32,
     /// An identity provider's: it signs people in (§9.7 of docs/08-identity.md).
     pub sign_in: bool,
+    /// A block storage provider's: whether its attach refuses every other node in the storage
+    /// itself (§2.1 of docs/06-storage.md).
+    pub fencing: Fencing,
 }
 
 fn checked(r: &Register) -> Result<(), AppError> {
@@ -47,7 +51,26 @@ fn checked(r: &Register) -> Result<(), AppError> {
     if r.sign_in && r.kind != ProviderType::Identity {
         return Err(AppError::invalid("register.sign_in", "an identity provider's alone"));
     }
-    Ok(())
+    let block = r.kind == ProviderType::BlockStorage;
+    match r.fencing {
+        Fencing::LeaseOnly | Fencing::StorageEnforced if block => Ok(()),
+        Fencing::None if !block => Ok(()),
+        _ if block => Err(AppError::invalid(
+            "register.fencing",
+            "a block storage provider says whether its attach fences: storage_enforced or \
+             lease_only",
+        )),
+        _ => Err(AppError::invalid("register.fencing", "a block storage provider's alone")),
+    }
+}
+
+/// The name a document writes for `f`.
+const fn fencing_name(f: Fencing) -> &'static str {
+    match f {
+        Fencing::None => "none",
+        Fencing::LeaseOnly => "lease_only",
+        Fencing::StorageEnforced => "storage_enforced",
+    }
 }
 
 fn effect(actor: Principal, action: &str, r: &Registration, workload: Option<Uuid>) -> Effect {
@@ -57,6 +80,7 @@ fn effect(actor: Principal, action: &str, r: &Registration, workload: Option<Uui
         ("name", r.name.clone().into()),
         ("version", r.version.clone().into()),
         ("sign_in", r.sign_in.into()),
+        ("fencing", fencing_name(r.fencing).into()),
     ]));
     e.workload = workload;
     e
@@ -104,6 +128,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             version: r.version,
             concurrency: r.concurrency,
             sign_in: r.sign_in,
+            fencing: r.fencing,
             replica,
             connected_at: now,
             seen_at: now,
@@ -155,5 +180,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         tx.commit().await?;
         Ok(u64::try_from(gone.len()).unwrap_or(u64::MAX))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn asked(kind: ProviderType, fencing: Fencing) -> Register {
+        let (name, version) = ("fast".to_owned(), "1.0.0".to_owned());
+        Register { kind, name, version, concurrency: 1, sign_in: false, fencing }
+    }
+
+    #[test]
+    fn a_block_storage_provider_says_whether_it_fences_and_no_other_provider_does() {
+        let block = ProviderType::BlockStorage;
+        assert!(checked(&asked(block, Fencing::StorageEnforced)).is_ok());
+        assert!(checked(&asked(block, Fencing::LeaseOnly)).is_ok());
+        assert!(checked(&asked(block, Fencing::None)).is_err(), "it must say");
+        assert!(checked(&asked(ProviderType::Dns, Fencing::None)).is_ok());
+        assert!(checked(&asked(ProviderType::Dns, Fencing::LeaseOnly)).is_err(), "nothing to say");
     }
 }

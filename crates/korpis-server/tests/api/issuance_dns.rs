@@ -90,6 +90,7 @@ async fn serve(h: &Harness, x: &Installed, as_name: &str, provider: Publishing) 
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(connection, registration, Dns(provider)));
     let mut registered = provider.registered();

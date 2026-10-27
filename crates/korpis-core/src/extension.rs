@@ -6,6 +6,7 @@
 //! any recipe does; this is the one section that makes the recipe an extension.
 
 mod backup;
+pub mod block;
 mod breaker;
 mod call;
 mod condition;
@@ -138,11 +139,14 @@ pub enum ProviderType {
     /// A router moving a cluster pool's addresses to the node holding each (§3.7 of
     /// docs/07-networking.md).
     AddressRouter,
+    /// Network block storage, a volume a device one node attaches at a time (§2.1 of
+    /// docs/06-storage.md).
+    BlockStorage,
 }
 
 impl ProviderType {
     /// Every type, in declaration order.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Dns,
         Self::BackupTarget,
         Self::Step,
@@ -153,6 +157,7 @@ impl ProviderType {
         Self::ChatAdapter,
         Self::KeyManagement,
         Self::AddressRouter,
+        Self::BlockStorage,
     ];
 
     /// The name a document writes.
@@ -169,6 +174,7 @@ impl ProviderType {
             Self::ChatAdapter => "chat_adapter",
             Self::KeyManagement => "key_management",
             Self::AddressRouter => "address_router",
+            Self::BlockStorage => "block_storage",
         }
     }
 

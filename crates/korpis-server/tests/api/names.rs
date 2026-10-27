@@ -77,6 +77,7 @@ async fn serving(h: &Harness, zone: Zone) -> Installed {
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(connection, registration, Dns(zone)));
     let mut registered = provider.registered();

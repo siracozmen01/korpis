@@ -16,6 +16,8 @@ import type { Duration, Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Error, ProviderType, Value } from "./common_pb";
 import { file_korpis_v1_common } from "./common_pb";
+import type { Fencing } from "./placement_pb";
+import { file_korpis_v1_placement } from "./placement_pb";
 import type { ExternalSet } from "./tenancy_pb";
 import { file_korpis_v1_tenancy } from "./tenancy_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -24,7 +26,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/provider.proto.
  */
 export const file_korpis_v1_provider: GenFile = /*@__PURE__*/
-  fileDesc("Chhrb3JwaXMvdjEvcHJvdmlkZXIucHJvdG8SCWtvcnBpcy52MSJuCg9Qcm92aWRlck1lc3NhZ2USJwoIcmVnaXN0ZXIYASABKAsyEy5rb3JwaXMudjEuUmVnaXN0ZXJIABInCgZyZXN1bHQYAiABKAsyFS5rb3JwaXMudjEuQ2FsbFJlc3VsdEgAQgkKB21lc3NhZ2UimwEKD1Byb3ZpZGVyQ29udHJvbBIrCgpyZWdpc3RlcmVkGAEgASgLMhUua29ycGlzLnYxLlJlZ2lzdGVyZWRIABInCgRjYWxsGAIgASgLMhcua29ycGlzLnYxLlByb3ZpZGVyQ2FsbEgAEicKBmNhbmNlbBgDIAEoCzIVLmtvcnBpcy52MS5DYW5jZWxDYWxsSABCCQoHbWVzc2FnZSJ2CghSZWdpc3RlchIlCgR0eXBlGAEgASgOMhcua29ycGlzLnYxLlByb3ZpZGVyVHlwZRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSEwoLY29uY3VycmVuY3kYBCABKA0SDwoHc2lnbl9pbhgFIAEoCCIiCgpSZWdpc3RlcmVkEhQKDHJlZ2lzdHJhdGlvbhgBIAEoCSKkBQoMUHJvdmlkZXJDYWxsEgwKBGNhbGwYASABKAkSLAoIZGVhZGxpbmUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEh8KBHBpbmcYCiABKAsyDy5rb3JwaXMudjEuUGluZ0gAEjAKDWFwcGx5X3JlY29yZHMYFCABKAsyFy5rb3JwaXMudjEuQXBwbHlSZWNvcmRzSAASJgoIcnVuX3N0ZXAYFSABKAsyEi5rb3JwaXMudjEuUnVuU3RlcEgAEi4KDGdyYW50X2FjY2VzcxgWIAEoCzIWLmtvcnBpcy52MS5HcmFudEFjY2Vzc0gAEi4KDGxpc3Rfb2JqZWN0cxgXIAEoCzIWLmtvcnBpcy52MS5MaXN0T2JqZWN0c0gAEjIKDmRlbGV0ZV9vYmplY3RzGBggASgLMhgua29ycGlzLnYxLkRlbGV0ZU9iamVjdHNIABIuCgxnZW5lcmF0ZV9rZXkYGSABKAsyFi5rb3JwaXMudjEuR2VuZXJhdGVLZXlIABIqCgp1bndyYXBfa2V5GBogASgLMhQua29ycGlzLnYxLlVud3JhcEtleUgAEjIKDnZlcmlmeV9tZW1iZXJzGBsgASgLMhgua29ycGlzLnYxLlZlcmlmeU1lbWJlcnNIABIjCgZhc3NlcnQYHCABKAsyES5rb3JwaXMudjEuQXNzZXJ0SAASKQoJYXV0aG9yaXplGB0gASgLMhQua29ycGlzLnYxLkF1dGhvcml6ZUgAEiwKC2hlYWx0aF9zdGVwGB4gASgLMhUua29ycGlzLnYxLkhlYWx0aFN0ZXBIABIwCg1yb3V0ZV9hZGRyZXNzGB8gASgLMhcua29ycGlzLnYxLlJvdXRlQWRkcmVzc0gAQgkKB3JlcXVlc3Qi+gQKCkNhbGxSZXN1bHQSDAoEY2FsbBgBIAEoCRIhCgVlcnJvchgCIAEoCzIQLmtvcnBpcy52MS5FcnJvckgAEh8KBHBvbmcYCiABKAsyDy5rb3JwaXMudjEuUG9uZ0gAEjQKD3JlY29yZHNfYXBwbGllZBgUIAEoCzIZLmtvcnBpcy52MS5SZWNvcmRzQXBwbGllZEgAEiwKC3N0ZXBfcmVzdWx0GBUgASgLMhUua29ycGlzLnYxLlN0ZXBSZXN1bHRIABIwCg1vYmplY3RfYWNjZXNzGBYgASgLMhcua29ycGlzLnYxLk9iamVjdEFjY2Vzc0gAEiwKC29iamVjdF9saXN0GBcgASgLMhUua29ycGlzLnYxLk9iamVjdExpc3RIABI0Cg9vYmplY3RzX2RlbGV0ZWQYGCABKAsyGS5rb3JwaXMudjEuT2JqZWN0c0RlbGV0ZWRIABIuCgxrZXlfbWF0ZXJpYWwYGSABKAsyFi5rb3JwaXMudjEuS2V5TWF0ZXJpYWxIABIlCgdtZW1iZXJzGBogASgLMhIua29ycGlzLnYxLk1lbWJlcnNIABIpCglhc3NlcnRpb24YGyABKAsyFC5rb3JwaXMudjEuQXNzZXJ0aW9uSAASMQoNYXV0aG9yaXphdGlvbhgcIAEoCzIYLmtvcnBpcy52MS5BdXRob3JpemF0aW9uSAASLAoLaGVhbHRoX25leHQYHSABKAsyFS5rb3JwaXMudjEuSGVhbHRoTmV4dEgAEjIKDmFkZHJlc3Nfcm91dGVkGB4gASgLMhgua29ycGlzLnYxLkFkZHJlc3NSb3V0ZWRIAEIJCgdvdXRjb21lIhoKCkNhbmNlbENhbGwSDAoEY2FsbBgBIAEoCSIVCgRQaW5nEg0KBW5vbmNlGAEgASgJIhUKBFBvbmcSDQoFbm9uY2UYASABKAkikAIKFFByb3ZpZGVyUmVnaXN0cmF0aW9uEgoKAmlkGAEgASgJEhEKCWV4dGVuc2lvbhgCIAEoCRIUCgxvcmdhbml6YXRpb24YAyABKAkSJQoEdHlwZRgEIAEoDjIXLmtvcnBpcy52MS5Qcm92aWRlclR5cGUSDAoEbmFtZRgFIAEoCRIPCgd2ZXJzaW9uGAYgASgJEhMKC2NvbmN1cnJlbmN5GAcgASgNEi0KCWNvbm5lY3RlZBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKAoEc2VlbhgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHc2lnbl9pbhgKIAEoCCIsChRMaXN0UHJvdmlkZXJzUmVxdWVzdBIUCgxvcmdhbml6YXRpb24YASABKAkidgoVTGlzdFByb3ZpZGVyc1Jlc3BvbnNlEjIKCXByb3ZpZGVycxgBIAMoCzIfLmtvcnBpcy52MS5Qcm92aWRlclJlZ2lzdHJhdGlvbhIpCgZoZWFsdGgYAiADKAsyGS5rb3JwaXMudjEuUHJvdmlkZXJIZWFsdGgijgIKDlByb3ZpZGVySGVhbHRoEiUKBHR5cGUYASABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYAiABKAkSKAoHYnJlYWtlchgDIAEoDjIXLmtvcnBpcy52MS5CcmVha2VyU3RhdGUSKQoFdW50aWwYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWNhbGxzGAUgASgNEg4KBmZhaWxlZBgGIAEoDRIxCg5tZWRpYW5fbGF0ZW5jeRgHIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIgChhtZWRpYW5fZGVhZGxpbmVfcGVybWlsbGUYCCABKA0ijAEKE1BpbmdQcm92aWRlclJlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJEiUKBHR5cGUYAiABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYAyABKAkSKgoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKYAQoUUGluZ1Byb3ZpZGVyUmVzcG9uc2USDAoEY2FsbBgBIAEoCRIUCgxyZWdpc3RyYXRpb24YAiABKAkSDwoHdmVyc2lvbhgDIAEoCRIqCgdlbGFwc2VkGAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEh8KBWVycm9yGAUgASgLMhAua29ycGlzLnYxLkVycm9yIkQKDEFwcGx5UmVjb3JkcxINCgVvd25lchgBIAEoCRIlCgdyZWNvcmRzGAIgAygLMhQua29ycGlzLnYxLkRuc1JlY29yZCJeCglEbnNSZWNvcmQSDAoEbmFtZRgBIAEoCRImCgR0eXBlGAIgASgOMhgua29ycGlzLnYxLkRuc1JlY29yZFR5cGUSCwoDdHRsGAMgASgNEg4KBnZhbHVlcxgEIAMoCSJDCg5SZWNvcmRzQXBwbGllZBIPCgdjcmVhdGVkGAEgASgNEg8KB3VwZGF0ZWQYAiABKA0SDwoHZGVsZXRlZBgDIAEoDSJACgxSb3V0ZUFkZHJlc3MSDwoHYWRkcmVzcxgBIAEoCRIMCgRub2RlGAIgASgJEhEKCW5leHRfaG9wcxgDIAMoCSIPCg1BZGRyZXNzUm91dGVkIsoBCgdSdW5TdGVwEgwKBHN0ZXAYASABKAkSNAoJYXJndW1lbnRzGAIgAygLMiEua29ycGlzLnYxLlJ1blN0ZXAuQXJndW1lbnRzRW50cnkSEAoId29ya2xvYWQYAyABKAkSJQoIcGxhdGZvcm0YBCABKAsyEy5rb3JwaXMudjEuUGxhdGZvcm0aQgoOQXJndW1lbnRzRW50cnkSCwoDa2V5GAEgASgJEh8KBXZhbHVlGAIgASgLMhAua29ycGlzLnYxLlZhbHVlOgI4ASIkCghQbGF0Zm9ybRIKCgJvcxgBIAEoCRIMCgRhcmNoGAIgASgJIloKClN0ZXBSZXN1bHQSKgoJYXJ0aWZhY3RzGAEgAygLMhcua29ycGlzLnYxLlN0ZXBBcnRpZmFjdBIOCgZwaW5uZWQYAiABKAgSEAoIcmVzb2x2ZWQYAyABKAkiZgoMU3RlcEFydGlmYWN0EgwKBHBhdGgYASABKAkSCwoDdXJsGAIgASgJEg4KBnNoYTI1NhgDIAEoCRIMCgRzaXplGAQgASgEEgwKBG1vZGUYBSABKA0SDwoHZXh0cmFjdBgGIAEoCCJXCgtHcmFudEFjY2VzcxIOCgZwcmVmaXgYASABKAkSIwoEbW9kZRgCIAEoDjIVLmtvcnBpcy52MS5BY2Nlc3NNb2RlEhMKC3R0bF9zZWNvbmRzGAMgASgNIm0KDE9iamVjdEFjY2VzcxIuCgpleHBpcmVzX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIhCgJzMxgKIAEoCzITLmtvcnBpcy52MS5TM0FjY2Vzc0gAQgoKCHByb3RvY29sItUBCghTM0FjY2VzcxIQCghlbmRwb2ludBgBIAEoCRIOCgZyZWdpb24YAiABKAkSDgoGYnVja2V0GAMgASgJEhIKCmtleV9wcmVmaXgYBCABKAkSFQoNYWNjZXNzX2tleV9pZBgFIAEoCRIZChFzZWNyZXRfYWNjZXNzX2tleRgGIAEoCRIVCg1zZXNzaW9uX3Rva2VuGAcgASgJEhIKCnBhdGhfc3R5bGUYCCABKAgSEQoJc2VydmVkX2J5GAkgASgJEhMKC2NlcnRpZmljYXRlGAogASgMIjsKC0xpc3RPYmplY3RzEg4KBnByZWZpeBgBIAEoCRINCgVhZnRlchgCIAEoCRINCgVsaW1pdBgDIAEoDSJECgpPYmplY3RMaXN0EigKB29iamVjdHMYASADKAsyFy5rb3JwaXMudjEuU3RvcmVkT2JqZWN0EgwKBG1vcmUYAiABKAgiVwoMU3RvcmVkT2JqZWN0EgsKA2tleRgBIAEoCRIMCgRzaXplGAIgASgEEiwKCG1vZGlmaWVkGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdCg1EZWxldGVPYmplY3RzEgwKBGtleXMYASADKAkiIQoOT2JqZWN0c0RlbGV0ZWQSDwoHZGVsZXRlZBgBIAEoDSI+CgtHZW5lcmF0ZUtleRILCgNrZXkYASABKAkSDwoHY29udGV4dBgCIAEoDBIRCglyZWNpcGllbnQYAyABKAwiTQoJVW53cmFwS2V5EgsKA2tleRgBIAEoCRIPCgdjb250ZXh0GAIgASgMEhEKCXJlY2lwaWVudBgDIAEoDBIPCgd3cmFwcGVkGAQgASgMIi4KC0tleU1hdGVyaWFsEg8KB3dyYXBwZWQYASABKAwSDgoGc2VhbGVkGAIgASgMInkKDVZlcmlmeU1lbWJlcnMSIwoDc2V0GAEgASgLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0Eg8KB21lbWJlcnMYAiADKAkSMgoScmVxdWlyZV9tZW1iZXJzaGlwGAMgAygLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0Ij8KB01lbWJlcnMSEgoKc2V0X2V4aXN0cxgBIAEoCBIPCgdwcmVzZW50GAIgAygJEg8KB3Vua25vd24YAyADKAkiewoGQXNzZXJ0EhAKCGV2aWRlbmNlGAEgASgMEi8KB2hlYWRlcnMYAiADKAsyHi5rb3JwaXMudjEuQXNzZXJ0LkhlYWRlcnNFbnRyeRouCgxIZWFkZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJ9CglBc3NlcnRpb24SDAoEdXNlchgBIAEoCRIkCgRzZXRzGAIgAygLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0EhQKDHByZXNlbnRhdGlvbhgDIAEoCRImCgJhdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiVwoJQXV0aG9yaXplEg0KBXN0YXRlGAEgASgJEg0KBW5vbmNlGAIgASgJEhYKDmNvZGVfY2hhbGxlbmdlGAMgASgJEhQKDHJlZGlyZWN0X3VyaRgEIAEoCSIcCg1BdXRob3JpemF0aW9uEgsKA3VybBgBIAEoCSKZAQoKSGVhbHRoU3RlcBIQCghwcm90b2NvbBgBIAEoCRIQCgh3b3JrbG9hZBgCIAEoCRIQCghlbmRwb2ludBgDIAEoCRItCgl0cmFuc3BvcnQYBCABKA4yGi5rb3JwaXMudjEuSGVhbHRoVHJhbnNwb3J0EiYKBnJvdW5kcxgFIAMoCzIWLmtvcnBpcy52MS5IZWFsdGhSb3VuZCI9CgtIZWFsdGhSb3VuZBIMCgRzZW50GAEgASgMEhAKCHJlY2VpdmVkGAIgASgMEg4KBmNsb3NlZBgDIAEoCCJoCgpIZWFsdGhOZXh0EiUKBHNlbmQYASABKAsyFS5rb3JwaXMudjEuSGVhbHRoU2VuZEgAEisKB3ZlcmRpY3QYAiABKAsyGC5rb3JwaXMudjEuSGVhbHRoVmVyZGljdEgAQgYKBG5leHQiWQoKSGVhbHRoU2VuZBIMCgRkYXRhGAEgASgMEhQKDHJlYWRfYXRfbW9zdBgCIAEoDRInCgR3YWl0GAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIpUBCg1IZWFsdGhWZXJkaWN0Eg8KB2hlYWx0aHkYASABKAgSDgoGcmVhc29uGAIgASgJEjQKBmRldGFpbBgDIAMoCzIkLmtvcnBpcy52MS5IZWFsdGhWZXJkaWN0LkRldGFpbEVudHJ5Gi0KC0RldGFpbEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEqfAoMQnJlYWtlclN0YXRlEh0KGUJSRUFLRVJfU1RBVEVfVU5TUEVDSUZJRUQQABIYChRCUkVBS0VSX1NUQVRFX0NMT1NFRBABEhYKEkJSRUFLRVJfU1RBVEVfT1BFThACEhsKF0JSRUFLRVJfU1RBVEVfSEFMRl9PUEVOEAMqrgEKDURuc1JlY29yZFR5cGUSHwobRE5TX1JFQ09SRF9UWVBFX1VOU1BFQ0lGSUVEEAASFQoRRE5TX1JFQ09SRF9UWVBFX0EQARIYChRETlNfUkVDT1JEX1RZUEVfQUFBQRACEhkKFUROU19SRUNPUkRfVFlQRV9DTkFNRRADEhcKE0ROU19SRUNPUkRfVFlQRV9TUlYQBBIXChNETlNfUkVDT1JEX1RZUEVfVFhUEAUqVgoKQWNjZXNzTW9kZRIbChdBQ0NFU1NfTU9ERV9VTlNQRUNJRklFRBAAEhUKEUFDQ0VTU19NT0RFX1dSSVRFEAESFAoQQUNDRVNTX01PREVfUkVBRBACKmcKD0hlYWx0aFRyYW5zcG9ydBIgChxIRUFMVEhfVFJBTlNQT1JUX1VOU1BFQ0lGSUVEEAASGAoUSEVBTFRIX1RSQU5TUE9SVF9UQ1AQARIYChRIRUFMVEhfVFJBTlNQT1JUX1VEUBACMoACCg9Qcm92aWRlclNlcnZpY2USQwoFU2VydmUSGi5rb3JwaXMudjEuUHJvdmlkZXJNZXNzYWdlGhoua29ycGlzLnYxLlByb3ZpZGVyQ29udHJvbCgBMAESVwoNTGlzdFByb3ZpZGVycxIfLmtvcnBpcy52MS5MaXN0UHJvdmlkZXJzUmVxdWVzdBogLmtvcnBpcy52MS5MaXN0UHJvdmlkZXJzUmVzcG9uc2UiA5ACARJPCgxQaW5nUHJvdmlkZXISHi5rb3JwaXMudjEuUGluZ1Byb3ZpZGVyUmVxdWVzdBofLmtvcnBpcy52MS5QaW5nUHJvdmlkZXJSZXNwb25zZWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_tenancy]);
+  fileDesc("Chhrb3JwaXMvdjEvcHJvdmlkZXIucHJvdG8SCWtvcnBpcy52MSJuCg9Qcm92aWRlck1lc3NhZ2USJwoIcmVnaXN0ZXIYASABKAsyEy5rb3JwaXMudjEuUmVnaXN0ZXJIABInCgZyZXN1bHQYAiABKAsyFS5rb3JwaXMudjEuQ2FsbFJlc3VsdEgAQgkKB21lc3NhZ2UimwEKD1Byb3ZpZGVyQ29udHJvbBIrCgpyZWdpc3RlcmVkGAEgASgLMhUua29ycGlzLnYxLlJlZ2lzdGVyZWRIABInCgRjYWxsGAIgASgLMhcua29ycGlzLnYxLlByb3ZpZGVyQ2FsbEgAEicKBmNhbmNlbBgDIAEoCzIVLmtvcnBpcy52MS5DYW5jZWxDYWxsSABCCQoHbWVzc2FnZSKbAQoIUmVnaXN0ZXISJQoEdHlwZRgBIAEoDjIXLmtvcnBpcy52MS5Qcm92aWRlclR5cGUSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEhMKC2NvbmN1cnJlbmN5GAQgASgNEg8KB3NpZ25faW4YBSABKAgSIwoHZmVuY2luZxgGIAEoDjISLmtvcnBpcy52MS5GZW5jaW5nIiIKClJlZ2lzdGVyZWQSFAoMcmVnaXN0cmF0aW9uGAEgASgJItkHCgxQcm92aWRlckNhbGwSDAoEY2FsbBgBIAEoCRIsCghkZWFkbGluZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHwoEcGluZxgKIAEoCzIPLmtvcnBpcy52MS5QaW5nSAASMAoNYXBwbHlfcmVjb3JkcxgUIAEoCzIXLmtvcnBpcy52MS5BcHBseVJlY29yZHNIABImCghydW5fc3RlcBgVIAEoCzISLmtvcnBpcy52MS5SdW5TdGVwSAASLgoMZ3JhbnRfYWNjZXNzGBYgASgLMhYua29ycGlzLnYxLkdyYW50QWNjZXNzSAASLgoMbGlzdF9vYmplY3RzGBcgASgLMhYua29ycGlzLnYxLkxpc3RPYmplY3RzSAASMgoOZGVsZXRlX29iamVjdHMYGCABKAsyGC5rb3JwaXMudjEuRGVsZXRlT2JqZWN0c0gAEi4KDGdlbmVyYXRlX2tleRgZIAEoCzIWLmtvcnBpcy52MS5HZW5lcmF0ZUtleUgAEioKCnVud3JhcF9rZXkYGiABKAsyFC5rb3JwaXMudjEuVW53cmFwS2V5SAASMgoOdmVyaWZ5X21lbWJlcnMYGyABKAsyGC5rb3JwaXMudjEuVmVyaWZ5TWVtYmVyc0gAEiMKBmFzc2VydBgcIAEoCzIRLmtvcnBpcy52MS5Bc3NlcnRIABIpCglhdXRob3JpemUYHSABKAsyFC5rb3JwaXMudjEuQXV0aG9yaXplSAASLAoLaGVhbHRoX3N0ZXAYHiABKAsyFS5rb3JwaXMudjEuSGVhbHRoU3RlcEgAEjAKDXJvdXRlX2FkZHJlc3MYHyABKAsyFy5rb3JwaXMudjEuUm91dGVBZGRyZXNzSAASOwoTY3JlYXRlX2Jsb2NrX3ZvbHVtZRggIAEoCzIcLmtvcnBpcy52MS5DcmVhdGVCbG9ja1ZvbHVtZUgAEjsKE2F0dGFjaF9ibG9ja192b2x1bWUYISABKAsyHC5rb3JwaXMudjEuQXR0YWNoQmxvY2tWb2x1bWVIABI7ChNkZXRhY2hfYmxvY2tfdm9sdW1lGCIgASgLMhwua29ycGlzLnYxLkRldGFjaEJsb2NrVm9sdW1lSAASOwoTZGVsZXRlX2Jsb2NrX3ZvbHVtZRgjIAEoCzIcLmtvcnBpcy52MS5EZWxldGVCbG9ja1ZvbHVtZUgAEj8KFWRlc2NyaWJlX2Jsb2NrX3ZvbHVtZRgkIAEoCzIeLmtvcnBpcy52MS5EZXNjcmliZUJsb2NrVm9sdW1lSABCCQoHcmVxdWVzdCK4BwoKQ2FsbFJlc3VsdBIMCgRjYWxsGAEgASgJEiEKBWVycm9yGAIgASgLMhAua29ycGlzLnYxLkVycm9ySAASHwoEcG9uZxgKIAEoCzIPLmtvcnBpcy52MS5Qb25nSAASNAoPcmVjb3Jkc19hcHBsaWVkGBQgASgLMhkua29ycGlzLnYxLlJlY29yZHNBcHBsaWVkSAASLAoLc3RlcF9yZXN1bHQYFSABKAsyFS5rb3JwaXMudjEuU3RlcFJlc3VsdEgAEjAKDW9iamVjdF9hY2Nlc3MYFiABKAsyFy5rb3JwaXMudjEuT2JqZWN0QWNjZXNzSAASLAoLb2JqZWN0X2xpc3QYFyABKAsyFS5rb3JwaXMudjEuT2JqZWN0TGlzdEgAEjQKD29iamVjdHNfZGVsZXRlZBgYIAEoCzIZLmtvcnBpcy52MS5PYmplY3RzRGVsZXRlZEgAEi4KDGtleV9tYXRlcmlhbBgZIAEoCzIWLmtvcnBpcy52MS5LZXlNYXRlcmlhbEgAEiUKB21lbWJlcnMYGiABKAsyEi5rb3JwaXMudjEuTWVtYmVyc0gAEikKCWFzc2VydGlvbhgbIAEoCzIULmtvcnBpcy52MS5Bc3NlcnRpb25IABIxCg1hdXRob3JpemF0aW9uGBwgASgLMhgua29ycGlzLnYxLkF1dGhvcml6YXRpb25IABIsCgtoZWFsdGhfbmV4dBgdIAEoCzIVLmtvcnBpcy52MS5IZWFsdGhOZXh0SAASMgoOYWRkcmVzc19yb3V0ZWQYHiABKAsyGC5rb3JwaXMudjEuQWRkcmVzc1JvdXRlZEgAEj0KFGJsb2NrX3ZvbHVtZV9jcmVhdGVkGB8gASgLMh0ua29ycGlzLnYxLkJsb2NrVm9sdW1lQ3JlYXRlZEgAEjYKEGJsb2NrX2F0dGFjaG1lbnQYICABKAsyGi5rb3JwaXMudjEuQmxvY2tBdHRhY2htZW50SAASPwoVYmxvY2tfdm9sdW1lX2RldGFjaGVkGCEgASgLMh4ua29ycGlzLnYxLkJsb2NrVm9sdW1lRGV0YWNoZWRIABI9ChRibG9ja192b2x1bWVfZGVsZXRlZBgiIAEoCzIdLmtvcnBpcy52MS5CbG9ja1ZvbHVtZURlbGV0ZWRIABJFChhibG9ja192b2x1bWVfZGVzY3JpcHRpb24YIyABKAsyIS5rb3JwaXMudjEuQmxvY2tWb2x1bWVEZXNjcmlwdGlvbkgAQgkKB291dGNvbWUiGgoKQ2FuY2VsQ2FsbBIMCgRjYWxsGAEgASgJIhUKBFBpbmcSDQoFbm9uY2UYASABKAkiFQoEUG9uZxINCgVub25jZRgBIAEoCSK1AgoUUHJvdmlkZXJSZWdpc3RyYXRpb24SCgoCaWQYASABKAkSEQoJZXh0ZW5zaW9uGAIgASgJEhQKDG9yZ2FuaXphdGlvbhgDIAEoCRIlCgR0eXBlGAQgASgOMhcua29ycGlzLnYxLlByb3ZpZGVyVHlwZRIMCgRuYW1lGAUgASgJEg8KB3ZlcnNpb24YBiABKAkSEwoLY29uY3VycmVuY3kYByABKA0SLQoJY29ubmVjdGVkGAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIoCgRzZWVuGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdzaWduX2luGAogASgIEiMKB2ZlbmNpbmcYCyABKA4yEi5rb3JwaXMudjEuRmVuY2luZyIsChRMaXN0UHJvdmlkZXJzUmVxdWVzdBIUCgxvcmdhbml6YXRpb24YASABKAkidgoVTGlzdFByb3ZpZGVyc1Jlc3BvbnNlEjIKCXByb3ZpZGVycxgBIAMoCzIfLmtvcnBpcy52MS5Qcm92aWRlclJlZ2lzdHJhdGlvbhIpCgZoZWFsdGgYAiADKAsyGS5rb3JwaXMudjEuUHJvdmlkZXJIZWFsdGgijgIKDlByb3ZpZGVySGVhbHRoEiUKBHR5cGUYASABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYAiABKAkSKAoHYnJlYWtlchgDIAEoDjIXLmtvcnBpcy52MS5CcmVha2VyU3RhdGUSKQoFdW50aWwYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWNhbGxzGAUgASgNEg4KBmZhaWxlZBgGIAEoDRIxCg5tZWRpYW5fbGF0ZW5jeRgHIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIgChhtZWRpYW5fZGVhZGxpbmVfcGVybWlsbGUYCCABKA0ijAEKE1BpbmdQcm92aWRlclJlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJEiUKBHR5cGUYAiABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYAyABKAkSKgoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKYAQoUUGluZ1Byb3ZpZGVyUmVzcG9uc2USDAoEY2FsbBgBIAEoCRIUCgxyZWdpc3RyYXRpb24YAiABKAkSDwoHdmVyc2lvbhgDIAEoCRIqCgdlbGFwc2VkGAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEh8KBWVycm9yGAUgASgLMhAua29ycGlzLnYxLkVycm9yIkQKDEFwcGx5UmVjb3JkcxINCgVvd25lchgBIAEoCRIlCgdyZWNvcmRzGAIgAygLMhQua29ycGlzLnYxLkRuc1JlY29yZCJeCglEbnNSZWNvcmQSDAoEbmFtZRgBIAEoCRImCgR0eXBlGAIgASgOMhgua29ycGlzLnYxLkRuc1JlY29yZFR5cGUSCwoDdHRsGAMgASgNEg4KBnZhbHVlcxgEIAMoCSJDCg5SZWNvcmRzQXBwbGllZBIPCgdjcmVhdGVkGAEgASgNEg8KB3VwZGF0ZWQYAiABKA0SDwoHZGVsZXRlZBgDIAEoDSJACgxSb3V0ZUFkZHJlc3MSDwoHYWRkcmVzcxgBIAEoCRIMCgRub2RlGAIgASgJEhEKCW5leHRfaG9wcxgDIAMoCSIPCg1BZGRyZXNzUm91dGVkIk4KEUNyZWF0ZUJsb2NrVm9sdW1lEg4KBnZvbHVtZRgBIAEoCRIVCg1zdG9yYWdlX2NsYXNzGAIgASgJEhIKCnNpemVfYnl0ZXMYAyABKAQiJAoSQmxvY2tWb2x1bWVDcmVhdGVkEg4KBmRldmljZRgBIAEoCSJtChFBdHRhY2hCbG9ja1ZvbHVtZRIOCgZkZXZpY2UYASABKAkSDAoEbm9kZRgCIAEoCRINCgVlcG9jaBgDIAEoBBIrCglwcm90b2NvbHMYBCADKA4yGC5rb3JwaXMudjEuQmxvY2tQcm90b2NvbCJhCg9CbG9ja0F0dGFjaG1lbnQSKgoIcHJvdG9jb2wYASABKA4yGC5rb3JwaXMudjEuQmxvY2tQcm90b2NvbBIOCgZ0YXJnZXQYAiABKAkSEgoKY3JlZGVudGlhbBgDIAEoCSIxChFEZXRhY2hCbG9ja1ZvbHVtZRIOCgZkZXZpY2UYASABKAkSDAoEbm9kZRgCIAEoCSIVChNCbG9ja1ZvbHVtZURldGFjaGVkIiMKEURlbGV0ZUJsb2NrVm9sdW1lEg4KBmRldmljZRgBIAEoCSIUChJCbG9ja1ZvbHVtZURlbGV0ZWQiJQoTRGVzY3JpYmVCbG9ja1ZvbHVtZRIOCgZkZXZpY2UYASABKAkiSQoWQmxvY2tWb2x1bWVEZXNjcmlwdGlvbhISCgpzaXplX2J5dGVzGAEgASgEEgwKBG5vZGUYAiABKAkSDQoFZXBvY2gYAyABKAQiygEKB1J1blN0ZXASDAoEc3RlcBgBIAEoCRI0Cglhcmd1bWVudHMYAiADKAsyIS5rb3JwaXMudjEuUnVuU3RlcC5Bcmd1bWVudHNFbnRyeRIQCgh3b3JrbG9hZBgDIAEoCRIlCghwbGF0Zm9ybRgEIAEoCzITLmtvcnBpcy52MS5QbGF0Zm9ybRpCCg5Bcmd1bWVudHNFbnRyeRILCgNrZXkYASABKAkSHwoFdmFsdWUYAiABKAsyEC5rb3JwaXMudjEuVmFsdWU6AjgBIiQKCFBsYXRmb3JtEgoKAm9zGAEgASgJEgwKBGFyY2gYAiABKAkiWgoKU3RlcFJlc3VsdBIqCglhcnRpZmFjdHMYASADKAsyFy5rb3JwaXMudjEuU3RlcEFydGlmYWN0Eg4KBnBpbm5lZBgCIAEoCBIQCghyZXNvbHZlZBgDIAEoCSJmCgxTdGVwQXJ0aWZhY3QSDAoEcGF0aBgBIAEoCRILCgN1cmwYAiABKAkSDgoGc2hhMjU2GAMgASgJEgwKBHNpemUYBCABKAQSDAoEbW9kZRgFIAEoDRIPCgdleHRyYWN0GAYgASgIIlcKC0dyYW50QWNjZXNzEg4KBnByZWZpeBgBIAEoCRIjCgRtb2RlGAIgASgOMhUua29ycGlzLnYxLkFjY2Vzc01vZGUSEwoLdHRsX3NlY29uZHMYAyABKA0ibQoMT2JqZWN0QWNjZXNzEi4KCmV4cGlyZXNfYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiEKAnMzGAogASgLMhMua29ycGlzLnYxLlMzQWNjZXNzSABCCgoIcHJvdG9jb2wi1QEKCFMzQWNjZXNzEhAKCGVuZHBvaW50GAEgASgJEg4KBnJlZ2lvbhgCIAEoCRIOCgZidWNrZXQYAyABKAkSEgoKa2V5X3ByZWZpeBgEIAEoCRIVCg1hY2Nlc3Nfa2V5X2lkGAUgASgJEhkKEXNlY3JldF9hY2Nlc3Nfa2V5GAYgASgJEhUKDXNlc3Npb25fdG9rZW4YByABKAkSEgoKcGF0aF9zdHlsZRgIIAEoCBIRCglzZXJ2ZWRfYnkYCSABKAkSEwoLY2VydGlmaWNhdGUYCiABKAwiOwoLTGlzdE9iamVjdHMSDgoGcHJlZml4GAEgASgJEg0KBWFmdGVyGAIgASgJEg0KBWxpbWl0GAMgASgNIkQKCk9iamVjdExpc3QSKAoHb2JqZWN0cxgBIAMoCzIXLmtvcnBpcy52MS5TdG9yZWRPYmplY3QSDAoEbW9yZRgCIAEoCCJXCgxTdG9yZWRPYmplY3QSCwoDa2V5GAEgASgJEgwKBHNpemUYAiABKAQSLAoIbW9kaWZpZWQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIh0KDURlbGV0ZU9iamVjdHMSDAoEa2V5cxgBIAMoCSIhCg5PYmplY3RzRGVsZXRlZBIPCgdkZWxldGVkGAEgASgNIj4KC0dlbmVyYXRlS2V5EgsKA2tleRgBIAEoCRIPCgdjb250ZXh0GAIgASgMEhEKCXJlY2lwaWVudBgDIAEoDCJNCglVbndyYXBLZXkSCwoDa2V5GAEgASgJEg8KB2NvbnRleHQYAiABKAwSEQoJcmVjaXBpZW50GAMgASgMEg8KB3dyYXBwZWQYBCABKAwiLgoLS2V5TWF0ZXJpYWwSDwoHd3JhcHBlZBgBIAEoDBIOCgZzZWFsZWQYAiABKAwieQoNVmVyaWZ5TWVtYmVycxIjCgNzZXQYASABKAsyFi5rb3JwaXMudjEuRXh0ZXJuYWxTZXQSDwoHbWVtYmVycxgCIAMoCRIyChJyZXF1aXJlX21lbWJlcnNoaXAYAyADKAsyFi5rb3JwaXMudjEuRXh0ZXJuYWxTZXQiPwoHTWVtYmVycxISCgpzZXRfZXhpc3RzGAEgASgIEg8KB3ByZXNlbnQYAiADKAkSDwoHdW5rbm93bhgDIAMoCSJ7CgZBc3NlcnQSEAoIZXZpZGVuY2UYASABKAwSLwoHaGVhZGVycxgCIAMoCzIeLmtvcnBpcy52MS5Bc3NlcnQuSGVhZGVyc0VudHJ5Gi4KDEhlYWRlcnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIn0KCUFzc2VydGlvbhIMCgR1c2VyGAEgASgJEiQKBHNldHMYAiADKAsyFi5rb3JwaXMudjEuRXh0ZXJuYWxTZXQSFAoMcHJlc2VudGF0aW9uGAMgASgJEiYKAmF0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJXCglBdXRob3JpemUSDQoFc3RhdGUYASABKAkSDQoFbm9uY2UYAiABKAkSFgoOY29kZV9jaGFsbGVuZ2UYAyABKAkSFAoMcmVkaXJlY3RfdXJpGAQgASgJIhwKDUF1dGhvcml6YXRpb24SCwoDdXJsGAEgASgJIpkBCgpIZWFsdGhTdGVwEhAKCHByb3RvY29sGAEgASgJEhAKCHdvcmtsb2FkGAIgASgJEhAKCGVuZHBvaW50GAMgASgJEi0KCXRyYW5zcG9ydBgEIAEoDjIaLmtvcnBpcy52MS5IZWFsdGhUcmFuc3BvcnQSJgoGcm91bmRzGAUgAygLMhYua29ycGlzLnYxLkhlYWx0aFJvdW5kIj0KC0hlYWx0aFJvdW5kEgwKBHNlbnQYASABKAwSEAoIcmVjZWl2ZWQYAiABKAwSDgoGY2xvc2VkGAMgASgIImgKCkhlYWx0aE5leHQSJQoEc2VuZBgBIAEoCzIVLmtvcnBpcy52MS5IZWFsdGhTZW5kSAASKwoHdmVyZGljdBgCIAEoCzIYLmtvcnBpcy52MS5IZWFsdGhWZXJkaWN0SABCBgoEbmV4dCJZCgpIZWFsdGhTZW5kEgwKBGRhdGEYASABKAwSFAoMcmVhZF9hdF9tb3N0GAIgASgNEicKBHdhaXQYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24ilQEKDUhlYWx0aFZlcmRpY3QSDwoHaGVhbHRoeRgBIAEoCBIOCgZyZWFzb24YAiABKAkSNAoGZGV0YWlsGAMgAygLMiQua29ycGlzLnYxLkhlYWx0aFZlcmRpY3QuRGV0YWlsRW50cnkaLQoLRGV0YWlsRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASp8CgxCcmVha2VyU3RhdGUSHQoZQlJFQUtFUl9TVEFURV9VTlNQRUNJRklFRBAAEhgKFEJSRUFLRVJfU1RBVEVfQ0xPU0VEEAESFgoSQlJFQUtFUl9TVEFURV9PUEVOEAISGwoXQlJFQUtFUl9TVEFURV9IQUxGX09QRU4QAyquAQoNRG5zUmVjb3JkVHlwZRIfChtETlNfUkVDT1JEX1RZUEVfVU5TUEVDSUZJRUQQABIVChFETlNfUkVDT1JEX1RZUEVfQRABEhgKFEROU19SRUNPUkRfVFlQRV9BQUFBEAISGQoVRE5TX1JFQ09SRF9UWVBFX0NOQU1FEAMSFwoTRE5TX1JFQ09SRF9UWVBFX1NSVhAEEhcKE0ROU19SRUNPUkRfVFlQRV9UWFQQBSp6Cg1CbG9ja1Byb3RvY29sEh4KGkJMT0NLX1BST1RPQ09MX1VOU1BFQ0lGSUVEEAASGAoUQkxPQ0tfUFJPVE9DT0xfSVNDU0kQARIWChJCTE9DS19QUk9UT0NPTF9SQkQQAhIXChNCTE9DS19QUk9UT0NPTF9MT09QEAMqVgoKQWNjZXNzTW9kZRIbChdBQ0NFU1NfTU9ERV9VTlNQRUNJRklFRBAAEhUKEUFDQ0VTU19NT0RFX1dSSVRFEAESFAoQQUNDRVNTX01PREVfUkVBRBACKmcKD0hlYWx0aFRyYW5zcG9ydBIgChxIRUFMVEhfVFJBTlNQT1JUX1VOU1BFQ0lGSUVEEAASGAoUSEVBTFRIX1RSQU5TUE9SVF9UQ1AQARIYChRIRUFMVEhfVFJBTlNQT1JUX1VEUBACMoACCg9Qcm92aWRlclNlcnZpY2USQwoFU2VydmUSGi5rb3JwaXMudjEuUHJvdmlkZXJNZXNzYWdlGhoua29ycGlzLnYxLlByb3ZpZGVyQ29udHJvbCgBMAESVwoNTGlzdFByb3ZpZGVycxIfLmtvcnBpcy52MS5MaXN0UHJvdmlkZXJzUmVxdWVzdBogLmtvcnBpcy52MS5MaXN0UHJvdmlkZXJzUmVzcG9uc2UiA5ACARJPCgxQaW5nUHJvdmlkZXISHi5rb3JwaXMudjEuUGluZ1Byb3ZpZGVyUmVxdWVzdBofLmtvcnBpcy52MS5QaW5nUHJvdmlkZXJSZXNwb25zZWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_placement, file_korpis_v1_tenancy]);
 
 /**
  * Provider to control plane.
@@ -138,6 +140,15 @@ export type Register = Message<"korpis.v1.Register"> & {
    * @generated from field: bool sign_in = 5;
    */
   signIn: boolean;
+
+  /**
+   * block_storage: whether its attach refuses every other node in the storage itself
+   * (storage_enforced) or cannot (lease_only), which the control plane takes as its class's
+   * (§2.1 of docs/06-storage.md). Required of a block storage provider, refused of any other.
+   *
+   * @generated from field: korpis.v1.Fencing fencing = 6;
+   */
+  fencing: Fencing;
 };
 
 /**
@@ -281,6 +292,39 @@ export type ProviderCall = Message<"korpis.v1.ProviderCall"> & {
      */
     value: RouteAddress;
     case: "routeAddress";
+  } | {
+    /**
+     * block_storage: a volume made, attached to one node for one lease epoch, detached,
+     * deleted, and described.
+     *
+     * @generated from field: korpis.v1.CreateBlockVolume create_block_volume = 32;
+     */
+    value: CreateBlockVolume;
+    case: "createBlockVolume";
+  } | {
+    /**
+     * @generated from field: korpis.v1.AttachBlockVolume attach_block_volume = 33;
+     */
+    value: AttachBlockVolume;
+    case: "attachBlockVolume";
+  } | {
+    /**
+     * @generated from field: korpis.v1.DetachBlockVolume detach_block_volume = 34;
+     */
+    value: DetachBlockVolume;
+    case: "detachBlockVolume";
+  } | {
+    /**
+     * @generated from field: korpis.v1.DeleteBlockVolume delete_block_volume = 35;
+     */
+    value: DeleteBlockVolume;
+    case: "deleteBlockVolume";
+  } | {
+    /**
+     * @generated from field: korpis.v1.DescribeBlockVolume describe_block_volume = 36;
+     */
+    value: DescribeBlockVolume;
+    case: "describeBlockVolume";
   } | { case: undefined; value?: undefined };
 };
 
@@ -383,6 +427,36 @@ export type CallResult = Message<"korpis.v1.CallResult"> & {
      */
     value: AddressRouted;
     case: "addressRouted";
+  } | {
+    /**
+     * @generated from field: korpis.v1.BlockVolumeCreated block_volume_created = 31;
+     */
+    value: BlockVolumeCreated;
+    case: "blockVolumeCreated";
+  } | {
+    /**
+     * @generated from field: korpis.v1.BlockAttachment block_attachment = 32;
+     */
+    value: BlockAttachment;
+    case: "blockAttachment";
+  } | {
+    /**
+     * @generated from field: korpis.v1.BlockVolumeDetached block_volume_detached = 33;
+     */
+    value: BlockVolumeDetached;
+    case: "blockVolumeDetached";
+  } | {
+    /**
+     * @generated from field: korpis.v1.BlockVolumeDeleted block_volume_deleted = 34;
+     */
+    value: BlockVolumeDeleted;
+    case: "blockVolumeDeleted";
+  } | {
+    /**
+     * @generated from field: korpis.v1.BlockVolumeDescription block_volume_description = 35;
+     */
+    value: BlockVolumeDescription;
+    case: "blockVolumeDescription";
   } | { case: undefined; value?: undefined };
 };
 
@@ -505,6 +579,13 @@ export type ProviderRegistration = Message<"korpis.v1.ProviderRegistration"> & {
    * @generated from field: bool sign_in = 10;
    */
   signIn: boolean;
+
+  /**
+   * A block storage provider's: whether its attach fences (§2.1 of docs/06-storage.md).
+   *
+   * @generated from field: korpis.v1.Fencing fencing = 11;
+   */
+  fencing: Fencing;
 };
 
 /**
@@ -845,6 +926,247 @@ export const AddressRoutedSchema: GenMessage<AddressRouted> = /*@__PURE__*/
   messageDesc(file_korpis_v1_provider, 19);
 
 /**
+ * Block storage (§2.1 of docs/06-storage.md, §5 of docs/16-extensions.md). One Korpis volume is
+ * one device of the storage, which the provider names. Each call says the whole of what is
+ * wanted, so a repeat changes nothing.
+ *
+ * @generated from message korpis.v1.CreateBlockVolume
+ */
+export type CreateBlockVolume = Message<"korpis.v1.CreateBlockVolume"> & {
+  /**
+   * The volume, `vol_...`: a provider asked again for one it made answers the device it made.
+   *
+   * @generated from field: string volume = 1;
+   */
+  volume: string;
+
+  /**
+   * The class it is in, the provider's name for the storage it serves.
+   *
+   * @generated from field: string storage_class = 2;
+   */
+  storageClass: string;
+
+  /**
+   * @generated from field: uint64 size_bytes = 3;
+   */
+  sizeBytes: bigint;
+};
+
+/**
+ * Describes the message korpis.v1.CreateBlockVolume.
+ * Use `create(CreateBlockVolumeSchema)` to create a new message.
+ */
+export const CreateBlockVolumeSchema: GenMessage<CreateBlockVolume> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 20);
+
+/**
+ * @generated from message korpis.v1.BlockVolumeCreated
+ */
+export type BlockVolumeCreated = Message<"korpis.v1.BlockVolumeCreated"> & {
+  /**
+   * The provider's own name for the device, which every later call names.
+   *
+   * @generated from field: string device = 1;
+   */
+  device: string;
+};
+
+/**
+ * Describes the message korpis.v1.BlockVolumeCreated.
+ * Use `create(BlockVolumeCreatedSchema)` to create a new message.
+ */
+export const BlockVolumeCreatedSchema: GenMessage<BlockVolumeCreated> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 21);
+
+/**
+ * Attach `device` to `node` for `epoch`: refuse it, in the storage itself where the provider
+ * can, to every other node first, then answer with what `node` needs to attach it. An attach for
+ * an epoch lower than one the provider has attached the device for is refused, so a call from
+ * before a failover cannot take the device back.
+ *
+ * @generated from message korpis.v1.AttachBlockVolume
+ */
+export type AttachBlockVolume = Message<"korpis.v1.AttachBlockVolume"> & {
+  /**
+   * @generated from field: string device = 1;
+   */
+  device: string;
+
+  /**
+   * `nd_...`.
+   *
+   * @generated from field: string node = 2;
+   */
+  node: string;
+
+  /**
+   * @generated from field: uint64 epoch = 3;
+   */
+  epoch: bigint;
+
+  /**
+   * What the node's helper can attach with, any of which the answer may use.
+   *
+   * @generated from field: repeated korpis.v1.BlockProtocol protocols = 4;
+   */
+  protocols: BlockProtocol[];
+};
+
+/**
+ * Describes the message korpis.v1.AttachBlockVolume.
+ * Use `create(AttachBlockVolumeSchema)` to create a new message.
+ */
+export const AttachBlockVolumeSchema: GenMessage<AttachBlockVolume> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 22);
+
+/**
+ * @generated from message korpis.v1.BlockAttachment
+ */
+export type BlockAttachment = Message<"korpis.v1.BlockAttachment"> & {
+  /**
+   * @generated from field: korpis.v1.BlockProtocol protocol = 1;
+   */
+  protocol: BlockProtocol;
+
+  /**
+   * iSCSI: `<portal>|<iqn>|<lun>`; RBD: `<monitors>|<pool>|<image>`; loop: the file's name in
+   * the directory the node's operator named.
+   *
+   * @generated from field: string target = 2;
+   */
+  target: string;
+
+  /**
+   * What the node presents to the storage for this device alone where the storage can scope
+   * one: iSCSI CHAP `<user>:<secret>`, an RBD key; empty where none is needed.
+   *
+   * @generated from field: string credential = 3;
+   */
+  credential: string;
+};
+
+/**
+ * Describes the message korpis.v1.BlockAttachment.
+ * Use `create(BlockAttachmentSchema)` to create a new message.
+ */
+export const BlockAttachmentSchema: GenMessage<BlockAttachment> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 23);
+
+/**
+ * @generated from message korpis.v1.DetachBlockVolume
+ */
+export type DetachBlockVolume = Message<"korpis.v1.DetachBlockVolume"> & {
+  /**
+   * @generated from field: string device = 1;
+   */
+  device: string;
+
+  /**
+   * The node to let go of it.
+   *
+   * @generated from field: string node = 2;
+   */
+  node: string;
+};
+
+/**
+ * Describes the message korpis.v1.DetachBlockVolume.
+ * Use `create(DetachBlockVolumeSchema)` to create a new message.
+ */
+export const DetachBlockVolumeSchema: GenMessage<DetachBlockVolume> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 24);
+
+/**
+ * @generated from message korpis.v1.BlockVolumeDetached
+ */
+export type BlockVolumeDetached = Message<"korpis.v1.BlockVolumeDetached"> & {
+};
+
+/**
+ * Describes the message korpis.v1.BlockVolumeDetached.
+ * Use `create(BlockVolumeDetachedSchema)` to create a new message.
+ */
+export const BlockVolumeDetachedSchema: GenMessage<BlockVolumeDetached> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 25);
+
+/**
+ * @generated from message korpis.v1.DeleteBlockVolume
+ */
+export type DeleteBlockVolume = Message<"korpis.v1.DeleteBlockVolume"> & {
+  /**
+   * @generated from field: string device = 1;
+   */
+  device: string;
+};
+
+/**
+ * Describes the message korpis.v1.DeleteBlockVolume.
+ * Use `create(DeleteBlockVolumeSchema)` to create a new message.
+ */
+export const DeleteBlockVolumeSchema: GenMessage<DeleteBlockVolume> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 26);
+
+/**
+ * @generated from message korpis.v1.BlockVolumeDeleted
+ */
+export type BlockVolumeDeleted = Message<"korpis.v1.BlockVolumeDeleted"> & {
+};
+
+/**
+ * Describes the message korpis.v1.BlockVolumeDeleted.
+ * Use `create(BlockVolumeDeletedSchema)` to create a new message.
+ */
+export const BlockVolumeDeletedSchema: GenMessage<BlockVolumeDeleted> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 27);
+
+/**
+ * @generated from message korpis.v1.DescribeBlockVolume
+ */
+export type DescribeBlockVolume = Message<"korpis.v1.DescribeBlockVolume"> & {
+  /**
+   * @generated from field: string device = 1;
+   */
+  device: string;
+};
+
+/**
+ * Describes the message korpis.v1.DescribeBlockVolume.
+ * Use `create(DescribeBlockVolumeSchema)` to create a new message.
+ */
+export const DescribeBlockVolumeSchema: GenMessage<DescribeBlockVolume> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 28);
+
+/**
+ * @generated from message korpis.v1.BlockVolumeDescription
+ */
+export type BlockVolumeDescription = Message<"korpis.v1.BlockVolumeDescription"> & {
+  /**
+   * @generated from field: uint64 size_bytes = 1;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * The node it is attached to, and for which epoch; empty and zero while it is attached to none.
+   *
+   * @generated from field: string node = 2;
+   */
+  node: string;
+
+  /**
+   * @generated from field: uint64 epoch = 3;
+   */
+  epoch: bigint;
+};
+
+/**
+ * Describes the message korpis.v1.BlockVolumeDescription.
+ * Use `create(BlockVolumeDescriptionSchema)` to create a new message.
+ */
+export const BlockVolumeDescriptionSchema: GenMessage<BlockVolumeDescription> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 29);
+
+/**
  * Recipe steps (§4 of docs/09-recipes.md). A step provider resolves a step into content-addressed
  * artifacts; the node's content store fetches each by its hash and the workload's own filesystem
  * worker writes it, so the provider never touches a tenant's volume and re-running a step
@@ -885,7 +1207,7 @@ export type RunStep = Message<"korpis.v1.RunStep"> & {
  * Use `create(RunStepSchema)` to create a new message.
  */
 export const RunStepSchema: GenMessage<RunStep> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 20);
+  messageDesc(file_korpis_v1_provider, 30);
 
 /**
  * @generated from message korpis.v1.Platform
@@ -907,7 +1229,7 @@ export type Platform = Message<"korpis.v1.Platform"> & {
  * Use `create(PlatformSchema)` to create a new message.
  */
 export const PlatformSchema: GenMessage<Platform> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 21);
+  messageDesc(file_korpis_v1_provider, 31);
 
 /**
  * @generated from message korpis.v1.StepResult
@@ -941,7 +1263,7 @@ export type StepResult = Message<"korpis.v1.StepResult"> & {
  * Use `create(StepResultSchema)` to create a new message.
  */
 export const StepResultSchema: GenMessage<StepResult> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 22);
+  messageDesc(file_korpis_v1_provider, 32);
 
 /**
  * @generated from message korpis.v1.StepArtifact
@@ -992,7 +1314,7 @@ export type StepArtifact = Message<"korpis.v1.StepArtifact"> & {
  * Use `create(StepArtifactSchema)` to create a new message.
  */
 export const StepArtifactSchema: GenMessage<StepArtifact> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 23);
+  messageDesc(file_korpis_v1_provider, 33);
 
 /**
  * Backup targets (§5.6 of docs/06-storage.md). Object bytes never cross this stream: a node writes
@@ -1028,7 +1350,7 @@ export type GrantAccess = Message<"korpis.v1.GrantAccess"> & {
  * Use `create(GrantAccessSchema)` to create a new message.
  */
 export const GrantAccessSchema: GenMessage<GrantAccess> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 24);
+  messageDesc(file_korpis_v1_provider, 34);
 
 /**
  * Access the node uses directly. A store that cannot scope access to a prefix is served by its
@@ -1060,7 +1382,7 @@ export type ObjectAccess = Message<"korpis.v1.ObjectAccess"> & {
  * Use `create(ObjectAccessSchema)` to create a new message.
  */
 export const ObjectAccessSchema: GenMessage<ObjectAccess> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 25);
+  messageDesc(file_korpis_v1_provider, 35);
 
 /**
  * @generated from message korpis.v1.S3Access
@@ -1135,7 +1457,7 @@ export type S3Access = Message<"korpis.v1.S3Access"> & {
  * Use `create(S3AccessSchema)` to create a new message.
  */
 export const S3AccessSchema: GenMessage<S3Access> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 26);
+  messageDesc(file_korpis_v1_provider, 36);
 
 /**
  * @generated from message korpis.v1.ListObjects
@@ -1166,7 +1488,7 @@ export type ListObjects = Message<"korpis.v1.ListObjects"> & {
  * Use `create(ListObjectsSchema)` to create a new message.
  */
 export const ListObjectsSchema: GenMessage<ListObjects> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 27);
+  messageDesc(file_korpis_v1_provider, 37);
 
 /**
  * @generated from message korpis.v1.ObjectList
@@ -1190,7 +1512,7 @@ export type ObjectList = Message<"korpis.v1.ObjectList"> & {
  * Use `create(ObjectListSchema)` to create a new message.
  */
 export const ObjectListSchema: GenMessage<ObjectList> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 28);
+  messageDesc(file_korpis_v1_provider, 38);
 
 /**
  * @generated from message korpis.v1.StoredObject
@@ -1217,7 +1539,7 @@ export type StoredObject = Message<"korpis.v1.StoredObject"> & {
  * Use `create(StoredObjectSchema)` to create a new message.
  */
 export const StoredObjectSchema: GenMessage<StoredObject> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 29);
+  messageDesc(file_korpis_v1_provider, 39);
 
 /**
  * @generated from message korpis.v1.DeleteObjects
@@ -1236,7 +1558,7 @@ export type DeleteObjects = Message<"korpis.v1.DeleteObjects"> & {
  * Use `create(DeleteObjectsSchema)` to create a new message.
  */
 export const DeleteObjectsSchema: GenMessage<DeleteObjects> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 30);
+  messageDesc(file_korpis_v1_provider, 40);
 
 /**
  * @generated from message korpis.v1.ObjectsDeleted
@@ -1253,7 +1575,7 @@ export type ObjectsDeleted = Message<"korpis.v1.ObjectsDeleted"> & {
  * Use `create(ObjectsDeletedSchema)` to create a new message.
  */
 export const ObjectsDeletedSchema: GenMessage<ObjectsDeleted> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 31);
+  messageDesc(file_korpis_v1_provider, 41);
 
 /**
  * A new data key for one workload in one repository (§5.5 of docs/06-storage.md): made by the
@@ -1291,7 +1613,7 @@ export type GenerateKey = Message<"korpis.v1.GenerateKey"> & {
  * Use `create(GenerateKeySchema)` to create a new message.
  */
 export const GenerateKeySchema: GenMessage<GenerateKey> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 32);
+  messageDesc(file_korpis_v1_provider, 42);
 
 /**
  * A stored data key opened by the tenant's key and sealed to the recipient.
@@ -1327,7 +1649,7 @@ export type UnwrapKey = Message<"korpis.v1.UnwrapKey"> & {
  * Use `create(UnwrapKeySchema)` to create a new message.
  */
 export const UnwrapKeySchema: GenMessage<UnwrapKey> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 33);
+  messageDesc(file_korpis_v1_provider, 43);
 
 /**
  * A data key, wrapped for storage (GenerateKey only) and sealed to the call's recipient: HPKE,
@@ -1354,7 +1676,7 @@ export type KeyMaterial = Message<"korpis.v1.KeyMaterial"> & {
  * Use `create(KeyMaterialSchema)` to create a new message.
  */
 export const KeyMaterialSchema: GenMessage<KeyMaterial> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 34);
+  messageDesc(file_korpis_v1_provider, 44);
 
 /**
  * An identity provider re-verifying what it vouched for (§5.1 of docs/08-identity.md). With a
@@ -1389,7 +1711,7 @@ export type VerifyMembers = Message<"korpis.v1.VerifyMembers"> & {
  * Use `create(VerifyMembersSchema)` to create a new message.
  */
 export const VerifyMembersSchema: GenMessage<VerifyMembers> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 35);
+  messageDesc(file_korpis_v1_provider, 45);
 
 /**
  * @generated from message korpis.v1.Members
@@ -1425,7 +1747,7 @@ export type Members = Message<"korpis.v1.Members"> & {
  * Use `create(MembersSchema)` to create a new message.
  */
 export const MembersSchema: GenMessage<Members> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 36);
+  messageDesc(file_korpis_v1_provider, 46);
 
 /**
  * What a person presented to an identity provider's surface, passed on as received: a signed
@@ -1455,7 +1777,7 @@ export type Assert = Message<"korpis.v1.Assert"> & {
  * Use `create(AssertSchema)` to create a new message.
  */
 export const AssertSchema: GenMessage<Assert> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 37);
+  messageDesc(file_korpis_v1_provider, 47);
 
 /**
  * Who presented the evidence, as the provider vouches.
@@ -1498,7 +1820,7 @@ export type Assertion = Message<"korpis.v1.Assertion"> & {
  * Use `create(AssertionSchema)` to create a new message.
  */
 export const AssertionSchema: GenMessage<Assertion> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 38);
+  messageDesc(file_korpis_v1_provider, 48);
 
 /**
  * A sign-in the control plane began (§9.7 of docs/08-identity.md): the provider answers where to
@@ -1541,7 +1863,7 @@ export type Authorize = Message<"korpis.v1.Authorize"> & {
  * Use `create(AuthorizeSchema)` to create a new message.
  */
 export const AuthorizeSchema: GenMessage<Authorize> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 39);
+  messageDesc(file_korpis_v1_provider, 49);
 
 /**
  * @generated from message korpis.v1.Authorization
@@ -1560,7 +1882,7 @@ export type Authorization = Message<"korpis.v1.Authorization"> & {
  * Use `create(AuthorizationSchema)` to create a new message.
  */
 export const AuthorizationSchema: GenMessage<Authorization> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 40);
+  messageDesc(file_korpis_v1_provider, 50);
 
 /**
  * Health providers (§5 of docs/04-runtimes.md, §5 of docs/16-extensions.md). A query probe is an
@@ -1609,7 +1931,7 @@ export type HealthStep = Message<"korpis.v1.HealthStep"> & {
  * Use `create(HealthStepSchema)` to create a new message.
  */
 export const HealthStepSchema: GenMessage<HealthStep> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 41);
+  messageDesc(file_korpis_v1_provider, 51);
 
 /**
  * @generated from message korpis.v1.HealthRound
@@ -1640,7 +1962,7 @@ export type HealthRound = Message<"korpis.v1.HealthRound"> & {
  * Use `create(HealthRoundSchema)` to create a new message.
  */
 export const HealthRoundSchema: GenMessage<HealthRound> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 42);
+  messageDesc(file_korpis_v1_provider, 52);
 
 /**
  * @generated from message korpis.v1.HealthNext
@@ -1669,7 +1991,7 @@ export type HealthNext = Message<"korpis.v1.HealthNext"> & {
  * Use `create(HealthNextSchema)` to create a new message.
  */
 export const HealthNextSchema: GenMessage<HealthNext> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 43);
+  messageDesc(file_korpis_v1_provider, 53);
 
 /**
  * Another round. A step answering one when four rounds have run, or beyond these bounds, is the
@@ -1706,7 +2028,7 @@ export type HealthSend = Message<"korpis.v1.HealthSend"> & {
  * Use `create(HealthSendSchema)` to create a new message.
  */
 export const HealthSendSchema: GenMessage<HealthSend> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 44);
+  messageDesc(file_korpis_v1_provider, 54);
 
 /**
  * @generated from message korpis.v1.HealthVerdict
@@ -1737,7 +2059,7 @@ export type HealthVerdict = Message<"korpis.v1.HealthVerdict"> & {
  * Use `create(HealthVerdictSchema)` to create a new message.
  */
 export const HealthVerdictSchema: GenMessage<HealthVerdict> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_provider, 45);
+  messageDesc(file_korpis_v1_provider, 55);
 
 /**
  * @generated from enum korpis.v1.BreakerState
@@ -1818,6 +2140,44 @@ export const DnsRecordTypeSchema: GenEnum<DnsRecordType> = /*@__PURE__*/
   enumDesc(file_korpis_v1_provider, 1);
 
 /**
+ * @generated from enum korpis.v1.BlockProtocol
+ */
+export enum BlockProtocol {
+  /**
+   * @generated from enum value: BLOCK_PROTOCOL_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * An iSCSI LUN, logged in with open-iscsi.
+   *
+   * @generated from enum value: BLOCK_PROTOCOL_ISCSI = 1;
+   */
+  ISCSI = 1,
+
+  /**
+   * A Ceph RBD image, mapped through the kernel's RBD interface.
+   *
+   * @generated from enum value: BLOCK_PROTOCOL_RBD = 2;
+   */
+  RBD = 2,
+
+  /**
+   * A file in a directory the node's operator named, attached through a loop device: for tests
+   * and for a storage the operator mounts on every node.
+   *
+   * @generated from enum value: BLOCK_PROTOCOL_LOOP = 3;
+   */
+  LOOP = 3,
+}
+
+/**
+ * Describes the enum korpis.v1.BlockProtocol.
+ */
+export const BlockProtocolSchema: GenEnum<BlockProtocol> = /*@__PURE__*/
+  enumDesc(file_korpis_v1_provider, 2);
+
+/**
  * @generated from enum korpis.v1.AccessMode
  */
 export enum AccessMode {
@@ -1846,7 +2206,7 @@ export enum AccessMode {
  * Describes the enum korpis.v1.AccessMode.
  */
 export const AccessModeSchema: GenEnum<AccessMode> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_provider, 2);
+  enumDesc(file_korpis_v1_provider, 3);
 
 /**
  * @generated from enum korpis.v1.HealthTransport
@@ -1876,7 +2236,7 @@ export enum HealthTransport {
  * Describes the enum korpis.v1.HealthTransport.
  */
 export const HealthTransportSchema: GenEnum<HealthTransport> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_provider, 3);
+  enumDesc(file_korpis_v1_provider, 4);
 
 /**
  * @generated from service korpis.v1.ProviderService

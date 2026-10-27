@@ -87,8 +87,9 @@ pub trait ProviderCallWrite {
     /// Its caller has its answer, and nothing reads them again.
     fn redact_sign_in_call(&mut self, id: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Removes the secrets from every access answer, and every sign-in's request, finished
-    /// before `before`, which its caller never read or redacted (it died); how many.
+    /// Removes the secrets from every access answer, every sign-in's request, and every block
+    /// storage attachment's credential, finished before `before`, which its caller never read or
+    /// redacted (it died); how many.
     fn redact_calls(&mut self, before: SystemTime)
     -> impl Future<Output = StoreResult<u64>> + Send;
 

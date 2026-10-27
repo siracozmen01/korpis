@@ -12,6 +12,7 @@ use korpis_core::extension::{
     Breaker, CallFailure, CallOutcome, CallRequest, Measured, ProviderCall, ProviderType,
     Registration,
 };
+use korpis_core::node::driver::Fencing;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::call_result::Outcome;
 use korpis_proto::korpis::v1::__buffa::oneof::provider_call::Request;
@@ -28,9 +29,21 @@ pub fn registration_to_pb(r: &Registration) -> pb::ProviderRegistration {
         version: r.version.clone(),
         concurrency: r.concurrency,
         sign_in: r.sign_in,
+        fencing: crate::node::storage::fencing_to_pb(r.fencing).into(),
         connected: timestamp(r.connected_at).into(),
         seen: timestamp(r.seen_at).into(),
         ..Default::default()
+    }
+}
+
+/// What a registering provider says of its fencing: nothing, for any but a block storage
+/// provider, whose registration the control plane then refuses.
+#[must_use]
+pub fn register_fencing_from_pb(f: buffa::EnumValue<pb::Fencing>) -> Fencing {
+    match f.as_known() {
+        Some(pb::Fencing::FENCING_LEASE_ONLY) => Fencing::LeaseOnly,
+        Some(pb::Fencing::FENCING_STORAGE_ENFORCED) => Fencing::StorageEnforced,
+        _ => Fencing::None,
     }
 }
 
@@ -93,6 +106,16 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
         CallRequest::HealthStep(step) => {
             Request::HealthStep(Box::new(crate::health::step_to_pb(step)))
         }
+        CallRequest::CreateBlockVolume(_)
+        | CallRequest::AttachBlockVolume(_)
+        | CallRequest::DetachBlockVolume { .. }
+        | CallRequest::DeleteBlockVolume { .. }
+        | CallRequest::DescribeBlockVolume { .. } => {
+            match crate::block::request_to_pb(&c.request) {
+                Some(r) => r,
+                None => Request::Ping(Box::default()),
+            }
+        }
         CallRequest::RouteAddress(r) => Request::RouteAddress(Box::new(pb::RouteAddress {
             address: r.address.to_string(),
             node: r.node.map(|n| wire_id(IdKind::Node, n)).unwrap_or_default(),
@@ -136,6 +159,14 @@ pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
             crate::keys::outcome_from_pb(o).unwrap_or(CallOutcome::Failed(CallFailure::malformed()))
         }
         Some(Outcome::AddressRouted(_)) => CallOutcome::AddressRouted,
+        Some(
+            o @ (Outcome::BlockVolumeCreated(_)
+            | Outcome::BlockAttachment(_)
+            | Outcome::BlockVolumeDetached(_)
+            | Outcome::BlockVolumeDeleted(_)
+            | Outcome::BlockVolumeDescription(_)),
+        ) => crate::block::outcome_from_pb(o)
+            .unwrap_or(CallOutcome::Failed(CallFailure::malformed())),
         Some(Outcome::RecordsApplied(a)) => CallOutcome::RecordsApplied {
             created: a.created,
             updated: a.updated,

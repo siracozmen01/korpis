@@ -163,6 +163,9 @@ enum ProviderType {
   // A router moving a cluster pool's addresses to the node holding each (§3.7 of
   // docs/07-networking.md). Added 2026-10-26.
   PROVIDER_TYPE_ADDRESS_ROUTER = 10;
+  // Network block storage, a volume a device one node attaches at a time (§2.1 of
+  // docs/06-storage.md). Added 2026-10-27.
+  PROVIDER_TYPE_BLOCK_STORAGE = 11;
 }
 
 // A class of device a driver can give a workload (§6 of docs/05-scheduling.md).

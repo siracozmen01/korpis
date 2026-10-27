@@ -35,6 +35,7 @@ fn register_from_pb(r: &pb::Register) -> Result<Register, ConnectError> {
         version: r.version.clone(),
         concurrency: r.concurrency,
         sign_in: r.sign_in,
+        fencing: korpis_wire::provider::register_fencing_from_pb(r.fencing),
     })
 }
 
@@ -103,7 +104,12 @@ fn pinged(c: &Called) -> pb::PingProviderResponse {
             | CallOutcome::Asserted(_)
             | CallOutcome::Authorization(_)
             | CallOutcome::HealthNext(_)
-            | CallOutcome::AddressRouted => None.into(),
+            | CallOutcome::AddressRouted
+            | CallOutcome::BlockCreated { .. }
+            | CallOutcome::BlockAttached(_)
+            | CallOutcome::BlockDetached
+            | CallOutcome::BlockDeleted
+            | CallOutcome::BlockDescribed(_) => None.into(),
         },
         ..Default::default()
     }

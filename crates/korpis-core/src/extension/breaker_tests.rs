@@ -90,6 +90,7 @@ fn every_type_declares_how_its_failure_is_treated() {
             P::Unavailable,
             P::FailClosed,
             P::FailClosed,
+            P::FailClosed,
         ]
     );
 }

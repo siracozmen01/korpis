@@ -84,6 +84,27 @@ pub enum CallRequest {
     /// `address_router`: make the network route an address to a node, or to none (§3.7 of
     /// docs/07-networking.md).
     RouteAddress(crate::address::Route),
+    /// `block_storage`: a device for a volume (§2.1 of docs/06-storage.md).
+    CreateBlockVolume(super::block::BlockCreate),
+    /// `block_storage`: a device attached to one node for one lease epoch.
+    AttachBlockVolume(super::block::BlockAttach),
+    /// `block_storage`: a device let go of by a node.
+    DetachBlockVolume {
+        /// The provider's name for it.
+        device: String,
+        /// The node.
+        node: Uuid,
+    },
+    /// `block_storage`: a device deleted, data and all.
+    DeleteBlockVolume {
+        /// The provider's name for it.
+        device: String,
+    },
+    /// `block_storage`: what the storage says of a device.
+    DescribeBlockVolume {
+        /// The provider's name for it.
+        device: String,
+    },
     /// `step`: resolve an install step (§4 of docs/09-recipes.md).
     RunStep {
         /// The step kind, `<publisher>/<step>`.
@@ -156,6 +177,19 @@ pub enum CallOutcome {
     HealthNext(super::health::HealthNext),
     /// The answer to [`CallRequest::RouteAddress`]: the network routes it so.
     AddressRouted,
+    /// The answer to [`CallRequest::CreateBlockVolume`]: the provider's name for the device.
+    BlockCreated {
+        /// The name.
+        device: String,
+    },
+    /// The answer to [`CallRequest::AttachBlockVolume`].
+    BlockAttached(super::block::Attachment),
+    /// The answer to [`CallRequest::DetachBlockVolume`].
+    BlockDetached,
+    /// The answer to [`CallRequest::DeleteBlockVolume`].
+    BlockDeleted,
+    /// The answer to [`CallRequest::DescribeBlockVolume`].
+    BlockDescribed(super::block::BlockDescription),
     /// The provider, or the control plane on its behalf, failed the call.
     Failed(CallFailure),
 }
@@ -170,7 +204,14 @@ impl CallRequest {
             (_, CallOutcome::Failed(_))
             | (Self::Ping { .. }, CallOutcome::Pong { .. })
             | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. })
-            | (Self::RouteAddress(_), CallOutcome::AddressRouted) => true,
+            | (Self::RouteAddress(_), CallOutcome::AddressRouted)
+            | (Self::DetachBlockVolume { .. }, CallOutcome::BlockDetached)
+            | (Self::DeleteBlockVolume { .. }, CallOutcome::BlockDeleted)
+            | (Self::DescribeBlockVolume { .. }, CallOutcome::BlockDescribed(_)) => true,
+            (Self::CreateBlockVolume(_), CallOutcome::BlockCreated { device }) => {
+                super::block::is_device(device)
+            }
+            (Self::AttachBlockVolume(asked), CallOutcome::BlockAttached(a)) => a.answers(asked),
             (Self::RunStep { .. }, CallOutcome::StepResult(r)) => r.problem().is_none(),
             (Self::HealthStep(step), CallOutcome::HealthNext(next)) => next.answers(step),
             (Self::GrantAccess { prefix, .. }, CallOutcome::Access(a)) => {

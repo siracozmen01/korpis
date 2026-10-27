@@ -6,7 +6,7 @@ mod cores;
 mod devices;
 mod facts;
 mod overlay;
-mod storage;
+pub(crate) mod storage;
 
 pub use cores::{core_to_pb, cores_from_pb};
 pub use devices::{

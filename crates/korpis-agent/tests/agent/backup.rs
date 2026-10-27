@@ -115,6 +115,7 @@ pub(crate) async fn serve_target(cp: &ControlPlane, project: &str, root: &Path) 
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(connection, registration, Backup(Granting)));
     let mut registered = provider.registered();

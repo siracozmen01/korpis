@@ -112,6 +112,14 @@ pub(crate) fn request_to(r: &CallRequest) -> Value {
         CallRequest::HealthStep(_) => super::health::request_to(r).unwrap_or(Value::Null),
         // Always some.
         CallRequest::RouteAddress(_) => super::address::request_to(r).unwrap_or(Value::Null),
+        CallRequest::CreateBlockVolume(_)
+        | CallRequest::AttachBlockVolume(_)
+        | CallRequest::DetachBlockVolume { .. }
+        | CallRequest::DeleteBlockVolume { .. }
+        | CallRequest::DescribeBlockVolume { .. } => {
+            // Always some for these five.
+            super::block::request_to(r).unwrap_or(Value::Null)
+        }
         CallRequest::ApplyRecords { owner, records } => json!({
             "apply_records": {
                 "owner": owner,
@@ -138,6 +146,9 @@ pub(crate) fn request_from(v: &Value) -> StoreResult<CallRequest> {
     }
     if let Some(r) = super::health::request_from(v) {
         return Ok(r);
+    }
+    if super::block::is_request(v) {
+        return super::block::request_from(v).ok_or_else(|| corrupt("request", v));
     }
     if v.get("route_address").is_some() {
         return super::address::request_from(v).ok_or_else(|| corrupt("request", v));
@@ -167,6 +178,14 @@ pub(crate) fn outcome_to(o: &CallOutcome) -> Value {
         CallOutcome::KeyMaterial { .. } => super::keys::outcome_to(o).unwrap_or(Value::Null),
         CallOutcome::HealthNext(_) => super::health::outcome_to(o).unwrap_or(Value::Null),
         CallOutcome::AddressRouted => super::address::outcome_to(o).unwrap_or(Value::Null),
+        CallOutcome::BlockCreated { .. }
+        | CallOutcome::BlockAttached(_)
+        | CallOutcome::BlockDetached
+        | CallOutcome::BlockDeleted
+        | CallOutcome::BlockDescribed(_) => {
+            // Always some for these five.
+            super::block::outcome_to(o).unwrap_or(Value::Null)
+        }
         CallOutcome::Members(_) | CallOutcome::Asserted(_) | CallOutcome::Authorization(_) => {
             // Always some for these three.
             super::identity::outcome_to(o).unwrap_or(Value::Null)
@@ -199,6 +218,9 @@ pub(crate) fn outcome_from(v: &Value) -> StoreResult<CallOutcome> {
         return Ok(o);
     }
     if let Some(o) = super::address::outcome_from(v) {
+        return Ok(o);
+    }
+    if let Some(o) = super::block::outcome_from(v) {
         return Ok(o);
     }
     if let Some(r) = v.get("step_result") {

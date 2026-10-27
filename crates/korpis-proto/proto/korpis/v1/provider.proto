@@ -13,6 +13,7 @@ package korpis.v1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "korpis/v1/common.proto";
+import "korpis/v1/placement.proto";
 import "korpis/v1/tenancy.proto";
 
 service ProviderService {
@@ -60,6 +61,10 @@ message Register {
   // identity: it signs people in, answering Authorize (§9.7 of docs/08-identity.md). A provider
   // that registered without it is never asked to.
   bool sign_in = 5;
+  // block_storage: whether its attach refuses every other node in the storage itself
+  // (storage_enforced) or cannot (lease_only), which the control plane takes as its class's
+  // (§2.1 of docs/06-storage.md). Required of a block storage provider, refused of any other.
+  Fencing fencing = 6;
 }
 
 message Registered {
@@ -94,6 +99,13 @@ message ProviderCall {
     HealthStep health_step = 30;
     // address_router: make the network route an address to a node, or nowhere.
     RouteAddress route_address = 31;
+    // block_storage: a volume made, attached to one node for one lease epoch, detached,
+    // deleted, and described.
+    CreateBlockVolume create_block_volume = 32;
+    AttachBlockVolume attach_block_volume = 33;
+    DetachBlockVolume detach_block_volume = 34;
+    DeleteBlockVolume delete_block_volume = 35;
+    DescribeBlockVolume describe_block_volume = 36;
   }
 }
 
@@ -114,6 +126,11 @@ message CallResult {
     Authorization authorization = 28;
     HealthNext health_next = 29;
     AddressRouted address_routed = 30;
+    BlockVolumeCreated block_volume_created = 31;
+    BlockAttachment block_attachment = 32;
+    BlockVolumeDetached block_volume_detached = 33;
+    BlockVolumeDeleted block_volume_deleted = 34;
+    BlockVolumeDescription block_volume_description = 35;
   }
 }
 
@@ -144,6 +161,8 @@ message ProviderRegistration {
   google.protobuf.Timestamp seen = 9;
   // An identity provider's: it signs people in (§9.7 of docs/08-identity.md).
   bool sign_in = 10;
+  // A block storage provider's: whether its attach fences (§2.1 of docs/06-storage.md).
+  Fencing fencing = 11;
 }
 
 message ListProvidersRequest {
@@ -254,6 +273,81 @@ message RouteAddress {
 
 // The network routes the address as asked.
 message AddressRouted {}
+
+// Block storage (§2.1 of docs/06-storage.md, §5 of docs/16-extensions.md). One Korpis volume is
+// one device of the storage, which the provider names. Each call says the whole of what is
+// wanted, so a repeat changes nothing.
+message CreateBlockVolume {
+  // The volume, `vol_...`: a provider asked again for one it made answers the device it made.
+  string volume = 1;
+  // The class it is in, the provider's name for the storage it serves.
+  string storage_class = 2;
+  uint64 size_bytes = 3;
+}
+
+message BlockVolumeCreated {
+  // The provider's own name for the device, which every later call names.
+  string device = 1;
+}
+
+// Attach `device` to `node` for `epoch`: refuse it, in the storage itself where the provider
+// can, to every other node first, then answer with what `node` needs to attach it. An attach for
+// an epoch lower than one the provider has attached the device for is refused, so a call from
+// before a failover cannot take the device back.
+message AttachBlockVolume {
+  string device = 1;
+  // `nd_...`.
+  string node = 2;
+  uint64 epoch = 3;
+  // What the node's helper can attach with, any of which the answer may use.
+  repeated BlockProtocol protocols = 4;
+}
+
+enum BlockProtocol {
+  BLOCK_PROTOCOL_UNSPECIFIED = 0;
+  // An iSCSI LUN, logged in with open-iscsi.
+  BLOCK_PROTOCOL_ISCSI = 1;
+  // A Ceph RBD image, mapped through the kernel's RBD interface.
+  BLOCK_PROTOCOL_RBD = 2;
+  // A file in a directory the node's operator named, attached through a loop device: for tests
+  // and for a storage the operator mounts on every node.
+  BLOCK_PROTOCOL_LOOP = 3;
+}
+
+message BlockAttachment {
+  BlockProtocol protocol = 1;
+  // iSCSI: `<portal>|<iqn>|<lun>`; RBD: `<monitors>|<pool>|<image>`; loop: the file's name in
+  // the directory the node's operator named.
+  string target = 2;
+  // What the node presents to the storage for this device alone where the storage can scope
+  // one: iSCSI CHAP `<user>:<secret>`, an RBD key; empty where none is needed.
+  string credential = 3;
+}
+
+message DetachBlockVolume {
+  string device = 1;
+  // The node to let go of it.
+  string node = 2;
+}
+
+message BlockVolumeDetached {}
+
+message DeleteBlockVolume {
+  string device = 1;
+}
+
+message BlockVolumeDeleted {}
+
+message DescribeBlockVolume {
+  string device = 1;
+}
+
+message BlockVolumeDescription {
+  uint64 size_bytes = 1;
+  // The node it is attached to, and for which epoch; empty and zero while it is attached to none.
+  string node = 2;
+  uint64 epoch = 3;
+}
 
 // Recipe steps (§4 of docs/09-recipes.md). A step provider resolves a step into content-addressed
 // artifacts; the node's content store fetches each by its hash and the workload's own filesystem

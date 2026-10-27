@@ -42,6 +42,11 @@ pub struct Registration {
     /// For an identity provider: it signs people in, answering `Authorize` (§9.7 of
     /// docs/08-identity.md). Every other kind leaves it false.
     pub sign_in: bool,
+    /// For a block storage provider: whether its attach refuses every other node in the
+    /// storage itself (`FENCING_STORAGE_ENFORCED`) or cannot (`FENCING_LEASE_ONLY`), which the
+    /// control plane takes as its class's (§2.1 of docs/06-storage.md). Every other kind leaves
+    /// it unspecified.
+    pub fencing: pb::Fencing,
 }
 
 /// Answers calls. A liveness check never reaches it: the SDK answers that itself.
@@ -165,6 +170,7 @@ impl<S: CredentialSource, H: Handler> Provider<S, H> {
             version: r.version.clone(),
             concurrency: r.concurrency,
             sign_in: r.sign_in,
+            fencing: r.fencing.into(),
             ..Default::default()
         };
         let first = Up::Register(Box::new(register));

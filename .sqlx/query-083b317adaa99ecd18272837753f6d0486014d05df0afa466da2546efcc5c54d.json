@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, extension_id, organization_id, type AS kind, name, version,\n                      concurrency, sign_in, replica, connected_at, seen_at\n                 FROM provider_registration\n                WHERE organization_id = $1 AND type = $2 AND name = $3 ORDER BY id",
+  "query": "SELECT id, extension_id, organization_id, type AS kind, name, version,\n                      concurrency, sign_in, fencing, replica, connected_at, seen_at\n                 FROM provider_registration\n                WHERE organization_id = $1 ORDER BY type, name, connected_at, id",
   "describe": {
     "columns": [
       {
@@ -93,6 +93,17 @@
       },
       {
         "ordinal": 8,
+        "name": "fencing",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "fencing"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
         "name": "replica",
         "type_info": "Uuid",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "connected_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "seen_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -127,9 +138,7 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Text",
-        "Text"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -143,8 +152,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "dbfa64f5f21f78d4ff63aed46be5022a12a8f62590c24bca8a7b37eaa07f2a77"
+  "hash": "083b317adaa99ecd18272837753f6d0486014d05df0afa466da2546efcc5c54d"
 }

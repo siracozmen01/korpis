@@ -57,7 +57,7 @@ const fn backend_to_pb(b: StorageBackend) -> pb::StorageBackend {
     }
 }
 
-fn fencing_from_pb(field: &str, f: buffa::EnumValue<pb::Fencing>) -> Result<Fencing> {
+pub(crate) fn fencing_from_pb(field: &str, f: buffa::EnumValue<pb::Fencing>) -> Result<Fencing> {
     Ok(match f.as_known() {
         Some(pb::Fencing::FENCING_NONE) => Fencing::None,
         Some(pb::Fencing::FENCING_LEASE_ONLY) => Fencing::LeaseOnly,
@@ -66,7 +66,7 @@ fn fencing_from_pb(field: &str, f: buffa::EnumValue<pb::Fencing>) -> Result<Fenc
     })
 }
 
-const fn fencing_to_pb(f: Fencing) -> pb::Fencing {
+pub(crate) const fn fencing_to_pb(f: Fencing) -> pb::Fencing {
     match f {
         Fencing::None => pb::Fencing::FENCING_NONE,
         Fencing::LeaseOnly => pb::Fencing::FENCING_LEASE_ONLY,

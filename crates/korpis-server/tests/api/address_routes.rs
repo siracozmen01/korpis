@@ -61,6 +61,7 @@ pub(crate) async fn serving(h: &Harness, fabric: Fabric) -> Installed {
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in: false,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let connection = Arc::new(Connection::new(Fixed(Credential {
         secret: x.secret.clone(),

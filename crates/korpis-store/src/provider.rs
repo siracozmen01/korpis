@@ -8,11 +8,29 @@ use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{ProviderRead, ProviderWrite, StoreError, StoreResult};
 use korpis_core::extension::{ProvidedInterface, ProviderType, Registration};
+use korpis_core::node::driver::Fencing;
 use std::time::SystemTime;
 use uuid::Uuid;
 
 pub(crate) fn kind(s: &str) -> StoreResult<ProviderType> {
     ProviderType::parse(s).ok_or_else(|| StoreError::Corrupt(format!("provider type {s:?}")))
+}
+
+/// The stored name of `f`.
+const fn fencing_name(f: Fencing) -> &'static str {
+    match f {
+        Fencing::None => "none",
+        Fencing::LeaseOnly => "lease_only",
+        Fencing::StorageEnforced => "storage_enforced",
+    }
+}
+
+/// The fencing a stored name names.
+fn fencing(s: &str) -> StoreResult<Fencing> {
+    [Fencing::None, Fencing::LeaseOnly, Fencing::StorageEnforced]
+        .into_iter()
+        .find(|f| fencing_name(*f) == s)
+        .ok_or_else(|| StoreError::Corrupt(format!("provider fencing {s:?}")))
 }
 
 pub(crate) struct RegistrationRow {
@@ -24,6 +42,7 @@ pub(crate) struct RegistrationRow {
     pub(crate) version: String,
     pub(crate) concurrency: i32,
     pub(crate) sign_in: bool,
+    pub(crate) fencing: String,
     pub(crate) replica: Uuid,
     pub(crate) connected_at: DateTime<Utc>,
     pub(crate) seen_at: DateTime<Utc>,
@@ -41,6 +60,7 @@ impl RegistrationRow {
             concurrency: u32::try_from(count("concurrency", i64::from(self.concurrency))?)
                 .map_err(|_| StoreError::Corrupt("concurrency".into()))?,
             sign_in: self.sign_in,
+            fencing: fencing(&self.fencing)?,
             replica: self.replica,
             connected_at: to_time(self.connected_at),
             seen_at: to_time(self.seen_at),
@@ -72,7 +92,7 @@ impl ProviderRead for PgStore {
         let rows = sqlx::query_as!(
             RegistrationRow,
             r#"SELECT id, extension_id, organization_id, type AS kind, name, version,
-                      concurrency, sign_in, replica, connected_at, seen_at
+                      concurrency, sign_in, fencing, replica, connected_at, seen_at
                  FROM provider_registration
                 WHERE organization_id = $1 AND type = $2 AND name = $3 ORDER BY id"#,
             organization,
@@ -171,9 +191,9 @@ impl ProviderWrite for PgTx {
     async fn insert_registration(&mut self, r: &Registration) -> StoreResult<()> {
         sqlx::query!(
             "INSERT INTO provider_registration (id, extension_id, organization_id, type, name,
-                                                version, concurrency, sign_in, replica,
-                                                connected_at, seen_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+                                                version, concurrency, sign_in, fencing,
+                                                replica, connected_at, seen_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
             r.id,
             r.extension,
             r.organization,
@@ -182,6 +202,7 @@ impl ProviderWrite for PgTx {
             r.version,
             i32::try_from(r.concurrency).map_err(|_| StoreError::Corrupt("concurrency".into()))?,
             r.sign_in,
+            fencing_name(r.fencing),
             r.replica,
             from_time(r.connected_at),
             from_time(r.seen_at)
@@ -221,7 +242,7 @@ impl ProviderWrite for PgTx {
             RegistrationRow,
             r#"DELETE FROM provider_registration WHERE seen_at < $1
                RETURNING id, extension_id, organization_id, type AS kind, name, version,
-                         concurrency, sign_in, replica, connected_at, seen_at"#,
+                         concurrency, sign_in, fencing, replica, connected_at, seen_at"#,
             from_time(before)
         )
         .fetch_all(&mut *self.tx)

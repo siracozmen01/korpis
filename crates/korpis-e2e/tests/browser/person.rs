@@ -227,6 +227,7 @@ async fn corp(cp: &ControlPlane, project: &str, node: &Node) -> Option<Corp> {
         version: VERSION.into(),
         concurrency: 4,
         sign_in: true,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let connection = Arc::new(Connection::new(IdentitySocket::at(socket)));
     let provider =

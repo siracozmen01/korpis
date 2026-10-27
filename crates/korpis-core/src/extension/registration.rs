@@ -32,6 +32,10 @@ pub struct Registration {
     pub concurrency: u32,
     /// An identity provider's: it signs people in (§9.7 of docs/08-identity.md).
     pub sign_in: bool,
+    /// A block storage provider's: whether its attach refuses every other node in the storage
+    /// itself, which the control plane takes as its class's (§2.1 of docs/06-storage.md);
+    /// `None` for every other provider.
+    pub fencing: crate::node::driver::Fencing,
     /// The control-plane process holding its stream.
     pub replica: Uuid,
     /// When it registered.

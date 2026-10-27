@@ -592,7 +592,16 @@ retried call from before a failover cannot take the volume back. The provider de
 class it serves, `storage_enforced` if its `attach` fences and `lease_only` if it cannot, and the
 control plane takes the declaration as the class's. What it costs: every placement of such a
 workload waits on a provider call before its node can attach, and the credential is held for the
-volume's life by the provider and for the placement's by the node.
+volume's life by the provider and for the placement's by the node. **Its calls are built**
+(P3.8e1, 2026-10-27): `CreateBlockVolume`, `AttachBlockVolume`, `DetachBlockVolume`,
+`DeleteBlockVolume`, and `DescribeBlockVolume`, with the SDK's `BlockStorage`, and a block storage
+provider registers saying `fencing`, which any other provider is refused for saying. An attachment
+answers only in a protocol the node was said to speak, with a target that protocol takes: three
+fields for iSCSI and RBD, and for a loop device a file's name alone, never a path, so a provider a
+tenant installed cannot have a node attach a file of the host's. Its credential is never written
+to a log, and is struck from the stored call as a backup target's scoped secret is. Tested over
+the API, a provider written with the SDK registering and shown with its fencing; the control
+plane's calls to it are the next step (P3.8e2).
 
 The tenant boundary already holds here and is worth naming: a provider installed by one tenant is
 bounded by the grants it was installed with (§4.1), so a slow tenant-installed provider degrades
@@ -681,7 +690,7 @@ types: `provider.backup_target` (§5.6 of `06-storage.md`), `provider.dns` (§3.
 `08-identity.md`, added in Phase 2), `provider.key_management` (§5.5 of `06-storage.md`), and
 `provider.step` (§4 of `09-recipes.md`), with `provider.health` (§5) joining on 2026-10-23 and
 `provider.address_router` (§3.7 of `07-networking.md`) on 2026-10-26, and `provider.block_storage`
-(§2.1 of `06-storage.md`) designed 2026-10-27. The `provider.<type>` of console, edge router, and
+(§2.1 of `06-storage.md`) on 2026-10-27. The `provider.<type>` of console, edge router, and
 chat adapter providers is added when that type's own calls join the contract; until then an
 extension requiring one is refused, because installing it would leave it waiting for calls nothing
 makes, the failure six weeks later this section forbids. A capability is offered once its calls are

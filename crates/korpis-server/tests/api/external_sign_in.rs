@@ -104,6 +104,7 @@ pub async fn issuing(h: &Harness, n: u8, name: &str, sign_in: bool) -> tokio::ta
         version: "1.0.0".into(),
         concurrency: 4,
         sign_in,
+        fencing: pb::Fencing::FENCING_UNSPECIFIED,
     };
     let provider = Arc::new(Provider::new(connection, registration, Identity(Issuer)));
     let mut registered = provider.registered();
