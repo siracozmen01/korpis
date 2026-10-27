@@ -128,6 +128,8 @@ pub struct Api {
     mesh: Arc<crate::mesh::KeptMesh>,
     /// What this process tells the nodes it holds sessions with of edges.
     edges: Arc<crate::edges::KeptEdges>,
+    /// What this process tells the nodes it holds sessions with of replicas.
+    replicas: Arc<crate::replicas::KeptReplicas>,
     /// The key page tokens are sealed under (§8 of docs/10-api.md).
     cursors: Arc<cursor::Cursors>,
     /// The SFTP servers named to clients.
@@ -156,6 +158,7 @@ impl Api {
             named_relays: Arc::default(),
             mesh: Arc::default(),
             edges: Arc::default(),
+            replicas: Arc::default(),
             cursors: Arc::new(cursor::Cursors::of_this_process()),
             sftp: crate::sftp::Advertised::default(),
             settling: std::sync::Mutex::new(None),
@@ -225,6 +228,12 @@ impl Api {
     #[must_use]
     pub fn edges(&self) -> &crate::edges::KeptEdges {
         &self.edges
+    }
+
+    /// What the nodes are told of replicas, for the composition root's background work.
+    #[must_use]
+    pub fn replicas(&self) -> &crate::replicas::KeptReplicas {
+        &self.replicas
     }
 
     /// The relay role in this process, for the composition root to give it the token keys.

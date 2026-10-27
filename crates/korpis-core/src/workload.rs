@@ -13,11 +13,13 @@ pub mod network;
 pub mod observation;
 pub mod peers;
 pub mod plan;
+pub mod replica;
 pub mod run;
 pub mod set;
 pub mod spec;
 pub mod status;
 pub mod stream;
+pub mod transfers;
 pub mod volume;
 
 pub use plan::{Plan, PlanStatus, PlanTarget};

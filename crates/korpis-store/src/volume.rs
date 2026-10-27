@@ -3,6 +3,7 @@
 //! Volumes (§7 of docs/06-storage.md), kept from what nodes journal.
 
 use crate::errors::from_sqlx;
+use crate::replica::with_replicas;
 use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
@@ -57,6 +58,7 @@ impl VolumeRow {
             detached_at: self.detached_at.map(to_time),
             deleted_at: self.deleted_at.map(to_time),
             snapshots: self.snapshots,
+            replicas: Vec::new(),
         })
     }
 }
@@ -78,7 +80,10 @@ impl VolumeRead for PgStore {
         .fetch_optional(&self.pool)
         .await
         .map_err(from_sqlx)?;
-        row.map(VolumeRow::into_domain).transpose()
+        let mut found: Vec<Volume> =
+            row.map(VolumeRow::into_domain).transpose()?.into_iter().collect();
+        with_replicas(&self.pool, &mut found).await?;
+        Ok(found.pop())
     }
 
     async fn volumes(
@@ -111,7 +116,37 @@ impl VolumeRead for PgStore {
         .fetch_all(&self.pool)
         .await
         .map_err(from_sqlx)?;
-        rows.into_iter().map(VolumeRow::into_domain).collect()
+        let mut found =
+            rows.into_iter().map(VolumeRow::into_domain).collect::<StoreResult<Vec<_>>>()?;
+        with_replicas(&self.pool, &mut found).await?;
+        Ok(found)
+    }
+
+    async fn replicable(&self, page: Page) -> StoreResult<Vec<Volume>> {
+        let rows = sqlx::query_as!(
+            VolumeRow,
+            r#"SELECT id, project_id, created_by, attached_to, name, kind, node_id, store, helper_id,
+                      storage_class, size_bytes, quota_enforced, created_at, detached_at,
+                      deleted_at,
+                      ARRAY(SELECT s.id FROM snapshot s
+                             WHERE s.volume_id = volume.id AND s.deleted_at IS NULL
+                             ORDER BY s.id) AS "snapshots!"
+                 FROM volume
+                WHERE deleted_at IS NULL AND store IS NULL AND kind = 'declared'
+                  AND (attached_to IS NOT NULL
+                       OR EXISTS (SELECT 1 FROM volume_replica r WHERE r.volume_id = volume.id))
+                  AND ($1::uuid IS NULL OR id > $1)
+                ORDER BY id LIMIT $2"#,
+            page.after,
+            i64::from(page.size)
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        let mut found =
+            rows.into_iter().map(VolumeRow::into_domain).collect::<StoreResult<Vec<_>>>()?;
+        with_replicas(&self.pool, &mut found).await?;
+        Ok(found)
     }
 }
 

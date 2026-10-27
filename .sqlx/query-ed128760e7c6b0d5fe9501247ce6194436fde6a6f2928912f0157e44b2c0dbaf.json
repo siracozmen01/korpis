@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- What the placements on each node of $1 reserve, summed per dimension. Authoritative or not:\n-- during a migration both nodes hold the workload's capacity. A replica a node keeps of a live\n-- volume reserves the volume's size on its disk (§2.2 of docs/06-storage.md).\nSELECT a.node_id AS \"node_id!\", a.dimension AS \"dimension!\", sum(a.value)::bigint AS \"total!\"\n  FROM (SELECT p.node_id, r.key AS dimension, r.value::bigint AS value\n          FROM placement p, jsonb_each_text(p.reserved) r\n         WHERE p.node_id = ANY($1)\n        UNION ALL\n        SELECT k.node_id, 'disk_bytes', v.size_bytes\n          FROM volume_replica k JOIN volume v ON v.id = k.volume_id\n         WHERE k.node_id = ANY($1) AND v.deleted_at IS NULL) a\n GROUP BY a.node_id, a.dimension\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "dimension!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ed128760e7c6b0d5fe9501247ce6194436fde6a6f2928912f0157e44b2c0dbaf"
+}

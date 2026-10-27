@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM volume_replica WHERE volume_id = $1 AND node_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a53a2937924e0e172af4a2e9916b1fd6a1787e41871b492eb9f91a0d15dd4d9b"
+}

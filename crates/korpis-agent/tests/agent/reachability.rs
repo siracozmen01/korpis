@@ -65,16 +65,23 @@ async fn a_node_is_measured_at_what_it_advertises() {
 }
 
 /// Two ports in a row, the first held here over TCP on every address, the second free when
-/// looked at: a range the node can listen on only at its second port.
+/// looked at: a range the node can listen on only at its second port. Both are below the
+/// kernel's ephemeral range, so nothing else on the machine is given the second by binding port
+/// zero between the look and the node's listening, as a test running beside this one would.
 fn one_held() -> (std::net::TcpListener, (u32, u32)) {
-    loop {
-        let held = std::net::TcpListener::bind("[::]:0").unwrap();
-        let port = held.local_addr().unwrap().port();
-        let Some(next) = port.checked_add(1) else { continue };
-        if std::net::TcpListener::bind(("::", next)).is_ok() {
-            return (held, (u32::from(port), u32::from(next)));
-        }
-    }
+    let ephemeral = std::fs::read_to_string("/proc/sys/net/ipv4/ip_local_port_range")
+        .ok()
+        .and_then(|r| r.split_whitespace().next()?.parse::<u16>().ok())
+        .unwrap_or(32_768);
+    let start = 20_000 + u16::try_from(std::process::id() % 4_000).unwrap_or(0) * 2;
+    (start..ephemeral.saturating_sub(1))
+        .step_by(2)
+        .find_map(|port| {
+            let held = std::net::TcpListener::bind(("::", port)).ok()?;
+            std::net::TcpListener::bind(("::", port + 1)).ok()?;
+            Some((held, (u32::from(port), u32::from(port + 1))))
+        })
+        .expect("two free ports in a row below the ephemeral range")
 }
 
 #[tokio::test]

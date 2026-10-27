@@ -52,6 +52,7 @@ mod recipe;
 mod recovery;
 mod relay;
 mod relay_sftp;
+mod replica;
 mod run;
 pub mod schema;
 mod secret;

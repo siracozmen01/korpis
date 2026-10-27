@@ -20,7 +20,8 @@ message Node {
   Resources capacity = 5;
   // Capacity minus system reserve.
   Resources allocatable = 6;
-  // Sum of placed reservations.
+  // Sum of placed reservations, and the size of each volume it keeps a replica of (§2.2 of
+  // docs/06-storage.md).
   Resources allocated = 7;
   repeated DriverInfo drivers = 8;
   NodeStatus status = 9;
@@ -352,7 +353,8 @@ message Placement {
   // The approved intent the placement was bound for.
   string intent = 10;
   // What it holds on the node: that intent's reservations (§5.2 of docs/05-scheduling.md). A
-  // node's allocated is the sum of these over its placements, authoritative or not.
+  // node's allocated is the sum of these over its placements, authoritative or not, and of the
+  // size of each volume it keeps a replica of.
   Resources reserved = 11;
   // When a restore held it: its node presented its assignments without it, so nothing is sent
   // for it until an operator confirms it or it is retired (§8 of docs/03-state.md).

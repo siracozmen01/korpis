@@ -10,7 +10,7 @@ mod enroll;
 
 pub(crate) use enroll::{OneUse, enrollment_grant};
 mod identity;
-mod journal;
+pub(crate) mod journal;
 mod lease;
 mod mesh;
 mod observe;

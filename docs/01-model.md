@@ -945,7 +945,8 @@ Node
   taints        []Taint        workloads must tolerate these to land here
   capacity      Resources      total
   allocatable   Resources      capacity minus system reserve (§2.1 of 05-scheduling.md)
-  allocated     Resources      sum of what its placements reserve
+  allocated     Resources      sum of what its placements reserve, and of the size of each
+                                 volume it keeps a replica of (§2.2 of 06-storage.md)
   drivers       []DriverInfo   which runtime drivers this node offers, with capabilities
   devices       []Device       the devices its agent found described, below; added 2026-10-25
   cores         []Core         the physical cores it offers for dedication, below; added
@@ -1105,7 +1106,8 @@ Placement
 - Every placement records **why**. A scheduler that cannot explain its choice is a scheduler nobody
   trusts. Detail in `05-scheduling.md`.
 - A node's `allocated` is the sum of `reserved` over its placements, authoritative or not: during a
-  migration both nodes hold the workload's capacity.
+  migration both nodes hold the workload's capacity. A replica the node keeps adds its volume's
+  size to the disk it allocates, since it takes as much space (§2.2 of `06-storage.md`).
 - A device is held in `passthrough` by at most one placement, counting every device that is the
   same hardware, and in `timeslice` by at most its `shares` (§6.3 of `05-scheduling.md`).
 
@@ -1183,9 +1185,9 @@ Volume
   node          NodeID?          null for network-backed classes
   store         string?          the storage a shared class's volume is in, as its nodes read
                                  it (§2.1 of 06-storage.md); added 2026-10-27
-  replicas      []Replica        node, and the snapshot it last received and when; only for a
-                                 volume declaring `replicas` (§2.2 of 06-storage.md); added
-                                 2026-10-27
+  replicas      []Replica        node, when it was chosen, when it last received a snapshot,
+                                 and when it went stale; only for a volume whose workload asks
+                                 for `replicas` (§2.2 of 06-storage.md); added 2026-10-27
   attached_to   WorkloadID?
   mode          rw | ro | shared
   snapshots     []SnapshotRef

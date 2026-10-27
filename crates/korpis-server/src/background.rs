@@ -8,7 +8,7 @@ use crate::ServeConfig;
 use crate::api::Api;
 use crate::{
     buckets, colocated, control_jobs, edge_probes, edges, issuer, mesh, named_relays,
-    provider_calls, reachability, records, revocations, routes,
+    provider_calls, reachability, records, replicas, revocations, routes,
 };
 use korpis_store::PgStore;
 use std::sync::Arc;
@@ -27,6 +27,7 @@ pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(named_relays::keep(Arc::clone(api)));
     tokio::spawn(mesh::keep(Arc::clone(api)));
     tokio::spawn(edges::keep(Arc::clone(api)));
+    tokio::spawn(replicas::keep(Arc::clone(api)));
     tokio::spawn(edge_probes::keep(Arc::clone(api)));
     tokio::spawn(colocated::keep(Arc::clone(api)));
     tokio::spawn(alert_certificates(Arc::clone(api)));
@@ -83,7 +84,8 @@ async fn make_runs(api: Arc<Api>) {
 
 /// Marks unreachable, every heartbeat interval, each connected node not heard for three, then
 /// places again each workload on an unreachable node that may be now (§2.4 of
-/// docs/05-scheduling.md). The task ends with the process.
+/// docs/05-scheduling.md), then tends every volume's replicas against the nodes as they are now
+/// (§2.2 of docs/06-storage.md). The task ends with the process.
 async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
     let mut tick = tokio::time::interval(every);
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -98,6 +100,11 @@ async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
             Ok(0) => {}
             Ok(n) => tracing::info!(workloads = n, "failed over from unreachable nodes"),
             Err(e) => tracing::warn!(error = %e, "failover failed"),
+        }
+        match api.app().tend_replicas().await {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(replicas = n, "replicas chosen, dropped, or marked stale"),
+            Err(e) => tracing::warn!(error = %e, "tending replicas failed"),
         }
     }
 }

@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Replicas between nodes (§2.2 of docs/06-storage.md): what the control plane tells a node of the
+// replicas of its volumes and of those it keeps, and what a node reports of a receive. Added
+// 2026-10-27.
+
+syntax = "proto3";
+
+package korpis.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What a node is told of replicas: sent when its session opens and whenever it changes. It is the
+// whole of what the node keeps of any volume's replication; of a volume it is told nothing of,
+// it keeps nothing. Snapshots are named by their bare identifiers, as the helper knows them.
+message Replicas {
+  // Its volumes whose replicas other nodes keep.
+  repeated ReplicaSource sending = 1;
+  // The replicas it keeps of other nodes' volumes.
+  repeated ReplicaKept keeping = 2;
+}
+
+// One of the node's volumes that other nodes keep replicas of.
+message ReplicaSource {
+  string volume = 1;
+  // The helper's identifier of the volume.
+  string helper_id = 2;
+  // The snapshots it keeps for its replicas: each the base of a replica's next increment, or
+  // under way to one. It releases every other snapshot it sent of the volume.
+  repeated string keep = 3;
+  // The transfers it is to make: each starts by taking the snapshot it names.
+  repeated ReplicaTransfer transfers = 4;
+}
+
+// One transfer from the node: a snapshot of the volume sent to another node's replica, over the
+// mesh, whole or as an increment from a snapshot both hold.
+message ReplicaTransfer {
+  // The node receiving it.
+  string to = 1;
+  // The snapshot it carries.
+  string snapshot = 2;
+  // The snapshot it is an increment from; empty for a whole one.
+  string parent = 3;
+  // When it is given up, and its ticket stops working.
+  google.protobuf.Timestamp expires_at = 4;
+  // What the receiving node admits it by: signed by the control plane's token key, naming the
+  // volume, the two nodes, the snapshot, and its parent.
+  string ticket = 5;
+}
+
+// A replica the node keeps.
+message ReplicaKept {
+  string volume = 1;
+  // The snapshot it holds and keeps; empty until the first arrives.
+  string holds = 2;
+  // The snapshot being sent to it; empty while none is.
+  string receiving = 3;
+  // The volume's node, which sends to it: the only node whose mesh address it admits to its
+  // transfer port for this replica.
+  string from = 4;
+}
+
+// A receive into a replica the node keeps ended: journaled once the helper says so.
+message ReplicaEvent {
+  string volume = 1;
+  string snapshot = 2;
+  ReplicaEventKind event = 3;
+  // Why it failed.
+  string error = 4;
+}
+
+enum ReplicaEventKind {
+  REPLICA_EVENT_KIND_UNSPECIFIED = 0;
+  // The snapshot is held whole, read-only.
+  REPLICA_EVENT_KIND_RECEIVED = 1;
+  // It ended short, and nothing of it is kept.
+  REPLICA_EVENT_KIND_FAILED = 2;
+}

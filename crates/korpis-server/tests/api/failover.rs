@@ -28,7 +28,7 @@ async fn status(h: &Harness, workload: &str) -> pb::WorkloadStatus {
 }
 
 /// Any assignment of the next set that satisfies `pick`.
-fn assignment(
+pub(crate) fn assignment(
     pick: impl Fn(&agent::Assignment) -> bool,
 ) -> impl Fn(&Down) -> Option<agent::Assignment> {
     move |d| {
@@ -70,7 +70,7 @@ async fn declared(h: &Harness, project: &str, name: &str, b: pb::IntentBody) -> 
 }
 
 /// Keeps the node `name` heard, as its heartbeats would, until the task is aborted.
-fn keep_heard(h: &Harness, name: &'static str) -> tokio::task::JoinHandle<()> {
+pub(crate) fn keep_heard(h: &Harness, name: &'static str) -> tokio::task::JoinHandle<()> {
     let url = h.db.owner_url.clone();
     tokio::spawn(async move {
         let pool = sqlx::PgPool::connect(&url).await.unwrap();

@@ -5,6 +5,7 @@
 
 use crate::{Result, id, invalid, timestamp, wire_id};
 use korpis_core::id::IdKind;
+use korpis_core::workload::replica::Replica;
 use korpis_core::workload::volume::{
     ReportedSnapshot, ReportedVolume, Snapshot, SnapshotEvent, Volume, VolumeEvent, VolumeKind,
 };
@@ -35,6 +36,18 @@ pub fn volume_to_pb(v: &Volume) -> pb::Volume {
         detached_at: v.detached_at.map(timestamp).into(),
         created_by: wire_id(IdKind::Workload, v.created_by),
         snapshots: v.snapshots.iter().map(|s| wire_id(IdKind::Snapshot, *s)).collect(),
+        replicas: v.replicas.iter().map(replica_to_pb).collect(),
+        ..Default::default()
+    }
+}
+
+/// The wire form of a replica.
+fn replica_to_pb(r: &Replica) -> pb::VolumeReplica {
+    pb::VolumeReplica {
+        node: wire_id(IdKind::Node, r.node),
+        chosen_at: timestamp(r.chosen_at).into(),
+        received_at: r.held.map(|(_, at)| timestamp(at)).into(),
+        stale_at: r.stale_at.map(timestamp).into(),
         ..Default::default()
     }
 }

@@ -83,6 +83,8 @@ pub struct Volume {
     pub deleted_at: Option<SystemTime>,
     /// Its live snapshots, oldest first.
     pub snapshots: Vec<Uuid>,
+    /// The nodes keeping a replica of it, by node (§2.2 of docs/06-storage.md).
+    pub replicas: Vec<super::replica::Replica>,
 }
 
 /// Where a volume's data is, which decides the nodes that reach it (§2.1 of
@@ -249,6 +251,7 @@ mod tests {
             detached_at: None,
             deleted_at: None,
             snapshots: Vec::new(),
+            replicas: Vec::new(),
         };
         assert_eq!(v.shown_size(), None);
         v.quota_enforced = true;

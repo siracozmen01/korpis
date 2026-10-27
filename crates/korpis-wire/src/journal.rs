@@ -124,6 +124,9 @@ fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
         B::Backup(b) => {
             Body::Backup(crate::repository::reported_backup_from_pb(&format!("{field}.backup"), b)?)
         }
+        B::Replica(r) => {
+            Body::Replica(crate::replica::reported_from_pb(&format!("{field}.replica"), r)?)
+        }
     })
 }
 

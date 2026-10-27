@@ -12,6 +12,7 @@ package korpis.agent.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "korpis/agent/v1/replica.proto";
 import "korpis/backup/v1/backup.proto";
 import "korpis/v1/attached.proto";
 import "korpis/v1/common.proto";
@@ -125,6 +126,7 @@ message ControlMessage {
     Edges edges = 22;
     EdgeLeaseGrant edge_lease_grant = 23;
     EdgeLeaseRefusal edge_lease_refusal = 24;
+    Replicas replicas = 25;
   }
 }
 
@@ -971,6 +973,7 @@ message JournalRecord {
     VolumeEvent volume = 10;
     SnapshotEvent snapshot = 11;
     BackupEvent backup = 12;
+    ReplicaEvent replica = 13;
   }
   // Coalesced identical records: how many this one stands for.
   uint64 count = 8;

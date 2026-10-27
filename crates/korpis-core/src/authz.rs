@@ -52,6 +52,8 @@ pub mod template;
 pub mod ticket;
 #[cfg(feature = "authz")]
 pub mod token;
+#[cfg(feature = "authz")]
+pub mod transfer;
 
 pub use action::Action;
 #[cfg(feature = "authz")]

@@ -1,0 +1,134 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Every replica of a live volume on one node's disk, with the volume's node and the helper's\n-- identifier for it (§2.2 of docs/06-storage.md).\nSELECT r.volume_id, r.node_id, r.chosen_at, r.snapshot, r.received_at, r.sending,\n       r.sending_since, r.stale_at, v.node_id AS from_node, v.helper_id\n  FROM volume_replica r JOIN volume v ON v.id = r.volume_id\n WHERE v.deleted_at IS NULL AND v.store IS NULL\n ORDER BY r.volume_id, r.node_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "volume_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume_replica",
+            "name": "volume_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume_replica",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "chosen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "volume_replica",
+            "name": "chosen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "snapshot",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume_replica",
+            "name": "snapshot"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "received_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "volume_replica",
+            "name": "received_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "sending",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume_replica",
+            "name": "sending"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "sending_since",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "volume_replica",
+            "name": "sending_since"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "stale_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "volume_replica",
+            "name": "stale_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "from_node",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "helper_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "helper_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "1181caf1df459ba42fef7c2e374c92d104e2ee0b0fb5e208c6f8ed800f893722"
+}

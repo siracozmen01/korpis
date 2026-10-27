@@ -38,6 +38,7 @@ mod reachability;
 pub mod records;
 pub mod relay;
 pub mod relying_party;
+pub mod replicas;
 mod repos;
 pub mod restore;
 pub mod revocations;

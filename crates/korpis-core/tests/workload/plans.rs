@@ -189,6 +189,7 @@ fn a_path_of_a_block_device_s_backup_is_staged_running_and_copied_stopped() {
         detached_at: None,
         deleted_at: None,
         snapshots: Vec::new(),
+        replicas: Vec::new(),
     };
     let r = |image_filesystem| RestoreStep {
         job: Uuid::now_v7(),

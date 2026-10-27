@@ -62,7 +62,8 @@ export type Node = Message<"korpis.v1.Node"> & {
   allocatable?: Resources | undefined;
 
   /**
-   * Sum of placed reservations.
+   * Sum of placed reservations, and the size of each volume it keeps a replica of (§2.2 of
+   * docs/06-storage.md).
    *
    * @generated from field: korpis.v1.Resources allocated = 7;
    */
@@ -917,7 +918,8 @@ export type Placement = Message<"korpis.v1.Placement"> & {
 
   /**
    * What it holds on the node: that intent's reservations (§5.2 of docs/05-scheduling.md). A
-   * node's allocated is the sum of these over its placements, authoritative or not.
+   * node's allocated is the sum of these over its placements, authoritative or not, and of the
+   * size of each volume it keeps a replica of.
    *
    * @generated from field: korpis.v1.Resources reserved = 11;
    */

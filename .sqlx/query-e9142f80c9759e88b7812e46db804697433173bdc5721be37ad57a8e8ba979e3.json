@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO volume_replica (volume_id, node_id, chosen_at) VALUES ($1, $2, $3)\n             ON CONFLICT (volume_id, node_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e9142f80c9759e88b7812e46db804697433173bdc5721be37ad57a8e8ba979e3"
+}

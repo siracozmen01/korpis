@@ -360,6 +360,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `Peers` | the mesh's other members, each with its key, its endpoint, and its pools, or why this node is outside the mesh; sent when the session opens and when they change (§9.1 of `07-networking.md`) |
 | `Edges` | the node's part in edge groups: as a member, each group's forwarding table, the addresses it should hold, the group's ingress addresses, the routes of every `ingress` endpoint the group serves, and the challenges standing for their names; as a node behind edges, each edge and what it may reach, through its GRE link or, from its proxy, through the mesh (§3.1 of `07-networking.md`) |
 | `EdgeLeaseGrant`, `EdgeLeaseRefusal` | the answer to an `EdgeLeaseRequest`, echoing its nonce: an epoch and a term, or why not, naming the holder where another member holds the address |
+| `Replicas` | the node's part in volumes' replication: for each of its volumes that keeps replicas, the snapshots it keeps and each transfer it is to make, with the ticket the receiving node admits it by; for each replica it keeps, the snapshot it holds, the one being sent to it, and the node sending it; sent when the session opens and when it changes, and the whole of what it keeps (§2.2 of `06-storage.md`) |
 
 **Agent → control plane**
 
@@ -368,7 +369,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `Hello` | agent version, protocol version, driver capabilities, storage classes as the helper declares them (§2 of `06-storage.md`), node capacity, what it advertises for inbound traffic (§9 of `07-networking.md`), the set digest it holds, whether it answers a `FeasibilityQuery` |
 | `Observation` | current observed state of one workload, including what it has converged to (§4.3) |
 | `NodeStatus` | the heartbeat: capacity, allocation, pressure signals, driver health, what it advertises for inbound traffic (§9 of `07-networking.md`), and a digest of current observations |
-| `JournalRecords` | effects, metering samples, and break-glass records, in sequence order (§4.10) |
+| `JournalRecords` | effects, metering samples, break-glass records, and what the node did to volumes, snapshots, stream segments, backups, and replicas, in sequence order (§4.10) |
 | `LeaseRequest` | acquire or renew a lease, carrying a nonce; the clock starts when it is sent (§4.5) |
 | `LeaseReleased` | the node has stopped acting under an epoch; it is also a journal record |
 | `FeasibilityResult` | the answer to a `FeasibilityQuery`: accepted, rejected with a reason, or unanswered when the driver could not be asked |

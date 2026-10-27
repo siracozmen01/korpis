@@ -50,6 +50,7 @@ mod rate;
 mod recipe;
 mod recovery;
 mod relay;
+mod replica;
 mod retire;
 mod run;
 mod session;
@@ -132,6 +133,7 @@ pub use relay::{
     CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelaySftp,
     RelayWrite,
 };
+pub use replica::{ReplicaRead, ReplicaWrite};
 pub use retire::RetirementWrite;
 pub use run::{RunRead, RunWrite};
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
@@ -265,6 +267,7 @@ pub trait Store:
     + RelayRead
     + StreamRead
     + VolumeRead
+    + ReplicaRead
     + SnapshotRead
     + BackupRead
     + RunRead
@@ -363,6 +366,7 @@ pub trait Tx:
     + RecoveryWrite
     + StreamWrite
     + VolumeWrite
+    + ReplicaWrite
     + SnapshotWrite
     + BackupWrite
     + RunWrite

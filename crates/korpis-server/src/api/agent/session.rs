@@ -181,6 +181,7 @@ pub(super) async fn open(
     tokio::spawn(published::push(at(), tx.clone(), relays, Down::Relays));
     tokio::spawn(crate::mesh::push(at(), tx.clone(), api.mesh.subscribe()));
     tokio::spawn(crate::edges::push(at(), tx.clone(), api.edges.subscribe()));
+    tokio::spawn(crate::replicas::push(at(), tx.clone(), api.replicas.subscribe()));
     let uplink =
         Uplink { app: Arc::clone(app), sessions: Arc::clone(sessions), node, id, tx, ended };
     tokio::spawn(downlink.run());

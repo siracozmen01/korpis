@@ -61,6 +61,7 @@ pub mod recipe;
 pub mod recipe_schema;
 pub mod record;
 pub mod relay;
+pub mod replica;
 pub mod repository;
 pub mod revocation;
 pub mod run;

@@ -205,10 +205,10 @@ pub fn welcome(m: &agent::ControlMessage) -> agent::Welcome {
 }
 
 /// The next message on a session, within five seconds, passing over revocation lists, the relays
-/// named, the mesh's peers, and the edges' tables, which arrive on their own schedule (§6.3 of
-/// docs/08-identity.md, §3.1 of docs/02-architecture.md, §9.1 and §3.1 of
-/// docs/07-networking.md); [`next_list`], [`next_relays`], [`next_peers`], and [`next_edges`]
-/// read those.
+/// named, the mesh's peers, the edges' tables, and what it keeps of replicas, which arrive on
+/// their own schedule (§6.3 of docs/08-identity.md, §3.1 of docs/02-architecture.md, §9.1 and
+/// §3.1 of docs/07-networking.md, §2.2 of docs/06-storage.md); [`next_list`], [`next_relays`],
+/// [`next_peers`], and [`next_edges`] read those, and [`any`] reads every message.
 pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
     loop {
         let m = any(stream).await;
@@ -220,6 +220,7 @@ pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
                     | Down::TokenKeys(_)
                     | Down::Peers(_)
                     | Down::Edges(_)
+                    | Down::Replicas(_)
             )
         ) {
             return m;

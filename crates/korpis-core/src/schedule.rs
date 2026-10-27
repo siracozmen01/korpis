@@ -44,10 +44,16 @@ pub const RESERVED: [Dimension; 5] = [
 pub fn reservation(body: &IntentBody, edge_tier: bool) -> Bounds {
     let held = Held::of(body);
     let ports = crate::workload::endpoint::node_ports(&body.endpoints, edge_tier);
+    let elsewhere = crate::tenancy::quota::replica_bytes(body);
     RESERVED
         .into_iter()
         .map(|d| match d {
             Dimension::NodePorts => (d, ports),
+            // Its replicas' bytes are on the nodes keeping them, which count them there.
+            Dimension::Disk => {
+                let all = held.reservations.get(&d).copied().unwrap_or(0);
+                (d, all.saturating_sub(elsewhere))
+            }
             _ => (d, held.reservations.get(&d).copied().unwrap_or(0)),
         })
         .filter(|(_, n)| *n > 0)

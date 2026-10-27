@@ -382,4 +382,5 @@ mod ingress;
 mod owners;
 mod probes;
 mod quota;
+mod replicas;
 mod signals;

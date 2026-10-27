@@ -67,7 +67,7 @@ fn plans_named(records: &[Record]) -> std::collections::BTreeSet<Uuid> {
         .collect()
 }
 
-fn rejected(why: &str, action: &str) -> Effect {
+pub(crate) fn rejected(why: &str, action: &str) -> Effect {
     system("journal.rejected", Outcome::Failed)
         .error(details([("reason", why.into()), ("action", action.into())]))
 }
@@ -144,6 +144,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Body::Volume(v) => self.volume(tx, node, v).await?,
             Body::Snapshot(snap) => self.snapshot(tx, node, snap).await?,
             Body::Backup(b) => self.backup(tx, node, b).await?,
+            Body::Replica(r) => self.replica_event(tx, node, r).await?,
             Body::Malformed { reason } => rejected(reason, "malformed"),
             Body::Metering(sample) => return self.metering(tx, node, sample).await,
         }))

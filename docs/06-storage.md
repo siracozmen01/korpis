@@ -290,8 +290,8 @@ replica's node sends only what the replica lacks (§8).
 
 **How a node sends to another.** Over the mesh (§9.1 of `07-networking.md`) and nothing else: the
 receiving agent listens on its own mesh address, and the sending agent connects to it from its own.
-The control plane puts in the sending node's assignment, for each transfer, a ticket signed with
-its token keys that names the volume, the two nodes, the snapshot the increment is based on, and an
+The control plane tells the sending node, for each transfer, a ticket signed with its token keys
+that names the volume, the two nodes, the snapshot sent and the one it is an increment from, and an
 expiry; the receiver checks the ticket with the token keys it holds, and that the connection comes
 from the sending node's mesh address, which the kernel's WireGuard admits from no key but that
 node's. The receiving node's table admits that address to the port from the mesh (§9.1 there), as
@@ -330,6 +330,40 @@ volume sent whole, then an increment, the older snapshot released on both sides,
 short leaving nothing, and the replica promoted holding what the increment held. What is not built
 yet: the control plane's replica records, choice of nodes, and tickets (P3.8d3), the agents'
 transfers over the mesh (P3.8d4), and failover onto a replica (P3.8d5).
+
+**Built 2026-10-27, the control plane's half** (P3.8d3). Every heartbeat interval a pass tends each
+volume on one node's disk that a workload holds or that keeps replicas, in a transaction of its own
+under one lock: it chooses as many nodes as the workload's declaration asks for among those serving
+its organization that are ready, offer the volume's class able to send increments with room for it
+in the class and in the disk the node allocates, other failure domains first (the labels the
+organization's placement policy spreads by, then `region`), then the most room; it keeps them from
+one pass to the next; it drops a replica whose node no longer serves the organization or offers
+such a class, and every replica of a volume no declaration asks replicas of; it marks stale one ten
+intervals without receiving; and each change is an effect, `volume.replica_chosen`,
+`volume.replica_dropped`, or `volume.replica_stale`. A replica's bytes are in its node's
+`allocated` (§3.4 of `01-model.md`) and the workload's held disk, and not in the reservation on the
+volume's own node. The volume shows each replica's node, when it was chosen, when it last received,
+and when it went stale. The same pass makes a transfer due to each replica reached, with none under
+way, that holds nothing or holds what is an interval old: those due in one pass are sent one
+snapshot, named by an identifier the control plane chooses, and a transfer not received within the
+hour its ticket lasts is given up and made due again. A ticket is the control plane's token key's
+signature over a purpose label of its own and the transfer (`korpistt_`), so nothing else the key
+signs is taken for one, and a ticket is taken for nothing else. A node is told, in a `Replicas`
+message sent when its session opens and whenever it changes (§4.2 of `02-architecture.md`), each
+transfer from its volumes with its ticket and the snapshots it keeps, and each replica it keeps
+with the snapshot it holds, the one being sent to it, and the node sending it; what it is told is
+the whole of what it keeps, so it releases the rest. A replica's node journals how each receive
+ended, and the control plane believes it only of the transfer under way to that node of the
+snapshot it names: received, the replica holds it, and is no longer stale; failed, the transfer
+ends and the next pass makes another. **What evaluates "this replica received this snapshot":** the
+control plane, from the record of the transfer it made due and the journal of the node it was made
+due to; a report from any other node, or of another snapshot, is refused (`journal.rejected`).
+Tested in core (the choice by failure domain and room, what a pass drops, keeps, marks, and makes
+due, what each node is told) and over the API: replicas chosen on the two nodes able, shown on the
+volume and in the node's allocation, one dropped with its node; each transfer's ticket opened with
+the token keys, the replica's node told what it receives, a receive recorded and shown, one of
+another snapshot refused, and a failed one sent again. Where a node learns of a transfer was first
+an assignment, which a replica's node does not hold (Finding 205 of `23-walkthroughs.md`).
 
 ---
 

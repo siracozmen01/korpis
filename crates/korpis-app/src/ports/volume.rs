@@ -24,6 +24,10 @@ pub trait VolumeRead {
         deleted: bool,
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<Volume>>> + Send;
+
+    /// Live declared volumes on one node's disk that a workload holds, or that keep replicas,
+    /// after the page's cursor: those whose replicas are tended (§2.2 of docs/06-storage.md).
+    fn replicable(&self, page: Page) -> impl Future<Output = StoreResult<Vec<Volume>>> + Send;
 }
 
 /// Reading snapshots.

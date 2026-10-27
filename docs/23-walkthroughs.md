@@ -6877,8 +6877,8 @@ automatic`. Both run on A when A loses power. The trace asks the algebra questio
 | 1 | The helpers on A and B start with `--shared-class shared=/srv/shared`; each finds NFS there and that root may make, give away, and remove a directory; A's links the store's marker first, B's reads it, and both report the class with store S | `06-storage.md` §2.1; `18-operations.md` §3 |
 | 2 | `db` is declared with its volume in `shared`; its `on_lease_expiry` is derived as `stop`, since the class declares `multi_node_attach`; it is placed on A, and its volume is reported with store S and no node | `02-architecture.md` §4.5; `05-scheduling.md` §2.1; `01-model.md` §3.6 |
 | 3 | `world` is declared with `replicas: 1`, accepted because `local` declares `incremental_send`; it is placed on A, and the control plane chooses B for the replica, counting its bytes against B's disk and the project's quota | `06-storage.md` §2.2; `01-model.md` §3.6; `05-scheduling.md` §5.1 |
-| 4 | A's assignment carries a ticket to send `world`'s volume to B; B's names A as sending to it, and B's table admits A's mesh address to its transfer port | `06-storage.md` §2.2; `07-networking.md` §9.1 |
-| 5 | Every five minutes A snapshots the volume and sends B the difference from the snapshot B holds; B receives it, both release the older snapshot, and `world`'s status shows the replica's age | `06-storage.md` §2.2 |
+| 4 | A is told, in its `Replicas` message, a ticket to send `world`'s volume to B; B is told, in its own, the snapshot A sends it, and B's table admits A's mesh address to its transfer port | `06-storage.md` §2.2; `02-architecture.md` §4.2; `07-networking.md` §9.1 |
+| 5 | Every five minutes A snapshots the volume and sends B the difference from the snapshot B holds; B receives it and journals so, both release the older snapshot, and the volume shows the replica's age | `06-storage.md` §2.2; `01-model.md` §3.6 |
 | 6 | A loses power; three heartbeats later the sweep marks it unreachable, by when the grantor's end of each lease has passed | `02-architecture.md` §4.5, §9; `05-scheduling.md` §2.4 |
 | 7 | `db` is placed again on B, which offers store S, `bound_by: failover`, the effect `workload.failover` naming A and B; a `remake` plan the control plane approves pulls its recipe on B, attaches its volume there, and creates and starts it; B is granted a new epoch and mounts the same directory | `05-scheduling.md` §2.4; `02-architecture.md` §4.5; `01-model.md` §3.3 |
 | 8 | `world` is placed again on B, from its replica; the replica's last snapshot becomes the volume, which is now on B, and the effect records its age as what was lost | `05-scheduling.md` §2.4; `06-storage.md` §2.2 |
@@ -6893,21 +6893,22 @@ until now it derived it without reading them at all, and so always `keep_running
 Step 3 asks where `replicas` is declared, and found nowhere to declare it (Finding 199). Step 4
 asks what lets B take A's stream without asking the control plane: the ticket, which B checks with
 the token keys it holds, and its kernel, which admits A's mesh address from A's WireGuard key
-alone. Step 5 asks what bounds the space a lost replica costs A: the stale mark after ten
-intervals, which releases A's snapshot and sends the replica whole when it returns. Step 6 asks
-what evaluates "A no longer runs them", with A silent: the control plane's record of the last
-renewal and the term, and A's agent, which stopped both by its own clock before that end, which
-holds if A is merely cut off and holds trivially if it lost power. Step 7 asks what fences A from
-store S if A were cut off from the control plane and not from NFS: only its agent; the class says
-`lease_only`, and that is why. Step 7, as built (P3.8c), also asks what B runs `db` from: its
-recipe's content and its volume's place on B, which the plan that made `db` had put on A alone;
-nothing put them on B (Finding 204), and a `remake` plan does now. Step 8 asks what becomes of the
-volume object: it is the same volume, now on B, since what the workload knows by its name is that
-data; and of A's copy: it holds the writes of the last interval, which the failover lost, so it is
-a divergent copy listed on the volume, never collected, deleted only by a plan (§7 of
-`06-storage.md`), and the replica B needs is chosen again among the nodes that remain. Step 9 asks
-whether A, returning, could write store S again: its epoch is superseded, so it stops `db` at once
-and its next request is refused; what it held on its own disk it keeps.
+alone; and, as built (P3.8d3), what tells B that a transfer is coming at all, which the design left
+to an assignment B does not hold (Finding 205). Step 5 asks what bounds the space a lost replica
+costs A: the stale mark after ten intervals, which releases A's snapshot and sends the replica
+whole when it returns. Step 6 asks what evaluates "A no longer runs them", with A silent: the
+control plane's record of the last renewal and the term, and A's agent, which stopped both by its
+own clock before that end, which holds if A is merely cut off and holds trivially if it lost power.
+Step 7 asks what fences A from store S if A were cut off from the control plane and not from NFS:
+only its agent; the class says `lease_only`, and that is why. Step 7, as built (P3.8c), also asks
+what B runs `db` from: its recipe's content and its volume's place on B, which the plan that made
+`db` had put on A alone; nothing put them on B (Finding 204), and a `remake` plan does now. Step 8
+asks what becomes of the volume object: it is the same volume, now on B, since what the workload
+knows by its name is that data; and of A's copy: it holds the writes of the last interval, which
+the failover lost, so it is a divergent copy listed on the volume, never collected, deleted only by
+a plan (§7 of `06-storage.md`), and the replica B needs is chosen again among the nodes that
+remain. Step 9 asks whether A, returning, could write store S again: its epoch is superseded, so it
+stops `db` at once and its next request is refused; what it held on its own disk it keeps.
 
 **Finding 198.** §2 of `06-storage.md` and §4.5 of `02-architecture.md` listed an NFSv4 lease among
 the backends that refuse a superseded writer, which made a shared NFS class `storage_enforced`. An
@@ -6997,3 +6998,17 @@ is, never made anew nor written by an install, and the runtime created and start
 the API for failover and for removal as compromised, and end to end with a node's power cut. What
 it costs: a plan per workload moved; and a workload with a plan stuck under way on a node that is
 gone waits for an operator to cancel it.
+
+**Finding 205.** Found building the control plane's half of replication. Step 4 and §2.2 of
+`06-storage.md` put a transfer's ticket in the sending node's assignment and had the receiving
+node's assignment name the sender; but an assignment is of a workload placed on the node, and the
+replica's node holds no assignment of `world`, so nothing told B what to keep or what to expect,
+and a stale replica's node, or one whose replica was dropped, was never told to release it. And a
+ticket that changes every interval in a signed assignment would have changed the node's set digest
+every interval, sending every node holding a replicated volume its whole set again. Resolved in
+§2.2 there, §9.1 of `07-networking.md`, and §4.2 of `02-architecture.md`: each node is told its
+part in replication in a `Replicas` message of its own, sent when its session opens and whenever it
+changes, as `Peers` and `Edges` are, which is the whole of what it keeps of any volume's
+replication; and a receive is believed only from the node a transfer of that snapshot is under way
+to. Tested over the API. What it costs: one more message a node holds the last of, and a node that
+keeps replicas but runs no workload is now told something.

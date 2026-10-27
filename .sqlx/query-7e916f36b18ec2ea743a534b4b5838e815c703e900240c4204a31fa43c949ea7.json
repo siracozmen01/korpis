@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE volume_replica SET sending = $3, sending_since = $4\n              WHERE volume_id = $1 AND node_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7e916f36b18ec2ea743a534b4b5838e815c703e900240c4204a31fa43c949ea7"
+}

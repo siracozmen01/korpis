@@ -81,6 +81,8 @@ pub enum Body {
     Snapshot(ReportedSnapshot),
     /// A backup job ended (§5 of docs/06-storage.md).
     Backup(crate::backup::ReportedBackup),
+    /// A receive into a replica the node keeps ended (§2.2 of docs/06-storage.md).
+    Replica(crate::workload::replica::ReportedReplica),
     /// A segment of a workload's stream was sealed, offloaded, or pruned on the node (§4 of
     /// docs/14-streams.md).
     Segment {

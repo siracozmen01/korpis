@@ -36,6 +36,22 @@ message Volume {
   // The storage a shared class's volume is in, as the nodes offering it read it at their mounts
   // (§2.1 of docs/06-storage.md); empty for a volume on one node's disk, whose node is set.
   string store = 16;
+  // The nodes keeping a replica of it, by node, for a volume whose workload asks for replicas
+  // (§2.2 of docs/06-storage.md).
+  repeated VolumeReplica replicas = 17;
+}
+
+// A node keeping a replica of a volume. What the volume would lose, were its workload started
+// there, is what was written since received_at: the replica's age.
+message VolumeReplica {
+  string node = 1;
+  // When the control plane chose the node.
+  google.protobuf.Timestamp chosen_at = 2;
+  // When it received the snapshot it holds; absent until its first one arrives.
+  google.protobuf.Timestamp received_at = 3;
+  // When it was marked stale, ten intervals without receiving; it is sent whole when it is
+  // reached again.
+  google.protobuf.Timestamp stale_at = 4;
 }
 
 // A point a volume can be rolled back to, on its node and filesystem (§4 of docs/06-storage.md):
