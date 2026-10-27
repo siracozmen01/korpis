@@ -65,11 +65,14 @@ pub trait VolumeWrite {
     /// Records what `node` reports of a volume, at `now`: a volume ensured is created on first
     /// report, in the project of the workload it is for, and attached to that workload; one
     /// deleted is marked so, never removed, and a console stream's deletion leaves no segment
-    /// of the stream held on `node`.
+    /// of the stream held on `node`. A volume of a shared class is known by its `store` and the
+    /// helper's identifier, whichever node reports it (§2.1 of docs/06-storage.md), and only as
+    /// the reporting workload's own: false, and nothing recorded, for another's.
     fn record_volume(
         &mut self,
         node: Uuid,
         reported: &ReportedVolume,
+        store: Option<&str>,
         now: SystemTime,
-    ) -> impl Future<Output = StoreResult<()>> + Send;
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 }

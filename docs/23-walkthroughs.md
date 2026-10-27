@@ -247,7 +247,7 @@ offset that means something different. → verify after patching
 | 2 | Observations become `unknown`, never a stale value shown as current | `11-surface-web.md` §2 |
 | 3 | The agent, unable to renew, fails static; the grantor's lease expires on its own clock; the workload's derived `on_lease_expiry` decides † | `02-architecture.md` §4.5 |
 | 4 | Metering records a gap with its cause | `15-observability.md` §2 |
-| 5 | Workloads on replicated storage whose class fences the old writer are rescheduled † | `18-operations.md` §5; `06-storage.md` §2 |
+| 5 | Workloads on replicated storage whose class fences the old writer are rescheduled † | `18-operations.md` §5; `06-storage.md` §2, §2.1, §2.2; `05-scheduling.md` §2.4 |
 | 6 | Workloads whose only copy of data was local are **not**, and this is said plainly | `18-operations.md` §5 |
 | 7 | Its consoles survive as far as offload reached: the control plane's segment index finds the offloaded segments, and the offsets held only on the node become a gap ¶ | `14-streams.md` §3, §4; `01-model.md` §3.6 |
 | 8 | On return: a fresh signed Hello replaces any half-open session; adoption by label, epoch checked; if fenced, it cannot resume; a node cordoned before it dropped out returns cordoned ‡ | `02-architecture.md` §4.4, §7; `01-model.md` §3.4 |
@@ -1461,6 +1461,10 @@ the same mechanism", and that is the price of having made core and extensions th
 | 195 | A node's answer to a probe needed a route of its family before its mark could send it back | §78 | `07-networking.md` §3.1 |
 | 196 | Refusing everything at a held IPv6 address refused the neighbour discovery that keeps it reached | §78 | `07-networking.md` §3.1 |
 | 197 | A group serving a workload's `stable` endpoints let its `ingress` ones land on a node with no proxy | §79 | `05-scheduling.md` §2.1, `07-networking.md` §3.1 |
+| 198 | An NFSv4 lease was counted as storage refusing a superseded writer, which it is not | §80 | `06-storage.md` §2, §2.1, `02-architecture.md` §4.5 |
+| 199 | Replicated storage was named for Phase 3 with no field in the frozen schema to ask for a replica | §80 | `01-model.md` §3.3, §3.6 |
+| 200 | The derived `on_lease_expiry` was said to read the volumes' classes, and was computed without them | §80 | `02-architecture.md` §4.8 |
+| 201 | A node's own word for which store it mounts reached another organization's volume records | §80 | `06-storage.md` §2.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6852,3 +6856,94 @@ served its names. Found tracing step 1 of §79 against the filter's code before 
 group existed. Resolved in §2.1 there and §3.1 of `07-networking.md`: whether a group serves the
 `ingress` endpoints is decided for them, and only that excuses the node from serving the ingress.
 What it costs: nothing; a workload a group serves wholly is placed as before.
+
+## 80. A database and a world survive the node they ran on
+
+Written 2026-10-27, as storage over the network, replication, and failover were designed (P3.8a in
+§4 of `20-roadmap.md`), and chosen by measuring: §2 of `06-storage.md` had been crossed by three
+steps of seventy-nine traces, while its §5 had been crossed by more than a hundred. A host has
+nodes A and B, each with a btrfs class `local`, and an NFS export the operator mounts on both at
+`/srv/shared`. A customer runs `db`, whose volume is in the shared class, and `world`, a game
+server whose volume is in `local` with one replica every five minutes and `replica_failover:
+automatic`. Both run on A when A loses power. The trace asks the algebra question of every step.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The helpers on A and B start with `--shared-class shared=/srv/shared`; each finds NFS there and that root may make, give away, and remove a directory; A's links the store's marker first, B's reads it, and both report the class with store S | `06-storage.md` §2.1; `18-operations.md` §3 |
+| 2 | `db` is declared with its volume in `shared`; its `on_lease_expiry` is derived as `stop`, since the class declares `multi_node_attach`; it is placed on A, and its volume is reported with store S and no node | `02-architecture.md` §4.5; `05-scheduling.md` §2.1; `01-model.md` §3.6 |
+| 3 | `world` is declared with `replicas: 1`, accepted because `local` declares `incremental_send`; it is placed on A, and the control plane chooses B for the replica, counting its bytes against B's disk and the project's quota | `06-storage.md` §2.2; `01-model.md` §3.6; `05-scheduling.md` §5.1 |
+| 4 | A's assignment carries a ticket to send `world`'s volume to B; B's names A as sending to it, and B's table admits A's mesh address to its transfer port | `06-storage.md` §2.2; `07-networking.md` §9.1 |
+| 5 | Every five minutes A snapshots the volume and sends B the difference from the snapshot B holds; B receives it, both release the older snapshot, and `world`'s status shows the replica's age | `06-storage.md` §2.2 |
+| 6 | A loses power; three heartbeats later the sweep marks it unreachable, by when the grantor's end of each lease has passed | `02-architecture.md` §4.5, §9; `05-scheduling.md` §2.4 |
+| 7 | `db` is placed again on B, which offers store S, `bound_by: failover`, the effect `workload.failover` naming A and B; B is granted a new epoch and mounts the same directory | `05-scheduling.md` §2.4; `02-architecture.md` §4.5 |
+| 8 | `world` is placed again on B, from its replica; the replica's last snapshot becomes the volume, which is now on B, and the effect records its age as what was lost | `05-scheduling.md` §2.4; `06-storage.md` §2.2 |
+| 9 | A returns; its epochs were superseded, so it stops both; `world`'s copy on A, which holds what B lacks, is kept and listed; `db`'s directory is the store's and A does nothing to it | `02-architecture.md` §4.5; `06-storage.md` §7 |
+
+Step 1 asks what evaluates "A and B reach the same storage": the control plane, from what each
+helper read at its own mount; a marker the operator copied elsewhere buys a node a workload whose
+volume it cannot find, and nothing of the store. It also asks what the helper may conclude from NFS
+alone, and the answer is less than the documents claimed (Finding 198). Step 2 asks what derives
+`stop`: the control plane, from the classes the intent's volumes name as the nodes declared them;
+until now it derived it without reading them at all, and so always `keep_running` (Finding 200).
+Step 3 asks where `replicas` is declared, and found nowhere to declare it (Finding 199). Step 4
+asks what lets B take A's stream without asking the control plane: the ticket, which B checks with
+the token keys it holds, and its kernel, which admits A's mesh address from A's WireGuard key
+alone. Step 5 asks what bounds the space a lost replica costs A: the stale mark after ten
+intervals, which releases A's snapshot and sends the replica whole when it returns. Step 6 asks
+what evaluates "A no longer runs them", with A silent: the control plane's record of the last
+renewal and the term, and A's agent, which stopped both by its own clock before that end, which
+holds if A is merely cut off and holds trivially if it lost power. Step 7 asks what fences A from
+store S if A were cut off from the control plane and not from NFS: only its agent; the class says
+`lease_only`, and that is why. Step 8 asks what becomes of the volume object: it is the same
+volume, now on B, since what the workload knows by its name is that data; and of A's copy: it holds
+the writes of the last interval, which the failover lost, so it is a divergent copy listed on the
+volume, never collected, deleted only by a plan (§7 of `06-storage.md`), and the replica B needs is
+chosen again among the nodes that remain. Step 9 asks whether A, returning, could write store S
+again: its epoch is superseded, so it stops `db` at once and its next request is refused; what it
+held on its own disk it keeps.
+
+**Finding 198.** §2 of `06-storage.md` and §4.5 of `02-architecture.md` listed an NFSv4 lease among
+the backends that refuse a superseded writer, which made a shared NFS class `storage_enforced`. An
+NFSv4 lease is between a client and its server and is renewed by the client's own requests (RFC
+7530 §9.5), so it fences a node the server cannot hear from, not one the control plane has
+superseded: A cut off from the control plane and not from the export keeps its lease and can write.
+Found tracing step 7. Resolved in place in both: a shared filesystem class is `lease_only`, §2.1 of
+`06-storage.md`. What it costs: nothing built relied on it; the class is honest about resting on
+the agents.
+
+**Finding 199.** Phase 3 named replicated storage classes (§4 of `20-roadmap.md`), and the schema
+Phase 0 froze had no field in which a volume could ask for a replica, nor one in which a workload
+could accept a replica's loss, the miss rule E exists to prevent. Found tracing step 3. Resolved in
+§3.6 and §3.3 of `01-model.md`: `replicas` and `replication_interval` on a volume's declaration and
+`replica_failover` in `continuity`, added under rule E as `streams` and `egress` were, a
+declaration stored before them reading as one with no replica. What it costs: three fields that an
+intent written before them does not carry.
+
+**Finding 200.** §4.8 of `02-architecture.md` said that a class declaring multi-node attachment
+changes the derived `on_lease_expiry`, and that the derivation already took it into account. It
+did not: the control plane resolved a derived answer with `false` in place of the classes, at the
+assignment and at the lease alike, so a shared class would have left its workloads
+`keep_running`, and a node cut off from the control plane but not from the store writing beside
+the node it was failed over to. Found tracing step 2 against the code that resolves it, while
+building the shared class. Resolved there, in place: the answer reads the classes the workload's
+volumes are in, on the node it is placed on (§2.1 of `06-storage.md`). What it costs: a read of
+the node's classes, and of each attached volume, for each assignment computed.
+
+**Finding 201.** Found by an automated security review of the shared class as built. §2.1 of
+`06-storage.md` said a node claiming a store it does not reach gains nothing of the store; but
+which store a node mounts is its own word, and a volume a node reports in a shared class was kept
+by its store and the helper's identifier alone, so a node of another organization declaring an
+existing store's identifier, and reporting a volume of a workload it ran under that identifier,
+would have moved the other tenant's volume record to its own workload, or marked it deleted. Its
+data stayed where it was, since the node never mounted the store, but the record, and with it
+which workload the control plane would attach the volume to, did not. Resolved in §2.1 there: a
+store belongs to the organization of the first node that declared it, which the control plane
+records when that node's Hello is, and a node of any other organization is not given it, its
+class kept without a store and the refusal recorded as `node.store_refused`; and a report keeps
+or deletes only a volume of the reporting workload, attached to it, or retained and made for it,
+and is refused otherwise. Tested over the API with a node of another organization declaring the
+store, and in the store with a stranger's report. What it costs: the first node to declare a store
+decides whose it is, so an operator who mounts one store on nodes of two organizations offers it
+to the first one's alone; and a table of stores, written once per store.

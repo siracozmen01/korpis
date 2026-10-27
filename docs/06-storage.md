@@ -69,9 +69,14 @@ single-attach Ceph RBD image or iSCSI LUN is never mounted twice at once, but af
 second node can attach it, and that is the case in which two writers become possible. Any class
 with `multi_node_attach` makes `stop` the derived `on_expiry` default for workloads that use it
 (§4.5 of `02-architecture.md`). `fencing: storage_enforced` means the backend refuses the old
-writer itself (SCSI-3 persistent reservations, a Ceph exclusive lock with blocklisting, an NFSv4
-lease) and the lease epoch is applied there too; `lease_only` means the agents' lease discipline is
-the only protection, and the class says so.
+writer itself (SCSI-3 persistent reservations, a Ceph exclusive lock with blocklisting) and the
+lease epoch is applied there too; `lease_only` means the agents' lease discipline is the only
+protection, and the class says so. (Corrected 2026-10-27, Finding 198 of `23-walkthroughs.md`:
+this named an NFSv4 lease among the backends that refuse a superseded writer. An NFSv4 lease is
+between a client and its server, renewed by the client's own requests (RFC 7530 §9.5), so it fences
+a node the server cannot hear from, not one the control plane has superseded: a node cut off from
+the control plane and not from the server keeps it, and writes. A shared filesystem class is
+`lease_only`, §2.1.)
 
 | Backend | snapshot | incremental send | quota | thin | reflink | Verdict |
 |---|---|---|---|---|---|---|
@@ -116,6 +121,178 @@ forever and slower migrations. That is a legitimate choice for someone with exis
 is not legitimate is hiding it, the UI names the consequence at the moment of the choice, because
 `00-overview.md` §3 P4 forbids claiming what is not enforced, and the same honesty applies to
 claiming what is not capable.
+
+### 2.1 Storage reached over the network
+
+**Designed 2026-10-27** (P3.8a in §4 of `20-roadmap.md`; trace 80 of `23-walkthroughs.md`), and the
+resolution of question 3 of §9. What separates network storage for Korpis is not the vendor but
+what a node is given: either a filesystem that many nodes mount at once, which is what NFS and
+CephFS are, or a block device that one node attaches at a time, which is what a Ceph RBD image, an
+iSCSI LUN, and an NVMe/TCP namespace are. Consistency, fencing, quota, and failure differ between
+those two far more than between the vendors within each, so there are two kinds of `network` class,
+by `access`, and no class per vendor. Both declare `multi_node_attach`, so a workload on either has
+`stop` as its derived `on_lease_expiry` (§4.5 of `02-architecture.md`); only the first declares
+`shared_access`.
+
+**A shared filesystem class (`access: file`).** The operator mounts the filesystem on every node
+that offers the class, as they mount the disk under a local class, and names the directory to the
+helper (`--shared-class NAME=PATH`, §3 of `18-operations.md`); Korpis mounts nothing, holds no
+export's credential, and chooses no mount option. The helper refuses the class at start unless the
+filesystem at that directory is one reached over the network: by its `statfs` type, NFS, CephFS, or
+SMB, or a FUSE mount whose type in the mount table is `ceph-fuse` or `glusterfs`. A local
+filesystem named shared would be a promise that a second node can see what the first wrote, and
+nothing would keep it. It refuses it too unless it can make a directory there, give it to another
+owner, and remove it, which is what every volume needs and what an export squashing root forbids;
+the refusal says which. A volume is a directory of the class, as in a `directory` class.
+
+The class declares `shared_access`, `multi_node_attach`, and `fencing: lease_only`, and nothing
+else: no snapshot, no incremental send, and no quota. NFS has no quota per directory, and CephFS's
+quotas are kept by the client that mounts it, which stops writers some seconds after the limit and
+need not stop them at all if it is modified (`research/evidence.md` §5), which is a monitor and not
+the write path; so a volume's size in a shared class is shown nowhere (Rule K-3).
+
+**Which nodes share a store is read, not declared.** At its first start on a class, the helper
+writes a new identifier to a file of its own name under the class's directory and links it to
+`.korpis-store` there; `link(2)` succeeds for exactly one writer on NFS and CephFS as on a local
+filesystem, and a writer whose answer was lost finds its own file's link count at two, which is how
+`open(2)` tells a program to take a lock on NFS (`research/evidence.md` §5). Every other helper
+reads the identifier that won. Each node reports the class with that identifier, its *store*, and
+the control plane treats classes with one store as one storage, whatever each node calls the
+directory. **What evaluates "these two nodes reach the same storage", where, and with what
+information:** the control plane, from what each node's helper read at its own mount, which only
+the same storage could have shown both. A node whose operator copied the file to a local directory
+claims a store it does not reach; what it gains is a workload placed there whose volume is not
+found, which its node reports as `volume_unavailable` (§7 of `05-scheduling.md`), and nothing of
+the store. (Corrected 2026-10-27, Finding 201 of `23-walkthroughs.md`: a node's declaration is its
+own word, and a node of another organization declaring a store it never mounted would have named
+that store's volumes in its reports, and moved or deleted another tenant's record. A store belongs
+to the organization of the first node that declared it, and a node of another organization is not
+given it, its class kept without a store and the refusal an effect, `node.store_refused`; and a
+node's report keeps or deletes only a volume of its own workload, attached to it or, retained, made
+for it.)
+
+A volume in a shared class has no node: its `node` is empty and its `store` names the storage (§3.6
+of `01-model.md`), and the placement check that a node holds every volume the workload attaches is
+satisfied by any node offering a class of that store (§2.1 of `05-scheduling.md`). Its space is the
+store's, counted once and not against each node that mounts it: the store's capacity and free space
+are what its nodes last reported, the latest of them.
+
+What it costs. Nothing enforces a volume's size, so a tenant on a shared class can fill the store,
+and the operator who offers one is told so where it is offered. Fencing is the agents' alone: a
+node cut off from the control plane but not from the store could write until its lease ends, and it
+stops its workload then, before the grantor's end of the lease, which is when another node may be
+granted one (§4.5 of `02-architecture.md`); an agent that is hung rather than cut off does not stop
+anything, and the class says `lease_only` for that reason. The filesystem's own failures are the
+workload's: a hard-mounted NFS export whose server is gone blocks every process reading it, the
+workload's and any probe's, until it returns, and Korpis cannot unmount it. What it does not do: it
+does not mount, check an export's permissions beyond the probe above, snapshot, or back up any
+faster than a file-level backup of a live tree (§5).
+
+**Built 2026-10-27, the shared class** (P3.8b). The helper takes `--shared-class NAME=PATH`,
+refuses the class at start as above, saying why, links or reads the marker, and declares the class
+with its store; a node's disk, which placement counts, leaves its shared classes out. The control
+plane reads a store as a UUID, on a class reached over the network alone, binds it to the
+organization of the first node declaring it (Finding 201), keeps it with the class, and keeps a
+volume a node reports in a shared class as the store's, known by its store and the helper's
+identifier whichever node reports it, with no node, its keeper the node that last reported it, on
+which a plan on it runs while no workload holds it. A node reaches a volume where it is on its disk
+or the node offers a class of its store, which placement, backups, and deletion ask alike; and the
+`on_lease_expiry` a workload declares nothing for is derived from the classes its volumes are in on
+the node it is placed on, which until now no class could make `stop`. An attached volume's
+declaration records the class it is in, and naming another is refused, since the node attaching it
+must look for it there and not make an empty one in its default class. The drivers mount only what
+is under the volume root or a root `--shared-root` names (§3 of `18-operations.md`), the second
+checked on the filesystem as the first is. Tested in the helper (a local directory refused, the
+marker named once and read after), the wire, the store (one volume whichever node reports it,
+deleted by either), the scheduler (a node of another store or of none refused), over the API (the
+volume shown with its store and no node, `stop` derived, and a workload attaching it placed on the
+other node), and end to end on real nodes sharing a directory, which the helper admits only in its
+tests: the second node's workload finds what the first one wrote, and neither node's disk holds it.
+What is not built yet: failover (P3.8c), replication (P3.8d), and block classes (P3.8e).
+
+**A block class (`access: block`).** One volume is one device, attached on one node at a time and
+formatted ext4 by the helper on its first attach, as a `block_device` volume is (§3.1); its size is
+the device's, so its bytes are enforced in the write path and the class declares `quota_enforced`,
+and its inodes at the format. Making a device, attaching it to a node, and refusing it to every
+other node are each a call to the storage's own interface, which differs by vendor and product, so
+they are a provider's: `provider.block_storage` (§5 of `16-extensions.md`). The control plane asks
+the provider to create a volume of a size, and, at each attach, to attach it to one node for one
+lease epoch, which the provider does by first fencing every other node (a Ceph exclusive lock taken
+after blocklisting the previous holder, or a SCSI-3 persistent reservation that preempts the
+previous node's key) and then answering with what the node needs to attach: the protocol, the
+target, and a credential scoped to that volume where the storage can scope one. The node attaches
+with the kernel's own initiator: the helper logs in with `open-iscsi`, or adds the image through
+the kernel's RBD interface, and refuses a protocol it does not speak. A provider that can fence
+declares `fencing: storage_enforced` for its classes, and one that cannot declares `lease_only`.
+**What evaluates "the previous node can no longer write":** the storage, told by the provider at
+the attach, with the epoch the attach is for; the agent's lease discipline remains beneath it.
+
+What it costs. A device is attached at the start of every placement and detached at the end, a
+login or a map that takes seconds, and a node that loses the storage loses the workload's disk as a
+local disk failing would. The credential reaches the node in its assignment, for that volume alone
+and while its workload is placed there, as an ingress endpoint's key does (§7 of `17-security.md`).
+What it does not do in Phase 3: speak a storage's own interface. The contract, the helper's attach
+for iSCSI and RBD, and a provider of the tests' own that attaches a file through a loop device are
+built in Phase 3; the providers for Ceph RBD and for an iSCSI target's management interface are
+core extensions of §2 of `16-extensions.md`, built through the contract in Phase 4, as the address
+routers that speak BGP are (§3.7 of `07-networking.md`). That is where a vendor's interface
+belongs: a block class whose provisioning were in the helper would put every vendor's management
+API, and its credential, on every node.
+
+### 2.2 Replicated volumes
+
+**Designed 2026-10-27** (P3.8a). A volume on a local class may be replicated: it declares
+`replicas`, the number of other nodes that keep a copy, and `replication_interval`, how often the
+copies are brought up to date, one minute at least and five by default. It is accepted only in a
+class that declares `incremental_send`, which is btrfs today and ZFS once built (RB2 in §9 of
+`20-roadmap.md`), and refused at declaration elsewhere, because a copy that has to be sent whole
+every interval is not one that can be kept current (Rule K-3). This is the meaning of a "replicated
+storage class" where earlier text named one: a class able to replicate, and a volume that asks it
+to. Proxmox VE's storage replication is the same design, ZFS snapshots sent incrementally to
+another node on a schedule of one minute or more, and is evidence that the operators Korpis is for
+already run it (`research/evidence.md` §5).
+
+Every interval the volume's node takes a snapshot and sends each replica the difference from the
+last snapshot that replica holds; the replica's node receives it into its own class of the same
+name, as a copy no workload mounts, and the older snapshot is then released on both sides. Which
+nodes hold the replicas is the control plane's choice, as a placement is: other nodes offering the
+class with room for the volume, in other failure domains where there are any, reached from the
+volume's node through the mesh, and kept from one interval to the next. A replica's bytes are
+counted against its node's disk and its project's storage quota as the volume's own are, since they
+take as much space; nothing else limits them (P10).
+
+**The loss is bounded and stated.** A replica is as old as the last increment it received, and the
+volume's status shows each replica's age. A workload placed again on a replica's node, by failover
+(§2.4 of `05-scheduling.md`) or by an operator's `evacuate`, loses what was written after that
+increment, at most one interval and a transfer. So failover onto a replica happens only for a
+workload that declares it accepts that loss (`continuity.replica_failover: automatic`); for every
+other workload a replica is what an operator's `evacuate` starts from, its plan naming the age it
+starts from (§3 of `05-scheduling.md`). The replica's last snapshot then becomes the volume, which
+is the same volume now on the replica's node, and a new replica is chosen among the nodes that
+remain; the copy left on the old node holds what the failover lost, so it is kept and listed on the
+volume as a divergent copy, never collected, and deleted only by a plan (§7). A migration to a
+replica's node sends only what the replica lacks (§8).
+
+**How a node sends to another.** Over the mesh (§9.1 of `07-networking.md`) and nothing else: the
+receiving agent listens on its own mesh address, and the sending agent connects to it from its own.
+The control plane puts in the sending node's assignment, for each transfer, a ticket signed with
+its token keys that names the volume, the two nodes, the snapshot the increment is based on, and an
+expiry; the receiver checks the ticket with the token keys it holds, and that the connection comes
+from the sending node's mesh address, which the kernel's WireGuard admits from no key but that
+node's. The receiving node's table admits that address to the port from the mesh (§9.1 there), as
+it admits a dependent. The helper on each side does the privileged half, a `btrfs send` into a pipe
+the agent reads and a `btrfs receive` from one it writes, as it does a backup's reading (§5.1).
+**What evaluates "this stream may be written into this volume's replica, from there":** the
+receiving agent, from the ticket and the token keys it holds, and its kernel, from the mesh's keys;
+neither asks the control plane, so a transfer in flight survives the control plane's absence until
+its ticket expires. Migration's copies (§8 of `05-scheduling.md`) are sent the same way.
+
+What it costs. Each interval a snapshot is held on the volume's node until every replica has the
+next one, so a replica that cannot be reached holds space on the volume's node; past ten intervals
+the replica is marked stale, its snapshot released, and it is sent whole when it returns. The
+transfers share the mesh with everything else on it and are not shaped. What it does not do:
+replicate synchronously, which would put the network into every write's latency, or replicate a
+volume in a shared or block class, whose storage keeps its own copies.
 
 ---
 
@@ -1310,10 +1487,12 @@ safe and listed, held by a workload that no longer uses it; open question 8 is w
 settled.
 
 What this does not do yet. Every volume is on the node that reported it, so its `node` is never
-empty; a network-backed class (open question 3) is where §3.6 of `01-model.md` says it is, and
-that class settles what `node` names for it. The `mode` and `snapshots` of §3.6 are not reported:
-every volume is mounted read-write, and snapshots arrive with their own step (§4 of
-`20-roadmap.md`).
+empty; a network-backed class (open question 3) is where §3.6 of `01-model.md` says it is, and that
+class settles what `node` names for it. (Settled 2026-10-27 in §2.1: a volume in a shared class has
+no `node`, and its `store` names the storage any node offering it reaches; a volume in a block
+class has no `node` either, and is attached where its workload is placed.) The `mode` and
+`snapshots` of §3.6 are not reported: every volume is mounted read-write, and snapshots arrive with
+their own step (§4 of `20-roadmap.md`).
 
 ---
 
@@ -1359,6 +1538,9 @@ serves the rest. Korpis ships no object store and does not become one.
    failover, but Ceph, NFS, and iSCSI have very different consistency, performance, and failure
    characteristics. Whether one abstraction covers them or each needs its own class is unresolved.
    → here
+   Resolved in §2.1, 2026-10-27: two kinds of `network` class, by what a node is given, a
+   filesystem many nodes mount (NFS, CephFS) or a device one node attaches at a time (RBD, iSCSI,
+   NVMe/TCP), and no class per vendor; a block class's vendor interface is a provider's.
 4. **Backup of the workload's runtime state, not just its disk.** For a `vm` tier with
    `runtime_snapshot`, capturing memory state gives a restore that resumes rather than reboots. It
    also multiplies backup size by the RAM allocation. Probably an opt-in policy rather than a

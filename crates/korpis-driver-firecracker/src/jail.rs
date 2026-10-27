@@ -282,6 +282,7 @@ mod tests {
             writer: "/w".into(),
             content: "/c".into(),
             volume_root: "/v".into(),
+            shared_roots: Vec::new(),
             netns_root: "/run/korpis/netns".into(),
             identity_root: "/i".into(),
             state: "/s".into(),

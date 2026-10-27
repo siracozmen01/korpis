@@ -55,8 +55,13 @@ fn joined(command: &[&str], namespaces: &str) -> Valid {
         .parent()
         .map_or_else(|| "/n".into(), std::path::Path::to_owned);
     let devices = crate::devices::Specs { dirs: Vec::new(), owner: 0 };
-    let policy =
-        Policy { volume_root: "/v".into(), identity_root: "/i".into(), netns_root, devices };
+    let policy = Policy {
+        volume_root: "/v".into(),
+        shared_roots: Vec::new(),
+        identity_root: "/i".into(),
+        netns_root,
+        devices,
+    };
     validate(s, &policy).unwrap()
 }
 

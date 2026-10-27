@@ -36,15 +36,19 @@ pub(crate) const LABEL_CPUS: &str = "korpis.cpus";
 /// How long a killed task is given to be reaped.
 pub(crate) const KILL_WAIT: Duration = Duration::from_secs(10);
 
-/// Every volume source, resolved on the filesystem, is a directory under the volume root: the
-/// lexical check of [`crate::validate`] cannot see a symbolic link.
+/// Every volume source, resolved on the filesystem, is a directory under the volume root or a
+/// shared class's root: the lexical check of [`crate::validate`] cannot see a symbolic link.
 fn volumes_resolve(valid: &Valid, policy: &Policy) -> DriverResult<()> {
-    let root = std::fs::canonicalize(&policy.volume_root)?;
+    let mut roots = vec![std::fs::canonicalize(&policy.volume_root)?];
+    for shared in &policy.shared_roots {
+        roots.push(std::fs::canonicalize(shared)?);
+    }
     for m in &valid.spec().mounts {
         let real = std::fs::canonicalize(&m.source).map_err(|e| {
             DriverError::Rejected(format!("volume {:?} is not prepared: {e}", m.volume))
         })?;
-        if !real.starts_with(&root) || real == root || !real.is_dir() {
+        let under = roots.iter().any(|root| real.starts_with(root) && real != *root);
+        if !under || !real.is_dir() {
             let why = "a volume resolves to a directory under the volume root";
             return Err(Violation { field: "mounts.source".into(), why: why.into() }.into());
         }

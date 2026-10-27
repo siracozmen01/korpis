@@ -63,13 +63,18 @@ impl Builder<'_> {
     }
 
     fn add_volume(&mut self, v: &VolumeSpec) {
-        let mut detail = ValueMap::from([("volume".to_owned(), text(&v.name))]);
+        // The class it is in: the one it names, or for one attached the one it was made in,
+        // which its declaration records, so its node finds it where it is (§2.1 of
+        // docs/06-storage.md).
+        let mut detail = ValueMap::from([
+            ("volume".to_owned(), text(&v.name)),
+            ("storage_class".to_owned(), text(&v.storage_class)),
+        ]);
         if let Some(id) = v.existing {
             detail.insert("existing".into(), text(&id.to_string()));
             self.push(StepAction::AttachVolume, detail, &[]);
         } else {
             detail.insert("size_bytes".into(), int(v.size_bytes));
-            detail.insert("storage_class".into(), text(&v.storage_class));
             self.push(StepAction::CreateVolume, detail, &[]);
             if let Some(backup) = v.from_backup {
                 self.seed(&v.name, backup);

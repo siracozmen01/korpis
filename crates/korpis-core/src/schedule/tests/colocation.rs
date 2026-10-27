@@ -5,9 +5,12 @@
 //! docs/07-networking.md).
 
 use super::{GIB, PROJECT, body, node, req};
+use crate::node::StorageClass;
+use crate::node::driver::{Fencing, StorageBackend, StorageCaps};
 use crate::node::mesh::Pairs;
 use crate::schedule::{Candidate, Check, Needed, Peer, Policies, Request, place};
 use crate::tenancy::quota::Bounds;
+use crate::workload::volume::Home;
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -16,7 +19,7 @@ fn an_existing_volume_keeps_the_workload_on_the_node_holding_it() {
     let (one, two) = (node(1, &[]), node(2, &[]));
     let labels = BTreeMap::new();
     let b = body(GIB);
-    let held = [(Uuid::from_u128(77), two.id)];
+    let held = [(Uuid::from_u128(77), Home::Node(two.id))];
     let request = Request { volumes: &held, ..req(&labels, &b) };
     let empty = Bounds::new();
     let nodes =
@@ -24,6 +27,41 @@ fn an_existing_volume_keeps_the_workload_on_the_node_holding_it() {
     let e = place(&request, &nodes, &[], &Policies::default());
     assert_eq!(e.chosen, Some(two.id));
     assert!(e.filtered.iter().any(|r| r.node == one.id && r.check == Check::Volume));
+}
+
+/// A shared class on a node, of `store`.
+fn shared(store: &str) -> StorageClass {
+    StorageClass {
+        name: "shared".into(),
+        backend: StorageBackend::Network,
+        capabilities: StorageCaps {
+            features: std::collections::BTreeSet::new(),
+            fencing: Fencing::LeaseOnly,
+        },
+        capacity_bytes: 0,
+        free_bytes: 0,
+        store: Some(store.into()),
+    }
+}
+
+#[test]
+fn a_volume_in_a_shared_store_is_held_by_every_node_offering_it() {
+    let (mut one, mut two, three) = (node(1, &[]), node(2, &[]), node(3, &[]));
+    one.storage_classes.push(shared("s1"));
+    two.storage_classes.push(shared("s1"));
+    let mut elsewhere = three.clone();
+    elsewhere.storage_classes.push(shared("s2"));
+    let labels = BTreeMap::new();
+    let b = body(GIB);
+    let held = [(Uuid::from_u128(77), Home::Store("s1".into()))];
+    let request = Request { volumes: &held, ..req(&labels, &b) };
+    let empty = Bounds::new();
+    let nodes = [&one, &two, &three, &elsewhere].map(|n| Candidate { node: n, allocated: &empty });
+    let e = place(&request, &nodes, &[], &Policies::default());
+    assert!(e.chosen == Some(one.id) || e.chosen == Some(two.id), "{:?}", e.chosen);
+    let refused: Vec<_> =
+        e.filtered.iter().filter(|r| r.check == Check::Volume).map(|r| r.node).collect();
+    assert_eq!(refused, [three.id, elsewhere.id], "no class of it, or another store's");
 }
 
 #[test]

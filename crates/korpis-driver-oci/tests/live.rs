@@ -125,6 +125,7 @@ async fn commands_run_inside(c: &Containerd, id: &str) {
 fn policy(volumes: &Path) -> Policy {
     Policy {
         volume_root: volumes.to_owned(),
+        shared_roots: Vec::new(),
         identity_root: volumes.join("identity"),
         netns_root: volumes.join("netns"),
         devices: korpis_driver_oci::devices::Specs { dirs: Vec::new(), owner: 0 },

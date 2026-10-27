@@ -300,9 +300,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .cached_recipe(&target.body.recipe.digest)
             .await?
             .ok_or_else(|| missing("recipe document"))?;
-        // No storage class a Phase 0 node offers is attachable from a second node, so a derived
-        // answer keeps running (§4.5 of docs/02-architecture.md).
-        let on_lease_expiry = target.body.continuity.resolved(false);
+        let on_lease_expiry = self.on_expiry(node, &target.body).await?;
         let lease_epoch = self.store.lease_epoch(workload, node).await?.unwrap_or(0);
         let volume_ids = self.existing_ids(&target.body).await?;
         let reaches_api = self.reaches_api(workload).await?;

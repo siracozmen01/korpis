@@ -73,11 +73,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Some(image_filesystem) = b.image_filesystem.clone() else {
             return Ok(Err(JobRefusal::NotAnImage));
         };
-        let held =
-            |v: &korpis_core::workload::volume::Volume| v.node == node && v.deleted_at.is_none();
-        let Some(volume) = self.store.volume(b.volume).await?.filter(held) else {
+        let live = self.store.volume(b.volume).await?.filter(|v| v.deleted_at.is_none());
+        let Some(volume) = live else { return Ok(Err(JobRefusal::NotAssigned)) };
+        if !self.reaches(node, &volume).await? {
             return Ok(Err(JobRefusal::NotAssigned));
-        };
+        }
         let Some((caller, grant)) = self.session_caller(s).await? else {
             return Ok(Err(JobRefusal::Unverified));
         };

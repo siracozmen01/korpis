@@ -178,8 +178,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Whether `node` holds the live volume `volume`.
     async fn holds(&self, node: Uuid, volume: Option<Uuid>) -> Result<bool, AppError> {
         let Some(volume) = volume else { return Ok(false) };
-        let v = self.store.volume(volume).await?;
-        Ok(v.is_some_and(|v| v.node == node && v.deleted_at.is_none()))
+        let live = self.store.volume(volume).await?.filter(|v| v.deleted_at.is_none());
+        let Some(v) = live else { return Ok(false) };
+        self.reaches(node, &v).await
     }
 
     pub(super) async fn repository_of(&self, id: Uuid) -> Result<Repository, AppError> {

@@ -128,6 +128,10 @@ pub(crate) struct StorageClassDoc {
     fencing: FencingDoc,
     capacity_bytes: u64,
     free_bytes: u64,
+    // A shared class's store (§2.1 of docs/06-storage.md); absent from every class on a node's
+    // own disk, and from every class stored before shared ones existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    store: Option<String>,
 }
 
 mirror!(
@@ -296,6 +300,7 @@ pub(crate) fn node_docs(
         fencing: c.capabilities.fencing.into(),
         capacity_bytes: c.capacity_bytes,
         free_bytes: c.free_bytes,
+        store: c.store.clone(),
     });
     (taints.collect(), drivers.collect(), classes.collect())
 }
@@ -336,6 +341,7 @@ pub(crate) fn storage_classes(v: Value) -> StoreResult<Vec<StorageClass>> {
             },
             capacity_bytes: c.capacity_bytes,
             free_bytes: c.free_bytes,
+            store: c.store,
         })
         .collect())
 }

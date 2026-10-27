@@ -112,7 +112,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !self.store.ever_leased(v.workload, node).await? {
             return Ok(rejected("the node never held the workload's lease", action));
         }
-        tx.record_volume(node, v, self.clock.now()).await?;
+        // A shared class's volume is its store's, whichever node reports it (§2.1 of
+        // docs/06-storage.md); the class is the one the node declared under that name.
+        let classes = self.store.node(node).await?.map(|n| n.storage_classes).unwrap_or_default();
+        let class =
+            classes.iter().find(|c| v.storage_class.is_empty() || c.name == v.storage_class);
+        let store = class.and_then(|c| c.store.as_deref());
+        if !tx.record_volume(node, v, store, self.clock.now()).await? {
+            return Ok(rejected("the store's volume is another workload's", action));
+        }
         let mut e = system(action, Outcome::Succeeded).after(details([
             ("name", v.name.clone().into()),
             ("kind", v.kind.as_str().into()),
@@ -160,7 +168,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         else {
             return Ok(rejected("no such backup of the workload", action));
         };
-        let held = self.store.volume(b.volume).await?.is_some_and(|v| v.node == node);
+        let held = match self.store.volume(b.volume).await? {
+            Some(v) => self.reaches(node, &v).await?,
+            None => false,
+        };
         if !held || !self.store.ever_leased(r.workload, node).await? {
             return Ok(rejected("the node does not hold the backup's volume", action));
         }

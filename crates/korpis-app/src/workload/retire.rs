@@ -147,7 +147,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     format!("{name} is not a volume its node has reported for the workload"),
                 )
             })?;
-            if node != Some(v.node) {
+            let reached = match node {
+                Some(n) => self.reaches(n, v).await?,
+                None => false,
+            };
+            if !reached {
                 let why = format!("{name} is not on the node that holds the workload");
                 return Err(AppError::conflict("volume.elsewhere", why));
             }

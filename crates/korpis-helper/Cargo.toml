@@ -11,6 +11,11 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# A shared storage class on a directory no network reaches, which tests use to have two nodes on
+# one machine share storage (§2.1 of docs/06-storage.md). Never in a binary an operator runs.
+testing = []
+
 # No async runtime and no second thread, ever (§4 of docs/21-stack.md): every dependency here is
 # synchronous, korpis-proto without its `services` feature included, and the list stays this short.
 # scripts/check-layers.sh holds it to that.

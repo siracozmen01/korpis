@@ -6,6 +6,7 @@
 //! reports, so a volume stays listed after the workload it was made for is gone, and a volume
 //! no workload holds is an orphan to be listed, never collected.
 
+use crate::node::StorageClass;
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -58,9 +59,15 @@ pub struct Volume {
     pub name: String,
     /// Why it exists.
     pub kind: VolumeKind,
-    /// The node that reported it, whose helper holds it.
-    pub node: Uuid,
-    /// The privileged helper's identifier for it on its node.
+    /// The node whose helper holds it, for a volume on one node's disk; `None` for one in a
+    /// shared class, which every node offering its store reaches (§2.1 of docs/06-storage.md).
+    pub node: Option<Uuid>,
+    /// The storage a shared class's volume is in; `None` for one on a node's disk.
+    pub store: Option<String>,
+    /// The node that last reported it: its own node, or for a shared one the node a plan on it
+    /// runs on when no workload holds it.
+    pub reported_by: Uuid,
+    /// The privileged helper's identifier for it on its node, or in its store.
     pub helper_id: String,
     /// Its storage class.
     pub storage_class: String,
@@ -78,7 +85,54 @@ pub struct Volume {
     pub snapshots: Vec<Uuid>,
 }
 
+/// Where a volume's data is, which decides the nodes that reach it (§2.1 of
+/// docs/06-storage.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Home {
+    /// On one node's disk.
+    Node(Uuid),
+    /// In a shared store, which every node offering a class of it reaches.
+    Store(String),
+}
+
+impl Home {
+    /// Whether a node `node`, offering `classes`, reaches it.
+    #[must_use]
+    pub fn reached_by(&self, node: Uuid, classes: &[StorageClass]) -> bool {
+        match self {
+            Self::Node(n) => *n == node,
+            Self::Store(s) => classes.iter().any(|c| c.store.as_deref() == Some(s.as_str())),
+        }
+    }
+}
+
+impl std::fmt::Display for Home {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Node(n) => write!(f, "on node {n}"),
+            Self::Store(s) => write!(f, "in store {s}"),
+        }
+    }
+}
+
 impl Volume {
+    /// Where its data is.
+    #[must_use]
+    pub fn home(&self) -> Home {
+        match (&self.store, self.node) {
+            (Some(s), _) => Home::Store(s.clone()),
+            (None, Some(n)) => Home::Node(n),
+            (None, None) => Home::Node(self.reported_by),
+        }
+    }
+
+    /// The node a plan on it runs on when no workload holds it: its own, or for a shared one the
+    /// node that last reported it, which reaches its store.
+    #[must_use]
+    pub fn keeper(&self) -> Uuid {
+        self.node.unwrap_or(self.reported_by)
+    }
+
     /// The size a client may be shown: the one the write path enforces, and none where nothing
     /// does (Rule K-3).
     #[must_use]
@@ -184,7 +238,9 @@ mod tests {
             attached_to: None,
             name: "data".into(),
             kind: VolumeKind::Declared,
-            node: Uuid::now_v7(),
+            node: Some(Uuid::now_v7()),
+            store: None,
+            reported_by: Uuid::now_v7(),
             helper_id: "wl.data".into(),
             storage_class: "local".into(),
             size_bytes: 1 << 30,

@@ -138,7 +138,9 @@ async fn volumes(
             break;
         }
     }
-    let header = ["ID", "NAME", "KIND", "CLASS", "SIZE", "NODE", "ATTACHED TO", "DELETED"];
+    // A volume is on one node's disk, or in a shared store any node offering it reaches (§2.1 of
+    // docs/06-storage.md).
+    let header = ["ID", "NAME", "KIND", "CLASS", "SIZE", "WHERE", "ATTACHED TO", "DELETED"];
     // A size nothing enforces is not shown (Rule K-3).
     let human = rows(&header, &list, |v| {
         let size = if v.quota_enforced { v.size_bytes.to_string() } else { "-".into() };
@@ -149,7 +151,11 @@ async fn volumes(
             short(v.kind, "VOLUME_KIND_"),
             v.storage_class.clone(),
             size,
-            v.node.clone().unwrap_or_else(|| "-".into()),
+            match (&v.node, v.store.as_str()) {
+                (_, store) if !store.is_empty() => format!("store {store}"),
+                (Some(node), _) => node.clone(),
+                (None, _) => "-".into(),
+            },
             v.attached_to.clone().unwrap_or_else(|| "-".into()),
             deleted,
         ]

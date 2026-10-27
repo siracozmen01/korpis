@@ -170,6 +170,7 @@ mod usage;
 mod usage_endpoints;
 mod volume_attach;
 mod volume_delete;
+mod volume_shared;
 mod volumes;
 mod watch;
 mod web;

@@ -139,7 +139,7 @@ pub fn built(package: &str, bin: &str) -> PathBuf {
 async fn driver(
     socket: &Path,
     state: &StateDir,
-    (volumes, netns, cdi): (&Path, &Path, &Path),
+    ((volumes, shared), netns, cdi): ((&Path, Option<&Path>), &Path, &Path),
     cores: Cores,
 ) {
     let content = state.root().join("content");
@@ -150,6 +150,7 @@ async fn driver(
     let identity_root = state.root().join("identity");
     let policy = Policy {
         volume_root: volumes.to_owned(),
+        shared_roots: shared.map(Path::to_owned).into_iter().collect(),
         identity_root,
         netns_root: netns.to_owned(),
         devices: Specs { dirs: vec![cdi.to_owned()], owner: 0 },
@@ -164,7 +165,7 @@ impl Node {
     pub async fn join(cp: &ControlPlane, name: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let volumes = dir.path().join("volumes");
-        Self::join_with(cp, name, dir, (volumes, None), Vec::new(), None).await
+        Self::join_with(cp, name, dir, (volumes, None, None), Vec::new(), None).await
     }
 
     /// As [`Self::join`], its agent offering the machine's last core for dedication and its
@@ -174,7 +175,7 @@ impl Node {
         let core = korpis_topology::cores(Path::new("/sys/devices/system"), None).pop()?;
         let dir = tempfile::tempdir().unwrap();
         let volumes = dir.path().join("volumes");
-        Some(Self::join_with(cp, name, dir, (volumes, None), vec![core], None).await)
+        Some(Self::join_with(cp, name, dir, (volumes, None, None), vec![core], None).await)
     }
 
     /// As [`Self::join`], with its volumes on a btrfs made for it, qgroups on, so its class can
@@ -195,7 +196,18 @@ impl Node {
             && ok(Command::new("btrfs").args(["quota", "rescan", "-w"]).arg(&at));
         assert!(quota, "qgroups on the test's own filesystem");
         let volumes = at.join("volumes");
-        Some(Self::join_with(cp, name, dir, (volumes, Some(at)), Vec::new(), None).await)
+        Some(Self::join_with(cp, name, dir, (volumes, Some(at), None), Vec::new(), None).await)
+    }
+
+    /// As [`Self::join`], its helper offering a shared class, `shared`, on the directory
+    /// `shared`, which other nodes of the test offer too, and its driver mounting volumes there
+    /// (§2.1 of docs/06-storage.md).
+    #[allow(dead_code, reason = "the browser test, a binary of its own, shares no storage")]
+    pub async fn join_sharing(cp: &ControlPlane, name: &str, shared: &Path) -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        let volumes = dir.path().join("volumes");
+        let shared = Some(shared.to_owned());
+        Self::join_with(cp, name, dir, (volumes, None, shared), Vec::new(), None).await
     }
 
     /// A node named `name` in `dir`, its helper serving inside the network namespace `inside`
@@ -204,7 +216,7 @@ impl Node {
         cp: &ControlPlane,
         name: &str,
         dir: tempfile::TempDir,
-        (volumes, mounted): (PathBuf, Option<PathBuf>),
+        (volumes, mounted, shared): (PathBuf, Option<PathBuf>, Option<PathBuf>),
         offered: Vec<Core>,
         inside: Option<(&Path, std::net::Ipv4Addr)>,
     ) -> Self {
@@ -223,12 +235,13 @@ impl Node {
         let dirs = (helper_state.as_path(), content.as_path(), netns.as_path());
         match inside {
             Some((ns, _)) => crate::helper::helper_in(&helper_socket, &volumes, dirs, ns),
-            None => helper(&helper_socket, &volumes, dirs, parent),
+            None => helper(&helper_socket, (&volumes, shared.as_deref()), dirs, parent),
         }
         let cdi = dir.path().join("cdi");
         std::fs::create_dir(&cdi).unwrap();
         let containers = cores.root.join(cores.parent.trim_start_matches('/'));
-        driver(&driver_socket, &state, (&volumes, &netns, &cdi), cores).await;
+        let roots = (volumes.as_path(), shared.as_deref());
+        driver(&driver_socket, &state, (roots, &netns, &cdi), cores).await;
         Self {
             dir,
             state,

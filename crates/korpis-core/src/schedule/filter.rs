@@ -209,10 +209,12 @@ fn capacity(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
         .collect()
 }
 
-/// An existing volume on another node: what it holds is on that node's disk alone.
+/// An existing volume the node does not reach: on another node's disk, or in a store the node
+/// offers no class of.
 fn volumes(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
-    let (volume, node) = req.volumes.iter().find(|(_, node)| *node != c.node.id)?;
-    Some((Check::Volume, format!("volume {volume} is on node {node}")))
+    let classes = &c.node.storage_classes;
+    let (volume, home) = req.volumes.iter().find(|(_, h)| !h.reached_by(c.node.id, classes))?;
+    Some((Check::Volume, format!("volume {volume} is {home}")))
 }
 
 fn storage_classes(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {

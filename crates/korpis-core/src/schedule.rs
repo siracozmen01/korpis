@@ -23,6 +23,7 @@ pub use policy::{
 use crate::node::Node;
 use crate::tenancy::quota::{Bounds, Dimension, Held, QuotaEntry, Totals};
 use crate::workload::IntentBody;
+use crate::workload::volume::Home;
 use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
@@ -86,9 +87,10 @@ pub struct Request<'a> {
     /// That group's members, which a node it is placed on reaches through the mesh; empty where
     /// no group serves it.
     pub edge_members: &'a [Uuid],
-    /// Each existing volume the intent attaches, with the node holding it: a node-local volume
-    /// is reachable from its node alone (§7 of docs/06-storage.md).
-    pub volumes: &'a [(Uuid, Uuid)],
+    /// Each existing volume the intent attaches, with where it is: a node-local volume is
+    /// reachable from its node alone (§7 of docs/06-storage.md), and a shared one from every
+    /// node offering its store (§2.1 there).
+    pub volumes: &'a [(Uuid, Home)],
     /// The nodes whose driver refused this intent, each with its reason: asked on the
     /// shortlist, or after a bind (§2.1 of docs/05-scheduling.md).
     pub refused: &'a BTreeMap<Uuid, String>,

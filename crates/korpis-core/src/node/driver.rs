@@ -221,6 +221,10 @@ pub struct StorageClass {
     pub capacity_bytes: u64,
     /// Free bytes, as last reported.
     pub free_bytes: u64,
+    /// For a shared class, the storage it is, as the helper read it at the class's root, which
+    /// every node reaching the same storage reads alike (§2.1 of docs/06-storage.md); `None` for
+    /// a class on the node's own disk.
+    pub store: Option<String>,
 }
 
 /// What implements a storage class.

@@ -51,6 +51,10 @@ struct Cli {
     /// The directory the helper keeps volumes under.
     #[arg(long, default_value = "/var/lib/korpis/volumes")]
     volume_root: PathBuf,
+    /// The root of a shared storage class, as the helper's `--shared-class` names it; repeatable
+    /// (§2.1 of docs/06-storage.md).
+    #[arg(long = "shared-root")]
+    shared_roots: Vec<PathBuf>,
     /// The directory the helper binds workloads' network namespaces under.
     #[arg(long, default_value = "/run/korpis/netns")]
     netns_root: PathBuf,
@@ -93,6 +97,7 @@ async fn run(cli: Cli) -> Result<(), String> {
         writer,
         content: cli.content,
         volume_root: cli.volume_root,
+        shared_roots: cli.shared_roots,
         netns_root: cli.netns_root,
         identity_root: cli.identity_root,
         state: cli.state_dir,

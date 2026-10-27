@@ -45,11 +45,16 @@ fn reported() -> pb::Node {
 impl TestAgent {
     /// Enrolls a node named `name` into the root organization with a fresh key.
     pub async fn enroll(h: &Harness, name: &str, seed: u8) -> Self {
+        Self::enroll_into(h, &h.root_org(), name, seed).await
+    }
+
+    /// Enrolls a node named `name` into `organization` with a fresh key.
+    pub async fn enroll_into(h: &Harness, organization: &str, name: &str, seed: u8) -> Self {
         let created = h
             .nodes(h.root())
             .create_enrollment_token(pb::CreateEnrollmentTokenRequest {
                 mutation: mutation(&format!("enroll-{name}")).into(),
-                organization: h.root_org(),
+                organization: organization.to_owned(),
                 node_name: name.to_owned(),
                 ..Default::default()
             })

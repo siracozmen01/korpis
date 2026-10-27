@@ -42,6 +42,29 @@ impl SessionWrite for PgTx {
         Ok(inserted.rows_affected() == 1)
     }
 
+    async fn bind_store(
+        &mut self,
+        store: &str,
+        (node, organization): (Uuid, Uuid),
+        at: SystemTime,
+    ) -> StoreResult<Uuid> {
+        sqlx::query!(
+            "INSERT INTO shared_store (id, organization_id, first_node, bound_at)
+             VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING",
+            store,
+            organization,
+            node,
+            from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        sqlx::query_scalar!("SELECT organization_id FROM shared_store WHERE id = $1", store)
+            .fetch_one(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)
+    }
+
     async fn record_node_facts(
         &mut self,
         node: Uuid,

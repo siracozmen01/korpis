@@ -60,6 +60,7 @@ pub fn serve(dir: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) -> 
         writer: writer(),
         content: state.root().join("content"),
         volume_root: volumes.to_owned(),
+        shared_roots: Vec::new(),
         netns_root: netns.to_owned(),
         identity_root: state.root().join("identity"),
         state: dir.join("firecracker"),

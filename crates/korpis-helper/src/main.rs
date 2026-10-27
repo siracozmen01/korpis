@@ -19,7 +19,7 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 const USAGE: &str = "usage: korpis-helper (--inherit | --socket PATH) [--volume-root PATH] \
-                     [--class NAME] [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
+                     [--class NAME] [--shared-class NAME=PATH]... [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
                      [--job-binary PATH] [--install-binary PATH|none] [--job-cgroups PATH|none] \
                      [--content PATH] [--netns-root PATH|none] \
                      [--ingress-binary PATH|none] [--files-binary PATH|none] \
@@ -63,6 +63,8 @@ struct Args {
     socket: Option<PathBuf>,
     volume_root: PathBuf,
     class: String,
+    /// Shared classes, each a directory where the operator mounted a network filesystem.
+    shared: Vec<(String, PathBuf)>,
     state: PathBuf,
     allow: Vec<u32>,
     idle: Option<Duration>,
@@ -86,11 +88,13 @@ struct Args {
 /// The cgroup parents the first-party drivers use unless told otherwise.
 const CORES_CGROUPS: [&str; 2] = ["/korpis", "/korpis-firecracker"];
 
-fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
-    let mut a = Args {
+/// What the helper is told when nothing is said.
+fn defaults() -> Args {
+    Args {
         socket: None,
         volume_root: PathBuf::from("/var/lib/korpis/volumes"),
         class: "local".into(),
+        shared: Vec::new(),
         state: PathBuf::from("/var/lib/korpis/helper"),
         allow: Vec::new(),
         idle: None,
@@ -103,7 +107,11 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         content: PathBuf::from("/var/lib/korpis-agent/content"),
         netns_root: Some(PathBuf::from(NETNS_ROOT)),
         cores_cgroups: None,
-    };
+    }
+}
+
+fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
+    let mut a = defaults();
     let mut inherit = false;
     while let Some(flag) = args.next() {
         let mut value = || args.next().ok_or_else(|| format!("{flag} needs a value"));
@@ -112,6 +120,11 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
             "--socket" => a.socket = Some(PathBuf::from(value()?)),
             "--volume-root" => a.volume_root = PathBuf::from(value()?),
             "--class" => a.class = value()?,
+            "--shared-class" => {
+                let v = value()?;
+                let (name, path) = v.split_once('=').ok_or("--shared-class NAME=PATH")?;
+                a.shared.push((name.to_owned(), PathBuf::from(path)));
+            }
             "--state" => a.state = PathBuf::from(value()?),
             "--allow-uid" => a.allow.push(value()?.parse().map_err(|e| format!("{e}"))?),
             "--job-binary" => a.job_binary = Some(PathBuf::from(value()?)),
@@ -151,7 +164,12 @@ fn run(a: Args) -> Result<(), String> {
     let own = std::fs::metadata("/proc/self").map_err(|e| e.to_string())?.uid();
     let allowed: BTreeSet<u32> =
         if a.allow.is_empty() { [own].into() } else { a.allow.into_iter().collect() };
-    let class = Class::open(&a.class, &a.volume_root).map_err(|e| format!("volume root: {e}"))?;
+    let mut classes =
+        vec![Class::open(&a.class, &a.volume_root).map_err(|e| format!("volume root: {e}"))?];
+    for (name, path) in &a.shared {
+        let shared = Class::shared(name, path, korpis_helper::storage::Network::Required);
+        classes.push(shared.map_err(|e| format!("shared class {name}: {e}"))?);
+    }
     let ledger = Ledger::open(&a.state).map_err(|e| format!("state: {e}"))?;
     let listener = match &a.socket {
         Some(path) => bound(path),
@@ -175,7 +193,7 @@ fn run(a: Args) -> Result<(), String> {
         cgroups: a.job_cgroups.clone(),
         content: Some(a.content),
     };
-    let mut helper = Helper::new(vec![class], ledger).with_jobs(jobs);
+    let mut helper = Helper::new(classes, ledger).with_jobs(jobs);
     if let Some(binary) = files_binary {
         let config = FilesConfig { binary, state: a.state.clone(), cgroups: a.job_cgroups.clone() };
         helper = helper.with_files(Files::new(config));

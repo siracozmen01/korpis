@@ -209,7 +209,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// That `v`'s class, on its node, declares snapshots, or why not.
     pub(crate) async fn can_snapshot(&self, v: &Volume) -> Result<(), AppError> {
-        let node = self.store.node(v.node).await?;
+        let node = self.store.node(v.keeper()).await?;
         let class = node.as_ref().and_then(|n| {
             n.storage_classes
                 .iter()

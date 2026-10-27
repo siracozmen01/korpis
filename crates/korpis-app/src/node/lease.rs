@@ -83,16 +83,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
         };
         tx.commit().await?;
-        let continuity = match w.target {
-            Some(t) => self.store.intent(t).await?.map(|i| i.body.continuity),
-            None => None,
+        let on_expiry = match w.target {
+            Some(t) => match self.store.intent(t).await? {
+                Some(i) => self.on_expiry(node, &i.body).await?,
+                None => Continuity::Derived.resolved(false),
+            },
+            None => Continuity::Derived.resolved(false),
         };
         Ok(LeaseAnswer::Granted {
             epoch,
             term: terms.lease_term,
             rho_ppm: terms.rho_ppm,
             // As the assignment resolves it (§4.8 of docs/02-architecture.md).
-            on_expiry: continuity.unwrap_or_default().resolved(false),
+            on_expiry,
         })
     }
 

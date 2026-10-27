@@ -227,7 +227,9 @@ microVMs on ZFS. Preflight reports against what the node is *configured to offer
 | **KVM** | `microvm`, `vm` | absent → the node advertises only `process` and `container`. On bare metal KVM is enough; **nested virtualization is needed only when the node is itself a virtual machine**, and preflight checks it only then (finding S67) |
 | `io.cost` configured for the volume devices | I/O shares (§3 of `06-storage.md`) | absent → I/O ceilings only; preflight prints the configuration to apply and does not apply it |
 | an edge failover group, or a routed address pool | the `stable` exposure mode (§3.1 of `07-networking.md`) | absent → `node_bound` is offered instead, and says what it does not survive |
-| ZFS or btrfs | replicated and snapshot-capable storage classes | ext4/XFS with project quota still gives enforced byte and inode limits |
+| ZFS or btrfs | replicated volumes (§2.2 of `06-storage.md`) and snapshot-capable storage classes | ext4/XFS with project quota still gives enforced byte and inode limits; a volume asking for replicas is not placed on the node, saying why |
+| a network filesystem (NFS, CephFS, SMB, or `ceph-fuse` or `glusterfs` through FUSE) the operator mounts on each node offering a shared class, where root may make, give away, and remove a directory | shared storage classes (§2.1 of `06-storage.md`), named with `korpis-helper --shared-class NAME=PATH` | absent → the node offers no shared class; a filesystem not reached over the network, or one squashing root, is refused at the helper's start, saying which (designed 2026-10-27) |
+| `open-iscsi`'s `iscsiadm` and the `iscsi_tcp` module, or the kernel's `rbd` module, and `mke2fs` | block storage classes (§2.1 of `06-storage.md`), each served by its provider | absent → the node offers no block class of that protocol, and preflight says which is missing and loads nothing (designed 2026-10-27) |
 | `mke2fs` from e2fsprogs | `block_device` volumes, which the helper formats empty (§3.1 of `06-storage.md`) | absent → the helper refuses to make one, saying why, and a `microvm` workload with a volume does not start on the node |
 | `/dev/net/tun`, the tun driver | a `microvm` workload's network, its guest's tap (§4.1 of `07-networking.md`) | absent → the helper cannot make the tap, says why, and a `microvm` workload does not start on a node that gives networks |
 | IPv6 | the default addressing mode (§4 of `07-networking.md`) | absent → IPv4 only, and the scarcity is the operator's problem |
@@ -325,14 +327,16 @@ containerd's socket and to nothing else the agent holds (§6.1 of `02-architectu
 the driver protocol on `/run/korpis/driver-oci.sock`, to the users named by `--allow-uid` and, when
 none is named, to its own user only; it reads images from the node's content store at
 `/var/lib/korpis-agent/content`, which the agent fills, and mounts nothing but directories under
-`/var/lib/korpis/volumes`, which the helper keeps, and each workload's own identity directory under
+`/var/lib/korpis/volumes`, which the helper keeps, or under the root of a shared class it is named
+with `--shared-root`, repeatable, as the helper's `--shared-class` names it (§2.1 of
+`06-storage.md`; added 2026-10-27), and each workload's own identity directory under
 `/var/lib/korpis-agent/identity`, which the agent keeps at mode `0750` (§6 of
 `02-architecture.md`); `--socket`, `--content`, `--volume-root`, `--identity-root`, and
-`--containerd` move them, and an agent given another state directory needs the driver told the
-same identity root. A containerd whose `state` setting is not `/run/containerd` needs the driver
-told it with `--containerd-state`, where it finishes containerd's cleanup after a container's shim
-died (§4.2 of `04-runtimes.md`; added 2026-10-24). Stopping the driver stops nothing that runs:
-the containers are containerd's, and the next driver reads them back with `Recover`.
+`--containerd` move them, and an agent given another state directory needs the driver told the same
+identity root. A containerd whose `state` setting is not `/run/containerd` needs the driver told it
+with `--containerd-state`, where it finishes containerd's cleanup after a container's shim died
+(§4.2 of `04-runtimes.md`; added 2026-10-24). Stopping the driver stops nothing that runs: the
+containers are containerd's, and the next driver reads them back with `Recover`.
 
 The `microvm` tier is another process, `korpis-driver-firecracker`, which serves the driver
 protocol on `/run/korpis/driver-firecracker.sock` to the users `--allow-uid` names, and which the
@@ -346,29 +350,30 @@ drive carries beside it, the file worker `korpis-fsworker` and the install job
 `--kernel`, `--guest`, `--fsworker`, `--install-job`; §4.4 of `04-runtimes.md`), and starts
 `korpis-stream-writer` and `korpis-image-build` from beside its own binary (`--stream-writer`,
 `--image-build`); it reads images from the node's content store as the `oci` driver does, and
-volumes from beneath the volume root; it relays a guest's `/run/korpis` to the workload's own
-identity directory beneath `/var/lib/korpis-agent/identity` (`--identity-root`, which must be the
-agent's, as for the `oci` driver; §6 of `04-runtimes.md`); it keeps its objects, the drives guests
-share, and their jails in `/var/lib/korpis-driver-firecracker` (`--state-dir`), and each guest's
-cgroup beneath `korpis-firecracker` (`--cgroup`). Stopping it stops no guest and no console, and
-the next one reads the guests back with `Recover`. Installation writes its unit only where
-`/dev/kvm` opens and Firecracker, the jailer, `vmlinux`, `korpis-guest`, `korpis-fsworker`, and
-`korpis-install-job` are all in `--microvm-dir` (`/usr/lib/korpis`), and says otherwise why the
-node runs containers alone; `korpis-agent preflight`, given the drivers' sockets, asks each which
-tiers it offers, and where one offers `microvm` it reports KVM and the tun driver lacking, with
-their fix, rather than not needed. Until the signed agent package carries the six files (question 7
-of §10, resolved there), `scripts/microvm-files.sh` puts them there from a checkout, built and
-pinned as §5 of `21-stack.md` says, and prints each one's digest. The unit runs it as root under
-`ProtectSystem=strict`, with its state directory, the volume root, `/run/korpis`, and the cgroup
-hierarchy writable, and `KillMode=process`, since its guests outlive it; it is not held by
-`RestrictSUIDSGID`, because systemd refuses `openat2` and `fchmodat2` under it, which it cannot
-inspect, and the image build resolves every path of a layer with `openat2` and keeps an image's own
-setuid files on the guest's disk. The driver's tests that run guests pass under exactly those
-settings (2026-10-23, as transient units on the machine Phase 3 is built on); the unit itself is
-checked by `systemd-analyze verify`, and not yet started by the package test, which puts no microVM
-files in place. At every start the driver builds the jail with the node's kernel and boot drive as
-they are then, not as they were when the guest was made, so an upgraded package reaches each guest
-at its next boot (Finding 150 of `23-walkthroughs.md`).
+volumes from beneath the volume root or a shared root (`--shared-root`, as for the `oci` driver);
+it relays a guest's `/run/korpis` to the workload's own identity directory beneath
+`/var/lib/korpis-agent/identity` (`--identity-root`, which must be the agent's, as for the `oci`
+driver; §6 of `04-runtimes.md`); it keeps its objects, the drives guests share, and their jails in
+`/var/lib/korpis-driver-firecracker` (`--state-dir`), and each guest's cgroup beneath
+`korpis-firecracker` (`--cgroup`). Stopping it stops no guest and no console, and the next one
+reads the guests back with `Recover`. Installation writes its unit only where `/dev/kvm` opens and
+Firecracker, the jailer, `vmlinux`, `korpis-guest`, `korpis-fsworker`, and `korpis-install-job` are
+all in `--microvm-dir` (`/usr/lib/korpis`), and says otherwise why the node runs containers alone;
+`korpis-agent preflight`, given the drivers' sockets, asks each which tiers it offers, and where
+one offers `microvm` it reports KVM and the tun driver lacking, with their fix, rather than not
+needed. Until the signed agent package carries the six files (question 7 of §10, resolved there),
+`scripts/microvm-files.sh` puts them there from a checkout, built and pinned as §5 of `21-stack.md`
+says, and prints each one's digest. The unit runs it as root under `ProtectSystem=strict`, with its
+state directory, the volume root, `/run/korpis`, and the cgroup hierarchy writable, and
+`KillMode=process`, since its guests outlive it; it is not held by `RestrictSUIDSGID`, because
+systemd refuses `openat2` and `fchmodat2` under it, which it cannot inspect, and the image build
+resolves every path of a layer with `openat2` and keeps an image's own setuid files on the guest's
+disk. The driver's tests that run guests pass under exactly those settings (2026-10-23, as
+transient units on the machine Phase 3 is built on); the unit itself is checked by `systemd-analyze
+verify`, and not yet started by the package test, which puts no microVM files in place. At every
+start the driver builds the jail with the node's kernel and boot drive as they are then, not as
+they were when the guest was made, so an upgraded package reaches each guest at its next boot
+(Finding 150 of `23-walkthroughs.md`).
 
 The privileged helper runs only when asked. Its socket is a systemd socket unit
 (`ListenStream=/run/korpis/helper.sock`, `SocketMode=0660`, the supervisor's group as
@@ -384,8 +389,10 @@ filesystem under `--volume-root`: ext4 made with `-O quota,project` or XFS, moun
 bytes limited by its qgroup and its inodes not at all (§3 there); any other filesystem makes it a
 `directory` class, which enforces no size and says so (§2 of `06-storage.md`). Corrected
 2026-10-19: this paragraph named only the project classes after the btrfs class was built, and so
-told an operator on btrfs that their volumes would not be limited. The jobs it starts are binaries
-beside it unless named: `--job-binary` for backups and restores and `--install-binary` for installs
+told an operator on btrfs that their volumes would not be limited. Further classes are named with
+`--shared-class NAME=PATH`, repeatable, each a directory where the operator mounted a network
+filesystem (§2.1 of `06-storage.md`); designed 2026-10-27. The jobs it starts are binaries beside
+it unless named: `--job-binary` for backups and restores and `--install-binary` for installs
 (`none` runs no installs); each job's cgroup is made under `--job-cgroups`
 (`/sys/fs/cgroup/korpis/shared`, the `oci` driver's shared cgroup, so a job keeps off dedicated
 cores as a container holding none does; it was `/sys/fs/cgroup/korpis` until 2026-10-25, when cores
@@ -583,10 +590,11 @@ for the transaction that writes an `Effect`, and leaves the rest to tools built 
 
 **Nodes.** A node is a single point of failure for the workloads on it, and no amount of
 control-plane availability changes that. What Korpis provides is the ability to *express* the
-answer: replicas, anti-affinity across nodes and failure domains, a replicated storage class, and a
-`stable` endpoint whose public address survives the move and the loss of any one node or edge (§3
-of `07-networking.md`). A `node_bound` address does not survive the loss of the node it is anchored
-to, and is described that way wherever it is shown. What it does
+answer: replicas, anti-affinity across nodes and failure domains, a replicated volume or one on
+storage another node reaches (§2.1 and §2.2 of `06-storage.md`, whose workloads fail over by §2.4
+of `05-scheduling.md`), and a `stable` endpoint whose public address survives the move and the loss
+of any one node or edge (§3 of `07-networking.md`). A `node_bound` address does not survive the
+loss of the node it is anchored to, and is described that way wherever it is shown. What it does
 not provide is automatic recovery of stateful workloads whose only copy of their data was on the
 failed node, because that is not recoverable, and implying otherwise would be the kind of claim P4
 forbids.

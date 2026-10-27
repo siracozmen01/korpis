@@ -33,6 +33,7 @@ not ship.** These are extensions in Korpis, not core code with an extension API 
 | OIDC, SAML, LDAP, Discord identity sources | identity provider, in the trust base (§5.3 of `08-identity.md`) |
 | protocol-aware routers (Minecraft handshake, TLS SNI) | edge router provider |
 | address routers: a BGP speaker, a provider's floating addresses (§3.7 of `07-networking.md`) | address router provider |
+| network block storage: Ceph RBD, an iSCSI target's management interface (§2.1 of `06-storage.md`) | block storage provider |
 | alert routing beyond the built-in minimum | event consumer |
 | **the Discord client**: and the chat-adapter interface behind it | actions + events + streams |
 
@@ -407,7 +408,10 @@ Calling out is the direction that carries risk, so the contract is strict:
   router that is unreachable fails closed for a move and leaves what it routes alone: an address
   is held by a new node only once the router says the network routes it there, so a workload
   placed elsewhere waits, its status saying which router it waits on and why, and an address
-  already held stays where it is (§3.7 of `07-networking.md`; added 2026-10-26).
+  already held stays where it is (§3.7 of `07-networking.md`; added 2026-10-26). A block storage
+  provider that is unreachable fails closed for an attach and leaves attached volumes alone: a
+  workload whose volume is not attached does not start, its status naming the provider and the
+  reason, and one running keeps its device (§2.1 of `06-storage.md`; added 2026-10-27).
 - Providers are circuit-broken. A provider failing consistently is marked down, its dependents are
   marked `unsatisfiable` with the provider named, and it is retried on a backoff, instead of every
   reconciliation loop in the fleet queueing behind it.
@@ -577,6 +581,19 @@ any other, so the rule is what keeps a data key out of the database, its write-a
 backups: what is stored opens only for the recipient, whose secret never leaves the process that
 made it. The SDK seals; an implementation returns the key and never handles a recipient.
 
+**A block storage provider fences before it attaches**, designed 2026-10-27 (§2.1 of
+`06-storage.md`). Its calls are `create` (a volume of a size, answering the provider's own name
+for it), `attach` (one volume to one node for one lease epoch), `detach`, `delete`, and
+`describe` (its size and which node may write it). `attach` first refuses the volume to every
+other node, in the storage itself, and only then answers with what the node needs: the protocol
+(`iscsi` or `rbd`), the target, and a credential scoped to that volume where the storage can scope
+one. An `attach` for an epoch lower than one the provider has attached for is refused, so a
+retried call from before a failover cannot take the volume back. The provider declares, for each
+class it serves, `storage_enforced` if its `attach` fences and `lease_only` if it cannot, and the
+control plane takes the declaration as the class's. What it costs: every placement of such a
+workload waits on a provider call before its node can attach, and the credential is held for the
+volume's life by the provider and for the placement's by the node.
+
 The tenant boundary already holds here and is worth naming: a provider installed by one tenant is
 bounded by the grants it was installed with (§4.1), so a slow tenant-installed provider degrades
 that tenant's own reconciliation and nobody else's. The fleet-wide case is a provider installed at
@@ -663,17 +680,18 @@ types: `provider.backup_target` (§5.6 of `06-storage.md`), `provider.dns` (§3.
 `07-networking.md`), `provider.identity` (re-verification and assertion, §5.1 and §5.2 of
 `08-identity.md`, added in Phase 2), `provider.key_management` (§5.5 of `06-storage.md`), and
 `provider.step` (§4 of `09-recipes.md`), with `provider.health` (§5) joining on 2026-10-23 and
-`provider.address_router` (§3.7 of `07-networking.md`) on 2026-10-26. The `provider.<type>` of
-console, edge router, and chat adapter providers is added when that type's own calls join the
-contract; until then an extension requiring one is refused, because installing it would leave it
-waiting for calls nothing makes, the failure six weeks later this section forbids. A capability is
-offered once its calls are in the contract and the SDK, even while the control plane's own use of
-them is still being built (DNS records are published for endpoints, which Phase 1 creates later),
-since the provider is then correct to wait. The check runs at install, a dry run included, so the
-installer reads the refusal before approving anything: an unknown contract version, or every
-required capability that is missing, at once, is refused as `extension.incompatible` naming what is
-missing and what is offered. A client reads both lists from `ServerInfo` (`extension_contracts` and
-`capabilities`), which is how an extension's SDK negotiates rather than compares version numbers.
+`provider.address_router` (§3.7 of `07-networking.md`) on 2026-10-26, and `provider.block_storage`
+(§2.1 of `06-storage.md`) designed 2026-10-27. The `provider.<type>` of console, edge router, and
+chat adapter providers is added when that type's own calls join the contract; until then an
+extension requiring one is refused, because installing it would leave it waiting for calls nothing
+makes, the failure six weeks later this section forbids. A capability is offered once its calls are
+in the contract and the SDK, even while the control plane's own use of them is still being built
+(DNS records are published for endpoints, which Phase 1 creates later), since the provider is then
+correct to wait. The check runs at install, a dry run included, so the installer reads the refusal
+before approving anything: an unknown contract version, or every required capability that is
+missing, at once, is refused as `extension.incompatible` naming what is missing and what is
+offered. A client reads both lists from `ServerInfo` (`extension_contracts` and `capabilities`),
+which is how an extension's SDK negotiates rather than compares version numbers.
 
 **Signing in, designed 2026-10-20** (§9.7 of `08-identity.md`). `provider.identity` grows, as the
 rules above allow, by addition alone. An identity provider that can sign people in says so when it

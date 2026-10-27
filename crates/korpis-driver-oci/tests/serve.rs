@@ -62,6 +62,7 @@ async fn started(dir: &Path, allowed: BTreeSet<u32>) -> Client {
         containerd,
         Policy {
             volume_root: dir.join("volumes"),
+            shared_roots: Vec::new(),
             identity_root: dir.join("identity"),
             netns_root: dir.join("netns"),
             devices: korpis_driver_oci::devices::Specs { dirs: Vec::new(), owner: 0 },

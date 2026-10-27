@@ -8,9 +8,13 @@
 
 use crate::App;
 use crate::error::AppError;
-use crate::ports::{AgentVersion, Clock, NodeFacts, RecipeSource, SessionWrite, Store, Tx};
+use crate::ports::{
+    AgentVersion, Clock, EffectWrite as _, NodeFacts, RecipeSource, SessionWrite, Store, Tx,
+};
+use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::node::identity::{hello_message, verify};
 use korpis_core::node::{Node, NodeAdmin};
+use korpis_core::principal::{Principal, SystemActor};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -177,6 +181,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.remember_nonce(hello.node, &hello.proof.nonce, now, forget).await? {
             return Err(AppError::Unauthenticated);
         }
+        self.bind_stores(&mut tx, hello.node, &mut hello.facts, now).await?;
         if !tx.record_node_facts(hello.node, &hello.facts, now).await? {
             // Decommissioned: the key no longer opens a session.
             return Err(AppError::Unauthenticated);
@@ -187,6 +192,42 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::Unauthenticated);
         }
         Ok(Session { node, protocol: hello.protocol, terms: self.session_terms })
+    }
+
+    /// Binds each shared store `facts` declares to `node`'s organization where none was bound,
+    /// and strikes from its class a store another organization's node declared first, so that a
+    /// node's word about its mount never reaches another organization's volumes (§2.1 of
+    /// docs/06-storage.md, Finding 201 of docs/23-walkthroughs.md); each strike is an effect.
+    async fn bind_stores(
+        &self,
+        tx: &mut S::Tx,
+        node: Uuid,
+        facts: &mut NodeFacts,
+        now: SystemTime,
+    ) -> Result<(), AppError> {
+        let Some(classes) = facts.storage_classes.as_mut() else { return Ok(()) };
+        if classes.iter().all(|c| c.store.is_none()) {
+            return Ok(());
+        }
+        let organization = self.store.node(node).await?.ok_or(AppError::Unauthenticated)?;
+        let organization = organization.organization;
+        for class in classes.iter_mut() {
+            let Some(store) = class.store.clone() else { continue };
+            let owner = tx.bind_store(&store, (node, organization), now).await?;
+            if owner != organization {
+                class.store = None;
+                let actor = Principal::System(SystemActor::Reconciler);
+                let mut e =
+                    Effect::new(actor, "node.store_refused", Outcome::Failed).error(details([
+                        ("class", class.name.clone().into()),
+                        ("store", store.into()),
+                        ("reason", "another organization's node declared it first".into()),
+                    ]));
+                (e.node, e.organization) = (Some(node), Some(organization));
+                tx.append_effect(&e).await?;
+            }
+        }
+        Ok(())
     }
 
     /// Whether `node` may still hold a session: it exists and is not decommissioned. A session

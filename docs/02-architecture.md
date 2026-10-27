@@ -610,10 +610,12 @@ it arrives with migration, and safety never depended on it.
 **The epoch check is in the data path wherever the storage allows it.** Leases fence the agents.
 They do not, by themselves, fence a disk that a second node could attach. A storage class reachable
 from more than one node declares `fencing: storage_enforced` when the backend can refuse a
-superseded writer (SCSI-3 persistent reservations, a Ceph exclusive lock with blocklisting, an NFSv4
-lease), and `fencing: lease_only` when it cannot (§2 of `06-storage.md`). A `lease_only` class is
-honest about relying on the agents alone, and the default of the next section is chosen
-accordingly.
+superseded writer (SCSI-3 persistent reservations, a Ceph exclusive lock with blocklisting), and
+`fencing: lease_only` when it cannot (§2 of `06-storage.md`). A `lease_only` class is honest about
+relying on the agents alone, and the default of the next section is chosen accordingly. (Corrected
+2026-10-27, Finding 198 of `23-walkthroughs.md`: this named an NFSv4 lease among the first, and
+an NFSv4 lease fences a client its server cannot hear, not one the control plane superseded; a
+shared filesystem is `lease_only`, §2.1 of `06-storage.md`.)
 
 #### What a fenced agent does depends on why it was fenced
 
@@ -902,7 +904,11 @@ assignment at once.
 volumes (§4.5) needs to know whether a volume's class can be attached from a second node, and no
 storage class a Phase 0 node offers can: every one is node-local, so the derived answer is
 `keep_running`. A class that declares multi-node attachment, with the fencing of §2 of
-`06-storage.md`, changes the answer, and the derivation already takes it. Every change sends the
+`06-storage.md`, changes the answer, and the derivation already takes it. (Corrected 2026-10-27,
+Finding 200 of `23-walkthroughs.md`: it did not; the control plane derived the answer with `false`
+in place of the classes, whatever they declared, so a class able to say `multi_node_attach` would
+have changed nothing. It now reads the classes the workload's volumes are in on the node it is
+placed on, §2.1 of `06-storage.md`, for the assignment and the lease alike.) Every change sends the
 whole set; the delta of §9 of `10-api.md` is an optimization not yet made, and its absence costs
 bandwidth, never correctness.
 

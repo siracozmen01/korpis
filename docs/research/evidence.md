@@ -774,6 +774,26 @@ Primary:
   2026-10-25). WireGuard is in the Linux kernel from 5.6
   ([install](https://www.wireguard.com/install/), which offers modules only to users of older
   kernels). The mesh's NAT, MTU, and kernel floor (§9.1 of `../07-networking.md`).
+- **[V]** Proxmox VE storage replication sends a guest's ZFS volumes to another node on a
+  schedule of one minute at the shortest and a week at the longest, the first copy whole and each
+  later one as the difference between two snapshots; a guest started from a replica after its node
+  fails has what the last run sent, and the documentation has its operator start it there only
+  after making sure the original node no longer runs it
+  ([Storage Replication](https://pve.proxmox.com/wiki/Storage_Replication),
+  [pvesr](https://pve.proxmox.com/pve-docs-7/chapter-pvesr.html), read 2026-10-27). Replicated
+  volumes, their interval, and their stated loss (§2.2 of `../06-storage.md`).
+- **[V]** CephFS quotas rely on the cooperation of the client mounting the filesystem, which stops
+  writers some time after the limit is crossed, generally within tens of seconds, and a modified
+  client can ignore them ([CephFS Quotas](https://docs.ceph.com/en/reef/cephfs/quota/), read
+  2026-10-27). Why a shared class declares no quota (§2.1 of `../06-storage.md`).
+- **[V]** An NFSv4 client renews its lease with the server by its own requests, and a server
+  releases a client's state when that lease expires (RFC 7530 §9.5 and §9.6). The lease is the
+  server's view of the client, not anyone else's: Finding 198 of `../23-walkthroughs.md`, which
+  removed it from the backends that refuse a superseded writer.
+- **[V]** `open(2)`: a program that needs an atomic lock file on NFS creates a unique file on the
+  same filesystem and links it to the lock file's name; the lock is held if `link(2)` returns 0, or
+  if the unique file's link count is then 2 (the man page's note on `O_EXCL`). How the first
+  helper on a shared store writes its identity (§2.1 of `../06-storage.md`).
 Secondary:
 - [TheGamePanel: a modern alternative to
   Pterodactyl](https://ollieread.com/articles/thegamepanel-a-modern-alternative-to-pterodactyl)

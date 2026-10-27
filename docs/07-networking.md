@@ -2426,6 +2426,14 @@ workload address the peer allows.
 size of TCP connections into the overlay to fit, and answers a larger packet that may not be
 fragmented with the ICMP message that says so, which a workload's table already accepts.
 
+**Nodes send volumes to each other through it**, designed 2026-10-27 (§2.2 of `06-storage.md`):
+a replicated volume's increments, and a migration's copies (§8 of `05-scheduling.md`). The
+receiving agent listens on its own mesh address, and its node's table admits to that port from
+the mesh only the mesh addresses of the nodes its assignment names as sending to it, under the
+comment `transfer`, as it admits a dependent; the sender is known by its mesh address, which
+WireGuard admits from that node's key alone, and what it may send by a ticket the control plane
+signed. A transfer is never forwarded through a third node.
+
 What the overlay does not do. It does not relay: two nodes neither of which is reachable from the
 other share no dependency, and the scheduler says why. Edges are not members yet: §3.4 has an edge
 tunnel to a node over WireGuard between Korpis machines, and how an edge joins this mesh is settled

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT count(*) AS \"n!\" FROM volume WHERE node_id = $1 AND deleted_at IS NULL",
+  "query": "SELECT count(*) AS \"n!\" FROM volume\n                WHERE node_id = $1 AND deleted_at IS NULL AND store IS NULL",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       null
     ]
   },
-  "hash": "66cbacf937a493a7a29368413b03cf8642c973c8828d6f65845db660d25cc611"
+  "hash": "072e08eaef2a8b2369f0a633ee9c9a46b13f24331e7ce7489c42c87999f64e4e"
 }

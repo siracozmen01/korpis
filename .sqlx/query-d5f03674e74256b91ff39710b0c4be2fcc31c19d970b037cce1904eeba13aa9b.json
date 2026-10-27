@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,\n                      storage_class, size_bytes, quota_enforced, created_at, detached_at,\n                      deleted_at,\n                      ARRAY(SELECT s.id FROM snapshot s\n                             WHERE s.volume_id = volume.id AND s.deleted_at IS NULL\n                             ORDER BY s.id) AS \"snapshots!\"\n                 FROM volume\n                WHERE id = $1",
+  "query": "SELECT id, project_id, created_by, attached_to, name, kind, node_id, store, helper_id,\n                      storage_class, size_bytes, quota_enforced, created_at, detached_at,\n                      deleted_at,\n                      ARRAY(SELECT s.id FROM snapshot s\n                             WHERE s.volume_id = volume.id AND s.deleted_at IS NULL\n                             ORDER BY s.id) AS \"snapshots!\"\n                 FROM volume\n                WHERE project_id = $1\n                  AND ($2::uuid IS NULL OR created_by = $2 OR attached_to = $2)\n                  AND ($3 OR deleted_at IS NULL)\n                  AND ($4::uuid IS NULL OR id > $4)\n                ORDER BY id LIMIT $5",
   "describe": {
     "columns": [
       {
@@ -82,6 +82,17 @@
       },
       {
         "ordinal": 7,
+        "name": "store",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "store"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
         "name": "helper_id",
         "type_info": "Text",
         "origin": {
@@ -92,7 +103,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "storage_class",
         "type_info": "Text",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "size_bytes",
         "type_info": "Int8",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "quota_enforced",
         "type_info": "Bool",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "detached_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -147,7 +158,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "deleted_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "snapshots!",
         "type_info": "UuidArray",
         "origin": "Expression"
@@ -166,7 +177,11 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Uuid",
+        "Bool",
+        "Uuid",
+        "Int8"
       ]
     },
     "nullable": [
@@ -177,6 +192,7 @@
       false,
       false,
       false,
+      true,
       false,
       false,
       false,
@@ -187,5 +203,5 @@
       null
     ]
   },
-  "hash": "d366ff8498e6fd07d85fdbb3bae75b4e3414edc687e0f10d91c5a654675515b5"
+  "hash": "d5f03674e74256b91ff39710b0c4be2fcc31c19d970b037cce1904eeba13aa9b"
 }

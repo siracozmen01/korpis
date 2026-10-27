@@ -40,7 +40,7 @@ A node survives the filter only if all hold:
 | has every requested device available | §6 |
 | satisfies the intent's constraints | `PlacementSpec` label selectors, required affinity rules |
 | offers every storage class the intent's volumes name | `Node.storage_classes` |
-| holds every existing volume the intent attaches | `Volume.node` (§7 of `06-storage.md`); added 2026-10-14, when attaching was built: a node-local volume is on one disk |
+| holds every existing volume the intent attaches | `Volume.node` (§7 of `06-storage.md`); added 2026-10-14, when attaching was built: a node-local volume is on one disk. Designed 2026-10-27 for storage over the network (§2.1 there): a volume in a shared class is held by every node offering a class of its `store`, and one in a block class by every node offering its class; built the same day for shared classes |
 | the workload tolerates every taint | `Node.taints` |
 | is `ready`: active and connected, so not cordoned, draining, or unheard | `Node.admin`, `Node.connectivity` (§3.4 of `01-model.md`) |
 | belongs to the workload's organization or one of its ancestors | `Node.organization` (§3.4 of `01-model.md`) |
@@ -405,6 +405,48 @@ retry, and a retry that reaches the same explanation changes nothing, so the rec
 when this has been the reason and a watcher hears when the reason changes, not every retry pass. A
 cancellation that puts back the target a workload is placed for forgets the failure recorded for
 the target it withdrew.
+
+### 2.4 Failover: placing again a workload whose node is gone
+
+**Designed 2026-10-27** (P3.8a in §4 of `20-roadmap.md`; trace 80 of `23-walkthroughs.md`). The
+rule was already written, in the failure table of §9 of `02-architecture.md` and step 5 of trace 3:
+a workload whose `on_lease_expiry` is `stop` is placed again once the grantor's end of its lease
+has passed, and a `keep_running` one never is (§4.5 there). Nothing did it; this is what does.
+
+When the silent-node sweep has marked a node unreachable, the control plane takes each workload
+placed there whose resolved `on_lease_expiry` is `stop`, and once the grantor's end of its lease
+has passed, the receipt of its last renewal plus the term, places it again: the filter of §2.1 and
+the score of §2.2, the unreachable node failing the filter as any node not `ready` does, bound in
+one transaction under the placement lock with `bound_by: failover`, and recorded as the effect
+`workload.failover`, naming the node it left, the node it went to, and what it took with it. A
+workload no node can take stays placed where it was, its status saying why, and is tried again at
+each sweep. The node's reservations for it are released with the placement.
+
+A workload can be placed again only where all of its data is: it has no volume; or each volume is
+in a shared class, whose store the new node offers (§2.1 of `06-storage.md`); or in a block class
+the new node offers, whose provider fences the old node at the attach; or it is replicated and the
+workload declares `continuity.replica_failover: automatic`, and the new node holds its freshest
+replica, whose age the effect records as what was lost (§2.2 there). A workload with a node-local
+volume and no such replica is not moved, since its only copy is on the node that is gone, and its
+status says so (§5 of `18-operations.md`); an operator's `evacuate` may still start it elsewhere
+from its latest backup or empty, its plan naming the loss (§3).
+
+**What evaluates "the old node is no longer running it", where, and with what information:**
+nothing observes it, since the node is silent. The control plane holds when it received the last
+renewal of the lease and the term, and the holder stops a `stop` workload by its own clock before
+that end (§4.5 of `02-architecture.md`), so once the end has passed a working agent has stopped it;
+for a block class the provider also refuses the old node at the new attach, which holds even
+against an agent that is hung rather than cut off. A shared class has only the first, which its
+`fencing: lease_only` says.
+
+What it costs. A failover waits for the sweep's three missed heartbeats, ninety seconds by default,
+by when a sixty-second lease last renewed before the silence has ended too, and the workload starts
+from whatever its storage holds, as after a power cut. A node cut off from the control plane but
+not from its clients stops its `stop` workloads anyway, which is what `stop` means. When the node
+returns, its epoch has been superseded, so it stops what it still ran and keeps any local data as
+an orphan (§4.5 of `02-architecture.md`). What it does not do: move a workload back when its node
+returns, which would be the automatic rebalancing §9 refuses; or move a workload whose node is
+reachable and failing in some other way, which an operator's drain does (§3).
 
 ---
 

@@ -22,6 +22,7 @@ struct VolumeRow {
     name: String,
     kind: String,
     node_id: Uuid,
+    store: Option<String>,
     helper_id: String,
     storage_class: String,
     size_bytes: i64,
@@ -45,7 +46,9 @@ impl VolumeRow {
             attached_to: self.attached_to,
             name: self.name,
             kind,
-            node: self.node_id,
+            node: if self.store.is_some() { None } else { Some(self.node_id) },
+            store: self.store,
+            reported_by: self.node_id,
             helper_id: self.helper_id,
             storage_class: self.storage_class,
             size_bytes,
@@ -62,7 +65,7 @@ impl VolumeRead for PgStore {
     async fn volume(&self, id: Uuid) -> StoreResult<Option<Volume>> {
         let row = sqlx::query_as!(
             VolumeRow,
-            r#"SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,
+            r#"SELECT id, project_id, created_by, attached_to, name, kind, node_id, store, helper_id,
                       storage_class, size_bytes, quota_enforced, created_at, detached_at,
                       deleted_at,
                       ARRAY(SELECT s.id FROM snapshot s
@@ -87,7 +90,7 @@ impl VolumeRead for PgStore {
     ) -> StoreResult<Vec<Volume>> {
         let rows = sqlx::query_as!(
             VolumeRow,
-            r#"SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,
+            r#"SELECT id, project_id, created_by, attached_to, name, kind, node_id, store, helper_id,
                       storage_class, size_bytes, quota_enforced, created_at, detached_at,
                       deleted_at,
                       ARRAY(SELECT s.id FROM snapshot s
@@ -131,11 +134,16 @@ impl VolumeWrite for PgTx {
         &mut self,
         node: Uuid,
         v: &ReportedVolume,
+        store: Option<&str>,
         now: SystemTime,
-    ) -> StoreResult<()> {
-        match v.event {
-            VolumeEvent::Ensured => ensured(self, node, v, now).await,
-            VolumeEvent::Deleted => {
+    ) -> StoreResult<bool> {
+        match (v.event, store) {
+            (VolumeEvent::Ensured, None) => ensured(self, node, v, now).await.map(|()| true),
+            (VolumeEvent::Ensured, Some(store)) => {
+                shared_ensured(self, (node, store), v, now).await
+            }
+            (VolumeEvent::Deleted, Some(store)) => shared_deleted(self, store, v, now).await,
+            (VolumeEvent::Deleted, None) => {
                 if v.kind == VolumeKind::Stream {
                     stream_gone(self, node, v.workload, run_of(&v.name)).await?;
                 }
@@ -145,7 +153,7 @@ impl VolumeWrite for PgTx {
                       WHERE deleted_at IS NULL
                         AND volume_id IN (SELECT id FROM volume
                                            WHERE node_id = $1 AND helper_id = $2
-                                             AND deleted_at IS NULL)",
+                                             AND deleted_at IS NULL AND store IS NULL)",
                     node,
                     v.helper_id,
                     from_time(now)
@@ -156,7 +164,8 @@ impl VolumeWrite for PgTx {
                 sqlx::query!(
                     "UPDATE volume SET deleted_at = $3, attached_to = NULL,
                                        detached_at = coalesce(detached_at, $3)
-                      WHERE node_id = $1 AND helper_id = $2 AND deleted_at IS NULL",
+                      WHERE node_id = $1 AND helper_id = $2 AND deleted_at IS NULL
+                        AND store IS NULL",
                     node,
                     v.helper_id,
                     from_time(now)
@@ -164,7 +173,7 @@ impl VolumeWrite for PgTx {
                 .execute(&mut *self.tx)
                 .await
                 .map_err(from_sqlx)?;
-                Ok(())
+                Ok(true)
             }
         }
     }
@@ -216,7 +225,7 @@ async fn ensured(
                              helper_id, storage_class, size_bytes, quota_enforced, created_at)
          SELECT $1, w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10
            FROM workload w WHERE w.id = $2
-         ON CONFLICT (node_id, helper_id) WHERE deleted_at IS NULL DO UPDATE
+         ON CONFLICT (node_id, helper_id) WHERE deleted_at IS NULL AND store IS NULL DO UPDATE
             SET attached_to = EXCLUDED.attached_to,
                 detached_at = NULL,
                 storage_class = EXCLUDED.storage_class,
@@ -238,4 +247,74 @@ async fn ensured(
     .await
     .map_err(from_sqlx)?;
     Ok(())
+}
+
+/// A volume in a shared store ensured by `node`: as on a node's disk, but known by its store and
+/// the helper's identifier there, whichever node reports it, and kept by the node that last did.
+/// One already there is the reporting workload's only if it is attached to it, which an adopting
+/// workload's is from its approval; any other is left as it is, and the report refused, since a
+/// node's word names the store (Finding 201 of docs/23-walkthroughs.md). Whether it was kept.
+async fn shared_ensured(
+    tx: &mut PgTx,
+    (node, store): (Uuid, &str),
+    v: &ReportedVolume,
+    now: SystemTime,
+) -> StoreResult<bool> {
+    let size = i64::try_from(v.size_bytes)
+        .map_err(|_| StoreError::Corrupt(format!("volume size {}", v.size_bytes)))?;
+    let done = sqlx::query!(
+        "INSERT INTO volume (id, project_id, created_by, attached_to, name, kind, node_id, store,
+                             helper_id, storage_class, size_bytes, quota_enforced, created_at)
+         SELECT $1, w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10, $11
+           FROM workload w WHERE w.id = $2
+         ON CONFLICT (store, helper_id) WHERE deleted_at IS NULL AND store IS NOT NULL DO UPDATE
+            SET attached_to = EXCLUDED.attached_to,
+                detached_at = NULL,
+                node_id = EXCLUDED.node_id,
+                storage_class = EXCLUDED.storage_class,
+                size_bytes = CASE WHEN EXCLUDED.size_bytes > 0 THEN EXCLUDED.size_bytes
+                                  ELSE volume.size_bytes END,
+                quota_enforced = EXCLUDED.quota_enforced
+          WHERE volume.project_id = EXCLUDED.project_id
+            AND volume.attached_to = EXCLUDED.attached_to",
+        Uuid::now_v7(),
+        v.workload,
+        v.name,
+        v.kind.as_str(),
+        node,
+        store,
+        v.helper_id,
+        v.storage_class,
+        size,
+        v.quota_enforced,
+        from_time(now)
+    )
+    .execute(&mut *tx.tx)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(done.rows_affected() == 1)
+}
+
+/// A volume in a shared store deleted, by whichever node reached it: only the reporting
+/// workload's, attached to it or, retained, made for it, whose plan deleted it; whether it was.
+async fn shared_deleted(
+    tx: &mut PgTx,
+    store: &str,
+    v: &ReportedVolume,
+    now: SystemTime,
+) -> StoreResult<bool> {
+    let done = sqlx::query!(
+        "UPDATE volume SET deleted_at = $3, attached_to = NULL,
+                           detached_at = coalesce(detached_at, $3)
+          WHERE store = $1 AND helper_id = $2 AND deleted_at IS NULL
+            AND (attached_to = $4 OR (attached_to IS NULL AND created_by = $4))",
+        store,
+        v.helper_id,
+        from_time(now),
+        v.workload
+    )
+    .execute(&mut *tx.tx)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(done.rows_affected() == 1)
 }

@@ -467,7 +467,10 @@ Intent
   config        map[str]Value  validated against the recipe's schema (Rule K-17)
   placement     PlacementSpec  constraints, affinities, preferred region
   continuity    ContinuitySpec on_lease_expiry: derived | keep_running | stop
-                               (§4.5 of 02-architecture.md); derived when unset
+                               (§4.5 of 02-architecture.md); derived when unset;
+                               replica_failover: manual | automatic, whether failover may
+                               start it on a replica and lose what the replica lacks (§2.4 of
+                               05-scheduling.md); manual when unset; added 2026-10-27
   dependencies  []Dependency   name, target (workload, endpoint, or selector) in the same
                                project, inject, required (§5 of 07-networking.md)
   streams       StreamSpec     its console stream's rate, burst, and retention (bytes or a
@@ -1073,9 +1076,11 @@ Placement
                                 sees though not every reader may see the node (§8 of
                                 08-identity.md)
   bound_at      Timestamp
-  bound_by      scheduler | operator | migration | recovery
+  bound_by      scheduler | operator | migration | recovery | failover
                                 recovery: a restore, to the node that presented the workload's
-                                assignment (§8 of 03-state.md)
+                                assignment (§8 of 03-state.md); failover: placed again once its
+                                node went silent and its lease ended (§2.4 of
+                                05-scheduling.md), added 2026-10-27
   recovered_epoch  int?         the highest lease epoch a node holding it presented to a restore
   held_at       Timestamp?      a restore held it: its node presented its assignments without it,
                                 so nothing is sent for it until an operator confirms it or it is
@@ -1168,6 +1173,11 @@ Volume
   size          bytes
   class         StorageClass     local-zfs | local-btrfs | local-ext4 | network | ...
   node          NodeID?          null for network-backed classes
+  store         string?          the storage a shared class's volume is in, as its nodes read
+                                 it (§2.1 of 06-storage.md); added 2026-10-27
+  replicas      []Replica        node, and the snapshot it last received and when; only for a
+                                 volume declaring `replicas` (§2.2 of 06-storage.md); added
+                                 2026-10-27
   attached_to   WorkloadID?
   mode          rw | ro | shared
   snapshots     []SnapshotRef
@@ -1181,6 +1191,13 @@ was made for, which `attached_to` may no longer name once another adopts it), `q
 (whether `size` is enforced in the write path; where it is not, `size` is shown nowhere, Rule K-3),
 and `detached_at`. The control plane keeps it from the volume events nodes journal, so it never
 claims a volume no node made (§7 of `06-storage.md`).
+
+> Added 2026-10-27, when storage over the network and replication were designed (Finding 199 of
+> `23-walkthroughs.md`). A volume declaration says `replicas`, how many other nodes keep a copy,
+> and `replication_interval`, and the intent's `continuity` says `replica_failover`. Phase 3 named
+> replicated storage and the schema frozen in Phase 0 had no field to ask for it in, the miss rule
+> E of `20-roadmap.md` exists to prevent; the fields are added under it as `streams` and `egress`
+> were, and a declaration stored before them reads as one with no replica.
 
 **Invariants**
 - A volume outlives the workload attached to it. Deleting a workload does not delete its volumes;

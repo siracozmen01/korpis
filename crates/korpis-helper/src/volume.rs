@@ -132,10 +132,10 @@ impl Class {
                     tracing::info!(volume = %r.volume, "btrfs limits bytes alone: no inode limit");
                 }
             }
-            Backend::Directory if r.size_bytes > 0 || r.inodes > 0 => {
+            Backend::Directory | Backend::Shared if r.size_bytes > 0 || r.inodes > 0 => {
                 tracing::info!(volume = %r.volume, class = %self.name(), "no quota: none enforced");
             }
-            Backend::Directory => {}
+            Backend::Directory | Backend::Shared => {}
         }
         Ok(())
     }

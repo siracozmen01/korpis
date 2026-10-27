@@ -67,7 +67,19 @@ pub(crate) type Placing = (Harness, Stream, String, String, agent::Assignment);
 async fn start_placing() -> Placing {
     let h = Harness::new().await;
     let a = TestAgent::enroll(&h, "fra-3", 1).await;
-    let (mut s, first) = TestAgent::open(&h, a.hello_at(SystemTime::now(), &[1; 16])).await;
+    // Its helper's default class, which every node offers and the volumes it reports name.
+    let local = pb::StorageClassInfo {
+        name: "local".into(),
+        backend: pb::StorageBackend::STORAGE_BACKEND_DIRECTORY.into(),
+        capabilities: pb::StorageCapabilities {
+            fencing: pb::Fencing::FENCING_NONE.into(),
+            ..Default::default()
+        }
+        .into(),
+        ..Default::default()
+    };
+    let hello = a.hello_with(SystemTime::now(), &[1; 16], vec![local]);
+    let (mut s, first) = TestAgent::open(&h, hello).await;
     welcome(&first.unwrap());
     let repo = push_paper().await;
     let project = project(&h, &h.root_org(), "games").await;

@@ -251,11 +251,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let declaration = shown::kept(&base, cmd.declaration, &cmd.keep)?;
         let recipe_ref = (cmd.recipe_name.as_str(), cmd.recipe_version.as_str());
-        let (body, recipe, changes) =
+        let (mut body, recipe, changes) =
             self.complete_declaration(caller, &base, recipe_ref, declaration).await?;
         self.check_kept(caller, &base, &cmd.keep, &body).await?;
         let owner = (base.workload.id, base.workload.project);
         self.check_existing(caller, owner, &body).await?;
+        self.existing_classes(&mut body).await?;
         self.check_routes((base.workload.organization, base.workload.id), &body).await?;
         self.check_seeds(caller, base.target.as_ref().map(|t| &t.body), &body).await?;
         let passage = match &cmd.set {

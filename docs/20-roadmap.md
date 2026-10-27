@@ -268,62 +268,74 @@ The `firecracker` driver. Rule D's validation of the driver interface. Migration
 resumable and reversible (K-4). Replicated storage classes, and the network classes (Ceph, NFS,
 iSCSI) of §2 of `06-storage.md`, whose question 3 decides whether one class covers them, since
 `shared_access` is what live migration and failover need; homed here 2026-10-19, when Phase 1
-closed and §2 there was found pointing at this section for them while no phase named them. Edges in
-failover groups, which is what `stable` exposure requires to exist at all and what lets it survive
-the move (§3.1 of `07-networking.md`); designed 2026-10-26 (§3.1 there, trace 78 of
-`23-walkthroughs.md`) as groups of two or more of an organization's own nodes, each stable address
-held by one member under a lease with an epoch and forwarded by every member to the workload's node
-over GRE inside the mesh, the client's address kept, each member's liveness probed by the control
-plane through its forwarding path, and the group's ingress served by its members. Built 2026-10-26,
-its control plane's half: groups, edge pools, the allocation of a `stable` endpoint's address and
-port at placement, the `edge` placement check, and each node's table, tested over the API; and the
-nodes' forwarding, the GRE links, and the refusal, tested in network namespaces; and the leases on
-the groups' addresses, each held by the member its table names, under a lease fenced as a
-workload's is, and the control plane's probe of each member through its forwarding path, which
-moves an address from a member that stops answering; and a routed edge pool's address, routed by
-the pool's router to the member its lease was issued to; and IPv6 stable addresses, forwarded
-inside the same IPv4 links; and `stable` routed at a `cluster` pool's address where no group
-serves; and the probe answered through a node no control plane shares a network with; and
-`ingress` through the group, each member's proxy routing every name the group serves at the
-group's ingress address and reaching the workloads through the mesh (2026-10-27). The overlay
-(§9 of `07-networking.md`), so a dependency can cross nodes; designed 2026-10-25 as a WireGuard
-mesh of every node, each with a pool of its own (§9.1 there, trace 74 of `23-walkthroughs.md`);
-each node's pool given at enrollment, the mesh's interfaces, the peers each node is told, each
-pair's reachability, dependencies across the mesh with each destination's admission, the
-scheduler's pair check, and each dependency's status are built, and tested end to end with two
-nodes each in a network namespace of its own. Dedicated addresses (§3 there), routed to whichever
-node a workload runs on; designed 2026-10-26 (§3.7 there, trace 77 of `23-walkthroughs.md`) as
-pools an organization owns, an address allocated with the placement and held by translation on its
-node, a `node` pool's address pinning its workload, and a `cluster` pool's moved by an address
-router extension, whose contract this phase builds and tests with a router of the tests' own; the
-routers that speak BGP or a provider's API are of the core extensions of §2 of `16-extensions.md`,
-built through the contract in Phase 4. Built 2026-10-26: pools on one node, routed there or on its
-link, and the router's contract, with an API test's own router; the router told a migration's new
-node at its cutover is built with migration. HTTP/3 at the ingress, on the UDP path edges bring
-(§3.2 there); built 2026-10-27, at a node's own ingress and at an edge group's ingress address, for
-every route the proxy terminates without client certificates. Network rules naming workloads by
-label (§6 there), designed and built 2026-10-26, when it was found that they decide something on
-one node as on many and that the overlay was never what they waited for (Finding 182 of
-`23-walkthroughs.md`). Devices, including GPU. Dedicated cores (§5.2 of `05-scheduling.md`): a
-`cpuset` per driver and the scheduler's accounting of whole cores with their siblings, which the
-schema accepted from Phase 0 while nothing held them; homed here 2026-10-25, when it was found that
-no phase named them and that a workload asking for them ran on shared cores (Finding 167 of
-`23-walkthroughs.md`), and refused at declaration until then. `AssignmentDelta` (§9 of
-`10-api.md`), once nodes hold enough workloads for the difference to be measured. Drain and
-evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since draining a node is
-migrating its workloads off it; and the `template_rollout` Operation there, which issues a grant
-template's newer version to the holders of an older one (§3.5 of `08-identity.md`), the one
-Operation of Phase 2's tenancy that needs this machinery. With edges, the count of a node's ports
-learns them: until then every `stable` endpoint reserves a port of its node, which one an edge
-serves does not use (§3 of `07-networking.md`). Application-level health (Rule K-16): the node runs
-a workload's probes and acts on their verdicts (§5 of `04-runtimes.md`), homed here 2026-10-23,
-when it was found that no phase named it while four documents described it (Finding 151 of
-`23-walkthroughs.md`). The `tcp` and `http` probes are built, the `query` probe through its
-protocol's health provider (§5 of `16-extensions.md`), the `heartbeat` probe through the workload's
-identity socket, the `exec` probe through either driver's `Exec`, the `firecracker` driver's
-through the guest's agent, and the `guest_agent` probe through a microVM's vsock channel to its
-guest. A microVM's `/run/korpis` reaches its guest over that channel: its identity socket and API
-relay served there by its first process (trace 65 there), and its managed files and its
+closed and §2 there was found pointing at this section for them while no phase named them. Designed
+2026-10-27 (§2.1 and §2.2 there, trace 80 of `23-walkthroughs.md`): question 3 resolved as two
+kinds by what a node is given, a filesystem many nodes mount, whose store each node reads from a
+marker at its root, and a device one node attaches, made, attached, and fenced by a
+`provider.block_storage` (§5 of `16-extensions.md`) and attached by the kernel's initiator;
+replicated volumes as Korpis's own incremental send to replica nodes over the mesh, on tickets each
+receiver checks, which migration's copies share; and failover, a `stop` workload placed again once
+its node is silent and its lease over, onto a node holding all its data (§2.4 of
+`05-scheduling.md`). This phase builds the contract, the helper's attach, and a provider of the
+tests' own; the providers for Ceph RBD and an iSCSI target's interface are core extensions of §2 of
+`16-extensions.md`, built through the contract in Phase 4 with the others, as the address routers
+are. Built 2026-10-27: the shared class, its store read from each node's mount, its volumes the
+store's, placed wherever the store is offered, and the derived `on_lease_expiry` read from the
+classes at last (Finding 200 of `23-walkthroughs.md`). Edges in failover groups, which is what
+`stable` exposure requires to exist at all and what lets it survive the move (§3.1 of
+`07-networking.md`); designed 2026-10-26 (§3.1 there, trace 78 of `23-walkthroughs.md`) as groups
+of two or more of an organization's own nodes, each stable address held by one member under a lease
+with an epoch and forwarded by every member to the workload's node over GRE inside the mesh, the
+client's address kept, each member's liveness probed by the control plane through its forwarding
+path, and the group's ingress served by its members. Built 2026-10-26, its control plane's half:
+groups, edge pools, the allocation of a `stable` endpoint's address and port at placement, the
+`edge` placement check, and each node's table, tested over the API; and the nodes' forwarding, the
+GRE links, and the refusal, tested in network namespaces; and the leases on the groups' addresses,
+each held by the member its table names, under a lease fenced as a workload's is, and the control
+plane's probe of each member through its forwarding path, which moves an address from a member that
+stops answering; and a routed edge pool's address, routed by the pool's router to the member its
+lease was issued to; and IPv6 stable addresses, forwarded inside the same IPv4 links; and `stable`
+routed at a `cluster` pool's address where no group serves; and the probe answered through a node
+no control plane shares a network with; and `ingress` through the group, each member's proxy
+routing every name the group serves at the group's ingress address and reaching the workloads
+through the mesh (2026-10-27). The overlay (§9 of `07-networking.md`), so a dependency can cross
+nodes; designed 2026-10-25 as a WireGuard mesh of every node, each with a pool of its own (§9.1
+there, trace 74 of `23-walkthroughs.md`); each node's pool given at enrollment, the mesh's
+interfaces, the peers each node is told, each pair's reachability, dependencies across the mesh
+with each destination's admission, the scheduler's pair check, and each dependency's status are
+built, and tested end to end with two nodes each in a network namespace of its own. Dedicated
+addresses (§3 there), routed to whichever node a workload runs on; designed 2026-10-26 (§3.7 there,
+trace 77 of `23-walkthroughs.md`) as pools an organization owns, an address allocated with the
+placement and held by translation on its node, a `node` pool's address pinning its workload, and a
+`cluster` pool's moved by an address router extension, whose contract this phase builds and tests
+with a router of the tests' own; the routers that speak BGP or a provider's API are of the core
+extensions of §2 of `16-extensions.md`, built through the contract in Phase 4. Built 2026-10-26:
+pools on one node, routed there or on its link, and the router's contract, with an API test's own
+router; the router told a migration's new node at its cutover is built with migration. HTTP/3 at
+the ingress, on the UDP path edges bring (§3.2 there); built 2026-10-27, at a node's own ingress
+and at an edge group's ingress address, for every route the proxy terminates without client
+certificates. Network rules naming workloads by label (§6 there), designed and built 2026-10-26,
+when it was found that they decide something on one node as on many and that the overlay was never
+what they waited for (Finding 182 of `23-walkthroughs.md`). Devices, including GPU. Dedicated cores
+(§5.2 of `05-scheduling.md`): a `cpuset` per driver and the scheduler's accounting of whole cores
+with their siblings, which the schema accepted from Phase 0 while nothing held them; homed here
+2026-10-25, when it was found that no phase named them and that a workload asking for them ran on
+shared cores (Finding 167 of `23-walkthroughs.md`), and refused at declaration until then.
+`AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads for the difference to be
+measured. Drain and evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since
+draining a node is migrating its workloads off it; and the `template_rollout` Operation there,
+which issues a grant template's newer version to the holders of an older one (§3.5 of
+`08-identity.md`), the one Operation of Phase 2's tenancy that needs this machinery. With edges,
+the count of a node's ports learns them: until then every `stable` endpoint reserves a port of its
+node, which one an edge serves does not use (§3 of `07-networking.md`). Application-level health
+(Rule K-16): the node runs a workload's probes and acts on their verdicts (§5 of `04-runtimes.md`),
+homed here 2026-10-23, when it was found that no phase named it while four documents described it
+(Finding 151 of `23-walkthroughs.md`). The `tcp` and `http` probes are built, the `query` probe
+through its protocol's health provider (§5 of `16-extensions.md`), the `heartbeat` probe through
+the workload's identity socket, the `exec` probe through either driver's `Exec`, the `firecracker`
+driver's through the guest's agent, and the `guest_agent` probe through a microVM's vsock channel
+to its guest. A microVM's `/run/korpis` reaches its guest over that channel: its identity socket
+and API relay served there by its first process (trace 65 there), and its managed files and its
 dependencies' files sent as copies as they change, so a heartbeat probe runs on either tier
 (Finding 154 there, closed). A running microVM's file sessions, the panel's file manager and SFTP,
 are served inside its guest by the file worker its boot drive carries, and a stopped one's by the
@@ -528,7 +540,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: seventy-nine traces and their 197 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: eighty traces and their 201 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

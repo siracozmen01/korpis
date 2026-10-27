@@ -74,6 +74,19 @@ const fn fencing_to_pb(f: Fencing) -> pb::Fencing {
     }
 }
 
+/// A shared class's store: a UUID, the form the helper writes it in, and only on a class reached
+/// over the network, since a class on one node's disk is no storage another node shares.
+fn store_from_pb(field: &str, c: &pb::StorageClassInfo) -> Result<Option<String>> {
+    if c.store.is_empty() {
+        return Ok(None);
+    }
+    if c.backend.as_known() != Some(pb::StorageBackend::STORAGE_BACKEND_NETWORK) {
+        return Err(invalid(field, "only a class reached over the network has a store"));
+    }
+    let store = uuid::Uuid::parse_str(&c.store).map_err(|_| invalid(field, "not a UUID"))?;
+    Ok(Some(store.hyphenated().to_string()))
+}
+
 /// The storage classes a helper declares.
 ///
 /// # Errors
@@ -101,6 +114,7 @@ pub fn storage_classes_from_pb(
                 },
                 capacity_bytes: c.capacity_bytes,
                 free_bytes: c.free_bytes,
+                store: store_from_pb(&at("store"), c)?,
             })
         })
         .collect()
@@ -135,6 +149,44 @@ pub fn storage_class_to_pb(c: &StorageClass) -> pb::StorageClassInfo {
         .into(),
         capacity_bytes: c.capacity_bytes,
         free_bytes: c.free_bytes,
+        store: c.store.clone().unwrap_or_default(),
         ..Default::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
+    use super::*;
+
+    fn class(backend: pb::StorageBackend, store: &str) -> pb::StorageClassInfo {
+        pb::StorageClassInfo {
+            name: "shared".into(),
+            backend: backend.into(),
+            capabilities: pb::StorageCapabilities {
+                shared_access: true,
+                multi_node_attach: true,
+                fencing: pb::Fencing::FENCING_LEASE_ONLY.into(),
+                ..Default::default()
+            }
+            .into(),
+            store: store.into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_store_is_a_uuid_on_a_class_reached_over_the_network() {
+        let network = pb::StorageBackend::STORAGE_BACKEND_NETWORK;
+        let store = "0B9C1F40-3D2E-4C55-9F0A-7E6D5C4B3A21";
+        let read = storage_classes_from_pb("c", &[class(network, store)]).unwrap();
+        let wanted = "0b9c1f40-3d2e-4c55-9f0a-7e6d5c4b3a21";
+        assert_eq!(read[0].store.as_deref(), Some(wanted), "in one form, as every node reads it");
+        assert_eq!(storage_class_to_pb(&read[0]).store, wanted, "and back");
+        let local = class(pb::StorageBackend::STORAGE_BACKEND_BTRFS, store);
+        assert!(storage_classes_from_pb("c", &[local]).is_err(), "a node's own disk is no store");
+        assert!(storage_classes_from_pb("c", &[class(network, "nfs-1")]).is_err());
+        let none = storage_classes_from_pb("c", &[class(network, "")]).unwrap();
+        assert_eq!(none[0].store, None);
     }
 }

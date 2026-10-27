@@ -54,6 +54,7 @@ mod recipes;
 mod runs;
 mod serving;
 mod sftp;
+mod shared_storage;
 mod snapshots;
 mod stopping;
 mod support;

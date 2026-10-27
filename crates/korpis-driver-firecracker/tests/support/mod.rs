@@ -133,6 +133,7 @@ pub fn settings(dir: &Path) -> Settings {
         writer: built("korpis-stream", "korpis-stream-writer", None),
         content: dir.join("content"),
         volume_root: dir.join("volumes"),
+        shared_roots: Vec::new(),
         netns_root: dir.join("netns"),
         identity_root: dir.join("identity"),
         state: dir.join("state"),

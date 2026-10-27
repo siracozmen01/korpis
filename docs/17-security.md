@@ -326,6 +326,10 @@ The principle from §3: reduce reachability first.
   obtains an endpoint's certificate and key only while the endpoint's workload is placed on it, and
   keeps them in its state directory for a restart without the control plane; the control plane
   keeps every key sealed by its TLS key (§3.2 of `07-networking.md`).
+- **Nodes hold a block volume's credential only while its workload is placed on them**, scoped to
+  that volume where the storage can scope one; the provider holds it for the volume's life (§2.1
+  of `06-storage.md`; designed 2026-10-27). A shared class's mount is the operator's, and Korpis
+  holds no credential of it.
 - **The agent's own key** is per-node, rotatable, and its compromise is bounded by §9.
 
 ---
@@ -418,6 +422,19 @@ epoch is that issue rather than a step of its own. What it does not do: its volu
 it, since nothing moves a volume off a node before migration; a workload attached to one stays
 unplaced, saying why, until it is restored from a backup elsewhere. On one machine there is no
 other node, so every workload stays unplaced until the machine is rebuilt and enrolled again.
+
+Designed 2026-10-27, with storage over the network and replication (§2.1 and §2.2 of
+`06-storage.md`): a workload whose volumes are in a shared or block class is placed again with its
+data, and a replicated one from its freshest replica, losing what that replica lacks, as failover
+places them (§2.4 of `05-scheduling.md`); a block class's provider refuses the removed node the
+device at the new attach. The node's blast radius grows by what it held for others: the replicas
+it kept of volumes running elsewhere, which it could read as it reads its own, and the
+credentials of the block volumes of the workloads placed on it, each scoped to its volume where
+the storage can scope one. A replica it received cannot have been written by it into another
+node's volume: a transfer runs from a volume's own node to its replicas, on a ticket naming both,
+and the mesh admits it from the sender's key alone. A node of another organization reaches no
+store an organization's node declared first, however it names its own mount, and a report it
+makes keeps or deletes only its own workloads' volumes (Finding 201 of `23-walkthroughs.md`).
 
 It also held the private keys of the ingress endpoints placed on it, which outlive the fence: a key
 keeps working for as long as its certificate is valid. So removing a node as compromised revokes,

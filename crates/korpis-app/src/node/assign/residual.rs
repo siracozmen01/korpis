@@ -32,13 +32,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut here = Vec::new();
         for p in self.store.open_plans(workload).await? {
             if let Some(v) = p.target.volume()
-                && self.store.volume(v).await?.is_some_and(|v| v.node == node)
+                && self.store.volume(v).await?.is_some_and(|v| v.keeper() == node)
             {
                 here.push(p);
             }
         }
         let Some(plan) = active_plan(here, self.clock.now()) else { return Ok(None) };
-        let on_lease_expiry = target.body.continuity.resolved(false);
+        let on_lease_expiry = self.on_expiry(node, &target.body).await?;
         Ok(Some(Desired {
             assignment: Assignment {
                 workload,

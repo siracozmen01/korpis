@@ -53,9 +53,15 @@ pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> Mach
     if secrets.len() > SECRETS || secrets.iter().any(long) {
         return Err(refused("too many secrets to redact, or one too long"));
     }
-    let root = settings.volume_root.canonicalize().map_err(failed)?;
+    let own = settings.volume_root.canonicalize().map_err(failed)?;
+    let mut shared = Vec::new();
+    for root in &settings.shared_roots {
+        shared.push(root.canonicalize().map_err(failed)?);
+    }
     for m in &spec.mounts {
-        crate::volume::checked(&root, &m.source).map_err(refused)?;
+        // Checked against the root it names, the volume root unless it is under a shared one.
+        let root = shared.iter().find(|r| Path::new(&m.source).starts_with(r)).unwrap_or(&own);
+        crate::volume::checked(root, &m.source).map_err(refused)?;
         if !m.destination.starts_with('/') {
             return Err(refused(format!("volume {:?} is mounted at no absolute path", m.volume)));
         }
@@ -267,6 +273,7 @@ mod tests {
             writer: "/w".into(),
             content: "/c".into(),
             volume_root: "/v".into(),
+            shared_roots: Vec::new(),
             netns_root: "/n".into(),
             identity_root: "/i".into(),
             state: "/s".into(),

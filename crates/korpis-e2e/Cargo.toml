@@ -27,7 +27,7 @@ korpis-driver-kit = { path = "../korpis-driver-kit" }
 korpis-driver-firecracker = { path = "../korpis-driver-firecracker" }
 korpis-driver-oci = { path = "../korpis-driver-oci" }
 korpis-extension = { path = "../korpis-extension" }
-korpis-helper = { path = "../korpis-helper" }
+korpis-helper = { path = "../korpis-helper", features = ["testing"] }
 korpis-idp-oidc = { path = "../korpis-idp-oidc" }
 http = "1"
 # HTTP/3 at the ingress driven from a client's namespace, as a browser told by `Alt-Svc` drives it.

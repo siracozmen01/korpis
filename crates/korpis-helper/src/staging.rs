@@ -73,7 +73,7 @@ impl Class {
                 }
                 None => Ok((0, 0)),
             },
-            Backend::Directory => Ok((0, 0)),
+            Backend::Directory | Backend::Shared => Ok((0, 0)),
         }
     }
 
@@ -243,7 +243,7 @@ impl Class {
                 quota::limit(&self.handle, now, s.limits.0, s.limits.1)?;
                 self.projects.forget(&staged)?;
             }
-            Backend::Directory => {}
+            Backend::Directory | Backend::Shared => {}
         }
         Ok(())
     }

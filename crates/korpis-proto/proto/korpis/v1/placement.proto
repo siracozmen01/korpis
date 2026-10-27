@@ -289,6 +289,10 @@ message StorageClassInfo {
   StorageCapabilities capabilities = 3;
   uint64 capacity_bytes = 4;
   uint64 free_bytes = 5;
+  // For a shared class, the storage it is: the identifier the first helper linked at the root
+  // of the filesystem the operator mounted, which every node reaching that storage reads alike
+  // (§2.1 of docs/06-storage.md). Empty for a class on the node's own disk.
+  string store = 6;
 }
 
 enum StorageBackend {

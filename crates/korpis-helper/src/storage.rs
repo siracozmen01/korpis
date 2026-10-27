@@ -11,9 +11,12 @@
 use crate::projects::Projects;
 use crate::{btrfs, quota};
 use korpis_proto::korpis::v1 as pb;
+pub use shared::Network;
 use std::fs::File;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
+
+mod shared;
 
 /// `statfs` magic numbers of the filesystems with project quota.
 const EXT4_MAGIC: u64 = 0xEF53;
@@ -30,13 +33,16 @@ pub enum Backend {
     XfsProject,
     /// One subvolume per volume, its bytes limited by its qgroup.
     Btrfs,
+    /// Plain directories on a filesystem reached over the network that other nodes mount too
+    /// (§2.1 of docs/06-storage.md); no quota, and the agents' leases the only fencing.
+    Shared,
 }
 
 impl Backend {
     /// Whether limits are enforced in the write path.
     #[must_use]
     pub fn enforces(self) -> bool {
-        !matches!(self, Self::Directory)
+        !matches!(self, Self::Directory | Self::Shared)
     }
 }
 
@@ -49,6 +55,8 @@ pub struct Class {
     /// The root, held open: quota calls name the filesystem through it.
     pub(crate) handle: File,
     pub(crate) projects: Projects,
+    /// For a shared class, the store it is.
+    store: Option<String>,
 }
 
 /// The root's mode: root's own, and traversable by the driver that mounts what is in it.
@@ -78,12 +86,32 @@ fn backend_of(root: &File) -> Backend {
     }
 }
 
+/// The class root `root`, made if missing where `make` allows, which must be a directory and not
+/// a link to one, given the root's mode and held open.
+fn root_of(root: &Path, make: bool) -> std::io::Result<File> {
+    if make {
+        std::fs::create_dir_all(root)?;
+    }
+    if !std::fs::symlink_metadata(root)?.is_dir() {
+        let why = format!("{} is not a directory", root.display());
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, why));
+    }
+    std::fs::set_permissions(root, std::fs::Permissions::from_mode(ROOT_MODE))?;
+    File::open(root)
+}
+
 /// What `backend` can do, as it is declared (§2 of docs/06-storage.md).
 fn capabilities(backend: Backend) -> pb::StorageCapabilities {
     let mut c =
         pb::StorageCapabilities { fencing: pb::Fencing::FENCING_NONE.into(), ..Default::default() };
     match backend {
         Backend::Directory => {}
+        // Many nodes mount it, any of them may attach a volume after another, and nothing but
+        // the agents' leases keeps two from writing at once (§2.1 of 06-storage).
+        Backend::Shared => {
+            (c.shared_access, c.multi_node_attach) = (true, true);
+            c.fencing = pb::Fencing::FENCING_LEASE_ONLY.into();
+        }
         // Quota is all a project backend has (§2 of 06-storage).
         Backend::Ext4Project | Backend::XfsProject => {
             (c.quota_enforced, c.quota_capacity, c.quota_inodes) = (true, true, true);
@@ -103,17 +131,25 @@ impl Class {
     /// The class `name` keeping its volumes under `root`, which is created if missing and must
     /// be a directory, not a link to one.
     pub fn open(name: &str, root: &Path) -> std::io::Result<Self> {
-        std::fs::create_dir_all(root)?;
-        if !std::fs::symlink_metadata(root)?.is_dir() {
-            let why = format!("{} is not a directory", root.display());
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, why));
-        }
-        std::fs::set_permissions(root, std::fs::Permissions::from_mode(ROOT_MODE))?;
-        let handle = File::open(root)?;
+        let handle = root_of(root, true)?;
         let backend = backend_of(&handle);
         tracing::info!(class = %name, root = %root.display(), ?backend, "storage class");
         let projects = Projects::open(root)?;
-        Ok(Self { name: name.to_owned(), root: root.to_owned(), backend, handle, projects })
+        let (name, root) = (name.to_owned(), root.to_owned());
+        Ok(Self { name, root, backend, handle, projects, store: None })
+    }
+
+    /// The shared class `name` at `root`, where the operator mounted a filesystem other nodes
+    /// mount too: refused unless it is reached over the network, where `network` requires it, and
+    /// unless root may make, give away, and remove a directory there (§2.1 of
+    /// docs/06-storage.md). The directory is the operator's mount, and is not made here.
+    pub fn shared(name: &str, root: &Path, network: Network) -> std::io::Result<Self> {
+        let handle = root_of(root, false)?;
+        let store = shared::open(root, &handle, network)?;
+        tracing::info!(class = %name, root = %root.display(), %store, "shared storage class");
+        let projects = Projects::open(root)?;
+        let (name, root) = (name.to_owned(), root.to_owned());
+        Ok(Self { name, root, backend: Backend::Shared, handle, projects, store: Some(store) })
     }
 
     /// Its name.
@@ -151,6 +187,7 @@ impl Class {
             Backend::Ext4Project => pb::StorageBackend::STORAGE_BACKEND_EXT4_PROJECT,
             Backend::XfsProject => pb::StorageBackend::STORAGE_BACKEND_XFS_PROJECT,
             Backend::Btrfs => pb::StorageBackend::STORAGE_BACKEND_BTRFS,
+            Backend::Shared => pb::StorageBackend::STORAGE_BACKEND_NETWORK,
         };
         let capabilities = capabilities(self.backend);
         pb::StorageClassInfo {
@@ -159,6 +196,7 @@ impl Class {
             capabilities: capabilities.into(),
             capacity_bytes: capacity,
             free_bytes: free,
+            store: self.store.clone().unwrap_or_default(),
             ..Default::default()
         }
     }

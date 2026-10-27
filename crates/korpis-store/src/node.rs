@@ -285,7 +285,8 @@ impl NodeWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         let volumes = sqlx::query_scalar!(
-            r#"SELECT count(*) AS "n!" FROM volume WHERE node_id = $1 AND deleted_at IS NULL"#,
+            r#"SELECT count(*) AS "n!" FROM volume
+                WHERE node_id = $1 AND deleted_at IS NULL AND store IS NULL"#,
             node
         )
         .fetch_one(&mut *self.tx)

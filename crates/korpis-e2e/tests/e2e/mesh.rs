@@ -103,7 +103,7 @@ pub(crate) async fn node_in(cp: &ControlPlane, name: &str, ns: &Netns, address: 
     let volumes = dir.path().join("volumes");
     let inside = Some((ns.path(), address));
     let inside = inside.as_ref().map(|(p, a)| (p.as_path(), *a));
-    Node::join_with(cp, name, dir, (volumes, None), Vec::new(), inside).await
+    Node::join_with(cp, name, dir, (volumes, None, None), Vec::new(), inside).await
 }
 
 /// What is answered asking for `/` over TCP at `to`, from `source` where one is named, from

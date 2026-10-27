@@ -73,9 +73,11 @@ pub async fn facts_of<R: Runtime, H: Host>(
     let (mut capacity, mut allocatable) = machine(reserve);
     // Disk is what the storage classes hold, and what is free in them now: anything already
     // on their filesystems, this node's own volumes included, counts as taken (§2.1 of
-    // docs/05-scheduling.md).
-    capacity.disk_bytes = storage_classes.iter().map(|c| c.capacity_bytes).sum();
-    allocatable.disk_bytes = storage_classes.iter().map(|c| c.free_bytes).sum();
+    // docs/05-scheduling.md). A shared class is a store other nodes mount too, and not this
+    // node's disk (§2.1 of docs/06-storage.md).
+    let own = || storage_classes.iter().filter(|c| c.store.is_empty());
+    capacity.disk_bytes = own().map(|c| c.capacity_bytes).sum();
+    allocatable.disk_bytes = own().map(|c| c.free_bytes).sum();
     let held = crate::shaping::held(host, uplinks).await;
     for driver in &mut drivers {
         crate::shaping::enforced(driver, &held.kinds);

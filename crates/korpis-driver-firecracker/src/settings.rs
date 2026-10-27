@@ -32,8 +32,12 @@ pub struct Settings {
     pub writer: PathBuf,
     /// The node's content store, which the agent fills and the driver only reads.
     pub content: PathBuf,
-    /// The directory the helper keeps volumes under; a volume's drive is nowhere else.
+    /// The directory the helper keeps volumes under; a volume's drive is here or under one of
+    /// the shared roots, and nowhere else.
     pub volume_root: PathBuf,
+    /// The roots of the node's shared storage classes, each a network filesystem the operator
+    /// mounted (§2.1 of docs/06-storage.md).
+    pub shared_roots: Vec<PathBuf>,
     /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
     /// docs/07-networking.md): the only namespaces a guest's Firecracker joins.
     pub netns_root: PathBuf,

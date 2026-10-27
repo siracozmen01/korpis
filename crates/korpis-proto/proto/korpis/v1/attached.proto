@@ -33,6 +33,9 @@ message Volume {
   google.protobuf.Timestamp detached_at = 14;
   // The workload it was created for.
   string created_by = 15;
+  // The storage a shared class's volume is in, as the nodes offering it read it at their mounts
+  // (§2.1 of docs/06-storage.md); empty for a volume on one node's disk, whose node is set.
+  string store = 16;
 }
 
 // A point a volume can be rolled back to, on its node and filesystem (§4 of docs/06-storage.md):

@@ -14,11 +14,11 @@ use std::path::{Path, PathBuf};
 /// `--cores-cgroup` naming it would.
 pub(crate) fn helper(
     socket: &Path,
-    volumes: &Path,
+    (volumes, shared): (&Path, Option<&Path>),
     dirs: (&Path, &Path, &Path),
     parent: Option<&str>,
 ) {
-    serve_on(socket, built(volumes, dirs, parent), None);
+    serve_on(socket, built((volumes, shared), dirs, parent), None);
 }
 
 /// As [`helper`], serving from a thread inside the network namespace at `node`, as a node's own
@@ -28,17 +28,22 @@ pub(crate) fn helper(
 #[allow(dead_code, reason = "the browser test, a binary of its own, runs no mesh")]
 pub(crate) fn helper_in(socket: &Path, volumes: &Path, dirs: (&Path, &Path, &Path), node: &Path) {
     let overlay = korpis_helper::overlay::Overlay::new(dirs.0.join("overlay.key"));
-    serve_on(socket, built(volumes, dirs, None).with_overlay(overlay), Some(node.to_owned()));
+    let h = built((volumes, None), dirs, None).with_overlay(overlay);
+    serve_on(socket, h, Some(node.to_owned()));
 }
 
 /// The helper with its storage, jobs, network, ingress, and file sessions, and the cpusets
-/// beneath `parent` where one is named.
+/// beneath `parent` where one is named; and a shared class `shared` on the directory `shared`
+/// names, where it names one, which another node of the test shares as a network filesystem
+/// would be shared (§2.1 of docs/06-storage.md).
 fn built(
-    volumes: &Path,
+    (volumes, shared): (&Path, Option<&Path>),
     (state, content, netns): (&Path, &Path, &Path),
     parent: Option<&str>,
 ) -> korpis_helper::helper::Helper {
-    let class = korpis_helper::storage::Class::open("local", volumes).unwrap();
+    use korpis_helper::storage::{Class, Network};
+    let mut classes = vec![Class::open("local", volumes).unwrap()];
+    classes.extend(shared.map(|s| Class::shared("shared", s, Network::Assumed).unwrap()));
     let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
     let jobs = korpis_helper::job::JobConfig {
         binary: built_binary("korpis-backup", "korpis-backup-job"),
@@ -52,7 +57,7 @@ fn built(
     // test's own, which the node removes when it is dropped.
     let ingress =
         korpis_helper::ingress::IngressConfig { binary: proxy(), cgroups: Some(cgroups(state)) };
-    let mut h = korpis_helper::helper::Helper::new(vec![class], ledger)
+    let mut h = korpis_helper::helper::Helper::new(classes, ledger)
         .with_jobs(jobs)
         .with_network(network)
         .with_ingress(korpis_helper::ingress::Ingress::new(ingress))
