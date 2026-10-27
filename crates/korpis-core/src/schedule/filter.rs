@@ -5,7 +5,7 @@
 
 use super::topology::{Fleet, domain, matching};
 use super::{Candidate, Check, Peer, PlacementPolicy, RESERVED, Request};
-use crate::node::driver::DriverInfo;
+use crate::node::driver::{DriverInfo, StorageFeature, class_named};
 use crate::node::{NodeAdmin, NodeStatus, Reachability};
 use crate::tenancy::quota::Held;
 use crate::workload::spec::ConsoleMode;
@@ -13,6 +13,7 @@ use crate::workload::spec::endpoints::Exposure;
 use crate::workload::spec::health::ProbeKind;
 use crate::workload::spec::placement::AffinityRule;
 use crate::workload::spec::resources::CpuIsolation;
+use crate::workload::spec::volumes::VolumeSpec;
 
 type Refusal = (Check, String);
 
@@ -218,12 +219,29 @@ fn volumes(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
 }
 
 fn storage_classes(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
-    req.body
+    let classes = &c.node.storage_classes;
+    let missing = req
+        .body
         .volumes
         .iter()
         .filter(|v| !v.storage_class.is_empty())
-        .find(|v| !c.node.storage_classes.iter().any(|s| s.name == v.storage_class))
-        .map(|v| (Check::StorageClass, format!("no storage class {:?}", v.storage_class)))
+        .find(|v| !classes.iter().any(|s| s.name == v.storage_class))
+        .map(|v| (Check::StorageClass, format!("no storage class {:?}", v.storage_class)));
+    // A volume with replicas is sent to them as increments, which its class must be able to
+    // send (§2.2 of docs/06-storage.md).
+    let sends = |v: &&VolumeSpec| {
+        class_named(classes, &v.storage_class)
+            .is_some_and(|k| k.capabilities.has(StorageFeature::IncrementalSend))
+    };
+    missing.or_else(|| {
+        let unable =
+            req.body.volumes.iter().filter(|v| v.replication.is_some()).find(|v| !sends(v));
+        unable.map(|v| {
+            let why =
+                format!("volume {:?} has replicas, and its class sends no increments", v.name);
+            (Check::StorageClass, why)
+        })
+    })
 }
 
 /// One required rule against one candidate.

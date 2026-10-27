@@ -309,6 +309,28 @@ transfers share the mesh with everything else on it and are not shaped. What it 
 replicate synchronously, which would put the network into every write's latency, or replicate a
 volume in a shared or block class, whose storage keeps its own copies.
 
+**Built 2026-10-27, the declaration and the helper's halves** (P3.8d1 and P3.8d2). A volume says
+`replicas` and `replication_interval` and the intent's `continuity` says `replica_failover`, in the
+API, the CLI's files (§3 of `13-surface-cli.md`), and the stored intent; replicas on a volume
+attached, none, or an interval under a minute are refused, and so is a volume asking for replicas
+while no node serving its organization offers its class able to send increments, which placement
+then requires of the node it binds (§2.1 of `05-scheduling.md`). The helper keeps what a volume's
+replication holds under its class root's `.replicas/<volume>/`: on the volume's node the read-only
+snapshots it sent, on a replica's node the ones it received. Sending is the kernel's own
+`BTRFS_IOC_SEND`, whole or from the snapshot both sides hold, written into a pipe whose read end
+the agent is given while a thread of the helper's writes it. Receiving is btrfs-progs' `btrfs
+receive`, confined by its own `chroot` to the volume's replica directory and reading a pipe whose
+write end the agent is given, rather than a stream parser of Korpis's own: btrfs-progs is the
+format's reference, and a parser written again would be the one place the format's rules could be
+read differently; so a node holding replicas needs it (§3 of `18-operations.md`). A snapshot is
+held once `btrfs receive` made it read-only, which it does at the stream's end alone, and
+anything else of a receive that ended short is removed; a replica becomes the volume as a writable
+snapshot of its last snapshot, where the volume would be. Tested between two btrfs filesystems: a
+volume sent whole, then an increment, the older snapshot released on both sides, a stream ended
+short leaving nothing, and the replica promoted holding what the increment held. What is not built
+yet: the control plane's replica records, choice of nodes, and tickets (P3.8d3), the agents'
+transfers over the mesh (P3.8d4), and failover onto a replica (P3.8d5).
+
 ---
 
 ## 3. Quotas are enforced by the filesystem

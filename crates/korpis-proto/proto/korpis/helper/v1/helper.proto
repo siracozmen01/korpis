@@ -76,6 +76,19 @@ service HelperService {
   // each peer's allowed IPs through the interface. Answers the interface's public key and when
   // each peer last completed a handshake. Added 2026-10-25.
   rpc KeepOverlay(KeepOverlayRequest) returns (KeepOverlayResponse);
+  // Replicas (§2.2 of docs/06-storage.md), in a class that can send increments. SendReplica takes
+  // a read-only snapshot of a volume kept for replication and starts sending it, whole or from a
+  // snapshot sent before, into a pipe whose read end the answer carries; ReceiveReplica starts
+  // receiving a volume's replica from a pipe whose write end the answer carries, and
+  // ReceiveStatus says whether it ended, and how; ReplicaSnapshots lists what a volume's
+  // replication keeps here, ReleaseReplica deletes one of them, and PromoteReplica makes the
+  // volume a writable copy of one received. Added 2026-10-27.
+  rpc SendReplica(SendReplicaRequest) returns (SendReplicaResponse);
+  rpc ReceiveReplica(ReceiveReplicaRequest) returns (ReceiveReplicaResponse);
+  rpc ReceiveStatus(ReceiveStatusRequest) returns (ReceiveStatusResponse);
+  rpc ReplicaSnapshots(ReplicaSnapshotsRequest) returns (ReplicaSnapshotsResponse);
+  rpc ReleaseReplica(ReleaseReplicaRequest) returns (ReleaseReplicaResponse);
+  rpc PromoteReplica(PromoteReplicaRequest) returns (PromoteReplicaResponse);
 }
 
 // One request, as the transport carries it.
@@ -108,6 +121,12 @@ message HelperRequest {
     OpenProbeRequest open_probe = 25;
     HoldCoresRequest hold_cores = 26;
     KeepOverlayRequest keep_overlay = 27;
+    SendReplicaRequest send_replica = 28;
+    ReceiveReplicaRequest receive_replica = 29;
+    ReceiveStatusRequest receive_status = 30;
+    ReplicaSnapshotsRequest replica_snapshots = 31;
+    ReleaseReplicaRequest release_replica = 32;
+    PromoteReplicaRequest promote_replica = 33;
   }
 }
 
@@ -142,6 +161,12 @@ message HelperResponse {
     OpenProbeResponse open_probe = 26;
     HoldCoresResponse hold_cores = 27;
     KeepOverlayResponse keep_overlay = 28;
+    SendReplicaResponse send_replica = 29;
+    ReceiveReplicaResponse receive_replica = 30;
+    ReceiveStatusResponse receive_status = 31;
+    ReplicaSnapshotsResponse replica_snapshots = 32;
+    ReleaseReplicaResponse release_replica = 33;
+    PromoteReplicaResponse promote_replica = 34;
   }
 }
 
@@ -563,6 +588,96 @@ message DeleteSnapshotRequest {
 
 message DeleteSnapshotResponse {
   bool deleted = 1;
+}
+
+message SendReplicaRequest {
+  // The volume, in the class holding it.
+  string volume = 1;
+  // The snapshot taken for this send, kept for replication: an identifier; taken again it is
+  // the one already taken.
+  string snapshot = 2;
+  // A snapshot sent before, which the receiver holds: only what differs from it is sent. Empty
+  // to send the whole volume.
+  string parent = 3;
+}
+
+message SendReplicaResponse {
+  // The descriptors the answer carries: one, the pipe's read end, at the stream's end once the
+  // whole snapshot was written into it, or early if sending failed.
+  uint32 attached = 1;
+}
+
+message ReceiveReplicaRequest {
+  // The volume whose replica this is, which is not on this node.
+  string volume = 1;
+  // The class it is received into: one that can send increments.
+  string storage_class = 2;
+  // The snapshot the stream carries.
+  string snapshot = 3;
+}
+
+message ReceiveReplicaResponse {
+  // The descriptors the answer carries: one, the pipe's write end; none when the snapshot is
+  // already held here whole.
+  uint32 attached = 1;
+  bool held = 2;
+}
+
+message ReceiveStatusRequest {
+  string volume = 1;
+  string storage_class = 2;
+  string snapshot = 3;
+}
+
+message ReceiveStatusResponse {
+  ReceiveState state = 1;
+  // Why it failed, as the receiver said.
+  string detail = 2;
+}
+
+enum ReceiveState {
+  RECEIVE_STATE_UNSPECIFIED = 0;
+  // Still reading the stream.
+  RECEIVE_STATE_RUNNING = 1;
+  // The snapshot is held here whole and read-only.
+  RECEIVE_STATE_HELD = 2;
+  // The stream ended short or was refused; nothing of it is kept.
+  RECEIVE_STATE_FAILED = 3;
+  // Nothing is being received, nor held: a helper restarted since, or never asked.
+  RECEIVE_STATE_UNKNOWN = 4;
+}
+
+message ReplicaSnapshotsRequest {
+  string volume = 1;
+  // The class to look in; empty for every class.
+  string storage_class = 2;
+}
+
+message ReplicaSnapshotsResponse {
+  // The snapshots held whole here for the volume's replication, by name.
+  repeated string snapshots = 1;
+}
+
+message ReleaseReplicaRequest {
+  string volume = 1;
+  string storage_class = 2;
+  string snapshot = 3;
+}
+
+message ReleaseReplicaResponse {
+  bool released = 1;
+}
+
+message PromoteReplicaRequest {
+  string volume = 1;
+  string storage_class = 2;
+  // A snapshot received whole, which becomes the volume.
+  string snapshot = 3;
+}
+
+message PromoteReplicaResponse {
+  // The volume's path, as EnsureVolume would answer it.
+  string host_path = 1;
 }
 
 message DeleteVolumeRequest {

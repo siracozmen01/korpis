@@ -8,7 +8,7 @@ use crate::workload::spec::endpoints::{
     EndpointSpec, Exposure, NetworkPolicy, Protocol, ShapingSpec, TlsSpec,
 };
 use crate::workload::spec::resources::ResourceSpec;
-use crate::workload::spec::volumes::{VolumeMode, VolumeSpec};
+use crate::workload::spec::volumes::{Replication, VolumeMode, VolumeSpec};
 use crate::workload::spec::{IsolationTier, RuntimeSpec, SpecError};
 use uuid::Uuid;
 
@@ -70,6 +70,8 @@ pub struct DeclaredVolume {
     pub existing: Option<Uuid>,
     /// A backup to create it from.
     pub from_backup: Option<Uuid>,
+    /// Copies of it kept on other nodes.
+    pub replication: Option<Replication>,
 }
 
 /// An endpoint as declared: the preset's endpoint of the same name supplies what is left out.
@@ -134,6 +136,7 @@ pub(super) fn volumes(
             mode: VolumeMode::ReadWrite,
             existing: None,
             from_backup: None,
+            replication: None,
         })
         .collect();
     for (i, d) in declared.into_iter().enumerate() {
@@ -148,6 +151,7 @@ pub(super) fn volumes(
             mode: d.mode,
             existing: d.existing,
             from_backup: d.from_backup,
+            replication: d.replication,
         };
         match base.and_then(|b| out.get_mut(b)) {
             Some(slot) => *slot = v,

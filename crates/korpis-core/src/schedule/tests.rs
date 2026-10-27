@@ -93,6 +93,7 @@ fn body(memory: u64) -> IntentBody {
         config: ValueMap::new(),
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
+        replica_failover: crate::workload::spec::ReplicaFailover::Manual,
         dependencies: Vec::new(),
         streams: crate::workload::spec::StreamSpec::default(),
         egress: crate::workload::spec::EgressPolicy::default(),

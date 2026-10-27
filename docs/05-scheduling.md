@@ -39,7 +39,7 @@ A node survives the filter only if all hold:
 | has unallocated capacity for every requested dimension | `Node.allocatable` minus `allocated`; among them `node_ports`, the ports of its range its `node_port` and `node_bound` endpoints hold (§3 of `07-networking.md`); an endpoint resolved to `stable` holds an address and port of its edge group instead, and none of its node's (designed 2026-10-26, §3.1 there) |
 | has every requested device available | §6 |
 | satisfies the intent's constraints | `PlacementSpec` label selectors, required affinity rules |
-| offers every storage class the intent's volumes name | `Node.storage_classes` |
+| offers every storage class the intent's volumes name, and for a volume asking for replicas a class able to send increments, the one it names or the node's default (§2.2 of `06-storage.md`; added 2026-10-27) | `Node.storage_classes` |
 | holds every existing volume the intent attaches | `Volume.node` (§7 of `06-storage.md`); added 2026-10-14, when attaching was built: a node-local volume is on one disk. Designed 2026-10-27 for storage over the network (§2.1 there): a volume in a shared class is held by every node offering a class of its `store`, and one in a block class by every node offering its class; built the same day for shared classes |
 | the workload tolerates every taint | `Node.taints` |
 | is `ready`: active and connected, so not cordoned, draining, or unheard | `Node.admin`, `Node.connectivity` (§3.4 of `01-model.md`) |

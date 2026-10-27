@@ -300,6 +300,13 @@ pub struct StorageCaps {
     pub fencing: Fencing,
 }
 
+/// The class of `classes` a volume naming `name` is in: the one of that name, or, for an empty
+/// name, the first, which the node's helper offers as its default.
+#[must_use]
+pub fn class_named<'a>(classes: &'a [StorageClass], name: &str) -> Option<&'a StorageClass> {
+    if name.is_empty() { classes.first() } else { classes.iter().find(|c| c.name == name) }
+}
+
 impl StorageCaps {
     /// Whether it has `feature`.
     #[must_use]

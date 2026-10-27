@@ -7,7 +7,7 @@ use korpis_core::id::IdKind;
 use korpis_core::workload::spec::resources::{
     BandwidthSpec, CpuIsolation, CpuSpec, IoSpec, ReservedLimit, ResourceSpec,
 };
-use korpis_core::workload::spec::volumes::{VolumeMode, VolumeSpec};
+use korpis_core::workload::spec::volumes::{Replication, VolumeMode, VolumeSpec};
 use korpis_proto::korpis::v1 as pb;
 
 fn rl_to_pb(r: ReservedLimit) -> pb::ReservedLimit {
@@ -127,7 +127,29 @@ pub fn volume_to_pb(v: &VolumeSpec) -> pb::VolumeSpec {
         .into(),
         existing: v.existing.map(|e| wire_id(IdKind::Volume, e)),
         from_backup: v.from_backup.map(|b| wire_id(IdKind::Backup, b)),
+        replicas: v.replication.map_or(0, |r| r.replicas),
+        replication_interval: v.replication.map(|r| crate::duration(r.interval)).into(),
         ..Default::default()
+    }
+}
+
+/// The replication `v` asks for, from the field `field`: none without replicas, and an interval
+/// without them refused; the default interval when none is given.
+pub fn replication_from_pb(field: &str, v: &pb::VolumeSpec) -> Result<Option<Replication>> {
+    let interval = v
+        .replication_interval
+        .as_option()
+        .map(|d| crate::duration_from(&format!("{field}.replication_interval"), d))
+        .transpose()?;
+    match (v.replicas, interval) {
+        (0, None) => Ok(None),
+        (0, Some(_)) => {
+            Err(invalid(&format!("{field}.replication_interval"), "only with replicas"))
+        }
+        (replicas, interval) => Ok(Some(Replication {
+            replicas,
+            interval: interval.unwrap_or(Replication::DEFAULT_INTERVAL),
+        })),
     }
 }
 
@@ -149,5 +171,6 @@ pub fn volume_from_pb(field: &str, v: &pb::VolumeSpec) -> Result<VolumeSpec> {
             .as_deref()
             .map(|b| id(IdKind::Backup, &format!("{field}.from_backup"), b))
             .transpose()?,
+        replication: replication_from_pb(field, v)?,
     })
 }

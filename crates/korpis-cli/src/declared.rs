@@ -42,6 +42,16 @@ pub struct Volume {
     mode: Option<String>,
     existing: Option<String>,
     from_backup: Option<String>,
+    replicas: Option<u32>,
+    replication_interval: Option<String>,
+}
+
+/// What a workload does when its lease ends, and whether failover may start it on a replica.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Continuity {
+    on_lease_expiry: Option<String>,
+    replica_failover: Option<String>,
 }
 
 /// An endpoint.
@@ -82,6 +92,7 @@ pub struct Declared {
     #[serde(default)]
     pub labels: BTreeMap<String, String>,
     placement: Option<placement::Placement>,
+    continuity: Option<Continuity>,
 }
 
 /// A declared file, with where it came from and what it says.
@@ -145,7 +156,24 @@ fn volume(v: &Volume) -> Result<Value, String> {
         "mode": named("VOLUME_MODE", v.mode.as_ref()),
         "existing": v.existing,
         "fromBackup": v.from_backup,
+        "replicas": v.replicas.unwrap_or(0),
+        "replicationInterval": interval(&v.name, v.replication_interval.as_ref())?,
     }))
+}
+
+/// A volume's replication interval, as the API's JSON writes a duration.
+fn interval(volume: &str, given: Option<&String>) -> Result<Value, String> {
+    let Some(given) = given else { return Ok(Value::Null) };
+    let d = korpis_core::quantity::parse_duration(given)
+        .map_err(|e| format!("volumes.{volume}.replication_interval: {e}"))?;
+    Ok(Value::String(format!("{}s", d.as_secs())))
+}
+
+fn continuity(c: &Continuity) -> Value {
+    json!({
+        "onLeaseExpiry": named("ON_LEASE_EXPIRY", c.on_lease_expiry.as_ref()),
+        "replicaFailover": named("REPLICA_FAILOVER", c.replica_failover.as_ref()),
+    })
 }
 
 fn endpoint(e: &Endpoint) -> Value {
@@ -202,6 +230,7 @@ impl Declared {
             "volumes": self.volumes.iter().map(volume).collect::<Result<Vec<_>, _>>()?,
             "endpoints": self.endpoints.iter().map(endpoint).collect::<Vec<_>>(),
             "placement": self.placement.as_ref().map(placement::placement),
+            "continuity": self.continuity.as_ref().map(continuity),
         });
         if let Some(o) = json.as_object_mut() {
             o.retain(|_, v| !v.is_null());

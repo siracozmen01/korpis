@@ -20,6 +20,7 @@ use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
 
 mod held;
 mod placing;
+mod replicas;
 mod sessions;
 mod snapshots;
 
@@ -38,6 +39,8 @@ pub struct Helper {
     peer: (u32, u32),
     /// Descriptors the last answer carries, sent with its frame and then closed here.
     attached: Vec<rustix::fd::OwnedFd>,
+    /// Each replica being received, by its volume and snapshot.
+    receiving: std::collections::BTreeMap<(String, String), std::process::Child>,
 }
 
 fn unsupported() -> helper::HelperError {
@@ -63,6 +66,7 @@ impl Helper {
             overlay: None,
             peer: (u32::MAX, u32::MAX),
             attached: Vec::new(),
+            receiving: std::collections::BTreeMap::new(),
         }
     }
 
@@ -334,6 +338,12 @@ impl Helper {
             Verb::OpenFiles(r) => self.open_files(&r)?,
             Verb::HoldCores(r) => self.hold_cores(&r)?,
             Verb::KeepOverlay(r) => self.keep_overlay(&r)?,
+            v @ (Verb::SendReplica(_)
+            | Verb::ReceiveReplica(_)
+            | Verb::ReceiveStatus(_)
+            | Verb::ReplicaSnapshots(_)
+            | Verb::ReleaseReplica(_)
+            | Verb::PromoteReplica(_)) => self.replica_verb(v)?,
         })
     }
 

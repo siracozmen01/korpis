@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What keeps a workload on one node: an existing volume it attaches (§7 of docs/06-storage.md),
-//! and the workloads it depends on, unless the mesh joins their nodes (§5 and §9.1 of
+//! a volume with replicas, which only a class sending increments holds (§2.2 there), and the
+//! workloads it depends on, unless the mesh joins their nodes (§5 and §9.1 of
 //! docs/07-networking.md).
 
 use super::{GIB, PROJECT, body, node, req};
 use crate::node::StorageClass;
-use crate::node::driver::{Fencing, StorageBackend, StorageCaps};
+use crate::node::driver::{Fencing, StorageBackend, StorageCaps, StorageFeature};
 use crate::node::mesh::Pairs;
 use crate::schedule::{Candidate, Check, Needed, Peer, Policies, Request, place};
-use crate::tenancy::quota::Bounds;
+use crate::tenancy::quota::{Bounds, Dimension};
+use crate::workload::spec::volumes::{Replication, VolumeMode, VolumeSpec};
 use crate::workload::volume::Home;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -119,4 +121,51 @@ fn a_dependent_goes_where_the_mesh_reaches_each_target_s_node() {
     assert!(refused(&two) && refused(&three), "neither reaches the other's");
     let half: Pairs = [(one.id, two.id)].into_iter().collect();
     assert_eq!(placed(&half).chosen, None, "no node reaches both");
+}
+
+/// A class named `local` on a node's own disk, able to send increments when `sends`.
+fn local(sends: bool) -> StorageClass {
+    let mut features = std::collections::BTreeSet::new();
+    if sends {
+        features.insert(StorageFeature::IncrementalSend);
+    }
+    StorageClass {
+        name: "local".into(),
+        backend: if sends { StorageBackend::Btrfs } else { StorageBackend::Directory },
+        capabilities: StorageCaps { features, fencing: Fencing::None },
+        capacity_bytes: 100 * GIB,
+        free_bytes: 100 * GIB,
+        store: None,
+    }
+}
+
+#[test]
+fn a_volume_with_replicas_goes_only_where_its_class_sends_increments() {
+    let (mut one, mut two) = (node(1, &[]), node(2, &[]));
+    for (n, sends) in [(&mut one, false), (&mut two, true)] {
+        n.storage_classes.push(local(sends));
+        n.allocatable.insert(Dimension::Disk, 100 * GIB);
+        n.capacity.insert(Dimension::Disk, 100 * GIB);
+    }
+    let labels = BTreeMap::new();
+    let mut b = body(GIB);
+    b.volumes = vec![VolumeSpec {
+        name: "world".into(),
+        path: "/data".into(),
+        size_bytes: GIB,
+        storage_class: String::new(),
+        mode: VolumeMode::ReadWrite,
+        existing: None,
+        from_backup: None,
+        replication: Some(Replication { replicas: 1, interval: Replication::DEFAULT_INTERVAL }),
+    }];
+    let empty = Bounds::new();
+    let nodes =
+        [Candidate { node: &one, allocated: &empty }, Candidate { node: &two, allocated: &empty }];
+    let e = place(&req(&labels, &b), &nodes, &[], &Policies::default());
+    assert_eq!(e.chosen, Some(two.id), "the node's default class, btrfs, sends them");
+    assert!(e.filtered.iter().any(|r| r.node == one.id && r.check == Check::StorageClass));
+    b.volumes[0].replication = None;
+    let e = place(&req(&labels, &b), &nodes, &[], &Policies::default());
+    assert!(e.filtered.is_empty(), "with no replicas either will do");
 }

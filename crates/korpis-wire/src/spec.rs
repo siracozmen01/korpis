@@ -15,7 +15,7 @@ use crate::recipe::{ref_from_pb, ref_to_pb};
 use crate::value::{map_from_pb, map_to_pb};
 use crate::{Result, invalid};
 use korpis_core::workload::spec::{
-    ConsoleMode, Continuity, IntentBody, IsolationTier, Lifecycle, RuntimeSpec,
+    ConsoleMode, Continuity, IntentBody, IsolationTier, Lifecycle, ReplicaFailover, RuntimeSpec,
 };
 use korpis_proto::korpis::v1 as pb;
 
@@ -46,6 +46,22 @@ pub fn continuity_to_pb(c: Continuity) -> pb::OnLeaseExpiry {
         Continuity::Derived => pb::OnLeaseExpiry::ON_LEASE_EXPIRY_UNSPECIFIED,
         Continuity::KeepRunning => pb::OnLeaseExpiry::ON_LEASE_EXPIRY_KEEP_RUNNING,
         Continuity::Stop => pb::OnLeaseExpiry::ON_LEASE_EXPIRY_STOP,
+    }
+}
+
+/// Whether `c` lets failover start the workload on a replica; manual when unset.
+fn replica_failover_from_pb(
+    field: &str,
+    c: Option<&pb::ContinuitySpec>,
+) -> Result<ReplicaFailover> {
+    let Some(c) = c else { return Ok(ReplicaFailover::Manual) };
+    match c.replica_failover.as_known() {
+        Some(
+            pb::ReplicaFailover::REPLICA_FAILOVER_UNSPECIFIED
+            | pb::ReplicaFailover::REPLICA_FAILOVER_MANUAL,
+        ) => Ok(ReplicaFailover::Manual),
+        Some(pb::ReplicaFailover::REPLICA_FAILOVER_AUTOMATIC) => Ok(ReplicaFailover::Automatic),
+        None => Err(invalid(&format!("{field}.replica_failover"), "unknown")),
     }
 }
 
@@ -83,6 +99,11 @@ pub fn body_to_pb(b: &IntentBody) -> pb::IntentBody {
         placement: health::placement_to_pb(&b.placement).into(),
         continuity: pb::ContinuitySpec {
             on_lease_expiry: continuity_to_pb(b.continuity).into(),
+            replica_failover: match b.replica_failover {
+                ReplicaFailover::Manual => pb::ReplicaFailover::REPLICA_FAILOVER_UNSPECIFIED,
+                ReplicaFailover::Automatic => pb::ReplicaFailover::REPLICA_FAILOVER_AUTOMATIC,
+            }
+            .into(),
             ..Default::default()
         }
         .into(),
@@ -135,6 +156,7 @@ pub fn body_from_pb(field: &str, b: &pb::IntentBody) -> Result<IntentBody> {
         config: map_from_pb(&f("config"), &b.config)?,
         placement: health::placement_from_pb(&f("placement"), b.placement.as_option())?,
         continuity: continuity_from_pb(&f("continuity"), b.continuity.as_option())?,
+        replica_failover: replica_failover_from_pb(&f("continuity"), b.continuity.as_option())?,
         dependencies: dependencies::dependencies_from_pb(&f("dependencies"), &b.dependencies)?,
         streams: crate::stream::spec_from_pb(&f("streams"), b.streams.as_option())?,
         egress: endpoints::egress_from_pb(&f("egress"), b.egress.as_option())?,

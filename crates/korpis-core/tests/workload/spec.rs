@@ -181,3 +181,22 @@ fn a_schedule_its_zone_and_a_run_policy_belong_to_workloads_that_have_runs() {
     });
     assert_eq!(overlapping, "runs.concurrency", "the example declares endpoints");
 }
+
+#[test]
+fn a_volume_s_replicas_are_one_at_least_a_minute_apart_and_only_on_one_it_makes() {
+    use korpis_core::workload::spec::volumes::Replication;
+    use std::time::Duration;
+    let every = |s| Some(Replication { replicas: 1, interval: Duration::from_secs(s) });
+    let mut ok = body();
+    ok.volumes[0].replication = every(60);
+    assert!(ok.validate().is_ok(), "a minute is enough");
+    let field = |r: Option<Replication>| refused(move |b| b.volumes[0].replication = r);
+    assert_eq!(field(every(59)), "volumes[0].replication_interval");
+    let none = Some(Replication { replicas: 0, interval: Replication::DEFAULT_INTERVAL });
+    assert_eq!(field(none), "volumes[0].replicas");
+    let attached = refused(|b| {
+        b.volumes[0].existing = Some(uuid::Uuid::now_v7());
+        b.volumes[0].replication = every(300);
+    });
+    assert_eq!(attached, "volumes[0].replicas", "an attached volume keeps its own");
+}

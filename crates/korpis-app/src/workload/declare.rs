@@ -257,6 +257,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let owner = (base.workload.id, base.workload.project);
         self.check_existing(caller, owner, &body).await?;
         self.existing_classes(&mut body).await?;
+        self.check_replicated(base.workload.organization, &body).await?;
         self.check_routes((base.workload.organization, base.workload.id), &body).await?;
         self.check_seeds(caller, base.target.as_ref().map(|t| &t.body), &body).await?;
         let passage = match &cmd.set {

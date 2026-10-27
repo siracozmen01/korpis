@@ -49,6 +49,7 @@ pub fn body() -> IntentBody {
             mode: VolumeMode::ReadWrite,
             existing: None,
             from_backup: None,
+            replication: None,
         }],
         endpoints: vec![EndpointSpec {
             name: "game".into(),
@@ -65,6 +66,7 @@ pub fn body() -> IntentBody {
         config: ValueMap::from([("motd".to_owned(), Value::String("Survival".into()))]),
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
+        replica_failover: korpis_core::workload::spec::ReplicaFailover::Manual,
         dependencies: Vec::new(),
         streams: korpis_core::workload::spec::StreamSpec::default(),
         egress: korpis_core::workload::spec::EgressPolicy::default(),

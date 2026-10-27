@@ -167,6 +167,12 @@ message VolumeSpec {
   // Create it holding what this backup held, restored before the workload first runs on it;
   // never with `existing`. Reading the backup takes backup.read on its workload.
   optional string from_backup = 7;
+  // How many other nodes keep a copy of it, brought up to date every `replication_interval`;
+  // zero for none, and only in a class that can send increments (§2.2 of docs/06-storage.md).
+  uint32 replicas = 8;
+  // How often its replicas are brought up to date: a minute at least, five when unset; only
+  // with `replicas`.
+  google.protobuf.Duration replication_interval = 9;
 }
 
 enum VolumeMode {
@@ -413,6 +419,16 @@ enum DependencyInjection {
 // docs/02-architecture.md).
 message ContinuitySpec {
   OnLeaseExpiry on_lease_expiry = 1;
+  // Whether failover may start it on a replica of its volumes, losing what the replica lacks
+  // (§2.4 of docs/05-scheduling.md).
+  ReplicaFailover replica_failover = 2;
+}
+
+enum ReplicaFailover {
+  // Manual: a replica is what an operator's evacuation starts from, never failover.
+  REPLICA_FAILOVER_UNSPECIFIED = 0;
+  REPLICA_FAILOVER_MANUAL = 1;
+  REPLICA_FAILOVER_AUTOMATIC = 2;
 }
 
 enum OnLeaseExpiry {

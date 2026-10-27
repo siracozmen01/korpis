@@ -22,6 +22,7 @@ fn volume(path: &str) -> VolumeSpec {
         mode: VolumeMode::ReadWrite,
         existing: None,
         from_backup: None,
+        replication: None,
     }
 }
 

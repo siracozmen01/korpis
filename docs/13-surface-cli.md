@@ -141,15 +141,24 @@ resources:
 volumes:
   - name: world
     size: 40Gi
-    class: replicated
+    class: local
+    replicas: 1
+    replication_interval: 5m
 endpoints:
   - name: game
     port: 25565
     exposure: stable
+continuity:
+  replica_failover: automatic
 config:
   motd: "Survival · season 4"
   difficulty: hard
 ```
+
+Corrected 2026-10-27: the example named a class `replicated`, written before §2.2 of
+`06-storage.md` decided that a replica is what a volume asks of a class able to send increments,
+not a kind of class; it now asks for one replica every five minutes, and lets failover start the
+server on it.
 
 The file is validated against the recipe's config schema (§5 of `09-recipes.md`) **before**
 anything is sent, so a typo in a field name is a local error with a line number rather than a
@@ -160,11 +169,13 @@ the recipe's preset, on the control plane, at declaration (§3.1 of `09-recipes.
 shows the completed body.
 
 The keys are the ones above and a few more: `power` (`running` or `stopped`) and `labels` for a new
-workload; `pids` among the resources; `path`, `mode`, `existing`, and `from_backup` on a volume;
-`protocol` and `domains` on an endpoint; and `placement`, the body's placement (§2 of
-`05-scheduling.md`): `node_selector`, `tolerations` (each a `key` and a `value`), `affinity` (each
-rule `anti`, `required`, `topology_key`, and `workloads`), and `preferred_region`, where a selector
-is `match_labels` and `match_expressions`, each expression a `key`, an `operator`, and `values`.
+workload; `pids` among the resources; `path`, `mode`, `existing`, `from_backup`, `replicas`, and
+`replication_interval` (a duration such as `5m`) on a volume; `continuity`, its `on_lease_expiry`
+and `replica_failover` (§4.5 of `02-architecture.md`, §2.2 of `06-storage.md`); `protocol` and
+`domains` on an endpoint; and `placement`, the body's placement (§2 of `05-scheduling.md`):
+`node_selector`, `tolerations` (each a `key` and a `value`), `affinity` (each rule `anti`,
+`required`, `topology_key`, and `workloads`), and `preferred_region`, where a selector is
+`match_labels` and `match_expressions`, each expression a `key`, an `operator`, and `values`.
 Quantities are written as `4Gi` or `500m`, and enum values as the API names them, lower-case and
 without their prefix (`node_port`, `overlay_only`). The recipe is a repository with `@sha256:…` or
 `:tag`; the project is a name, looked up among the projects the caller may read and required to be

@@ -284,7 +284,9 @@ store's, placed wherever the store is offered, and the derived `on_lease_expiry`
 classes at last (Finding 200 of `23-walkthroughs.md`); then failover, for workloads with no volume
 or with theirs in shared classes, each made on the node it lands on by a `remake` plan the control
 plane approves, which a workload placed away from a node removed as compromised had needed too
-(Finding 204 there). Edges in failover groups, which is what `stable` exposure requires to exist at
+(Finding 204 there); then replicated volumes' declaration, and the helper's halves of a replica's
+transfer: the kernel's send, and btrfs-progs' receive confined to the replica's directory (§2.2 of
+`06-storage.md`). Edges in failover groups, which is what `stable` exposure requires to exist at
 all and what lets it survive the move (§3.1 of `07-networking.md`); designed 2026-10-26 (§3.1
 there, trace 78 of `23-walkthroughs.md`) as groups of two or more of an organization's own nodes,
 each stable address held by one member under a lease with an epoch and forwarded by every member to

@@ -9,7 +9,9 @@ use super::endpoints::{
 };
 use super::health::{health_from_pb, placement_from_pb};
 use super::resources::{mode, resources_from_pb};
-use super::{console_from_pb, continuity_from_pb, lifecycle_from_pb, tier_from_pb};
+use super::{
+    console_from_pb, continuity_from_pb, lifecycle_from_pb, replica_failover_from_pb, tier_from_pb,
+};
 use crate::value::map_from_pb;
 use crate::{Result, fits, id, invalid};
 use korpis_core::id::IdKind;
@@ -64,6 +66,7 @@ fn volume(field: &str, v: &pb::VolumeSpec) -> Result<DeclaredVolume> {
             .as_deref()
             .map(|b| id(IdKind::Backup, &format!("{field}.from_backup"), b))
             .transpose()?,
+        replication: super::resources::replication_from_pb(field, v)?,
     })
 }
 
@@ -136,6 +139,7 @@ pub fn declaration_from_pb(
         config: map_from_pb(&f("config"), &b.config)?,
         placement: placement_from_pb(&f("placement"), b.placement.as_option())?,
         continuity: continuity_from_pb(&f("continuity"), b.continuity.as_option())?,
+        replica_failover: replica_failover_from_pb(&f("continuity"), b.continuity.as_option())?,
         dependencies: super::dependencies::dependencies_from_pb(
             &f("dependencies"),
             &b.dependencies,

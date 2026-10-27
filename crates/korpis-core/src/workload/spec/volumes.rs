@@ -4,6 +4,7 @@
 
 use super::{SpecError, check_name};
 use std::collections::BTreeSet;
+use std::time::Duration;
 use uuid::Uuid;
 
 /// How a volume is mounted.
@@ -36,6 +37,26 @@ pub struct VolumeSpec {
     /// Create it holding what this backup held, restored before the workload first runs on it
     /// (§5.4 of docs/06-storage.md); only for a volume created, never one attached.
     pub from_backup: Option<Uuid>,
+    /// Copies of it kept on other nodes (§2.2 of docs/06-storage.md); only for a volume
+    /// created, since a volume attached keeps the replicas its own declaration asked for.
+    pub replication: Option<Replication>,
+}
+
+/// Copies of a volume kept on other nodes, brought up to date on an interval (§2.2 of
+/// docs/06-storage.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Replication {
+    /// How many other nodes keep a copy; at least one.
+    pub replicas: u32,
+    /// How often the copies are brought up to date.
+    pub interval: Duration,
+}
+
+impl Replication {
+    /// The shortest interval: a copy sent more often is mostly the cost of sending it.
+    pub const MIN_INTERVAL: Duration = Duration::from_secs(60);
+    /// The interval when none is declared.
+    pub const DEFAULT_INTERVAL: Duration = Duration::from_secs(300);
 }
 
 /// Where the node keeps what it gives a workload's install worker (§4 of docs/09-recipes.md): no
@@ -79,6 +100,18 @@ pub fn validate(volumes: &[VolumeSpec]) -> Result<(), SpecError> {
         }
         if v.existing.is_some() && v.from_backup.is_some() {
             return Err(SpecError::new(&at("from_backup"), "a volume attached is not restored"));
+        }
+        if let Some(r) = v.replication {
+            if v.existing.is_some() {
+                let why = "a volume attached keeps the replicas it was made with";
+                return Err(SpecError::new(&at("replicas"), why));
+            }
+            if r.replicas == 0 {
+                return Err(SpecError::new(&at("replicas"), "at least one"));
+            }
+            if r.interval < Replication::MIN_INTERVAL {
+                return Err(SpecError::new(&at("replication_interval"), "a minute at least"));
+            }
         }
     }
     Ok(())

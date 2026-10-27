@@ -33,6 +33,7 @@ mod read;
 mod recipe;
 mod remake;
 mod replace;
+mod replicated;
 mod retire;
 mod route;
 mod screen;

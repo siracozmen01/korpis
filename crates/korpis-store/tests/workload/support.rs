@@ -109,6 +109,7 @@ pub fn body(motd: &str) -> IntentBody {
         config: ValueMap::from([("motd".to_owned(), Value::String(motd.into()))]),
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
+        replica_failover: korpis_core::workload::spec::ReplicaFailover::Manual,
         dependencies: Vec::new(),
         streams: korpis_core::workload::spec::StreamSpec::default(),
         egress: korpis_core::workload::spec::EgressPolicy::default(),

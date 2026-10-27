@@ -26,6 +26,7 @@ pub mod network;
 pub mod overlay;
 pub mod projects;
 pub mod quota;
+pub mod replica;
 pub mod serve;
 pub mod snapshot;
 pub mod staging;

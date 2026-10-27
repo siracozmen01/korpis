@@ -217,31 +217,13 @@ pub fn body() -> IntentBody {
             ..ResourceSpec::default()
         },
         devices: vec![shared_gpus()],
-        volumes: vec![
-            VolumeSpec {
-                name: "world".into(),
-                path: "/data".into(),
-                size_bytes: 40 * GIB,
-                storage_class: "replicated".into(),
-                mode: VolumeMode::ReadWrite,
-                existing: None,
-                from_backup: Some(Uuid::now_v7()),
-            },
-            VolumeSpec {
-                name: "maps".into(),
-                path: "/maps".into(),
-                size_bytes: GIB,
-                storage_class: "local".into(),
-                mode: VolumeMode::ReadOnly,
-                existing: Some(Uuid::now_v7()),
-                from_backup: None,
-            },
-        ],
+        volumes: volumes(),
         endpoints: vec![endpoint("game", Protocol::Tcp, 25565), web(), tunnel()],
         health: health(),
         config: config(),
         placement: placement(),
         continuity: Continuity::KeepRunning,
+        replica_failover: korpis_core::workload::spec::ReplicaFailover::Automatic,
         dependencies: dependencies(),
         streams: korpis_core::workload::spec::StreamSpec {
             rate: 1024 * 1024,
@@ -253,4 +235,33 @@ pub fn body() -> IntentBody {
         },
         egress: egress(),
     }
+}
+
+/// The example's volumes: one made from a backup and replicated, one attached.
+fn volumes() -> Vec<VolumeSpec> {
+    vec![
+        VolumeSpec {
+            name: "world".into(),
+            path: "/data".into(),
+            size_bytes: 40 * GIB,
+            storage_class: "replicated".into(),
+            mode: VolumeMode::ReadWrite,
+            existing: None,
+            from_backup: Some(Uuid::now_v7()),
+            replication: Some(korpis_core::workload::spec::volumes::Replication {
+                replicas: 2,
+                interval: Duration::from_secs(120),
+            }),
+        },
+        VolumeSpec {
+            name: "maps".into(),
+            path: "/maps".into(),
+            size_bytes: GIB,
+            storage_class: "local".into(),
+            mode: VolumeMode::ReadOnly,
+            existing: Some(Uuid::now_v7()),
+            from_backup: None,
+            replication: None,
+        },
+    ]
 }

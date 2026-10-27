@@ -13,11 +13,15 @@ resources:
 volumes:
   - name: world
     size: 40Gi
-    class: replicated
+    class: local
+    replicas: 1
+    replication_interval: 5m
 endpoints:
   - name: game
     port: 25565
     exposure: stable
+continuity:
+  replica_failover: automatic
 config:
   motd: "Survival · season 4"
   difficulty: hard
@@ -36,7 +40,12 @@ fn the_example_of_the_document_is_a_body() {
     assert_eq!(res.memory.as_option().unwrap().limit, 6 << 30);
     assert_eq!(res.cpu.as_option().unwrap().reservation_millis, 2000);
     assert_eq!(b.volumes[0].size_bytes, 40 << 30);
-    assert_eq!(b.volumes[0].storage_class, "replicated");
+    assert_eq!(b.volumes[0].storage_class, "local");
+    let every = b.volumes[0].replication_interval.as_option().map(|d| d.seconds);
+    assert_eq!((b.volumes[0].replicas, every), (1, Some(300)));
+    let continuity = b.continuity.as_option().unwrap();
+    let automatic = Some(pb::ReplicaFailover::REPLICA_FAILOVER_AUTOMATIC);
+    assert_eq!(continuity.replica_failover.as_known(), automatic);
     assert_eq!(b.endpoints[0].exposure.as_known(), Some(pb::Exposure::EXPOSURE_STABLE));
     assert_eq!(b.config["max_players"].kind, Some(V::IntValue(40)));
     assert_eq!(b.config["difficulty"].kind, Some(V::StringValue("hard".into())));
@@ -59,7 +68,7 @@ fn a_tag_is_a_version_and_anything_unknown_is_refused() {
 
 #[test]
 fn a_key_is_found_on_its_line() {
-    assert_eq!(line_of(SURVIVAL, Some("config"), "difficulty"), Some(19));
+    assert_eq!(line_of(SURVIVAL, Some("config"), "difficulty"), Some(23));
     assert_eq!(line_of(SURVIVAL, None, "workload"), Some(1));
     assert_eq!(line_of(SURVIVAL, Some("config"), "absent"), None);
 }

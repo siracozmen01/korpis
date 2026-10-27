@@ -21,7 +21,7 @@ use std::path::PathBuf;
 /// Where a class keeps its volumes' snapshots.
 const SNAPSHOTS: &str = ".snapshots";
 
-fn is_subvolume(path: &std::path::Path) -> HelperResult<bool> {
+pub(crate) fn is_subvolume(path: &std::path::Path) -> HelperResult<bool> {
     match std::fs::symlink_metadata(path) {
         Ok(m) => Ok(m.is_dir() && m.ino() == btrfs::SUBVOLUME_INODE),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),

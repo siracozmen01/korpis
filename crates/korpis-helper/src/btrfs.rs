@@ -21,7 +21,7 @@
 
 use std::fs::File;
 use std::io;
-use std::os::fd::AsRawFd as _;
+use std::os::fd::AsRawFd;
 
 /// The `statfs` magic number of btrfs.
 pub const MAGIC: u64 = 0x9123_683E;
@@ -40,6 +40,13 @@ const IOC_SNAP_CREATE_V2: libc::c_ulong = ioc(WRITE, 23, 4096);
 const IOC_SUBVOL_CREATE_V2: libc::c_ulong = ioc(WRITE, 24, 4096);
 const IOC_QGROUP_LIMIT: libc::c_ulong = ioc(READ, 43, 48);
 const IOC_SNAP_DESTROY_V2: libc::c_ulong = ioc(WRITE, 63, 4096);
+const IOC_SUBVOL_GETFLAGS: libc::c_ulong = ioc(READ, 25, 8);
+const IOC_SEND: libc::c_ulong = ioc(WRITE, 38, 72);
+
+/// The size of `struct btrfs_ioctl_send_args`.
+const SEND_ARGS: usize = 72;
+/// `BTRFS_SUBVOL_RDONLY`.
+const RDONLY: u64 = 1 << 1;
 
 /// The quota tree, and its item types (`linux/btrfs_tree.h`).
 const QUOTA_TREE: u64 = 8;
@@ -69,7 +76,8 @@ fn ioctl(fd: &File, request: libc::c_ulong, args: &mut [u8]) -> io::Result<()> {
     // SAFETY: `fd` is open for the whole call, because it is borrowed for it. `ptr` points to
     // `args`, exclusively borrowed for the call, and every caller passes a buffer exactly the
     // size the request number encodes, laid out as the structure the request reads and writes:
-    // the kernel touches no byte outside it.
+    // the kernel touches no byte outside it, except, for a send, the array of clone sources the
+    // structure points to, which `send` keeps alive for the call and sizes as the count says.
     let r = unsafe { libc::ioctl(fd.as_raw_fd(), request, ptr) };
     if r < 0 { Err(io::Error::last_os_error()) } else { Ok(()) }
 }
@@ -119,8 +127,6 @@ pub fn create_subvolume(parent: &File, name: &str) -> io::Result<()> {
 /// A snapshot of the subvolume `source`, made as `name` in the directory `parent`: read-only, or
 /// writable to become a volume again.
 pub fn snapshot(source: &File, parent: &File, name: &str, read_only: bool) -> io::Result<()> {
-    /// `BTRFS_SUBVOL_RDONLY`.
-    const RDONLY: u64 = 1 << 1;
     let mut args = named(name)?;
     let fd = u64::try_from(source.as_raw_fd()).map_err(|_| io::Error::other("descriptor"))?;
     put(&mut args, 0, fd);
@@ -148,6 +154,40 @@ pub fn subvolume_id(subvolume: &File) -> io::Result<u64> {
     put(&mut args, 8, SUBVOLUME_INODE);
     ioctl(subvolume, IOC_INO_LOOKUP, &mut args)?;
     Ok(get(&args, 0))
+}
+
+/// Whether the subvolume `subvolume` is the root of is read-only, as a snapshot received whole
+/// is.
+pub fn read_only(subvolume: &File) -> io::Result<bool> {
+    let mut flags = [0u8; 8];
+    ioctl(subvolume, IOC_SUBVOL_GETFLAGS, &mut flags)?;
+    Ok(get(&flags, 0) & RDONLY != 0)
+}
+
+/// Writes into `into` the send stream of the read-only subvolume `snapshot` is the root of: the
+/// whole of it, or with `parent`, a read-only snapshot the receiver holds, only what differs from
+/// it, `parent` also the one source its extents may be cloned from, as `btrfs send -p` sends.
+/// Blocks until the whole stream is written, so the reader reads while it runs.
+pub fn send(snapshot: &File, parent: Option<&File>, into: &impl AsRawFd) -> io::Result<()> {
+    let mut args = [0u8; SEND_ARGS];
+    let fd = u64::try_from(into.as_raw_fd()).map_err(|_| io::Error::other("descriptor"))?;
+    put(&mut args, 0, fd);
+    // The clone sources the kernel reads through the pointer below: this array outlives the call,
+    // so the pointer is valid for all of it, and the count names its one element.
+    let mut sources = [0u64; 1];
+    if let Some(parent) = parent {
+        let id = subvolume_id(parent)?;
+        sources[0] = id;
+        let at = u64::try_from(sources.as_ptr().expose_provenance())
+            .map_err(|_| io::Error::other("address"))?;
+        put(&mut args, 8, 1);
+        put(&mut args, 16, at);
+        put(&mut args, 24, id);
+    }
+    ioctl(snapshot, IOC_SEND, &mut args)?;
+    // Read past its last use, so the array is alive until the call returned.
+    std::hint::black_box(&sources);
+    Ok(())
 }
 
 /// Limits what `subvolume` references to `bytes`; zero lifts the limit.
@@ -225,6 +265,8 @@ mod tests {
         assert_eq!(IOC_QGROUP_LIMIT, 0x8030_942B);
         assert_eq!(IOC_TREE_SEARCH, 0xD000_9411);
         assert_eq!(IOC_INO_LOOKUP, 0xD000_9412);
+        assert_eq!(IOC_SUBVOL_GETFLAGS, 0x8008_9419);
+        assert_eq!(IOC_SEND, 0x4048_9426);
     }
 
     #[test]

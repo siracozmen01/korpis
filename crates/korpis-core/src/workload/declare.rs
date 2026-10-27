@@ -16,7 +16,7 @@ pub use parts::{DeclaredEndpoint, DeclaredRuntime, DeclaredVolume, default_drive
 use super::spec::devices::DeviceRequest;
 use super::spec::{
     ConsoleMode, Continuity, Dependency, EgressPolicy, HealthSpec, IntentBody, Lifecycle,
-    PlacementSpec, ResourceSpec, RunPolicy, SpecError, StreamSpec,
+    PlacementSpec, ReplicaFailover, ResourceSpec, RunPolicy, SpecError, StreamSpec,
 };
 use crate::recipe::{Recipe, RecipeRef};
 use crate::value::ValueMap;
@@ -52,6 +52,8 @@ pub struct Declaration {
     pub placement: PlacementSpec,
     /// What happens when a node loses its lease.
     pub continuity: Continuity,
+    /// Whether failover may start it on a replica.
+    pub replica_failover: ReplicaFailover,
     /// What it reaches by name.
     pub dependencies: Vec<Dependency>,
     /// The limits of its console stream.
@@ -97,6 +99,7 @@ impl Declaration {
             config: self.config,
             placement: self.placement,
             continuity: self.continuity,
+            replica_failover: self.replica_failover,
             dependencies: self.dependencies,
             streams: self.streams,
             egress: self.egress,

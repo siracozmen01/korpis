@@ -123,7 +123,8 @@ pub async fn node_with(cp: &ControlPlane, name: &str, handlers: Handlers) -> Nod
     let mut events = link.events.subscribe();
     let running = tokio::spawn(session.run());
     until(&mut events, |e| matches!(e, Event::Welcomed { .. })).await;
-    let workload = cp.declare(&project, "mc").await;
+    // Boxed: a declaration's future would otherwise make every test's large.
+    let workload = Box::pin(cp.declare(&project, "mc")).await;
     while !link.held.borrow().assignments.contains_key(&workload) {
         until(&mut events, |e| matches!(e, Event::Held { .. })).await;
     }

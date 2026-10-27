@@ -129,6 +129,17 @@ pub enum Continuity {
     Stop,
 }
 
+/// Whether failover may start a workload on a replica of its volumes, losing what the replica
+/// lacks (§2.4 of docs/05-scheduling.md, §2.2 of docs/06-storage.md).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ReplicaFailover {
+    /// Never: a replica is what an operator's evacuation starts from.
+    #[default]
+    Manual,
+    /// Failover may, and the effect records the replica's age as what was lost.
+    Automatic,
+}
+
 /// The declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IntentBody {
@@ -163,6 +174,8 @@ pub struct IntentBody {
     pub placement: PlacementSpec,
     /// What happens when a node loses its lease.
     pub continuity: Continuity,
+    /// Whether failover may start it on a replica.
+    pub replica_failover: ReplicaFailover,
     /// What it reaches by name.
     pub dependencies: Vec<Dependency>,
     /// The limits of its console stream.
@@ -266,6 +279,7 @@ pub fn fixture() -> IntentBody {
         config: ValueMap::new(),
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
+        replica_failover: ReplicaFailover::Manual,
         dependencies: Vec::new(),
         streams: StreamSpec::default(),
         egress: EgressPolicy::default(),
