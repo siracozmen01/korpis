@@ -141,6 +141,7 @@ fn target_from_pb(p: &pb::Plan) -> Result<PlanTarget> {
         }
         Some(pb::PlanKind::PLAN_KIND_RETIRE) => Ok(PlanTarget::Retire),
         Some(pb::PlanKind::PLAN_KIND_MIGRATE) => Ok(PlanTarget::Migrate),
+        Some(pb::PlanKind::PLAN_KIND_REMAKE) => Ok(PlanTarget::Remake),
         Some(pb::PlanKind::PLAN_KIND_DELETE_VOLUME) => op(VolumeOp::Delete),
         Some(pb::PlanKind::PLAN_KIND_SNAPSHOT_VOLUME) => op(VolumeOp::Snapshot),
         Some(pb::PlanKind::PLAN_KIND_ROLLBACK_VOLUME) => op(VolumeOp::Rollback),

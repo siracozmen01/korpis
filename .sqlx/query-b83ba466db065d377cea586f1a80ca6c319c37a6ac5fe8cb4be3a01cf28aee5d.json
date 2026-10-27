@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Whether workload $1 was made on a node, an intent or remake plan of it having applied, and no\n-- plan of it is approved, queued, or applying (§2.4 of docs/05-scheduling.md).\nSELECT EXISTS (SELECT 1 FROM plan\n                WHERE workload_id = $1 AND kind IN ('intent', 'remake') AND status = 'applied')\n   AND NOT EXISTS (SELECT 1 FROM plan\n                    WHERE workload_id = $1 AND status IN ('approved', 'queued', 'applying'))\n       AS \"made!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "made!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b83ba466db065d377cea586f1a80ca6c319c37a6ac5fe8cb4be3a01cf28aee5d"
+}

@@ -9,6 +9,8 @@
 //! approval. Every attempt that finds no node is kept with its full derivation and logged once
 //! per target, so retrying does not flood the log.
 
+use super::failover::Failover;
+use super::remake::Held;
 use super::screen::Screened;
 use crate::App;
 use crate::error::AppError;
@@ -22,6 +24,7 @@ use korpis_core::placement::{BoundBy, Placement, Unplaced};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::schedule::{Candidate, Current, Explanation, Request, place};
 use korpis_core::tenancy::quota::Bounds;
+use korpis_core::workload::volume::Home;
 use korpis_core::workload::{Intent, Workload};
 use uuid::Uuid;
 
@@ -35,6 +38,11 @@ struct Binding<'a> {
     /// reserves holding them; computed before `current` is moved in, since the request
     /// computing them borrows it.
     given: Given,
+    /// The node it leaves, when it is placed again by failover.
+    failover: Option<&'a Failover>,
+    /// The volumes it holds, when it was made on another node and is made here by a remake
+    /// plan (`super::remake`).
+    remade: Option<Vec<Held>>,
 }
 
 /// What a workload is given on the node it is bound to.
@@ -92,8 +100,11 @@ pub(super) fn place_effect(w: &Workload, outcome: Outcome, grant: Option<Uuid>) 
 
 /// A placement's reason, for a human. It names no count and no node: every reader of the
 /// workload sees it, and the explanation carries what only some may see.
-fn reason(followed: bool) -> String {
-    if followed {
+fn reason(followed: bool, failover: bool) -> String {
+    if failover {
+        "its node went silent and its lease ended; the best scored node reaching its data"
+            .to_owned()
+    } else if followed {
         "its target changed and still fits on the node it is on".to_owned()
     } else {
         "the best scored node able to run it, by the installation's policy".to_owned()
@@ -191,17 +202,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.clear_unplaced(w.id).await?;
             return Ok(());
         }
-        self.place_new(tx, (w, target), current, screened).await
+        self.place_new(tx, (w, target), current, screened, None).await
     }
 
     /// Places `w` for `target`, which it is not placed for: on its node, where it is placed, or
-    /// wherever the policy prefers.
-    async fn place_new(
+    /// wherever the policy prefers; or, by `failover`, on another node reaching its data.
+    pub(super) async fn place_new(
         &self,
         tx: &mut S::Tx,
         (w, target): (&Workload, &Intent),
         current: Option<Placement>,
         screened: &Screened,
+        failover: Option<&Failover>,
     ) -> Result<(), AppError> {
         let owners = self.owners(w.organization).await?;
         let mut nodes = tx.serving_nodes(&owners).await?;
@@ -215,7 +227,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let peers = tx.peers(w.organization, w.id).await?;
         let empty = Bounds::default();
         let candidates = candidates_of(&nodes, &allocations, &empty);
-        let volumes = self.existing_nodes(&target.body).await?;
+        let reached = self.reached_volumes(tx, (w, target), current.is_some());
+        let (volumes, remade) = Box::pin(reached).await?;
         let refused = self.refusals_screened(tx, (w, target), screened).await?;
         let learned = self.learned(tx, &ids, target).await?;
         let (entries, placed) = self.placed_entries(tx, w).await?;
@@ -253,8 +266,24 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let at = (owners.as_slice(), n);
             self.hold_addressing(tx, (w.id, &target.body), at, &addressing).await?;
         }
-        let binding = Binding { w, target, current, node, given };
+        let binding = Binding { w, target, current, node, given, failover, remade };
         self.bind_chosen(tx, binding, explanation).await
+    }
+
+    /// Each volume a placement of `w` for `target` must reach, with where it is: those `target`
+    /// attaches; or, for a workload not `placed` that was made on a node and has nothing under
+    /// way, every volume it holds, which a remake plan attaches where it lands, returned too.
+    async fn reached_volumes(
+        &self,
+        tx: &mut S::Tx,
+        (w, target): (&Workload, &Intent),
+        placed: bool,
+    ) -> Result<(Vec<(Uuid, Home)>, Option<Vec<Held>>), AppError> {
+        if placed || !tx.made_and_settled(w.id).await? {
+            return Ok((self.existing_nodes(&target.body).await?, None));
+        }
+        let held = self.held_volumes(w, &target.body).await?;
+        Ok((held.iter().map(|h| (h.id, h.home.clone())).collect(), Some(held)))
     }
 
     /// Every driver's refusal of `target`: those the shortlist just found, recorded, with those
@@ -281,10 +310,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         binding: Binding<'_>,
         explanation: Explanation,
     ) -> Result<(), AppError> {
-        let Binding { w, target, current, node, given } = binding;
+        let Binding { w, target, current, node, given, failover, remade } = binding;
         let followed = current.is_some();
+        let fresh = if failover.is_some() { BoundBy::Failover } else { BoundBy::Scheduler };
         let (bound_at, bound_by) =
-            current.map_or((self.clock.now(), BoundBy::Scheduler), |p| (p.bound_at, p.bound_by));
+            current.map_or((self.clock.now(), fresh), |p| (p.bound_at, p.bound_by));
         let placement = Placement {
             workload: w.id,
             node,
@@ -292,23 +322,35 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             reserved: given.reserved,
             bound_at,
             bound_by,
-            reason: reason(followed),
+            reason: reason(followed, failover.is_some()),
             explanation,
             authoritative: true,
             held_at: None,
             devices: given.devices,
             cores: given.cores,
         };
+        if failover.is_some() {
+            // The placement it leaves, on the node that is gone, goes with its reservations.
+            tx.unbind(w.id).await?;
+        }
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;
         let grant = tx.decision_grant(w.id).await?;
-        let mut e = place_effect(w, Outcome::Succeeded, grant).after(details([
-            ("node", node.to_string().into()),
-            ("intent", target.id.to_string().into()),
-            ("followed", followed.into()),
-            ("reason", placement.reason.clone().into()),
-        ]));
-        e.node = Some(node);
+        let remake = match &remade {
+            // Boxed: every placement's future would otherwise carry this one's.
+            Some(held) => Some(Box::pin(self.remake(tx, (w, target), held, grant)).await?),
+            None => None,
+        };
+        let mut e = match failover {
+            Some(f) => f.effect(w, &placement, (remade.as_deref().unwrap_or_default(), grant)),
+            None => place_effect(w, Outcome::Succeeded, grant).after(details([
+                ("node", node.to_string().into()),
+                ("intent", target.id.to_string().into()),
+                ("followed", followed.into()),
+                ("reason", placement.reason.clone().into()),
+            ])),
+        };
+        (e.node, e.plan) = (Some(node), remake);
         tx.append_effect(&e).await?;
         Ok(())
     }

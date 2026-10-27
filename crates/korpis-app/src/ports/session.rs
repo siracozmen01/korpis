@@ -61,14 +61,16 @@ pub trait SessionWrite {
         forget_before: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// The organization the shared store `store` belongs to: the one the node `node_of` names,
-    /// of the organization it names, binds it to at `at` when no node has declared it before (§2.1 of docs/06-storage.md).
+    /// Binds the shared store `store` to the organization of the node `node_of` names, at
+    /// `at`, where no organization holds it: none declared it before, or the one that did has
+    /// no live volume in it and no node offering it now (§2.1 of docs/06-storage.md). The
+    /// organization that held it before, if any, and the one holding it now.
     fn bind_store(
         &mut self,
         store: &str,
         node_of: (Uuid, Uuid),
         at: SystemTime,
-    ) -> impl Future<Output = StoreResult<Uuid>> + Send;
+    ) -> impl Future<Output = StoreResult<(Option<Uuid>, Uuid)>> + Send;
 
     /// Records what the node reported at `at`, and that it is connected and was heard then.
     /// False if the node does not exist.

@@ -6,7 +6,7 @@ use crate::support::{GIB, body, classifier, game_server};
 use StepAction as A;
 use korpis_core::recipe::Disruption;
 use korpis_core::value::Value;
-use korpis_core::workload::plan::compute::{intent_steps, power_steps};
+use korpis_core::workload::plan::compute::{intent_steps, power_steps, remake_steps};
 use korpis_core::workload::plan::impact::{assess, delta};
 use korpis_core::workload::plan::{Classifier, DriverClass, Estimate, Layer, Override, StepAction};
 use korpis_core::workload::{Power, PowerChange, PowerState};
@@ -36,6 +36,22 @@ fn a_new_workload_pulls_creates_and_starts_without_disruption() {
         (impact.cost_delta.memory_bytes, impact.cost_delta.workloads),
         (i64::try_from(4 * GIB).unwrap(), 1)
     );
+}
+
+#[test]
+fn a_workload_made_again_attaches_what_it_holds_and_installs_nothing() {
+    let (driver, recipe) = (DriverClass::default(), game_server());
+    let mut seeded = body();
+    seeded.volumes[0].from_backup = Some(Uuid::now_v7());
+    let record = Uuid::now_v7();
+    let held = [(seeded.volumes[0].name.clone(), record)];
+    let c = classifier(&driver, &recipe);
+    let steps = remake_steps(Uuid::now_v7(), (&seeded, PowerState::Running), &held, c);
+    assert_eq!(actions(&steps), [A::PullRecipe, A::AttachVolume, A::Create, A::Start]);
+    let existing = steps[1].detail.get("existing");
+    assert_eq!(existing, Some(&Value::String(record.to_string())), "the volume it holds");
+    let stopped = remake_steps(Uuid::now_v7(), (&body(), PowerState::Stopped), &[], c);
+    assert_eq!(actions(&stopped), [A::PullRecipe, A::CreateVolume, A::Create], "never reported");
 }
 
 #[test]

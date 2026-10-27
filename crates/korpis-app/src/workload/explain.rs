@@ -91,12 +91,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         target: Option<&Intent>,
     ) -> Result<Found, AppError> {
         // Read before the placement, so a bind committed between the two reads is seen as the
-        // placement; an attempt that failed for the intent now placed is then past, and dropped.
+        // placement; an attempt that failed for the intent now placed is then past, and dropped,
+        // unless it was made after the placement was bound: a failover that found no node (§2.4
+        // of docs/05-scheduling.md).
         let unplaced = self.store.unplaced(w.id).await?;
         let Some(p) = self.store.placement(w.id).await? else {
             return Ok(Found { placement: None, unplaced });
         };
-        let unplaced = unplaced.filter(|u| u.intent != p.intent);
+        let unplaced = unplaced.filter(|u| u.intent != p.intent || u.since > p.bound_at);
         let region =
             self.store.node(p.node).await?.and_then(|n| n.labels.as_map().get("region").cloned());
         let tier = if let Some(t) = target.filter(|t| t.id == p.intent) {

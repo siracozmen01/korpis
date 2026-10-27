@@ -32,6 +32,7 @@ fn moved_last(plan: &Plan, w: &Workload) -> bool {
         PlanTarget::Power(v) => w.power_target_version == v,
         PlanTarget::Retire
         | PlanTarget::Migrate
+        | PlanTarget::Remake
         | PlanTarget::Volume(..)
         | PlanTarget::Prune(_) => false,
     }

@@ -32,6 +32,12 @@ pub trait PlacementRead {
     /// it, in identifier order after the page's cursor.
     fn awaiting_placement(&self, page: Page)
     -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
+
+    /// Workloads not deleted whose authoritative placement, not held by a restore, is on an
+    /// unreachable node (§2.4 of docs/05-scheduling.md), in identifier order after the page's
+    /// cursor.
+    fn placed_unreachable(&self, page: Page)
+    -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 }
 
 /// Binding workloads to nodes.
@@ -112,6 +118,10 @@ pub trait PlacementWrite {
     /// Writes a placement: a new one, or the existing one on the same node following its
     /// workload's target in place.
     fn bind(&mut self, placement: &Placement) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Forgets every failover that found no node for a workload whose node is heard again
+    /// (§2.4 of docs/05-scheduling.md); how many.
+    fn forget_returned(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Removes every placement of a workload and any record of it being unplaced: it has no
     /// approved target any more.

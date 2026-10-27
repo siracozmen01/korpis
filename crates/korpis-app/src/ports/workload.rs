@@ -151,6 +151,15 @@ pub trait WorkloadWrite {
     /// (§7 of docs/03-state.md).
     fn plan_applying(&mut self, workload: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;
 
+    /// Whether `workload` was made on a node and nothing is under way: an intent or remake plan
+    /// of it applied, and none of its plans is approved, queued, or applying. Such a workload
+    /// placed on a node it was not made on is made there by a remake plan (§2.4 of
+    /// docs/05-scheduling.md).
+    fn made_and_settled(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Inserts a plan.
     fn insert_plan(&mut self, plan: &Plan) -> impl Future<Output = StoreResult<()>> + Send;
 

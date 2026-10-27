@@ -379,6 +379,8 @@ enum BoundBy {
   BOUND_BY_MIGRATION = 3;
   // A restore, to the node that presented the workload's assignment (§8 of docs/03-state.md).
   BOUND_BY_RECOVERY = 4;
+  // Placed again once its node went silent and its lease ended (§2.4 of docs/05-scheduling.md).
+  BOUND_BY_FAILOVER = 5;
 }
 
 // Every rejection with its reason, every score with its weight (§2.3 of

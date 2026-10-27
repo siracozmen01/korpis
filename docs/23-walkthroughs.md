@@ -1465,6 +1465,9 @@ the same mechanism", and that is the price of having made core and extensions th
 | 199 | Replicated storage was named for Phase 3 with no field in the frozen schema to ask for a replica | §80 | `01-model.md` §3.3, §3.6 |
 | 200 | The derived `on_lease_expiry` was said to read the volumes' classes, and was computed without them | §80 | `02-architecture.md` §4.8 |
 | 201 | A node's own word for which store it mounts reached another organization's volume records | §80 | `06-storage.md` §2.1 |
+| 202 | The helper gave away and removed what it made in a shared store by a name another client of the export could replace with a link | §80 | `06-storage.md` §2.1, `17-security.md` §9, `18-operations.md` §3 |
+| 203 | A store stayed the organization's whose node declared it first, even once it held nothing there | §80 | `06-storage.md` §2.1, `17-security.md` §9 |
+| 204 | A workload placed again on another node was never made there: its content was fetched by steps that ran on the node it left | §80 | `05-scheduling.md` §2.4, `01-model.md` §3.3, `17-security.md` §9 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -6877,7 +6880,7 @@ automatic`. Both run on A when A loses power. The trace asks the algebra questio
 | 4 | A's assignment carries a ticket to send `world`'s volume to B; B's names A as sending to it, and B's table admits A's mesh address to its transfer port | `06-storage.md` §2.2; `07-networking.md` §9.1 |
 | 5 | Every five minutes A snapshots the volume and sends B the difference from the snapshot B holds; B receives it, both release the older snapshot, and `world`'s status shows the replica's age | `06-storage.md` §2.2 |
 | 6 | A loses power; three heartbeats later the sweep marks it unreachable, by when the grantor's end of each lease has passed | `02-architecture.md` §4.5, §9; `05-scheduling.md` §2.4 |
-| 7 | `db` is placed again on B, which offers store S, `bound_by: failover`, the effect `workload.failover` naming A and B; B is granted a new epoch and mounts the same directory | `05-scheduling.md` §2.4; `02-architecture.md` §4.5 |
+| 7 | `db` is placed again on B, which offers store S, `bound_by: failover`, the effect `workload.failover` naming A and B; a `remake` plan the control plane approves pulls its recipe on B, attaches its volume there, and creates and starts it; B is granted a new epoch and mounts the same directory | `05-scheduling.md` §2.4; `02-architecture.md` §4.5; `01-model.md` §3.3 |
 | 8 | `world` is placed again on B, from its replica; the replica's last snapshot becomes the volume, which is now on B, and the effect records its age as what was lost | `05-scheduling.md` §2.4; `06-storage.md` §2.2 |
 | 9 | A returns; its epochs were superseded, so it stops both; `world`'s copy on A, which holds what B lacks, is kept and listed; `db`'s directory is the store's and A does nothing to it | `02-architecture.md` §4.5; `06-storage.md` §7 |
 
@@ -6896,13 +6899,15 @@ what evaluates "A no longer runs them", with A silent: the control plane's recor
 renewal and the term, and A's agent, which stopped both by its own clock before that end, which
 holds if A is merely cut off and holds trivially if it lost power. Step 7 asks what fences A from
 store S if A were cut off from the control plane and not from NFS: only its agent; the class says
-`lease_only`, and that is why. Step 8 asks what becomes of the volume object: it is the same
-volume, now on B, since what the workload knows by its name is that data; and of A's copy: it holds
-the writes of the last interval, which the failover lost, so it is a divergent copy listed on the
-volume, never collected, deleted only by a plan (§7 of `06-storage.md`), and the replica B needs is
-chosen again among the nodes that remain. Step 9 asks whether A, returning, could write store S
-again: its epoch is superseded, so it stops `db` at once and its next request is refused; what it
-held on its own disk it keeps.
+`lease_only`, and that is why. Step 7, as built (P3.8c), also asks what B runs `db` from: its
+recipe's content and its volume's place on B, which the plan that made `db` had put on A alone;
+nothing put them on B (Finding 204), and a `remake` plan does now. Step 8 asks what becomes of the
+volume object: it is the same volume, now on B, since what the workload knows by its name is that
+data; and of A's copy: it holds the writes of the last interval, which the failover lost, so it is
+a divergent copy listed on the volume, never collected, deleted only by a plan (§7 of
+`06-storage.md`), and the replica B needs is chosen again among the nodes that remain. Step 9 asks
+whether A, returning, could write store S again: its epoch is superseded, so it stops `db` at once
+and its next request is refused; what it held on its own disk it keeps.
 
 **Finding 198.** §2 of `06-storage.md` and §4.5 of `02-architecture.md` listed an NFSv4 lease among
 the backends that refuse a superseded writer, which made a shared NFS class `storage_enforced`. An
@@ -6937,13 +6942,58 @@ which store a node mounts is its own word, and a volume a node reports in a shar
 by its store and the helper's identifier alone, so a node of another organization declaring an
 existing store's identifier, and reporting a volume of a workload it ran under that identifier,
 would have moved the other tenant's volume record to its own workload, or marked it deleted. Its
-data stayed where it was, since the node never mounted the store, but the record, and with it
-which workload the control plane would attach the volume to, did not. Resolved in §2.1 there: a
-store belongs to the organization of the first node that declared it, which the control plane
-records when that node's Hello is, and a node of any other organization is not given it, its
-class kept without a store and the refusal recorded as `node.store_refused`; and a report keeps
-or deletes only a volume of the reporting workload, attached to it, or retained and made for it,
-and is refused otherwise. Tested over the API with a node of another organization declaring the
-store, and in the store with a stranger's report. What it costs: the first node to declare a store
-decides whose it is, so an operator who mounts one store on nodes of two organizations offers it
-to the first one's alone; and a table of stores, written once per store.
+data stayed where it was, since the node never mounted the store, but the record, and with it which
+workload the control plane would attach the volume to, did not. Resolved in §2.1 there: a store
+belongs to the organization of the first node that declared it, which the control plane records
+when that node's Hello is, and a node of any other organization is not given it, its class kept
+without a store and the refusal recorded as `node.store_refused`; and a report keeps or deletes
+only a volume of the reporting workload, attached to it, or retained and made for it, and is
+refused otherwise. Tested over the API with a node of another organization declaring the store, and
+in the store with a stranger's report. What it costs: the first node to declare a store decides
+whose it is, so an operator who mounts one store on nodes of two organizations offers it to the
+first one's alone, until that organization holds nothing in it (Finding 203); and a table of
+stores, written once per store.
+
+**Finding 202.** Found by an automated security review of the shared class as built. The helper's
+probe made a directory at the store's root and gave it to another owner by its name, and a volume
+made in a shared class was given to the workload's root and its mode set by its name too, the
+marker read and the helper's own file linked to it by name; every one of those calls follows a
+link. A shared store is written by every client of its export, and one writing as root could have
+replaced the directory, between its making and its giving away, with a link to anything on the
+node, which root on the node would then have given to `nobody` or to the workload's root. Resolved
+in the helper: it makes, opens, gives away, sets the mode of, and removes what it makes there
+through the descriptor of the class's root and of what it made, never by a name, and refuses a
+marker that is a link. What that does not close, and §2.1 of `06-storage.md`, §9 of
+`17-security.md`, and §3 of `18-operations.md` now say: such a client can still replace a volume's
+directory with a link between a driver's check of where it resolves and its mount, so a shared
+class trusts every client of its export writing as root as it trusts a node, and the store is to
+be exported to the installation's nodes alone. Tested in the helper with a marker that is a link
+to a valid identifier elsewhere. What it costs: nothing; the same calls, by descriptor.
+
+**Finding 203.** Found by the same review. Finding 201 bound a store to the organization of the
+first node that declared it, for good: a store first declared by a node enrolled in the wrong
+organization, or one an operator moved to another organization's nodes, could never serve them,
+and the review asked whether a node could squat on a store before its owner declared it. The claim
+needs the store's identifier, which the first helper writes at the store's root and the API shows
+only on a class it was given to and on a volume in it, so only a node reaching the storage can make
+the first claim; but nothing released one. Resolved in §2.1 of `06-storage.md`: a store is bound
+again to the organization of a node declaring it once the organization holding it has no live
+volume in it and no node, not decommissioned, offering it, and the move is an effect,
+`node.store_bound`. Tested over the API: a node of another organization is refused the store, and
+given it once the first organization's node is removed. What it costs: a check of the store's
+volumes and of the holding organization's nodes, when a node of another organization declares it.
+
+**Finding 204.** Found running the end-to-end test of step 7 as built. §2.4 of `05-scheduling.md`
+said a workload was *placed* again, and a placement is all the control plane made: B was told to
+run `db`, and B's agent had nothing to run it from, since its recipe's content was fetched by the
+`pull_recipe` step of the plan that made it, which ran on A; it kept trying to build the runtime
+and saying the content was not in the node's store. The same was true, unseen, of every workload
+made on a node removed as compromised (§9 of `17-security.md`), whose API test never had a node
+make anything. Resolved in §2.4 there and §3.3 of `01-model.md`: a workload made on a node and
+placed on another while nothing of it is under way is placed only where every volume it holds is
+reached, and the control plane writes a `remake` plan in the same transaction and approves it,
+under the grant of the decision it carries out: the recipe pulled, each volume attached where it
+is, never made anew nor written by an install, and the runtime created and started. Tested over
+the API for failover and for removal as compromised, and end to end with a node's power cut. What
+it costs: a plan per workload moved; and a workload with a plan stuck under way on a node that is
+gone waits for an operator to cancel it.

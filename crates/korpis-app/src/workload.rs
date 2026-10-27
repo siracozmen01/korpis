@@ -14,6 +14,7 @@ mod decide;
 mod declare;
 mod dependency;
 mod explain;
+mod failover;
 mod hold;
 mod naming;
 
@@ -30,6 +31,7 @@ mod prune_plan;
 mod reached;
 mod read;
 mod recipe;
+mod remake;
 mod replace;
 mod retire;
 mod route;

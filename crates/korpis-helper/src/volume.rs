@@ -11,7 +11,7 @@ use crate::error::{HelperError, HelperResult, identifier};
 use crate::storage::{Backend, Class};
 use crate::{block, btrfs, quota};
 use korpis_proto::korpis::helper::v1 as helper;
-use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+use std::os::unix::fs::MetadataExt as _;
 use std::path::Path;
 
 /// A volume root's mode: the workload's root may write it, everyone in it may read it.
@@ -45,8 +45,7 @@ impl Class {
         }
         let created = self.make(&r.volume, &path)?;
         if created {
-            std::os::unix::fs::chown(&path, Some(0), Some(0))?;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(VOLUME_MODE))?;
+            self.give(&r.volume)?;
         } else if block::is_block(&path) != r.block_device {
             let (is, asked) = if r.block_device {
                 ("files", "a block device")
@@ -96,13 +95,27 @@ impl Class {
         })
     }
 
+    /// Gives the new volume `volume` to the workload's root, with its mode, through a descriptor
+    /// of what was made and never through a link put in its place: in a shared class, another
+    /// client of the export may (Finding 202 of docs/23-walkthroughs.md).
+    fn give(&self, volume: &str) -> std::io::Result<()> {
+        use rustix::fs::{Gid, Mode, OFlags, Uid};
+        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+        let made = rustix::fs::openat(&self.handle, volume, flags, Mode::empty())?;
+        let root = (Uid::from_raw_unchecked(0), Gid::from_raw_unchecked(0));
+        rustix::fs::fchown(&made, Some(root.0), Some(root.1))?;
+        rustix::fs::fchmod(&made, Mode::from_raw_mode(VOLUME_MODE))?;
+        Ok(())
+    }
+
     /// Makes the volume `volume` at `path`, or finds it there; whether it was made. On btrfs it
     /// is a subvolume, and anything else already at its path is refused.
     fn make(&self, volume: &str, path: &Path) -> HelperResult<bool> {
         let made = if self.backend() == Backend::Btrfs {
             btrfs::create_subvolume(&self.handle, volume)
         } else {
-            std::fs::create_dir(path)
+            rustix::fs::mkdirat(&self.handle, volume, rustix::fs::Mode::from_raw_mode(0o700))
+                .map_err(std::io::Error::from)
         };
         let created = match made {
             Ok(()) => true,

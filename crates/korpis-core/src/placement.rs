@@ -20,6 +20,9 @@ pub enum BoundBy {
     /// A restore, to the node that presented the workload's assignment (§8 of
     /// docs/03-state.md).
     Recovery,
+    /// Failover: placed again once its node went silent and its lease ended (§2.4 of
+    /// docs/05-scheduling.md).
+    Failover,
 }
 
 impl BoundBy {
@@ -31,13 +34,14 @@ impl BoundBy {
             Self::Operator => "operator",
             Self::Migration => "migration",
             Self::Recovery => "recovery",
+            Self::Failover => "failover",
         }
     }
 
     /// The value a stored name names.
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
-        [Self::Scheduler, Self::Operator, Self::Migration, Self::Recovery]
+        [Self::Scheduler, Self::Operator, Self::Migration, Self::Recovery, Self::Failover]
             .into_iter()
             .find(|b| b.as_str() == s)
     }

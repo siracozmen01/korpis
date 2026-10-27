@@ -34,6 +34,7 @@ pub(crate) fn serve_config(
         placement_policy: korpis_core::schedule::PlacementPolicy::default(),
         placement_retry: Duration::from_millis(200),
         watch_resync: Duration::from_secs(1),
+        // [`crate::support::ControlPlane::start_beating`] sets another.
         heartbeat_interval: Duration::from_secs(30),
         // Long enough that a renewal delayed on a loaded machine does not let a lease lapse: a
         // run on a lapsed lease is judged lost (§4.2 of docs/05-scheduling.md), which is right

@@ -448,6 +448,33 @@ an orphan (§4.5 of `02-architecture.md`). What it does not do: move a workload 
 returns, which would be the automatic rebalancing §9 refuses; or move a workload whose node is
 reachable and failing in some other way, which an operator's drain does (§3).
 
+**Built 2026-10-27, for workloads with no volume or with their volumes in shared classes** (P3.8c;
+block and replicated classes are P3.8e and P3.8d). The silent-node sweep, which marks a node
+unreachable once its staleness window of three missed heartbeats has passed (§4.3 of
+`02-architecture.md`), runs the failover after each of its passes, each workload in a transaction
+of its own that locks the workload, then its lease, as a lease request does, then the placement
+lock. A workload is moved only while nothing of it is under way: a plan of its target, or a remake,
+has applied, and none of its plans is approved, queued, or applying. A plan under way is the old
+node's to finish, or an operator's to cancel, and the workload is moved at a sweep after that; one
+whose first plan never applied is not moved at all, since its steps may have made part of it on the
+old node, and an operator's removal of that node places it again from its target. **What the new
+node runs it from, and who puts it there:** its recipe's content and its volumes there were put on
+a node by the steps of the plan that made it, which ran on the old node, so the control plane
+writes a `remake` plan in the transaction that moves it and approves it itself, under the grant of
+the decision it carries out: the recipe pulled, each volume it holds attached where it is, never
+made anew nor written by an install, and its runtime created and, if it is to run, started (Finding
+204 of `23-walkthroughs.md`). A volume made with it that has no record was never reported made,
+since a node reports a volume before the step that made it completes, and is made where it lands. A
+workload made on a node removed as compromised (§3 of `18-operations.md`) is placed and made again
+the same way. A failover that finds no node keeps the placement, shows the attempt as the
+workload's unplaced status, which no attempt for the intent it is placed for otherwise is, and is
+forgotten once the node is heard again. Tested over the API, the lease's term waited out and a
+workload whose volume is on the silent node's disk left where it is, saying why, and end to end
+with a node's power cut: its agent ends without a word, what it ran ends with it, and the workload
+starts on the other node on what the first wrote to the shared store. What it costs: a plan per
+workload moved; and a workload with a plan stuck under way on the silent node, or never made, is
+not moved until an operator cancels the plan or removes the node.
+
 ---
 
 ## 3. Operations: changes that span workloads

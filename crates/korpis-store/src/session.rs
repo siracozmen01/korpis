@@ -47,22 +47,24 @@ impl SessionWrite for PgTx {
         store: &str,
         (node, organization): (Uuid, Uuid),
         at: SystemTime,
-    ) -> StoreResult<Uuid> {
-        sqlx::query!(
-            "INSERT INTO shared_store (id, organization_id, first_node, bound_at)
-             VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING",
-            store,
-            organization,
-            node,
-            from_time(at)
+    ) -> StoreResult<(Option<Uuid>, Uuid)> {
+        let before = sqlx::query_scalar!(
+            "SELECT organization_id FROM shared_store WHERE id = $1 FOR UPDATE",
+            store
         )
-        .execute(&mut *self.tx)
+        .fetch_optional(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        sqlx::query_scalar!("SELECT organization_id FROM shared_store WHERE id = $1", store)
-            .fetch_one(&mut *self.tx)
+        sqlx::query_file!("queries/store_bind.sql", store, organization, node, from_time(at))
+            .execute(&mut *self.tx)
             .await
-            .map_err(from_sqlx)
+            .map_err(from_sqlx)?;
+        let owner =
+            sqlx::query_scalar!("SELECT organization_id FROM shared_store WHERE id = $1", store)
+                .fetch_one(&mut *self.tx)
+                .await
+                .map_err(from_sqlx)?;
+        Ok((before, owner))
     }
 
     async fn record_node_facts(

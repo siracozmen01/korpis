@@ -391,18 +391,22 @@ bytes limited by its qgroup and its inodes not at all (§3 there); any other fil
 2026-10-19: this paragraph named only the project classes after the btrfs class was built, and so
 told an operator on btrfs that their volumes would not be limited. Further classes are named with
 `--shared-class NAME=PATH`, repeatable, each a directory where the operator mounted a network
-filesystem (§2.1 of `06-storage.md`); designed 2026-10-27. The jobs it starts are binaries beside
-it unless named: `--job-binary` for backups and restores and `--install-binary` for installs
-(`none` runs no installs); each job's cgroup is made under `--job-cgroups`
-(`/sys/fs/cgroup/korpis/shared`, the `oci` driver's shared cgroup, so a job keeps off dedicated
-cores as a container holding none does; it was `/sys/fs/cgroup/korpis` until 2026-10-25, when cores
-were first held, and a job there could have run on one), and `--content` names the agent's content
-store, which restores and installs read (`/var/lib/korpis-agent/content`). It keeps the workloads'
-cpusets for dedicated cores (§5.2 of `05-scheduling.md`) only under the drivers' cgroup parents
-`--cores-cgroup` names, refusing a request that names any other: the flag repeats, `none` keeps no
-cpusets at all, and without it the helper keeps `/korpis` and `/korpis-firecracker`, the
-first-party drivers' own, so an agent cannot have it narrow a cgroup no driver of the node makes
-objects in. Added 2026-10-25, when it was built.
+filesystem (§2.1 of `06-storage.md`); designed 2026-10-27, and built the same day. Every client of
+that export writing as root is trusted as the node is: one can replace a volume's directory with a
+link between the driver's check of where it resolves and the mount. So the export is to be exported
+to the installation's nodes alone: squashing root, the other protection an export offers, is what
+the helper refuses (Finding 202 of `23-walkthroughs.md`). The jobs it starts are binaries beside it
+unless named: `--job-binary` for backups and restores and `--install-binary` for installs (`none`
+runs no installs); each job's cgroup is made under `--job-cgroups` (`/sys/fs/cgroup/korpis/shared`,
+the `oci` driver's shared cgroup, so a job keeps off dedicated cores as a container holding none
+does; it was `/sys/fs/cgroup/korpis` until 2026-10-25, when cores were first held, and a job there
+could have run on one), and `--content` names the agent's content store, which restores and
+installs read (`/var/lib/korpis-agent/content`). It keeps the workloads' cpusets for dedicated
+cores (§5.2 of `05-scheduling.md`) only under the drivers' cgroup parents `--cores-cgroup` names,
+refusing a request that names any other: the flag repeats, `none` keeps no cpusets at all, and
+without it the helper keeps `/korpis` and `/korpis-firecracker`, the first-party drivers' own, so
+an agent cannot have it narrow a cgroup no driver of the node makes objects in. Added 2026-10-25,
+when it was built.
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it

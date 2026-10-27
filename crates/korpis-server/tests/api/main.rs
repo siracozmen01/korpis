@@ -62,6 +62,7 @@ mod events;
 mod extensions;
 mod external_complete;
 mod external_sign_in;
+mod failover;
 mod failures;
 mod health_query;
 mod identity;

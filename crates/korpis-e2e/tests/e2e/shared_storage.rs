@@ -6,7 +6,10 @@
 //! first node's helper names the store and the second reads it. A workload whose volume is in
 //! the class runs on the first node and writes to it; once it is retired and the first node
 //! cordoned, a workload attaching that volume runs on the second, which finds what the first
-//! wrote, in the store and not on either node's disk. Needs root and containerd.
+//! wrote, in the store and not on either node's disk. And when the node a workload holding such
+//! a volume runs on loses its power, the workload runs on the other once its lease has ended,
+//! placed there by failover, its data where it was (§2.4 of docs/05-scheduling.md). Needs root
+//! and containerd.
 
 use crate::mesh::cordon;
 use crate::node::{Node, live};
@@ -142,4 +145,65 @@ async fn a_volume_in_a_shared_store_is_found_from_the_other_node() {
     cp.retire(&second).await;
     agent_a.stop().await;
     agent_b.stop().await;
+}
+
+#[tokio::test]
+async fn a_workload_whose_node_loses_power_runs_on_the_other_with_its_data() {
+    if !live() {
+        return;
+    }
+    // A short heartbeat, so the node is unreachable seconds after its power is cut rather than a
+    // minute and a half; its lease's own term still governs when the workload moves.
+    let cp = ControlPlane::start_beating(Duration::from_secs(3)).await;
+    let shared = tempfile::tempdir().unwrap();
+    let (a, b) = (
+        Node::join_sharing(&cp, "lost-a", shared.path()).await,
+        Node::join_sharing(&cp, "kept-b", shared.path()).await,
+    );
+    let (agent_a, agent_b) = (a.agent().await, b.agent().await);
+    let named = |n: &Node| n.state.load().unwrap().node;
+    let (na, nb) = (named(&a), named(&b));
+    for n in [&na, &nb] {
+        until_offering(&cp, n).await;
+    }
+    cordon(&cp, &nb).await;
+    let project = cp.project().await;
+    let repo = push_sleeper().await;
+    let spec = pb::VolumeSpec {
+        name: "data".into(),
+        storage_class: "shared".into(),
+        ..Default::default()
+    };
+    let db = cp.declare_with(&project, "db", &repo, vec![spec]).await;
+    a.guard(&db);
+    b.guard(&db);
+    let starts = in_store_once(shared.path()).await.join("starts");
+    lines_reach((&cp, &db), &starts, 1).await;
+    uncordon(&cp, &nb).await;
+
+    // The power is cut: its agent ends without a word, and what it ran ends with it.
+    drop(agent_a);
+    crate::containers::remove_workload(&db);
+    let lines = lines_reach((&cp, &db), &starts, 2).await;
+    assert_eq!(lines.len(), 2, "started again, from the other node, on what the first wrote");
+    let placed = cp.status(&db).await.placement.into_option().unwrap();
+    assert_eq!(placed.node, nb, "on the node that remains");
+    assert_eq!(placed.bound_by.as_known(), Some(pb::BoundBy::BOUND_BY_FAILOVER));
+    cp.retire(&db).await;
+    agent_b.stop().await;
+}
+
+/// The one volume's directory in the shared store at `root`, once the workload's node made it.
+async fn in_store_once(root: &Path) -> std::path::PathBuf {
+    for _ in 0..600 {
+        let made = std::fs::read_dir(root)
+            .unwrap()
+            .filter_map(Result::ok)
+            .any(|e| e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.'));
+        if made {
+            return in_store(root);
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("no volume was made in {}", root.display());
 }

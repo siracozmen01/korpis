@@ -5,7 +5,8 @@
 //! whichever node reports it; a workload holding one is told to stop when its lease cannot be
 //! renewed, as its class is attachable from more than one node; and a workload attaching it is
 //! placed on the other node, which reaches the store, once the first is cordoned. A node of
-//! another organization declaring the same store is not given it (Finding 201).
+//! another organization declaring the same store is not given it (Finding 201), until the
+//! organization holding it has no node offering it and no volume in it (Finding 203).
 
 use crate::agent::{TestAgent, welcome};
 use crate::edge_groups::cordon;
@@ -22,7 +23,7 @@ use std::time::SystemTime;
 const STORE: &str = "0b9c1f40-3d2e-4c55-9f0a-7e6d5c4b3a21";
 
 /// The classes of a node mounting the store: its own disk's, and the shared one.
-fn classes() -> Vec<pb::StorageClassInfo> {
+pub(crate) fn classes() -> Vec<pb::StorageClassInfo> {
     let local = pb::StorageClassInfo {
         name: "local".into(),
         backend: pb::StorageBackend::STORAGE_BACKEND_DIRECTORY.into(),
@@ -50,7 +51,7 @@ fn classes() -> Vec<pb::StorageClassInfo> {
 }
 
 /// The example's declaration with its `data` volume in the shared class, or attaching `existing`.
-fn on_shared(repo: &str, existing: Option<&str>) -> pb::IntentBody {
+pub(crate) fn on_shared(repo: &str, existing: Option<&str>) -> pb::IntentBody {
     let mut b = body(repo, &[]);
     b.volumes = vec![pb::VolumeSpec {
         name: "data".into(),
@@ -160,4 +161,20 @@ async fn a_store_belongs_to_the_organization_whose_node_declared_it_first() {
     assert_eq!(shown(&a.node).await, STORE, "the first node's organization holds it");
     assert_eq!(shown(&c.node).await, "", "another organization's node is not given it");
     assert_eq!(h.effects("node.store_refused").await.len(), 1, "and that is recorded");
+
+    // Once the organization holding it has no node offering it and no volume in it, the next
+    // node declaring it is given it (Finding 203).
+    let nodes = h.nodes(h.root());
+    cordon(&h, &a.node).await;
+    let removal = pb::RemoveNodeRequest {
+        mutation: crate::support::mutation("remove-a").into(),
+        node: a.node.clone(),
+        ..Default::default()
+    };
+    nodes.remove_node(removal).await.unwrap();
+    let (_sc, again) =
+        TestAgent::open(&h, c.hello_with(SystemTime::now(), &[4; 16], classes())).await;
+    welcome(&again.unwrap());
+    assert_eq!(shown(&c.node).await, STORE, "the store is its organization's now");
+    assert_eq!(h.effects("node.store_bound").await.len(), 1, "and that is recorded");
 }

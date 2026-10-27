@@ -169,7 +169,14 @@ that store's volumes in its reports, and moved or deleted another tenant's recor
 to the organization of the first node that declared it, and a node of another organization is not
 given it, its class kept without a store and the refusal an effect, `node.store_refused`; and a
 node's report keeps or deletes only a volume of its own workload, attached to it or, retained, made
-for it.)
+for it.) (Corrected again 2026-10-27, Finding 203: a store then stayed the first organization's for
+good, so a store an operator moved to another organization's nodes, or one first declared by a node
+enrolled in the wrong organization, could never serve them. A store is bound again to the
+organization of a node declaring it once the organization holding it has no live volume in it and
+no node, not decommissioned, offering it, and the move is an effect, `node.store_bound`. The first
+declaration still binds a store, and it needs the identifier, which until then only the storage
+shows: the marker is at the store's root, and the API shows a store only on a class it was given to
+and on a volume in it.)
 
 A volume in a shared class has no node: its `node` is empty and its `store` names the storage (§3.6
 of `01-model.md`), and the placement check that a node holds every volume the workload attaches is
@@ -184,9 +191,16 @@ stops its workload then, before the grantor's end of the lease, which is when an
 granted one (§4.5 of `02-architecture.md`); an agent that is hung rather than cut off does not stop
 anything, and the class says `lease_only` for that reason. The filesystem's own failures are the
 workload's: a hard-mounted NFS export whose server is gone blocks every process reading it, the
-workload's and any probe's, until it returns, and Korpis cannot unmount it. What it does not do: it
-does not mount, check an export's permissions beyond the probe above, snapshot, or back up any
-faster than a file-level backup of a live tree (§5).
+workload's and any probe's, until it returns, and Korpis cannot unmount it. Every client of the
+export that writes as root can replace any entry of it with a link, a volume's directory among
+them, so the helper makes, gives away, and removes what it makes there only through a descriptor of
+the class's root and of what it made, never through a name a link could replace (Finding 202 of
+`23-walkthroughs.md`), and the drivers check where a volume resolves before they mount it; a client
+writing as root can still replace a volume's directory with a link between that check and the
+mount. A shared class trusts every client of its export with root's writes as it trusts its own
+nodes, which is what an export that does not squash root means, and the operator who offers one is
+told so. What it does not do: it does not mount, check an export's permissions beyond the probe
+above, snapshot, or back up any faster than a file-level backup of a live tree (§5).
 
 **Built 2026-10-27, the shared class** (P3.8b). The helper takes `--shared-class NAME=PATH`,
 refuses the class at start as above, saying why, links or reads the marker, and declares the class
@@ -208,7 +222,8 @@ deleted by either), the scheduler (a node of another store or of none refused), 
 volume shown with its store and no node, `stop` derived, and a workload attaching it placed on the
 other node), and end to end on real nodes sharing a directory, which the helper admits only in its
 tests: the second node's workload finds what the first one wrote, and neither node's disk holds it.
-What is not built yet: failover (P3.8c), replication (P3.8d), and block classes (P3.8e).
+Failover was built next (P3.8c, §2.4 of `05-scheduling.md`); what is not built yet: replication
+(P3.8d), and block classes (P3.8e).
 
 **A block class (`access: block`).** One volume is one device, attached on one node at a time and
 formatted ext4 by the helper on its first attach, as a `block_device` volume is (§3.1); its size is

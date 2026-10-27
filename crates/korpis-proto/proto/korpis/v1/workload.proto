@@ -340,6 +340,10 @@ enum PlanKind {
   // Forgets the backups of the workload in one repository that its retention policy no longer
   // keeps, and deletes what only they held (§5.3 of docs/06-storage.md).
   PLAN_KIND_PRUNE_BACKUPS = 11;
+  // Makes the workload's approved target again on the node it was placed on again, once made on
+  // another: by failover, or away from a node removed as compromised (§2.4 of
+  // docs/05-scheduling.md). The control plane approves it.
+  PLAN_KIND_REMAKE = 12;
 }
 
 enum PlanStatus {

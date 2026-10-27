@@ -9,9 +9,10 @@
 //! root that the first helper on it linked, so that the control plane can tell which nodes share
 //! one store by what each read at its own mount.
 
+use rustix::fs::{AtFlags, Gid, Mode, OFlags, Uid};
 use std::fmt::Write as _;
-use std::io::{ErrorKind, Read as _, Write as _};
-use std::os::unix::fs::MetadataExt as _;
+use std::fs::File;
+use std::io::{self, ErrorKind, Read as _, Write as _};
 use std::path::Path;
 
 /// `statfs` magic numbers of filesystems reached over the network.
@@ -28,9 +29,9 @@ const FUSE_NETWORK: [&str; 2] = ["fuse.ceph-fuse", "fuse.glusterfs"];
 const MARKER: &str = ".korpis-store";
 
 /// A new random identifier, in the hyphenated form of a version 4 UUID.
-fn new_id() -> std::io::Result<String> {
+fn new_id() -> io::Result<String> {
     let mut b = [0u8; 16];
-    std::fs::File::open("/dev/urandom")?.read_exact(&mut b)?;
+    File::open("/dev/urandom")?.read_exact(&mut b)?;
     b[6] = (b[6] & 0x0f) | 0x40;
     b[8] = (b[8] & 0x3f) | 0x80;
     let hex = b.iter().fold(String::new(), |mut out, x| {
@@ -62,12 +63,12 @@ pub enum Network {
 }
 
 /// Why a directory is not a shared class.
-fn refused(why: String) -> std::io::Error {
-    std::io::Error::new(ErrorKind::InvalidInput, why)
+fn refused(why: String) -> io::Error {
+    io::Error::new(ErrorKind::InvalidInput, why)
 }
 
 /// Whether the filesystem at `root` is reached over the network, or what it is instead.
-fn network_filesystem(root: &std::fs::File, path: &Path) -> Result<(), String> {
+fn network_filesystem(root: &File, path: &Path) -> Result<(), String> {
     let stat = rustix::fs::fstatfs(root).map_err(|e| format!("statfs: {e}"))?;
     let magic = u64::try_from(stat.f_type).unwrap_or(0);
     match magic {
@@ -97,14 +98,23 @@ fn fuse_type(path: &Path) -> Option<String> {
     best.map(|(_, kind)| kind)
 }
 
-/// That root may make a directory at `root`, give it away, and remove it.
-fn probe(root: &Path) -> Result<(), String> {
-    let new_id = || new_id().map_err(|e| e.to_string());
-    let path = root.join(format!(".korpis-probe-{}", new_id()?));
-    let squashed = |e: std::io::Error| format!("{e}: is root squashed on this export?");
-    std::fs::create_dir(&path).map_err(squashed)?;
-    let given = std::os::unix::fs::chown(&path, Some(65_534), Some(65_534)).map_err(squashed);
-    let removed = std::fs::remove_dir(&path).map_err(squashed);
+/// Opening a name under a held directory as it is, never through a link: another client of the
+/// export may put a link in place of anything this helper made there (Finding 202 of
+/// docs/23-walkthroughs.md).
+const NOFOLLOW: OFlags = OFlags::NOFOLLOW.union(OFlags::CLOEXEC);
+
+/// That root may make a directory in `root`, give it away, and remove it.
+fn probe(root: &File) -> Result<(), String> {
+    let name = format!(".korpis-probe-{}", new_id().map_err(|e| e.to_string())?);
+    let squashed =
+        |e: rustix::io::Errno| format!("{}: is root squashed on this export?", io::Error::from(e));
+    rustix::fs::mkdirat(root, &name, Mode::from_raw_mode(0o700)).map_err(squashed)?;
+    let flags = OFlags::RDONLY | OFlags::DIRECTORY | NOFOLLOW;
+    let nobody = (Uid::from_raw_unchecked(65_534), Gid::from_raw_unchecked(65_534));
+    let given = rustix::fs::openat(root, &name, flags, Mode::empty())
+        .and_then(|made| rustix::fs::fchown(&made, Some(nobody.0), Some(nobody.1)))
+        .map_err(squashed);
+    let removed = rustix::fs::unlinkat(root, &name, AtFlags::REMOVEDIR).map_err(squashed);
     given.and(removed)
 }
 
@@ -112,36 +122,38 @@ fn probe(root: &Path) -> Result<(), String> {
 /// writes when it is the first. A file of its own name is linked to the marker's, which succeeds
 /// for one writer alone on NFS as locally, and a link count of two on its own file is success
 /// whose answer was lost, as `open(2)` says of NFS.
-fn store_at(root: &Path) -> std::io::Result<String> {
-    let marker = root.join(MARKER);
-    if let Some(store) = read_marker(&marker)? {
+fn store_at(root: &File) -> io::Result<String> {
+    if let Some(store) = read_marker(root)? {
         return Ok(store);
     }
     let mine = new_id()?;
-    let own = root.join(format!("{MARKER}.{mine}"));
-    let mut file = std::fs::File::create_new(&own)?;
+    let own = format!("{MARKER}.{mine}");
+    let flags = OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | NOFOLLOW;
+    let mut file = File::from(rustix::fs::openat(root, &own, flags, Mode::from_raw_mode(0o644))?);
     file.write_all(mine.as_bytes())?;
     file.sync_all()?;
-    let linked = std::fs::hard_link(&own, &marker);
-    let won = linked.is_ok() || std::fs::metadata(&own).is_ok_and(|m| m.nlink() == 2);
-    std::fs::remove_file(&own)?;
+    let linked = rustix::fs::linkat(root, &own, root, MARKER, AtFlags::empty());
+    let count = rustix::fs::statat(root, &own, AtFlags::SYMLINK_NOFOLLOW).map(|s| s.st_nlink);
+    let won = linked.is_ok() || count.is_ok_and(|n| n == 2);
+    rustix::fs::unlinkat(root, &own, AtFlags::empty())?;
     if won {
         return Ok(mine);
     }
-    read_marker(&marker)?.ok_or_else(|| refused(format!("{} is unreadable", marker.display())))
+    read_marker(root)?.ok_or_else(|| refused(format!("{MARKER} is unreadable")))
 }
 
-/// The store a marker names, if there is one; a marker that names none is refused.
-fn read_marker(marker: &Path) -> std::io::Result<Option<String>> {
+/// The store the marker in `root` names, if there is one; a marker that names none, or is a
+/// link, is refused.
+fn read_marker(root: &File) -> io::Result<Option<String>> {
     let mut text = String::new();
-    match std::fs::File::open(marker) {
-        Ok(f) => f.take(64).read_to_string(&mut text)?,
-        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(e),
+    match rustix::fs::openat(root, MARKER, OFlags::RDONLY | NOFOLLOW, Mode::empty()) {
+        Ok(f) => File::from(f).take(64).read_to_string(&mut text)?,
+        Err(rustix::io::Errno::NOENT) => return Ok(None),
+        Err(e) => return Err(e.into()),
     };
     let store = text.trim().to_ascii_lowercase();
     if !is_id(&store) {
-        return Err(refused(format!("{} names no store", marker.display())));
+        return Err(refused(format!("{MARKER} names no store")));
     }
     Ok(Some(store))
 }
@@ -149,19 +161,15 @@ fn read_marker(marker: &Path) -> std::io::Result<Option<String>> {
 /// The store a shared class at `root`, open as `handle`, is, once the directory is found to be
 /// one: reached over the network where `network` requires it, and where root may make, give
 /// away, and remove a directory.
-pub(super) fn open(
-    root: &Path,
-    handle: &std::fs::File,
-    network: Network,
-) -> std::io::Result<String> {
+pub(super) fn open(root: &Path, handle: &File, network: Network) -> io::Result<String> {
     let reached = match network {
         Network::Required => network_filesystem(handle, root),
         #[cfg(feature = "testing")]
         Network::Assumed => Ok(()),
     };
     reached.map_err(|why| refused(format!("{} is not shared: {why}", root.display())))?;
-    probe(root).map_err(|why| refused(format!("{}: {why}", root.display())))?;
-    store_at(root)
+    probe(handle).map_err(|why| refused(format!("{}: {why}", root.display())))?;
+    store_at(handle).map_err(|e| refused(format!("{}: {e}", root.display())))
 }
 
 #[cfg(test)]
@@ -172,20 +180,31 @@ mod tests {
     #[test]
     fn the_first_helper_names_the_store_and_the_next_reads_it() {
         let dir = tempfile::tempdir().unwrap();
-        let first = store_at(dir.path()).unwrap();
-        assert_eq!(store_at(dir.path()).unwrap(), first, "read, not written again");
+        let root = File::open(dir.path()).unwrap();
+        let first = store_at(&root).unwrap();
+        assert_eq!(store_at(&root).unwrap(), first, "read, not written again");
         let left: Vec<_> = std::fs::read_dir(dir.path()).unwrap().flatten().collect();
         assert_eq!(left.len(), 1, "its own file is removed once linked");
         std::fs::write(dir.path().join(MARKER), "not a store").unwrap();
-        assert!(store_at(dir.path()).is_err(), "a marker naming no store is refused");
+        assert!(store_at(&root).is_err(), "a marker naming no store is refused");
         assert!(is_id(&first) && is_id(&new_id().unwrap()));
         assert!(!is_id("0b9c1f40-3d2e-4c55-9f0a-7e6d5c4b3a2g"));
     }
 
     #[test]
+    fn a_marker_that_is_a_link_is_refused_and_not_followed() {
+        let (dir, elsewhere) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+        let target = elsewhere.path().join("id");
+        std::fs::write(&target, new_id().unwrap()).unwrap();
+        std::os::unix::fs::symlink(&target, dir.path().join(MARKER)).unwrap();
+        let root = File::open(dir.path()).unwrap();
+        assert!(store_at(&root).is_err(), "another client of the export may have put it there");
+    }
+
+    #[test]
     fn a_local_directory_is_not_shared() {
         let dir = tempfile::tempdir().unwrap();
-        let handle = std::fs::File::open(dir.path()).unwrap();
+        let handle = File::open(dir.path()).unwrap();
         let refused = open(dir.path(), &handle, Network::Required).unwrap_err();
         assert!(refused.to_string().contains("not shared"), "{refused}");
         assert!(!dir.path().join(MARKER).exists(), "and no store is named on it");

@@ -117,6 +117,7 @@ pub fn plan_to_pb(p: &Plan) -> pb::Plan {
         PlanTarget::Power(v) => (pb::PlanKind::PLAN_KIND_POWER, None, Some(v)),
         PlanTarget::Retire => (pb::PlanKind::PLAN_KIND_RETIRE, None, None),
         PlanTarget::Migrate => (pb::PlanKind::PLAN_KIND_MIGRATE, None, None),
+        PlanTarget::Remake => (pb::PlanKind::PLAN_KIND_REMAKE, None, None),
         PlanTarget::Volume(_, op) => (volume_kind(op), None, None),
         PlanTarget::Prune(_) => (pb::PlanKind::PLAN_KIND_PRUNE_BACKUPS, None, None),
     };

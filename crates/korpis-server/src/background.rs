@@ -81,8 +81,9 @@ async fn make_runs(api: Arc<Api>) {
     }
 }
 
-/// Marks unreachable, every heartbeat interval, each connected node not heard for three. The
-/// task ends with the process.
+/// Marks unreachable, every heartbeat interval, each connected node not heard for three, then
+/// places again each workload on an unreachable node that may be now (§2.4 of
+/// docs/05-scheduling.md). The task ends with the process.
 async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
     let mut tick = tokio::time::interval(every);
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -92,6 +93,11 @@ async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
             Ok(0) => {}
             Ok(n) => tracing::info!(nodes = n, "nodes unreachable: three heartbeats missed"),
             Err(e) => tracing::warn!(error = %e, "node sweep failed"),
+        }
+        match api.app().fail_over().await {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(workloads = n, "failed over from unreachable nodes"),
+            Err(e) => tracing::warn!(error = %e, "failover failed"),
         }
     }
 }

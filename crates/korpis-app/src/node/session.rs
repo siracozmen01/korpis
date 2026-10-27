@@ -194,10 +194,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Session { node, protocol: hello.protocol, terms: self.session_terms })
     }
 
-    /// Binds each shared store `facts` declares to `node`'s organization where none was bound,
-    /// and strikes from its class a store another organization's node declared first, so that a
-    /// node's word about its mount never reaches another organization's volumes (§2.1 of
-    /// docs/06-storage.md, Finding 201 of docs/23-walkthroughs.md); each strike is an effect.
+    /// Binds each shared store `facts` declares to `node`'s organization where no organization
+    /// holds it, and strikes from its class a store another organization holds, so that a node's
+    /// word about its mount never reaches another organization's volumes (§2.1 of
+    /// docs/06-storage.md, Findings 201 and 203 of docs/23-walkthroughs.md); each strike, and
+    /// each store bound away from the organization that held it, is an effect.
     async fn bind_stores(
         &self,
         tx: &mut S::Tx,
@@ -213,19 +214,31 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let organization = organization.organization;
         for class in classes.iter_mut() {
             let Some(store) = class.store.clone() else { continue };
-            let owner = tx.bind_store(&store, (node, organization), now).await?;
-            if owner != organization {
-                class.store = None;
-                let actor = Principal::System(SystemActor::Reconciler);
-                let mut e =
-                    Effect::new(actor, "node.store_refused", Outcome::Failed).error(details([
-                        ("class", class.name.clone().into()),
-                        ("store", store.into()),
-                        ("reason", "another organization's node declared it first".into()),
-                    ]));
-                (e.node, e.organization) = (Some(node), Some(organization));
-                tx.append_effect(&e).await?;
-            }
+            let (before, owner) = tx.bind_store(&store, (node, organization), now).await?;
+            let (kind, outcome, said) = match before {
+                _ if owner != organization => {
+                    class.store = None;
+                    ("node.store_refused", Outcome::Failed, "another organization holds it")
+                }
+                Some(b) if b != organization => {
+                    ("node.store_bound", Outcome::Succeeded, "its organization left nothing in it")
+                }
+                _ => continue,
+            };
+            let actor = Principal::System(SystemActor::Reconciler);
+            let fields = [
+                ("class", class.name.clone().into()),
+                ("store", store.into()),
+                ("reason", said.into()),
+            ];
+            let mut e = Effect::new(actor, kind, outcome);
+            e = if outcome == Outcome::Failed {
+                e.error(details(fields))
+            } else {
+                e.after(details(fields))
+            };
+            (e.node, e.organization) = (Some(node), Some(organization));
+            tx.append_effect(&e).await?;
         }
         Ok(())
     }

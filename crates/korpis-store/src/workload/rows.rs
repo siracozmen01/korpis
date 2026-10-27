@@ -203,6 +203,7 @@ fn target(
         ("power", None, Some(v), None) => PlanTarget::Power(count("to_power", v)?),
         ("retire", None, None, None) => PlanTarget::Retire,
         ("migrate", None, None, None) => PlanTarget::Migrate,
+        ("remake", None, None, None) => PlanTarget::Remake,
         (other, None, None, Some(v)) => match VolumeOp::parse(other) {
             Some(op) => PlanTarget::Volume(v, op),
             None => return Err(corrupt("plan kind", kind)),

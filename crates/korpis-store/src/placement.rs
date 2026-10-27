@@ -107,6 +107,14 @@ impl PlacementRead for PgStore {
             .await
             .map_err(from_sqlx)
     }
+
+    async fn placed_unreachable(&self, page: Page) -> StoreResult<Vec<Uuid>> {
+        let size = i64::from(page.size);
+        sqlx::query_file_scalar!("queries/placement_unreachable.sql", page.after, size)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(from_sqlx)
+    }
 }
 
 impl PlacementWrite for PgTx {
@@ -246,6 +254,14 @@ impl PlacementWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn forget_returned(&mut self) -> StoreResult<u64> {
+        let done = sqlx::query_file!("queries/unplaced_returned.sql")
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(done.rows_affected())
     }
 
     async fn unbind(&mut self, workload: Uuid) -> StoreResult<()> {

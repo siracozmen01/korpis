@@ -63,8 +63,9 @@ fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
     Ok(match plan.target {
         PlanTarget::Intent(i) => i == w.intent && plan.from_intent == w.target,
         PlanTarget::Power(v) => v == w.power_version && plan.from_power == w.power_target_version,
-        // A retire plan's steps were computed from what the workload was approved to be and do.
-        PlanTarget::Retire => {
+        // A retire plan's steps were computed from what the workload was approved to be and do,
+        // and so were a remake plan's.
+        PlanTarget::Retire | PlanTarget::Remake => {
             plan.from_intent == w.target && plan.from_power == w.power_target_version
         }
         PlanTarget::Migrate => {
@@ -183,7 +184,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 PlanTarget::Power(v) => {
                     tx.move_power_target(w.id, v, w.power_target_version).await?
                 }
-                PlanTarget::Retire | PlanTarget::Volume(..) | PlanTarget::Prune(_) => true,
+                PlanTarget::Retire
+                | PlanTarget::Remake
+                | PlanTarget::Volume(..)
+                | PlanTarget::Prune(_) => true,
                 PlanTarget::Migrate => false,
             };
         if !moved {
@@ -206,6 +210,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             PlanTarget::Retire => self.begin_retirement(&mut tx, &mut plan, &w).await?,
             PlanTarget::Power(_)
             | PlanTarget::Migrate
+            | PlanTarget::Remake
             | PlanTarget::Volume(..)
             | PlanTarget::Prune(_) => {}
         }

@@ -176,12 +176,20 @@ impl WorkloadWrite for PgTx {
         Ok(applying)
     }
 
+    async fn made_and_settled(&mut self, workload: Uuid) -> StoreResult<bool> {
+        sqlx::query_file_scalar!("queries/plan_made_and_settled.sql", workload)
+            .fetch_one(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)
+    }
+
     async fn insert_plan(&mut self, p: &Plan) -> StoreResult<()> {
         let (to_intent, to_power) = match p.target {
             PlanTarget::Intent(i) => (Some(i), None),
             PlanTarget::Power(v) => (None, Some(to_count("to_power", v)?)),
             PlanTarget::Retire
             | PlanTarget::Migrate
+            | PlanTarget::Remake
             | PlanTarget::Volume(..)
             | PlanTarget::Prune(_) => (None, None),
         };

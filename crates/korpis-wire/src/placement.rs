@@ -25,6 +25,7 @@ enum_map!(bound_by_to_pb, bound_by_from_pb, BoundBy, pb::BoundBy, "a binder", {
     BoundBy::Operator => pb::BoundBy::BOUND_BY_OPERATOR,
     BoundBy::Migration => pb::BoundBy::BOUND_BY_MIGRATION,
     BoundBy::Recovery => pb::BoundBy::BOUND_BY_RECOVERY,
+    BoundBy::Failover => pb::BoundBy::BOUND_BY_FAILOVER,
 });
 
 fn spread_to_pb(s: &SpreadConstraint) -> pb::SpreadConstraint {

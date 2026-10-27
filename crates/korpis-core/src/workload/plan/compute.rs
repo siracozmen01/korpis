@@ -244,6 +244,33 @@ pub fn power_steps(
     b.steps
 }
 
+/// The steps of a remake plan for `workload` (§2.4 of docs/05-scheduling.md): its approved
+/// `body` made again on the node it was placed on again, its recipe pulled there, each volume it
+/// holds attached where it is, never made anew or written by an install, and its runtime
+/// created, then started if it is to be running. A volume in `held`, by name, is the one its
+/// record names; one with no record was never reported made, so it is created as on its first
+/// node.
+#[must_use]
+pub fn remake_steps(
+    workload: Uuid,
+    (body, power): (&IntentBody, PowerState),
+    held: &[(String, Uuid)],
+    classifier: Classifier<'_>,
+) -> Vec<Step> {
+    let mut b =
+        Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
+    b.pull(body);
+    for v in &body.volumes {
+        let record = v.existing.or_else(|| held.iter().find(|(n, _)| *n == v.name).map(|h| h.1));
+        b.add_volume(&VolumeSpec { existing: record, from_backup: None, ..v.clone() });
+    }
+    b.push(StepAction::Create, ValueMap::new(), &[]);
+    if power == PowerState::Running {
+        b.push(StepAction::Start, ValueMap::new(), &[]);
+    }
+    b.steps
+}
+
 /// The steps of a retire plan for `workload` (§4.8 of docs/02-architecture.md), from its
 /// approved body and power. A workload stops, its volumes are detached and retained, and its
 /// runtime is removed; then each volume in `deleting`, which the deletion named explicitly, is

@@ -38,6 +38,10 @@ pub enum PlanTarget {
     Retire,
     /// Another node, with the intent unchanged.
     Migrate,
+    /// Its approved target made again on the node it was placed on again, once made on another:
+    /// by failover, or away from a node removed as compromised (§2.4 of docs/05-scheduling.md).
+    /// The control plane approves it, since it carries out a decision already made.
+    Remake,
     /// An operation on this volume, apart from any change to the workload: deleting a retained
     /// volume, or taking, rolling back to, or deleting one of its snapshots. The plan's workload
     /// is the one holding the volume, or the one that created it when none holds it (§7 of
@@ -105,6 +109,7 @@ impl PlanTarget {
             Self::Power(_) => "power",
             Self::Retire => "retire",
             Self::Migrate => "migrate",
+            Self::Remake => "remake",
             Self::Volume(_, op) => op.kind(),
             Self::Prune(_) => "prune_backups",
         }
