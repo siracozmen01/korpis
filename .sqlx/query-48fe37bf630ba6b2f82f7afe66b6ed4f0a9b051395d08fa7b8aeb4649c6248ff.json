@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO volume (id, project_id, created_by, attached_to, name, kind, node_id, store,\n                             helper_id, storage_class, size_bytes, quota_enforced, created_at)\n         SELECT coalesce(b.id, $1), w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10,\n                $11\n           FROM workload w\n           LEFT JOIN block_device b\n             ON b.store = $6 AND b.helper_id = $7 AND b.deleted_at IS NULL\n            AND b.workload_id = w.id\n          WHERE w.id = $2 AND ($6 NOT LIKE 'block/%' OR b.id IS NOT NULL)\n         ON CONFLICT (store, helper_id) WHERE deleted_at IS NULL AND store IS NOT NULL DO UPDATE\n            SET attached_to = EXCLUDED.attached_to,\n                detached_at = NULL,\n                node_id = EXCLUDED.node_id,\n                storage_class = EXCLUDED.storage_class,\n                size_bytes = CASE WHEN EXCLUDED.size_bytes > 0 THEN EXCLUDED.size_bytes\n                                  ELSE volume.size_bytes END,\n                quota_enforced = EXCLUDED.quota_enforced\n          WHERE volume.project_id = EXCLUDED.project_id\n            AND volume.attached_to = EXCLUDED.attached_to",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Bool",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "48fe37bf630ba6b2f82f7afe66b6ed4f0a9b051395d08fa7b8aeb4649c6248ff"
+}

@@ -20,6 +20,8 @@ mod backup;
 mod content;
 mod cores;
 mod deps;
+mod devices;
+pub(crate) use devices::block_classes;
 mod halt;
 mod health;
 mod install;
@@ -164,9 +166,19 @@ pub struct Wiring {
     pub reading: crate::data::backup::Reading,
     /// The node's devices, which a placement's holds are given from; none where it offers none.
     pub devices: Option<crate::devices::Devices>,
-    /// The cores the node offers for dedication, which a placement's are given from (§5.2 of
+    /// What the node offers its workloads beside its drivers.
+    pub offered: Offered,
+}
+
+/// What a node offers its workloads beside its drivers, as it declared it.
+#[derive(Debug, Clone, Default)]
+pub struct Offered {
+    /// The cores it offers for dedication, which a placement's are given from (§5.2 of
     /// docs/05-scheduling.md).
     pub cores: Vec<pb::Core>,
+    /// Its block classes, whose volumes are made only with the device their assignment carries
+    /// (§2.1 of docs/06-storage.md).
+    pub block_classes: BTreeSet<String>,
 }
 
 /// The reconciler.
@@ -353,6 +365,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
         }
         self.release_networks(&held).await;
+        self.release_devices(&held).await;
         self.keep_cores().await;
         self.serve_resolvers(&held).await;
         self.publish_ingress(&held).await;

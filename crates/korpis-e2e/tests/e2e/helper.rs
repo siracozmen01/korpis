@@ -7,6 +7,26 @@ use crate::node::built as built_binary;
 use korpis_helper::cores::{Cores, CoresConfig};
 use std::path::{Path, PathBuf};
 
+/// A class a node offers beside its own disk's.
+#[derive(Debug, Clone)]
+pub(crate) enum Storage {
+    /// A shared class `shared` on this directory, which other nodes of the test offer too.
+    Shared(PathBuf),
+    /// A block class `fast` whose devices are files in this directory, attached through loop
+    /// devices, its volumes mounted beneath the node's own block root.
+    Block(PathBuf),
+}
+
+impl Storage {
+    /// The shared class's directory, if it is one.
+    pub(crate) fn shared(&self) -> Option<&Path> {
+        match self {
+            Self::Shared(p) => Some(p),
+            Self::Block(_) => None,
+        }
+    }
+}
+
 /// The helper, serving on `socket` from its own thread for the rest of the process, running
 /// backup and restore jobs with the job binary as a node's helper does, which read recipe content
 /// from `content`, the agent's content store, and file sessions with the file worker; and, where
@@ -14,7 +34,7 @@ use std::path::{Path, PathBuf};
 /// `--cores-cgroup` naming it would.
 pub(crate) fn helper(
     socket: &Path,
-    (volumes, shared): (&Path, Option<&Path>),
+    (volumes, shared): (&Path, Option<&Storage>),
     dirs: (&Path, &Path, &Path),
     parent: Option<&str>,
 ) {
@@ -57,13 +77,23 @@ pub(crate) fn btrfs_in(dir: &Path) -> Option<std::path::PathBuf> {
 /// names, where it names one, which another node of the test shares as a network filesystem
 /// would be shared (§2.1 of docs/06-storage.md).
 fn built(
-    (volumes, shared): (&Path, Option<&Path>),
+    (volumes, extra): (&Path, Option<&Storage>),
     (state, content, netns): (&Path, &Path, &Path),
     parent: Option<&str>,
 ) -> korpis_helper::helper::Helper {
-    use korpis_helper::storage::{Class, Network};
+    use korpis_helper::storage::{Class, Network, device::Protocol};
     let mut classes = vec![Class::open("local", volumes).unwrap()];
-    classes.extend(shared.map(|s| Class::shared("shared", s, Network::Assumed).unwrap()));
+    match extra {
+        Some(Storage::Shared(s)) => {
+            classes.push(Class::shared("shared", s, Network::Assumed).unwrap());
+        }
+        Some(Storage::Block(disks)) => {
+            let (root, records) = (block_root(state), state.join("devices"));
+            let protocol = Protocol::Loop(disks.clone());
+            classes.push(Class::block("fast", &root.join("fast"), protocol, &records).unwrap());
+        }
+        None => {}
+    }
     let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
     let jobs = korpis_helper::job::JobConfig {
         binary: built_binary("korpis-backup", "korpis-backup-job"),
@@ -95,6 +125,11 @@ fn built(
         h = h.with_cores(Cores::new(config).unwrap());
     }
     h
+}
+
+/// The block classes' root of the node whose helper keeps its state in `state`, beside it.
+pub(crate) fn block_root(state: &Path) -> PathBuf {
+    state.with_file_name("block")
 }
 
 /// Serves `h` on `socket` from its own thread for the rest of the process, entering the network

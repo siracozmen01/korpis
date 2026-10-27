@@ -6,11 +6,13 @@
 //! docs/04-runtimes.md). The helper is a separate root process and the content store sits in
 //! front of the runtime's; adapters over both implement these, and so does [`InMemoryHost`].
 
+mod devices;
 mod memory;
 pub mod node;
 pub mod privileged;
 mod replica;
 
+pub use devices::Devicing;
 pub use memory::InMemoryHost;
 pub use replica::Replicating;
 
@@ -37,7 +39,7 @@ pub enum SnapshotOp {
 }
 
 /// The node's helper and content store.
-pub trait Host: Replicating + Send + Sync + 'static {
+pub trait Host: Replicating + Devicing + Send + Sync + 'static {
     /// Creates a volume, or finds the one already created; idempotent by volume.
     fn ensure_volume(
         &self,

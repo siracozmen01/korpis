@@ -4,20 +4,25 @@
 //! extension requiring `provider.block_storage` installs, and a provider written with the SDK
 //! registers saying its attach fences, which the registration shows; and a workload placed on a
 //! node offering its class has a device made for its volume and attached to that node for the
-//! epoch of the lease it holds there, which its assignment then carries. The storage here is the
+//! epoch of the lease it holds there, which its assignment then carries; and a volume a node
+//! reports takes only its own workload's device (Finding 208). The storage here is the
 //! tests' own: devices kept in memory, each attached to one node for one epoch, a lower epoch
 //! refused.
 
-use crate::agent::{TestAgent, welcome};
+use crate::agent::{Stream, TestAgent, welcome};
+use crate::block_failover::attached_for;
 use crate::extensions::{DNS, push_document};
-use crate::journal::{assignment, until};
+use crate::journal::{ack, assignment, send, until};
 use crate::providers::{Installed, installed_from};
 use crate::recipes::{body, create, project, push_paper};
 use crate::streams::held;
 use crate::support::Harness;
+use crate::volumes::{ensured, list, volume_record};
 use korpis_extension::block::{BlockStorage, Failure, Storage};
 use korpis_extension::provider::{Provider, Registration};
 use korpis_extension::{Connection, Credential, Fixed};
+use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeMap;
 use std::future::{Future, ready};
@@ -175,6 +180,30 @@ async fn a_block_storage_provider_installs_and_registers_saying_its_attach_fence
     assert_eq!(p.fencing.as_known(), Some(pb::Fencing::FENCING_STORAGE_ENFORCED));
 }
 
+/// The first assignment of `workload` carrying a device, its lease renewed every 400 ms while it
+/// waits, as its node's would be: the harness's leases last two seconds.
+async fn carried(s: &mut Stream, workload: &str) -> agent::Assignment {
+    let renew = agent::LeaseRequest {
+        workload: workload.to_owned(),
+        nonce: vec![7; 8],
+        ..Default::default()
+    };
+    let pick = assignment(|t| t.workload == workload && !t.block_attachments.is_empty());
+    for _ in 0..50 {
+        let up = Up::LeaseRequest(Box::new(renew.clone()));
+        s.send(agent::AgentMessage { message: Some(up), ..Default::default() }).await.unwrap();
+        let until = tokio::time::Instant::now() + Duration::from_millis(400);
+        while let Ok(m) = tokio::time::timeout_at(until, s.message::<agent::ControlMessage>()).await
+        {
+            let m = m.unwrap().expect("the stream is open").to_owned_message();
+            if let Some(found) = m.message.as_ref().and_then(&pick) {
+                return found;
+            }
+        }
+    }
+    panic!("no assignment of {workload} carried a device");
+}
+
 /// A block class `fast` reached over the network, its devices attached by a loop device from any
 /// node of the organization, one at a time, their size the bound on their bytes.
 pub(crate) fn fast() -> pb::StorageClassInfo {
@@ -216,11 +245,66 @@ async fn a_placed_workload_s_device_is_made_and_attached_for_the_epoch_of_its_le
     let db = declared.await.unwrap().into_owned().workload.into_option().unwrap().id;
     until(&mut s, assignment(|t| t.plan.is_set())).await;
     let epoch = held(&mut s, &db).await;
-    let told = until(&mut s, assignment(|t| !t.block_attachments.is_empty())).await;
+    let told = carried(&mut s, &db).await;
     let [attached] = told.block_attachments.as_slice() else { panic!("one: {told:?}") };
     assert_eq!(attached.helper_id, format!("{db}.data"), "by its volume's identifier");
     assert_eq!(attached.protocol.as_known(), Some(pb::BlockProtocol::BLOCK_PROTOCOL_LOOP));
     let device = disks.with(|d| d.get(&attached.target).cloned()).expect("made");
     assert_eq!(device.size_bytes, 1 << 30);
     assert_eq!(device.attached, Some((a.node.clone(), epoch)), "for the lease's epoch");
+}
+
+/// The example's declaration with its `data` volume in `fast`.
+fn on_fast(repo: &str) -> pb::IntentBody {
+    let mut b = body(repo, &[]);
+    let size_bytes = 1 << 30;
+    let data = pb::VolumeSpec {
+        name: "data".into(),
+        storage_class: "fast".into(),
+        size_bytes,
+        ..Default::default()
+    };
+    b.volumes = vec![data];
+    b
+}
+
+#[tokio::test]
+async fn a_volume_takes_only_its_own_workload_s_device() {
+    let h = Harness::new().await;
+    let disks = Disks::default();
+    serving(&h, disks.clone()).await;
+    let a = TestAgent::enroll(&h, "fra-1", 1).await;
+    let (mut s, first) =
+        TestAgent::open(&h, a.hello_with(SystemTime::now(), &[1; 16], vec![fast()])).await;
+    welcome(&first.unwrap());
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "games").await;
+    let workloads = h.workloads(h.root());
+    let id = |r: pb::DeclareIntentResponse| r.workload.into_option().unwrap().id;
+    let mut none = body(&repo, &[]);
+    none.volumes.clear();
+    let declared = workloads.declare_intent(create("other", &project, "other", none));
+    let other = id(declared.await.unwrap().into_owned());
+    let declared = workloads.declare_intent(create("db", &project, "db", on_fast(&repo)));
+    let db = id(declared.await.unwrap().into_owned());
+    held(&mut s, &other).await;
+    attached_for(&mut s, &db, &disks, &a.node).await;
+
+    // Another workload of the node reports a volume by the identifier of `db`'s.
+    let mut stolen = ensured(&other, "data", true, false);
+    (stolen.helper_id, stolen.storage_class) = (format!("{db}.data"), "fast".into());
+    send(&mut s, vec![volume_record(1, stolen)]).await;
+    assert_eq!(until(&mut s, ack).await, 1);
+    let volumes = h.volumes(h.root());
+    let listed = volumes.list_volumes(list(&project, false)).await.unwrap().into_owned().volumes;
+    assert!(listed.iter().all(|v| v.attached_to.as_deref() != Some(other.as_str())), "{listed:?}");
+    held(&mut s, &db).await;
+    let mut own = ensured(&db, "data", true, false);
+    own.storage_class = "fast".into();
+    send(&mut s, vec![volume_record(2, own)]).await;
+    assert_eq!(until(&mut s, ack).await, 2);
+    let listed = volumes.list_volumes(list(&project, false)).await.unwrap().into_owned().volumes;
+    let data = listed.iter().find(|v| v.attached_to.as_deref() == Some(db.as_str())).unwrap();
+    let device = format!("{}.img", data.id);
+    assert!(disks.with(|d| d.contains_key(&device)), "its own device's identifier: {device}");
 }

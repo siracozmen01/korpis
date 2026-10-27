@@ -93,12 +93,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         .await
     }
 
-    /// Executes one of a plan's volume steps; what it leaves behind.
+    /// Executes one of a plan's volume steps; what it leaves behind, or `None` while it waits.
     pub(super) async fn volume_step(
         &mut self,
         a: &agent::Assignment,
         s: &pb::Step,
-    ) -> Result<After, Failure> {
+    ) -> Result<Option<After>, Failure> {
         let mut after = After::new();
         let name = detail(s, "volume").unwrap_or_default();
         // The helper's identifier as the node reported it, which the control plane put in the
@@ -109,7 +109,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         };
         match s.action.as_str() {
             "create_volume" | "attach_volume" => {
-                let request = helper::EnsureVolumeRequest {
+                let mut request = helper::EnsureVolumeRequest {
                     volume: volume_id(a, name),
                     workload: a.workload.clone(),
                     storage_class: detail(s, "storage_class").unwrap_or_default().to_owned(),
@@ -117,6 +117,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                     block_device: self.wiring.driver_kinds.block_device(driver_of(a)),
                     ..Default::default()
                 };
+                // A block class's volume waits for the device its assignment carries.
+                if !self.with_device(a, &mut request) {
+                    return Ok(None);
+                }
                 let made = self.ensure_volume(name, Why::Declared, &request).await?;
                 after.insert("volume".into(), text(&request.volume));
                 after.insert("created".into(), text(if made.created { "true" } else { "false" }));
@@ -149,7 +153,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 after.insert("snapshot".into(), text(snapshot));
             }
         }
-        Ok(after)
+        Ok(Some(after))
     }
 
     /// Makes the volume `name` of `a`'s workload here from the snapshot of its replica here

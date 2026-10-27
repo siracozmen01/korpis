@@ -19,7 +19,10 @@ use korpis_core::extension::block::{Attachment, BlockAttach, BlockCreate};
 use korpis_core::extension::{CallOutcome, CallRequest, ProviderType};
 use korpis_core::id::{Id, IdKind};
 use korpis_core::node::StorageClass;
-use korpis_core::workload::block::{DeviceCall, DueDevice, WantedDevice, device_backoff};
+use korpis_core::node::driver::{DriverInfo, VolumeSemantics};
+use korpis_core::workload::block::{
+    DeviceCall, DueDevice, NodeDevice, WantedDevice, device_backoff,
+};
 use korpis_core::workload::spec::VolumeSpec;
 use std::time::Duration;
 use uuid::Uuid;
@@ -39,19 +42,31 @@ fn class_of<'a>(
     if name.is_empty() { classes.first() } else { classes.iter().find(|c| c.name == name) }
 }
 
+/// Whether the driver `named` among `drivers` takes its volumes as block devices, its guest's
+/// disks, as the node's agent decides it (§3.1 of docs/06-storage.md).
+fn guest_disks(drivers: &[DriverInfo], named: &str) -> bool {
+    drivers
+        .iter()
+        .any(|d| d.name == named && d.capabilities.volume_semantics == VolumeSemantics::BlockDevice)
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// One pass making a device wanted for each volume of a block class that a placed workload
-    /// declares; how many were new.
-    pub async fn tend_devices(&self) -> Result<u64, AppError> {
-        let (mut page, mut wanted) = (Page::new(None, Page::DEFAULT), 0);
+    /// declares. A workload that fails is left to the next pass, and the others go on (Finding
+    /// 209 of docs/23-walkthroughs.md).
+    pub async fn tend_devices(&self) -> Result<Tending, AppError> {
+        let (mut page, mut pass) = (Page::new(None, Page::DEFAULT), Tending::default());
         loop {
             let placed = self.store.placed_on_block(page).await?;
             for (workload, node) in &placed {
-                wanted += self.want_devices(*workload, *node).await?;
+                match self.want_devices(*workload, *node).await {
+                    Ok(n) => pass.wanted += n,
+                    Err(e) => pass.failed.push((*workload, e)),
+                }
             }
             match page.next(&placed, |(w, _)| *w) {
                 Some(after) => page = Page::new(Some(after), page.size),
-                None => return Ok(wanted),
+                None => return Ok(pass),
             }
         }
     }
@@ -62,7 +77,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Some(w) = self.store.workload(workload).await? else { return Ok(0) };
         let Some(target) = w.target else { return Ok(0) };
         let Some(intent) = self.store.intent(target).await? else { return Ok(0) };
-        let classes = self.store.node(node).await?.map(|n| n.storage_classes).unwrap_or_default();
+        let Some(node) = self.store.node(node).await? else { return Ok(0) };
+        let guest = guest_disks(&node.drivers, &intent.body.runtime.driver);
         let mut wanted = Vec::new();
         for spec in &intent.body.volumes {
             let existing = match spec.existing {
@@ -70,8 +86,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 None => None,
             };
             let named = existing.as_ref().map_or("", |v| v.storage_class.as_str());
-            let Some(class) = class_of(spec, named, &classes) else { continue };
+            let Some(class) = class_of(spec, named, &node.storage_classes) else { continue };
             let (Some(_), Some(store)) = (class.block, class.store.clone()) else { continue };
+            let size_bytes = existing.as_ref().map_or(spec.size_bytes, |v| v.size_bytes);
+            // A device is made at a size; a volume declaring none is not made (Finding 209).
+            if size_bytes == 0 || existing.as_ref().is_some_and(|v| v.deleted_at.is_some()) {
+                continue;
+            }
             let derived = || format!("{}.{}", Id::from_uuid(IdKind::Workload, workload), spec.name);
             wanted.push(WantedDevice {
                 id: existing.as_ref().map_or_else(Uuid::now_v7, |v| v.id),
@@ -81,7 +102,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 helper_id: existing.as_ref().map_or_else(derived, |v| v.helper_id.clone()),
                 name: spec.name.clone(),
                 storage_class: class.name.clone(),
-                size_bytes: existing.as_ref().map_or(spec.size_bytes, |v| v.size_bytes),
+                size_bytes,
+                guest,
             });
         }
         if wanted.is_empty() {
@@ -163,7 +185,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         &self,
         workload: Uuid,
         (node, epoch): (Uuid, u64),
-    ) -> Result<Vec<(String, Attachment)>, AppError> {
+    ) -> Result<Vec<NodeDevice>, AppError> {
         if epoch == 0 {
             return Ok(Vec::new());
         }
@@ -183,7 +205,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 }
             };
             let SealedAttachment { protocol, target, .. } = d.attachment;
-            out.push((d.helper_id, Attachment { protocol, target, credential }));
+            out.push(NodeDevice {
+                helper_id: d.helper_id,
+                attachment: Attachment { protocol, target, credential },
+                guest: d.guest,
+                blank: d.blank,
+            });
         }
         Ok(out)
     }
@@ -201,6 +228,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         Ok(SealedAttachment { protocol: a.protocol, target: a.target, credential })
     }
+}
+
+/// What one pass of [`App::tend_devices`] did.
+#[derive(Debug, Default)]
+pub struct Tending {
+    /// Devices newly wanted.
+    pub wanted: u64,
+    /// Why a workload's devices were not wanted, left to the next pass.
+    pub failed: Vec<(Uuid, AppError)>,
 }
 
 /// How a provider answered.

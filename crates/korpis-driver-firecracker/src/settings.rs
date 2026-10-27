@@ -38,6 +38,9 @@ pub struct Settings {
     /// The roots of the node's shared storage classes, each a network filesystem the operator
     /// mounted (§2.1 of docs/06-storage.md).
     pub shared_roots: Vec<PathBuf>,
+    /// The directory the helper keeps block classes' volumes under, where a guest's disk on one
+    /// is a device node (§2.1 of docs/06-storage.md); absent on a node offering none.
+    pub block_root: PathBuf,
     /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
     /// docs/07-networking.md): the only namespaces a guest's Firecracker joins.
     pub netns_root: PathBuf,

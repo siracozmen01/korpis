@@ -44,8 +44,14 @@ pub async fn keep(api: Arc<Api>) {
     loop {
         tick.tick().await;
         match api.app().tend_devices().await {
-            Ok(0) => {}
-            Ok(n) => tracing::info!(devices = n, "block devices wanted"),
+            Ok(pass) => {
+                if pass.wanted > 0 {
+                    tracing::info!(devices = pass.wanted, "block devices wanted");
+                }
+                for (workload, e) in pass.failed {
+                    tracing::warn!(%workload, error = %e, "a workload's devices were not wanted");
+                }
+            }
             Err(e) => tracing::warn!(error = %e, "tending block devices failed"),
         }
         sweep(&api).await;

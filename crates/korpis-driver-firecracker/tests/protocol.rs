@@ -43,6 +43,7 @@ async fn node(rig: &Rig) -> Drivers<DriverRuntime> {
     let policy = Policy {
         volume_root: dir.join("volumes"),
         shared_roots: Vec::new(),
+        block_root: dir.join("block"),
         identity_root: dir.join("identity"),
         netns_root: dir.join("netns"),
         devices: korpis_driver_oci::devices::Specs { dirs: Vec::new(), owner: 0 },

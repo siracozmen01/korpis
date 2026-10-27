@@ -26,15 +26,23 @@ pub fn describes_itself(s: &Suite) -> Verdict {
     Verdict::check(i.healthy, "it describes itself unhealthy")
 }
 
-/// The objects it holds, by id.
-async fn held(s: &Suite) -> Result<Vec<String>, Stopped> {
+/// The objects it holds, each by id with the workload its labels name.
+async fn held(s: &Suite) -> Result<Vec<(String, String)>, Stopped> {
     let objects = s.driver().recover().await.map_err(|e| format!("Recover: {e}"))?;
-    let mut ids: Vec<String> = objects.into_iter().map(|o| o.runtime_id).collect();
-    ids.sort();
-    Ok(ids)
+    let mut held: Vec<(String, String)> = objects
+        .into_iter()
+        .map(|o| {
+            let workload = o.labels.as_option().map(|l| l.workload.clone()).unwrap_or_default();
+            (o.runtime_id, workload)
+        })
+        .collect();
+    held.sort();
+    Ok(held)
 }
 
-/// Two `Prepare`s of one intent answer the same, and the driver holds what it held before.
+/// Two `Prepare`s of one intent answer the same, and the driver holds no object it did not hold
+/// before for the workload prepared, or for none: the objects of other workloads, which a node's
+/// other users may make and remove meanwhile, are not the case's to judge.
 pub async fn pure(s: &Suite) -> Result<Verdict, Stopped> {
     let before = held(s).await?;
     let (workload, intent) = s.workload();
@@ -48,7 +56,10 @@ pub async fn pure(s: &Suite) -> Result<Verdict, Stopped> {
     if first != second {
         return Ok(Verdict::fail("two Prepares of one intent answered differently"));
     }
-    Ok(Verdict::check(held(s).await? == before, "Prepare left an object behind"))
+    let left = held(s).await?.into_iter().any(|(id, of)| {
+        (of == workload || of.is_empty()) && !before.iter().any(|(was, _)| *was == id)
+    });
+    Ok(Verdict::check(!left, "Prepare left an object behind"))
 }
 
 /// Whether `answer` is a rejection, and not a prepared spec or an error.

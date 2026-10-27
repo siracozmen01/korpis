@@ -263,7 +263,7 @@ impl Agent {
         let Kept { journal, progress, streams, inventory, network } =
             Kept::open(state, options.journal, options.network)?;
         let (node, data) = (identity.node.clone(), identity.clone());
-        let (ingress_facts, driver_kinds, offered_cores) = declared(&*facts);
+        let (ingress_facts, driver_kinds, offered) = declared(&*facts);
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
         let replication = replication((state, &data, &options), &host, (&link, &journal));
         let (runtime, sampler) = meter(state, runtime, (&host, &link, &journal), &options)?;
@@ -304,7 +304,7 @@ impl Agent {
             identity: Some(sockets),
             reading,
             devices: options.devices,
-            cores: offered_cores,
+            offered,
         };
         let tasks = [
             tokio::spawn(session.run()),

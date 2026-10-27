@@ -146,6 +146,17 @@ pub async fn push_target() -> String {
     push("s3-target", target()).await
 }
 
+/// An extension providing the block storage `fast` (§5 of docs/16-extensions.md) whose container
+/// only sleeps, as the backup target's does: the test serves the provider itself.
+pub async fn push_block_storage() -> String {
+    let document = target()
+        .replace("name: s3-target", "name: block-storage")
+        .replace("description: backups", "description: devices")
+        .replace("provider.backup_target", "provider.block_storage")
+        .replace("{type: backup_target, name: s3}", "{type: block_storage, name: fast}");
+    push("block-storage", document).await
+}
+
 /// Pushes `document` to a repository no other test uses, named for `name`; the repository.
 pub async fn push(name: &str, document: String) -> String {
     push_with(name, document, Vec::new()).await

@@ -36,12 +36,18 @@ pub(crate) const LABEL_CPUS: &str = "korpis.cpus";
 /// How long a killed task is given to be reaped.
 pub(crate) const KILL_WAIT: Duration = Duration::from_secs(10);
 
-/// Every volume source, resolved on the filesystem, is a directory under the volume root or a
-/// shared class's root: the lexical check of [`crate::validate`] cannot see a symbolic link.
+/// Every volume source, resolved on the filesystem, is a directory under the volume root, a
+/// shared class's root, or the block classes' root, which a node offering none has not made: the
+/// lexical check of [`crate::validate`] cannot see a symbolic link.
 fn volumes_resolve(valid: &Valid, policy: &Policy) -> DriverResult<()> {
     let mut roots = vec![std::fs::canonicalize(&policy.volume_root)?];
     for shared in &policy.shared_roots {
         roots.push(std::fs::canonicalize(shared)?);
+    }
+    match std::fs::canonicalize(&policy.block_root) {
+        Ok(root) => roots.push(root),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e.into()),
     }
     for m in &valid.spec().mounts {
         let real = std::fs::canonicalize(&m.source).map_err(|e| {

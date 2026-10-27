@@ -6,6 +6,7 @@ fn policy() -> Policy {
     Policy {
         volume_root: PathBuf::from("/var/lib/korpis/volumes"),
         shared_roots: vec![PathBuf::from("/srv/shared")],
+        block_root: "/var/lib/korpis/block".into(),
         identity_root: PathBuf::from("/var/lib/korpis-agent/identity"),
         netns_root: PathBuf::from("/run/korpis/netns"),
         devices: crate::devices::Specs { dirs: Vec::new(), owner: 0 },

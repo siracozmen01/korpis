@@ -5,7 +5,7 @@
 //! sockets and the control plane through its stream. Only the processes are folded together;
 //! every boundary between them is the socket it is in production.
 
-use crate::helper::{cgroups, helper};
+use crate::helper::{Storage, cgroups, helper};
 use crate::support::ControlPlane;
 use korpis_agent::advertise::Advertise;
 use korpis_agent::content::ContentStore;
@@ -139,7 +139,7 @@ pub fn built(package: &str, bin: &str) -> PathBuf {
 async fn driver(
     socket: &Path,
     state: &StateDir,
-    ((volumes, shared), netns, cdi): ((&Path, Option<&Path>), &Path, &Path),
+    ((volumes, extra), netns, cdi): ((&Path, Option<&Storage>), &Path, &Path),
     cores: Cores,
 ) {
     let content = state.root().join("content");
@@ -150,7 +150,8 @@ async fn driver(
     let identity_root = state.root().join("identity");
     let policy = Policy {
         volume_root: volumes.to_owned(),
-        shared_roots: shared.map(Path::to_owned).into_iter().collect(),
+        shared_roots: extra.and_then(Storage::shared).map(Path::to_owned).into_iter().collect(),
+        block_root: crate::helper::block_root(&state.root().with_file_name("helper")),
         identity_root,
         netns_root: netns.to_owned(),
         devices: Specs { dirs: vec![cdi.to_owned()], owner: 0 },
@@ -194,7 +195,7 @@ impl Node {
     pub async fn join_sharing(cp: &ControlPlane, name: &str, shared: &Path) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let volumes = dir.path().join("volumes");
-        let shared = Some(shared.to_owned());
+        let shared = Some(Storage::Shared(shared.to_owned()));
         Self::join_with(cp, name, dir, (volumes, None, shared), Vec::new(), None).await
     }
 
@@ -204,7 +205,7 @@ impl Node {
         cp: &ControlPlane,
         name: &str,
         dir: tempfile::TempDir,
-        (volumes, mounted, shared): (PathBuf, Option<PathBuf>, Option<PathBuf>),
+        (volumes, mounted, shared): (PathBuf, Option<PathBuf>, Option<Storage>),
         offered: Vec<Core>,
         inside: Option<(&Path, std::net::Ipv4Addr)>,
     ) -> Self {
@@ -223,12 +224,12 @@ impl Node {
         let dirs = (helper_state.as_path(), content.as_path(), netns.as_path());
         match inside {
             Some((ns, _)) => crate::helper::helper_in(&helper_socket, &volumes, dirs, ns),
-            None => helper(&helper_socket, (&volumes, shared.as_deref()), dirs, parent),
+            None => helper(&helper_socket, (&volumes, shared.as_ref()), dirs, parent),
         }
         let cdi = dir.path().join("cdi");
         std::fs::create_dir(&cdi).unwrap();
         let containers = cores.root.join(cores.parent.trim_start_matches('/'));
-        let roots = (volumes.as_path(), shared.as_deref());
+        let roots = (volumes.as_path(), shared.as_ref());
         driver(&driver_socket, &state, (roots, &netns, &cdi), cores).await;
         Self {
             dir,

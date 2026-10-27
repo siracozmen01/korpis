@@ -73,7 +73,7 @@ impl Class {
                 }
                 None => Ok((0, 0)),
             },
-            Backend::Directory | Backend::Shared => Ok((0, 0)),
+            Backend::Directory | Backend::Shared | Backend::Block => Ok((0, 0)),
         }
     }
 
@@ -132,6 +132,13 @@ impl Class {
     /// the restore goes, and what to record of it.
     pub fn stage(&mut self, volume: &str) -> HelperResult<(PathBuf, u64, (u64, u64))> {
         identifier("volume", volume)?;
+        if self.devices.is_some() {
+            let why = format!(
+                "volume {volume} is a block class's device, which is not replaced by a restore \
+                 yet: restore into a new directory of it"
+            );
+            return Err(HelperError::Refused(why));
+        }
         if !exists(&self.path_of(volume))? {
             return Err(HelperError::NotFound(format!("volume {volume}")));
         }
@@ -243,7 +250,7 @@ impl Class {
                 quota::limit(&self.handle, now, s.limits.0, s.limits.1)?;
                 self.projects.forget(&staged)?;
             }
-            Backend::Directory | Backend::Shared => {}
+            Backend::Directory | Backend::Shared | Backend::Block => {}
         }
         Ok(())
     }

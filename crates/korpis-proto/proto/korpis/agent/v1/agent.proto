@@ -774,6 +774,13 @@ message BlockVolumeAttachment {
   string target = 3;
   // What the node presents for the device alone; empty where none is needed.
   string credential = 4;
+  // The device is a guest's disk, which the host never mounts, given to a workload whose driver
+  // takes block devices (§3.1 of docs/06-storage.md); fixed when the device was made. Added
+  // 2026-10-27.
+  bool guest = 5;
+  // No volume was made of it yet: a guest's disk is formatted by the helper, which never reads one
+  // a guest wrote. Added 2026-10-27.
+  bool blank = 6;
 }
 
 // An address of a workload's own, as its node holds it (§3.7 of docs/07-networking.md): every

@@ -37,6 +37,10 @@ struct Cli {
     /// (§2.1 of docs/06-storage.md).
     #[arg(long = "shared-root")]
     shared_roots: Vec<PathBuf>,
+    /// The directory the helper mounts block classes' volumes under, as its `--block-root` names
+    /// it (§2.1 of docs/06-storage.md).
+    #[arg(long, default_value = "/var/lib/korpis/block")]
+    block_root: PathBuf,
     /// The directory the agent makes workload identity sockets under; with the volume root, the
     /// `resolv.conf` of a workload's network directory, and what the node's CDI files give a
     /// device, the only host paths ever mounted.
@@ -111,6 +115,7 @@ async fn run(cli: Cli) -> Result<(), String> {
         Policy {
             volume_root: cli.volume_root,
             shared_roots: cli.shared_roots,
+            block_root: cli.block_root,
             identity_root: cli.identity_root,
             netns_root: cli.netns_root,
             devices: Specs { dirs: cli.cdi_dirs, owner: 0 },

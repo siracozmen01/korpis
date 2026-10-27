@@ -283,6 +283,7 @@ mod tests {
             content: "/c".into(),
             volume_root: "/v".into(),
             shared_roots: Vec::new(),
+            block_root: "/var/lib/korpis/block".into(),
             netns_root: "/run/korpis/netns".into(),
             identity_root: "/i".into(),
             state: "/s".into(),

@@ -61,6 +61,7 @@ pub fn serve(dir: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) -> 
         content: state.root().join("content"),
         volume_root: volumes.to_owned(),
         shared_roots: Vec::new(),
+        block_root: "/var/lib/korpis/block".into(),
         netns_root: netns.to_owned(),
         identity_root: state.root().join("identity"),
         state: dir.join("firecracker"),

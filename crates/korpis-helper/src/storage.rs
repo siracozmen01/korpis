@@ -6,7 +6,9 @@
 //! byte and inode limits in the write path. On btrfs with qgroups on and consistent, a volume is
 //! a subvolume with a byte limit, and the class can snapshot and send. Anywhere else a class is a
 //! `directory`: it enforces nothing, and every capability it declares says so, so a size asked of
-//! it is kept nowhere and shown nowhere (Rule K-3).
+//! it is kept nowhere and shown nowhere (Rule K-3). A block class keeps each volume on a device of
+//! its own, which its provider makes and attaches, mounted under the class's root, its bound the
+//! device's size ([`device`], §2.1 of docs/06-storage.md).
 
 use crate::projects::Projects;
 use crate::{btrfs, quota};
@@ -16,6 +18,9 @@ use std::fs::File;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 
+mod attached;
+pub mod device;
+mod guest;
 mod shared;
 
 /// `statfs` magic numbers of the filesystems with project quota.
@@ -36,6 +41,9 @@ pub enum Backend {
     /// Plain directories on a filesystem reached over the network that other nodes mount too
     /// (§2.1 of docs/06-storage.md); no quota, and the agents' leases the only fencing.
     Shared,
+    /// One device per volume, attached as its provider answers, formatted ext4, and mounted; its
+    /// bound is the device's size.
+    Block,
 }
 
 impl Backend {
@@ -57,6 +65,8 @@ pub struct Class {
     pub(crate) projects: Projects,
     /// For a shared class, the store it is.
     store: Option<String>,
+    /// For a block class, its devices.
+    pub(crate) devices: Option<device::Devices>,
 }
 
 /// The root's mode: root's own, and traversable by the driver that mounts what is in it.
@@ -116,6 +126,15 @@ fn capabilities(backend: Backend) -> pb::StorageCapabilities {
         Backend::Ext4Project | Backend::XfsProject => {
             (c.quota_enforced, c.quota_capacity, c.quota_inodes) = (true, true, true);
         }
+        // Any node of the organization may attach a device after another, one at a time, and the
+        // node itself guarantees only its lease: whether the storage fences the node before is
+        // the provider's to say, in its registration (§5 of 16-extensions). The device's size is
+        // its bound, and its filesystem's inodes are fixed when it is formatted.
+        Backend::Block => {
+            c.multi_node_attach = true;
+            (c.quota_enforced, c.quota_capacity, c.quota_inodes) = (true, true, true);
+            c.fencing = pb::Fencing::FENCING_LEASE_ONLY.into();
+        }
         // Bytes alone: btrfs has no inode quota. A qgroup limit changes either way at any time.
         Backend::Btrfs => {
             (c.quota_enforced, c.quota_capacity) = (true, true);
@@ -136,7 +155,7 @@ impl Class {
         tracing::info!(class = %name, root = %root.display(), ?backend, "storage class");
         let projects = Projects::open(root)?;
         let (name, root) = (name.to_owned(), root.to_owned());
-        Ok(Self { name, root, backend, handle, projects, store: None })
+        Ok(Self { name, root, backend, handle, projects, store: None, devices: None })
     }
 
     /// The shared class `name` at `root`, where the operator mounted a filesystem other nodes
@@ -149,7 +168,25 @@ impl Class {
         tracing::info!(class = %name, root = %root.display(), %store, "shared storage class");
         let projects = Projects::open(root)?;
         let (name, root) = (name.to_owned(), root.to_owned());
-        Ok(Self { name, root, backend: Backend::Shared, handle, projects, store: Some(store) })
+        let store = Some(store);
+        Ok(Self { name, root, backend: Backend::Shared, handle, projects, store, devices: None })
+    }
+
+    /// The block class `name`, its devices attached by `protocol`, each volume's mounted under
+    /// `root`, made if missing, and what was attached recorded under `records` (§2.1 of
+    /// docs/06-storage.md).
+    pub fn block(
+        name: &str,
+        root: &Path,
+        protocol: device::Protocol,
+        records: &Path,
+    ) -> std::io::Result<Self> {
+        let handle = root_of(root, true)?;
+        let devices = Some(device::Devices::open(protocol, records)?);
+        tracing::info!(class = %name, root = %root.display(), "block storage class");
+        let projects = Projects::open(root)?;
+        let (name, root) = (name.to_owned(), root.to_owned());
+        Ok(Self { name, root, backend: Backend::Block, handle, projects, store: None, devices })
     }
 
     /// Its name.
@@ -179,15 +216,19 @@ impl Class {
     /// What it offers and what it holds, as the filesystem reports it.
     #[must_use]
     pub fn describe(&self) -> pb::StorageClassInfo {
-        let (capacity, free) = rustix::fs::fstatvfs(&self.handle).map_or((0, 0), |s| {
-            (s.f_blocks.saturating_mul(s.f_frsize), s.f_bavail.saturating_mul(s.f_frsize))
-        });
+        // What a block class holds is the storage's, which the node does not see.
+        let (capacity, free) = match self.backend {
+            Backend::Block => (0, 0),
+            _ => rustix::fs::fstatvfs(&self.handle).map_or((0, 0), |s| {
+                (s.f_blocks.saturating_mul(s.f_frsize), s.f_bavail.saturating_mul(s.f_frsize))
+            }),
+        };
         let backend = match self.backend {
             Backend::Directory => pb::StorageBackend::STORAGE_BACKEND_DIRECTORY,
             Backend::Ext4Project => pb::StorageBackend::STORAGE_BACKEND_EXT4_PROJECT,
             Backend::XfsProject => pb::StorageBackend::STORAGE_BACKEND_XFS_PROJECT,
             Backend::Btrfs => pb::StorageBackend::STORAGE_BACKEND_BTRFS,
-            Backend::Shared => pb::StorageBackend::STORAGE_BACKEND_NETWORK,
+            Backend::Shared | Backend::Block => pb::StorageBackend::STORAGE_BACKEND_NETWORK,
         };
         let capabilities = capabilities(self.backend);
         pb::StorageClassInfo {
@@ -197,6 +238,12 @@ impl Class {
             capacity_bytes: capacity,
             free_bytes: free,
             store: self.store.clone().unwrap_or_default(),
+            block_protocol: self
+                .devices
+                .as_ref()
+                .map(|d| d.protocol().to_pb())
+                .unwrap_or_default()
+                .into(),
             ..Default::default()
         }
     }

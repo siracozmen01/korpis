@@ -58,8 +58,11 @@ pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> Mach
     for root in &settings.shared_roots {
         shared.push(root.canonicalize().map_err(failed)?);
     }
+    // A node offering no block class has made no directory for one.
+    shared.extend(settings.block_root.canonicalize().ok());
     for m in &spec.mounts {
-        // Checked against the root it names, the volume root unless it is under a shared one.
+        // Checked against the root it names, the volume root unless it is under a shared or a
+        // block class's one.
         let root = shared.iter().find(|r| Path::new(&m.source).starts_with(r)).unwrap_or(&own);
         crate::volume::checked(root, &m.source).map_err(refused)?;
         if !m.destination.starts_with('/') {
@@ -274,6 +277,7 @@ mod tests {
             content: "/c".into(),
             volume_root: "/v".into(),
             shared_roots: Vec::new(),
+            block_root: "/var/lib/korpis/block".into(),
             netns_root: "/n".into(),
             identity_root: "/i".into(),
             state: "/s".into(),

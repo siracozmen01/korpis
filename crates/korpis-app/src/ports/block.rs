@@ -31,6 +31,10 @@ pub struct HeldDevice {
     pub helper_id: String,
     /// What the node needs.
     pub attachment: SealedAttachment,
+    /// Whether it is a guest's disk.
+    pub guest: bool,
+    /// Whether no volume was made of it yet.
+    pub blank: bool,
 }
 
 /// Reading devices.

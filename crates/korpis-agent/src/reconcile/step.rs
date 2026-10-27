@@ -124,6 +124,14 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .is_some_and(|p| p.plan == plan && index <= p.through)
     }
 
+    /// Fetches what `a`'s target runs from; what it leaves.
+    async fn pull(&mut self, a: &agent::Assignment, t: &mut Tracked) -> Result<After, Failure> {
+        let spec = self.prepare(a, t).await?;
+        self.host.fetch(&spec.rootfs).await?;
+        self.held(a);
+        Ok(After::from([("rootfs".into(), text(&spec.rootfs))]))
+    }
+
     /// Executes one step: what it leaves, or `None` for a step that has not ended yet, which a
     /// later pass moves on.
     async fn execute(
@@ -139,15 +147,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 return self.data_step((a, plan), s, t).await;
             }
             "install" => return self.install_step(a, plan, s, t).await,
-            "pull_recipe" => {
-                let spec = self.prepare(a, t).await?;
-                self.host.fetch(&spec.rootfs).await?;
-                after.insert("rootfs".into(), text(&spec.rootfs));
-                self.held(a);
-            }
+            "pull_recipe" => after.extend(self.pull(a, t).await?),
             "create_volume" | "attach_volume" | "detach_volume" | "delete_volume"
             | "snapshot_volume" | "rollback_volume" | "delete_snapshot" | "promote_replica" => {
-                after.extend(self.volume_step(a, s).await?);
+                let Some(done) = self.volume_step(a, s).await? else { return Ok(None) };
+                after.extend(done);
             }
             // A workload that has runs is never started itself: each run is, as its assignment
             // names it, and a restart's run is made by the control plane (§4.2 of

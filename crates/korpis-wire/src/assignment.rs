@@ -134,11 +134,13 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         block_attachments: a
             .block_attachments
             .iter()
-            .map(|(helper_id, at)| agent::BlockVolumeAttachment {
-                helper_id: helper_id.clone(),
-                protocol: crate::block::protocol_to_pb(at.protocol).into(),
-                target: at.target.clone(),
-                credential: at.credential.clone(),
+            .map(|d| agent::BlockVolumeAttachment {
+                helper_id: d.helper_id.clone(),
+                protocol: crate::block::protocol_to_pb(d.attachment.protocol).into(),
+                target: d.attachment.target.clone(),
+                credential: d.attachment.credential.clone(),
+                guest: d.guest,
+                blank: d.blank,
                 ..Default::default()
             })
             .collect(),

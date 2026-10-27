@@ -21,7 +21,11 @@ use std::time::Duration;
 
 /// The lines of the file at `path`, within three minutes of there being `n`, which `w` writes;
 /// what the control plane says of `w` otherwise.
-async fn lines_reach((cp, w): (&ControlPlane, &str), path: &Path, n: usize) -> Vec<String> {
+pub(crate) async fn lines_reach(
+    (cp, w): (&ControlPlane, &str),
+    path: &Path,
+    n: usize,
+) -> Vec<String> {
     let read =
         || std::fs::read_to_string(path).unwrap_or_default().lines().map(str::to_owned).collect();
     for _ in 0..900 {
@@ -55,22 +59,23 @@ fn in_store(root: &Path) -> std::path::PathBuf {
     dirs.into_iter().next().unwrap()
 }
 
-/// Waits until the API shows `node` offering the shared class, which its first session declares.
-async fn until_offering(cp: &ControlPlane, node: &str) {
+/// Waits until the API shows `node` offering the class `class` with its store, which its first
+/// session declares.
+pub(crate) async fn until_offering(cp: &ControlPlane, node: &str, class: &str) {
     for _ in 0..120 {
         let request = pb::GetNodeRequest { id: node.to_owned(), ..Default::default() };
         let got = cp.nodes().get_node(request).await.unwrap().into_owned().node;
         let classes = got.into_option().map(|n| n.storage_classes).unwrap_or_default();
-        if classes.iter().any(|c| c.name == "shared" && !c.store.is_empty()) {
+        if classes.iter().any(|c| c.name == class && !c.store.is_empty()) {
             return;
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
-    panic!("node {node} never offered the shared class");
+    panic!("node {node} never offered the class {class}");
 }
 
 /// Lifts the cordon on `node`.
-async fn uncordon(cp: &ControlPlane, node: &str) {
+pub(crate) async fn uncordon(cp: &ControlPlane, node: &str) {
     let request = pb::UncordonNodeRequest {
         mutation: pb::Mutation {
             idempotency_key: format!("uncordon-{node}"),
@@ -98,7 +103,7 @@ async fn a_volume_in_a_shared_store_is_found_from_the_other_node() {
     let named = |n: &Node| n.state.load().unwrap().node;
     let (na, nb) = (named(&a), named(&b));
     for n in [&na, &nb] {
-        until_offering(&cp, n).await;
+        until_offering(&cp, n, "shared").await;
     }
     cordon(&cp, &nb).await;
     let project = cp.project().await;
@@ -164,7 +169,7 @@ async fn a_workload_whose_node_loses_power_runs_on_the_other_with_its_data() {
     let named = |n: &Node| n.state.load().unwrap().node;
     let (na, nb) = (named(&a), named(&b));
     for n in [&na, &nb] {
-        until_offering(&cp, n).await;
+        until_offering(&cp, n, "shared").await;
     }
     cordon(&cp, &nb).await;
     let project = cp.project().await;

@@ -13,6 +13,7 @@
 )]
 
 mod backups;
+mod block_storage;
 mod conformance;
 mod console;
 mod containers;

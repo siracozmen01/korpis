@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A guest's volumes as its driver takes them (§3.1 of docs/06-storage.md). Each is the image of a
-//! block device the helper made: named exactly `<volume root>/<volume>/block.ext4`, with no link on
+//! block device the helper made, or on a block class the node of the device it attached (§2.1
+//! there): named exactly `<volume root>/<volume>/block.ext4`, with no link on
 //! the way, in a directory the helper marked as a block device's, so the driver, which is root,
 //! acts on nothing else under the volume root. Each is attached to one workload's guests at a time,
 //! since two kernels mounting one filesystem corrupt it. It is given to the workload's first id,
@@ -32,11 +33,16 @@ pub fn checked(root: &Path, source: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-/// The regular file at `path`, opened as itself with `flags`, never through a link.
+/// The image at `path`, a regular file or, on a block class, the node of the device the helper
+/// attached (§2.1 of docs/06-storage.md), opened as itself with `flags`, never through a link.
 fn opened(path: &Path, flags: OFlags) -> io::Result<OwnedFd> {
     let fd = rustix::fs::open(path, flags | OFlags::NOFOLLOW | OFlags::CLOEXEC, Mode::empty())?;
-    if FileType::from_raw_mode(rustix::fs::fstat(&fd)?.st_mode) != FileType::RegularFile {
-        return Err(io::Error::other(format!("{} is not a regular file", path.display())));
+    let kind = FileType::from_raw_mode(rustix::fs::fstat(&fd)?.st_mode);
+    if !matches!(kind, FileType::RegularFile | FileType::BlockDevice) {
+        return Err(io::Error::other(format!(
+            "{} is neither an image nor a device",
+            path.display()
+        )));
     }
     Ok(fd)
 }

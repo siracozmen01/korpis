@@ -199,6 +199,13 @@ fn backend(c: &pb::StorageClassInfo) -> &'static str {
         Some(pb::StorageBackend::STORAGE_BACKEND_EXT4_PROJECT) => "ext4, project quota",
         Some(pb::StorageBackend::STORAGE_BACKEND_ZFS) => "ZFS",
         Some(pb::StorageBackend::STORAGE_BACKEND_DIRECTORY) => "a plain directory, no quota",
+        Some(pb::StorageBackend::STORAGE_BACKEND_NETWORK)
+            if c.block_protocol.as_known()
+                != Some(pb::BlockProtocol::BLOCK_PROTOCOL_UNSPECIFIED) =>
+        {
+            "a block storage's devices, one per volume"
+        }
+        Some(pb::StorageBackend::STORAGE_BACKEND_NETWORK) => "a shared network filesystem",
         _ => "an unknown backend",
     }
 }

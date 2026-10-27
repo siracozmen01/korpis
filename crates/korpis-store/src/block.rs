@@ -52,12 +52,13 @@ impl BlockRead for PgStore {
     ) -> StoreResult<Vec<HeldDevice>> {
         let epoch = i64::try_from(epoch).map_err(|_| StoreError::Corrupt("epoch".into()))?;
         let rows = sqlx::query!(
-            r#"SELECT id, helper_id, protocol AS "protocol!", target AS "target!", credential,
-                      sealed_by
-                 FROM block_device
-                WHERE workload_id = $1 AND attached_node_id = $2 AND attached_epoch = $3
-                  AND deleted_at IS NULL
-                ORDER BY helper_id"#,
+            r#"SELECT b.id, b.helper_id, b.protocol AS "protocol!", b.target AS "target!",
+                      b.credential, b.sealed_by, b.guest,
+                      NOT EXISTS (SELECT 1 FROM volume v WHERE v.id = b.id) AS "blank!"
+                 FROM block_device b
+                WHERE b.workload_id = $1 AND b.attached_node_id = $2 AND b.attached_epoch = $3
+                  AND b.deleted_at IS NULL
+                ORDER BY b.helper_id"#,
             workload,
             node,
             epoch
@@ -77,6 +78,8 @@ impl BlockRead for PgStore {
                         credential: credential
                             .map(|(sealed, sealed_by)| SealedKey { sealed_by, sealed }),
                     },
+                    guest: r.guest,
+                    blank: r.blank,
                 })
             })
             .collect()
@@ -121,8 +124,8 @@ impl BlockWrite for PgTx {
     async fn want_device(&mut self, d: &WantedDevice) -> StoreResult<bool> {
         let inserted = sqlx::query_scalar!(
             r#"INSERT INTO block_device (id, organization_id, workload_id, store, helper_id,
-                                         name, storage_class, size_bytes, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
+                                         name, storage_class, size_bytes, guest, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
                ON CONFLICT (store, helper_id) WHERE deleted_at IS NULL
                DO UPDATE SET workload_id = EXCLUDED.workload_id, name = EXCLUDED.name
                   WHERE block_device.workload_id <> EXCLUDED.workload_id
@@ -134,7 +137,8 @@ impl BlockWrite for PgTx {
             d.helper_id,
             d.name,
             d.storage_class,
-            size(d.size_bytes)?
+            size(d.size_bytes)?,
+            d.guest
         )
         .fetch_optional(&mut *self.tx)
         .await

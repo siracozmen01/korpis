@@ -1039,7 +1039,8 @@ export type BlockAttachment = Message<"korpis.v1.BlockAttachment"> & {
 
   /**
    * What the node presents to the storage for this device alone where the storage can scope
-   * one: iSCSI CHAP `<user>:<secret>`, an RBD key; empty where none is needed.
+   * one: iSCSI CHAP `<user>:<secret>`, an RBD user and its key `<user>:<base64 key>` (decided
+   * 2026-10-27, as the helper's attach was built); empty where none is needed.
    *
    * @generated from field: string credential = 3;
    */

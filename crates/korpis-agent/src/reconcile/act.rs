@@ -107,7 +107,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let block_device = self.wiring.driver_kinds.block_device(&spec.driver);
         for m in spec.mounts.iter_mut().filter(|m| !m.volume.is_empty()) {
             let v = volumes.and_then(|vs| vs.iter().find(|v| v.name == m.volume));
-            let request = helper::EnsureVolumeRequest {
+            let mut request = helper::EnsureVolumeRequest {
                 volume: volume_id(a, &m.volume),
                 workload: a.workload.clone(),
                 storage_class: v.map(|v| v.storage_class.clone()).unwrap_or_default(),
@@ -115,6 +115,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 block_device,
                 ..Default::default()
             };
+            if !self.with_device(a, &mut request) {
+                let why = format!("volume {} waits for its device to be attached here", m.volume);
+                return Err(Failure(why));
+            }
             m.source = self.ensure_volume(&m.volume, Why::Declared, &request).await?.host_path;
         }
         Ok(())

@@ -7093,7 +7093,32 @@ control plane, once the volume record is deleted, the only record of the bytes b
 until then, a retained volume's device stays, detached, and the storage keeps its bytes.
 
 As built (P3.8e2a and P3.8e2b), steps 1 to 7 are tested over the API with a provider of the tests'
-own whose devices are kept in memory, and the node's half of steps 4 and 6, the helper attaching
-the device, is P3.8e3. No defect was found that a document asserted; one was found in the code as
+own whose devices are kept in memory; as built (P3.8e3, P3.8e4), the node's half of steps 4 to 7
+is the helper attaching, formatting, mounting, and letting go of the device, and the trace's steps
+2 to 6 are tested end to end on two nodes with a provider keeping its devices as files attached
+through loop devices. No defect was found that a document asserted; one was found in the code as
 written, before it was committed: a block class that did not declare `multi_node_attach` was
 accepted, and its workload would have been left on the silent node, which step 2 now refuses.
+
+**Finding 208.** Found by an automated security review of the control plane's half of block
+classes as built (P3.8e2). Step 4 says the volume A reports takes the device's identifier; but the
+report named the device only by the store and the helper's identifier, which are the node's word,
+so a node of the same organization reporting a volume of another of its workloads under the
+identifier of `db`'s would have bound `db`'s device to that workload, and deleting that workload's
+volume would have had the provider delete `db`'s data. Resolved in §2.1 of `06-storage.md`: a
+volume reported in a block class's store takes the identifier of a device kept for the reporting
+workload alone, and a report naming no such device is refused, since no volume of a block class
+exists but on a device made for it. Tested over the API with another workload of the node
+reporting `db`'s identifier. What it costs: nothing; one more condition on the report.
+
+**Finding 209.** Found by the same review. Step 3's pass wanted the devices of every placed
+workload in one loop that stopped at the first error, so one workload whose device could not be
+recorded, its volume of no size refused by the table, or its identifier taken, would have kept
+every other workload of every organization from having a device made or attached, on every pass.
+Resolved in §2.1 of `06-storage.md`: a workload whose devices cannot be wanted is left to the next
+pass, said in the control plane's log, and the others go on, as the deletion of expired segments
+already does; and a volume of no size, of which no device can be made, is not wanted at all. A
+declaration gives a volume of no size the default one, so the case is not reached through the
+API, and the fix is the pass's own shape rather than one input's refusal. What it costs: a
+workload's devices that fail are retried each pass, and say why only in the log until a device of
+it is recorded, after which its status does.

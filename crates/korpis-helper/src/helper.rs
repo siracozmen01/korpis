@@ -18,6 +18,7 @@ use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::helper_request::Verb;
 use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
 
+mod devices;
 mod held;
 mod placing;
 mod replicas;
@@ -310,6 +311,7 @@ impl Helper {
             Verb::VolumeUsage(r) => {
                 Answer::VolumeUsage(Box::new(self.holding(&r.volume)?.usage(&r.volume)?))
             }
+            v @ (Verb::ReleaseDevice(_) | Verb::ListDevices(_)) => self.device_verb(v)?,
             Verb::EnsureIdRange(r) => {
                 self.ledger
                     .ensure(&r.workload, IdRange { base: r.uid_base, count: r.uid_count })?;

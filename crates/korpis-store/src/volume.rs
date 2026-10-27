@@ -292,8 +292,9 @@ async fn ensured(
 /// One already there is the reporting workload's only if it is attached to it, which an adopting
 /// workload's is from its approval; any other is left as it is, and the report refused, since a
 /// node's word names the store (Finding 201 of docs/23-walkthroughs.md). A volume of a block
-/// class takes the identifier of the device made for it (§2.1 of docs/06-storage.md). Whether it
-/// was kept.
+/// class takes the identifier of the device made for it, for the reporting workload alone, and
+/// one no device of that workload is kept for is refused (§2.1 of docs/06-storage.md, Finding
+/// 208). Whether it was kept.
 async fn shared_ensured(
     tx: &mut PgTx,
     (node, store): (Uuid, &str),
@@ -305,11 +306,13 @@ async fn shared_ensured(
     let done = sqlx::query!(
         "INSERT INTO volume (id, project_id, created_by, attached_to, name, kind, node_id, store,
                              helper_id, storage_class, size_bytes, quota_enforced, created_at)
-         SELECT coalesce((SELECT b.id FROM block_device b
-                           WHERE b.store = $6 AND b.helper_id = $7 AND b.deleted_at IS NULL),
-                         $1),
-                w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10, $11
-           FROM workload w WHERE w.id = $2
+         SELECT coalesce(b.id, $1), w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11
+           FROM workload w
+           LEFT JOIN block_device b
+             ON b.store = $6 AND b.helper_id = $7 AND b.deleted_at IS NULL
+            AND b.workload_id = w.id
+          WHERE w.id = $2 AND ($6 NOT LIKE 'block/%' OR b.id IS NOT NULL)
          ON CONFLICT (store, helper_id) WHERE deleted_at IS NULL AND store IS NOT NULL DO UPDATE
             SET attached_to = EXCLUDED.attached_to,
                 detached_at = NULL,

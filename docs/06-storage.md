@@ -266,24 +266,58 @@ organization's (Finding 201). A class saying otherwise is refused at the node's 
 control plane keeps a device for each volume a placed workload declares in a block class of its
 node, in its table `block_device`, by the store and the identifier its volume will have there,
 since the device is wanted before the volume exists; the volume the node then reports takes the
-device's identifier. One control plane at a time takes each device due a call and asks the
-`block_storage` provider named for the class that the workload's organization sees: to create it;
-to attach it to the node the workload holds its lease on, for that lease's epoch, and again
-whenever the lease is held on another node or for another epoch, as after a failover, the
-provider fencing the node that held it before; to detach it once no lease is held for the node
-and epoch it was attached for, released or past the grantor's end; and to delete it once its
-volume is deleted, or once its workload is and no volume was made of it, a device never made
-being forgotten unasked. **What evaluates "attached for this lease":** that control plane, which
-reads the lease, and the grantor's end of it, from the store it keeps them in. A failure is kept
-with its reason and asked again after ten seconds doubling to ten minutes, and the workload's
-status shows each device by its volume's name, whether it is made and attached for the lease held,
-and the provider's last failure (`korpis status` prints one line each). The credential answered is
-sealed to the device by the control plane's device key, `device-1` in its data directory beside its
-other keys, and opened only into the assignment of the node it was attached to, for the epoch it
-was attached for, which a change of either sends again. What it costs: a device of a workload
-whose node falls silent stays attached to that node until the grantor's end of its lease, and is
-then detached, or attached elsewhere, by the provider; until a provider answers, the device is
-where it was. Not built yet: the helper's attach (P3.8e3).
+identifier of the device kept for its own workload, and a report in a block class's store naming
+none is refused (Finding 208 of `23-walkthroughs.md`). A workload whose devices cannot be recorded
+is left to the next pass, and every other's are tended (Finding 209). One control plane at a time
+takes each device due a call and asks the `block_storage` provider named for the class that the
+workload's organization sees: to create it; to attach it to the node the workload holds its lease
+on, for that lease's epoch, and again whenever the lease is held on another node or for another
+epoch, as after a failover, the provider fencing the node that held it before; to detach it once no
+lease is held for the node and epoch it was attached for, released or past the grantor's end; and
+to delete it once its volume is deleted, or once its workload is and no volume was made of it, a
+device never made being forgotten unasked. **What evaluates "attached for this lease":** that
+control plane, which reads the lease, and the grantor's end of it, from the store it keeps them in.
+A failure is kept with its reason and asked again after ten seconds doubling to ten minutes, and
+the workload's status shows each device by its volume's name, whether it is made and attached for
+the lease held, and the provider's last failure (`korpis status` prints one line each). The
+credential answered is sealed to the device by the control plane's device key, `device-1` in its
+data directory beside its other keys, and opened only into the assignment of the node it was
+attached to, for the epoch it was attached for, which a change of either sends again. What it
+costs: a device of a workload whose node falls silent stays attached to that node until the
+grantor's end of its lease, and is then detached, or attached elsewhere, by the provider; until a
+provider answers, the device is where it was. The helper's half is built too (P3.8e3a): a class
+named with `--block-class NAME=iscsi|rbd|loop:DIR` (§3 of `18-operations.md`) attaches each
+volume's device as its provider answered, checking every part of the answer against what its
+protocol allows before any reaches a command line, a sysfs write, or a path: a loop target is a
+bare file name in the directory, opened beneath it following no link; iSCSI logs in with
+`iscsiadm`, keeping the CHAP credential in a node record it deletes at the logout; RBD maps through
+the kernel's interface, its credential `<user>:<base64 key>`. A device holding nothing is formatted
+ext4, its root owned by the workload's root; one holding ext4 is mounted as it is, `nosuid` and
+`nodev`, under `/var/lib/korpis/block/<class>`, which is what lets the volume follow its workload;
+one holding anything else is never mounted. The class declares `lease_only`, which is what the node
+itself guarantees; whether the storage also fences a superseded node is its provider's registration
+to say. The agent's half is built with it (P3.8e3b): a volume in a block class is made by its step,
+or mounted for its workload's object, only with the device its assignment carries for it, the step
+waiting until the assignment carries one; and the agent lets go of a device, listed by the helper
+with the workload it was attached for, once no assignment held carries it and nothing of its
+workload runs on the node, since a running object holds its filesystem: a workload retired, moved,
+or stopped by its lease's end. **What evaluates "nothing holds this filesystem":** the agent, from
+the objects it tracks and the driver's word of their state; one it cannot tell is stopped keeps the
+device. A guest is given a block class's device as its disk too (P3.8e3c), and so a device is of
+one kind for good, fixed by the control plane when it is first wanted, from whether the driver that
+runs its workload on that node takes block devices (`guest` in the node's assignment): a guest's
+disk is never mounted, probed, or read on the host, since what a guest writes on it is parsed by the
+guest's kernel alone (§3.1); the helper formats it ext4 only while no volume was made of it, which
+writes and reads nothing a guest wrote, and gives the driver a device node of it where a block
+device's image would be, in a directory marked as a block device's, which the driver binds into the
+guest's jail as it binds an image. A device of one kind asked for a volume of the other is refused
+by the helper, as a local volume is (§3.1). What it costs: a volume made for a `container` workload
+cannot be attached by a `microvm` one, nor the reverse, on a block class as on a node's own disk;
+and a guest's disk reports no usage, which only its guest knows. Tested end to end (P3.8e4) on two
+nodes whose class attaches files of one directory through loop devices, with a provider of the
+tests' own refusing an attach for an older epoch: a workload writes to its volume on the first
+node, the first node loses its power, and the workload runs on the second, its device attached
+there for the new lease's epoch, holding what the first wrote; retired, its device is let go of.
 
 ### 2.2 Replicated volumes
 

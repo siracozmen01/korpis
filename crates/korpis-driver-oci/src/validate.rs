@@ -51,6 +51,9 @@ pub struct Policy {
     /// The roots of the node's shared storage classes, each a network filesystem the operator
     /// mounted, whose volumes the helper keeps there (§2.1 of docs/06-storage.md).
     pub shared_roots: Vec<PathBuf>,
+    /// The directory the helper mounts block classes' volumes under, one directory per class
+    /// (§2.1 of docs/06-storage.md).
+    pub block_root: PathBuf,
     /// The directory the agent makes the workloads' identity sockets under, one directory each
     /// (§9.5 of docs/08-identity.md). These two roots, the `resolv.conf` in the network
     /// directory a spec joins, and what the node's CDI files give a device, read by the driver
@@ -107,7 +110,8 @@ fn mounts(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation>
         return refuse("mounts", "too many");
     }
     for m in &spec.mounts {
-        let mut roots = std::iter::once(&policy.volume_root).chain(&policy.shared_roots);
+        let mut roots =
+            [&policy.volume_root, &policy.block_root].into_iter().chain(&policy.shared_roots);
         let under_root = roots.any(|root| {
             Path::new(&m.source)
                 .strip_prefix(root)

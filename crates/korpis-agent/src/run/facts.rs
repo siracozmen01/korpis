@@ -110,8 +110,9 @@ pub async fn facts_of<R: Runtime, H: Host>(
 /// each driver is, and the cores it offers for dedication, neither of which changes while it runs.
 pub(super) fn declared(
     facts: &(dyn Fn() -> Facts + Send + Sync),
-) -> (Facts, crate::reconcile::DriverKinds, Vec<pb::Core>) {
+) -> (Facts, crate::reconcile::DriverKinds, crate::reconcile::Offered) {
     let now = facts();
     let (kinds, cores) = (crate::reconcile::DriverKinds::of(&now.drivers), now.cores.clone());
-    (now, kinds, cores)
+    let block = crate::reconcile::block_classes(&now.storage_classes);
+    (now, kinds, crate::reconcile::Offered { cores, block_classes: block })
 }

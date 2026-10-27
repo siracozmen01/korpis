@@ -31,6 +31,23 @@ pub struct WantedDevice {
     pub storage_class: String,
     /// Its size.
     pub size_bytes: u64,
+    /// Whether it is a guest's disk, which the host never mounts, as the driver running its
+    /// workload takes volumes; fixed when it is first wanted (§3.1 of docs/06-storage.md).
+    pub guest: bool,
+}
+
+/// A device attached to a node for its workload's lease, as the node's assignment carries it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NodeDevice {
+    /// The helper's identifier of its volume.
+    pub helper_id: String,
+    /// What the node needs to attach it.
+    pub attachment: crate::extension::block::Attachment,
+    /// Whether it is a guest's disk, never mounted on the host.
+    pub guest: bool,
+    /// Whether no volume was made of it yet: a guest's disk is then formatted by the helper,
+    /// which never reads one a guest wrote.
+    pub blank: bool,
 }
 
 /// A device due a call, as the control plane that took it sees it.

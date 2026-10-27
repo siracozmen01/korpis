@@ -134,6 +134,7 @@ pub fn settings(dir: &Path) -> Settings {
         content: dir.join("content"),
         volume_root: dir.join("volumes"),
         shared_roots: Vec::new(),
+        block_root: "/var/lib/korpis/block".into(),
         netns_root: dir.join("netns"),
         identity_root: dir.join("identity"),
         state: dir.join("state"),

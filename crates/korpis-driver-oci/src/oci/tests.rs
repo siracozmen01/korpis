@@ -58,6 +58,7 @@ fn joined(command: &[&str], namespaces: &str) -> Valid {
     let policy = Policy {
         volume_root: "/v".into(),
         shared_roots: Vec::new(),
+        block_root: "/var/lib/korpis/block".into(),
         identity_root: "/i".into(),
         netns_root,
         devices,

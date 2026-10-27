@@ -5,7 +5,9 @@
 //! onto the workload's range), or as a subvolume on btrfs; put in a quota project of their own,
 //! or limited by their qgroup, where the class enforces quota; made durable before the answer;
 //! and removed without following a link. A block device is such a directory holding its image
-//! ([`crate::block`]). A path is only ever the class root joined with a checked identifier.
+//! ([`crate::block`]); a block class's volume is a device of its own, mounted there instead
+//! ([`crate::storage::device`]). A path is only ever the class root joined with a checked
+//! identifier.
 
 use crate::error::{HelperError, HelperResult, identifier};
 use crate::storage::{Backend, Class};
@@ -38,6 +40,9 @@ impl Class {
         &mut self,
         r: &helper::EnsureVolumeRequest,
     ) -> HelperResult<helper::EnsureVolumeResponse> {
+        if self.devices.is_some() {
+            return self.ensure_device(r);
+        }
         identifier("volume", &r.volume)?;
         let path = self.path_of(&r.volume);
         if r.block_device && r.size_bytes == 0 && !existing_dir(&path)? {
@@ -148,13 +153,19 @@ impl Class {
             Backend::Directory | Backend::Shared if r.size_bytes > 0 || r.inodes > 0 => {
                 tracing::info!(volume = %r.volume, class = %self.name(), "no quota: none enforced");
             }
-            Backend::Directory | Backend::Shared => {}
+            // A device's bound is its size, which its provider made it at.
+            Backend::Directory | Backend::Shared | Backend::Block => {}
         }
         Ok(())
     }
 
     /// Removes the volume `volume` and everything in it; whether there was one.
     pub fn delete(&mut self, volume: &str) -> HelperResult<bool> {
+        // A block class's volume is the storage's: deleting it here lets go of it, and its
+        // provider deletes its bytes (§2.1 of docs/06-storage.md).
+        if self.devices.is_some() {
+            return self.release_device(volume);
+        }
         identifier("volume", volume)?;
         let path = self.path_of(volume);
         let existed = existing_dir(&path)?;
@@ -185,6 +196,9 @@ impl Class {
     /// What the filesystem accounts for `volume`; for a block device, the blocks its image has
     /// allocated, and said to be.
     pub fn usage(&self, volume: &str) -> HelperResult<helper::VolumeUsageResponse> {
+        if self.devices.is_some() {
+            return self.device_usage(volume);
+        }
         identifier("volume", volume)?;
         let path = self.path_of(volume);
         if !existing_dir(&path)? {

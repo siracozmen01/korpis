@@ -230,7 +230,7 @@ microVMs on ZFS. Preflight reports against what the node is *configured to offer
 | ZFS or btrfs | replicated volumes (§2.2 of `06-storage.md`) and snapshot-capable storage classes | ext4/XFS with project quota still gives enforced byte and inode limits; a volume asking for replicas is not placed on the node, saying why |
 | btrfs-progs' `btrfs` at `/usr/bin/btrfs`, on a node whose class is btrfs | holding replicas of other nodes' volumes (§2.2 of `06-storage.md`): its `receive` applies the stream another node sends | absent → the node sends replicas of its own volumes, and a receive into it fails, saying so, and its replica is chosen elsewhere (added 2026-10-27) |
 | a network filesystem (NFS, CephFS, SMB, or `ceph-fuse` or `glusterfs` through FUSE) the operator mounts on each node offering a shared class, where root may make, give away, and remove a directory | shared storage classes (§2.1 of `06-storage.md`), named with `korpis-helper --shared-class NAME=PATH` | absent → the node offers no shared class; a filesystem not reached over the network, or one squashing root, is refused at the helper's start, saying which (designed 2026-10-27) |
-| `open-iscsi`'s `iscsiadm` and the `iscsi_tcp` module, or the kernel's `rbd` module, and `mke2fs` | block storage classes (§2.1 of `06-storage.md`), each served by its provider | absent → the node offers no block class of that protocol, and preflight says which is missing and loads nothing (designed 2026-10-27) |
+| `open-iscsi`'s `iscsiadm` and the `iscsi_tcp` module, or the kernel's `rbd` module, and `mke2fs` | block storage classes (§2.1 of `06-storage.md`), each served by its provider | absent → the helper refuses a `--block-class` of that protocol at its start, saying which is missing, and loads nothing (designed 2026-10-27; corrected the same day, as the helper's attach was built: the helper, not preflight, is what reads the class it is named, as for a shared class) |
 | `mke2fs` from e2fsprogs | `block_device` volumes, which the helper formats empty (§3.1 of `06-storage.md`) | absent → the helper refuses to make one, saying why, and a `microvm` workload with a volume does not start on the node |
 | `/dev/net/tun`, the tun driver | a `microvm` workload's network, its guest's tap (§4.1 of `07-networking.md`) | absent → the helper cannot make the tap, says why, and a `microvm` workload does not start on a node that gives networks |
 | IPv6 | the default addressing mode (§4 of `07-networking.md`) | absent → IPv4 only, and the scarcity is the operator's problem |
@@ -330,7 +330,9 @@ none is named, to its own user only; it reads images from the node's content sto
 `/var/lib/korpis-agent/content`, which the agent fills, and mounts nothing but directories under
 `/var/lib/korpis/volumes`, which the helper keeps, or under the root of a shared class it is named
 with `--shared-root`, repeatable, as the helper's `--shared-class` names it (§2.1 of
-`06-storage.md`; added 2026-10-27), and each workload's own identity directory under
+`06-storage.md`; added 2026-10-27), or under `/var/lib/korpis/block`, where the helper mounts block
+classes' volumes, moved with `--block-root` as the helper's is (added 2026-10-27), and each
+workload's own identity directory under
 `/var/lib/korpis-agent/identity`, which the agent keeps at mode `0750` (§6 of
 `02-architecture.md`); `--socket`, `--content`, `--volume-root`, `--identity-root`, and
 `--containerd` move them, and an agent given another state directory needs the driver told the same
@@ -351,30 +353,31 @@ drive carries beside it, the file worker `korpis-fsworker` and the install job
 `--kernel`, `--guest`, `--fsworker`, `--install-job`; §4.4 of `04-runtimes.md`), and starts
 `korpis-stream-writer` and `korpis-image-build` from beside its own binary (`--stream-writer`,
 `--image-build`); it reads images from the node's content store as the `oci` driver does, and
-volumes from beneath the volume root or a shared root (`--shared-root`, as for the `oci` driver);
-it relays a guest's `/run/korpis` to the workload's own identity directory beneath
-`/var/lib/korpis-agent/identity` (`--identity-root`, which must be the agent's, as for the `oci`
-driver; §6 of `04-runtimes.md`); it keeps its objects, the drives guests share, and their jails in
-`/var/lib/korpis-driver-firecracker` (`--state-dir`), and each guest's cgroup beneath
-`korpis-firecracker` (`--cgroup`). Stopping it stops no guest and no console, and the next one
-reads the guests back with `Recover`. Installation writes its unit only where `/dev/kvm` opens and
-Firecracker, the jailer, `vmlinux`, `korpis-guest`, `korpis-fsworker`, and `korpis-install-job` are
-all in `--microvm-dir` (`/usr/lib/korpis`), and says otherwise why the node runs containers alone;
-`korpis-agent preflight`, given the drivers' sockets, asks each which tiers it offers, and where
-one offers `microvm` it reports KVM and the tun driver lacking, with their fix, rather than not
-needed. Until the signed agent package carries the six files (question 7 of §10, resolved there),
-`scripts/microvm-files.sh` puts them there from a checkout, built and pinned as §5 of `21-stack.md`
-says, and prints each one's digest. The unit runs it as root under `ProtectSystem=strict`, with its
-state directory, the volume root, `/run/korpis`, and the cgroup hierarchy writable, and
-`KillMode=process`, since its guests outlive it; it is not held by `RestrictSUIDSGID`, because
-systemd refuses `openat2` and `fchmodat2` under it, which it cannot inspect, and the image build
-resolves every path of a layer with `openat2` and keeps an image's own setuid files on the guest's
-disk. The driver's tests that run guests pass under exactly those settings (2026-10-23, as
-transient units on the machine Phase 3 is built on); the unit itself is checked by `systemd-analyze
-verify`, and not yet started by the package test, which puts no microVM files in place. At every
-start the driver builds the jail with the node's kernel and boot drive as they are then, not as
-they were when the guest was made, so an upgraded package reaches each guest at its next boot
-(Finding 150 of `23-walkthroughs.md`).
+volumes from beneath the volume root, a shared root (`--shared-root`, as for the `oci` driver), or
+the block classes' root (`--block-root`, `/var/lib/korpis/block`, where a guest's disk on a block
+class is a device node; added 2026-10-27); it relays a guest's `/run/korpis` to the workload's own
+identity directory beneath `/var/lib/korpis-agent/identity` (`--identity-root`, which must be the
+agent's, as for the `oci` driver; §6 of `04-runtimes.md`); it keeps its objects, the drives guests
+share, and their jails in `/var/lib/korpis-driver-firecracker` (`--state-dir`), and each guest's
+cgroup beneath `korpis-firecracker` (`--cgroup`). Stopping it stops no guest and no console, and
+the next one reads the guests back with `Recover`. Installation writes its unit only where
+`/dev/kvm` opens and Firecracker, the jailer, `vmlinux`, `korpis-guest`, `korpis-fsworker`, and
+`korpis-install-job` are all in `--microvm-dir` (`/usr/lib/korpis`), and says otherwise why the
+node runs containers alone; `korpis-agent preflight`, given the drivers' sockets, asks each which
+tiers it offers, and where one offers `microvm` it reports KVM and the tun driver lacking, with
+their fix, rather than not needed. Until the signed agent package carries the six files (question 7
+of §10, resolved there), `scripts/microvm-files.sh` puts them there from a checkout, built and
+pinned as §5 of `21-stack.md` says, and prints each one's digest. The unit runs it as root under
+`ProtectSystem=strict`, with its state directory, the volume root, `/run/korpis`, and the cgroup
+hierarchy writable, and `KillMode=process`, since its guests outlive it; it is not held by
+`RestrictSUIDSGID`, because systemd refuses `openat2` and `fchmodat2` under it, which it cannot
+inspect, and the image build resolves every path of a layer with `openat2` and keeps an image's own
+setuid files on the guest's disk. The driver's tests that run guests pass under exactly those
+settings (2026-10-23, as transient units on the machine Phase 3 is built on); the unit itself is
+checked by `systemd-analyze verify`, and not yet started by the package test, which puts no microVM
+files in place. At every start the driver builds the jail with the node's kernel and boot drive as
+they are then, not as they were when the guest was made, so an upgraded package reaches each guest
+at its next boot (Finding 150 of `23-walkthroughs.md`).
 
 The privileged helper runs only when asked. Its socket is a systemd socket unit
 (`ListenStream=/run/korpis/helper.sock`, `SocketMode=0660`, the supervisor's group as
@@ -396,7 +399,13 @@ filesystem (§2.1 of `06-storage.md`); designed 2026-10-27, and built the same d
 that export writing as root is trusted as the node is: one can replace a volume's directory with a
 link between the driver's check of where it resolves and the mount. So the export is to be exported
 to the installation's nodes alone: squashing root, the other protection an export offers, is what
-the helper refuses (Finding 202 of `23-walkthroughs.md`). The jobs it starts are binaries beside it
+the helper refuses (Finding 202 of `23-walkthroughs.md`). A block class is named with `--block-class
+NAME=iscsi|rbd|loop:DIR`, repeatable, each served by the `block_storage` provider of its name that
+the node's organization sees (§2.1 of `06-storage.md`); its volumes are mounted under
+`--block-root`, `/var/lib/korpis/block` unless said, a directory per class, and what was attached
+for each is recorded in the helper's state, its credential never. A `loop:DIR` class attaches files
+in a directory the operator mounts on every node offering it, and is for tests and for a storage
+the operator shares that way; built 2026-10-27. The jobs it starts are binaries beside it
 unless named: `--job-binary` for backups and restores and `--install-binary` for installs (`none`
 runs no installs); each job's cgroup is made under `--job-cgroups` (`/sys/fs/cgroup/korpis/shared`,
 the `oci` driver's shared cgroup, so a job keeps off dedicated cores as a container holding none

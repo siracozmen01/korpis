@@ -70,7 +70,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
         let parent = self.wiring.driver_kinds.cgroup_parent(super::driver_of(a));
         let parent = parent.ok_or_else(|| format!("{} holds no cores", super::driver_of(a)));
-        let given = parent.and_then(|p| Ok((p, offered(&self.wiring.cores, &a.cores)?)));
+        let given = parent.and_then(|p| Ok((p, offered(&self.wiring.offered.cores, &a.cores)?)));
         let (parent, cores) = given.map_err(|why| {
             let reason = pb::UnsatisfiableReason::UNSATISFIABLE_REASON_INSUFFICIENT_RESOURCES;
             let detail = why.clone();
@@ -88,7 +88,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 
     /// Whether the object tracked as `t` holds the cores `a`'s placement does, as [`holds`] says.
     pub(super) fn holds_its_cores(&self, a: &agent::Assignment, t: &Tracked) -> bool {
-        holds(&self.wiring.cores, &a.cores, &t.cores.1)
+        holds(&self.wiring.offered.cores, &a.cores, &t.cores.1)
     }
 
     /// The CPUs of every core an object here holds, under every parent the drivers declare.
@@ -109,7 +109,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// built, or as its driver reported it when it was adopted, and one destroyed none. Nothing
     /// is written on a node that offers no cores or whose drivers declare no cgroup parent.
     pub(super) async fn keep_cores(&mut self) {
-        if self.wiring.cores.is_empty() || self.wiring.driver_kinds.cgroup_parents().is_empty() {
+        if self.wiring.offered.cores.is_empty()
+            || self.wiring.driver_kinds.cgroup_parents().is_empty()
+        {
             return;
         }
         let cpus = self.cores_held();

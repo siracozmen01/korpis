@@ -19,7 +19,8 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 const USAGE: &str = "usage: korpis-helper (--inherit | --socket PATH) [--volume-root PATH] \
-                     [--class NAME] [--shared-class NAME=PATH]... [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
+                     [--class NAME] [--shared-class NAME=PATH]... \
+                     [--block-class NAME=iscsi|rbd|loop:DIR]... [--block-root PATH] [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
                      [--job-binary PATH] [--install-binary PATH|none] [--job-cgroups PATH|none] \
                      [--content PATH] [--netns-root PATH|none] \
                      [--ingress-binary PATH|none] [--files-binary PATH|none] \
@@ -65,6 +66,10 @@ struct Args {
     class: String,
     /// Shared classes, each a directory where the operator mounted a network filesystem.
     shared: Vec<(String, PathBuf)>,
+    /// Block classes, each with how its devices are attached.
+    block: Vec<(String, korpis_helper::storage::device::Protocol)>,
+    /// Where each block class's volumes are mounted, a directory per class.
+    block_root: PathBuf,
     state: PathBuf,
     allow: Vec<u32>,
     idle: Option<Duration>,
@@ -95,6 +100,8 @@ fn defaults() -> Args {
         volume_root: PathBuf::from("/var/lib/korpis/volumes"),
         class: "local".into(),
         shared: Vec::new(),
+        block: Vec::new(),
+        block_root: PathBuf::from("/var/lib/korpis/block"),
         state: PathBuf::from("/var/lib/korpis/helper"),
         allow: Vec::new(),
         idle: None,
@@ -125,6 +132,14 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
                 let (name, path) = v.split_once('=').ok_or("--shared-class NAME=PATH")?;
                 a.shared.push((name.to_owned(), PathBuf::from(path)));
             }
+            "--block-class" => {
+                let v = value()?;
+                let (name, protocol) =
+                    v.split_once('=').ok_or("--block-class NAME=iscsi|rbd|loop:DIR")?;
+                let protocol = korpis_helper::storage::device::Protocol::parse(protocol)?;
+                a.block.push((name.to_owned(), protocol));
+            }
+            "--block-root" => a.block_root = PathBuf::from(value()?),
             "--state" => a.state = PathBuf::from(value()?),
             "--allow-uid" => a.allow.push(value()?.parse().map_err(|e| format!("{e}"))?),
             "--job-binary" => a.job_binary = Some(PathBuf::from(value()?)),
@@ -160,16 +175,29 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
     Ok(a)
 }
 
-fn run(a: Args) -> Result<(), String> {
-    let own = std::fs::metadata("/proc/self").map_err(|e| e.to_string())?.uid();
-    let allowed: BTreeSet<u32> =
-        if a.allow.is_empty() { [own].into() } else { a.allow.into_iter().collect() };
+/// The classes `a` names: its own disk's first, then each shared and each block class.
+fn classes(a: &Args) -> Result<Vec<Class>, String> {
     let mut classes =
         vec![Class::open(&a.class, &a.volume_root).map_err(|e| format!("volume root: {e}"))?];
     for (name, path) in &a.shared {
         let shared = Class::shared(name, path, korpis_helper::storage::Network::Required);
         classes.push(shared.map_err(|e| format!("shared class {name}: {e}"))?);
     }
+    for (name, protocol) in a.block.clone() {
+        // Its volumes are mounted where a driver mounts them from; what was attached is recorded
+        // in the helper's own state.
+        let (mounts, records) = (a.block_root.join(&name), a.state.join("devices").join(&name));
+        let block = Class::block(&name, &mounts, protocol, &records);
+        classes.push(block.map_err(|e| format!("block class {name}: {e}"))?);
+    }
+    Ok(classes)
+}
+
+fn run(a: Args) -> Result<(), String> {
+    let classes = classes(&a)?;
+    let own = std::fs::metadata("/proc/self").map_err(|e| e.to_string())?.uid();
+    let allowed: BTreeSet<u32> =
+        if a.allow.is_empty() { [own].into() } else { a.allow.into_iter().collect() };
     let ledger = Ledger::open(&a.state).map_err(|e| format!("state: {e}"))?;
     let listener = match &a.socket {
         Some(path) => bound(path),

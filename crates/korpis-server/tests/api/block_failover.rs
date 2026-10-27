@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime};
 
 /// Renews `workload`'s lease on `node`'s stream until the storage holds its device attached
 /// there for that lease's epoch; the epoch.
-async fn attached_for(s: &mut Stream, workload: &str, disks: &Disks, node: &str) -> u64 {
+pub(crate) async fn attached_for(s: &mut Stream, workload: &str, disks: &Disks, node: &str) -> u64 {
     for _ in 0..100 {
         let epoch = held(s, workload).await;
         let at = disks.with(|d| d.values().find_map(|v| v.attached.clone()));

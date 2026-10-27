@@ -94,6 +94,12 @@ service HelperService {
   rpc PromoteReplica(PromoteReplicaRequest) returns (PromoteReplicaResponse);
   rpc ReplicaVolumes(ReplicaVolumesRequest) returns (ReplicaVolumesResponse);
   rpc OpenTransfer(OpenTransferRequest) returns (OpenTransferResponse);
+  // Unmounts the volume of a block class and lets go of its device, which the storage keeps
+  // (§2.1 of docs/06-storage.md).
+  rpc ReleaseDevice(ReleaseDeviceRequest) returns (ReleaseDeviceResponse);
+  // Every device a block class has attached on this node, with the workload it was attached
+  // for: what the agent lets go of once nothing holds it.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
 }
 
 // One request, as the transport carries it.
@@ -134,6 +140,8 @@ message HelperRequest {
     PromoteReplicaRequest promote_replica = 33;
     ReplicaVolumesRequest replica_volumes = 34;
     OpenTransferRequest open_transfer = 35;
+    ReleaseDeviceRequest release_device = 36;
+    ListDevicesRequest list_devices = 37;
   }
 }
 
@@ -176,6 +184,8 @@ message HelperResponse {
     PromoteReplicaResponse promote_replica = 34;
     ReplicaVolumesResponse replica_volumes = 35;
     OpenTransferResponse open_transfer = 36;
+    ReleaseDeviceResponse release_device = 37;
+    ListDevicesResponse list_devices = 38;
   }
 }
 
@@ -211,6 +221,52 @@ message EnsureVolumeRequest {
   // grown when a larger size is asked and never shrunk. A volume of one kind is never made the
   // other.
   bool block_device = 7;
+  // For a volume of a block class, the device its class's provider attached to this node for
+  // the workload's lease (§2.1 of docs/06-storage.md): the helper attaches it, formats it ext4
+  // when it holds nothing, and mounts it as the volume, whose bound is the device's size. Added
+  // 2026-10-27.
+  BlockDevice device = 8;
+}
+
+// A block class's device as the node attaches it, checked by the helper against what the
+// class's protocol allows before any of it is used.
+message BlockDevice {
+  korpis.v1.BlockProtocol protocol = 1;
+  // As `BlockAttachment.target` says it, for the protocol.
+  string target = 2;
+  // As `BlockAttachment.credential` says it; never kept by the helper.
+  string credential = 3;
+  // A guest's disk: never mounted, probed, or read on the host, and given to the driver as a
+  // device node where a block device's image would be (§3.1 of docs/06-storage.md). Asked for a
+  // volume of the other kind, it is refused.
+  bool guest = 4;
+  // No volume was made of it yet: a guest's disk is formatted, which writes and reads nothing a
+  // guest wrote.
+  bool blank = 5;
+}
+
+message ReleaseDeviceRequest {
+  string volume = 1;
+}
+
+message ReleaseDeviceResponse {
+  // Whether a device was attached for it.
+  bool released = 1;
+}
+
+message ListDevicesRequest {}
+
+message ListDevicesResponse {
+  repeated AttachedDevice devices = 1;
+}
+
+// A device a block class has attached on this node.
+message AttachedDevice {
+  // The volume, by the helper's identifier.
+  string volume = 1;
+  // The workload it was attached for.
+  string workload = 2;
+  string storage_class = 3;
 }
 
 message EnsureVolumeResponse {

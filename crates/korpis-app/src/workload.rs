@@ -14,6 +14,7 @@ mod decide;
 mod declare;
 mod dependency;
 mod devices;
+pub use devices::Tending;
 mod explain;
 mod failover;
 mod hold;

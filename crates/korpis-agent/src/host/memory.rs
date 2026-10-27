@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::{Future, ready};
 use std::sync::{Arc, Mutex};
 
+mod devices;
 mod files;
 mod finish;
 mod knobs;
@@ -25,6 +26,8 @@ struct Kept {
     ids: BTreeMap<String, (u32, u32)>,
     /// The volumes ensured as block devices.
     blocks: BTreeSet<String>,
+    /// The volumes ensured with a block class's device, attached until released, by workload.
+    devices: BTreeMap<String, String>,
     snapshots: BTreeSet<(String, String)>,
     jobs: BTreeMap<String, helper::JobStatusResponse>,
     /// What each job was started with.
@@ -83,6 +86,9 @@ impl Host for InMemoryHost {
         ready(self.with(|k| {
             if request.block_device {
                 k.blocks.insert(volume.clone());
+            }
+            if request.device.is_set() {
+                k.devices.insert(volume.clone(), request.workload.clone());
             }
             let created = !k.volumes.contains_key(&volume);
             let path = k.volumes.entry(volume.clone()).or_insert(format!("/memory/{volume}"));

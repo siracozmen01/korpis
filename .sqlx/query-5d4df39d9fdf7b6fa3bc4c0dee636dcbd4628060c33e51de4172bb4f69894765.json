@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, helper_id, protocol AS \"protocol!\", target AS \"target!\", credential,\n                      sealed_by\n                 FROM block_device\n                WHERE workload_id = $1 AND attached_node_id = $2 AND attached_epoch = $3\n                  AND deleted_at IS NULL\n                ORDER BY helper_id",
+  "query": "SELECT b.id, b.helper_id, b.protocol AS \"protocol!\", b.target AS \"target!\",\n                      b.credential, b.sealed_by, b.guest,\n                      NOT EXISTS (SELECT 1 FROM volume v WHERE v.id = b.id) AS \"blank!\"\n                 FROM block_device b\n                WHERE b.workload_id = $1 AND b.attached_node_id = $2 AND b.attached_epoch = $3\n                  AND b.deleted_at IS NULL\n                ORDER BY b.helper_id",
   "describe": {
     "columns": [
       {
@@ -68,6 +68,23 @@
             "name": "sealed_by"
           }
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "guest",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "block_device",
+            "name": "guest"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "blank!",
+        "type_info": "Bool",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -83,8 +100,10 @@
       true,
       true,
       true,
-      true
+      true,
+      false,
+      null
     ]
   },
-  "hash": "8674b6a3b0304f87b1907bbc80e3ebc37a3a25ba14cb7c7bc6817745132d93f8"
+  "hash": "5d4df39d9fdf7b6fa3bc4c0dee636dcbd4628060c33e51de4172bb4f69894765"
 }
