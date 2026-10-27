@@ -22,6 +22,7 @@ use korpis_core::node::Connectivity;
 use korpis_core::placement::Placement;
 use korpis_core::workload::Workload;
 use korpis_core::workload::spec::Continuity;
+use std::time::UNIX_EPOCH;
 use uuid::Uuid;
 
 /// A workload placed again by failover: the node it leaves.
@@ -49,6 +50,13 @@ impl Failover {
             ("volumes", volumes.join(", ").into()),
             ("reason", placed.reason.clone().into()),
         ]));
+        // What was written since the stalest replica a volume was made from received is lost.
+        let lost = held.iter().filter_map(|h| h.promote.as_ref().map(|p| p.received_at)).min();
+        let since = lost.and_then(|at| at.duration_since(UNIX_EPOCH).ok());
+        if let (Some(since), Some(after)) = (since, e.after.as_mut()) {
+            let seconds = i64::try_from(since.as_secs()).unwrap_or(i64::MAX);
+            after.insert("lost_since".to_owned(), seconds.into());
+        }
         e.workload = Some(w.id);
         e.grant = grant;
         e

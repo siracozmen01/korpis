@@ -69,12 +69,14 @@ pub(crate) struct Transfers {
     pub port: u16,
 }
 
-/// The transfers `r` admits, checked; none when it names no source.
+/// The transfers `r` admits, checked: the port at the node's mesh address, with the sources
+/// admitted to it, perhaps none; none when it names no port, or no source and no mesh address.
 ///
 /// # Errors
 /// A source that is no IPv4 address, or sources with no mesh address or port to admit them to.
 pub(crate) fn transfers(r: &helper::KeepOverlayRequest) -> HelperResult<Option<Transfers>> {
-    if r.transfer_sources.is_empty() {
+    let unasked = r.transfer_port == 0 || r.mesh_address.is_empty();
+    if r.transfer_sources.is_empty() && unasked {
         return Ok(None);
     }
     let refused = |why: &str| HelperError::Refused(format!("the transfers' {why}"));
@@ -88,22 +90,36 @@ pub(crate) fn transfers(r: &helper::KeepOverlayRequest) -> HelperResult<Option<T
     Ok(Some(Transfers { sources, to, port }))
 }
 
-/// The rule admitting `t`'s sources, and the commands that fill their set.
-fn transfer_rules(t: Option<&Transfers>) -> (Vec<Value>, Option<Value>) {
+/// The rules of `t`'s port, and the commands that fill its sources' set: what reaches the port at
+/// the mesh address by any other interface dropped, since Linux takes a packet for an address of
+/// its own on whichever interface it arrives (Finding 207 of docs/23-walkthroughs.md); and the
+/// sources admitted from the mesh.
+fn transfer_rules(t: Option<&Transfers>) -> (Vec<Value>, Vec<Value>) {
     let mut setup = vec![
         json!({"add": {"set": {"family": "inet", "table": TABLE, "name": SENDERS,
             "type": "ipv4_addr"}}}),
         json!({"flush": {"set": {"family": "inet", "table": TABLE, "name": SENDERS}}}),
     ];
-    let Some(t) = t else { return (setup, None) };
-    let elem: Vec<String> = t.sources.iter().map(Ipv4Addr::to_string).collect();
-    setup.push(json!({"add": {"element": {"family": "inet", "table": TABLE, "name": SENDERS,
-        "elem": elem}}}));
+    let Some(t) = t else { return (setup, Vec::new()) };
+    if !t.sources.is_empty() {
+        let elem: Vec<String> = t.sources.iter().map(Ipv4Addr::to_string).collect();
+        setup.push(json!({"add": {"element": {"family": "inet", "table": TABLE,
+            "name": SENDERS, "elem": elem}}}));
+    }
     let field = |protocol: &str, field: &str, right: Value| {
         json!({"match": {"op": "==",
             "left": {"payload": {"protocol": protocol, "field": field}}, "right": right}})
     };
-    let expr = vec![
+    let elsewhere = json!({"match": {"op": "!=", "left": {"meta": {"key": "iifname"}},
+        "right": INTERFACE}});
+    let outside = vec![
+        field("ip", "daddr", json!(t.to.to_string())),
+        field("tcp", "dport", json!(t.port)),
+        elsewhere,
+        json!({"counter": null}),
+        json!({"drop": null}),
+    ];
+    let admitted = vec![
         is("iifname", INTERFACE),
         field("ip", "saddr", json!(format!("@{SENDERS}"))),
         field("ip", "daddr", json!(t.to.to_string())),
@@ -111,7 +127,8 @@ fn transfer_rules(t: Option<&Transfers>) -> (Vec<Value>, Option<Value>) {
         json!({"counter": null}),
         json!({"accept": null}),
     ];
-    (setup, Some(rule(INPUT, Some("transfer"), expr)))
+    let rules = [outside, admitted].map(|expr| rule(INPUT, Some("transfer"), expr));
+    (setup, rules.to_vec())
 }
 
 fn rule(chain: &str, comment: Option<&str>, expr: Vec<Value>) -> Value {
@@ -257,6 +274,13 @@ mod tests {
         r.transfer_sources = vec!["no address".into()];
         assert!(transfers(&r).is_err());
         r.transfer_sources.clear();
+        let none = transfers(&r).unwrap().expect("the port is still kept");
+        assert!(none.sources.is_empty());
+        let text = rules(&[], Some(&none), EdgeRules::default()).to_string();
+        assert!(!text.contains(r#""elem""#), "no sender admitted");
+        let outside = r#"{"match":{"left":{"meta":{"key":"iifname"}},"op":"!=","right":"#;
+        assert!(text.contains(outside) && text.contains(r#""drop":null"#), "{text}");
+        r.transfer_port = 0;
         assert_eq!(transfers(&r).unwrap(), None);
     }
 }

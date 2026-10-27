@@ -124,6 +124,10 @@ pub(crate) struct Replicated {
     /// The volume's node, and its session.
     pub(crate) a: (TestAgent, Stream),
     pub(crate) project: String,
+    /// The workload, as the API names it.
+    pub(crate) db: String,
+    /// The next sequence the volume's node journals at.
+    pub(crate) next_a: u64,
     /// The volume, as the API names it.
     pub(crate) volume: String,
     /// `fra-2`, `fra-3`, and `fra-4`, with their sessions.
@@ -138,6 +142,14 @@ impl Drop for Replicated {
 }
 
 impl Replicated {
+    /// Cuts the power of the volume's node: it is heard no more, and last heard an hour ago.
+    pub(crate) async fn cut(&mut self) {
+        self.heard[0].abort();
+        let store = self.h.db.store().await.unwrap();
+        let silent = "UPDATE node SET last_seen = now() - interval '1 hour' WHERE name = 'fra-1'";
+        sqlx::query(silent).execute(store.pool()).await.unwrap();
+    }
+
     pub(crate) async fn new() -> Self {
         let h = Harness::with_heartbeat(Duration::from_millis(300)).await;
         let a = TestAgent::enroll(&h, "fra-1", 1).await;
@@ -167,7 +179,7 @@ impl Replicated {
             welcome(&first.unwrap());
             others.push((node, s));
         }
-        Self { h, a: (a, sa), project, volume, others, heard }
+        Self { h, a: (a, sa), project, db, next_a: last + 2, volume, others, heard }
     }
 }
 

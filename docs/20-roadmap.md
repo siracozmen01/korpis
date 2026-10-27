@@ -291,7 +291,10 @@ replicas chosen, kept, dropped, and marked stale, their bytes in their nodes' al
 transfer made due on the volume's interval with a ticket, every node told its part, and receives
 believed only of the transfer under way (Finding 205 there); then the agents' half: each transfer
 sent through the mesh to the receiving node's own mesh address, admitted there under its ticket
-from the sending node's address alone, received, and journaled, and what nothing keeps released.
+from the sending node's address alone, received, and journaled, and what nothing keeps released;
+then failover onto a replica, for a workload that accepts losing what the replica lacks: the volume
+made from its freshest replica on the node it lands on, the copy it left listed as divergent, and
+what was lost recorded, a derived lease answer `stop` for such a workload (Finding 206 there).
 Edges in failover groups, which is what `stable` exposure requires to exist at all and what lets it
 survive the move (§3.1 of `07-networking.md`); designed 2026-10-26 (§3.1 there, trace 78 of
 `23-walkthroughs.md`) as groups of two or more of an organization's own nodes, each stable address
@@ -550,7 +553,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: eighty traces and their 205 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: eighty traces and their 207 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

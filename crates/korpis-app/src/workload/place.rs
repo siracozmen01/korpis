@@ -227,7 +227,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let peers = tx.peers(w.organization, w.id).await?;
         let empty = Bounds::default();
         let candidates = candidates_of(&nodes, &allocations, &empty);
-        let reached = self.reached_volumes(tx, (w, target), current.is_some());
+        let gone = failover.map(|f| f.from);
+        let reached = self.reached_volumes(tx, (w, target), (current.is_some(), gone));
         let (volumes, remade) = Box::pin(reached).await?;
         let refused = self.refusals_screened(tx, (w, target), screened).await?;
         let learned = self.learned(tx, &ids, target).await?;
@@ -277,12 +278,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         &self,
         tx: &mut S::Tx,
         (w, target): (&Workload, &Intent),
-        placed: bool,
+        (placed, gone): (bool, Option<Uuid>),
     ) -> Result<(Vec<(Uuid, Home)>, Option<Vec<Held>>), AppError> {
         if placed || !tx.made_and_settled(w.id).await? {
             return Ok((self.existing_nodes(&target.body).await?, None));
         }
-        let held = self.held_volumes(w, &target.body).await?;
+        let held = self.held_volumes(w, (&target.body, gone)).await?;
         Ok((held.iter().map(|h| (h.id, h.home.clone())).collect(), Some(held)))
     }
 
@@ -338,7 +339,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let grant = tx.decision_grant(w.id).await?;
         let remake = match &remade {
             // Boxed: every placement's future would otherwise carry this one's.
-            Some(held) => Some(Box::pin(self.remake(tx, (w, target), held, grant)).await?),
+            Some(held) => Some(Box::pin(self.remake(tx, (w, target), (held, node), grant)).await?),
             None => None,
         };
         let mut e = match failover {

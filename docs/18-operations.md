@@ -665,9 +665,10 @@ relay, and its availability is the control plane's.
 **The control plane can be entirely absent and workloads keep running.** §4.6 of
 `02-architecture.md` guarantees it, and it is the reason disaster recovery here is a recovery
 rather than an outage: agents hold their assignments and their leases, and a lease's `on_expiry`
-policy is `keep_running` by default for every workload whose storage no other node can attach (the
-derived default of §4.5 of `02-architecture.md`). Workloads on storage another node could attach
-default to `stop`, by design, because for them an unrenewable lease is a reason to stop.
+policy is `keep_running` by default for every workload whose storage no other node can attach or
+start it from (the derived default of §4.5 of `02-architecture.md`). Workloads on storage another
+node could attach, or failing over onto a replica, default to `stop`, by design, because for them
+an unrenewable lease is a reason to stop.
 
 ---
 

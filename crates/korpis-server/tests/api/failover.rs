@@ -58,7 +58,7 @@ fn on_local(repo: &str) -> pb::IntentBody {
 }
 
 /// The kind of the plan a node is told to execute.
-fn kind(plan: &agent::NodePlan) -> Option<pb::PlanKind> {
+pub(crate) fn kind(plan: &agent::NodePlan) -> Option<pb::PlanKind> {
     plan.whole.as_option().and_then(|w| w.kind.as_known())
 }
 

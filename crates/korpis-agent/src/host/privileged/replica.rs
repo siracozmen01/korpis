@@ -62,6 +62,17 @@ impl HelperClient {
         }
     }
 
+    /// Makes the volume `r` names a writable copy of its replica's snapshot; its path.
+    pub async fn promote_replica(
+        &self,
+        r: &helper::PromoteReplicaRequest,
+    ) -> Result<String, HostError> {
+        match self.call(Verb::PromoteReplica(Box::new(r.clone()))).await? {
+            Answer::PromoteReplica(a) => Ok(a.host_path),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// The transfer socket `r` asks for, at the node's mesh address.
     pub async fn open_transfer(
         &self,

@@ -470,7 +470,9 @@ Intent
                                (§4.5 of 02-architecture.md); derived when unset;
                                replica_failover: manual | automatic, whether failover may
                                start it on a replica and lose what the replica lacks (§2.4 of
-                               05-scheduling.md); manual when unset; added 2026-10-27
+                               05-scheduling.md); manual when unset; automatic makes a derived
+                               on_lease_expiry stop, and is refused beside keep_running; added
+                               2026-10-27
   dependencies  []Dependency   name, target (workload, endpoint, or selector) in the same
                                project, inject, required (§5 of 07-networking.md)
   streams       StreamSpec     its console stream's rate, burst, and retention (bytes or a
@@ -1188,6 +1190,12 @@ Volume
   replicas      []Replica        node, when it was chosen, when it last received a snapshot,
                                  and when it went stale; only for a volume whose workload asks
                                  for `replicas` (§2.2 of 06-storage.md); added 2026-10-27
+  divergent     []Divergent      volume, node, since when, and until when the replica it was
+                                 made from held what it holds: each copy left, as a retained
+                                 volume of its own, on a node its workload failed over from
+                                 onto a replica (§2.2 of 06-storage.md); added 2026-10-27
+  divergent_of  VolumeID?        for such a copy, the volume it diverged from; added
+                                 2026-10-27
   attached_to   WorkloadID?
   mode          rw | ro | shared
   snapshots     []SnapshotRef

@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The copies left on nodes the volumes of $1 failed over from, live ones, and of those volumes the\n-- ones that are such copies themselves (§2.2 of docs/06-storage.md), oldest first.\nSELECT id, divergent_of AS \"divergent_of!\", node_id, divergent_since AS \"since!\",\n       held_until AS \"held_until!\", deleted_at\n  FROM volume\n WHERE divergent_of IS NOT NULL AND (divergent_of = ANY($1) OR id = ANY($1))\n ORDER BY divergent_since, id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "divergent_of!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "divergent_of"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "since!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "divergent_since"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "held_until!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "held_until"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "deleted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "deleted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "5074f219b69d9ac32140e4c1bf0e0762ba62e53fe227a8b933b372e2e5294159"
+}

@@ -6907,8 +6907,17 @@ asks what becomes of the volume object: it is the same volume, now on B, since w
 knows by its name is that data; and of A's copy: it holds the writes of the last interval, which
 the failover lost, so it is a divergent copy listed on the volume, never collected, deleted only by
 a plan (§7 of `06-storage.md`), and the replica B needs is chosen again among the nodes that
-remain. Step 9 asks whether A, returning, could write store S again: its epoch is superseded, so it
-stops `db` at once and its next request is refused; what it held on its own disk it keeps.
+remain. As built (P3.8d5), step 8 also asks what lets `world` move at all: a derived lease answer
+of `stop`, which no rule gave it (Finding 206); what name the volume takes on B, which cannot be
+the one it had, since a copy left on B by an earlier failover may still hold it; and what keeps B's
+replica snapshot until the volume is made of it, once B is no longer a replica: the volume record,
+which names it until B reports the volume made. Step 9 asks whether A, returning, could write store
+S again: its epoch is superseded, so it stops `db` at once and its next request is refused; what it
+held on its own disk it keeps. Step 9, as built (P3.8d6), asks what deletes A's copy, and with what
+information: a person's plan, since only a person knows the writes it holds are not wanted,
+executed by A, the node holding it, through a residual assignment once A is heard again; so the
+copy is a retained volume of its own, under the identifier it had on A, which the deletion of §7 of
+`06-storage.md` already reaches.
 
 **Finding 198.** §2 of `06-storage.md` and §4.5 of `02-architecture.md` listed an NFSv4 lease among
 the backends that refuse a superseded writer, which made a shared NFS class `storage_enforced`. An
@@ -7012,3 +7021,34 @@ changes, as `Peers` and `Edges` are, which is the whole of what it keeps of any 
 replication; and a receive is believed only from the node a transfer of that snapshot is under way
 to. Tested over the API. What it costs: one more message a node holds the last of, and a node that
 keeps replicas but runs no workload is now told something.
+
+**Finding 206.** Found building failover onto a replica, asking step 8's algebra question of the
+lease: what lets the control plane move `world` at all? Failover takes only a workload whose
+resolved `on_lease_expiry` is `stop` (§2.4 of `05-scheduling.md`), and §4.5 of
+`02-architecture.md` derived `stop` only from a class more than one node can attach. `world`'s
+volume is in `local`, so its derived answer was `keep_running`, and a workload declaring
+`replica_failover: automatic` and nothing else would never have been failed over; the trace's
+`world` would have stayed on A, its status saying no node holds its data. And a workload that is
+failed over onto a replica while it keeps running would be a split: A, cut off rather than dead,
+writing its copy while B writes the replica. Resolved in §4.5 of `02-architecture.md`, and in each
+restatement of the rule (§2 and §7 of `06-storage.md`, §8 of `03-state.md`, §5 of
+`18-operations.md`, §3.3 of `01-model.md`): the derived answer is `stop` when another node may
+start the workload on a volume it holds, a replicated volume of a workload declaring
+`replica_failover: automatic` among them, and declaring `keep_running` beside `automatic` is
+refused. Tested in core and over the API, where the trace's `world`, declaring only its replica
+and `automatic`, is failed over onto it. What it costs: such a workload stops when its lease cannot
+be renewed, as one on shared storage does, and loses what the replica lacks, which it declared it
+accepts.
+
+**Finding 207.** Found by an automated security review of the agents' half of replication as
+built. Step 4 says B's table admits A's mesh address to B's transfer port from the mesh; but the
+rule only admits, on the mesh's interface, in a chain whose policy accepts, and Linux takes a
+packet addressed to any of its own addresses on whichever interface it arrives (the weak host
+model). So a connection to B's mesh address on the transfer port arriving by B's own network was
+not refused by the table at all, and reached the agent, which read a ticket from it before asking
+who sent it. The ticket and the peer's address still stopped it, but the table's word that only
+the mesh reaches the port was false. Resolved in §9.1 of `07-networking.md`: the table drops, under
+`transfer`, what reaches the port at the mesh address by any other interface, kept whenever the
+node has a mesh address and not only while it is told of a sender; and the agent refuses a
+connection whose peer is not the mesh address of a node it was told sends it a replica before it
+reads anything. Tested in the helper's rules. What it costs: one rule in the host's table.

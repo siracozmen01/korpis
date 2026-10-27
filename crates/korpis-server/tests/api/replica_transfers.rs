@@ -20,7 +20,9 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body as B;
 use std::time::SystemTime;
 
 /// The next `Replicas` a node is told that satisfies `pick`.
-fn replicas(pick: impl Fn(&agent::Replicas) -> bool) -> impl Fn(&Down) -> Option<agent::Replicas> {
+pub(crate) fn replicas(
+    pick: impl Fn(&agent::Replicas) -> bool,
+) -> impl Fn(&Down) -> Option<agent::Replicas> {
     move |d| match d {
         Down::Replicas(r) if pick(r) => Some((**r).clone()),
         _ => None,
@@ -29,7 +31,7 @@ fn replicas(pick: impl Fn(&agent::Replicas) -> bool) -> impl Fn(&Down) -> Option
 
 /// The next message on `stream` that `pick` takes, reading every message: what a node is told
 /// of replicas is passed over by `next`, which `until` reads through.
-async fn told_of<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
+pub(crate) async fn told_of<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
     for _ in 0..60 {
         if let Some(found) = any(stream).await.message.as_ref().and_then(&pick) {
             return found;
@@ -39,7 +41,12 @@ async fn told_of<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T
 }
 
 /// A journal record of a receive of `snapshot` into the replica of `volume`.
-fn received(seq: u64, volume: &str, snapshot: &str, failed: bool) -> agent::JournalRecord {
+pub(crate) fn received(
+    seq: u64,
+    volume: &str,
+    snapshot: &str,
+    failed: bool,
+) -> agent::JournalRecord {
     let event = if failed {
         agent::ReplicaEventKind::REPLICA_EVENT_KIND_FAILED
     } else {

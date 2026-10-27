@@ -79,7 +79,8 @@ impl Helper {
                 }))
             }
             Verb::PromoteReplica(r) => {
-                let path = self.class(&r.storage_class)?.promote_replica(&r.volume, &r.snapshot)?;
+                let class = self.class(&r.storage_class)?;
+                let path = class.promote_replica(&r.volume, &r.snapshot, &r.into)?;
                 Answer::PromoteReplica(Box::new(helper::PromoteReplicaResponse {
                     host_path: path.to_string_lossy().into_owned(),
                     ..Default::default()

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT v.name, v.helper_id FROM volume v\n              WHERE v.attached_to = $1 AND v.deleted_at IS NULL AND v.kind = 'declared'\n                AND EXISTS (SELECT 1 FROM volume d WHERE d.divergent_of = v.id)\n              ORDER BY v.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "helper_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "helper_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "645373e9b380dd3eff67f32edf20ed29d95a743cff12614ab8c3d8fb79eb6e10"
+}

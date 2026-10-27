@@ -68,7 +68,8 @@ StorageClass
 single-attach Ceph RBD image or iSCSI LUN is never mounted twice at once, but after a reschedule a
 second node can attach it, and that is the case in which two writers become possible. Any class
 with `multi_node_attach` makes `stop` the derived `on_expiry` default for workloads that use it
-(§4.5 of `02-architecture.md`). `fencing: storage_enforced` means the backend refuses the old
+(§4.5 of `02-architecture.md`), as does a replicated volume whose workload fails over onto its
+replica (§2.2). `fencing: storage_enforced` means the backend refuses the old
 writer itself (SCSI-3 persistent reservations, a Ceph exclusive lock with blocklisting) and the
 lease epoch is applied there too; `lease_only` means the agents' lease discipline is the only
 protection, and the class says so. (Corrected 2026-10-27, Finding 198 of `23-walkthroughs.md`:
@@ -383,7 +384,41 @@ between two agents over the loopback, a forged ticket refused and nothing of it 
 to end, between two nodes each with a btrfs of its own and its data plane in a network namespace of
 the test's own: a workload's volume, written on the first, held read-only on the second through the
 mesh, the second's table admitting to the transfer port the first's mesh address alone, and shown
-on the volume as received. What is not built yet: failover onto a replica (P3.8d5).
+on the volume as received.
+
+**Built 2026-10-27, failover onto a replica** (P3.8d5). A workload whose node the sweep marked
+unreachable and whose declaration says `replica_failover: automatic` reaches each volume on that
+node's disk at the node keeping its freshest replica, the one that last received a snapshot, so all
+such volumes' freshest replicas must be on one node for it to be placed. Placed there, in the same
+transaction: the volume record moves to that node under a helper identifier of its own, the
+volume's and the snapshot's (never the one it had, which a copy left there by an earlier failover
+may still hold); the copy it leaves becomes a volume of its own on the node it left, under the
+identifier it had there, retained and held by no workload, recording the volume it diverged from,
+when, and when the replica received what the volume now holds, and listed on that volume as
+divergent; the volume's snapshots, which are where the copy is, become the copy's; the replica it
+is made from is no longer one, its snapshot kept by its node until the node reports the volume
+made; and every other replica is marked stale, since what it holds is no base the new node keeps,
+and is sent whole from there. The remake plan's `promote_replica` step makes the volume a writable
+snapshot of the replica's, the helper answering the copy it made already when asked again, which it
+tells by the subvolume's parent UUID, and the agent ensures it with its declared size and reports
+it, as a volume attached is. The failover's effect records `lost_since`, when the stalest replica a
+volume was made from received, as what was lost. A `keep_running` workload is never failed over, so
+a derived `on_lease_expiry` is `stop` for a replicated volume whose workload declares
+`replica_failover: automatic`, and declaring `keep_running` beside it is refused (Finding 206 of
+`23-walkthroughs.md`). Tested over the API: the freshest replica chosen, the plan promoting it, the
+volume moved with its divergent copy listed, the other replica stale, and the effect's
+`lost_since`; at the helper, between two btrfs filesystems; and end to end, the node holding the
+volume losing its power and the workload made on the other node from the replica, holding what the
+first wrote.
+
+**Built 2026-10-27, deleting a divergent copy** (P3.8d6). Since the copy is a retained volume, it is
+deleted as one (§7): a plan of one irreversible step that always waits for a person, executed by
+the node keeping the copy through a residual assignment, once that node is heard again, and the
+copy is listed no more once the node reports it deleted. Its bytes count against that node's disk
+and the project's storage until then, as any retained volume's do. Until a person deletes it,
+nothing of Korpis writes to it or removes it, and a workload may attach it, as any retained volume,
+to read what it holds. Tested over the API: the copy shown as a volume of the node it was left on,
+held by none, deleted through that node's residual assignment, and the volume itself untouched.
 
 ---
 
@@ -1491,7 +1526,9 @@ provisioned ──▶ attached ⇄ detached ──▶ orphaned ──▶ deleted
 - **Volumes in a `multi_node_attach` class make `on_expiry: stop` the derived default** for the
   workloads that use them (§4.5 of `02-architecture.md`). Two nodes writing to one network volume
   is corruption, so a workload on such storage must stop when its lease cannot be renewed. Local
-  volumes leave the default at `keep_running`, because nothing else can reach that disk.
+  volumes leave the default at `keep_running`, because nothing else can reach that disk, unless
+  the volume is replicated and its workload declares `replica_failover: automatic`: another node
+  then starts it on the replica, and the default is `stop` (Finding 206 of `23-walkthroughs.md`).
 
 > Second external review, finding S8. Recorded in §17 of `23-walkthroughs.md`. This rule keyed the
 > default on `shared_access`, "mountable from more than one node". The hazard is broader: a

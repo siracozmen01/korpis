@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/attached.proto.
  */
 export const file_korpis_v1_attached: GenFile = /*@__PURE__*/
-  fileDesc("Chhrb3JwaXMvdjEvYXR0YWNoZWQucHJvdG8SCWtvcnBpcy52MSL2AwoGVm9sdW1lEgoKAmlkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSDAoEbmFtZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgEEhUKDXN0b3JhZ2VfY2xhc3MYBSABKAkSEQoEbm9kZRgGIAEoCUgAiAEBEhgKC2F0dGFjaGVkX3RvGAcgASgJSAGIAQESIwoEbW9kZRgIIAEoDjIVLmtvcnBpcy52MS5Wb2x1bWVNb2RlEhEKCXNuYXBzaG90cxgJIAMoCRIrCgdjcmVhdGVkGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpkZWxldGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5xdW90YV9lbmZvcmNlZBgMIAEoCBIjCgRraW5kGA0gASgOMhUua29ycGlzLnYxLlZvbHVtZUtpbmQSLwoLZGV0YWNoZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCmNyZWF0ZWRfYnkYDyABKAkSDQoFc3RvcmUYECABKAkSKgoIcmVwbGljYXMYESADKAsyGC5rb3JwaXMudjEuVm9sdW1lUmVwbGljYUIHCgVfbm9kZUIOCgxfYXR0YWNoZWRfdG8iqwEKDVZvbHVtZVJlcGxpY2ESDAoEbm9kZRgBIAEoCRItCgljaG9zZW5fYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC3JlY2VpdmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghzdGFsZV9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAikQEKCFNuYXBzaG90EgoKAmlkGAEgASgJEg4KBnZvbHVtZRgCIAEoCRIMCgRuYW1lGAMgASgJEisKB2NyZWF0ZWQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmRlbGV0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIscDCghFbmRwb2ludBIKCgJpZBgBIAEoCRIQCgh3b3JrbG9hZBgCIAEoCRIMCgRuYW1lGAMgASgJEi0KCHByb3RvY29sGAQgASgOMhsua29ycGlzLnYxLkVuZHBvaW50UHJvdG9jb2wSFgoOY29udGFpbmVyX3BvcnQYBSABKA0SJQoIZXhwb3N1cmUYBiABKA4yEy5rb3JwaXMudjEuRXhwb3N1cmUSIwoHYWRkcmVzcxgHIAEoCzISLmtvcnBpcy52MS5BZGRyZXNzEjAKDmNsaWVudF9hZGRyZXNzGAggASgOMhgua29ycGlzLnYxLkNsaWVudEFkZHJlc3MSDwoHZG9tYWlucxgJIAMoCRIfCgN0bHMYCiABKAsyEi5rb3JwaXMudjEuVGxzU3BlYxIoCgZwb2xpY3kYCyABKAsyGC5rb3JwaXMudjEuTmV0d29ya1BvbGljeRISCgphY2NvdW50aW5nGAwgASgIEicKB3NoYXBpbmcYDSABKAsyFi5rb3JwaXMudjEuU2hhcGluZ1NwZWMSEwoLY2VydGlmaWNhdGUYDiABKAkSHAoUY2VydGlmaWNhdGVfcmV2aXNpb24YDyABKAMiWQoHQWRkcmVzcxILCgNpcHMYASADKAkSDAoEcG9ydBgCIAEoDRIMCgRub2RlGAMgASgJEhIKCmVkZ2VfZ3JvdXAYBCABKAkSEQoJdW5yZWFjaGVkGAUgASgJIvcCCgZTdHJlYW0SCgoCaWQYASABKAkSEAoId29ya2xvYWQYAiABKAkSIwoEa2luZBgDIAEoDjIVLmtvcnBpcy52MS5TdHJlYW1LaW5kEjcKEnJldGVudGlvbl9kdXJhdGlvbhgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkgAEhkKD3JldGVudGlvbl9ieXRlcxgFIAEoBEgAEhcKD25vZGVfb25seV9ieXRlcxgHIAEoBBIqCghzZWdtZW50cxgIIAMoCzIYLmtvcnBpcy52MS5TdHJlYW1TZWdtZW50EjQKEW9mZmxvYWRfcmV0ZW50aW9uGAkgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEjIKD3JldGVudGlvbl9mbG9vchgKIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhILCgNydW4YCyABKAlCCwoJcmV0ZW50aW9uSgQIBhAHUgdpbmRleGVkIugBCg1TdHJlYW1TZWdtZW50EhQKDGZpcnN0X29mZnNldBgBIAEoBBISCgplbmRfb2Zmc2V0GAIgASgEEiwKCGZpcnN0X2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIrCgdsYXN0X2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVieXRlcxgFIAEoBBIOCgZkaWdlc3QYBiABKAkSDAoEbm9kZRgHIAEoCRIRCglvZmZsb2FkZWQYCCABKAgSEgoKcmVwb3NpdG9yeRgJIAEoCSK8AgoKUmVwb3NpdG9yeRIKCgJpZBgBIAEoCRIUCgxvcmdhbml6YXRpb24YAiABKAkSFAoHcHJvamVjdBgDIAEoCUgAiAEBEgwKBG5hbWUYBCABKAkSEAoIcHJvdmlkZXIYBSABKAkSDgoGcHJlZml4GAYgASgJEioKC2tleV9jdXN0b2R5GAcgASgOMhUua29ycGlzLnYxLktleUN1c3RvZHkSLQoJcmV0ZW50aW9uGAggASgLMhoua29ycGlzLnYxLlJldGVudGlvblBvbGljeRIrCgdjcmVhdGVkGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdzdHJlYW1zGAogASgIEiEKA2ttcxgLIAEoCzIULmtvcnBpcy52MS5UZW5hbnRLZXlCCgoIX3Byb2plY3QiKgoJVGVuYW50S2V5EhAKCHByb3ZpZGVyGAEgASgJEgsKA2tleRgCIAEoCSLvAQoPUmV0ZW50aW9uUG9saWN5EhEKCWtlZXBfbGFzdBgBIAEoDRITCgtrZWVwX2hvdXJseRgCIAEoDRISCgprZWVwX2RhaWx5GAMgASgNEhMKC2tlZXBfd2Vla2x5GAQgASgNEhQKDGtlZXBfbW9udGhseRgFIAEoDRITCgtrZWVwX3llYXJseRgGIAEoDRIuCgtrZWVwX2ZhaWxlZBgHIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIwCg1taW5fcmV0ZW50aW9uGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIoMECgZCYWNrdXASCgoCaWQYASABKAkSEgoKcmVwb3NpdG9yeRgCIAEoCRIQCgh3b3JrbG9hZBgDIAEoCRIOCgZ2b2x1bWUYBCABKAkSDAoEcGxhbhgFIAEoCRITCgZwYXJlbnQYBiABKAlIAIgBARInCgZzdGF0dXMYByABKA4yFy5rb3JwaXMudjEuQmFja3VwU3RhdHVzEhIKCmNvbnNpc3RlbnQYCCABKAgSDQoFZmlsZXMYCSABKAQSEwoLZGlyZWN0b3JpZXMYCiABKAQSDQoFYnl0ZXMYCyABKAQSEgoKY2h1bmtzX25ldxgMIAEoBBIRCglieXRlc19uZXcYDSABKAQSFAoMc3RvcmVkX2J5dGVzGA4gASgEEhcKD2ZpbGVzX3VuY2hhbmdlZBgPIAEoBBIPCgdza2lwcGVkGBAgAygJEg0KBWVycm9yGBEgASgJEisKB2NyZWF0ZWQYEiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGZpbmlzaGVkGBMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpkZWxldGVkX2F0GBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBpbWFnZV9maWxlc3lzdGVtGBUgASgJQgkKB19wYXJlbnQijQIKBkRvbWFpbhIKCgJpZBgBIAEoCRIUCgxvcmdhbml6YXRpb24YAiABKAkSDAoEbmFtZRgDIAEoCRIzCgx2ZXJpZmljYXRpb24YBCABKA4yHS5rb3JwaXMudjEuRG9tYWluVmVyaWZpY2F0aW9uEg4KBnJlY29yZBgFIAEoCRINCgV0b2tlbhgGIAEoCRITCgZwYXJlbnQYByABKAlIAIgBARIvCgt2ZXJpZmllZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKY3JlYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCCQoHX3BhcmVudCKqAwoLQ2VydGlmaWNhdGUSCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEg0KBW5hbWVzGAMgAygJEiwKBnNvdXJjZRgEIAEoDjIcLmtvcnBpcy52MS5DZXJ0aWZpY2F0ZVNvdXJjZRINCgVjaGFpbhgFIAEoCRIuCgpub3RfYmVmb3JlGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBItCglub3RfYWZ0ZXIYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEioKBXN0YXRlGAggASgOMhsua29ycGlzLnYxLkNlcnRpZmljYXRlU3RhdGUSDgoGcmVhc29uGAkgASgJEi8KC3JlbmV3X2FmdGVyGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghyZXZpc2lvbhgLIAEoAxIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdleHBvc2VkGA0gASgIEg4KBnBvcnRhbBgOIAEoCSKLAgoGUG9ydGFsEgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2NlcnRpZmljYXRlGAQgASgJEjgKEmNlcnRpZmljYXRlX3NvdXJjZRgFIAEoDjIcLmtvcnBpcy52MS5DZXJ0aWZpY2F0ZVNvdXJjZRI2ChFjZXJ0aWZpY2F0ZV9zdGF0ZRgGIAEoDjIbLmtvcnBpcy52MS5DZXJ0aWZpY2F0ZVN0YXRlEhoKEmNlcnRpZmljYXRlX3JlYXNvbhgHIAEoCRIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLUAgoLQWRkcmVzc1Bvb2wSCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEgwKBGNpZHIYAyABKAkSKgoFc2NvcGUYBCABKA4yGy5rb3JwaXMudjEuQWRkcmVzc1Bvb2xTY29wZRIMCgRub2RlGAUgASgJEg4KBnJvdXRlchgGIAEoCRIqCgdyb3V0aW5nGAcgASgOMhkua29ycGlzLnYxLkFkZHJlc3NSb3V0aW5nEhEKCWludGVyZmFjZRgIIAEoCRItCgpxdWFyYW50aW5lGAkgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhAKCHJlc2VydmVkGAogAygJEgwKBGhlbGQYCyABKAQSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFZ3JvdXAYDSABKAkiogMKCUVkZ2VHcm91cBIKCgJpZBgBIAEoCRIUCgxvcmdhbml6YXRpb24YAiABKAkSDAoEbmFtZRgDIAEoCRIPCgdtZW1iZXJzGAQgAygJEhIKCmZpcnN0X3BvcnQYBSABKA0SEQoJbGFzdF9wb3J0GAYgASgNEhIKCnByb2JlX3BvcnQYByABKA0SMQoOcHJvYmVfaW50ZXJ2YWwYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SFAoMcHJvYmVfbWlzc2VzGAkgASgNEicKBHRlcm0YCiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SLgoKY3JlYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoNbWVtYmVyX3N0YXR1cxgMIAMoCzIbLmtvcnBpcy52MS5FZGdlTWVtYmVyU3RhdHVzEigKCGhvbGRpbmdzGA0gAygLMhYua29ycGlzLnYxLkVkZ2VIb2xkaW5nEhkKEWluZ3Jlc3NfYWRkcmVzc2VzGA4gAygJIm8KEEVkZ2VNZW1iZXJTdGF0dXMSDAoEbm9kZRgBIAEoCRINCgVyZWFkeRgCIAEoCBIuCgpsYXN0X3Byb2JlGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZyZWFzb24YBCABKAkiuAEKC0VkZ2VIb2xkaW5nEg8KB2FkZHJlc3MYASABKAkSDAoEbm9kZRgCIAEoCRINCgVlcG9jaBgDIAEoBBIRCglhbnN3ZXJpbmcYBCABKAgSLgoKbGFzdF9wcm9iZRgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcm91dGVyGAYgASgJEhEKCXJvdXRlZF90bxgHIAEoCRIVCg1yb3V0ZV9mYWlsdXJlGAggASgJKlsKClZvbHVtZUtpbmQSGwoXVk9MVU1FX0tJTkRfVU5TUEVDSUZJRUQQABIYChRWT0xVTUVfS0lORF9ERUNMQVJFRBABEhYKElZPTFVNRV9LSU5EX1NUUkVBTRACKoYBCgpTdHJlYW1LaW5kEhsKF1NUUkVBTV9LSU5EX1VOU1BFQ0lGSUVEEAASFwoTU1RSRUFNX0tJTkRfQ09OU09MRRABEhMKD1NUUkVBTV9LSU5EX0xPRxACEhUKEVNUUkVBTV9LSU5EX0VWRU5UEAMSFgoSU1RSRUFNX0tJTkRfTUVUUklDEAQqWwoKS2V5Q3VzdG9keRIbChdLRVlfQ1VTVE9EWV9VTlNQRUNJRklFRBAAEhgKFEtFWV9DVVNUT0RZX09QRVJBVE9SEAESFgoSS0VZX0NVU1RPRFlfVEVOQU5UEAIqfwoMQmFja3VwU3RhdHVzEh0KGUJBQ0tVUF9TVEFUVVNfVU5TUEVDSUZJRUQQABIZChVCQUNLVVBfU1RBVFVTX1BFTkRJTkcQARIbChdCQUNLVVBfU1RBVFVTX1NVQ0NFRURFRBACEhgKFEJBQ0tVUF9TVEFUVVNfRkFJTEVEEAMqkAEKEEFkZHJlc3NQb29sU2NvcGUSIgoeQUREUkVTU19QT09MX1NDT1BFX1VOU1BFQ0lGSUVEEAASGwoXQUREUkVTU19QT09MX1NDT1BFX05PREUQARIbChdBRERSRVNTX1BPT0xfU0NPUEVfRURHRRACEh4KGkFERFJFU1NfUE9PTF9TQ09QRV9DTFVTVEVSEAMqiAEKDkFkZHJlc3NSb3V0aW5nEh8KG0FERFJFU1NfUk9VVElOR19VTlNQRUNJRklFRBAAEhoKFkFERFJFU1NfUk9VVElOR19TVEFUSUMQARIXChNBRERSRVNTX1JPVVRJTkdfQkdQEAISIAocQUREUkVTU19ST1VUSU5HX1BST1ZJREVSX0FQSRADKnUKEUNlcnRpZmljYXRlU291cmNlEiIKHkNFUlRJRklDQVRFX1NPVVJDRV9VTlNQRUNJRklFRBAAEhsKF0NFUlRJRklDQVRFX1NPVVJDRV9BQ01FEAESHwobQ0VSVElGSUNBVEVfU09VUkNFX1BST1ZJREVEEAIqkAEKEENlcnRpZmljYXRlU3RhdGUSIQodQ0VSVElGSUNBVEVfU1RBVEVfVU5TUEVDSUZJRUQQABIdChlDRVJUSUZJQ0FURV9TVEFURV9QRU5ESU5HEAESHAoYQ0VSVElGSUNBVEVfU1RBVEVfSVNTVUVEEAISHAoYQ0VSVElGSUNBVEVfU1RBVEVfRkFJTEVEEAMqnwEKEkRvbWFpblZlcmlmaWNhdGlvbhIjCh9ET01BSU5fVkVSSUZJQ0FUSU9OX1VOU1BFQ0lGSUVEEAASHwobRE9NQUlOX1ZFUklGSUNBVElPTl9ETlNfVFhUEAESIQodRE9NQUlOX1ZFUklGSUNBVElPTl9ERUxFR0FURUQQAhIgChxET01BSU5fVkVSSUZJQ0FUSU9OX09QRVJBVE9SEANiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_workload_spec]);
+  fileDesc("Chhrb3JwaXMvdjEvYXR0YWNoZWQucHJvdG8SCWtvcnBpcy52MSLRBAoGVm9sdW1lEgoKAmlkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSDAoEbmFtZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgEEhUKDXN0b3JhZ2VfY2xhc3MYBSABKAkSEQoEbm9kZRgGIAEoCUgAiAEBEhgKC2F0dGFjaGVkX3RvGAcgASgJSAGIAQESIwoEbW9kZRgIIAEoDjIVLmtvcnBpcy52MS5Wb2x1bWVNb2RlEhEKCXNuYXBzaG90cxgJIAMoCRIrCgdjcmVhdGVkGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpkZWxldGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5xdW90YV9lbmZvcmNlZBgMIAEoCBIjCgRraW5kGA0gASgOMhUua29ycGlzLnYxLlZvbHVtZUtpbmQSLwoLZGV0YWNoZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCmNyZWF0ZWRfYnkYDyABKAkSDQoFc3RvcmUYECABKAkSKgoIcmVwbGljYXMYESADKAsyGC5rb3JwaXMudjEuVm9sdW1lUmVwbGljYRItCglkaXZlcmdlbnQYEiADKAsyGi5rb3JwaXMudjEuVm9sdW1lRGl2ZXJnZW50EhkKDGRpdmVyZ2VudF9vZhgTIAEoCUgCiAEBQgcKBV9ub2RlQg4KDF9hdHRhY2hlZF90b0IPCg1fZGl2ZXJnZW50X29mIqsBCg1Wb2x1bWVSZXBsaWNhEgwKBG5vZGUYASABKAkSLQoJY2hvc2VuX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtyZWNlaXZlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIc3RhbGVfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIooBCg9Wb2x1bWVEaXZlcmdlbnQSDAoEbm9kZRgBIAEoCRIpCgVzaW5jZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKaGVsZF91bnRpbBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGdm9sdW1lGAQgASgJIpEBCghTbmFwc2hvdBIKCgJpZBgBIAEoCRIOCgZ2b2x1bWUYAiABKAkSDAoEbmFtZRgDIAEoCRIrCgdjcmVhdGVkGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpkZWxldGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLHAwoIRW5kcG9pbnQSCgoCaWQYASABKAkSEAoId29ya2xvYWQYAiABKAkSDAoEbmFtZRgDIAEoCRItCghwcm90b2NvbBgEIAEoDjIbLmtvcnBpcy52MS5FbmRwb2ludFByb3RvY29sEhYKDmNvbnRhaW5lcl9wb3J0GAUgASgNEiUKCGV4cG9zdXJlGAYgASgOMhMua29ycGlzLnYxLkV4cG9zdXJlEiMKB2FkZHJlc3MYByABKAsyEi5rb3JwaXMudjEuQWRkcmVzcxIwCg5jbGllbnRfYWRkcmVzcxgIIAEoDjIYLmtvcnBpcy52MS5DbGllbnRBZGRyZXNzEg8KB2RvbWFpbnMYCSADKAkSHwoDdGxzGAogASgLMhIua29ycGlzLnYxLlRsc1NwZWMSKAoGcG9saWN5GAsgASgLMhgua29ycGlzLnYxLk5ldHdvcmtQb2xpY3kSEgoKYWNjb3VudGluZxgMIAEoCBInCgdzaGFwaW5nGA0gASgLMhYua29ycGlzLnYxLlNoYXBpbmdTcGVjEhMKC2NlcnRpZmljYXRlGA4gASgJEhwKFGNlcnRpZmljYXRlX3JldmlzaW9uGA8gASgDIlkKB0FkZHJlc3MSCwoDaXBzGAEgAygJEgwKBHBvcnQYAiABKA0SDAoEbm9kZRgDIAEoCRISCgplZGdlX2dyb3VwGAQgASgJEhEKCXVucmVhY2hlZBgFIAEoCSL3AgoGU3RyZWFtEgoKAmlkGAEgASgJEhAKCHdvcmtsb2FkGAIgASgJEiMKBGtpbmQYAyABKA4yFS5rb3JwaXMudjEuU3RyZWFtS2luZBI3ChJyZXRlbnRpb25fZHVyYXRpb24YBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25IABIZCg9yZXRlbnRpb25fYnl0ZXMYBSABKARIABIXCg9ub2RlX29ubHlfYnl0ZXMYByABKAQSKgoIc2VnbWVudHMYCCADKAsyGC5rb3JwaXMudjEuU3RyZWFtU2VnbWVudBI0ChFvZmZsb2FkX3JldGVudGlvbhgJIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIyCg9yZXRlbnRpb25fZmxvb3IYCiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SCwoDcnVuGAsgASgJQgsKCXJldGVudGlvbkoECAYQB1IHaW5kZXhlZCLoAQoNU3RyZWFtU2VnbWVudBIUCgxmaXJzdF9vZmZzZXQYASABKAQSEgoKZW5kX29mZnNldBgCIAEoBBIsCghmaXJzdF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKwoHbGFzdF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFYnl0ZXMYBSABKAQSDgoGZGlnZXN0GAYgASgJEgwKBG5vZGUYByABKAkSEQoJb2ZmbG9hZGVkGAggASgIEhIKCnJlcG9zaXRvcnkYCSABKAkivAIKClJlcG9zaXRvcnkSCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEhQKB3Byb2plY3QYAyABKAlIAIgBARIMCgRuYW1lGAQgASgJEhAKCHByb3ZpZGVyGAUgASgJEg4KBnByZWZpeBgGIAEoCRIqCgtrZXlfY3VzdG9keRgHIAEoDjIVLmtvcnBpcy52MS5LZXlDdXN0b2R5Ei0KCXJldGVudGlvbhgIIAEoCzIaLmtvcnBpcy52MS5SZXRlbnRpb25Qb2xpY3kSKwoHY3JlYXRlZBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHc3RyZWFtcxgKIAEoCBIhCgNrbXMYCyABKAsyFC5rb3JwaXMudjEuVGVuYW50S2V5QgoKCF9wcm9qZWN0IioKCVRlbmFudEtleRIQCghwcm92aWRlchgBIAEoCRILCgNrZXkYAiABKAki7wEKD1JldGVudGlvblBvbGljeRIRCglrZWVwX2xhc3QYASABKA0SEwoLa2VlcF9ob3VybHkYAiABKA0SEgoKa2VlcF9kYWlseRgDIAEoDRITCgtrZWVwX3dlZWtseRgEIAEoDRIUCgxrZWVwX21vbnRobHkYBSABKA0SEwoLa2VlcF95ZWFybHkYBiABKA0SLgoLa2VlcF9mYWlsZWQYByABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SMAoNbWluX3JldGVudGlvbhgIIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKDBAoGQmFja3VwEgoKAmlkGAEgASgJEhIKCnJlcG9zaXRvcnkYAiABKAkSEAoId29ya2xvYWQYAyABKAkSDgoGdm9sdW1lGAQgASgJEgwKBHBsYW4YBSABKAkSEwoGcGFyZW50GAYgASgJSACIAQESJwoGc3RhdHVzGAcgASgOMhcua29ycGlzLnYxLkJhY2t1cFN0YXR1cxISCgpjb25zaXN0ZW50GAggASgIEg0KBWZpbGVzGAkgASgEEhMKC2RpcmVjdG9yaWVzGAogASgEEg0KBWJ5dGVzGAsgASgEEhIKCmNodW5rc19uZXcYDCABKAQSEQoJYnl0ZXNfbmV3GA0gASgEEhQKDHN0b3JlZF9ieXRlcxgOIAEoBBIXCg9maWxlc191bmNoYW5nZWQYDyABKAQSDwoHc2tpcHBlZBgQIAMoCRINCgVlcnJvchgRIAEoCRIrCgdjcmVhdGVkGBIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghmaW5pc2hlZBgTIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZGVsZXRlZF9hdBgUIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGAoQaW1hZ2VfZmlsZXN5c3RlbRgVIAEoCUIJCgdfcGFyZW50Io0CCgZEb21haW4SCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEgwKBG5hbWUYAyABKAkSMwoMdmVyaWZpY2F0aW9uGAQgASgOMh0ua29ycGlzLnYxLkRvbWFpblZlcmlmaWNhdGlvbhIOCgZyZWNvcmQYBSABKAkSDQoFdG9rZW4YBiABKAkSEwoGcGFyZW50GAcgASgJSACIAQESLwoLdmVyaWZpZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgkKB19wYXJlbnQiqgMKC0NlcnRpZmljYXRlEgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRINCgVuYW1lcxgDIAMoCRIsCgZzb3VyY2UYBCABKA4yHC5rb3JwaXMudjEuQ2VydGlmaWNhdGVTb3VyY2USDQoFY2hhaW4YBSABKAkSLgoKbm90X2JlZm9yZRgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLQoJbm90X2FmdGVyGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIqCgVzdGF0ZRgIIAEoDjIbLmtvcnBpcy52MS5DZXJ0aWZpY2F0ZVN0YXRlEg4KBnJlYXNvbhgJIAEoCRIvCgtyZW5ld19hZnRlchgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIcmV2aXNpb24YCyABKAMSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHZXhwb3NlZBgNIAEoCBIOCgZwb3J0YWwYDiABKAkiiwIKBlBvcnRhbBIKCgJpZBgBIAEoCRIUCgxvcmdhbml6YXRpb24YAiABKAkSDAoEbmFtZRgDIAEoCRITCgtjZXJ0aWZpY2F0ZRgEIAEoCRI4ChJjZXJ0aWZpY2F0ZV9zb3VyY2UYBSABKA4yHC5rb3JwaXMudjEuQ2VydGlmaWNhdGVTb3VyY2USNgoRY2VydGlmaWNhdGVfc3RhdGUYBiABKA4yGy5rb3JwaXMudjEuQ2VydGlmaWNhdGVTdGF0ZRIaChJjZXJ0aWZpY2F0ZV9yZWFzb24YByABKAkSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi1AIKC0FkZHJlc3NQb29sEgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRIMCgRjaWRyGAMgASgJEioKBXNjb3BlGAQgASgOMhsua29ycGlzLnYxLkFkZHJlc3NQb29sU2NvcGUSDAoEbm9kZRgFIAEoCRIOCgZyb3V0ZXIYBiABKAkSKgoHcm91dGluZxgHIAEoDjIZLmtvcnBpcy52MS5BZGRyZXNzUm91dGluZxIRCglpbnRlcmZhY2UYCCABKAkSLQoKcXVhcmFudGluZRgJIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIQCghyZXNlcnZlZBgKIAMoCRIMCgRoZWxkGAsgASgEEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWdyb3VwGA0gASgJIqIDCglFZGdlR3JvdXASCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEgwKBG5hbWUYAyABKAkSDwoHbWVtYmVycxgEIAMoCRISCgpmaXJzdF9wb3J0GAUgASgNEhEKCWxhc3RfcG9ydBgGIAEoDRISCgpwcm9iZV9wb3J0GAcgASgNEjEKDnByb2JlX2ludGVydmFsGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhQKDHByb2JlX21pc3NlcxgJIAEoDRInCgR0ZXJtGAogASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEi4KCmNyZWF0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKDW1lbWJlcl9zdGF0dXMYDCADKAsyGy5rb3JwaXMudjEuRWRnZU1lbWJlclN0YXR1cxIoCghob2xkaW5ncxgNIAMoCzIWLmtvcnBpcy52MS5FZGdlSG9sZGluZxIZChFpbmdyZXNzX2FkZHJlc3NlcxgOIAMoCSJvChBFZGdlTWVtYmVyU3RhdHVzEgwKBG5vZGUYASABKAkSDQoFcmVhZHkYAiABKAgSLgoKbGFzdF9wcm9iZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAQgASgJIrgBCgtFZGdlSG9sZGluZxIPCgdhZGRyZXNzGAEgASgJEgwKBG5vZGUYAiABKAkSDQoFZXBvY2gYAyABKAQSEQoJYW5zd2VyaW5nGAQgASgIEi4KCmxhc3RfcHJvYmUYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnJvdXRlchgGIAEoCRIRCglyb3V0ZWRfdG8YByABKAkSFQoNcm91dGVfZmFpbHVyZRgIIAEoCSpbCgpWb2x1bWVLaW5kEhsKF1ZPTFVNRV9LSU5EX1VOU1BFQ0lGSUVEEAASGAoUVk9MVU1FX0tJTkRfREVDTEFSRUQQARIWChJWT0xVTUVfS0lORF9TVFJFQU0QAiqGAQoKU3RyZWFtS2luZBIbChdTVFJFQU1fS0lORF9VTlNQRUNJRklFRBAAEhcKE1NUUkVBTV9LSU5EX0NPTlNPTEUQARITCg9TVFJFQU1fS0lORF9MT0cQAhIVChFTVFJFQU1fS0lORF9FVkVOVBADEhYKElNUUkVBTV9LSU5EX01FVFJJQxAEKlsKCktleUN1c3RvZHkSGwoXS0VZX0NVU1RPRFlfVU5TUEVDSUZJRUQQABIYChRLRVlfQ1VTVE9EWV9PUEVSQVRPUhABEhYKEktFWV9DVVNUT0RZX1RFTkFOVBACKn8KDEJhY2t1cFN0YXR1cxIdChlCQUNLVVBfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGQoVQkFDS1VQX1NUQVRVU19QRU5ESU5HEAESGwoXQkFDS1VQX1NUQVRVU19TVUNDRUVERUQQAhIYChRCQUNLVVBfU1RBVFVTX0ZBSUxFRBADKpABChBBZGRyZXNzUG9vbFNjb3BlEiIKHkFERFJFU1NfUE9PTF9TQ09QRV9VTlNQRUNJRklFRBAAEhsKF0FERFJFU1NfUE9PTF9TQ09QRV9OT0RFEAESGwoXQUREUkVTU19QT09MX1NDT1BFX0VER0UQAhIeChpBRERSRVNTX1BPT0xfU0NPUEVfQ0xVU1RFUhADKogBCg5BZGRyZXNzUm91dGluZxIfChtBRERSRVNTX1JPVVRJTkdfVU5TUEVDSUZJRUQQABIaChZBRERSRVNTX1JPVVRJTkdfU1RBVElDEAESFwoTQUREUkVTU19ST1VUSU5HX0JHUBACEiAKHEFERFJFU1NfUk9VVElOR19QUk9WSURFUl9BUEkQAyp1ChFDZXJ0aWZpY2F0ZVNvdXJjZRIiCh5DRVJUSUZJQ0FURV9TT1VSQ0VfVU5TUEVDSUZJRUQQABIbChdDRVJUSUZJQ0FURV9TT1VSQ0VfQUNNRRABEh8KG0NFUlRJRklDQVRFX1NPVVJDRV9QUk9WSURFRBACKpABChBDZXJ0aWZpY2F0ZVN0YXRlEiEKHUNFUlRJRklDQVRFX1NUQVRFX1VOU1BFQ0lGSUVEEAASHQoZQ0VSVElGSUNBVEVfU1RBVEVfUEVORElORxABEhwKGENFUlRJRklDQVRFX1NUQVRFX0lTU1VFRBACEhwKGENFUlRJRklDQVRFX1NUQVRFX0ZBSUxFRBADKp8BChJEb21haW5WZXJpZmljYXRpb24SIwofRE9NQUlOX1ZFUklGSUNBVElPTl9VTlNQRUNJRklFRBAAEh8KG0RPTUFJTl9WRVJJRklDQVRJT05fRE5TX1RYVBABEiEKHURPTUFJTl9WRVJJRklDQVRJT05fREVMRUdBVEVEEAISIAocRE9NQUlOX1ZFUklGSUNBVElPTl9PUEVSQVRPUhADYgZwcm90bzM", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_workload_spec]);
 
 /**
  * Durable state with a lifecycle independent of the workload using it.
@@ -126,6 +126,21 @@ export type Volume = Message<"korpis.v1.Volume"> & {
    * @generated from field: repeated korpis.v1.VolumeReplica replicas = 17;
    */
   replicas: VolumeReplica[];
+
+  /**
+   * The copies of it left on nodes its workload failed over from onto a replica, each holding
+   * what was written there after the replica last received (§2.2 of docs/06-storage.md).
+   *
+   * @generated from field: repeated korpis.v1.VolumeDivergent divergent = 18;
+   */
+  divergent: VolumeDivergent[];
+
+  /**
+   * For such a copy, itself a volume, the volume it diverged from.
+   *
+   * @generated from field: optional string divergent_of = 19;
+   */
+  divergentOf?: string | undefined;
 };
 
 /**
@@ -178,6 +193,49 @@ export const VolumeReplicaSchema: GenMessage<VolumeReplica> = /*@__PURE__*/
   messageDesc(file_korpis_v1_attached, 1);
 
 /**
+ * A copy of a volume left on the node it was on when its workload failed over onto a replica:
+ * a volume of its own, retained and held by no workload, never collected, and deleted as any
+ * retained volume is, only by a plan (§7 of docs/06-storage.md).
+ *
+ * @generated from message korpis.v1.VolumeDivergent
+ */
+export type VolumeDivergent = Message<"korpis.v1.VolumeDivergent"> & {
+  /**
+   * @generated from field: string node = 1;
+   */
+  node: string;
+
+  /**
+   * When the volume left it.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 2;
+   */
+  since?: Timestamp | undefined;
+
+  /**
+   * When the replica the volume was made from received what it held; the copy alone holds what
+   * was written between then and when the node went silent.
+   *
+   * @generated from field: google.protobuf.Timestamp held_until = 3;
+   */
+  heldUntil?: Timestamp | undefined;
+
+  /**
+   * The copy, as a volume.
+   *
+   * @generated from field: string volume = 4;
+   */
+  volume: string;
+};
+
+/**
+ * Describes the message korpis.v1.VolumeDivergent.
+ * Use `create(VolumeDivergentSchema)` to create a new message.
+ */
+export const VolumeDivergentSchema: GenMessage<VolumeDivergent> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_attached, 2);
+
+/**
  * A point a volume can be rolled back to, on its node and filesystem (§4 of docs/06-storage.md):
  * no protection against losing either, which is what a backup is for.
  *
@@ -217,7 +275,7 @@ export type Snapshot = Message<"korpis.v1.Snapshot"> & {
  * Use `create(SnapshotSchema)` to create a new message.
  */
 export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 2);
+  messageDesc(file_korpis_v1_attached, 3);
 
 /**
  * A way the network reaches a workload. The replacement for the allocation.
@@ -312,7 +370,7 @@ export type Endpoint = Message<"korpis.v1.Endpoint"> & {
  * Use `create(EndpointSchema)` to create a new message.
  */
 export const EndpointSchema: GenMessage<Endpoint> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 3);
+  messageDesc(file_korpis_v1_attached, 4);
 
 /**
  * @generated from message korpis.v1.Address
@@ -360,7 +418,7 @@ export type Address = Message<"korpis.v1.Address"> & {
  * Use `create(AddressSchema)` to create a new message.
  */
 export const AddressSchema: GenMessage<Address> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 4);
+  messageDesc(file_korpis_v1_attached, 5);
 
 /**
  * A durable, addressable channel of output from a workload.
@@ -443,7 +501,7 @@ export type Stream = Message<"korpis.v1.Stream"> & {
  * Use `create(StreamSchema)` to create a new message.
  */
 export const StreamSchema: GenMessage<Stream> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 5);
+  messageDesc(file_korpis_v1_attached, 6);
 
 /**
  * A contiguous run of a stream's records, the unit a node seals, offloads, and migrates (§4 of
@@ -518,7 +576,7 @@ export type StreamSegment = Message<"korpis.v1.StreamSegment"> & {
  * Use `create(StreamSegmentSchema)` to create a new message.
  */
 export const StreamSegmentSchema: GenMessage<StreamSegment> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 6);
+  messageDesc(file_korpis_v1_attached, 7);
 
 /**
  * A place in a backup target that workloads' backups are kept in (§5.3 of docs/06-storage.md).
@@ -601,7 +659,7 @@ export type Repository = Message<"korpis.v1.Repository"> & {
  * Use `create(RepositorySchema)` to create a new message.
  */
 export const RepositorySchema: GenMessage<Repository> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 7);
+  messageDesc(file_korpis_v1_attached, 8);
 
 /**
  * A tenant's key in its own key management service, reached through the organization's
@@ -630,7 +688,7 @@ export type TenantKey = Message<"korpis.v1.TenantKey"> & {
  * Use `create(TenantKeySchema)` to create a new message.
  */
 export const TenantKeySchema: GenMessage<TenantKey> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 8);
+  messageDesc(file_korpis_v1_attached, 9);
 
 /**
  * @generated from message korpis.v1.RetentionPolicy
@@ -686,7 +744,7 @@ export type RetentionPolicy = Message<"korpis.v1.RetentionPolicy"> & {
  * Use `create(RetentionPolicySchema)` to create a new message.
  */
 export const RetentionPolicySchema: GenMessage<RetentionPolicy> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 9);
+  messageDesc(file_korpis_v1_attached, 10);
 
 /**
  * One backup of one volume, as the node that ran it reported it (§5 of docs/06-storage.md).
@@ -813,7 +871,7 @@ export type Backup = Message<"korpis.v1.Backup"> & {
  * Use `create(BackupSchema)` to create a new message.
  */
 export const BackupSchema: GenMessage<Backup> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 10);
+  messageDesc(file_korpis_v1_attached, 11);
 
 /**
  * A DNS name an organization holds (§3.2 of docs/07-networking.md, §3.6 of docs/01-model.md): it
@@ -880,7 +938,7 @@ export type Domain = Message<"korpis.v1.Domain"> & {
  * Use `create(DomainSchema)` to create a new message.
  */
 export const DomainSchema: GenMessage<Domain> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 11);
+  messageDesc(file_korpis_v1_attached, 12);
 
 /**
  * A certificate an organization holds for the ingress (§3.2 of docs/07-networking.md, §3.6 of
@@ -981,7 +1039,7 @@ export type Certificate = Message<"korpis.v1.Certificate"> & {
  * Use `create(CertificateSchema)` to create a new message.
  */
 export const CertificateSchema: GenMessage<Certificate> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 12);
+  messageDesc(file_korpis_v1_attached, 13);
 
 /**
  * A name the control plane answers under for an organization (§3.6 of docs/07-networking.md,
@@ -1042,7 +1100,7 @@ export type Portal = Message<"korpis.v1.Portal"> & {
  * Use `create(PortalSchema)` to create a new message.
  */
 export const PortalSchema: GenMessage<Portal> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 13);
+  messageDesc(file_korpis_v1_attached, 14);
 
 /**
  * An address pool (§3.6 of docs/01-model.md, §3.7 of docs/07-networking.md): addresses an
@@ -1143,7 +1201,7 @@ export type AddressPool = Message<"korpis.v1.AddressPool"> & {
  * Use `create(AddressPoolSchema)` to create a new message.
  */
 export const AddressPoolSchema: GenMessage<AddressPool> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 14);
+  messageDesc(file_korpis_v1_attached, 15);
 
 /**
  * Two or more of an organization's nodes holding the stable addresses of its `stable` endpoints,
@@ -1251,7 +1309,7 @@ export type EdgeGroup = Message<"korpis.v1.EdgeGroup"> & {
  * Use `create(EdgeGroupSchema)` to create a new message.
  */
 export const EdgeGroupSchema: GenMessage<EdgeGroup> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 15);
+  messageDesc(file_korpis_v1_attached, 16);
 
 /**
  * @generated from message korpis.v1.EdgeMemberStatus
@@ -1287,7 +1345,7 @@ export type EdgeMemberStatus = Message<"korpis.v1.EdgeMemberStatus"> & {
  * Use `create(EdgeMemberStatusSchema)` to create a new message.
  */
 export const EdgeMemberStatusSchema: GenMessage<EdgeMemberStatus> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 16);
+  messageDesc(file_korpis_v1_attached, 17);
 
 /**
  * @generated from message korpis.v1.EdgeHolding
@@ -1354,7 +1412,7 @@ export type EdgeHolding = Message<"korpis.v1.EdgeHolding"> & {
  * Use `create(EdgeHoldingSchema)` to create a new message.
  */
 export const EdgeHoldingSchema: GenMessage<EdgeHolding> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_attached, 17);
+  messageDesc(file_korpis_v1_attached, 18);
 
 /**
  * @generated from enum korpis.v1.VolumeKind

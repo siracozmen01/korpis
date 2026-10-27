@@ -37,6 +37,10 @@ pub enum StepAction {
     RestoreVolume,
     /// Make a volume what its staged restore holds; what it held is lost.
     ReplaceVolume,
+    /// Make the volume, on this node, what the last snapshot its replica here received holds
+    /// (§2.2 of docs/06-storage.md): what was written after it was lost with the node the
+    /// volume was on, and is the age the failover recorded; the copy left there is kept.
+    PromoteReplica,
     /// Copy a path of a block device's staged backup into a new directory of its volume, in a
     /// guest while the workload is stopped (§5.4 of docs/06-storage.md); nothing is lost.
     ApplyRestore,
@@ -82,6 +86,7 @@ impl StepAction {
             Self::BackupVolume => "backup_volume",
             Self::RestoreVolume => "restore_volume",
             Self::ReplaceVolume => "replace_volume",
+            Self::PromoteReplica => "promote_replica",
             Self::ApplyRestore => "apply_restore",
             Self::PruneBackups => "prune_backups",
             Self::Install => "install",
@@ -97,7 +102,7 @@ impl StepAction {
         }
     }
 
-    const ALL: [Self; 23] = [
+    const ALL: [Self; 24] = [
         Self::PullRecipe,
         Self::CreateVolume,
         Self::AttachVolume,
@@ -109,6 +114,7 @@ impl StepAction {
         Self::BackupVolume,
         Self::RestoreVolume,
         Self::ReplaceVolume,
+        Self::PromoteReplica,
         Self::ApplyRestore,
         Self::PruneBackups,
         Self::Install,

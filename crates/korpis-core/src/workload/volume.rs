@@ -85,6 +85,10 @@ pub struct Volume {
     pub snapshots: Vec<Uuid>,
     /// The nodes keeping a replica of it, by node (§2.2 of docs/06-storage.md).
     pub replicas: Vec<super::replica::Replica>,
+    /// The live copies of it left on nodes it failed over from (§2.2 of docs/06-storage.md).
+    pub divergent: Vec<super::replica::Divergent>,
+    /// For such a copy, the volume it diverged from.
+    pub divergent_of: Option<Uuid>,
 }
 
 /// Where a volume's data is, which decides the nodes that reach it (§2.1 of
@@ -252,6 +256,8 @@ mod tests {
             deleted_at: None,
             snapshots: Vec::new(),
             replicas: Vec::new(),
+            divergent: Vec::new(),
+            divergent_of: None,
         };
         assert_eq!(v.shown_size(), None);
         v.quota_enforced = true;

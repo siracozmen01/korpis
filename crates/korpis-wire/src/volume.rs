@@ -5,7 +5,7 @@
 
 use crate::{Result, id, invalid, timestamp, wire_id};
 use korpis_core::id::IdKind;
-use korpis_core::workload::replica::Replica;
+use korpis_core::workload::replica::{Divergent, Replica};
 use korpis_core::workload::volume::{
     ReportedSnapshot, ReportedVolume, Snapshot, SnapshotEvent, Volume, VolumeEvent, VolumeKind,
 };
@@ -37,6 +37,8 @@ pub fn volume_to_pb(v: &Volume) -> pb::Volume {
         created_by: wire_id(IdKind::Workload, v.created_by),
         snapshots: v.snapshots.iter().map(|s| wire_id(IdKind::Snapshot, *s)).collect(),
         replicas: v.replicas.iter().map(replica_to_pb).collect(),
+        divergent: v.divergent.iter().map(divergent_to_pb).collect(),
+        divergent_of: v.divergent_of.map(|d| wire_id(IdKind::Volume, d)),
         ..Default::default()
     }
 }
@@ -48,6 +50,17 @@ fn replica_to_pb(r: &Replica) -> pb::VolumeReplica {
         chosen_at: timestamp(r.chosen_at).into(),
         received_at: r.held.map(|(_, at)| timestamp(at)).into(),
         stale_at: r.stale_at.map(timestamp).into(),
+        ..Default::default()
+    }
+}
+
+/// The wire form of a copy left on a node the volume failed over from.
+fn divergent_to_pb(d: &Divergent) -> pb::VolumeDivergent {
+    pb::VolumeDivergent {
+        node: wire_id(IdKind::Node, d.node),
+        volume: wire_id(IdKind::Volume, d.volume),
+        since: timestamp(d.since).into(),
+        held_until: timestamp(d.held_until).into(),
         ..Default::default()
     }
 }

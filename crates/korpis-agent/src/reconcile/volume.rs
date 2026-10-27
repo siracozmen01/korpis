@@ -12,11 +12,14 @@ use super::streams::stream_name;
 use super::{Reconciler, text};
 use crate::host::{Host, SnapshotOp};
 use crate::runtime::Runtime;
+use korpis_core::id::IdKind;
 use korpis_core::workload::stream::StreamKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
+use korpis_wire::wire_id;
+use uuid::Uuid;
 
 /// Why a volume exists, as its report says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,6 +121,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 after.insert("volume".into(), text(&request.volume));
                 after.insert("created".into(), text(if made.created { "true" } else { "false" }));
             }
+            "promote_replica" => {
+                let made = self.promote(a, name, s).await?;
+                after.insert("volume".into(), text(&made));
+            }
             // A node-local volume is mounted by the runtime object, so it is detached when the
             // object is next rebuilt or destroyed; its data is retained.
             "detach_volume" => {
@@ -143,6 +150,45 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
         }
         Ok(after)
+    }
+
+    /// Makes the volume `name` of `a`'s workload here from the snapshot of its replica here
+    /// that step `s` names, under the identifier the step gives it, and reports it ensured with
+    /// its limits set, as a volume attached is (§2.2 of docs/06-storage.md); that identifier.
+    /// Asked again, the helper answers the copy it already made, so a step retried after its
+    /// report failed reports it then.
+    async fn promote(
+        &self,
+        a: &agent::Assignment,
+        name: &str,
+        s: &pb::Step,
+    ) -> Result<String, Failure> {
+        let named = |key: &str| {
+            detail(s, key)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| Failure(format!("the step names no {key}")))
+        };
+        let record = Uuid::parse_str(named("existing")?)
+            .map_err(|_| Failure("the step names no volume record".into()))?;
+        let storage_class = detail(s, "storage_class").unwrap_or_default().to_owned();
+        let into = named("into")?.to_owned();
+        let promotion = helper::PromoteReplicaRequest {
+            volume: wire_id(IdKind::Volume, record),
+            storage_class: storage_class.clone(),
+            snapshot: named("snapshot")?.to_owned(),
+            into: into.clone(),
+            ..Default::default()
+        };
+        self.host.promote_replica(&promotion).await?;
+        let request = helper::EnsureVolumeRequest {
+            volume: into.clone(),
+            workload: a.workload.clone(),
+            storage_class,
+            size_bytes: number(s, "size_bytes"),
+            ..Default::default()
+        };
+        self.ensure_volume(name, Why::Declared, &request).await?;
+        Ok(into)
     }
 
     /// Does `op` to snapshot `snapshot` (its name, then its identifier) of the volume the helper

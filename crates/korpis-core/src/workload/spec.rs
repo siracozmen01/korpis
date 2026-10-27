@@ -203,6 +203,14 @@ impl IntentBody {
         dependencies::validate(&self.dependencies)?;
         self.streams.validate()?;
         self.egress.validate()?;
+        if self.replica_failover == ReplicaFailover::Automatic
+            && self.continuity == Continuity::KeepRunning
+        {
+            // Failover moves only a workload that stops when its lease ends (§2.4 of
+            // docs/05-scheduling.md), so the two together would declare what never happens.
+            let why = "a workload that keeps running when its lease ends is never failed over";
+            return Err(SpecError::new("continuity.replica_failover", why));
+        }
         self.placement.validate()
     }
 }

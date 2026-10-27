@@ -13,7 +13,7 @@ use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store, VolumeWrite as _};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::node::driver::StorageFeature;
-use korpis_core::workload::spec::Continuity;
+use korpis_core::workload::spec::{Continuity, ReplicaFailover};
 use korpis_core::workload::volume::{Home, Volume, VolumeKind};
 use korpis_core::workload::{IntentBody, Workload};
 use std::collections::BTreeMap;
@@ -93,11 +93,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// What `body`'s workload does on `node` when its lease there cannot be renewed: what it
-    /// declares, or when it declares nothing, `stop` if a volume it holds is in a class of the
-    /// node's that more than one node can attach, and `keep_running` otherwise (§4.5 of
-    /// docs/02-architecture.md). A volume's class is the one it names, an attached volume's the
-    /// one it was made in, and otherwise the node's first, which the helper offers as its
-    /// default.
+    /// declares, or when it declares nothing, `stop` if another node may start it on a volume
+    /// it holds, the volume being in a class of the node's that more than one node can attach,
+    /// or replicated with failover onto its replica declared, and `keep_running` otherwise
+    /// (§4.5 of docs/02-architecture.md, Finding 206 of docs/23-walkthroughs.md). A volume's
+    /// class is the one it names, an attached volume's the one it was made in, and otherwise
+    /// the node's first, which the helper offers as its default.
     pub(crate) async fn on_expiry(
         &self,
         node: Uuid,
@@ -107,12 +108,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(body.continuity);
         }
         let classes = self.store.node(node).await?.map(|n| n.storage_classes).unwrap_or_default();
+        let failover = body.replica_failover == ReplicaFailover::Automatic;
         let mut multi = false;
         for spec in &body.volumes {
-            let name = match spec.existing {
-                Some(id) => self.store.volume(id).await?.map(|v| v.storage_class),
-                None => Some(spec.storage_class.clone()),
+            let (name, replicated) = match spec.existing {
+                Some(id) => self
+                    .store
+                    .volume(id)
+                    .await?
+                    .map_or((None, false), |v| (Some(v.storage_class), !v.replicas.is_empty())),
+                None => (Some(spec.storage_class.clone()), spec.replication.is_some()),
             };
+            multi |= replicated && failover;
             let name = name.unwrap_or_default();
             let class = if name.is_empty() {
                 classes.first()
@@ -148,13 +155,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// The helper's identifier of each existing volume `body` attaches, by the name the
-    /// workload mounts it under.
+    /// The helper's identifier of each existing volume `body` attaches, and of each volume of
+    /// `workload` made from a replica, which goes by one of its own (§2.2 of
+    /// docs/06-storage.md), by the name the workload mounts it under.
     pub(crate) async fn existing_ids(
         &self,
+        workload: Uuid,
         body: &IntentBody,
     ) -> Result<BTreeMap<String, String>, AppError> {
-        let mut out = BTreeMap::new();
+        let mut out: BTreeMap<String, String> =
+            self.store.promoted_ids(workload).await?.into_iter().collect();
         for spec in &body.volumes {
             let Some(id) = spec.existing else { continue };
             let v = self.store.volume(id).await?.ok_or(AppError::NotFound { kind: "volume" })?;

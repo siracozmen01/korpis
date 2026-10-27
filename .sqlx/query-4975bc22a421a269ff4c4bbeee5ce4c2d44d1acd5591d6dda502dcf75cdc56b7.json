@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE volume_replica SET stale_at = coalesce(stale_at, $2), sending = NULL,\n                                   sending_since = NULL\n          WHERE volume_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4975bc22a421a269ff4c4bbeee5ce4c2d44d1acd5591d6dda502dcf75cdc56b7"
+}

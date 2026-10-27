@@ -569,8 +569,9 @@ workload. A fenced agent already refuses mutations, so killing the processes it 
 prevents no inconsistency that refusing mutations has not already prevented. It only converts a
 control-plane incident into a tenant-visible outage, which is the opposite of what the restore is
 for. `on_expiry: keep_running` is therefore the derived default for every workload whose storage no
-other node can attach (§4.5 of `02-architecture.md`), and `stop` remains the default for the
-workloads whose correctness genuinely depends on single ownership of a shared resource.
+other node can attach or start it from (§4.5 of `02-architecture.md`), and `stop` remains the
+default for the workloads whose correctness genuinely depends on single ownership of a shared
+resource, or of the data a replica copies.
 
 The system converges from a known state instead of a contested one. Slower than pretending nothing
 happened; correct.

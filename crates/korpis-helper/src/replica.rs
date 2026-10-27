@@ -232,23 +232,35 @@ impl Class {
         Ok(true)
     }
 
-    /// Makes `volume` here a writable copy of its replica's snapshot `snapshot`, held whole;
-    /// refused while a volume of that identifier is here. Its path.
-    pub fn promote_replica(&mut self, volume: &str, snapshot: &str) -> HelperResult<PathBuf> {
+    /// Makes the volume `into` here a writable copy of the snapshot `snapshot` of `volume`'s
+    /// replica, held whole; the copy already made of that snapshot, asked again, is the one
+    /// answered, and any other volume of that identifier here is refused. Its path.
+    pub fn promote_replica(
+        &mut self,
+        volume: &str,
+        snapshot: &str,
+        into: &str,
+    ) -> HelperResult<PathBuf> {
         identifier("volume", volume)?;
         identifier("snapshot", snapshot)?;
+        identifier("into", into)?;
         self.replicates_here()?;
         let from = self.replica_dir(volume).join(snapshot);
         if !held_at(&from)? {
             return Err(HelperError::NotFound(format!("replica {snapshot} of volume {volume}")));
         }
-        let target = self.path_of(volume);
+        let target = self.path_of(into);
         if target.symlink_metadata().is_ok() {
-            return Err(HelperError::Refused(format!("volume {volume} is here already")));
+            let made_of = |(_, parent): ([u8; 16], [u8; 16])| parent;
+            let (source, _) = btrfs::uuids(&File::open(&from)?)?;
+            if is_subvolume(&target)? && made_of(btrfs::uuids(&File::open(&target)?)?) == source {
+                return Ok(target);
+            }
+            return Err(HelperError::Refused(format!("volume {into} is here already")));
         }
-        btrfs::snapshot(&File::open(&from)?, &self.handle, volume, false)?;
+        btrfs::snapshot(&File::open(&from)?, &self.handle, into, false)?;
         self.handle.sync_all()?;
-        tracing::info!(%volume, %snapshot, "replica promoted to the volume");
+        tracing::info!(%volume, %snapshot, %into, "replica promoted to the volume");
         Ok(target)
     }
 }

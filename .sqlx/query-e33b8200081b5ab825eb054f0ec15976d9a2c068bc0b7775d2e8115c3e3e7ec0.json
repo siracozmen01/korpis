@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO volume (id, project_id, created_by, attached_to, name, kind, node_id,\n                             helper_id, storage_class, size_bytes, quota_enforced, created_at,\n                             detached_at, divergent_of, divergent_since, held_until)\n         SELECT $2, project_id, created_by, NULL, name, kind, $3, $4, storage_class, size_bytes,\n                quota_enforced, created_at, $5, id, $5, $6\n           FROM volume WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e33b8200081b5ab825eb054f0ec15976d9a2c068bc0b7775d2e8115c3e3e7ec0"
+}

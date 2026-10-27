@@ -200,3 +200,16 @@ fn a_volume_s_replicas_are_one_at_least_a_minute_apart_and_only_on_one_it_makes(
     });
     assert_eq!(attached, "volumes[0].replicas", "an attached volume keeps its own");
 }
+
+#[test]
+fn failover_onto_a_replica_is_refused_to_a_workload_that_keeps_running() {
+    use korpis_core::workload::spec::{Continuity, ReplicaFailover};
+    let mut ok = body();
+    ok.replica_failover = ReplicaFailover::Automatic;
+    assert!(ok.validate().is_ok(), "derived, it stops where it may fail over");
+    let kept = refused(|b| {
+        b.replica_failover = ReplicaFailover::Automatic;
+        b.continuity = Continuity::KeepRunning;
+    });
+    assert_eq!(kept, "continuity.replica_failover", "it would never be failed over");
+}

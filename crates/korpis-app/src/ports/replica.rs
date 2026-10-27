@@ -4,7 +4,7 @@
 
 use super::StoreResult;
 use korpis_core::workload::replica::Replica;
-use korpis_core::workload::transfers::Flow;
+use korpis_core::workload::transfers::{Flow, Promoting};
 use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -17,6 +17,17 @@ pub trait ReplicaRead {
     /// Every replica of a live volume on one node's disk, with the volume's node and the
     /// helper's identifier for it, by volume and node.
     fn flows(&self) -> impl Future<Output = StoreResult<Vec<Flow>>> + Send;
+
+    /// Every live volume being made from its replica on its node, which has not yet reported it
+    /// made.
+    fn promoting(&self) -> impl Future<Output = StoreResult<Vec<Promoting>>> + Send;
+
+    /// Each live volume attached to `workload` that was made from a replica, by the name it is
+    /// mounted under, with the helper's identifier it was made under.
+    fn promoted_ids(
+        &self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<(String, String)>>> + Send;
 }
 
 /// Choosing and dropping replicas.
@@ -77,4 +88,18 @@ pub trait ReplicaWrite {
         replica: (Uuid, Uuid),
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Moves the volume of `moved`, a volume and the nodes it leaves and goes to, to the second,
+    /// where it is made from a replica of it as `made`, the helper's identifier it takes there,
+    /// the replica's snapshot it is made from, and when the replica received it, at `now` (§2.2
+    /// of docs/06-storage.md). The copy it leaves is recorded as divergent, with its snapshots;
+    /// the replica it is made from is no longer one, its snapshot kept until the node reports
+    /// the volume made, and every other is marked stale, to be sent whole. Whether the volume
+    /// was on the node it leaves.
+    fn promote_replica(
+        &mut self,
+        moved: (Uuid, Uuid, Uuid),
+        made: (&str, Uuid, SystemTime),
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 }

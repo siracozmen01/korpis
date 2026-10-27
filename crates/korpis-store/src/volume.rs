@@ -59,6 +59,8 @@ impl VolumeRow {
             deleted_at: self.deleted_at.map(to_time),
             snapshots: self.snapshots,
             replicas: Vec::new(),
+            divergent: Vec::new(),
+            divergent_of: None,
         })
     }
 }
@@ -266,7 +268,8 @@ async fn ensured(
                 storage_class = EXCLUDED.storage_class,
                 size_bytes = CASE WHEN EXCLUDED.size_bytes > 0 THEN EXCLUDED.size_bytes
                                   ELSE volume.size_bytes END,
-                quota_enforced = EXCLUDED.quota_enforced",
+                quota_enforced = EXCLUDED.quota_enforced,
+                promoting = NULL",
         Uuid::now_v7(),
         v.workload,
         v.name,

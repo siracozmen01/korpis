@@ -647,10 +647,21 @@ answer differs by workload:
   corruption. Losing availability is recoverable; losing the database is not.
 
 So the field lives on the intent (`continuity.on_lease_expiry`, §3.3 of `01-model.md`), and when it
-is not set the default is **derived** from the volumes the workload attaches: `stop` if any of
-them is in a class that more than one node can attach, `keep_running` otherwise. The first version
-said here that a global default would be wrong, while §8 of `03-state.md` and §5 of
-`18-operations.md` named `keep_running` as the default; the derived rule is what all three now say.
+is not set the default is **derived** from the volumes the workload attaches: `stop` if another
+node may start the workload on one of them, because it is in a class that more than one node can
+attach, or because it is replicated and the workload declares `replica_failover: automatic` (§2.2
+of `06-storage.md`); `keep_running` otherwise. The first version said here that a global default
+would be wrong, while §8 of `03-state.md` and §5 of `18-operations.md` named `keep_running` as the
+default; the derived rule is what all three now say. A workload declaring `replica_failover:
+automatic` and `on_lease_expiry: keep_running` is refused, since failover moves only a workload
+that stops (§2.4 of `05-scheduling.md`), and the two together would declare what never happens.
+
+> Corrected 2026-10-27, Finding 206 of `23-walkthroughs.md`. The rule named only a class more than
+> one node can attach, so a replicated volume on a node's own disk left the derived answer at
+> `keep_running`, and a workload that declared `replica_failover: automatic` and nothing else was
+> never failed over: failover takes only a `stop` workload. A replica is another node starting the
+> workload on the same data, which is the hazard `stop` exists for: the old node, cut off rather
+> than dead, would go on writing its copy while the new one writes the replica.
 
 **`keep_running` has a consequence for rescheduling, and it is enforced rather than hoped for.** A
 workload that keeps running when its node is unreachable may still be running, so placing a second

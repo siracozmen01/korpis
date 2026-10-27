@@ -2442,7 +2442,10 @@ node whose data plane is in a namespace of its own receives where the mesh arriv
 table is written whole at each pass of the overlay, every ten seconds and whenever what it admits
 changes, so what its rules have counted, under `dependency`, `overlay`, or `transfer`, is what they
 counted since the last pass and not since the node started: a reading for an operator looking now,
-not a total.
+not a total. Linux takes a packet addressed to any address of its own on whichever interface it
+arrives, so the same table drops, under `transfer`, what reaches the port at the mesh address by
+any interface but the mesh's, and the receiving agent reads nothing from a connection whose peer is
+not a node it was told sends it a replica (Finding 207 of `23-walkthroughs.md`).
 
 What the overlay does not do. It does not relay: two nodes neither of which is reachable from the
 other share no dependency, and the scheduler says why. Edges are not members yet: §3.4 has an edge

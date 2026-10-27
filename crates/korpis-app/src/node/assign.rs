@@ -302,7 +302,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or_else(|| missing("recipe document"))?;
         let on_lease_expiry = self.on_expiry(node, &target.body).await?;
         let lease_epoch = self.store.lease_epoch(workload, node).await?.unwrap_or(0);
-        let volume_ids = self.existing_ids(&target.body).await?;
+        let volume_ids = self.existing_ids(workload, &target.body).await?;
         let reaches_api = self.reaches_api(workload).await?;
         let egress = self.egress_held(workload).await?;
         let across = self.across((node, members), &w, &target.body).await?;

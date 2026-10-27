@@ -39,6 +39,11 @@ message Volume {
   // The nodes keeping a replica of it, by node, for a volume whose workload asks for replicas
   // (§2.2 of docs/06-storage.md).
   repeated VolumeReplica replicas = 17;
+  // The copies of it left on nodes its workload failed over from onto a replica, each holding
+  // what was written there after the replica last received (§2.2 of docs/06-storage.md).
+  repeated VolumeDivergent divergent = 18;
+  // For such a copy, itself a volume, the volume it diverged from.
+  optional string divergent_of = 19;
 }
 
 // A node keeping a replica of a volume. What the volume would lose, were its workload started
@@ -52,6 +57,20 @@ message VolumeReplica {
   // When it was marked stale, ten intervals without receiving; it is sent whole when it is
   // reached again.
   google.protobuf.Timestamp stale_at = 4;
+}
+
+// A copy of a volume left on the node it was on when its workload failed over onto a replica:
+// a volume of its own, retained and held by no workload, never collected, and deleted as any
+// retained volume is, only by a plan (§7 of docs/06-storage.md).
+message VolumeDivergent {
+  string node = 1;
+  // When the volume left it.
+  google.protobuf.Timestamp since = 2;
+  // When the replica the volume was made from received what it held; the copy alone holds what
+  // was written between then and when the node went silent.
+  google.protobuf.Timestamp held_until = 3;
+  // The copy, as a volume.
+  string volume = 4;
 }
 
 // A point a volume can be rolled back to, on its node and filesystem (§4 of docs/06-storage.md):

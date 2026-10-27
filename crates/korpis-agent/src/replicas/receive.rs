@@ -77,6 +77,17 @@ async fn handle<H: Replicating>(r: Arc<Replication<H>>, mut stream: TcpStream, p
     }
 }
 
+/// Whether `peer` is the mesh address of a node `r` was told sends it a replica: asked before a
+/// ticket is read, so nothing else is read at all.
+fn a_sender<H>(r: &Replication<H>, peer: IpAddr) -> bool {
+    let shared = r.shared();
+    let Some(told) = shared.told.as_ref() else { return false };
+    told.keeping
+        .iter()
+        .filter(|k| !k.receiving.is_empty())
+        .any(|k| mesh_of(&shared.peers, &k.from).map(IpAddr::V4) == Some(peer))
+}
+
 /// The replica a stream from `peer` is admitted into and the snapshot it carries, once its
 /// ticket is read and checked.
 async fn admit<H: Replicating>(
@@ -84,6 +95,9 @@ async fn admit<H: Replicating>(
     stream: &mut TcpStream,
     peer: IpAddr,
 ) -> Result<(agent::ReplicaKept, String), String> {
+    if !a_sender(r, peer) {
+        return Err("not from the mesh address of a node sending this one a replica".into());
+    }
     let read = async {
         let len = stream.read_u16().await?;
         if len > MAX_TICKET {

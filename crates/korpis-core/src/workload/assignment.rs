@@ -183,12 +183,13 @@ pub fn retires(plan: &Plan) -> bool {
 
 impl Continuity {
     /// What a node does when the lease ends, resolved: a declared answer stands, and a derived
-    /// one is `Stop` exactly when a volume is in a class more than one node can attach (§4.5 of
-    /// docs/02-architecture.md).
+    /// one is `Stop` exactly when `elsewhere`, another node may start the workload on a volume
+    /// it holds: one in a class more than one node can attach, or a replicated one the workload
+    /// fails over onto (§4.5 of docs/02-architecture.md).
     #[must_use]
-    pub fn resolved(self, multi_node_volume: bool) -> Self {
+    pub fn resolved(self, elsewhere: bool) -> Self {
         match self {
-            Self::Derived if multi_node_volume => Self::Stop,
+            Self::Derived if elsewhere => Self::Stop,
             Self::Derived => Self::KeepRunning,
             declared => declared,
         }

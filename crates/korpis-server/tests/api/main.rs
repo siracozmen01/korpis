@@ -128,6 +128,7 @@ mod relays;
 mod removal;
 mod renewal;
 mod replace;
+mod replica_failover;
 mod replica_transfers;
 mod replicated;
 mod repositories;

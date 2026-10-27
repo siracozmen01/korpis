@@ -36,6 +36,23 @@ pub struct Replica {
     pub stale_at: Option<SystemTime>,
 }
 
+/// A copy of a volume left on the node it was on when its workload failed over onto a replica
+/// (§2.2 of docs/06-storage.md): what was written there after the replica last received is
+/// in it alone. It is a volume of its own, retained and held by no workload, never collected,
+/// and deleted as any retained volume is, only by a plan (§7 there).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Divergent {
+    /// The copy, as a volume.
+    pub volume: Uuid,
+    /// The node keeping it.
+    pub node: Uuid,
+    /// When the volume left it.
+    pub since: SystemTime,
+    /// When the replica the volume was made from received what it held: the copy holds what
+    /// was written between then and when the node went silent.
+    pub held_until: SystemTime,
+}
+
 impl Replica {
     /// Whether, at `now`, it has gone [`STALE_AFTER`] intervals of `interval` without receiving
     /// since it was chosen or last received, and is not yet marked so.

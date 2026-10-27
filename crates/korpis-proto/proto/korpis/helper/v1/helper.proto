@@ -678,10 +678,15 @@ message ReleaseReplicaResponse {
 }
 
 message PromoteReplicaRequest {
+  // The volume whose replica it is, as the control plane names it.
   string volume = 1;
   string storage_class = 2;
   // A snapshot received whole, which becomes the volume.
   string snapshot = 3;
+  // The helper's identifier the volume takes here, which no volume here may have: never the one
+  // it had on its own node, which a copy left here by an earlier failover may still hold. The
+  // replica's snapshot stays, and is released as any other once nothing keeps it.
+  string into = 4;
 }
 
 message ReplicaVolumesRequest {}

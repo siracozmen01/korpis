@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Replicas between two btrfs filesystems, each made for the test and mounted from a loop
-//! device, standing for two nodes: a volume's snapshot is sent whole and received, then only
-//! what changed is sent from it, the receiver holding both read-only; an older snapshot is
-//! released on both sides; the newest becomes the volume where it was received, holding what
-//! the last increment held; a stream that ends short leaves nothing behind. It needs root,
-//! `mkfs.btrfs`, and btrfs-progs, and is skipped without them.
+//! Replicas between two btrfs filesystems, each made for the test and mounted from a loop device,
+//! standing for two nodes: a volume's snapshot is sent whole and received, then only what changed
+//! is sent from it, the receiver holding both read-only; an older snapshot is released on both
+//! sides; the newest becomes the volume where it was received, holding what the last increment
+//! held, and asked again answers that copy; a stream that ends short leaves nothing behind. It
+//! needs root, `mkfs.btrfs`, and btrfs-progs, and is skipped without them.
 
 #![allow(
     clippy::unwrap_used,
@@ -84,9 +84,17 @@ fn a_volume_is_sent_whole_then_by_increments_and_its_replica_becomes_the_volume(
     let listed = receiver.replica_volumes().unwrap();
     assert_eq!(listed, [(VOLUME.to_owned(), vec!["s2".to_owned()])], "each volume, with its own");
 
-    let promoted = receiver.promote_replica(VOLUME, "s2").unwrap();
+    let promoted = receiver.promote_replica(VOLUME, "s2", "made").unwrap();
+    assert!(promoted.ends_with("made"), "under the name it is made as");
     assert_eq!(std::fs::read_to_string(promoted.join("one")).unwrap(), "first");
     assert_eq!(std::fs::read_to_string(promoted.join("two")).unwrap(), "second");
     std::fs::write(promoted.join("three"), "writable").unwrap();
-    assert!(receiver.promote_replica(VOLUME, "s2").is_err(), "the volume is there now");
+    let again = receiver.promote_replica(VOLUME, "s2", "made").unwrap();
+    assert_eq!(again, promoted, "asked again, the copy already made");
+    assert_eq!(std::fs::read_to_string(again.join("three")).unwrap(), "writable");
+    let other = helper::EnsureVolumeRequest { volume: "taken".into(), ..r.clone() };
+    receiver.ensure(&other).unwrap();
+    let taken = receiver.promote_replica(VOLUME, "s2", "taken");
+    assert!(taken.is_err(), "another volume of that name is never written over");
+    assert_eq!(receiver.replica_snapshots(VOLUME).unwrap(), ["s2"], "the replica stays");
 }

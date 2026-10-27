@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What the agent asks of the helper for replicas (§2.2 of docs/06-storage.md): sending a
-//! volume's snapshot, receiving one into a replica, reading how a receive ended, and releasing
-//! what replication no longer needs.
+//! volume's snapshot, receiving one into a replica, reading how a receive ended, releasing what
+//! replication no longer needs, and making a volume of a replica.
 
 use super::HostError;
 use super::node::NodeHost;
@@ -42,6 +42,13 @@ pub trait Replicating: Send + Sync + 'static {
     fn replica_volumes(
         &self,
     ) -> impl Future<Output = Result<Vec<helper::ReplicaHeld>, HostError>> + Send;
+
+    /// Makes the volume `r` names here a writable copy of a snapshot its replica here holds;
+    /// the volume's path.
+    fn promote_replica(
+        &self,
+        r: &helper::PromoteReplicaRequest,
+    ) -> impl Future<Output = Result<String, HostError>> + Send;
 
     /// A TCP socket at the node's mesh address, opened where the mesh is: listening on the
     /// port `r` names, or bound to the address alone for sending from.
@@ -84,6 +91,13 @@ impl Replicating for NodeHost {
         &self,
     ) -> impl Future<Output = Result<Vec<helper::ReplicaHeld>, HostError>> + Send {
         self.helper().replica_volumes()
+    }
+
+    fn promote_replica(
+        &self,
+        r: &helper::PromoteReplicaRequest,
+    ) -> impl Future<Output = Result<String, HostError>> + Send {
+        self.helper().promote_replica(r)
     }
 
     fn open_transfer(

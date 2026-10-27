@@ -42,9 +42,15 @@ const IOC_QGROUP_LIMIT: libc::c_ulong = ioc(READ, 43, 48);
 const IOC_SNAP_DESTROY_V2: libc::c_ulong = ioc(WRITE, 63, 4096);
 const IOC_SUBVOL_GETFLAGS: libc::c_ulong = ioc(READ, 25, 8);
 const IOC_SEND: libc::c_ulong = ioc(WRITE, 38, 72);
+const IOC_GET_SUBVOL_INFO: libc::c_ulong = ioc(READ, 60, 504);
 
 /// The size of `struct btrfs_ioctl_send_args`.
 const SEND_ARGS: usize = 72;
+/// The size of `struct btrfs_ioctl_get_subvol_info_args`, and the offsets of its subvolume's
+/// UUID and of the UUID of the subvolume it is a snapshot of; the request number encodes the size.
+const SUBVOL_INFO: usize = 504;
+const UUID_AT: usize = 296;
+const PARENT_UUID_AT: usize = 312;
 /// `BTRFS_SUBVOL_RDONLY`.
 const RDONLY: u64 = 1 << 1;
 
@@ -154,6 +160,16 @@ pub fn subvolume_id(subvolume: &File) -> io::Result<u64> {
     put(&mut args, 8, SUBVOLUME_INODE);
     ioctl(subvolume, IOC_INO_LOOKUP, &mut args)?;
     Ok(get(&args, 0))
+}
+
+/// The UUID of the subvolume `subvolume` is the root of, and the UUID of the subvolume it is a
+/// snapshot of, zero for one that is none.
+pub fn uuids(subvolume: &File) -> io::Result<([u8; 16], [u8; 16])> {
+    let mut args = vec![0u8; SUBVOL_INFO];
+    ioctl(subvolume, IOC_GET_SUBVOL_INFO, &mut args)?;
+    let uuid =
+        |at: usize| args.get(at..at + 16).and_then(|b| b.try_into().ok()).unwrap_or([0u8; 16]);
+    Ok((uuid(UUID_AT), uuid(PARENT_UUID_AT)))
 }
 
 /// Whether the subvolume `subvolume` is the root of is read-only, as a snapshot received whole

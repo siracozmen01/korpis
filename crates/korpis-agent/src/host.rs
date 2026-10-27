@@ -37,7 +37,7 @@ pub enum SnapshotOp {
 }
 
 /// The node's helper and content store.
-pub trait Host: Send + Sync + 'static {
+pub trait Host: Replicating + Send + Sync + 'static {
     /// Creates a volume, or finds the one already created; idempotent by volume.
     fn ensure_volume(
         &self,

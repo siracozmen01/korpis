@@ -6,14 +6,18 @@
 //! A workload whose volume asks for one replica runs on the first, which writes into the volume;
 //! once the second joins, the control plane chooses it, the first sends it the volume's snapshot
 //! whole through the mesh, the second's table admitting to the transfer port the first's mesh
-//! address alone, and the second holds what the volume held, read-only, and says so. Needs
-//! root, containerd, the kernel's WireGuard, and btrfs-progs; skipped without them.
+//! address alone, and the second holds what the volume held, read-only, and says so. Then the
+//! first loses its power: the workload, which accepts losing what the replica lacks, is made on
+//! the second from the replica, holding what the first wrote, and the volume says it is there
+//! now and that a divergent copy is left on the first. Needs root, containerd, the kernel's
+//! WireGuard, and btrfs-progs; skipped without them.
 
 use crate::helper::btrfs_in;
 use crate::mesh::{Netns, machines, until_available};
 use crate::node::{Node, live};
 use crate::recipes::push_sleeper;
 use crate::support::ControlPlane;
+use korpis_agent::run::Agent;
 use korpis_proto::korpis::v1 as pb;
 use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
@@ -72,7 +76,7 @@ fn admitted(ns: &Netns) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn a_volume_is_sent_whole_to_its_replica_through_the_mesh() {
+async fn a_volume_is_sent_to_its_replica_through_the_mesh_and_failed_over_onto_it() {
     if !live() || std::fs::metadata("/usr/bin/btrfs").is_err() {
         return;
     }
@@ -92,7 +96,13 @@ async fn a_volume_is_sent_whole_to_its_replica_through_the_mesh() {
     let agent_a = a.agent().await;
     let repo = push_sleeper().await;
     let spec = pb::VolumeSpec { name: "data".into(), replicas: 1, ..Default::default() };
-    let w = cp.declare_with(&project, "db", &repo, vec![spec]).await;
+    let continuity = pb::ContinuitySpec {
+        replica_failover: pb::ReplicaFailover::REPLICA_FAILOVER_AUTOMATIC.into(),
+        ..Default::default()
+    };
+    let body =
+        pb::IntentBody { volumes: vec![spec], continuity: continuity.into(), ..Default::default() };
+    let w = cp.declare_body(&project, "db", &repo, body).await;
     a.guard(&w);
     let data = cp.volume_named(&project, "data").await;
     // Written before any replica can be chosen, so the first snapshot holds it.
@@ -125,6 +135,41 @@ async fn a_volume_is_sent_whole_to_its_replica_through_the_mesh() {
     let pool: ipnet::Ipv4Net = a.state.load().unwrap().keys.workload_ipv4.parse().unwrap();
     let sender = korpis_core::edge::mesh_address(&[ipnet::IpNet::V4(pool)]).unwrap();
     assert_eq!(admitted(&mb), [sender.to_string()], "the sending node's mesh address alone");
+
+    cut((&cp, &w, &data), (&a, &b), agent_a, &snapshot).await;
+    cp.retire(&w).await;
     agent_b.stop().await;
-    agent_a.stop().await;
+}
+
+/// Cuts the power of `a`, whose agent is `agent_a`, which holds the volume `data` of `w`, and
+/// waits for the workload to be made on `b` from the replica of `data` received as `snapshot`.
+async fn cut(
+    (cp, w, data): (&ControlPlane, &str, &str),
+    (a, b): (&Node, &Node),
+    agent_a: Agent,
+    snapshot: &Path,
+) {
+    let named = |n: &Node| n.state.load().unwrap().node;
+    // The power is cut: its agent ends without a word, and what it ran ends with it.
+    b.guard(w);
+    drop(agent_a);
+    crate::containers::remove_workload(w);
+    let name = snapshot.file_name().unwrap().to_string_lossy().into_owned();
+    let simple = uuid::Uuid::parse_str(&name).unwrap().simple();
+    let made = b.volumes.join(format!("{data}.{simple}")).join("marker");
+    for _ in 0..600 {
+        if made.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    let marker = std::fs::read_to_string(&made).expect("the volume made from the replica");
+    assert_eq!(marker, "written on a", "what the replica held");
+    let placed = cp.status(w).await.placement.into_option().unwrap();
+    assert_eq!(placed.node, named(b), "on the replica's node");
+    assert_eq!(placed.bound_by.as_known(), Some(pb::BoundBy::BOUND_BY_FAILOVER));
+    let moved = shown(cp, data).await;
+    assert_eq!(moved.node.as_deref(), Some(named(b).as_str()), "the volume is there now");
+    let left: Vec<String> = moved.divergent.iter().map(|d| d.node.clone()).collect();
+    assert_eq!(left, [named(a)], "the copy left on the node that lost its power");
 }

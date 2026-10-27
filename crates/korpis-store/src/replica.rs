@@ -7,10 +7,12 @@ use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{ReplicaRead, ReplicaWrite, StoreResult};
 use korpis_core::workload::replica::Replica;
-use korpis_core::workload::transfers::Flow;
+use korpis_core::workload::transfers::{Flow, Promoting};
 use korpis_core::workload::volume::Volume;
 use std::time::SystemTime;
 use uuid::Uuid;
+
+mod promote;
 
 /// The advisory lock every choice of replicas is made under.
 const REPLICA_LOCK: i64 = 0x6b6f_7270_6973_0004;
@@ -40,11 +42,13 @@ impl ReplicaRow {
     }
 }
 
-/// Fills in the replicas of each of `volumes`.
+/// Fills in the replicas of each of `volumes`, and the copies each left on nodes it failed over
+/// from.
 pub(crate) async fn with_replicas(pool: &sqlx::PgPool, volumes: &mut [Volume]) -> StoreResult<()> {
     if volumes.is_empty() {
         return Ok(());
     }
+    promote::with_divergent(pool, volumes).await?;
     let ids: Vec<Uuid> = volumes.iter().map(|v| v.id).collect();
     let rows = sqlx::query_file_as!(ReplicaRow, "queries/replicas_of_volumes.sql", &ids)
         .fetch_all(pool)
@@ -73,6 +77,24 @@ impl ReplicaRead for PgStore {
             .await
             .map_err(from_sqlx)?;
         Ok(rows.into_iter().map(FlowRow::into_domain).collect())
+    }
+
+    async fn promoting(&self) -> StoreResult<Vec<Promoting>> {
+        promote::promoting(&self.pool).await
+    }
+
+    async fn promoted_ids(&self, workload: Uuid) -> StoreResult<Vec<(String, String)>> {
+        let rows = sqlx::query!(
+            "SELECT v.name, v.helper_id FROM volume v
+              WHERE v.attached_to = $1 AND v.deleted_at IS NULL AND v.kind = 'declared'
+                AND EXISTS (SELECT 1 FROM volume d WHERE d.divergent_of = v.id)
+              ORDER BY v.name",
+            workload
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows.into_iter().map(|r| (r.name, r.helper_id)).collect())
     }
 }
 
@@ -235,5 +257,14 @@ impl ReplicaWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn promote_replica(
+        &mut self,
+        moved: (Uuid, Uuid, Uuid),
+        made: (&str, Uuid, SystemTime),
+        now: SystemTime,
+    ) -> StoreResult<bool> {
+        promote::promote(self, moved, made, now).await
     }
 }

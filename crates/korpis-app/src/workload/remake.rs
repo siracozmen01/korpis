@@ -13,13 +13,16 @@ use super::propose;
 use crate::App;
 use crate::error::AppError;
 use crate::page::Page;
-use crate::ports::{Clock, RecipeSource, Store, WorkloadWrite as _};
+use crate::ports::{Clock, RecipeSource, ReplicaWrite as _, Store, WorkloadWrite as _};
+use korpis_core::id::{Id, IdKind};
 use korpis_core::principal::{Principal, SystemActor};
-use korpis_core::workload::plan::compute::remake_steps;
+use korpis_core::workload::plan::compute::{HeldVolume, Promotion, remake_steps};
 use korpis_core::workload::plan::impact::assess;
 use korpis_core::workload::plan::{Approval, PROPOSAL_LIFETIME, PlanStatus, ResourceDelta};
+use korpis_core::workload::spec::ReplicaFailover;
 use korpis_core::workload::volume::{Home, Volume};
 use korpis_core::workload::{Intent, IntentBody, Plan, PlanTarget, PowerState, Workload};
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// A volume a workload made elsewhere holds.
@@ -29,19 +32,55 @@ pub(super) struct Held {
     pub(super) name: String,
     /// Its record.
     pub(super) id: Uuid,
-    /// Where it is.
+    /// Where it is: for one made from a replica, the replica's node.
     pub(super) home: Home,
+    /// The replica it is made from, where its own node is gone.
+    pub(super) promote: Option<Promoted>,
+}
+
+/// A volume made from its freshest replica, its own node gone (§2.2 of docs/06-storage.md).
+#[derive(Debug, Clone)]
+pub(super) struct Promoted {
+    /// The replica's last snapshot, and the class it is kept in.
+    pub(super) promotion: Promotion,
+    /// The node the volume was on, which keeps what the replica lacks.
+    pub(super) from: Uuid,
+    /// When the replica received that snapshot: what was written since is lost.
+    pub(super) received_at: SystemTime,
+}
+
+/// What a volume `v` on `gone`, of a workload whose declaration is `body`, is made from: its
+/// freshest replica, where the declaration accepts the loss and one holds a snapshot.
+fn promoted(v: &Volume, body: &IntentBody, gone: Option<Uuid>) -> Option<Promoted> {
+    let from = gone.filter(|g| v.home() == Home::Node(*g))?;
+    if body.replica_failover != ReplicaFailover::Automatic {
+        return None;
+    }
+    let (snapshot, received_at) =
+        v.replicas.iter().filter_map(|r| r.held).max_by_key(|(_, at)| *at)?;
+    let storage_class = v.storage_class.clone();
+    let into = format!("{}.{}", Id::from_uuid(IdKind::Volume, v.id), snapshot.simple());
+    let promotion = Promotion { snapshot, storage_class, into };
+    Some(Promoted { promotion, from, received_at })
+}
+
+/// The node keeping the replica `p` is made from, of `v`.
+fn replica_node(v: &Volume, p: &Promoted) -> Option<Uuid> {
+    let snapshot = p.promotion.snapshot;
+    v.replicas.iter().find(|r| r.held.is_some_and(|(s, _)| s == snapshot)).map(|r| r.node)
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Each volume `body` declares for `w` that `w` holds, made with it or attached, with where
     /// it is. A volume made with it that has no record was never reported made, and is made
     /// again where it lands: its node reports a volume it makes before the step that made it
-    /// completes, so a plan that applied left a record of each.
+    /// completes, so a plan that applied left a record of each. One on `gone`, the node a
+    /// failover leaves, is reached at its freshest replica where the declaration accepts that
+    /// replica's loss (§2.2 of docs/06-storage.md).
     pub(super) async fn held_volumes(
         &self,
         w: &Workload,
-        body: &IntentBody,
+        (body, gone): (&IntentBody, Option<Uuid>),
     ) -> Result<Vec<Held>, AppError> {
         let mut records: Vec<Volume> = Vec::new();
         let mut page = Page::new(None, Page::DEFAULT);
@@ -60,22 +99,35 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 None => records.iter().find(|v| v.name == spec.name),
             };
             if let Some(v) = found {
-                held.push(Held { name: spec.name.clone(), id: v.id, home: v.home() });
+                let promote = promoted(v, body, gone);
+                let home = match promote.as_ref().and_then(|p| replica_node(v, p)) {
+                    Some(node) => Home::Node(node),
+                    None => v.home(),
+                };
+                held.push(Held { name: spec.name.clone(), id: v.id, home, promote });
             }
         }
         Ok(held)
     }
 
-    /// Writes the remake plan that makes `w`'s `target` on the node it was just bound to, with
-    /// the volumes it holds, approved by the control plane under `grant`; its identifier.
+    /// Writes the remake plan that makes `w`'s `target` on `node`, the one it was just bound to,
+    /// with the volumes it holds, approved by the control plane under `grant`; its identifier.
+    /// A volume made from its replica moves to `node` here, in the same transaction.
     pub(super) async fn remake(
         &self,
         tx: &mut S::Tx,
         (w, target): (&Workload, &Intent),
-        held: &[Held],
+        (held, node): (&[Held], Uuid),
         grant: Option<Uuid>,
     ) -> Result<Uuid, AppError> {
         let now = self.clock.now();
+        for (h, p) in held.iter().filter_map(|h| h.promote.as_ref().map(|p| (h, p))) {
+            let made = (p.promotion.into.as_str(), p.promotion.snapshot, p.received_at);
+            if !tx.promote_replica((h.id, p.from, node), made, now).await? {
+                let why = format!("volume {} left node {} meanwhile", h.id, p.from);
+                return Err(AppError::conflict("volume.moved", why));
+            }
+        }
         let power = match w.power_target_version {
             0 => PowerState::Stopped,
             v => {
@@ -84,7 +136,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let (driver, disruption, wait) = self.running_layers(w).await?;
         let classifier = propose::classifier(&driver, (&disruption, wait), w);
-        let held: Vec<(String, Uuid)> = held.iter().map(|h| (h.name.clone(), h.id)).collect();
+        let held: Vec<HeldVolume> = held
+            .iter()
+            .map(|h| HeldVolume {
+                name: h.name.clone(),
+                record: h.id,
+                promote: h.promote.as_ref().map(|p| p.promotion.clone()),
+            })
+            .collect();
         let steps = remake_steps(w.id, (&target.body, power), &held, classifier);
         let system = Principal::System(SystemActor::Scheduler);
         let plan = Plan {

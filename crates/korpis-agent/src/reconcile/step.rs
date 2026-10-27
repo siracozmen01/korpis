@@ -146,7 +146,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.held(a);
             }
             "create_volume" | "attach_volume" | "detach_volume" | "delete_volume"
-            | "snapshot_volume" | "rollback_volume" | "delete_snapshot" => {
+            | "snapshot_volume" | "rollback_volume" | "delete_snapshot" | "promote_replica" => {
                 after.extend(self.volume_step(a, s).await?);
             }
             // A workload that has runs is never started itself: each run is, as its assignment

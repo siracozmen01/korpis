@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT helper_id FROM volume\n          WHERE id = $1 AND node_id = $2 AND deleted_at IS NULL AND store IS NULL\n          FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "helper_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "helper_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "504e78e70bbb6a50842f6ddf88f3043d2231d5991fcbf9dd67b1ef629baa6fe6"
+}

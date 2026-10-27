@@ -25,7 +25,7 @@ const RECEIVE: &str = "volume.replica_receive";
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// What each node is told of replicas now, by node, each transfer's ticket signed.
     pub async fn replication(&self) -> Result<BTreeMap<Uuid, NodeReplicas>, AppError> {
-        let mut out = told(&self.store.flows().await?);
+        let mut out = told(&self.store.flows().await?, &self.store.promoting().await?);
         for (node, n) in &mut out {
             for o in &mut n.sending {
                 sign(&self.token_key, *node, o);

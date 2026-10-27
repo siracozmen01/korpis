@@ -129,6 +129,27 @@ impl Replicating for InMemoryHost {
         }))
     }
 
+    fn promote_replica(
+        &self,
+        r: &helper::PromoteReplicaRequest,
+    ) -> impl Future<Output = Result<String, HostError>> + Send {
+        ready(
+            self.with(|k| {
+                let at = (r.storage_class.clone(), r.volume.clone());
+                if !k.replicas.get(&at).is_some_and(|s| s.contains(&r.snapshot)) {
+                    return Err(HostError(format!("no replica {} of {}", r.snapshot, r.volume)));
+                }
+                if k.volumes.contains_key(&r.into) {
+                    return Err(HostError(format!("volume {} is here already", r.into)));
+                }
+                let path = format!("/memory/{}", r.into);
+                k.volumes.insert(r.into.clone(), path.clone());
+                Ok(path)
+            })
+            .and_then(std::convert::identity),
+        )
+    }
+
     fn open_transfer(
         &self,
         r: &helper::OpenTransferRequest,
