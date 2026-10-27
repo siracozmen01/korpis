@@ -34,6 +34,7 @@ pub mod overlay;
 pub mod preflight;
 pub mod probe;
 pub mod reconcile;
+pub mod replicas;
 pub mod resolver;
 pub mod revoked;
 pub mod run;

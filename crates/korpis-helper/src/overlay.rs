@@ -172,6 +172,7 @@ impl Overlay {
         r: &helper::KeepOverlayRequest,
     ) -> HelperResult<helper::KeepOverlayResponse> {
         let (peers, admitted, edges) = (peers(r)?, admit::admitted(r)?, edge::table(r)?);
+        let transfers = admit::transfers(r)?;
         let port = u16::try_from(r.port)
             .ok()
             .filter(|p| *p > 0)
@@ -201,7 +202,8 @@ impl Overlay {
         let kept = edge::keep(&mut rtnl, index, &edges).map_err(failed)?;
         let (setup, input_before, forward, input) = edge::rules(&edges, &kept);
         let edge_rules = admit::EdgeRules { setup, input_before, forward, input };
-        crate::network::nft::apply(&admit::rules(&admitted, edge_rules)).map_err(failed)?;
+        let rules = admit::rules(&admitted, transfers.as_ref(), edge_rules);
+        crate::network::nft::apply(&rules).map_err(failed)?;
         // The table is in place either way; a connection left stale is the lesser fault, so a
         // failure to forget one is logged rather than failing what was kept.
         match edge::sweep(&edges, &was) {

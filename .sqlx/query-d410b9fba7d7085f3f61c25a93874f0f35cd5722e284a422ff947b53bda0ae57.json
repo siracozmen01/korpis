@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Every replica of a live volume on one node's disk, with the volume's node and the helper's\n-- identifier for it (§2.2 of docs/06-storage.md).\nSELECT r.volume_id, r.node_id, r.chosen_at, r.snapshot, r.received_at, r.sending,\n       r.sending_since, r.stale_at, v.node_id AS from_node, v.helper_id\n  FROM volume_replica r JOIN volume v ON v.id = r.volume_id\n WHERE v.deleted_at IS NULL AND v.store IS NULL\n ORDER BY r.volume_id, r.node_id\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Every replica of a live volume on one node's disk, with the volume's node and the helper's\n-- identifier for it (§2.2 of docs/06-storage.md).\nSELECT r.volume_id, r.node_id, r.chosen_at, r.snapshot, r.received_at, r.sending,\n       r.sending_since, r.stale_at, v.node_id AS from_node, v.helper_id, v.storage_class\n  FROM volume_replica r JOIN volume v ON v.id = r.volume_id\n WHERE v.deleted_at IS NULL AND v.store IS NULL\n ORDER BY r.volume_id, r.node_id\n",
   "describe": {
     "columns": [
       {
@@ -112,6 +112,17 @@
             "name": "helper_id"
           }
         }
+      },
+      {
+        "ordinal": 10,
+        "name": "storage_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "storage_class"
+          }
+        }
       }
     ],
     "parameters": {
@@ -127,8 +138,9 @@
       true,
       true,
       false,
+      false,
       false
     ]
   },
-  "hash": "1181caf1df459ba42fef7c2e374c92d104e2ee0b0fb5e208c6f8ed800f893722"
+  "hash": "d410b9fba7d7085f3f61c25a93874f0f35cd5722e284a422ff947b53bda0ae57"
 }

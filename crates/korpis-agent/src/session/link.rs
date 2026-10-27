@@ -70,6 +70,8 @@ pub enum Event {
     EdgeLeaseGrant(agent::EdgeLeaseGrant),
     /// A lease on an edge address this member asked for, refused.
     EdgeLeaseRefusal(agent::EdgeLeaseRefusal),
+    /// What the node is told of replicas (§2.2 of docs/06-storage.md), kept on disk first.
+    Replicas(agent::Replicas),
     /// The stream ended, and why.
     Disconnected(String),
 }

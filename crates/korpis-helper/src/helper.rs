@@ -343,7 +343,9 @@ impl Helper {
             | Verb::ReceiveStatus(_)
             | Verb::ReplicaSnapshots(_)
             | Verb::ReleaseReplica(_)
-            | Verb::PromoteReplica(_)) => self.replica_verb(v)?,
+            | Verb::PromoteReplica(_)
+            | Verb::ReplicaVolumes(_)
+            | Verb::OpenTransfer(_)) => self.replica_verb(v)?,
         })
     }
 

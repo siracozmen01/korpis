@@ -8,7 +8,7 @@
 
 use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
-use crate::host::Host;
+use crate::host::{Host, Replicating};
 use crate::identity::{ControlPlane, IdentitySockets};
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
@@ -18,6 +18,7 @@ use crate::offload::Offloader;
 use crate::overlay::{Overlay, with_overlay};
 use crate::reconcile::streams::Streams;
 use crate::reconcile::{Reconciler, Wiring};
+use crate::replicas::Replication;
 use crate::runtime::{Runtime, RuntimeError};
 use crate::session::{Event, Facts, Link, Session};
 use crate::state::{StateDir, StateError};
@@ -199,6 +200,30 @@ fn overlay<H: Host + Clone>(
     (Some(overlay), with_overlay(facts, reported))
 }
 
+/// The node's part in replication (§2.2 of docs/06-storage.md), for a node in the mesh: this
+/// node, and its own mesh address, the last of its IPv4 pool.
+fn replicating(
+    identity: &crate::state::Identity,
+    options: &Options,
+) -> Option<(uuid::Uuid, std::net::Ipv4Addr)> {
+    let pools = options.network?;
+    let node = korpis_wire::id(korpis_core::id::IdKind::Node, "node", &identity.node).ok()?;
+    let mesh = korpis_core::edge::mesh_address(&[ipnet::IpNet::V4(pools.ipv4)])?;
+    Some((node, mesh))
+}
+
+/// Runs the node's part in replication, where it is in the mesh, through `host`.
+fn replication<H: Replicating + Clone>(
+    (state, identity, options): (&StateDir, &crate::state::Identity, &Options),
+    host: &H,
+    (link, journal): (&Link, &JournalHandle),
+) -> Option<JoinHandle<()>> {
+    let (node, mesh) = replicating(identity, options)?;
+    let at = (state.root(), node, Some(mesh));
+    let r = Replication::new(host.clone(), at, link.token_ring.clone(), journal.clone());
+    Some(tokio::spawn(r.run(link.events.subscribe())))
+}
+
 /// The running agent.
 #[derive(Debug)]
 pub struct Agent {
@@ -226,7 +251,7 @@ fn meter<R: Runtime + Clone, H: Host + Clone>(
 impl Agent {
     /// Starts the agent of the node that joined into `state`, driving `runtime` and `host`;
     /// called inside a Tokio runtime, whose tasks it spawns.
-    pub fn start<R: Runtime + Clone, H: Host + Clone>(
+    pub fn start<R: Runtime + Clone, H: Host + Replicating + Clone>(
         state: &StateDir,
         runtime: R,
         host: H,
@@ -240,6 +265,7 @@ impl Agent {
         let (node, data) = (identity.node.clone(), identity.clone());
         let (ingress_facts, driver_kinds, offered_cores) = declared(&*facts);
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
+        let replication = replication((state, &data, &options), &host, (&link, &journal));
         let (runtime, sampler) = meter(state, runtime, (&host, &link, &journal), &options)?;
         let (ingress, proxy) =
             ingress(state, &host, (ingress_facts, options.ingress), (network.is_some(), &link));
@@ -280,18 +306,17 @@ impl Agent {
             devices: options.devices,
             cores: offered_cores,
         };
-        let offloader = offloader(state, &streams, (&journal, &link.jobs), options.period)?;
         let tasks = [
             tokio::spawn(session.run()),
             tokio::spawn(keeper.run()),
             journal.maintain_every(options.maintain_every),
+            tokio::spawn(offloader(state, &streams, (&journal, &link.jobs), options.period)?.run()),
             tokio::spawn(Reconciler::new(runtime, host, wiring, progress, streams).run()),
             tokio::spawn(data.run()),
-            tokio::spawn(offloader.run()),
             tokio::spawn(sampler.run()),
         ];
         let overlay = overlay.map(|o| o.spawn((&link.events, link.held.clone()), link.outbound));
-        let tasks = tasks.into_iter().chain(proxy).chain(overlay).collect();
+        let tasks = tasks.into_iter().chain(proxy).chain(overlay).chain(replication).collect();
         Ok(Self { tasks, journal, events: link.events })
     }
 

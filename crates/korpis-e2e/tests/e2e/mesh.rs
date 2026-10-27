@@ -74,17 +74,25 @@ fn ip(args: &[&str]) -> bool {
 }
 
 /// Two machines' namespaces joined by a veth, each forwarding as a node does: A at
-/// `198.18.1.1`, B at `198.18.1.2`. `None` where this kernel makes no WireGuard link.
-fn machines() -> Option<(Netns, Netns)> {
+/// `198.18.1.1`, B at `198.18.1.2`. `None` where this kernel makes no WireGuard link. Each call
+/// makes namespaces and links of its own, named by the process and a count, so tests running at
+/// once in one process never share them.
+pub(crate) fn machines() -> Option<(Netns, Netns)> {
+    static MADE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let n = MADE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let id = std::process::id();
-    let (a, b) =
-        (Netns::new(format!("korpis-mesh-{id}-a")), Netns::new(format!("korpis-mesh-{id}-b")));
+    let (a, b) = (
+        Netns::new(format!("korpis-mesh-{id}-{n}-a")),
+        Netns::new(format!("korpis-mesh-{id}-{n}-b")),
+    );
     if !(a.run(&["ip", "link", "add", "kmesh-probe", "type", "wireguard"])
         && a.run(&["ip", "link", "del", "kmesh-probe"]))
     {
         return None;
     }
-    let (va, vb) = (format!("kmesh{}a", id % 100_000), format!("kmesh{}b", id % 100_000));
+    // A link's name is fifteen bytes at most.
+    let tag = format!("{}{}", id % 100_000, n % 100);
+    let (va, vb) = (format!("kmesh{tag}a"), format!("kmesh{tag}b"));
     assert!(ip(&[
         "link", "add", &va, "netns", &a.0, "type", "veth", "peer", "name", &vb, "netns", &b.0
     ]));

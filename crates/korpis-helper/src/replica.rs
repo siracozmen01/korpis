@@ -198,6 +198,28 @@ impl Class {
         Ok(held)
     }
 
+    /// Each volume whose replication keeps a snapshot here, with those snapshots, by volume.
+    pub fn replica_volumes(&self) -> HelperResult<Vec<(String, Vec<String>)>> {
+        let entries = match std::fs::read_dir(self.root().join(REPLICAS)) {
+            Ok(e) => e,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(e) => return Err(e.into()),
+        };
+        let mut out = Vec::new();
+        for entry in entries {
+            let name = entry?.file_name().to_string_lossy().into_owned();
+            if identifier("volume", &name).is_err() {
+                continue;
+            }
+            let snapshots = self.replica_snapshots(&name)?;
+            if !snapshots.is_empty() {
+                out.push((name, snapshots));
+            }
+        }
+        out.sort();
+        Ok(out)
+    }
+
     /// Deletes snapshot `snapshot` of `volume`'s replication; whether it was here.
     pub fn release_replica(&mut self, volume: &str, snapshot: &str) -> HelperResult<bool> {
         identifier("volume", volume)?;

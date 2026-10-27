@@ -20,6 +20,8 @@ pub struct Flow {
     pub from: Uuid,
     /// The helper's identifier for the volume on its node.
     pub helper_id: String,
+    /// The volume's class, which the replica is received into on its own node.
+    pub storage_class: String,
 }
 
 /// What a node is told of one of its volumes that keeps replicas.
@@ -59,6 +61,8 @@ pub struct Kept {
     pub volume: Uuid,
     /// The volume's node, which sends to it.
     pub from: Uuid,
+    /// The class it is kept in, the volume's.
+    pub storage_class: String,
     /// The snapshot it holds and keeps; `None` until the first arrives, or once it is stale.
     pub holds: Option<Uuid>,
     /// The snapshot being sent to it.
@@ -100,6 +104,7 @@ pub fn told(flows: &[Flow]) -> BTreeMap<Uuid, NodeReplicas> {
         out.entry(r.node).or_default().keeping.push(Kept {
             volume: r.volume,
             from: f.from,
+            storage_class: f.storage_class.clone(),
             holds,
             receiving,
         });
@@ -135,11 +140,13 @@ mod tests {
                 replica: replica(b, Some((s1, t0)), Some((s2, t0)), None),
                 from,
                 helper_id: "v".into(),
+                storage_class: "local".into(),
             },
             Flow {
                 replica: replica(c, Some((s1, t0)), Some((s2, t0)), Some(t0)),
                 from,
                 helper_id: "v".into(),
+                storage_class: "local".into(),
             },
         ];
         let told = told(&flows);

@@ -32,6 +32,15 @@ impl Session {
         }
     }
 
+    /// Keeps what the node is told of replicas, before it is acted on, so a transfer under way
+    /// outlives a restart; and passes it on.
+    fn replicas(&self, r: agent::Replicas) -> Vec<agent::AgentMessage> {
+        if let Err(e) = crate::replicas::keep_told(self.state.root(), &r) {
+            tracing::warn!(error = %e, "what the node is told of replicas was not kept");
+        }
+        self.event(Event::Replicas(r))
+    }
+
     /// Handles one message; what to send in answer.
     pub(super) async fn receive(
         &self,
@@ -54,6 +63,7 @@ impl Session {
             Some(Down::Edges(e)) => self.event(Event::Edges(*e)),
             Some(Down::EdgeLeaseGrant(g)) => self.event(Event::EdgeLeaseGrant(*g)),
             Some(Down::EdgeLeaseRefusal(r)) => self.event(Event::EdgeLeaseRefusal(*r)),
+            Some(Down::Replicas(r)) => self.replicas(*r),
             Some(Down::TokenKeys(keys)) => {
                 self.keys_in_force(&keys);
                 Vec::new()

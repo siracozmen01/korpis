@@ -51,6 +51,7 @@ mod oci;
 mod programs;
 mod query;
 mod recipes;
+mod replicas;
 mod runs;
 mod serving;
 mod sftp;

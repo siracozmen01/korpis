@@ -81,6 +81,8 @@ fn a_volume_is_sent_whole_then_by_increments_and_its_replica_becomes_the_volume(
     };
     assert!(matches!(came, Received::Failed(_)), "{came:?}");
     assert_eq!(receiver.replica_snapshots(VOLUME).unwrap(), ["s2"], "nothing of it is kept");
+    let listed = receiver.replica_volumes().unwrap();
+    assert_eq!(listed, [(VOLUME.to_owned(), vec!["s2".to_owned()])], "each volume, with its own");
 
     let promoted = receiver.promote_replica(VOLUME, "s2").unwrap();
     assert_eq!(std::fs::read_to_string(promoted.join("one")).unwrap(), "first");

@@ -67,6 +67,7 @@ pub fn replicas_to_pb(told: &NodeReplicas) -> agent::Replicas {
                 holds: bare(k.holds),
                 receiving: bare(k.receiving),
                 from: wire_id(IdKind::Node, k.from),
+                storage_class: k.storage_class.clone(),
                 ..Default::default()
             })
             .collect(),

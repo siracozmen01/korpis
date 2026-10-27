@@ -365,6 +365,26 @@ the token keys, the replica's node told what it receives, a receive recorded and
 another snapshot refused, and a failed one sent again. Where a node learns of a transfer was first
 an assignment, which a replica's node does not hold (Finding 205 of `23-walkthroughs.md`).
 
+**Built 2026-10-27, the agents' half** (P3.8d4). The session keeps what the node is told on disk
+before acting on it, so a transfer under way outlives a restart of the agent and the control
+plane's absence until its ticket expires. A volume's node sends each transfer once from its own
+mesh address to the receiving node's, on TCP port 51820 there (§9.1 of `07-networking.md`): the
+ticket, then the helper's stream to its end; one that fails is sent again every ten seconds while
+its ticket lasts. The receiving node listens on its own mesh address, which its table admits from
+the mesh only for the nodes it was told send it replicas, under the comment `transfer`, and admits
+a stream only under a ticket its token keys open that names this node, a replica it was told it
+receives, the snapshot it was told comes, and the node it was told sends it, from that node's mesh
+address as the members it keeps WireGuard to name it; the helper receives what was admitted, and
+the agent journals how the receive ended. Each node releases, of what replication keeps on it,
+everything it was not told to keep: of its own volumes the snapshots the next increments are based
+on and those under way, of the replicas it keeps the snapshot each holds and the one coming, and of
+anything else nothing; a node told nothing yet releases nothing, since it does not know. Tested
+between two agents over the loopback, a forged ticket refused and nothing of it journaled; and end
+to end, between two nodes each with a btrfs of its own and its data plane in a network namespace of
+the test's own: a workload's volume, written on the first, held read-only on the second through the
+mesh, the second's table admitting to the transfer port the first's mesh address alone, and shown
+on the volume as received. What is not built yet: failover onto a replica (P3.8d5).
+
 ---
 
 ## 3. Quotas are enforced by the filesystem

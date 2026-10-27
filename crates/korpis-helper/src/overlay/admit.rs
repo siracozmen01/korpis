@@ -2,8 +2,9 @@
 
 //! What the mesh lets into the node (§9.1 of docs/07-networking.md), in the host's table: the
 //! replies to what the node's workloads opened through it; each dependent on another node to the
-//! endpoint it depends on, counted under `dependency`; and nothing else, to a workload or to the
-//! node itself, counted under `overlay` as it is dropped. WireGuard has already authenticated each
+//! endpoint it depends on, counted under `dependency`; each node sending this one's replicas to
+//! the node's own mesh address on the transfer port, counted under `transfer`; and nothing else,
+//! to a workload or to the node itself, counted under `overlay` as it is dropped. WireGuard has already authenticated each
 //! packet's source as the node holding its pool, so the rules name addresses. What enters the
 //! mesh has its TCP segment size clamped to the route's MTU, which is the interface's.
 
@@ -19,6 +20,8 @@ pub(crate) const FORWARD: &str = "overlay_forward";
 pub(crate) const INPUT: &str = "overlay_input";
 /// The set of what is admitted: source, destination, transport, port.
 const SET: &str = "overlay_admitted";
+/// The set of the nodes admitted to the transfer port.
+const SENDERS: &str = "overlay_transfer";
 /// Before the egress default, so what this drops is counted here.
 const PRIORITY: i32 = -15;
 
@@ -57,6 +60,60 @@ pub(crate) fn admitted(r: &helper::KeepOverlayRequest) -> HelperResult<Vec<Admit
         .collect()
 }
 
+/// The nodes admitted to send replicas to this one: their mesh addresses, to this node's own on
+/// one TCP port.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Transfers {
+    pub sources: Vec<Ipv4Addr>,
+    pub to: Ipv4Addr,
+    pub port: u16,
+}
+
+/// The transfers `r` admits, checked; none when it names no source.
+///
+/// # Errors
+/// A source that is no IPv4 address, or sources with no mesh address or port to admit them to.
+pub(crate) fn transfers(r: &helper::KeepOverlayRequest) -> HelperResult<Option<Transfers>> {
+    if r.transfer_sources.is_empty() {
+        return Ok(None);
+    }
+    let refused = |why: &str| HelperError::Refused(format!("the transfers' {why}"));
+    let sources = r
+        .transfer_sources
+        .iter()
+        .map(|s| s.parse::<Ipv4Addr>().map_err(|_| refused("source")))
+        .collect::<HelperResult<Vec<_>>>()?;
+    let to = r.mesh_address.parse::<Ipv4Addr>().map_err(|_| refused("mesh address"))?;
+    let port = u16::try_from(r.transfer_port).ok().filter(|p| *p > 0).ok_or(refused("port"))?;
+    Ok(Some(Transfers { sources, to, port }))
+}
+
+/// The rule admitting `t`'s sources, and the commands that fill their set.
+fn transfer_rules(t: Option<&Transfers>) -> (Vec<Value>, Option<Value>) {
+    let mut setup = vec![
+        json!({"add": {"set": {"family": "inet", "table": TABLE, "name": SENDERS,
+            "type": "ipv4_addr"}}}),
+        json!({"flush": {"set": {"family": "inet", "table": TABLE, "name": SENDERS}}}),
+    ];
+    let Some(t) = t else { return (setup, None) };
+    let elem: Vec<String> = t.sources.iter().map(Ipv4Addr::to_string).collect();
+    setup.push(json!({"add": {"element": {"family": "inet", "table": TABLE, "name": SENDERS,
+        "elem": elem}}}));
+    let field = |protocol: &str, field: &str, right: Value| {
+        json!({"match": {"op": "==",
+            "left": {"payload": {"protocol": protocol, "field": field}}, "right": right}})
+    };
+    let expr = vec![
+        is("iifname", INTERFACE),
+        field("ip", "saddr", json!(format!("@{SENDERS}"))),
+        field("ip", "daddr", json!(t.to.to_string())),
+        field("tcp", "dport", json!(t.port)),
+        json!({"counter": null}),
+        json!({"accept": null}),
+    ];
+    (setup, Some(rule(INPUT, Some("transfer"), expr)))
+}
+
 fn rule(chain: &str, comment: Option<&str>, expr: Vec<Value>) -> Value {
     let mut r =
         json!({"family": "inet", "table": TABLE, "chain": chain, "expr": Value::Array(expr)});
@@ -86,9 +143,14 @@ pub(crate) struct EdgeRules {
     pub(crate) input: Vec<Value>,
 }
 
-/// Every rule of the mesh's admission, written whole in one transaction: the chains and the set
-/// made if missing and emptied, then filled with what `admitted` names, with what `edges` adds.
-pub(crate) fn rules(admitted: &[Admitted], edges: EdgeRules) -> Value {
+/// Every rule of the mesh's admission, written whole in one transaction: the chains and the sets
+/// made if missing and emptied, then filled with what `admitted` and `transfers` name, with what
+/// `edges` adds.
+pub(crate) fn rules(
+    admitted: &[Admitted],
+    transfers: Option<&Transfers>,
+    edges: EdgeRules,
+) -> Value {
     let from = || is("iifname", INTERFACE);
     let mut commands = vec![
         json!({"add": {"table": {"family": "inet", "name": TABLE}}}),
@@ -123,6 +185,8 @@ pub(crate) fn rules(admitted: &[Admitted], edges: EdgeRules) -> Value {
     ]});
     let listed = json!({"match": {"op": "==", "left": key, "right": format!("@{SET}")}});
     let counted = |verdict: &str| [json!({"counter": null}), json!({ verdict: null })];
+    let (senders, transfer) = transfer_rules(transfers);
+    commands.extend(senders);
     commands.extend(edges.setup);
     commands.extend([
         rule(FORWARD, None, vec![is("oifname", INTERFACE), syn, clamp]),
@@ -135,6 +199,7 @@ pub(crate) fn rules(admitted: &[Admitted], edges: EdgeRules) -> Value {
         rule(FORWARD, Some("overlay"), [vec![from()], counted("drop").to_vec()].concat()),
         rule(INPUT, None, vec![from(), replies(), json!({"accept": null})]),
     ]);
+    commands.extend(transfer);
     commands.extend(edges.input_before);
     commands.push(rule(INPUT, Some("overlay"), [vec![from()], counted("drop").to_vec()].concat()));
     commands.extend(edges.forward);
@@ -164,10 +229,34 @@ mod tests {
         assert_eq!((asked[0].transport, asked[0].port), ("tcp", 5432));
         assert!(admitted(&request(0, helper::Transport::TRANSPORT_TCP)).is_err());
         assert!(admitted(&request(5432, helper::Transport::TRANSPORT_UNSPECIFIED)).is_err());
-        let text = rules(&asked, EdgeRules::default()).to_string();
+        let text = rules(&asked, None, EdgeRules::default()).to_string();
         assert!(text.contains(r#"{"concat":["10.48.4.2","10.48.0.3","tcp",5432]}"#), "{text}");
         assert!(text.contains(r#""comment":"overlay""#) && text.contains(r#""drop":null"#));
-        let none = rules(&[], EdgeRules::default()).to_string();
+        let none = rules(&[], None, EdgeRules::default()).to_string();
         assert!(!none.contains(r#""element""#), "none listed, none added");
+        assert!(none.contains(r#""flush":{"set""#) && !none.contains(r#""transfer""#));
+    }
+
+    #[test]
+    fn a_sender_is_admitted_to_the_transfer_port_of_the_node_s_own_mesh_address_alone() {
+        let mut r = helper::KeepOverlayRequest {
+            transfer_sources: vec!["10.48.1.255".into()],
+            transfer_port: 51820,
+            ..Default::default()
+        };
+        assert!(transfers(&r).is_err(), "nowhere to admit it to");
+        r.mesh_address = "10.48.0.255".into();
+        let t = transfers(&r).unwrap().unwrap();
+        let text = rules(&[], Some(&t), EdgeRules::default()).to_string();
+        assert!(text.contains(r#""elem":["10.48.1.255"]"#), "{text}");
+        assert!(text.contains(r#""right":"10.48.0.255""#) && text.contains(r#""right":51820"#));
+        assert!(text.contains(r#""comment":"transfer""#));
+        let transfer = text.find(r#""comment":"transfer""#).unwrap_or(usize::MAX);
+        let dropped = text.rfind(r#""comment":"overlay""#).unwrap_or(0);
+        assert!(transfer < dropped, "before what the mesh drops");
+        r.transfer_sources = vec!["no address".into()];
+        assert!(transfers(&r).is_err());
+        r.transfer_sources.clear();
+        assert_eq!(transfers(&r).unwrap(), None);
     }
 }

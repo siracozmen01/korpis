@@ -212,7 +212,7 @@ struct Node {
 
 /// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
 /// running.
-async fn serve<R: Runtime + Clone, H: Host + Clone>(
+async fn serve<R: Runtime + Clone, H: Host + korpis_agent::host::Replicating + Clone>(
     state: &StateDir,
     runtime: R,
     host: H,
@@ -250,7 +250,7 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
 }
 
 /// Starts the agent, and runs it until it is asked to stop.
-async fn start<R: Runtime + Clone, H: Host + Clone>(
+async fn start<R: Runtime + Clone, H: Host + korpis_agent::host::Replicating + Clone>(
     state: &StateDir,
     (runtime, host): (R, H),
     facts: std::sync::Arc<dyn Fn() -> korpis_agent::session::Facts + Send + Sync>,

@@ -36,6 +36,7 @@ mod offload;
 mod reachability;
 mod reconcile;
 mod refused;
+mod replicas;
 mod restore;
 mod revocation;
 mod runs;

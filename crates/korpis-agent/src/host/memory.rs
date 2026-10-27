@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 mod files;
 mod finish;
 mod knobs;
+mod replica;
 
 #[derive(Debug, Default)]
 struct Kept {
@@ -46,6 +47,12 @@ struct Kept {
     held_cores: Vec<helper::HoldCoresRequest>,
     /// Each side of the mesh the node was kept to.
     overlays: Vec<helper::KeepOverlayRequest>,
+    /// What each volume's replication keeps, by class and volume.
+    replicas: BTreeMap<(String, String), BTreeSet<String>>,
+    /// How each receive came to, by class, volume, and snapshot.
+    receives: BTreeMap<(String, String, String), helper::ReceiveState>,
+    /// Each stream sent, as it was written.
+    sent: Vec<helper::SendReplicaRequest>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.

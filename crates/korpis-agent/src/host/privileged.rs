@@ -6,6 +6,7 @@
 //! length and then one envelope, and the whole call has a deadline.
 
 mod attached;
+mod replica;
 
 use super::HostError;
 use buffa::Message as _;

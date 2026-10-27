@@ -82,13 +82,18 @@ service HelperService {
   // receiving a volume's replica from a pipe whose write end the answer carries, and
   // ReceiveStatus says whether it ended, and how; ReplicaSnapshots lists what a volume's
   // replication keeps here, ReleaseReplica deletes one of them, and PromoteReplica makes the
-  // volume a writable copy of one received. Added 2026-10-27.
+  // volume a writable copy of one received; ReplicaVolumes lists every volume whose replication
+  // keeps anything here; OpenTransfer opens the TCP socket a node receives replicas on, or sends
+  // them from, at its own mesh address in the namespace the helper keeps the mesh in. Added
+  // 2026-10-27.
   rpc SendReplica(SendReplicaRequest) returns (SendReplicaResponse);
   rpc ReceiveReplica(ReceiveReplicaRequest) returns (ReceiveReplicaResponse);
   rpc ReceiveStatus(ReceiveStatusRequest) returns (ReceiveStatusResponse);
   rpc ReplicaSnapshots(ReplicaSnapshotsRequest) returns (ReplicaSnapshotsResponse);
   rpc ReleaseReplica(ReleaseReplicaRequest) returns (ReleaseReplicaResponse);
   rpc PromoteReplica(PromoteReplicaRequest) returns (PromoteReplicaResponse);
+  rpc ReplicaVolumes(ReplicaVolumesRequest) returns (ReplicaVolumesResponse);
+  rpc OpenTransfer(OpenTransferRequest) returns (OpenTransferResponse);
 }
 
 // One request, as the transport carries it.
@@ -127,6 +132,8 @@ message HelperRequest {
     ReplicaSnapshotsRequest replica_snapshots = 31;
     ReleaseReplicaRequest release_replica = 32;
     PromoteReplicaRequest promote_replica = 33;
+    ReplicaVolumesRequest replica_volumes = 34;
+    OpenTransferRequest open_transfer = 35;
   }
 }
 
@@ -167,6 +174,8 @@ message HelperResponse {
     ReplicaSnapshotsResponse replica_snapshots = 32;
     ReleaseReplicaResponse release_replica = 33;
     PromoteReplicaResponse promote_replica = 34;
+    ReplicaVolumesResponse replica_volumes = 35;
+    OpenTransferResponse open_transfer = 36;
   }
 }
 
@@ -675,6 +684,37 @@ message PromoteReplicaRequest {
   string snapshot = 3;
 }
 
+message ReplicaVolumesRequest {}
+
+message ReplicaVolumesResponse {
+  // Each volume whose replication keeps a snapshot here, in each class: on a volume's node the
+  // snapshots it sent, named by the helper's identifier of the volume; on a replica's node those
+  // it received, named by the volume as the control plane names it.
+  repeated ReplicaHeld held = 1;
+}
+
+// A TCP socket at the node's own mesh address: listening on `port` when `listen`, and otherwise
+// bound to the address alone, for connecting from, so what it sends leaves from that address.
+message OpenTransferRequest {
+  // The node's own mesh address, which must be on this machine.
+  string mesh_address = 1;
+  // Unprivileged: 1024 or above.
+  uint32 port = 2;
+  bool listen = 3;
+}
+
+// The socket is attached to this answer's frame as SCM_RIGHTS.
+message OpenTransferResponse {
+  uint32 attached = 1;
+}
+
+message ReplicaHeld {
+  string storage_class = 1;
+  string volume = 2;
+  // By name.
+  repeated string snapshots = 3;
+}
+
 message PromoteReplicaResponse {
   // The volume's path, as EnsureVolume would answer it.
   string host_path = 1;
@@ -902,6 +942,11 @@ message KeepOverlayRequest {
   // interface beside `mesh_address`, at which the node answers the probe of an IPv6 address an
   // edge forwards to it. Empty for none. Added 2026-10-26.
   string mesh_address_v6 = 6;
+  // The mesh addresses of the nodes that send this node's replicas their volumes (§2.2 of
+  // docs/06-storage.md): each admitted to `mesh_address`, on TCP port `transfer_port`, and
+  // nothing else of them beyond what the rest admits. Added 2026-10-27.
+  repeated string transfer_sources = 7;
+  uint32 transfer_port = 8;
 }
 
 // The node's part in edge groups (§3.1 of docs/07-networking.md), kept whole by every call.

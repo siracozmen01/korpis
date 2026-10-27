@@ -58,6 +58,8 @@ message ReplicaKept {
   // The volume's node, which sends to it: the only node whose mesh address it admits to its
   // transfer port for this replica.
   string from = 4;
+  // The class it is kept in, which is the volume's.
+  string storage_class = 5;
 }
 
 // A receive into a replica the node keeps ended: journaled once the helper says so.

@@ -25,6 +25,11 @@ impl NodeHost {
     pub fn new(helper: HelperClient, content: ContentStore) -> Self {
         Self { helper, content: Arc::new(content) }
     }
+
+    /// The helper.
+    pub(super) const fn helper(&self) -> &HelperClient {
+        &self.helper
+    }
 }
 
 impl Host for NodeHost {

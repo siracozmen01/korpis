@@ -182,19 +182,7 @@ impl Node {
     /// snapshot; `None` where this machine cannot make one.
     pub async fn join_on_btrfs(cp: &ControlPlane, name: &str) -> Option<Self> {
         let dir = tempfile::tempdir().unwrap();
-        let image = dir.path().join("btrfs.img");
-        std::fs::File::create(&image).unwrap().set_len(512 << 20).unwrap();
-        let at = dir.path().join("fs");
-        std::fs::create_dir(&at).unwrap();
-        let ok = |c: &mut Command| c.status().is_ok_and(|s| s.success());
-        let made = ok(Command::new("mkfs.btrfs").arg("-q").arg(&image))
-            && ok(Command::new("mount").args(["-o", "loop"]).arg(&image).arg(&at));
-        if !made {
-            return None;
-        }
-        let quota = ok(Command::new("btrfs").args(["quota", "enable"]).arg(&at))
-            && ok(Command::new("btrfs").args(["quota", "rescan", "-w"]).arg(&at));
-        assert!(quota, "qgroups on the test's own filesystem");
+        let at = crate::helper::btrfs_in(dir.path())?;
         let volumes = at.join("volumes");
         Some(Self::join_with(cp, name, dir, (volumes, Some(at), None), Vec::new(), None).await)
     }

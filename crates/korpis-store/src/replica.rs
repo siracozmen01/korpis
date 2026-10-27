@@ -88,6 +88,7 @@ struct FlowRow {
     stale_at: Option<chrono::DateTime<chrono::Utc>>,
     from_node: Uuid,
     helper_id: String,
+    storage_class: String,
 }
 
 impl FlowRow {
@@ -102,7 +103,12 @@ impl FlowRow {
             sending_since: self.sending_since,
             stale_at: self.stale_at,
         };
-        Flow { replica: replica.into_domain(), from: self.from_node, helper_id: self.helper_id }
+        Flow {
+            replica: replica.into_domain(),
+            from: self.from_node,
+            helper_id: self.helper_id,
+            storage_class: self.storage_class,
+        }
     }
 }
 

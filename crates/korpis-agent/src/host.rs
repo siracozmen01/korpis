@@ -9,8 +9,10 @@
 mod memory;
 pub mod node;
 pub mod privileged;
+mod replica;
 
 pub use memory::InMemoryHost;
+pub use replica::Replicating;
 
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;

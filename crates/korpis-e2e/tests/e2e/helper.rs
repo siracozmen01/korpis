@@ -32,6 +32,26 @@ pub(crate) fn helper_in(socket: &Path, volumes: &Path, dirs: (&Path, &Path, &Pat
     serve_on(socket, h, Some(node.to_owned()));
 }
 
+/// A btrfs made for a test in `dir` and mounted there, qgroups on, so its class can snapshot
+/// and send; where it is mounted, or `None` where this machine cannot make one.
+pub(crate) fn btrfs_in(dir: &Path) -> Option<std::path::PathBuf> {
+    use std::process::Command;
+    let image = dir.join("btrfs.img");
+    std::fs::File::create(&image).unwrap().set_len(512 << 20).unwrap();
+    let at = dir.join("fs");
+    std::fs::create_dir(&at).unwrap();
+    let ok = |c: &mut Command| c.status().is_ok_and(|s| s.success());
+    let made = ok(Command::new("mkfs.btrfs").arg("-q").arg(&image))
+        && ok(Command::new("mount").args(["-o", "loop"]).arg(&image).arg(&at));
+    if !made {
+        return None;
+    }
+    let quota = ok(Command::new("btrfs").args(["quota", "enable"]).arg(&at))
+        && ok(Command::new("btrfs").args(["quota", "rescan", "-w"]).arg(&at));
+    assert!(quota, "qgroups on the test's own filesystem");
+    Some(at)
+}
+
 /// The helper with its storage, jobs, network, ingress, and file sessions, and the cpusets
 /// beneath `parent` where one is named; and a shared class `shared` on the directory `shared`
 /// names, where it names one, which another node of the test shares as a network filesystem

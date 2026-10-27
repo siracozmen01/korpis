@@ -2433,7 +2433,16 @@ the mesh addresses of the nodes its `Replicas` message names as sending to it (�
 `02-architecture.md`; its assignment, until Finding 205 of `23-walkthroughs.md`), under the comment
 `transfer`, as it admits a dependent; the sender is known by its mesh address, which WireGuard
 admits from that node's key alone, and what it may send by a ticket the control plane signed. A
-transfer is never forwarded through a third node.
+transfer is never forwarded through a third node. Built 2026-10-27 (P3.8d4): the port is TCP 51820
+of the node's own mesh address, the last of its IPv4 pool, which the overlay now puts on the
+interface whether or not an edge group names the node; the helper opens the listening socket, and
+the socket a transfer is sent from bound to that address, in the namespace it keeps the mesh in,
+and hands them to the agent, as it opens a workload's probe sockets (§5 of `04-runtimes.md`), so a
+node whose data plane is in a namespace of its own receives where the mesh arrives. The host's
+table is written whole at each pass of the overlay, every ten seconds and whenever what it admits
+changes, so what its rules have counted, under `dependency`, `overlay`, or `transfer`, is what they
+counted since the last pass and not since the node started: a reading for an operator looking now,
+not a total.
 
 What the overlay does not do. It does not relay: two nodes neither of which is reachable from the
 other share no dependency, and the scheduler says why. Edges are not members yet: §3.4 has an edge

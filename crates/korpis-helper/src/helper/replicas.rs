@@ -11,6 +11,35 @@ use crate::replica::Received;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::helper_request::Verb;
 use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
+use std::net::{Ipv4Addr, SocketAddrV4};
+use std::os::fd::OwnedFd;
+
+/// The socket `r` asks for: TCP at the node's mesh address, listening on its port or bound to
+/// the address alone.
+fn transfer_socket(r: &helper::OpenTransferRequest) -> HelperResult<OwnedFd> {
+    use rustix::net::{AddressFamily, SocketAddrAny, SocketType, bind, listen, socket};
+    let address: Ipv4Addr = r
+        .mesh_address
+        .parse()
+        .ok()
+        .filter(|a: &Ipv4Addr| !a.is_unspecified() && !a.is_broadcast() && !a.is_multicast())
+        .ok_or_else(|| HelperError::Refused(format!("{:?} is no mesh address", r.mesh_address)))?;
+    let port = u16::try_from(r.port)
+        .ok()
+        .filter(|p| *p >= 1024)
+        .ok_or_else(|| HelperError::Refused(format!("{} is no unprivileged port", r.port)))?;
+    let at = SocketAddrV4::new(address, if r.listen { port } else { 0 });
+    let opened = || -> std::io::Result<OwnedFd> {
+        let fd = socket(AddressFamily::INET, SocketType::STREAM, None)?;
+        rustix::net::sockopt::set_socket_reuseaddr(&fd, true)?;
+        bind(&fd, &SocketAddrAny::from(at))?;
+        if r.listen {
+            listen(&fd, 64)?;
+        }
+        Ok(fd)
+    };
+    Ok(opened()?)
+}
 
 impl Helper {
     /// The answer to a replica verb.
@@ -56,8 +85,34 @@ impl Helper {
                     ..Default::default()
                 }))
             }
+            Verb::ReplicaVolumes(_) => self.replica_volumes()?,
+            Verb::OpenTransfer(r) => {
+                self.attached = vec![transfer_socket(&r)?];
+                let opened = helper::OpenTransferResponse { attached: 1, ..Default::default() };
+                Answer::OpenTransfer(Box::new(opened))
+            }
             _ => return Err(HelperError::Refused("not a replica verb".into())),
         })
+    }
+
+    /// Every volume whose replication keeps a snapshot here, in each class.
+    fn replica_volumes(&self) -> HelperResult<Answer> {
+        let mut held = Vec::new();
+        for c in &self.classes {
+            let name = c.name();
+            held.extend(c.replica_volumes()?.into_iter().map(|(volume, snapshots)| {
+                helper::ReplicaHeld {
+                    storage_class: name.to_owned(),
+                    volume,
+                    snapshots,
+                    ..Default::default()
+                }
+            }));
+        }
+        Ok(Answer::ReplicaVolumes(Box::new(helper::ReplicaVolumesResponse {
+            held,
+            ..Default::default()
+        })))
     }
 
     /// Starts a receive, ending one of the same snapshot still running, whose stream a newer

@@ -11,6 +11,7 @@
 mod answer;
 mod edges;
 mod leases;
+mod request;
 
 use crate::durable;
 use crate::held::HeldSet;
@@ -20,8 +21,8 @@ use answer::Answering;
 use ed25519_dalek::SigningKey;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::helper::v1 as helper;
-use korpis_proto::korpis::v1 as pb;
 use leases::{EdgeLeases, Holding};
+use request::{admitted, facts, request};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -43,71 +44,14 @@ pub struct Overlay<H> {
     host: H,
     peers: PathBuf,
     edges: PathBuf,
+    /// What the node was last told of replicas, which names the nodes sending to it.
+    replicas: PathBuf,
     port: u16,
     pools: Vec<String>,
     advertised: Vec<String>,
     signer: (String, SigningKey),
     kept: watch::Sender<Option<agent::OverlayFacts>>,
     told: watch::Sender<agent::Edges>,
-}
-
-/// What the node admits from the mesh, by what `held` names: each dependent on another node, to
-/// the endpoint of the workload here it depends on.
-fn admitted(held: &HeldSet) -> Vec<helper::OverlayAdmitted> {
-    let mut out: Vec<helper::OverlayAdmitted> = held
-        .assignments
-        .values()
-        .flat_map(|a| &a.dependents)
-        .map(|d| helper::OverlayAdmitted {
-            source: d.address.clone(),
-            destination: d.target_address.clone(),
-            port: d.container_port,
-            transport: match d.protocol.as_known() {
-                Some(
-                    pb::EndpointProtocol::ENDPOINT_PROTOCOL_UDP
-                    | pb::EndpointProtocol::ENDPOINT_PROTOCOL_QUIC,
-                ) => helper::Transport::TRANSPORT_UDP,
-                _ => helper::Transport::TRANSPORT_TCP,
-            }
-            .into(),
-            ..Default::default()
-        })
-        .collect();
-    out.sort_by(|x, y| {
-        (&x.source, &x.destination, x.port).cmp(&(&y.source, &y.destination, y.port))
-    });
-    out.dedup();
-    out
-}
-
-/// The request that keeps the interface to `peers` on `port`, admitting `admitted` and what the
-/// edges' proxies may reach here, with the node's part in edge groups as `edges` tells it (§3.1
-/// of docs/07-networking.md), holding the addresses of `holding`, the node advertising `own`.
-fn request(
-    (port, own): (u16, &[String]),
-    (peers, edges, holding): (&agent::Peers, &agent::Edges, &Holding),
-    mut admitted: Vec<helper::OverlayAdmitted>,
-) -> helper::KeepOverlayRequest {
-    admitted.extend(edges::proxied(edges));
-    admitted.sort_by(|x, y| {
-        (&x.source, &x.destination, x.port).cmp(&(&y.source, &y.destination, y.port))
-    });
-    admitted.dedup();
-    let peers = peers.peers.iter().map(|p| helper::OverlayPeer {
-        public_key: p.public_key.clone(),
-        endpoint: p.endpoint.clone(),
-        allowed_ips: p.allowed_ips.clone(),
-        ..Default::default()
-    });
-    helper::KeepOverlayRequest {
-        port: u32::from(port),
-        peers: peers.collect(),
-        admitted,
-        mesh_address: edges.mesh_address.clone(),
-        mesh_address_v6: edges.mesh_address_v6.clone(),
-        edges: edges::table(edges, own, holding).into(),
-        ..Default::default()
-    }
 }
 
 /// Sends each of `messages` up `outbound`; whether it is still open.
@@ -132,22 +76,6 @@ fn replaced(was: &mut agent::Edges, now: &agent::Edges) -> bool {
     changed
 }
 
-/// What the node reports of what the helper answered.
-fn facts(port: u16, pools: &[String], kept: helper::KeepOverlayResponse) -> agent::OverlayFacts {
-    let handshakes = kept.handshakes.into_iter().map(|h| agent::OverlayHandshake {
-        public_key: h.public_key,
-        latest_unix_seconds: h.latest_unix_seconds,
-        ..Default::default()
-    });
-    agent::OverlayFacts {
-        public_key: kept.public_key,
-        port: u32::from(port),
-        pools: pools.to_vec(),
-        handshakes: handshakes.collect(),
-        ..Default::default()
-    }
-}
-
 impl<H: Host> Overlay<H> {
     /// The mesh of the node whose state is at `state`, on `port`, its workloads' `pools` its
     /// allowed IPs, the node advertising `advertised` and answering edges' probes as `signer`,
@@ -160,8 +88,10 @@ impl<H: Host> Overlay<H> {
     ) -> (Self, watch::Receiver<Option<agent::OverlayFacts>>) {
         let (kept, reported) = watch::channel(None);
         let (peers, edges) = (state.join(PEERS), state.join(edges::EDGES));
+        let replicas = state.join(crate::replicas::TOLD);
         let told = watch::Sender::new(agent::Edges::default());
-        (Self { host, peers, edges, port, pools, advertised, signer, kept, told }, reported)
+        let o = Self { host, peers, edges, replicas, port, pools, advertised, signer, kept, told };
+        (o, reported)
     }
 
     /// The table of edges last told, as it changes: what the node's proxy serves for its groups
@@ -198,8 +128,9 @@ impl<H: Host> Overlay<H> {
         admitted: Vec<helper::OverlayAdmitted>,
         (told, holding): (&agent::Edges, &Holding),
     ) -> bool {
-        let asked =
-            request((self.port, &self.advertised), (&self.named(), told, holding), admitted);
+        let named = self.named();
+        let mut asked = request((self.port, &self.advertised), (&named, told, holding), admitted);
+        self.transfers(&named, &mut asked);
         match self.host.keep_overlay(&asked).await {
             Ok(kept) => {
                 let reported = facts(self.port, &self.pools, kept);
@@ -270,6 +201,8 @@ impl<H: Host> Overlay<H> {
                         self.told_edges(&e);
                         return Some(());
                     }
+                    // The session kept it on disk before passing it on.
+                    Ok(Event::Replicas(_)) => return Some(()),
                     Ok(e @ (Event::EdgeLeaseGrant(_) | Event::EdgeLeaseRefusal(_))) => {
                         leases.answer(&e, Instant::now());
                     }
@@ -336,6 +269,7 @@ pub fn with_overlay(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use korpis_proto::korpis::v1 as pb;
 
     #[test]
     fn the_helper_is_asked_for_every_member_and_its_answer_reported_with_the_node_s_pools() {
