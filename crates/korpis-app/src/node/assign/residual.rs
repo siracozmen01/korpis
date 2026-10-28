@@ -72,9 +72,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 peers: Vec::new(),
                 dedicated: None,
                 block_attachments: Vec::new(),
+                migration: None,
             },
             plan: Some(plan),
             held: false,
+            standby: false,
         }))
     }
 }

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE migration_volume SET first_difference = $3\n                  WHERE migration_id = $1 AND volume_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "31300dee70016224049d4493bb4713a8ba557825f09aa2a1e1c890a87b4e3a56"
+}

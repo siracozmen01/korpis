@@ -15,7 +15,7 @@ use std::time::SystemTime;
 use uuid::Uuid;
 
 mod migration;
-pub use migration::{MigrationRead, MigrationWrite};
+pub use migration::{MigrationMoves, MigrationRead, MigrationWrite};
 
 /// Reading where workloads are.
 pub trait PlacementRead {

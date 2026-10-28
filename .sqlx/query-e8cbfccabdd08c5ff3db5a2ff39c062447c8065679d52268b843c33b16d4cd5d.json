@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE placement SET authoritative = true, bound_at = $3, bound_by = 'migration'\n              WHERE workload_id = $1 AND node_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e8cbfccabdd08c5ff3db5a2ff39c062447c8065679d52268b843c33b16d4cd5d"
+}

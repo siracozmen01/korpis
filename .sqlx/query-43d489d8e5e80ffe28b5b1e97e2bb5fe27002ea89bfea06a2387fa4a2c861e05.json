@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,\n                    hold_secs, hold_until, outcome, reason, made_at\n               FROM migration WHERE workload_id = $1 AND outcome IS NULL FOR UPDATE",
+  "query": "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,\n                    hold_secs, hold_until, outcome, reason, made_at, source_done,\n                    destination_done, moved_at\n               FROM migration WHERE workload_id = $1 AND outcome IS NULL FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -134,6 +134,39 @@
             "name": "made_at"
           }
         }
+      },
+      {
+        "ordinal": 12,
+        "name": "source_done",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "source_done"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "destination_done",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "destination_done"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "moved_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "moved_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -153,8 +186,11 @@
       true,
       true,
       true,
-      false
+      false,
+      true,
+      true,
+      true
     ]
   },
-  "hash": "77d3c9ab77b7e64a6d8ef73a2691238c8790f3c4677c6e6ef82fe2b061155b12"
+  "hash": "43d489d8e5e80ffe28b5b1e97e2bb5fe27002ea89bfea06a2387fa4a2c861e05"
 }

@@ -26,8 +26,11 @@ use uuid::Uuid;
 
 mod begin;
 mod choose;
+mod conclude;
 mod crossing;
+mod cutover;
 mod end;
+mod progress;
 
 pub use end::{EndMigration, MigrationView};
 
@@ -86,11 +89,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let target = self.approved_target(&w).await?;
         self.migratable(&w).await?;
         let mut tx = self.store.begin().await?;
-        let chosen = self.destination(&mut tx, (&w, &target), cmd.node).await?;
+        let toward = cmd.node.map_or(choose::Toward::Any, choose::Toward::Named);
+        let chosen = self.destination(&mut tx, (&w, &target), toward).await?;
         let volumes = self.crossings(&w, (&chosen.source, &chosen.node)).await?;
         let moving = Moving {
             source: chosen.source.id,
             destination: chosen.node.id,
+            named: cmd.node.is_some(),
             hold,
             volumes: volumes.iter().map(crossing::crossed).collect(),
             live: false,

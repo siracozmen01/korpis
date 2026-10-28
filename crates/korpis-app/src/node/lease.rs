@@ -108,7 +108,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         epoch: u64,
     ) -> Result<bool, AppError> {
         let mut tx = self.store.begin().await?;
+        // The workload before its lease, as a request takes them, so a migration's cutover,
+        // which needs both, follows the release at once (§8.1 of docs/05-scheduling.md).
+        tx.lock_workload(workload).await?;
         let released = tx.release_lease(workload, node, epoch, self.clock.now()).await?;
+        if released {
+            self.cut_over_in(&mut tx, workload).await?;
+        }
         tx.commit().await?;
         Ok(released)
     }

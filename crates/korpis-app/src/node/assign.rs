@@ -62,11 +62,13 @@ fn runs_digest(
 }
 
 /// What a node is to be told about one workload: the assignment, the plan that becomes applying
-/// by being told, and whether a suspension holds the workload stopped.
+/// by being told, whether a suspension holds the workload stopped, and whether the node is a
+/// migration's standby for it, holding none of its node's endpoints, runs, or challenges.
 struct Desired {
     assignment: Assignment,
     plan: Option<Plan>,
     held: bool,
+    standby: bool,
 }
 
 /// The plan a node is to be executing for a workload: the applying one, or else the earliest
@@ -170,8 +172,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let stored: BTreeMap<Uuid, StoredAssignment> =
             tx.stored_assignments(node).await?.into_iter().map(|s| (s.workload, s)).collect();
         let mut out = Vec::with_capacity(desired.len());
-        for Desired { mut assignment, plan, held } in desired {
-            if !assignment.residual {
+        for Desired { mut assignment, plan, held, standby } in desired {
+            if standby {
+                assignment.ids = ids(&mut tx, node, assignment.workload).await?;
+                assignment.devices = tx.holds_on(assignment.workload, node).await?;
+                assignment.cores = tx.cores_on(assignment.workload, node).await?;
+            } else if !assignment.residual {
                 self.place_here(&mut tx, &mut assignment, (range, held)).await?;
             }
             let digest = sealer.content_digest(&assignment).map_err(seal_error)?;
@@ -213,12 +219,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(AssignmentSet { digest: set_digest(&entries), assignments: out })
     }
 
-    /// What `node` is to be told: an assignment for each workload placed on it, and a residual
-    /// one for each that left a plan there.
+    /// What `node` is to be told: an assignment for each workload placed on it, one for each
+    /// migrating to or from it that is not placed on it now, each with its part in the migration,
+    /// and a residual one for each that left a plan there.
     async fn all_desired(&self, node: Uuid) -> Result<Vec<Desired>, AppError> {
         let (mut desired, members) = (Vec::new(), self.members().await?);
-        for workload in self.store.placed_on(node).await? {
-            desired.extend(self.desired((node, &members), workload).await?);
+        let roles = self.roles_on(node).await?;
+        let placed = self.store.placed_on(node).await?;
+        for workload in &placed {
+            let d = self.desired((node, &members), *workload).await?;
+            desired.extend(d.map(|d| match roles.get(workload) {
+                Some(role) => migrating::with_role(d, role, false),
+                None => d,
+            }));
+        }
+        for (workload, role) in roles.iter().filter(|(w, _)| !placed.contains(w)) {
+            let d = self.desired((node, &members), *workload).await?;
+            desired.extend(d.map(|d| migrating::with_role(d, role, true)));
         }
         for workload in self.store.residual_on(node).await? {
             desired.extend(self.residual(node, workload).await?);
@@ -336,11 +353,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 peers: across.peers,
                 dedicated: self.dedicated_on(workload, node).await?,
                 block_attachments: self.attached_on(workload, (node, lease_epoch)).await?,
+                migration: None,
             },
             plan,
             held,
+            standby: false,
         }))
     }
 }
 
+mod migrating;
 mod residual;

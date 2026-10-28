@@ -127,6 +127,9 @@ fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
         B::Replica(r) => {
             Body::Replica(crate::replica::reported_from_pb(&format!("{field}.replica"), r)?)
         }
+        B::Migration(m) => {
+            Body::Migration(crate::migration::progress_from_pb(&format!("{field}.migration"), m)?)
+        }
     })
 }
 

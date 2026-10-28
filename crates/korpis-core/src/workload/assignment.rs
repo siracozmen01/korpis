@@ -97,6 +97,9 @@ pub struct Assignment {
     /// The devices of its volumes in block classes attached for it to this node at its lease's
     /// epoch, by the helper's identifier of each volume (§2.1 of docs/06-storage.md).
     pub block_attachments: Vec<crate::workload::block::NodeDevice>,
+    /// Its node's part in its migration, while one runs that the node takes part in (§8.1 of
+    /// docs/05-scheduling.md).
+    pub migration: Option<crate::workload::migration::MigrationRole>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

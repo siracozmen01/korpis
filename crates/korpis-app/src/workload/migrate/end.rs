@@ -1,24 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a workload's migrations, and ending one (§8.1 of docs/05-scheduling.md). Before
-//! `cutover` a migration is abandoned: the source runs on as it was, the destination's placement
-//! is freed with what it held, and its plan is cancelled. After `cutover` and until its hold ends
-//! it is rolled back, the workload returned to the source, or released, the source's copies
-//! deleted at once; each needs the placement to have moved, which only a migration past
-//! `verify` has done.
+//! Reading a workload's migrations, and a person ending one (§8.1 of docs/05-scheduling.md).
+//! Before its placement moved a migration is abandoned: the source runs on as it was, and the
+//! destination's placement is freed with what it held. After, and until its hold ends, it is
+//! rolled back, the workload returned to the source; once the destination reported the workload
+//! started, its hold may be ended at once, so the source deletes its copies. A plan a person
+//! ended is cancelled.
 
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
-    Clock, EffectWrite as _, MigrationWrite as _, RecipeSource, Store, WorkloadWrite as _,
+    Clock, EffectWrite as _, MigrationMoves as _, MigrationWrite as _, RecipeSource, Store,
+    WorkloadWrite as _,
 };
 use korpis_core::audit::{Outcome as Done, details};
 use korpis_core::authz::{Kind, ObjectRef};
-use korpis_core::workload::migration::{Migration, MigrationVolume, Outcome, Phase};
-use korpis_core::workload::plan::PlanStatus;
+use korpis_core::workload::migration::{Migration, MigrationVolume, Phase};
+use std::time::SystemTime;
 use uuid::Uuid;
+
+use super::conclude::EndedBy;
 
 const ABANDON: &str = "workload.abandon_migration";
 const ROLLBACK: &str = "workload.rollback_migration";
@@ -39,16 +42,61 @@ pub struct EndMigration {
     pub reason: String,
 }
 
-/// The refusal of what only a migration past cutover may do.
-fn not_cut_over() -> AppError {
-    let why = "the workload has not moved yet; abandon the migration instead";
-    AppError::conflict("migration.not_cut_over", why)
+/// What a person asks of a migration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Ending {
+    /// Abandon it before its placement moved.
+    Abandon,
+    /// Roll it back after, before its hold ends.
+    RollBack,
+    /// End its hold now.
+    Release,
 }
 
-/// The refusal of anything asked of a migration that ended.
-fn ended(m: &Migration) -> AppError {
-    let how = m.outcome.as_ref().map_or("ended", |(o, _)| o.as_str());
-    AppError::conflict("migration.ended", format!("the migration is {how}"))
+impl Ending {
+    const fn operation(self) -> &'static str {
+        match self {
+            Self::Abandon => ABANDON,
+            Self::RollBack => ROLLBACK,
+            Self::Release => RELEASE,
+        }
+    }
+
+    const fn action(self) -> &'static str {
+        match self {
+            Self::Abandon => "migration.abandon",
+            Self::RollBack => "migration.rollback",
+            Self::Release => "migration.release",
+        }
+    }
+
+    /// Whether `m` allows it at `now`, and the refusal where it does not.
+    fn allowed(self, m: &Migration, now: SystemTime) -> Result<(), AppError> {
+        if let Some((o, _)) = &m.outcome {
+            let why = format!("the migration is {}", o.as_str());
+            return Err(AppError::conflict("migration.ended", why));
+        }
+        let moved = m.moved_at.is_some();
+        match self {
+            Self::Abandon if moved => Err(AppError::conflict(
+                "migration.cut_over",
+                "the workload has moved; roll the migration back instead",
+            )),
+            Self::RollBack | Self::Release if !moved => Err(AppError::conflict(
+                "migration.not_cut_over",
+                "the workload has not moved yet; abandon the migration instead",
+            )),
+            Self::RollBack if m.hold_until.is_some_and(|h| now >= h) => Err(AppError::conflict(
+                "migration.hold_ended",
+                "the hold ended, so the source may have deleted its copies",
+            )),
+            Self::Release if m.phase != Phase::Release => Err(AppError::conflict(
+                "migration.not_holding",
+                "the destination has not reported the workload started yet",
+            )),
+            _ => Ok(()),
+        }
+    }
 }
 
 /// `reason`, trimmed, if it says something in at most [`MAX_REASON`] characters.
@@ -91,41 +139,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         idem: &Idempotent<'_, MigrationView>,
         cmd: EndMigration,
     ) -> Result<Reply<MigrationView>, AppError> {
-        if let Some(r) = self.replay(caller, idem, ABANDON).await? {
-            return Ok(Reply::Replayed(r));
-        }
-        let reason = reason_of(&cmd.reason)?;
-        let ((m, volumes), grant) = self.migration_to_end(caller, cmd.migration).await?;
-        let mut tx = self.store.begin().await?;
-        tx.lock_workload(m.workload).await?;
-        let m = tx.migration_in(m.id).await?.ok_or(AppError::NotFound { kind: "migration" })?;
-        if !m.live() {
-            return Err(ended(&m));
-        }
-        if m.phase.moved() {
-            let why = "the workload has moved; roll the migration back instead";
-            return Err(AppError::conflict("migration.cut_over", why));
-        }
-        let now = self.clock.now();
-        tx.end_migration(m.id, (Outcome::Abandoned, reason), now).await?;
-        tx.unbind_destination(m.workload, m.destination).await?;
-        if let Some(mut plan) = tx.lock_plan(m.plan).await? {
-            let from = plan.status;
-            if plan.transition(PlanStatus::Cancelled).is_ok() {
-                tx.update_plan(&plan, from).await?;
-            }
-        }
-        let mut e =
-            caller.effect("migration.abandon", Done::Succeeded).under(grant).after(details([
-                ("migration", m.id.to_string().into()),
-                ("phase", m.phase.as_str().into()),
-                ("reason", reason.into()),
-            ]));
-        (e.workload, e.plan, e.node) = (Some(m.workload), Some(m.plan), Some(m.destination));
-        tx.append_effect(&e).await?;
-        let mut done = m;
-        done.outcome = Some((Outcome::Abandoned, reason.to_owned()));
-        finish(tx, caller, idem, ABANDON, (done, volumes)).await
+        self.end_by_person(caller, idem, (Ending::Abandon, cmd)).await
     }
 
     /// Rolls a migration back after its cutover, before its hold ends.
@@ -135,40 +149,56 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         idem: &Idempotent<'_, MigrationView>,
         cmd: EndMigration,
     ) -> Result<Reply<MigrationView>, AppError> {
-        if let Some(r) = self.replay(caller, idem, ROLLBACK).await? {
-            return Ok(Reply::Replayed(r));
-        }
-        reason_of(&cmd.reason)?;
-        self.after_cutover(caller, cmd.migration).await
+        self.end_by_person(caller, idem, (Ending::RollBack, cmd)).await
     }
 
-    /// Ends a migration's hold now, the source's copies deleted.
+    /// Ends a migration's hold now, so the source deletes its copies at once.
     pub async fn release_migration(
         &self,
         caller: &Caller,
         idem: &Idempotent<'_, MigrationView>,
         migration: Uuid,
     ) -> Result<Reply<MigrationView>, AppError> {
-        if let Some(r) = self.replay(caller, idem, RELEASE).await? {
-            return Ok(Reply::Replayed(r));
-        }
-        self.after_cutover(caller, migration).await
+        let cmd = EndMigration { migration, reason: String::new() };
+        self.end_by_person(caller, idem, (Ending::Release, cmd)).await
     }
 
-    /// What may be asked only of a migration past its cutover: refused before it, and, until
-    /// moving a workload is built through its cutover, refused after.
-    async fn after_cutover(
+    /// Does `ending` to the migration `cmd` names, for the caller.
+    async fn end_by_person(
         &self,
         caller: &Caller,
-        migration: Uuid,
+        idem: &Idempotent<'_, MigrationView>,
+        (ending, cmd): (Ending, EndMigration),
     ) -> Result<Reply<MigrationView>, AppError> {
-        let ((m, _), _) = self.migration_to_end(caller, migration).await?;
-        if !m.live() {
-            return Err(ended(&m));
+        if let Some(r) = self.replay(caller, idem, ending.operation()).await? {
+            return Ok(Reply::Replayed(r));
         }
-        if m.phase < Phase::Cutover {
-            return Err(not_cut_over());
+        let reason = match ending {
+            Ending::Release => "",
+            Ending::Abandon | Ending::RollBack => reason_of(&cmd.reason)?,
+        };
+        let ((m, _), grant) = self.migration_to_end(caller, cmd.migration).await?;
+        let mut tx = self.store.begin().await?;
+        tx.lock_workload(m.workload).await?;
+        let m = tx.migration_in(m.id).await?.ok_or(AppError::NotFound { kind: "migration" })?;
+        let now = self.clock.now();
+        ending.allowed(&m, now)?;
+        match ending {
+            Ending::Abandon => self.abandon_in(&mut tx, &m, (reason, EndedBy::Person)).await?,
+            Ending::RollBack => self.roll_back_in(&mut tx, &m, (reason, EndedBy::Person)).await?,
+            Ending::Release => {
+                tx.advance_migration(m.id, m.phase, (m.phase_since, Some(now))).await?;
+            }
         }
-        Err(AppError::NotYet { what: "a migration past its cutover", phase: 3 })
+        let mut e = caller.effect(ending.action(), Done::Succeeded).under(grant).after(details([
+            ("migration", m.id.to_string().into()),
+            ("phase", m.phase.as_str().into()),
+            ("reason", reason.into()),
+        ]));
+        (e.workload, e.plan, e.node) = (Some(m.workload), Some(m.plan), Some(m.destination));
+        tx.append_effect(&e).await?;
+        let view = tx.migration_in(m.id).await?.ok_or(AppError::NotFound { kind: "migration" })?;
+        let volumes = tx.migration_volumes_in(m.id).await?;
+        finish(tx, caller, idem, ending.operation(), (view, volumes)).await
     }
 }

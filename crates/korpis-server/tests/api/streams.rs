@@ -48,7 +48,7 @@ pub(crate) fn segment_record(
     }
 }
 
-async fn up(s: &mut Stream, message: Up) {
+pub(crate) async fn up(s: &mut Stream, message: Up) {
     let m = agent::AgentMessage { message: Some(message), ..Default::default() };
     s.send(m).await.unwrap();
 }

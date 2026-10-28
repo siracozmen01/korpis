@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Migrations (migration 0145, §8.1 of docs/05-scheduling.md): one row each, a row for each of
-//! its volumes, and each stream's watermark once the source reported it.
+//! its volumes, and each stream's watermark once the source reported it; what each side reported
+//! and the placement's move are migration 0146's.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{MigrationRead, MigrationWrite, StoreError, StoreResult};
-use korpis_core::workload::migration::{Crossing, Migration, MigrationVolume, Outcome, Phase};
+use korpis_core::workload::migration::{
+    Crossing, Migration, MigrationVolume, Outcome, Phase, Reported, Watermark,
+};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
+
+mod moves;
 
 type Time = chrono::DateTime<chrono::Utc>;
 
@@ -27,6 +32,9 @@ struct MigrationRow {
     outcome: Option<String>,
     reason: Option<String>,
     made_at: Time,
+    source_done: Option<String>,
+    destination_done: Option<String>,
+    moved_at: Option<Time>,
 }
 
 impl MigrationRow {
@@ -40,6 +48,12 @@ impl MigrationRow {
             }
             None => None,
         };
+        let done = |p: Option<String>| match p {
+            Some(p) => Phase::parse(&p).map(Some).ok_or_else(|| corrupt("report", &p)),
+            None => Ok(None),
+        };
+        let reported =
+            Reported { source: done(self.source_done)?, destination: done(self.destination_done)? };
         Ok(Migration {
             id: self.id,
             plan: self.plan_id,
@@ -52,12 +66,14 @@ impl MigrationRow {
             hold_until: self.hold_until.map(to_time),
             outcome,
             made_at: to_time(self.made_at),
+            reported,
+            moved_at: self.moved_at.map(to_time),
         })
     }
 }
 
 /// One stored volume of a migration, with its name in the workload's declaration.
-struct VolumeRow {
+pub(super) struct VolumeRow {
     migration_id: Uuid,
     volume_id: Uuid,
     name: String,
@@ -76,7 +92,7 @@ struct VolumeRow {
 }
 
 impl VolumeRow {
-    fn into_domain(self) -> StoreResult<MigrationVolume> {
+    pub(super) fn into_domain(self) -> StoreResult<MigrationVolume> {
         let crossing = Crossing::parse(&self.crossing).ok_or_else(|| {
             StoreError::Corrupt(format!("migration crossing {:?}", self.crossing))
         })?;
@@ -115,7 +131,10 @@ fn joined(
     Ok(out)
 }
 
-async fn volumes_of(pool: &sqlx::PgPool, ids: &[Uuid]) -> StoreResult<Vec<VolumeRow>> {
+pub(super) async fn volumes_of<'e, E: sqlx::PgExecutor<'e>>(
+    pool: E,
+    ids: &[Uuid],
+) -> StoreResult<Vec<VolumeRow>> {
     sqlx::query_as!(
         VolumeRow,
         "SELECT m.migration_id, m.volume_id, v.name, m.crossing, m.size_bytes,
@@ -140,7 +159,8 @@ impl MigrationRead for PgStore {
         let rows = sqlx::query_as!(
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
-                    hold_secs, hold_until, outcome, reason, made_at
+                    hold_secs, hold_until, outcome, reason, made_at, source_done,
+                    destination_done, moved_at
                FROM migration WHERE workload_id = $1 ORDER BY made_at DESC, id DESC",
             workload
         )
@@ -155,7 +175,8 @@ impl MigrationRead for PgStore {
         let rows = sqlx::query_as!(
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
-                    hold_secs, hold_until, outcome, reason, made_at
+                    hold_secs, hold_until, outcome, reason, made_at, source_done,
+                    destination_done, moved_at
                FROM migration WHERE id = $1",
             id
         )
@@ -163,6 +184,64 @@ impl MigrationRead for PgStore {
         .await
         .map_err(from_sqlx)?;
         Ok(joined(rows, volumes_of(&self.pool, &[id]).await?)?.into_iter().next())
+    }
+
+    async fn migrations_on(
+        &self,
+        node: Uuid,
+    ) -> StoreResult<Vec<(Migration, Vec<MigrationVolume>, Vec<Watermark>)>> {
+        let rows = sqlx::query_as!(
+            MigrationRow,
+            "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
+                    hold_secs, hold_until, outcome, reason, made_at, source_done,
+                    destination_done, moved_at
+               FROM migration
+              WHERE outcome IS NULL AND (source_id = $1 OR destination_id = $1)
+              ORDER BY workload_id",
+            node
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        let ids: Vec<Uuid> = rows.iter().map(|r| r.id).collect();
+        let marks = sqlx::query!(
+            "SELECT migration_id, stream, next_offset, journaled_to FROM migration_stream
+              WHERE migration_id = ANY($1) ORDER BY stream",
+            &ids
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        let count = |n: i64| u64::try_from(n).unwrap_or(0);
+        Ok(joined(rows, volumes_of(&self.pool, &ids).await?)?
+            .into_iter()
+            .map(|(m, volumes)| {
+                let own = marks.iter().filter(|w| w.migration_id == m.id);
+                let watermarks = own
+                    .map(|w| Watermark {
+                        stream: w.stream.clone(),
+                        next_offset: count(w.next_offset),
+                        journaled_to: count(w.journaled_to),
+                    })
+                    .collect();
+                (m, volumes, watermarks)
+            })
+            .collect())
+    }
+
+    async fn live_migrations(&self) -> StoreResult<Vec<Migration>> {
+        let rows = sqlx::query_as!(
+            MigrationRow,
+            "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
+                    hold_secs, hold_until, outcome, reason, made_at, source_done,
+                    destination_done, moved_at
+               FROM migration
+              WHERE outcome IS NULL ORDER BY workload_id",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        rows.into_iter().map(MigrationRow::into_domain).collect()
     }
 }
 
@@ -212,7 +291,8 @@ impl MigrationWrite for PgTx {
         let row = sqlx::query_as!(
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
-                    hold_secs, hold_until, outcome, reason, made_at
+                    hold_secs, hold_until, outcome, reason, made_at, source_done,
+                    destination_done, moved_at
                FROM migration WHERE workload_id = $1 AND outcome IS NULL FOR UPDATE",
             workload
         )
@@ -226,7 +306,8 @@ impl MigrationWrite for PgTx {
         let row = sqlx::query_as!(
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
-                    hold_secs, hold_until, outcome, reason, made_at
+                    hold_secs, hold_until, outcome, reason, made_at, source_done,
+                    destination_done, moved_at
                FROM migration WHERE id = $1 FOR UPDATE",
             id
         )
@@ -236,7 +317,7 @@ impl MigrationWrite for PgTx {
         row.map(MigrationRow::into_domain).transpose()
     }
 
-    async fn unbind_destination(&mut self, workload: Uuid, node: Uuid) -> StoreResult<bool> {
+    async fn free_placement(&mut self, workload: Uuid, node: Uuid) -> StoreResult<bool> {
         let done = sqlx::query!(
             "DELETE FROM placement WHERE workload_id = $1 AND node_id = $2 AND NOT authoritative",
             workload,

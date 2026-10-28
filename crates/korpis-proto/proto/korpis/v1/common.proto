@@ -203,3 +203,15 @@ enum BlockProtocol {
   // and for a storage the operator mounts on every node.
   BLOCK_PROTOCOL_LOOP = 3;
 }
+
+// How a volume crosses from a migration's source to its destination (§8.1 of
+// docs/05-scheduling.md).
+enum MigrationCrossing {
+  MIGRATION_CROSSING_UNSPECIFIED = 0;
+  // By increments between snapshots, as a replica is sent.
+  MIGRATION_CROSSING_INCREMENTS = 1;
+  // By rsync over its tree.
+  MIGRATION_CROSSING_TREE = 2;
+  // Not at all: the destination reaches the same storage.
+  MIGRATION_CROSSING_NOTHING = 3;
+}

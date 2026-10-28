@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE migration SET source_done = coalesce($2, source_done),\n                                  destination_done = coalesce($3, destination_done)\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d622b243299a2460b849607715d5d8507898d0f31f21024baa0c4f263633cb1d"
+}

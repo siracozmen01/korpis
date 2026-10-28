@@ -117,7 +117,7 @@ pub use member::{Asked, MemberRead, MemberWrite};
 pub use metering::{MeteringRead, MeteringWrite, Overdue, UsageQuery};
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
-pub use placement::{MigrationRead, MigrationWrite, PlacementRead, PlacementWrite};
+pub use placement::{MigrationMoves, MigrationRead, MigrationWrite, PlacementRead, PlacementWrite};
 pub use portal::{PortalRead, PortalWrite};
 pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};

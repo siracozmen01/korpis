@@ -83,6 +83,8 @@ pub enum Body {
     Backup(crate::backup::ReportedBackup),
     /// A receive into a replica the node keeps ended (§2.2 of docs/06-storage.md).
     Replica(crate::workload::replica::ReportedReplica),
+    /// The node's side of a migration's phase (§8.1 of docs/05-scheduling.md).
+    Migration(crate::workload::migration::Progress),
     /// A segment of a workload's stream was sealed, offloaded, or pruned on the node (§4 of
     /// docs/14-streams.md).
     Segment {

@@ -7197,3 +7197,27 @@ have journaled every segment the source already had and offloaded each again, an
 access and a second copy for every one. Resolved in §4 of `14-streams.md`: the source's report
 names the position its agent journaled to, and the destination follows the log from there. What it
 costs: one more number per stream in the migration record and the destination's assignment.
+
+**Finding 214.** Found 2026-10-28, as the phases were built (P3.9b2). Step 3 asks what advances a
+phase: both nodes' reports. Nothing said what happens when one of them stops reporting. Failover
+leaves alone a workload a plan of which applies (§2.4 of `05-scheduling.md`), and a migration's
+plan applies until the migration ends, so a source that fell silent during `replicate` would have
+left `mc` down on a dead node with no failover, and a silent B would have held its capacity and the
+migration for good. Resolved in §8.1 of `05-scheduling.md`: the sweep that marks nodes unreachable
+abandons a migration whose destination falls silent before the placement moves, or whose source
+falls silent before `cutover`, which frees the workload for the ordinary failover, and rolls back
+one whose destination falls silent at `cutover` without reporting the workload started; a source
+silent at `cutover` is waited out, its lease's end being what the cutover needs. What it costs: a
+migration a brief outage interrupts is begun again by a person; and during `release` a silent
+node is still not acted on, which the section states.
+
+**Finding 215.** Found 2026-10-28 by an automated security review of the commit that built step 2
+(P3.9b1). Step 2 asks what evaluates "B still fits" at the approval: the control plane, which
+checked B again as a node an operator names is checked, its cordon and taints overridden, whether
+an operator had named B or the scheduler had chosen it. A host who cordoned or tainted B between
+the proposal and the approval, the scheduler having chosen it, would have had the migration
+approved onto it anyway, an override nobody with `node.place` on B had asked for. Resolved in §8.1
+of `05-scheduling.md`: the step records who chose the node, the scheduler's choice is checked
+again against every filter of the scheduler among the nodes serving the workload, and only a node
+an operator named keeps the override; a step that does not say is checked as the scheduler's. What
+it costs: nothing, and a test approving onto a node cordoned after the proposal.

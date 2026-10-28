@@ -31,6 +31,8 @@ pub struct Moving {
     pub source: Uuid,
     /// The node it goes to.
     pub destination: Uuid,
+    /// Whether an operator named it, rather than the scheduler choosing it.
+    pub named: bool,
     /// How long the source keeps its copies after cutover.
     pub hold: Duration,
     /// Each volume it holds.
@@ -41,9 +43,21 @@ pub struct Moving {
     pub changed_addresses: Vec<String>,
 }
 
-/// The node a migration's plan moves its workload to, as its step names it, and the hold.
+/// Where a migration's plan moves its workload, as its step names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Destination {
+    /// The node.
+    pub node: Uuid,
+    /// Whether an operator named it, so it is checked again as a placement by hand is; one the
+    /// scheduler chose is checked again against every filter of the scheduler.
+    pub named: bool,
+    /// How long the source keeps its copies after cutover.
+    pub hold: Duration,
+}
+
+/// Where a migration's plan moves its workload, as its step names it.
 #[must_use]
-pub fn destination_of(steps: &[Step]) -> Option<(Uuid, Duration)> {
+pub fn destination_of(steps: &[Step]) -> Option<Destination> {
     let step = steps.iter().find(|s| s.action == StepAction::Migrate)?;
     let node = match step.detail.get("destination") {
         Some(Value::String(s)) => Uuid::parse_str(s).ok()?,
@@ -53,7 +67,10 @@ pub fn destination_of(steps: &[Step]) -> Option<(Uuid, Duration)> {
         Some(Value::Int(n)) => Duration::from_secs(u64::try_from(*n).ok()?),
         _ => return None,
     };
-    Some((node, hold))
+    // A step that does not say who chose its node is checked as the scheduler's choice, the
+    // stricter of the two.
+    let named = matches!(step.detail.get("chosen_by"), Some(Value::String(s)) if s == "operator");
+    Some(Destination { node, named, hold })
 }
 
 /// The steps of a migration's plan for `workload`: one `migrate`, executed by the control plane,
@@ -77,6 +94,7 @@ pub fn migrate_steps(workload: Uuid, m: &Moving, classifier: Classifier<'_>) -> 
     let detail = ValueMap::from([
         ("source".to_owned(), text(&m.source.to_string())),
         ("destination".to_owned(), text(&m.destination.to_string())),
+        ("chosen_by".to_owned(), text(if m.named { "operator" } else { "scheduler" })),
         ("hold_seconds".to_owned(), int(m.hold.as_secs())),
         ("volumes".to_owned(), Value::List(volumes)),
         ("quiesce".to_owned(), text(if m.live { "capture" } else { "stop" })),

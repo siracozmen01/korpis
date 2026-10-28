@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE migration SET moved_at = CASE WHEN destination_id = $2 THEN $3::timestamptz END\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d037ec4ff69d6590b7f347d98572d2d775cade5a814d6d26f3dc55f20d8cb69d"
+}

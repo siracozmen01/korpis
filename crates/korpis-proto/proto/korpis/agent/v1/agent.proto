@@ -848,6 +848,77 @@ message MigrationRole {
   MigrationPhase phase = 2;
   string peer = 3;
   string plan = 4;
+  // The migration (`mig_…`), which the node's reports name (§8.1 of docs/05-scheduling.md).
+  string migration = 5;
+  // Each volume the target attaches: how it crosses, and the helper's identifier for it on the
+  // source.
+  repeated MigrationVolumeRole volumes = 6;
+  // From cutover, on the destination: each stream's watermark as the source reported it.
+  repeated StreamWatermark watermarks = 7;
+  // When the source deletes its copies, unless the workload is rolled back first; set as the
+  // migration enters release.
+  google.protobuf.Timestamp hold_until = 8;
+}
+
+message MigrationVolumeRole {
+  // The volume's name in the workload's declaration.
+  string name = 1;
+  // The helper's identifier for it on the source.
+  string source_helper_id = 2;
+  korpis.v1.MigrationCrossing crossing = 3;
+}
+
+// One stream's watermark at quiesce: its next offset, and the position in its changes log the
+// source's agent journaled and offloaded to (§4 of docs/14-streams.md).
+message StreamWatermark {
+  string stream = 1;
+  uint64 next_offset = 2;
+  uint64 journaled_to = 3;
+}
+
+// A node's report of its side of a migration's phase (§8.1 of docs/05-scheduling.md), believed
+// only from the node assigned that side, about the phase the migration is in.
+message MigrationProgress {
+  string migration = 1;
+  MigrationPhase phase = 2;
+  MigrationSide side = 3;
+  // Done, or failed; a report of neither says how far it has come.
+  MigrationOutcomeOfPhase outcome = 4;
+  // Why it failed, for the record.
+  string detail = 5;
+  // Each volume's part: the pass sent or held, what it sent, the destination's identifier for
+  // it, and its manifest's digest.
+  repeated MigrationVolumeProgress volumes = 6;
+  // At quiesce, from the source: each stream's watermark.
+  repeated StreamWatermark watermarks = 7;
+}
+
+enum MigrationOutcomeOfPhase {
+  MIGRATION_OUTCOME_OF_PHASE_UNSPECIFIED = 0;
+  MIGRATION_OUTCOME_OF_PHASE_DONE = 1;
+  MIGRATION_OUTCOME_OF_PHASE_FAILED = 2;
+}
+
+message MigrationVolumeProgress {
+  string name = 1;
+  // The pass, by the identifier its ticket names.
+  string pass = 2;
+  // On the source: what the pass sent.
+  uint64 sent_bytes = 3;
+  // On the destination: the pass is held whole.
+  bool held = 4;
+  // On the destination: the helper's identifier for the volume there.
+  string helper_id = 5;
+  // At verify: the digest of the volume's manifest, `sha256:` and hexadecimal.
+  string manifest = 6;
+  // At verify: the manifest in runs of entries, each run's first path and digest, so the control
+  // plane names where two copies first differ without either sending its whole manifest.
+  repeated ManifestChunk chunks = 7;
+}
+
+message ManifestChunk {
+  string first_path = 1;
+  string digest = 2;
 }
 
 enum MigrationSide {
@@ -996,6 +1067,7 @@ message JournalRecord {
     SnapshotEvent snapshot = 11;
     BackupEvent backup = 12;
     ReplicaEvent replica = 13;
+    MigrationProgress migration = 14;
   }
   // Coalesced identical records: how many this one stands for.
   uint64 count = 8;

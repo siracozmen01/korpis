@@ -2,10 +2,12 @@
 
 //! Beginning an approved migration (§8.1 of docs/05-scheduling.md). Approving the plan makes the
 //! migration record, in `prepare`, and binds the destination, under the placement lock, as a
-//! second placement of the workload that is not authoritative, so its capacity, cores, and
-//! devices are held from then on. The destination is checked again as it was proposed, since
-//! the node may have filled meanwhile; one that no longer fits refuses the approval, and nothing
-//! was done. The plan applies from then until the migration ends.
+//! second placement of the workload that is not authoritative, so its capacity, cores, and devices
+//! are held from then on. The destination is checked again as it was chosen, since the node may
+//! have filled, been cordoned, or been tainted meanwhile: the scheduler's choice against every
+//! filter of the scheduler, a node an operator named as a placement by hand is; one that no longer
+//! fits refuses the approval, and nothing was done. The plan applies from then until the migration
+//! ends.
 
 use crate::App;
 use crate::error::AppError;
@@ -16,14 +18,14 @@ use crate::ports::{
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::placement::{BoundBy, Placement};
 use korpis_core::principal::{Principal, SystemActor};
-use korpis_core::workload::migration::{Migration, Phase};
+use korpis_core::workload::migration::{Migration, Phase, Reported};
 use korpis_core::workload::plan::PlanStatus;
 use korpis_core::workload::plan::compute::destination_of;
 use korpis_core::workload::{Plan, Workload};
 use std::time::SystemTime;
 use uuid::Uuid;
 
-use super::choose::Chosen;
+use super::choose::{Chosen, Toward};
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Begins the migration `plan`, approved now, carries out for `w`: its record, and the
@@ -41,12 +43,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if tx.live_migration_in(w.id).await?.is_some() {
             return Err(super::migrating());
         }
-        let (node, hold) = destination_of(&plan.steps).ok_or_else(|| {
+        let to = destination_of(&plan.steps).ok_or_else(|| {
             AppError::Internal(format!("migration plan {} names no node", plan.id))
         })?;
+        let (node, hold) = (to.node, to.hold);
         let target = self.approved_target(w).await?;
         tx.lock_placement().await?;
-        let chosen = self.destination(tx, (w, &target), Some(node)).await?;
+        let toward = if to.named { Toward::Named(node) } else { Toward::Chosen(node) };
+        let chosen = self.destination(tx, (w, &target), toward).await?;
         let volumes = self.crossings(w, (&chosen.source, &chosen.node)).await?;
         let now = self.clock.now();
         let source = chosen.source.id;
@@ -63,6 +67,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             hold_until: None,
             outcome: None,
             made_at: now,
+            reported: Reported::default(),
+            moved_at: None,
         };
         tx.insert_migration(&m, &volumes).await?;
         plan.transition(PlanStatus::Applying).map_err(|e| AppError::Internal(e.to_string()))?;

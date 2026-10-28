@@ -144,6 +144,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
                 ..Default::default()
             })
             .collect(),
+        migration: a.migration.as_ref().map(crate::migration::role_to_pb).into(),
         ..Default::default()
     }
 }

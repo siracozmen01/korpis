@@ -2,9 +2,12 @@
 
 //! A migration's destination (§8.1 of docs/05-scheduling.md): the scheduler's choice among every
 //! node serving the workload but the one it is on, or a node an operator named, checked as a
-//! placement by hand is (§2.3 there), its cordon and taints overridden and nothing else. The
-//! volumes it must reach where they are are those of shared and block classes alone; every other
-//! volume crosses to it.
+//! placement by hand is (§2.3 there), its cordon and taints overridden and nothing else. At
+//! approval each is checked again as it was chosen: the scheduler's choice against every filter
+//! of the scheduler, among the nodes serving the workload, so a node cordoned or tainted since
+//! the proposal is refused; only a node an operator named keeps the override. The volumes it must
+//! reach where they are are those of shared and block classes alone; every other volume crosses
+//! to it.
 
 use super::super::learned::Learned;
 use super::super::place::{Given, candidates_of, given_on};
@@ -39,6 +42,17 @@ pub(in crate::workload) struct Chosen {
     pub(in crate::workload) given: Given,
     /// Whether an edge serves its `stable` endpoints, so their address stays.
     pub(in crate::workload) edge: bool,
+}
+
+/// Where a migration is to go, as it is asked for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::workload) enum Toward {
+    /// Wherever the scheduler chooses.
+    Any,
+    /// The node an operator named, checked as a placement by hand is.
+    Named(Uuid),
+    /// The node the scheduler chose at the proposal, checked again as the scheduler checks.
+    Chosen(Uuid),
 }
 
 /// What the scheduler reads of the candidates, read once.
@@ -171,19 +185,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
-    /// Where `w`, approved to be `target`, moves to: `named`, or the scheduler's choice among
-    /// every node serving it but its own.
+    /// Where `w`, approved to be `target`, moves to, `toward` saying how it is chosen.
     pub(in crate::workload) async fn destination(
         &self,
         tx: &mut S::Tx,
         (w, target): (&Workload, &Intent),
-        named: Option<Uuid>,
+        toward: Toward,
     ) -> Result<Chosen, AppError> {
         let unknown = || AppError::NotFound { kind: "node" };
         let placed = tx.placement_in(w.id).await?;
         let placed = placed.ok_or_else(|| AppError::conflict("workload.unplaced", "on no node"))?;
         let source = self.store.node(placed.node).await?.ok_or_else(unknown)?;
-        if named == Some(source.id) {
+        let (named, only) = match toward {
+            Toward::Any => (None, None),
+            Toward::Named(id) => (Some(id), Some(id)),
+            Toward::Chosen(id) => (None, Some(id)),
+        };
+        if only == Some(source.id) {
             return Err(AppError::invalid("node", "the workload is on that node already"));
         }
         let nodes: Vec<Node> = if let Some(id) = named {
@@ -191,7 +209,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         } else {
             let owners = self.owners(w.organization).await?;
             let serving = tx.serving_nodes(&owners).await?;
-            serving.into_iter().filter(|n| n.id != source.id).collect()
+            let others = serving.into_iter().filter(|n| n.id != source.id);
+            others.filter(|n| only.is_none_or(|id| n.id == id)).collect()
         };
         let inputs = self.inputs(tx, (w, target), nodes).await?;
         let (explanation, given) = pick(&inputs, (w, target), named)?;

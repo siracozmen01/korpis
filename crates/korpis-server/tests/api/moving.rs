@@ -6,7 +6,8 @@
 //! allow; approved, the migration is in `prepare`, the destination a placement that is not
 //! authoritative, holding its capacity on that node; abandoned, the destination is freed and the
 //! plan cancelled. A workload on no node, a move to the node it is on, a second migration, and a
-//! volume whose class cannot cross between the two nodes are refused.
+//! volume whose class cannot cross between the two nodes are refused, and so is the approval of a
+//! move onto a node the scheduler chose that was cordoned since.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::edge_groups::cordon;
@@ -151,4 +152,29 @@ async fn a_move_is_refused_off_no_node_onto_its_own_and_where_a_volume_cannot_cr
     let idle = declared.await.unwrap().into_owned().workload.into_option().unwrap().id;
     let unplaced = workloads.migrate_workload(moving("m3", &idle, "")).await.unwrap_err();
     assert_eq!(reason(&unplaced), "workload.unplaced");
+}
+
+#[tokio::test]
+async fn a_destination_the_scheduler_chose_is_refused_at_approval_once_cordoned() {
+    let h = Harness::new().await;
+    let (a, b) = (TestAgent::enroll(&h, "fra-1", 1).await, TestAgent::enroll(&h, "fra-2", 2).await);
+    let (mut sa, first) =
+        TestAgent::open(&h, a.hello_with(SystemTime::now(), &[1; 16], local(true))).await;
+    welcome(&first.unwrap());
+    let db = made(&h, &mut sa).await;
+    let (_sb, first) =
+        TestAgent::open(&h, b.hello_with(SystemTime::now(), &[2; 16], local(true))).await;
+    welcome(&first.unwrap());
+    let workloads = h.workloads(h.root());
+    let proposed = workloads.migrate_workload(moving("m1", &db, "")).await.unwrap().into_owned();
+    let plan = proposed.plan.into_option().unwrap();
+    let by = plan.steps[0].detail.get("chosen_by").and_then(|v| v.kind.as_ref());
+    let scheduler = pb::__buffa::oneof::value::Kind::StringValue("scheduler".into());
+    assert_eq!(by, Some(&scheduler));
+
+    // A cordon is overridden only for a node an operator named, never for the scheduler's.
+    cordon(&h, &b.node).await;
+    let refused = h.plans(h.root()).approve_plan(approve("move", &plan.id)).await.unwrap_err();
+    assert_eq!(reason(&refused), "placement.unsatisfiable");
+    assert_eq!(placements(&h, &db).await, vec![("fra-1".to_owned(), true)], "nothing held");
 }

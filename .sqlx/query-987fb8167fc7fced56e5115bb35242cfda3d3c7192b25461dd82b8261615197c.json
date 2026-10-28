@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT migration_id, stream, next_offset, journaled_to FROM migration_stream\n              WHERE migration_id = ANY($1) ORDER BY stream",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "migration_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration_stream",
+            "name": "migration_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "stream",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration_stream",
+            "name": "stream"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "next_offset",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "migration_stream",
+            "name": "next_offset"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "journaled_to",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "migration_stream",
+            "name": "journaled_to"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "987fb8167fc7fced56e5115bb35242cfda3d3c7192b25461dd82b8261615197c"
+}

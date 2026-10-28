@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE migration_volume m\n                    SET passes = m.passes + CASE WHEN $3::uuid IS DISTINCT FROM m.pass\n                                                 AND $3::uuid IS NOT NULL THEN 1 ELSE 0 END,\n                        pass = coalesce($3, m.pass),\n                        sent_bytes = coalesce($4, m.sent_bytes),\n                        source_manifest = coalesce($5, m.source_manifest),\n                        source_chunks = coalesce($6, m.source_chunks)\n                   FROM volume v\n                  WHERE m.migration_id = $1 AND v.id = m.volume_id AND v.name = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Int8",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0886cefb08f47a62a71e9d131d18520cb55de4283623f9c80192a28667799714"
+}

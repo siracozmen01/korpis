@@ -116,7 +116,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             Body::Effect(e) => self.node_effect(tx, node, e, r.occurred_at).await?,
             Body::LeaseReleased { workload, epoch } => {
+                // The workload before its lease, as a lease request takes them, so a migration's
+                // cutover, which needs both, follows the release at once.
+                tx.lock_workload(*workload).await?;
                 let released = tx.release_lease(*workload, node, *epoch, self.clock.now()).await?;
+                if released {
+                    self.cut_over_in(tx, *workload).await?;
+                }
                 let mut e = system("lease.release", Outcome::Succeeded)
                     .after(details([("epoch", (*epoch).into()), ("current", released.into())]));
                 e.workload = Some(*workload);
@@ -145,6 +151,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Body::Snapshot(snap) => self.snapshot(tx, node, snap).await?,
             Body::Backup(b) => self.backup(tx, node, b).await?,
             Body::Replica(r) => self.replica_event(tx, node, r).await?,
+            Body::Migration(p) => self.migration_progress(tx, node, p).await?,
             Body::Malformed { reason } => rejected(reason, "malformed"),
             Body::Metering(sample) => return self.metering(tx, node, sample).await,
         }))

@@ -1770,11 +1770,12 @@ content, and its holes (the ranges `SEEK_DATA` and `SEEK_HOLE` find), for a syml
 a device node its numbers, and for a hardlink the first path of its group; its digest is the
 SHA-256 of the walk. Both helpers compute it, the source over what it sent last, stopped, the
 destination over what it received. **What evaluates "the destination holds what the source held":**
-the control plane, from the two digests the two nodes journaled; when they differ it asks both for
-the first entry that differs and records it, and the migration rolls back. A volume in a shared or
-block class is not compared, since there is one copy. This is the check Pterodactyl's #5429 lacked:
-a symlink, an attribute, or a hole lost in transit is a difference in the manifest, not in the
-bytes.
+the control plane, from the two digests the two nodes journaled; each also reports its manifest in
+runs of entries, each run's first path and digest, so where they differ the control plane records
+the first path of the first run that differs, and the migration is abandoned. A volume in a shared
+or block class is not compared, since there is one copy. This is the check Pterodactyl's #5429
+lacked: a symlink, an attribute, or a hole lost in transit is a difference in the manifest, not in
+the bytes.
 
 **`cutover` is the lease.** The source's agent, its object stopped since `quiesce`, releases its
 lease (§4.5 of `02-architecture.md`) and journals its meter's last sample of the workload at that
@@ -1793,13 +1794,16 @@ dependents (§10 there). A destination that cannot start the workload is rolled 
 `korpis migration abandon` does: both assignments lose the role, the source starts the workload
 again if its power says so, the destination deletes what it received, and its placement is freed.
 After `cutover` and until `release`, `korpis migration rollback` moves the workload back the same
-way it came: the destination stops and releases its epoch, the placement moves back in one
-transaction, and the source is granted the next epoch over the copies it kept, which hold what they
-held at `quiesce`. What the workload wrote on the destination since `cutover` is not thrown away:
-each moved volume's copy there is kept as a divergent copy, listed on the volume and deleted only
-by a plan, as failover's is (§2.2 of `06-storage.md`). Once the hold passes, or `korpis migration
-release` ends it early, the source deletes its copies of the local volumes, its placement is freed,
-and the migration is completed; a shared or block class's volume is the destination's already.
+way it came: the placement moves back in one transaction, the destination stops and releases its
+epoch, and the source is granted the next epoch over the copies it kept, which hold what they held
+at `quiesce` (the order corrected 2026-10-28, P3.9b2: designed with the destination's release
+first, which would have let a silent destination stall the rollback, though the lease alone keeps
+the two from both acting). What the workload wrote on the destination since `cutover` is not thrown
+away: each moved volume's copy there is kept as a divergent copy, listed on the volume and deleted
+only by a plan, as failover's is (§2.2 of `06-storage.md`). Once the hold passes, or `korpis
+migration release` ends it early, the source deletes its copies of the local volumes, its placement
+is freed, and the migration is completed; a shared or block class's volume is the destination's
+already.
 
 **The meter is cut at the epoch.** The source's samples are believed while it holds the lease, and
 the last is the one it journals at its release; the destination's first is under the new epoch and
@@ -1828,23 +1832,73 @@ move a workload between installations.
 **Built 2026-10-28, the proposal and the record** (P3.9b1). `WorkloadService.MigrateWorkload`
 proposes the plan, its one `migrate` step naming the source, the destination, the hold, each volume
 with its size and how it crosses, whether `quiesce` stops the workload, and each endpoint whose
-address changes; the plan waits for a person whatever the policy says. The destination is chosen
-by the scheduler among the nodes serving the workload but its own, with the volumes of shared and
+address changes; the plan waits for a person whatever the policy says. The destination is chosen by
+the scheduler among the nodes serving the workload but its own, with the volumes of shared and
 block classes as what it must reach, or checked as a placement by hand when named. Approving the
-plan checks the destination again, binds it as a placement that is not authoritative under the
-placement lock, and makes the migration record in `prepare` with each volume's crossing, in the
-transaction that marks the plan applying; it is refused while another plan of the workload applies,
-and every other plan of a migrating workload but a pruning is refused at approval. A node's
-assignments and the metering gaps read the authoritative placement alone, so the destination holds
-capacity and nothing yet runs there. `ListMigrations` reads a workload's migrations and
-`AbandonMigration` ends one before `cutover`, the destination freed and the plan cancelled;
-rolling back and releasing are refused before `cutover`. The CLI's `korpis workload move` and
-`korpis migration get|abandon|rollback|release` are §2 of `13-surface-cli.md`. Tested over the
-API: the plan, its approval holding both placements, a second migration refused, the abandonment;
-and the refusals of a workload on no node, of its own node, and of a volume the destination's
-helper cannot receive. What is not built yet: both nodes' roles in their assignments, the phases
-advanced on their reports, `cutover`, rollback, and release (P3.9b2), and the nodes' transfers
-(P3.9c).
+plan checks the destination again as it was chosen, which the step records (`chosen_by`): the
+scheduler's choice against every filter of the scheduler, among the nodes serving the workload, and
+only a node an operator named as a placement by hand is, its cordon and taints overridden (Finding
+215 of `23-walkthroughs.md`). It binds the destination as a placement that is not authoritative
+under the placement lock, and makes the migration record in `prepare` with each volume's crossing,
+in the transaction that marks the plan applying; it is refused while another plan of the workload
+applies, and every other plan of a migrating workload but a pruning is refused at approval. A
+node's assignments and the metering gaps read the authoritative placement alone, so the destination
+holds capacity and nothing yet runs there. `ListMigrations` reads a workload's migrations and
+`AbandonMigration` ends one before `cutover`, the destination freed and the plan cancelled; rolling
+back and releasing are refused before `cutover`. The CLI's `korpis workload move` and `korpis
+migration get|abandon|rollback|release` are §2 of `13-surface-cli.md`. Tested over the API: the
+plan, its approval holding both placements, a second migration refused, the abandonment; and the
+refusals of a workload on no node, of its own node, and of a volume the destination's helper cannot
+receive. What is not built yet: both nodes' roles in their assignments, the phases advanced on
+their reports, `cutover`, rollback, and release (P3.9b2), and the nodes' transfers (P3.9c).
+
+**Built 2026-10-28, the phases, the cutover, and the ends** (P3.9b2). Each node's assignment of a
+migrating workload carries its `MigrationRole`: the side, the phase, the peer, each volume's
+crossing with the source helper's identifier for it, and the hold's end. The node the workload is
+not placed on authoritatively, the destination until the placement moves and the source after, is
+a standby: its assignment carries the target and the volumes, the workload stopped, no plan, and
+none of its node's endpoints, runs, or challenges. The source is told the workload stopped from
+`quiesce` on, which is how it quiesces. A `MigrationProgress` record is believed as designed and
+`journal.rejected` otherwise; each volume's pass, the bytes it sent, the destination's identifier,
+and both manifests are kept, with the first path where the two manifests' runs differ, and the
+source's watermarks from `quiesce`. A phase advances once each side acting in it reported it done
+(the destination alone prepares and cuts over, the source alone quiesces and releases), `verify`
+only where every volume sent arrived with an equal manifest; otherwise the migration is abandoned,
+naming where. The cutover is tried in the transaction recording the source's release of its lease,
+whether the release arrives on the stream or in the journal, and every heartbeat interval for a
+lease that ran out: once nobody can act under the source's epoch, the placement moves, each
+volume's record with it onto the destination's identifier, the quota counts the workload there,
+the destination's assignment carries the watermarks, and the destination is granted the next epoch
+by the ordinary lease rule. A volume sent whose copy the destination never reported rolls it back
+instead. The destination's report of `cutover` starts the hold, and the source's report of
+`release` completes the migration, its placement freed and the plan applied. A phase failed
+abandons the migration before the placement moved, the plan failed, and rolls it back after. A
+person's abandonment, rollback, or release takes the same transitions, the plan cancelled: a
+rollback is refused once the hold has ended, since the source may have deleted its copies, and a
+release until the destination reported the workload started. A rollback moves the placement back
+with each volume onto the source's identifier and keeps the destination's copy of each volume
+sent as a divergent copy (§2.2 of `06-storage.md`), diverged at the rollback and holding what the
+source held at the move.
+
+A silent node no longer stalls a migration (Finding 214 of `23-walkthroughs.md`). The sweep that
+marks nodes unreachable ends one: a silent destination before the placement moved, or a silent
+source before `cutover`, abandons it, the plan failed, so a workload whose source fell silent then
+fails over by the ordinary rule (§2.4); a source silent at `cutover` is waited out, since its
+lease's end is what the cutover needs; a destination silent at `cutover` after the move, never
+having reported the workload started, rolls it back. During `release` a silent node is not acted
+on: the source deletes its copies once it is heard again, and a person may roll back while the
+hold runs. **What it costs:** the plan applies until the source deleted its copies, so a migrating
+workload takes no other plan but a pruning through the hold, a day unless the call said otherwise,
+and is not failed over from a silent destination until a person ends the migration; `korpis
+migration release` ends the hold early. A source that never returns leaves the migration in
+`release` until the node is removed, which ends it with drain and evacuate (P3.10). Tested over
+the API with two nodes: every phase walked on both nodes' reports to completion after a release,
+the watermarks handed to the destination and the volume moved; a rollback after the move, the
+volume back on the source, the destination's copy divergent, and the source granted the next epoch
+once the destination gave its own back; manifests differing at `verify`, the migration abandoned
+naming the first path and the plan failed; and two reports out of place rejected. What is not
+built yet: each node's side of every phase (P3.9c, P3.9d), and what follows the placement at
+cutover besides the volumes and the lease (P3.9e).
 
 ---
 

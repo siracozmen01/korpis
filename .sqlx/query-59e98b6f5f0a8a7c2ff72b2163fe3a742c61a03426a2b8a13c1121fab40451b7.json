@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO migration_stream (migration_id, stream, next_offset, journaled_to)\n                 VALUES ($1, $2, $3, $4)\n                 ON CONFLICT (migration_id, stream) DO UPDATE\n                    SET next_offset = EXCLUDED.next_offset, journaled_to = EXCLUDED.journaled_to",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "59e98b6f5f0a8a7c2ff72b2163fe3a742c61a03426a2b8a13c1121fab40451b7"
+}

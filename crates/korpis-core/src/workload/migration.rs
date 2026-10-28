@@ -230,12 +230,17 @@ pub struct Migration {
     pub phase_since: SystemTime,
     /// How long the source keeps its copies after cutover.
     pub hold: Duration,
-    /// When the hold ends; set at cutover.
+    /// When the hold ends; set as it enters `release`.
     pub hold_until: Option<SystemTime>,
     /// How it ended, and why; `None` while it runs.
     pub outcome: Option<(Outcome, String)>,
     /// When it was made.
     pub made_at: SystemTime,
+    /// The last phase each side reported done.
+    pub reported: Reported,
+    /// When the placement moved to the destination at `cutover`; `None` before, and again once
+    /// a rollback moved it back.
+    pub moved_at: Option<SystemTime>,
 }
 
 /// One volume of a migration: how it crosses, and how far it has.
@@ -302,12 +307,21 @@ impl Migration {
         self.outcome.is_none()
     }
 
-    /// The node the workload is placed on, authoritatively, in its phase.
+    /// The node the workload is placed on, authoritatively: the destination once the placement
+    /// moved at `cutover`, the source before.
     #[must_use]
-    pub fn authoritative(&self) -> Uuid {
-        if self.phase.moved() { self.destination } else { self.source }
+    pub const fn authoritative(&self) -> Uuid {
+        if self.moved_at.is_some() { self.destination } else { self.source }
     }
 }
+
+mod progress;
+mod report;
+mod role;
+
+pub use progress::{Next, Reported, Side, acts, failed, next};
+pub use report::{Chunk, Progress, Standing, VolumeProgress, first_difference};
+pub use role::{MigrationRole, VolumeRole, Watermark};
 
 #[cfg(test)]
 mod tests;

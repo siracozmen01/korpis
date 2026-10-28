@@ -82,6 +82,7 @@ mod member_issue;
 mod mesh;
 mod metering;
 mod migrate;
+mod migrating;
 mod moving;
 mod named;
 mod names;

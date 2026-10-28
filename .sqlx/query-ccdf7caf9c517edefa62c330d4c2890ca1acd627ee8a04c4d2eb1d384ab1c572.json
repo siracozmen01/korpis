@@ -1,0 +1,194 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,\n                    hold_secs, hold_until, outcome, reason, made_at, source_done,\n                    destination_done, moved_at\n               FROM migration\n              WHERE outcome IS NULL ORDER BY workload_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "plan_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "plan_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "source_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "destination_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "destination_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "phase",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "phase"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "phase_since",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "phase_since"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "hold_secs",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "hold_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "hold_until",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "hold_until"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "outcome",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "made_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "made_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "source_done",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "source_done"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "destination_done",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "destination_done"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "moved_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "moved_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "ccdf7caf9c517edefa62c330d4c2890ca1acd627ee8a04c4d2eb1d384ab1c572"
+}

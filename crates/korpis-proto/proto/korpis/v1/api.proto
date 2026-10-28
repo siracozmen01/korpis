@@ -630,16 +630,6 @@ message MigrationVolume {
   string first_difference = 8;
 }
 
-enum MigrationCrossing {
-  MIGRATION_CROSSING_UNSPECIFIED = 0;
-  // By increments between snapshots, as a replica is sent.
-  MIGRATION_CROSSING_INCREMENTS = 1;
-  // By rsync over its tree.
-  MIGRATION_CROSSING_TREE = 2;
-  // Not at all: the destination reaches the same storage.
-  MIGRATION_CROSSING_NOTHING = 3;
-}
-
 message AbandonMigrationRequest {
   Mutation mutation = 1;
   string migration = 2;

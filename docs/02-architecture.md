@@ -800,6 +800,12 @@ MigrationRole
 > Added 2026-10-27, when migration was designed (§8.1 of `05-scheduling.md`): `migration`,
 > `volumes`, `watermarks`, and `hold_until`. A phase alone told a node what to be and not what
 > to send, under which ticket, or from which offset the destination's consoles continue.
+>
+> Built 2026-10-28 (P3.9b2): `migration` is sent, its volumes with the source helper's
+> identifier and how each crosses; the destination's identifier is what the destination reports,
+> and each pass's ticket comes with the nodes' transfers (P3.9c). A node the workload is not
+> placed on authoritatively holds an assignment of it while the migration runs, as a standby
+> (§8.1 of `05-scheduling.md`).
 
 > Corrected 2026-10-16, when the issuer of certificates added `challenges`. The block above
 > listed the assignment as first designed; the fields added as volumes, residual plans,
