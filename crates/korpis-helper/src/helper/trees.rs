@@ -17,19 +17,20 @@ impl Helper {
     pub(super) fn tree_verb(&mut self, verb: Verb) -> HelperResult<Answer> {
         Ok(match verb {
             Verb::SendTree(r) => {
-                let relay = std::env::current_exe()?;
                 let key = (r.volume.clone(), r.pass.clone(), true);
                 self.end_tree(&key);
-                let (socket, child) = self.holding(&r.volume)?.send_tree(&r.volume, &relay)?;
+                let (socket, child) = self.holding(&r.volume)?.send_tree(&r.volume)?;
                 self.attached = vec![socket];
                 self.trees.insert(key, child);
                 let sent = helper::SendTreeResponse { attached: 1, ..Default::default() };
                 Answer::SendTree(Box::new(sent))
             }
             Verb::ReceiveTree(r) => {
+                let relay = std::env::current_exe()?;
                 let key = (r.volume.clone(), r.pass.clone(), false);
                 self.end_tree(&key);
-                let (socket, child) = self.class(&r.storage_class)?.receive_tree(&r.volume)?;
+                let class = self.class(&r.storage_class)?;
+                let (socket, child) = class.receive_tree(&r.volume, &relay)?;
                 self.attached = vec![socket];
                 self.trees.insert(key, child);
                 let got = helper::ReceiveTreeResponse { attached: 1, ..Default::default() };

@@ -734,6 +734,16 @@ Primary:
   [Wiz](https://www.wiz.io/blog/wiz-research-critical-nvidia-ai-vulnerability)). NVIDIA's
   bulletin could not be read from here, hence [R]. Why §5 of `../17-security.md` counts a
   device's toolkit among the host code a device brings.
+- **[R]** CVE-2024-12087 and CVE-2024-12088: rsync's client before 3.4.0 could be made by a
+  malicious server to write outside its destination, the first by path traversal under the
+  default `--inc-recursive`, the second by a symlink whose target holds another, bypassing
+  `--safe-links`; both fixed in 3.4.0 (January 2025), the first with a regression tracked
+  upstream ([Debian security tracker,
+  CVE-2024-12087](https://security-tracker.debian.org/tracker/CVE-2024-12087),
+  [CVE-2024-12088](https://security-tracker.debian.org/tracker/CVE-2024-12088)).
+  The upstream announcement was not read from here, hence [R]. Why §8.1 of `../05-scheduling.md`
+  states that a migration's destination trusts its source's stream as far as rsync's receiver
+  does, and keeps rsync current.
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a

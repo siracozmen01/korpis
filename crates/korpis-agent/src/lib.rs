@@ -28,6 +28,7 @@ pub mod join;
 pub mod journal;
 pub mod lease;
 pub mod meter;
+pub mod migrate;
 pub mod network;
 pub mod offload;
 pub mod overlay;

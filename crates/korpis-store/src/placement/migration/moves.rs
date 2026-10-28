@@ -71,6 +71,8 @@ impl PgTx {
             Side::Destination => sqlx::query!(
                 "UPDATE migration_volume m
                     SET held_pass = CASE WHEN $3 AND $4::uuid = m.pass THEN $4 ELSE m.held_pass END,
+                        sent_bytes = CASE WHEN $4::uuid = m.pass THEN coalesce($8, m.sent_bytes)
+                                          ELSE m.sent_bytes END,
                         destination_helper_id = coalesce($5, m.destination_helper_id),
                         destination_manifest = coalesce($6, m.destination_manifest),
                         destination_chunks = coalesce($7, m.destination_chunks)
@@ -82,7 +84,8 @@ impl PgTx {
                 v.pass,
                 v.helper_id,
                 v.manifest,
-                chunks
+                chunks,
+                v.sent_bytes.map(count)
             )
             .execute(&mut *self.tx)
             .await

@@ -36,7 +36,8 @@ fn node(id: Uuid, mesh: Ipv4Addr, keys: &KeyRing) -> Node {
     let journal = JournalHandle::open(&dir.path().join("journal"), Bounds::default()).unwrap();
     let host = InMemoryHost::new();
     let (_, ring) = watch::channel(Arc::new(keys.clone()));
-    let r = Replication::new(host.clone(), (dir.path(), id, Some(mesh)), ring, journal.clone());
+    let told = (journal.clone(), None);
+    let r = Replication::new(host.clone(), (dir.path(), id, Some(mesh)), ring, told);
     let (events, _) = broadcast::channel(16);
     tokio::spawn(r.run(events.subscribe()));
     Node { id, host, journal, events, _dir: dir }

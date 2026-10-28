@@ -22,12 +22,21 @@ use ed25519_dalek::SigningKey;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::helper::v1 as helper;
 use leases::{EdgeLeases, Holding};
-use request::{admitted, facts, request};
+use request::{admitted, facts, migrating_from, request};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio::time::Instant;
+
+/// What the node admits from the mesh by what it holds: each dependent's flow, and each node a
+/// migration it receives is sent from.
+type Admits = (Vec<helper::OverlayAdmitted>, Vec<String>);
+
+/// What `held` admits.
+fn admits(held: &HeldSet) -> Admits {
+    (admitted(held), migrating_from(held))
+}
 
 /// The UDP port the mesh listens on unless `--overlay-port` names another.
 pub const DEFAULT_PORT: u16 = 51820;
@@ -125,12 +134,12 @@ impl<H: Host> Overlay<H> {
     /// the helper kept it.
     async fn keep(
         &self,
-        admitted: Vec<helper::OverlayAdmitted>,
+        (admitted, migrating): Admits,
         (told, holding): (&agent::Edges, &Holding),
     ) -> bool {
         let named = self.named();
         let mut asked = request((self.port, &self.advertised), (&named, told, holding), admitted);
-        self.transfers(&named, &mut asked);
+        self.transfers((&named, &migrating), &mut asked);
         match self.host.keep_overlay(&asked).await {
             Ok(kept) => {
                 let reported = facts(self.port, &self.pools, kept);
@@ -165,7 +174,7 @@ impl<H: Host> Overlay<H> {
     async fn wake(
         &self,
         (events, held): (&mut broadcast::Receiver<Event>, &mut watch::Receiver<HeldSet>),
-        admitted: &[helper::OverlayAdmitted],
+        admitted: &Admits,
         (leases, outbound): (&mut EdgeLeases, &mpsc::Sender<agent::AgentMessage>),
     ) -> Option<()> {
         let deadline = Instant::now() + EVERY;
@@ -188,7 +197,7 @@ impl<H: Host> Overlay<H> {
                 }
                 changed = held.changed() => {
                     changed.ok()?;
-                    if self::admitted(&held.borrow()) != admitted {
+                    if admits(&held.borrow()) != *admitted {
                         return Some(());
                     }
                 }
@@ -225,7 +234,7 @@ impl<H: Host> Overlay<H> {
         let mut leases = EdgeLeases::default();
         let mut answering = Answering::new(self.signer.clone());
         loop {
-            let admitted = admitted(&held.borrow_and_update());
+            let admitted = admits(&held.borrow_and_update());
             let told = self.edges_told();
             self.told.send_if_modified(|was| replaced(was, &told));
             let holding = leases.holding(&told, Instant::now());
@@ -326,5 +335,23 @@ mod tests {
         let udp = listed.iter().find(|a| a.port == 53).unwrap();
         assert_eq!(udp.transport.as_known(), Some(helper::Transport::TRANSPORT_UDP));
         assert_eq!((udp.source.as_str(), udp.destination.as_str()), ("10.48.4.2", "10.48.0.2"));
+    }
+
+    #[test]
+    fn a_migration_received_admits_its_source_and_one_sent_admits_nothing() {
+        use agent::MigrationSide as S;
+        let role = |side: S, peer: &str| agent::Assignment {
+            migration: agent::MigrationRole {
+                role: side.into(),
+                peer: peer.into(),
+                ..Default::default()
+            }
+            .into(),
+            ..Default::default()
+        };
+        let mut held = HeldSet::default();
+        held.assignments.insert("wl_in".into(), role(S::MIGRATION_SIDE_DESTINATION, "node_a"));
+        held.assignments.insert("wl_out".into(), role(S::MIGRATION_SIDE_SOURCE, "node_b"));
+        assert_eq!(migrating_from(&held), ["node_a"]);
     }
 }

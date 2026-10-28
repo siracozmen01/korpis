@@ -8,6 +8,7 @@
 mod attached;
 mod devices;
 mod replica;
+mod tree;
 
 use super::HostError;
 use buffa::Message as _;

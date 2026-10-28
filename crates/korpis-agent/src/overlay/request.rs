@@ -42,6 +42,23 @@ pub(super) fn admitted(held: &HeldSet) -> Vec<helper::OverlayAdmitted> {
     out
 }
 
+/// The nodes each migration this node receives is sent from, by what `held` names: the peer of
+/// every role of destination (§8.1 of docs/05-scheduling.md), whose mesh address the transfer
+/// port admits while the role lasts.
+pub(super) fn migrating_from(held: &HeldSet) -> Vec<String> {
+    use agent::MigrationSide as S;
+    let mut out: Vec<String> = held
+        .assignments
+        .values()
+        .filter_map(|a| a.migration.as_option())
+        .filter(|r| r.role.as_known() == Some(S::MIGRATION_SIDE_DESTINATION))
+        .map(|r| r.peer.clone())
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
 /// The request that keeps the interface to `peers` on `port`, admitting `admitted` and what the
 /// edges' proxies may reach here, with the node's part in edge groups as `edges` tells it (§3.1
 /// of docs/07-networking.md), holding the addresses of `holding`, the node advertising `own`.
@@ -94,9 +111,14 @@ pub(super) fn facts(
 
 impl<H: Host> Overlay<H> {
     /// Admits to `asked`'s transfer port the mesh address of each node, among `named`, that what
-    /// the node was last told of replicas names as sending to it; and puts the node's own mesh
+    /// the node was last told of replicas names as sending to it, or that a migration it receives
+    /// is sent from (`migrating`); and puts the node's own mesh
     /// address on the interface even where no edge group names it, since it receives there.
-    pub(super) fn transfers(&self, named: &agent::Peers, asked: &mut helper::KeepOverlayRequest) {
+    pub(super) fn transfers(
+        &self,
+        (named, migrating): (&agent::Peers, &[String]),
+        asked: &mut helper::KeepOverlayRequest,
+    ) {
         if asked.mesh_address.is_empty() {
             let pools: Vec<ipnet::IpNet> =
                 self.pools.iter().filter_map(|p| p.parse().ok()).collect();
@@ -110,7 +132,9 @@ impl<H: Host> Overlay<H> {
         let mut sources: Vec<String> = told
             .keeping
             .iter()
-            .filter_map(|k| mesh_of(named, &k.from).map(|a| a.to_string()))
+            .map(|k| k.from.as_str())
+            .chain(migrating.iter().map(String::as_str))
+            .filter_map(|from| mesh_of(named, from).map(|a| a.to_string()))
             .collect();
         sources.sort();
         sources.dedup();

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A migration's tree passes between two classes on plain directories, standing for two nodes
-//! (§8.1 of docs/05-scheduling.md): rsync's daemon side receives into the destination's volume,
-//! confined to it, from the sending side over the two sockets as the agents would join them,
-//! keeping a symlink, a hardlink, an extended attribute, an ACL, a sparse file's holes, and an
-//! owner by number; a second pass sends what changed and deletes what the source no longer has,
-//! and says what it sent. It needs root and rsync, and is skipped without them.
+//! (§8.1 of docs/05-scheduling.md): rsync's daemon side sends the source's volume, read only and
+//! confined to it, to the client pulling into the destination's copy, over the two sockets as the
+//! agents would join them, keeping a symlink, a hardlink, an extended attribute, an ACL, a sparse
+//! file's holes, and an owner by number; a second pass sends what changed and deletes what the
+//! source no longer has, and the receiving side says what crossed. It needs root and rsync, and is
+//! skipped without them.
 
 #![allow(
     clippy::unwrap_used,
@@ -44,8 +45,8 @@ fn join(a: rustix::fd::OwnedFd, b: rustix::fd::OwnedFd) {
 
 /// One pass from `from` to `to`; what each side came to, sender first.
 fn pass(from: &Class, to: &Class) -> (TreeEnd, TreeEnd) {
-    let (send, mut sender) = from.send_tree(VOLUME, &relay()).unwrap();
-    let (receive, mut receiver) = to.receive_tree(VOLUME).unwrap();
+    let (send, mut sender) = from.send_tree(VOLUME).unwrap();
+    let (receive, mut receiver) = to.receive_tree(VOLUME, &relay()).unwrap();
     join(send, receive);
     let wait = |class: &Class, child: &mut std::process::Child, sending| {
         for _ in 0..600 {
@@ -124,9 +125,9 @@ fn a_tree_crosses_whole_then_by_its_differences_keeping_what_a_copy_loses() {
     }
 
     let (sent, received) = pass(&source, &destination);
-    assert_eq!(received, TreeEnd::Done(0));
-    let TreeEnd::Done(whole) = sent else { panic!("{sent:?}") };
-    assert!(whole > 0, "it says what it sent");
+    assert_eq!(sent, TreeEnd::Done(0));
+    let TreeEnd::Done(whole) = received else { panic!("{received:?}") };
+    assert!(whole > 0, "it says what crossed");
     let got = |name: &str| std::fs::symlink_metadata(to.join(name)).unwrap();
     assert_eq!(std::fs::read_link(to.join("latest")).unwrap(), Path::new("level.dat"));
     assert_eq!(got("level.dat").ino(), got("level.bak").ino(), "the hardlink");
@@ -138,8 +139,8 @@ fn a_tree_crosses_whole_then_by_its_differences_keeping_what_a_copy_loses() {
 
     std::fs::remove_file(from.join("level.bak")).unwrap();
     std::fs::write(from.join("new"), "since").unwrap();
-    let (sent, _) = pass(&source, &destination);
-    let TreeEnd::Done(changed) = sent else { panic!("{sent:?}") };
+    let (_, received) = pass(&source, &destination);
+    let TreeEnd::Done(changed) = received else { panic!("{received:?}") };
     assert!(changed < whole, "only what differs: {changed} of {whole}");
     assert!(!to.join("level.bak").exists(), "deleted where the source deleted it");
     assert_eq!(std::fs::read_to_string(to.join("new")).unwrap(), "since");

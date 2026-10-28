@@ -11,10 +11,12 @@ mod memory;
 pub mod node;
 pub mod privileged;
 mod replica;
+mod tree;
 
 pub use devices::Devicing;
 pub use memory::InMemoryHost;
 pub use replica::Replicating;
+pub use tree::Trees;
 
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;

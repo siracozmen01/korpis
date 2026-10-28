@@ -7231,3 +7231,15 @@ done that a large pass never sends. Resolved in §8.1 of `05-scheduling.md`: the
 names every pass and judges it once both reports of it are in, from the bytes A reported, and
 neither node reports a copying phase done. What it costs: nothing, and the judgement moved to
 the one component that holds both reports.
+
+**Finding 217.** Found 2026-10-28 by an automated security review of the commit that built the
+tree's passes (P3.9c2). Step 3 asks what A sends: `mc`'s world, pass after pass while `mc` runs.
+The sender was rsync's client, run by A's helper as root over the world's path, unconfined. `mc`
+owns that tree and runs on through `replicate`, so between two of rsync's reads it could replace
+a directory with a link to `/`, and root would have read, and sent to B, whatever host file the
+link named, which the tenant could then read in its copy. Resolved in §8.1 of
+`05-scheduling.md`: A's helper runs rsync's daemon side, read only and confined by its own
+`chroot` to the volume, where any link resolves inside the volume; B's runs the client, pulling
+into its copy, which nothing runs on until `cutover`. What it costs: B's client runs unconfined
+and trusts A's stream as far as rsync's receiver does, which §8.1 states as what it does not
+stop.

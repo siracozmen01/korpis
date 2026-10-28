@@ -14,6 +14,7 @@ mod files;
 mod finish;
 mod knobs;
 mod replica;
+mod tree;
 
 #[derive(Debug, Default)]
 struct Kept {
@@ -56,6 +57,8 @@ struct Kept {
     receives: BTreeMap<(String, String, String), helper::ReceiveState>,
     /// Each stream sent, as it was written.
     sent: Vec<helper::SendReplicaRequest>,
+    /// How each tree pass came to, by volume, pass, and whether it was sent; what it carried.
+    trees: BTreeMap<(String, String, bool), (helper::TreeState, Vec<u8>)>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.

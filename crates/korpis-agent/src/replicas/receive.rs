@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Receiving (§2.2 of docs/06-storage.md). The node listens on its own mesh address, which its
-//! table admits from the mesh only for the nodes it was told send it replicas. A stream is
+//! table admits from the mesh only for the nodes it was told send it replicas or a migration's
+//! passes; a stream's ticket is read first, at most a short one in a few seconds, and one of a
+//! migration's pass is handed to the node's part in migrations (`migrate`). A stream is
 //! admitted only under a ticket the token keys open, naming this node, a replica it was told it
 //! receives, the snapshot it was told comes, and the node it was told sends it, from that node's
 //! mesh address, which WireGuard admits from that node's key alone. **What evaluates "this
@@ -63,41 +65,8 @@ pub(super) async fn listen<H: Replicating + Clone>(r: Arc<Replication<H>>, mesh:
     }
 }
 
-/// Admits and receives one stream, or refuses it.
-async fn handle<H: Replicating>(r: Arc<Replication<H>>, mut stream: TcpStream, peer: SocketAddr) {
-    match admit(&r, &mut stream, peer.ip()).await {
-        Ok((kept, snapshot)) => {
-            let event = receive(&r, stream, &kept, &snapshot).await;
-            let body = Body::Replica(Box::new(event));
-            if let Err(e) = r.journal.append(body).await {
-                tracing::error!(error = %e, "a receive could not be journaled");
-            }
-        }
-        Err(why) => tracing::warn!(%peer, %why, "a transfer refused"),
-    }
-}
-
-/// Whether `peer` is the mesh address of a node `r` was told sends it a replica: asked before a
-/// ticket is read, so nothing else is read at all.
-fn a_sender<H>(r: &Replication<H>, peer: IpAddr) -> bool {
-    let shared = r.shared();
-    let Some(told) = shared.told.as_ref() else { return false };
-    told.keeping
-        .iter()
-        .filter(|k| !k.receiving.is_empty())
-        .any(|k| mesh_of(&shared.peers, &k.from).map(IpAddr::V4) == Some(peer))
-}
-
-/// The replica a stream from `peer` is admitted into and the snapshot it carries, once its
-/// ticket is read and checked.
-async fn admit<H: Replicating>(
-    r: &Replication<H>,
-    stream: &mut TcpStream,
-    peer: IpAddr,
-) -> Result<(agent::ReplicaKept, String), String> {
-    if !a_sender(r, peer) {
-        return Err("not from the mesh address of a node sending this one a replica".into());
-    }
+/// Reads the ticket a stream starts with: its length, then the ticket, in [`HEADER`].
+async fn ticket_of(stream: &mut TcpStream) -> Result<String, String> {
     let read = async {
         let len = stream.read_u16().await?;
         if len > MAX_TICKET {
@@ -111,9 +80,55 @@ async fn admit<H: Replicating>(
         .await
         .map_err(|_| "no ticket in time".to_owned())?
         .map_err(|e| e.to_string())?;
-    let ticket = String::from_utf8(ticket).map_err(|_| "a ticket that is not text")?;
+    String::from_utf8(ticket).map_err(|_| "a ticket that is not text".into())
+}
+
+/// Admits and receives one stream, or refuses it; a migration pass's is handed on.
+async fn handle<H: Replicating>(r: Arc<Replication<H>>, mut stream: TcpStream, peer: SocketAddr) {
+    let ticket = match ticket_of(&mut stream).await {
+        Ok(t) => t,
+        Err(why) => return tracing::warn!(%peer, %why, "a transfer refused"),
+    };
+    if ticket.starts_with(korpis_core::authz::migration_pass::PREFIX) {
+        match &r.migrations {
+            Some(to) if to.send((stream, ticket, peer.ip())).await.is_ok() => {}
+            _ => tracing::warn!(%peer, "a migration's transfer, and nothing receives them"),
+        }
+        return;
+    }
+    match admit(&r, &ticket, peer.ip()) {
+        Ok((kept, snapshot)) => {
+            let event = receive(&r, stream, &kept, &snapshot).await;
+            let body = Body::Replica(Box::new(event));
+            if let Err(e) = r.journal.append(body).await {
+                tracing::error!(error = %e, "a receive could not be journaled");
+            }
+        }
+        Err(why) => tracing::warn!(%peer, %why, "a transfer refused"),
+    }
+}
+
+/// Whether `peer` is the mesh address of a node `r` was told sends it a replica.
+fn a_sender<H>(r: &Replication<H>, peer: IpAddr) -> bool {
+    let shared = r.shared();
+    let Some(told) = shared.told.as_ref() else { return false };
+    told.keeping
+        .iter()
+        .filter(|k| !k.receiving.is_empty())
+        .any(|k| mesh_of(&shared.peers, &k.from).map(IpAddr::V4) == Some(peer))
+}
+
+/// The replica a stream from `peer` with `ticket` is admitted into and the snapshot it carries.
+fn admit<H>(
+    r: &Replication<H>,
+    ticket: &str,
+    peer: IpAddr,
+) -> Result<(agent::ReplicaKept, String), String> {
+    if !a_sender(r, peer) {
+        return Err("not from the mesh address of a node sending this one a replica".into());
+    }
     let keys = r.keys.borrow().clone();
-    let t = open(&keys, &ticket, SystemTime::now()).map_err(|e| format!("the ticket: {e}"))?;
+    let t = open(&keys, ticket, SystemTime::now()).map_err(|e| format!("the ticket: {e}"))?;
     if t.to != r.node {
         return Err("a ticket naming another node".into());
     }
@@ -155,7 +170,7 @@ async fn receive<H: Replicating>(
             let copied = tokio::io::copy(&mut stream, &mut pipe).await;
             drop(pipe);
             match copied {
-                Ok(_) => settled(r, &request).await,
+                Ok(_) => settled(&r.host, &request).await,
                 Err(e) => Err(format!("the stream: {e}")),
             }
         }
@@ -174,9 +189,10 @@ async fn receive<H: Replicating>(
     }
 }
 
-/// Waits for the receive `request` started to end, its stream having ended; why it failed.
-async fn settled<H: Replicating>(
-    r: &Replication<H>,
+/// Waits for the receive `request` started on `host` to end, its stream having ended; why it
+/// failed.
+pub(crate) async fn settled<H: Replicating>(
+    host: &H,
     request: &helper::ReceiveReplicaRequest,
 ) -> Result<(), String> {
     use helper::ReceiveState as S;
@@ -188,7 +204,7 @@ async fn settled<H: Replicating>(
     };
     let deadline = tokio::time::Instant::now() + SETTLE;
     while tokio::time::Instant::now() < deadline {
-        let status = r.host.receive_status(&asked).await.map_err(|e| e.to_string())?;
+        let status = host.receive_status(&asked).await.map_err(|e| e.to_string())?;
         match status.state.as_known() {
             Some(S::RECEIVE_STATE_HELD) => return Ok(()),
             Some(S::RECEIVE_STATE_FAILED) => return Err(status.detail),

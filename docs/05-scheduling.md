@@ -1741,21 +1741,24 @@ manifest computed again is the same.
   the one before it, so a migrated volume keeps them. At `final_sync` the pass is a snapshot taken
   stopped; at `cutover` the destination's last received snapshot becomes the volume, as a replica
   is promoted.
-- *Any other local class:* the tree, by rsync: the source's helper runs the sender over the volume,
-  and the destination's runs rsync's daemon side over the same connection, confined by its own
-  `chroot` to the destination's copy of the volume, made at `prepare` under the destination's own
-  identifier, keeping owners by number, hardlinks, ACLs, extended attributes, and holes, and
-  deleting what the source no longer has. Each pass sends what differs, so `replicate` converges
-  as increments do, though a pass taken from a running workload is inconsistent, which the
-  `final_sync` pass, taken stopped, repairs. At `cutover` the copy is the volume already, and
-  nothing is exchanged. (Corrected 2026-10-28, P3.9c2: designed with a staging directory exchanged
-  for the volume at `cutover`, an exchange that guards a live volume, of which the destination has
-  none; nothing runs on its copy until `cutover`, and receiving into it counts the bytes where they
-  will stay.) Decided over GNU tar, which would send the whole tree
-  every pass and so leave the workload stopped for a whole copy, and over a format of Korpis's
-  own, which would be the one place the rules for hardlinks, ACLs, and holes were read differently
-  from every tool that restores them; as for btrfs-progs, a node offering such a class needs rsync
-  (§2 of `18-operations.md`).
+- *Any other local class:* the tree, by rsync: the source's helper runs rsync's daemon side over
+  the volume, read only and confined by its own `chroot` to it, and the destination's runs the
+  client over the same connection, pulling into the destination's copy of the volume, made at
+  `prepare` under the destination's own identifier, keeping owners by number, hardlinks, ACLs,
+  extended attributes, and holes, and deleting what the source no longer has. (Corrected
+  2026-10-28: designed and first built with the source's client sending and the destination's
+  daemon confined, which left root reading, unconfined, a tree the running workload can change
+  between two of rsync's reads; Finding 217 of `23-walkthroughs.md`.) Each pass sends what differs,
+  so `replicate` converges as increments do, though a pass taken from a running workload is
+  inconsistent, which the `final_sync` pass, taken stopped, repairs. At `cutover` the copy is the
+  volume already, and nothing is exchanged. (Corrected 2026-10-28, P3.9c2: designed with a staging
+  directory exchanged for the volume at `cutover`, an exchange that guards a live volume, of which
+  the destination has none; nothing runs on its copy until `cutover`, and receiving into it counts
+  the bytes where they will stay.) Decided over GNU tar, which would send the whole tree every pass
+  and so leave the workload stopped for a whole copy, and over a format of Korpis's own, which
+  would be the one place the rules for hardlinks, ACLs, and holes were read differently from every
+  tool that restores them; as for btrfs-progs, a node offering such a class needs rsync (§2 of
+  `18-operations.md`).
 - *A shared or block class:* nothing. The destination reaches the same storage (§2.1 of
   `06-storage.md`): a shared class's volume is the store's, and a block class's device is attached
   to the destination for the new epoch at `cutover` by the reconciler that attaches it at a
@@ -1928,20 +1931,43 @@ expiry, and its refusal as the other kind; the passes' judgement, the next pass'
 pass started again; and over the API, a large pass followed by a small one, the passes counted,
 and every pass named by the control plane and carried with its ticket.
 
-**Built 2026-10-28, a tree's passes** (P3.9c2). The helper declares `tree_sync` for each local
-class where `/usr/bin/rsync` is present. `SendTree` starts rsync's sending side over a volume with
-`-aHAXS --numeric-ids --delete --stats`, its remote shell the helper's own `splice` subcommand,
-which joins the shell's standard streams to one end of a socket pair and ends when the far side
-has, since rsync waits for its remote shell before it closes the shell's input; the other end is
-the agent's to join to the transfer connection. `ReceiveTree` starts rsync's daemon side over the
-other node's end, as a remote shell would, under a configuration of the helper's own naming one
-module, the destination's copy, with `use chroot`, `numeric ids`, and no listing. `TreeStatus`
-reads how either ended, the sender's with the bytes its statistics name. The helper starts no
-thread, so clearing the close-on-exec flag of the one descriptor the sending rsync inherits and
-closing it once the child holds it lets nothing else inherit it; the `splice` process adopts that
-descriptor by number, the crate's seventh unsafe module. Tested as root between two classes: a
+**Built 2026-10-28, a tree's passes** (P3.9c2, corrected for Finding 217 with P3.9c4a). The helper
+declares `tree_sync` for each local class where `/usr/bin/rsync` is present. `SendTree` starts
+rsync's daemon side over the source's end of a socket pair, as a remote shell would, under a
+configuration of the helper's own naming one module, the volume, read only, with `use chroot`,
+`numeric ids`, and no listing. `ReceiveTree` starts rsync's client with `-aHAXS --numeric-ids
+--delete --stats`, pulling into the destination's copy, its remote shell the helper's own `splice`
+subcommand, which makes its descriptors blocking (rsync leaves them not), joins the shell's
+standard streams to one end of a socket pair, and ends when the socket does, never when its input
+does, which rsync closes before the protocol ends; each other end is the agent's to join to the
+transfer connection. `TreeStatus` reads how either ended, the client's with the bytes its
+statistics say crossed, which the destination reports. The helper starts no thread, so clearing the
+close-on-exec flag of the one descriptor the client inherits and closing it once the child holds it
+lets nothing else inherit it; the `splice` process adopts that descriptor by number, the crate's
+seventh unsafe module. **What it does not stop:** the destination's client runs as root,
+unconfined, and trusts the stream as far as rsync's receiver does; a source node under an
+attacker's control could reach the destination through a flaw of that receiver, of which rsync has
+had several (CVE-2024-12087, CVE-2024-12088; `research/evidence.md`), so a node's rsync is kept
+current as its other packages are (§2 of `18-operations.md`). Tested as root between two classes: a
 symlink, a hardlink, an extended attribute, an access ACL, a sparse file's holes, and an owner by
 number kept; a second pass sending only what changed and deleting what the source deleted.
+
+**Built 2026-10-28, the nodes' transfers** (P3.9c4a). The transfer port a node receives replicas
+on reads each stream's ticket first, at most a short one in a few seconds, and hands one of a
+migration pass to the node's part in migrations, so one port and one table serve both; the table
+admits, besides each node sending the node a replica, the peer of every migration whose
+destination it is. The source sends each pass its role names once, from its mesh address, the
+ticket first: by the replica verbs, the pass its snapshot and its parent the pass before, for a
+volume crossing by increments, or by the tree verbs joined to the connection otherwise; it
+journals what the pass sent, and sends again every ten seconds one that failed while it is the
+pass under way. The destination admits a pass only under a ticket the token keys open, naming
+it, a migration whose destination its role says it is, the peer its role names as sending, and
+a volume and pass its role names, from that peer's mesh address; it receives a tree into its
+copy of the volume, under the identifier the workload's volume has on it, and a snapshot into
+its replica directory, and journals that it holds the pass under that identifier. A failed
+receive is not reported, since the source sends it again. Tested with two nodes on the loopback,
+each its own mesh address: a pass sent under its ticket, received into the copy, and reported by
+both sides; one under a ticket the token keys do not open refused, and nothing of it held.
 
 ---
 

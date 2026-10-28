@@ -8,11 +8,12 @@
 
 use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
-use crate::host::{Host, Replicating};
+use crate::host::{Host, Replicating, Trees};
 use crate::identity::{ControlPlane, IdentitySockets};
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
 use crate::meter::Metering;
+use crate::migrate::Migrating;
 use crate::network::Pools;
 use crate::offload::Offloader;
 use crate::overlay::{Overlay, with_overlay};
@@ -212,16 +213,24 @@ fn replicating(
     Some((node, mesh))
 }
 
-/// Runs the node's part in replication, where it is in the mesh, through `host`.
-fn replication<H: Replicating + Clone>(
+/// Runs the node's part in replication and in migrations' copies, where it is in the mesh,
+/// through `host`: the transfer port the first listens on hands the second each migration pass.
+fn replication<H: Replicating + Trees + Clone>(
     (state, identity, options): (&StateDir, &crate::state::Identity, &Options),
     host: &H,
     (link, journal): (&Link, &JournalHandle),
-) -> Option<JoinHandle<()>> {
-    let (node, mesh) = replicating(identity, options)?;
+) -> Vec<JoinHandle<()>> {
+    let Some((node, mesh)) = replicating(identity, options) else { return Vec::new() };
     let at = (state.root(), node, Some(mesh));
-    let r = Replication::new(host.clone(), at, link.token_ring.clone(), journal.clone());
-    Some(tokio::spawn(r.run(link.events.subscribe())))
+    let (passes, incoming) = tokio::sync::mpsc::channel(16);
+    let told = (journal.clone(), Some(passes));
+    let r = Replication::new(host.clone(), at, link.token_ring.clone(), told);
+    let watched = (link.token_ring.clone(), link.held.clone());
+    let m = Migrating::new(host.clone(), at, watched, journal.clone());
+    vec![
+        tokio::spawn(r.run(link.events.subscribe())),
+        tokio::spawn(m.run(link.events.subscribe(), incoming)),
+    ]
 }
 
 /// The running agent.
@@ -251,7 +260,7 @@ fn meter<R: Runtime + Clone, H: Host + Clone>(
 impl Agent {
     /// Starts the agent of the node that joined into `state`, driving `runtime` and `host`;
     /// called inside a Tokio runtime, whose tasks it spawns.
-    pub fn start<R: Runtime + Clone, H: Host + Replicating + Clone>(
+    pub fn start<R: Runtime + Clone, H: Host + Replicating + Trees + Clone>(
         state: &StateDir,
         runtime: R,
         host: H,

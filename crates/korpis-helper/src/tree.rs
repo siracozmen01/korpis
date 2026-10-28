@@ -6,15 +6,20 @@
 //! and deleting what the source no longer has.
 //!
 //! Each side speaks on one end of a socket pair whose other end the agent joins to the transfer
-//! connection, so neither rsync opens a connection of its own. The receiving side is rsync's
+//! connection, so neither rsync opens a connection of its own. The sending side is rsync's
 //! daemon, run over its standard input and output as a remote shell would run it, with a
-//! configuration of the helper's own that names one module, the volume, and confines the daemon
-//! to it by its own `chroot`: the stream comes from another node, so what it may name is that
-//! volume and nothing else. The sending side is rsync's client, whose remote shell is the
-//! helper's own `splice` subcommand, joining the remote shell's standard input and output to the
-//! socket: the one descriptor the helper hands a child without its close-on-exec flag, which it
-//! closes itself as soon as the child holds it. The helper starts no thread, so no other child
-//! is spawned while the flag is clear.
+//! configuration of the helper's own that names one module, the volume, read only, and confines
+//! the daemon to it by its own `chroot`: the volume belongs to a workload that runs on during
+//! `replicate`, and can swap a directory for a link to anywhere between two of rsync's reads, so
+//! what root reads there must resolve inside the volume and nowhere else (Finding 217 of
+//! docs/23-walkthroughs.md). The receiving side is rsync's client, pulling into the
+//! destination's copy, which nothing runs on until `cutover`; its remote shell is the helper's
+//! own `splice` subcommand, joining the remote shell's standard input and output to the socket:
+//! the one descriptor the helper hands a child without its close-on-exec flag, which it closes
+//! itself as soon as the child holds it. The helper starts no thread, so no other child is
+//! spawned while the flag is clear. The client trusts the stream as far as rsync's receiver
+//! does: a node that sends one is a node of the same organization, and what it could do through
+//! a flaw of rsync's receiver is stated in §8.1 of docs/05-scheduling.md.
 
 use crate::error::{HelperError, HelperResult, identifier};
 use crate::storage::Class;
@@ -46,7 +51,7 @@ pub fn syncs_trees() -> bool {
 pub enum TreeEnd {
     /// Still running.
     Running,
-    /// Done; on the sending side, the bytes it sent.
+    /// Done; on the receiving side, the bytes that crossed.
     Done(u64),
     /// It ended short; why.
     Failed(String),
@@ -58,58 +63,33 @@ fn pair() -> HelperResult<(OwnedFd, OwnedFd)> {
     Ok(made.map_err(std::io::Error::from)?)
 }
 
-/// The receiving daemon's configuration for a volume at `path`.
+/// The sending daemon's configuration for a volume at `path`: one module, read only, confined.
 fn daemon_config(path: &Path) -> String {
     format!(
         "use chroot = yes\nnumeric ids = yes\nuid = 0\ngid = 0\nlist = no\n\n[{MODULE}]\n\
-         path = {}\nread only = no\nmunge symlinks = no\n",
+         path = {}\nread only = yes\nmunge symlinks = no\n",
         path.display()
     )
 }
 
-/// The bytes the sending side's `--stats` said it sent, from its output.
-fn sent_of(stats: &str) -> Option<u64> {
-    let line = stats.lines().find_map(|l| l.trim().strip_prefix("Total bytes sent:"))?;
+/// The bytes the receiving side's `--stats` said crossed, from its output.
+fn crossed_of(stats: &str) -> Option<u64> {
+    let line = stats.lines().find_map(|l| l.trim().strip_prefix("Total bytes received:"))?;
     line.trim().replace(',', "").parse().ok()
 }
 
 impl Class {
-    /// The path of the daemon configuration for receiving into `volume`.
+    /// The path of the daemon configuration for sending `volume`.
     fn tree_config(&self, volume: &str) -> PathBuf {
         self.root().join(MIGRATING).join(format!("{volume}.conf"))
     }
 
-    /// Starts sending a pass of `volume`'s tree, with `relay` the helper's own binary, which
-    /// joins rsync's remote shell to the socket: the socket's end the agent is given, and the
-    /// sender.
-    pub fn send_tree(&self, volume: &str, relay: &Path) -> HelperResult<(OwnedFd, Child)> {
+    /// Starts sending a pass of `volume`'s tree: the socket's end the agent is given, and the
+    /// sender, confined to the volume.
+    pub fn send_tree(&self, volume: &str) -> HelperResult<(OwnedFd, Child)> {
         identifier("volume", volume)?;
         let source = self.path_of(volume);
         if !source.is_dir() {
-            return Err(HelperError::NotFound(format!("volume {volume}")));
-        }
-        let (ours, theirs) = pair()?;
-        rustix::io::fcntl_setfd(theirs.as_fd(), FdFlags::empty()).map_err(std::io::Error::from)?;
-        let shell = format!("{} splice {}", relay.display(), theirs.as_raw_fd());
-        let spawned = Command::new(RSYNC)
-            .args(["-aHAXS", "--numeric-ids", "--delete", "--stats", "-e"])
-            .arg(shell)
-            .arg(format!("{}/", source.display()))
-            .arg(format!("korpis::{MODULE}/"))
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .spawn();
-        // The child holds it now, or never will: either way the helper's copy goes.
-        drop(theirs);
-        Ok((ours, spawned?))
-    }
-
-    /// Starts receiving a pass into `volume`, which exists: the socket's end the agent is given,
-    /// and the receiver.
-    pub fn receive_tree(&self, volume: &str) -> HelperResult<(OwnedFd, Child)> {
-        identifier("volume", volume)?;
-        let into = self.path_of(volume);
-        if !into.is_dir() {
             return Err(HelperError::NotFound(format!("volume {volume}")));
         }
         let config = self.tree_config(volume);
@@ -117,7 +97,7 @@ impl Class {
             use std::os::unix::fs::DirBuilderExt as _;
             std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
         }
-        std::fs::write(&config, daemon_config(&into))?;
+        std::fs::write(&config, daemon_config(&source))?;
         let (ours, theirs) = pair()?;
         let child = Command::new(RSYNC)
             .args(["--server", "--daemon"])
@@ -129,8 +109,33 @@ impl Class {
         Ok((ours, child))
     }
 
-    /// What `child`, a pass of `volume`'s tree, came to; `sending` for the sending side, whose
-    /// statistics name what it sent.
+    /// Starts receiving a pass into `volume`, which exists, with `relay` the helper's own binary,
+    /// which joins rsync's remote shell to the socket: the socket's end the agent is given, and
+    /// the receiver.
+    pub fn receive_tree(&self, volume: &str, relay: &Path) -> HelperResult<(OwnedFd, Child)> {
+        identifier("volume", volume)?;
+        let into = self.path_of(volume);
+        if !into.is_dir() {
+            return Err(HelperError::NotFound(format!("volume {volume}")));
+        }
+        let (ours, theirs) = pair()?;
+        rustix::io::fcntl_setfd(theirs.as_fd(), FdFlags::empty()).map_err(std::io::Error::from)?;
+        let shell = format!("{} splice {}", relay.display(), theirs.as_raw_fd());
+        let spawned = Command::new(RSYNC)
+            .args(["-aHAXS", "--numeric-ids", "--delete", "--stats", "-e"])
+            .arg(shell)
+            .arg(format!("korpis::{MODULE}/"))
+            .arg(format!("{}/", into.display()))
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .spawn();
+        // The child holds it now, or never will: either way the helper's copy goes.
+        drop(theirs);
+        Ok((ours, spawned?))
+    }
+
+    /// What `child`, a pass of `volume`'s tree, came to; `sending` for the sending side; the
+    /// receiving side's statistics name what crossed.
     pub fn tree_ended(
         &self,
         volume: &str,
@@ -138,7 +143,7 @@ impl Class {
         sending: bool,
     ) -> HelperResult<TreeEnd> {
         let Some(status) = child.try_wait()? else { return Ok(TreeEnd::Running) };
-        if !sending {
+        if sending {
             let _ = std::fs::remove_file(self.tree_config(volume));
         }
         if !status.success() {
@@ -150,16 +155,15 @@ impl Class {
         if let Some(out) = child.stdout.as_mut() {
             out.read_to_string(&mut said)?;
         }
-        let sent = if sending { sent_of(&said).unwrap_or(0) } else { 0 };
-        tracing::info!(%volume, sending, sent, "tree pass done");
-        Ok(TreeEnd::Done(sent))
+        let crossed = if sending { 0 } else { crossed_of(&said).unwrap_or(0) };
+        tracing::info!(%volume, sending, crossed, "tree pass done");
+        Ok(TreeEnd::Done(crossed))
     }
 }
 
 /// The `splice` subcommand: joins standard input and output to the socket `fd`, as rsync's
-/// remote shell, until the far side has said all it will. rsync waits for its remote shell to
-/// exit before it closes the shell's input, so the shell ends when the socket does rather than
-/// when its input does.
+/// remote shell, until the far side has said all it will: the shell ends when the socket does,
+/// never when its input does.
 ///
 /// # Errors
 ///
@@ -169,14 +173,20 @@ pub fn splice(fd: &str) -> std::io::Result<()> {
     let socket = crate::inherited::socket(raw)?;
     // Rust's standard output buffers by line; the protocol's bytes must not wait for a newline,
     // so both standard streams are used as the descriptors they are.
-    let mut input = std::fs::File::from(std::io::stdin().as_fd().try_clone_to_owned()?);
-    let mut output = std::fs::File::from(std::io::stdout().as_fd().try_clone_to_owned()?);
+    let input = std::io::stdin().as_fd().try_clone_to_owned()?;
+    let output = std::io::stdout().as_fd().try_clone_to_owned()?;
+    // rsync leaves its remote shell's pipes non-blocking; this process copies by blocking.
+    for fd in [&input, &output, &socket] {
+        let flags = rustix::fs::fcntl_getfl(fd).map_err(std::io::Error::from)?;
+        rustix::fs::fcntl_setfl(fd, flags - rustix::fs::OFlags::NONBLOCK)
+            .map_err(std::io::Error::from)?;
+    }
+    let (mut input, mut output) = (std::fs::File::from(input), std::fs::File::from(output));
     let mut reading = std::fs::File::from(socket.try_clone()?);
     let mut writing = std::fs::File::from(socket);
-    std::thread::spawn(move || {
-        let _ = std::io::copy(&mut input, &mut writing);
-        let _ = rustix::net::shutdown(&writing, rustix::net::Shutdown::Write);
-    });
+    // rsync may close the shell's input before its far side is done with it, so that end is
+    // not passed on: the far side ends the connection when the protocol does.
+    std::thread::spawn(move || std::io::copy(&mut input, &mut writing));
     std::io::copy(&mut reading, &mut output)?;
     Ok(())
 }

@@ -101,9 +101,10 @@ service HelperService {
   // for: what the agent lets go of once nothing holds it.
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
   // A migration's tree passes (§8.1 of docs/05-scheduling.md), for a class sending no increments:
-  // SendTree starts rsync's sending side over a volume and ReceiveTree its daemon side, confined
-  // by its own chroot to the volume it receives into, each answering one end of a socket the
-  // agent joins to the transfer connection; TreeStatus reads how one ended. Added 2026-10-28.
+  // SendTree starts rsync's daemon side over a volume, read only and confined by its own chroot
+  // to it, and ReceiveTree its client side, pulling into the destination's copy, each answering
+  // one end of a socket the agent joins to the transfer connection; TreeStatus reads how one
+  // ended. Added 2026-10-28.
   rpc SendTree(SendTreeRequest) returns (SendTreeResponse);
   rpc ReceiveTree(ReceiveTreeRequest) returns (ReceiveTreeResponse);
   rpc TreeStatus(TreeStatusRequest) returns (TreeStatusResponse);
@@ -1138,7 +1139,7 @@ message TreeStatusRequest {
 
 message TreeStatusResponse {
   TreeState state = 1;
-  // On the sending side, once done: the bytes it sent.
+  // On the receiving side, once done: the bytes that crossed.
   uint64 sent_bytes = 2;
   // Why it failed, as rsync said.
   string detail = 3;

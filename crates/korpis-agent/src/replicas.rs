@@ -14,6 +14,8 @@ mod receive;
 mod release;
 mod send;
 
+pub(crate) use receive::settled as receive_settled;
+
 use crate::host::Replicating;
 use crate::journal::JournalHandle;
 use crate::session::Event;
@@ -24,7 +26,7 @@ use std::net::Ipv4Addr;
 use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
-use tokio::sync::{broadcast, watch};
+use tokio::sync::{broadcast, mpsc, watch};
 use tokio::time::Instant;
 use uuid::Uuid;
 
@@ -77,6 +79,8 @@ pub struct Replication<H> {
     /// The token keys in force, which open tickets.
     keys: watch::Receiver<Arc<KeyRing>>,
     journal: JournalHandle,
+    /// Where a migration pass's stream is handed, where the node takes part in migrations.
+    migrations: Option<mpsc::Sender<crate::migrate::Incoming>>,
     shared: Mutex<Shared>,
 }
 
@@ -101,20 +105,22 @@ impl<H> Replication<H> {
 
 impl<H: Replicating + Clone> Replication<H> {
     /// The part of the node `node`, whose state is at `state`, with its mesh address `mesh`;
-    /// opening tickets with `keys` and journaling into `journal`.
+    /// opening tickets with `keys`, journaling into `journal`, and handing each migration pass's
+    /// stream to `migrations`.
     #[must_use]
     pub fn new(
         host: H,
         (state, node, mesh): (&Path, Uuid, Option<Ipv4Addr>),
         keys: watch::Receiver<Arc<KeyRing>>,
-        journal: JournalHandle,
+        (journal, migrations): (JournalHandle, Option<mpsc::Sender<crate::migrate::Incoming>>),
     ) -> Arc<Self> {
         let shared = Shared {
             told: kept(&state.join(TOLD)),
             peers: kept(&state.join(PEERS)).unwrap_or_default(),
             sends: BTreeMap::new(),
         };
-        Arc::new(Self { host, node, mesh, keys, journal, shared: Mutex::new(shared) })
+        let shared = Mutex::new(shared);
+        Arc::new(Self { host, node, mesh, keys, journal, migrations, shared })
     }
 
     /// Sends what is due, and releases what is no longer needed, every [`RETRY`] and whenever
@@ -143,6 +149,11 @@ impl<H: Replicating + Clone> Replication<H> {
             release::release(&self).await;
         }
     }
+}
+
+/// The mesh's members as last kept in `state`; none where nothing is.
+pub(crate) fn kept_peers(state: &Path) -> agent::Peers {
+    kept(&state.join(PEERS)).unwrap_or_default()
 }
 
 /// Keeps `r` at `state`, as what the node was last told of replicas.

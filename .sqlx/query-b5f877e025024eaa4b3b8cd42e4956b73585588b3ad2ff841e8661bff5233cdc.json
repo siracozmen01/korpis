@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE migration_volume m\n                    SET held_pass = CASE WHEN $3 AND $4::uuid = m.pass THEN $4 ELSE m.held_pass END,\n                        sent_bytes = CASE WHEN $4::uuid = m.pass THEN coalesce($8, m.sent_bytes)\n                                          ELSE m.sent_bytes END,\n                        destination_helper_id = coalesce($5, m.destination_helper_id),\n                        destination_manifest = coalesce($6, m.destination_manifest),\n                        destination_chunks = coalesce($7, m.destination_chunks)\n                   FROM volume v\n                  WHERE m.migration_id = $1 AND v.id = m.volume_id AND v.name = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bool",
+        "Uuid",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b5f877e025024eaa4b3b8cd42e4956b73585588b3ad2ff841e8661bff5233cdc"
+}
