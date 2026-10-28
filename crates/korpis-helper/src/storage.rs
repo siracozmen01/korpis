@@ -114,6 +114,10 @@ fn root_of(root: &Path, make: bool) -> std::io::Result<File> {
 fn capabilities(backend: Backend) -> pb::StorageCapabilities {
     let mut c =
         pb::StorageCapabilities { fencing: pb::Fencing::FENCING_NONE.into(), ..Default::default() };
+    // A local class's tree crosses to another node by rsync, where this node has it (§8.1 of
+    // 05-scheduling); a shared or block class's volume is reached where it is.
+    c.tree_sync =
+        !matches!(backend, Backend::Shared | Backend::Block) && crate::tree::syncs_trees();
     match backend {
         Backend::Directory => {}
         // Many nodes mount it, any of them may attach a volume after another, and nothing but

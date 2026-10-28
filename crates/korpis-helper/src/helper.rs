@@ -24,6 +24,7 @@ mod placing;
 mod replicas;
 mod sessions;
 mod snapshots;
+mod trees;
 
 /// The helper's state: its classes, the first of them the default, and its ledger.
 #[derive(Debug)]
@@ -42,6 +43,8 @@ pub struct Helper {
     attached: Vec<rustix::fd::OwnedFd>,
     /// Each replica being received, by its volume and snapshot.
     receiving: std::collections::BTreeMap<(String, String), std::process::Child>,
+    /// Each tree pass sent or received, by its volume, its pass, and whether it is sent.
+    trees: std::collections::BTreeMap<(String, String, bool), std::process::Child>,
 }
 
 fn unsupported() -> helper::HelperError {
@@ -68,6 +71,7 @@ impl Helper {
             peer: (u32::MAX, u32::MAX),
             attached: Vec::new(),
             receiving: std::collections::BTreeMap::new(),
+            trees: std::collections::BTreeMap::new(),
         }
     }
 
@@ -348,6 +352,9 @@ impl Helper {
             | Verb::PromoteReplica(_)
             | Verb::ReplicaVolumes(_)
             | Verb::OpenTransfer(_)) => self.replica_verb(v)?,
+            v @ (Verb::SendTree(_) | Verb::ReceiveTree(_) | Verb::TreeStatus(_)) => {
+                self.tree_verb(v)?
+            }
         })
     }
 

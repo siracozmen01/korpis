@@ -100,6 +100,13 @@ service HelperService {
   // Every device a block class has attached on this node, with the workload it was attached
   // for: what the agent lets go of once nothing holds it.
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  // A migration's tree passes (§8.1 of docs/05-scheduling.md), for a class sending no increments:
+  // SendTree starts rsync's sending side over a volume and ReceiveTree its daemon side, confined
+  // by its own chroot to the volume it receives into, each answering one end of a socket the
+  // agent joins to the transfer connection; TreeStatus reads how one ended. Added 2026-10-28.
+  rpc SendTree(SendTreeRequest) returns (SendTreeResponse);
+  rpc ReceiveTree(ReceiveTreeRequest) returns (ReceiveTreeResponse);
+  rpc TreeStatus(TreeStatusRequest) returns (TreeStatusResponse);
 }
 
 // One request, as the transport carries it.
@@ -142,6 +149,9 @@ message HelperRequest {
     OpenTransferRequest open_transfer = 35;
     ReleaseDeviceRequest release_device = 36;
     ListDevicesRequest list_devices = 37;
+    SendTreeRequest send_tree = 38;
+    ReceiveTreeRequest receive_tree = 39;
+    TreeStatusRequest tree_status = 40;
   }
 }
 
@@ -186,6 +196,9 @@ message HelperResponse {
     OpenTransferResponse open_transfer = 36;
     ReleaseDeviceResponse release_device = 37;
     ListDevicesResponse list_devices = 38;
+    SendTreeResponse send_tree = 39;
+    ReceiveTreeResponse receive_tree = 40;
+    TreeStatusResponse tree_status = 41;
   }
 }
 
@@ -1090,4 +1103,55 @@ message PeerHandshake {
   bytes public_key = 1;
   // Seconds since the Unix epoch; zero for never.
   int64 latest_unix_seconds = 2;
+}
+
+// Sends a pass of `volume`'s tree, whatever class holds it: what differs from the receiver's.
+message SendTreeRequest {
+  string volume = 1;
+  // The pass, by the identifier its ticket names.
+  string pass = 2;
+}
+
+message SendTreeResponse {
+  // One: the socket the sender speaks on.
+  uint32 attached = 1;
+}
+
+// Receives a pass into `volume` of `storage_class`, which exists.
+message ReceiveTreeRequest {
+  string storage_class = 1;
+  string volume = 2;
+  string pass = 3;
+}
+
+message ReceiveTreeResponse {
+  // One: the socket the receiver speaks on.
+  uint32 attached = 1;
+}
+
+message TreeStatusRequest {
+  string volume = 1;
+  string pass = 2;
+  // Whether it is the sending side asked of; the receiving side otherwise.
+  bool sending = 3;
+}
+
+message TreeStatusResponse {
+  TreeState state = 1;
+  // On the sending side, once done: the bytes it sent.
+  uint64 sent_bytes = 2;
+  // Why it failed, as rsync said.
+  string detail = 3;
+}
+
+enum TreeState {
+  TREE_STATE_UNSPECIFIED = 0;
+  // Still running.
+  TREE_STATE_RUNNING = 1;
+  // Done: the receiver holds what the sender held.
+  TREE_STATE_DONE = 2;
+  // It ended short.
+  TREE_STATE_FAILED = 3;
+  // Nothing of that pass runs or ran here: a helper restarted since, or never asked.
+  TREE_STATE_UNKNOWN = 4;
 }

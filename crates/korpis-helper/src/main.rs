@@ -295,6 +295,18 @@ fn main() -> ExitCode {
     if args.peek().map(String::as_str) == Some("release-networks") {
         return release_networks(args.skip(1));
     }
+    if args.peek().map(String::as_str) == Some("splice") {
+        // rsync's remote shell for a migration's tree pass (`tree`): a process of its own,
+        // started by rsync, never by the helper's daemon, so its threads are its own.
+        let fd = args.nth(1).unwrap_or_default();
+        return match korpis_helper::tree::splice(&fd) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("splice: {e}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     let a = match parse(args) {
         Ok(a) => a,
         Err(e) => {

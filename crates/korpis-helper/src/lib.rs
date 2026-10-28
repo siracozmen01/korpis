@@ -5,10 +5,11 @@
 //! serves the supervisor alone, one structured request at a time (`korpis.helper.v1`), and every
 //! path it acts on is built from an identifier it checked, never taken from a request.
 //!
-//! The crate has six unsafe modules, [`quota`], [`btrfs`], the network's namespaces, taps, and
-//! announcements, and a block class's loop devices: the project-quota calls, the btrfs ioctls,
-//! `unshare(2)`, the tun ioctls, a packet socket's link-layer address, and the loop ioctls have no
-//! safe wrapper. Every unsafe block in them carries the `SAFETY` argument a reviewer checks.
+//! The crate has seven unsafe modules, [`quota`], [`btrfs`], the network's namespaces, taps, and
+//! announcements, a block class's loop devices, and [`inherited`]: the project-quota calls, the
+//! btrfs ioctls, `unshare(2)`, the tun ioctls, a packet socket's link-layer address, and the loop
+//! ioctls have no safe wrapper, and adopting a descriptor inherited by number has no safe form.
+//! Every unsafe block in them carries the `SAFETY` argument a reviewer checks.
 
 #![warn(missing_docs)]
 
@@ -21,6 +22,7 @@ pub mod frame;
 pub mod helper;
 pub mod ids;
 pub mod ingress;
+pub mod inherited;
 pub mod job;
 pub mod kept;
 pub mod network;
@@ -32,4 +34,5 @@ pub mod serve;
 pub mod snapshot;
 pub mod staging;
 pub mod storage;
+pub mod tree;
 pub mod volume;

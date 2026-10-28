@@ -303,7 +303,7 @@ disk given to its driver as a device node, never mounted; tested end to end on t
 provider of the tests' own, a workload failed over holding what it wrote (trace 81 there).
 Migration designed 2026-10-27 (§8.1 of `05-scheduling.md`, trace 82 of `23-walkthroughs.md`): a
 plan of kind `migrate` under `workload.migrate`, a migration record advanced on both nodes'
-reports, a volume crossing by increments, by rsync confined to its staging directory, or not at
+reports, a volume crossing by increments, by rsync confined to the destination's copy, or not at
 all for shared and block classes, a manifest both helpers compute compared before the lease moves,
 the meter and the consoles cut at the epoch, and a hold after which the source's copies go, until
 which a rollback re-grants the source (Findings 210 to 213 there); live state where a driver

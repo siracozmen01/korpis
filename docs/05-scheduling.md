@@ -1743,11 +1743,15 @@ manifest computed again is the same.
   is promoted.
 - *Any other local class:* the tree, by rsync: the source's helper runs the sender over the volume,
   and the destination's runs rsync's daemon side over the same connection, confined by its own
-  `chroot` to a staging directory of the volume, keeping owners by number, hardlinks, ACLs,
-  extended attributes, and holes, and deleting what the source no longer has. Each pass sends what
-  differs, so `replicate` converges as increments do, though a pass taken from a running workload
-  is inconsistent, which the `final_sync` pass, taken stopped, repairs. At `cutover` the staging
-  directory is exchanged for the volume. Decided over GNU tar, which would send the whole tree
+  `chroot` to the destination's copy of the volume, made at `prepare` under the destination's own
+  identifier, keeping owners by number, hardlinks, ACLs, extended attributes, and holes, and
+  deleting what the source no longer has. Each pass sends what differs, so `replicate` converges
+  as increments do, though a pass taken from a running workload is inconsistent, which the
+  `final_sync` pass, taken stopped, repairs. At `cutover` the copy is the volume already, and
+  nothing is exchanged. (Corrected 2026-10-28, P3.9c2: designed with a staging directory exchanged
+  for the volume at `cutover`, an exchange that guards a live volume, of which the destination has
+  none; nothing runs on its copy until `cutover`, and receiving into it counts the bytes where they
+  will stay.) Decided over GNU tar, which would send the whole tree
   every pass and so leave the workload stopped for a whole copy, and over a format of Korpis's
   own, which would be the one place the rules for hardlinks, ACLs, and holes were read differently
   from every tool that restores them; as for btrfs-progs, a node offering such a class needs rsync
@@ -1923,6 +1927,21 @@ label of its own, and each is refused where the other is presented. Tested: the 
 expiry, and its refusal as the other kind; the passes' judgement, the next pass's parent, and a
 pass started again; and over the API, a large pass followed by a small one, the passes counted,
 and every pass named by the control plane and carried with its ticket.
+
+**Built 2026-10-28, a tree's passes** (P3.9c2). The helper declares `tree_sync` for each local
+class where `/usr/bin/rsync` is present. `SendTree` starts rsync's sending side over a volume with
+`-aHAXS --numeric-ids --delete --stats`, its remote shell the helper's own `splice` subcommand,
+which joins the shell's standard streams to one end of a socket pair and ends when the far side
+has, since rsync waits for its remote shell before it closes the shell's input; the other end is
+the agent's to join to the transfer connection. `ReceiveTree` starts rsync's daemon side over the
+other node's end, as a remote shell would, under a configuration of the helper's own naming one
+module, the destination's copy, with `use chroot`, `numeric ids`, and no listing. `TreeStatus`
+reads how either ended, the sender's with the bytes its statistics name. The helper starts no
+thread, so clearing the close-on-exec flag of the one descriptor the sending rsync inherits and
+closing it once the child holds it lets nothing else inherit it; the `splice` process adopts that
+descriptor by number, the crate's seventh unsafe module. Tested as root between two classes: a
+symlink, a hardlink, an extended attribute, an access ACL, a sparse file's holes, and an owner by
+number kept; a second pass sending only what changed and deleting what the source deleted.
 
 ---
 
