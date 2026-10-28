@@ -41,8 +41,9 @@ fn silenced(m: &Migration, silent: Side) -> Option<Next> {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// One pass over every migration that has not ended, each in a transaction of its own:
-    /// one with a side not heard ends as `silenced` says, and one in `cutover` whose source's
-    /// lease is over moves. Returns how many it moved or ended.
+    /// one with a side not heard ends as `silenced` says, one in `cutover` whose source's lease
+    /// is over moves, and one whose pass's ticket ran out starts it again. Returns how many it
+    /// moved, ended, or started a pass of.
     pub async fn tend_migrations(&self) -> Result<u64, AppError> {
         let mut tended = 0;
         for m in self.store.live_migrations().await? {
@@ -50,7 +51,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let mut tx = self.store.begin().await?;
             let done = match silent.and_then(|side| silenced(&m, side)) {
                 Some(then) => self.end_silenced(&mut tx, m.id, then).await?,
-                None => self.cut_over_in(&mut tx, m.workload).await?,
+                None => {
+                    self.cut_over_in(&mut tx, m.workload).await?
+                        || self.renew_passes(&mut tx, m.id).await?
+                }
             };
             if done {
                 tx.commit().await?;
@@ -58,6 +62,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
         }
         Ok(tended)
+    }
+
+    /// Starts in `tx` each pass of the migration `id` whose ticket ran out before the destination
+    /// held it; whether any.
+    async fn renew_passes(&self, tx: &mut S::Tx, id: Uuid) -> Result<bool, AppError> {
+        let Some((read, _)) = self.store.migration(id).await? else { return Ok(false) };
+        if !matches!(read.phase, Phase::Replicate | Phase::FinalSync) || !read.live() {
+            return Ok(false);
+        }
+        tx.lock_workload(read.workload).await?;
+        let Some(m) = tx.migration_in(id).await? else { return Ok(false) };
+        Ok(m.live() && self.start_due_passes(tx, &m).await? > 0)
     }
 
     /// The side of `m` whose node is unreachable, the destination first, if either.

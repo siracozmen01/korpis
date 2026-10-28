@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE migration_volume\n                SET passes = passes + 1, pass = $3, pass_since = $4, parent_pass = $5,\n                    sent_bytes = NULL\n              WHERE migration_id = $1 AND volume_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9c4a6bf9219a46dbd7bbf0e8f8e678f307719576c738aac6dcc5e4708324e5b4"
+}

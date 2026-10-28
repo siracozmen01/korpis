@@ -7221,3 +7221,13 @@ of `05-scheduling.md`: the step records who chose the node, the scheduler's choi
 again against every filter of the scheduler among the nodes serving the workload, and only a node
 an operator named keeps the override; a step that does not say is checked as the scheduler's. What
 it costs: nothing, and a test approving onto a node cordoned after the proposal.
+
+**Finding 216.** Found 2026-10-28, as the passes were built (P3.9c1). Step 3 asks what evaluates
+"a pass is small": A, which measured what it sent, and which then reported `replicate` done. But
+the control plane starts the next pass, and B's report that it holds a pass and A's report of what
+the pass sent come from two nodes in no order: a held report arriving first would have had the
+control plane start a pass A was about to call unnecessary, or wait on a report of `replicate`
+done that a large pass never sends. Resolved in §8.1 of `05-scheduling.md`: the control plane
+names every pass and judges it once both reports of it are in, from the bytes A reported, and
+neither node reports a copying phase done. What it costs: nothing, and the judgement moved to
+the one component that holds both reports.

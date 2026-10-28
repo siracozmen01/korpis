@@ -6,7 +6,10 @@
 //! watermarks once the destination needs them, and when the source's hold ends.
 
 use super::{Crossing, Migration, MigrationVolume, Phase, Side};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
+
+/// How long a pass's ticket works from the pass's start: the time one transfer may take.
+pub const PASS_LIFETIME: Duration = crate::workload::replica::TRANSFER_WINDOW;
 use uuid::Uuid;
 
 /// One stream's watermark at `quiesce` (§4 of docs/14-streams.md).
@@ -23,12 +26,30 @@ pub struct Watermark {
 /// How one volume crosses, as a node is told it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VolumeRole {
+    /// The volume.
+    pub volume: Uuid,
     /// The volume's name in the workload's declaration.
     pub name: String,
     /// The helper's identifier for it on the source.
     pub source_helper_id: String,
     /// How it crosses.
     pub crossing: Crossing,
+    /// In `replicate` and `final_sync`, the pass under way: its name, the pass it is an increment
+    /// from, and its ticket, which the control plane signs once the role is made.
+    pub pass: Option<PassRole>,
+}
+
+/// A pass under way, as both nodes are told it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PassRole {
+    /// The pass.
+    pub pass: Uuid,
+    /// The pass it is an increment from, which the destination holds.
+    pub parent: Option<Uuid>,
+    /// When its ticket stops working.
+    pub expires_at: SystemTime,
+    /// Its ticket (`korpismt_`); empty until signed.
+    pub ticket: String,
 }
 
 /// A node's part in a migration.
@@ -52,6 +73,24 @@ pub struct MigrationRole {
     pub hold_until: Option<SystemTime>,
 }
 
+/// How `v` crosses in `phase`, as a node is told it.
+fn volume_role(phase: Phase, v: &MigrationVolume) -> VolumeRole {
+    let copying = matches!(phase, Phase::Replicate | Phase::FinalSync);
+    let pass = v.pass.filter(|_| copying && v.crossing.sends()).map(|(pass, since)| PassRole {
+        pass,
+        parent: v.parent_pass,
+        expires_at: since + PASS_LIFETIME,
+        ticket: String::new(),
+    });
+    VolumeRole {
+        volume: v.volume,
+        name: v.name.clone(),
+        source_helper_id: v.source_helper_id.clone(),
+        crossing: v.crossing,
+        pass,
+    }
+}
+
 impl MigrationRole {
     /// `side`'s part in `m`, whose volumes are `volumes` and whose streams' watermarks, as the
     /// source reported them, are `watermarks`; the destination is told them from `cutover`.
@@ -72,14 +111,7 @@ impl MigrationRole {
             side,
             phase: m.phase,
             peer,
-            volumes: volumes
-                .iter()
-                .map(|v| VolumeRole {
-                    name: v.name.clone(),
-                    source_helper_id: v.source_helper_id.clone(),
-                    crossing: v.crossing,
-                })
-                .collect(),
+            volumes: volumes.iter().map(|v| volume_role(m.phase, v)).collect(),
             watermarks: if handed { watermarks.to_vec() } else { Vec::new() },
             hold_until: m.hold_until,
         }

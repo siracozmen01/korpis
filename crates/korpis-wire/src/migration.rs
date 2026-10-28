@@ -7,8 +7,8 @@
 use crate::{Result, duration, id, invalid, timestamp, wire_id};
 use korpis_core::id::IdKind;
 use korpis_core::workload::migration::{
-    Chunk, Crossing, Migration, MigrationRole, MigrationVolume, Outcome, Phase, Progress, Side,
-    Standing, VolumeProgress, Watermark,
+    Chunk, Crossing, Migration, MigrationRole, MigrationVolume, Outcome, PassRole, Phase, Progress,
+    Side, Standing, VolumeProgress, Watermark,
 };
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
@@ -124,6 +124,16 @@ pub fn side_from_pb(s: buffa::EnumValue<agent::MigrationSide>) -> Option<Side> {
         .find(|side| s.as_known() == Some(side_to_pb(*side)))
 }
 
+fn pass_to_pb(p: &PassRole) -> agent::MigrationPass {
+    agent::MigrationPass {
+        pass: p.pass.to_string(),
+        parent: p.parent.map(|u| u.to_string()).unwrap_or_default(),
+        ticket: p.ticket.clone(),
+        expires_at: timestamp(p.expires_at).into(),
+        ..Default::default()
+    }
+}
+
 /// A node's part in a migration, as its assignment carries it.
 #[must_use]
 pub fn role_to_pb(r: &MigrationRole) -> agent::MigrationRole {
@@ -140,6 +150,8 @@ pub fn role_to_pb(r: &MigrationRole) -> agent::MigrationRole {
                 name: v.name.clone(),
                 source_helper_id: v.source_helper_id.clone(),
                 crossing: crossing_to_pb(v.crossing).into(),
+                volume: wire_id(IdKind::Volume, v.volume),
+                pass: v.pass.as_ref().map(pass_to_pb).into(),
                 ..Default::default()
             })
             .collect(),

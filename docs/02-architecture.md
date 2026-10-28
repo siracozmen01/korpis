@@ -802,8 +802,9 @@ MigrationRole
 > to send, under which ticket, or from which offset the destination's consoles continue.
 >
 > Built 2026-10-28 (P3.9b2): `migration` is sent, its volumes with the source helper's
-> identifier and how each crosses; the destination's identifier is what the destination reports,
-> and each pass's ticket comes with the nodes' transfers (P3.9c). A node the workload is not
+> identifier and how each crosses; the destination's identifier is what the destination reports.
+> Each volume's pass under way, the pass it is an increment from, and its ticket, signed as the
+> assignment is computed, are sent from P3.9c1. A node the workload is not
 > placed on authoritatively holds an assignment of it while the migration runs, as a standby
 > (§8.1 of `05-scheduling.md`).
 

@@ -2,8 +2,9 @@
 
 //! A node's part in its workloads' migrations (§4.8 of docs/02-architecture.md, §8.1 of
 //! docs/05-scheduling.md). Each side's assignment of a migrating workload carries the
-//! migration's role: which side, which phase, the peer, what crosses for each volume, and, on
-//! the destination once the placement moved, the streams' watermarks. The side the workload is
+//! migration's role: which side, which phase, the peer, what crosses for each volume with the
+//! pass under way and its ticket, signed here with the token key, and, on the destination once
+//! the placement moved, the streams' watermarks. The side the workload is
 //! not placed on authoritatively, the destination before the cutover and the source after it,
 //! is a standby: told the target and its volumes, held stopped, executing no plan, and holding
 //! no endpoint, run, or challenge of its node. The source is told the workload stopped from
@@ -13,6 +14,8 @@ use super::Desired;
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store};
+use korpis_core::authz::migration_pass::{self, Pass};
+use korpis_core::authz::token::SigningKey;
 use korpis_core::workload::PowerState;
 use korpis_core::workload::migration::{MigrationRole, Phase, Side};
 use std::collections::BTreeMap;
@@ -35,13 +38,32 @@ pub(super) fn with_role(mut d: Desired, role: &MigrationRole, standby: bool) -> 
     d
 }
 
+/// Signs with `key` the ticket of each pass `role` carries, sent between `nodes`, source first.
+fn sign_passes(key: &SigningKey, role: &mut MigrationRole, (from, to): (Uuid, Uuid)) {
+    for v in &mut role.volumes {
+        if let Some(p) = &mut v.pass {
+            let pass = Pass {
+                migration: role.migration,
+                volume: v.volume,
+                from,
+                to,
+                pass: p.pass,
+                parent: p.parent,
+                expires_at: p.expires_at,
+            };
+            p.ticket = migration_pass::mint(key, &pass);
+        }
+    }
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// `node`'s role in each migration it takes part in that has not ended.
     pub(super) async fn roles_on(&self, node: Uuid) -> Result<Roles, AppError> {
         let mut roles = Roles::new();
         for (m, volumes, watermarks) in self.store.migrations_on(node).await? {
             let Some(side) = Side::of(&m, node) else { continue };
-            let role = MigrationRole::of(&m, side, (&volumes, &watermarks));
+            let mut role = MigrationRole::of(&m, side, (&volumes, &watermarks));
+            sign_passes(&self.token_key, &mut role, (m.source, m.destination));
             roles.insert(m.workload, role);
         }
         Ok(roles)

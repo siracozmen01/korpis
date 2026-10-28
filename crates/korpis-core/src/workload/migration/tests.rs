@@ -95,8 +95,14 @@ fn a_phase_advances_once_every_side_acting_in_it_reported_it_done() {
     let ready = Reported { destination: Some(Phase::Prepare), ..Reported::default() };
     assert_eq!(next(&prepare, ready, &[]), Next::Advance(Phase::Replicate), "the source idles");
     let replicate = migration(Phase::Replicate);
-    let half = Reported { source: Some(Phase::Replicate), destination: Some(Phase::Prepare) };
-    assert_eq!(next(&replicate, half, &[]), Next::Wait, "both copy");
+    let mut sent = world((None, None));
+    sent.start(sent.entry_pass(Uuid::from_u128(7)).unwrap(), std::time::UNIX_EPOCH);
+    let nothing = Reported::default();
+    assert_eq!(next(&replicate, nothing, &[sent.clone()]), Next::Wait, "not held yet");
+    sent.held_pass = Some(Uuid::from_u128(7));
+    assert_eq!(next(&replicate, nothing, &[sent.clone()]), Next::Wait, "not judged yet");
+    sent.sent_bytes = Some(4096);
+    assert_eq!(next(&replicate, nothing, &[sent]), Next::Advance(Phase::Quiesce), "small");
     let verify = migration(Phase::Verify);
     let agreed = [world((Some("sha256:a"), Some("sha256:a")))];
     assert_eq!(next(&verify, both(Phase::Verify), &agreed), Next::Advance(Phase::Cutover));
@@ -122,4 +128,33 @@ fn a_failed_phase_abandons_before_cutover_and_rolls_back_at_it() {
     assert_eq!(failed(&cut, Phase::Cutover, why), Next::RollBack(why.into()));
     assert_eq!(failed(&migration(Phase::Release), Phase::Release, why), Next::Wait, "again");
     assert!(acts(Phase::Prepare, Side::Destination) && !acts(Phase::Prepare, Side::Source));
+}
+
+#[test]
+fn a_pass_held_and_large_starts_the_next_and_one_whose_ticket_ran_out_starts_again() {
+    use std::time::{Duration, UNIX_EPOCH};
+    let gib = 1 << 30;
+    let life = (UNIX_EPOCH + Duration::from_secs(10), Duration::from_secs(60));
+    let mut v =
+        MigrationVolume::new(Uuid::nil(), "world".into(), Crossing::Increments, (gib, "w".into()));
+    let first = v.pass_due(Phase::Replicate, life, Uuid::from_u128(1)).unwrap();
+    assert_eq!(first.parent, None, "the first is whole");
+    v.start(first, UNIX_EPOCH);
+    assert_eq!(v.pass_due(Phase::Replicate, life, Uuid::from_u128(2)), None, "under way");
+    v.held_pass = Some(first.pass);
+    v.sent_bytes = Some(gib / 2);
+    let second = v.pass_due(Phase::Replicate, life, Uuid::from_u128(2)).unwrap();
+    assert_eq!(second.parent, Some(first.pass), "an increment from what is held");
+    v.start(second, UNIX_EPOCH);
+    assert!(!v.passed(Phase::Replicate));
+    let late = (UNIX_EPOCH + Duration::from_secs(61), Duration::from_secs(60));
+    let again = v.pass_due(Phase::Replicate, late, Uuid::from_u128(3)).unwrap();
+    assert_eq!((again.pass, again.parent), (Uuid::from_u128(3), Some(first.pass)), "the same");
+    let final_pass = v.entry_pass(Uuid::from_u128(4)).unwrap();
+    assert_eq!(final_pass.parent, Some(first.pass));
+    let tree = MigrationVolume::new(Uuid::nil(), "t".into(), Crossing::Tree, (gib, "t".into()));
+    assert_eq!(tree.entry_pass(Uuid::from_u128(5)).unwrap().parent, None, "a tree sends a diff");
+    let shared =
+        MigrationVolume::new(Uuid::nil(), "s".into(), Crossing::Nothing, (gib, "s".into()));
+    assert!(shared.entry_pass(Uuid::from_u128(6)).is_none() && shared.passed(Phase::FinalSync));
 }

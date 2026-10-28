@@ -39,6 +39,8 @@ pub mod renewal;
 /// Scopes are plain data shared with plans and placement; they live at the crate root.
 pub use crate::scope;
 #[cfg(feature = "authz")]
+pub mod migration_pass;
+#[cfg(feature = "authz")]
 pub mod revocation;
 #[cfg(feature = "authz")]
 pub mod route;
@@ -46,6 +48,8 @@ pub mod route;
 mod sealed;
 #[cfg(feature = "authz")]
 pub mod sign_in;
+#[cfg(feature = "authz")]
+mod stamped;
 #[cfg(feature = "authz")]
 pub mod template;
 #[cfg(feature = "authz")]

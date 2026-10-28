@@ -5,7 +5,7 @@
 
 use crate::ports::StoreResult;
 use korpis_core::workload::migration::{
-    Migration, MigrationVolume, Outcome, Phase, Side, VolumeProgress, Watermark,
+    Migration, MigrationVolume, NewPass, Outcome, Phase, Side, VolumeProgress, Watermark,
 };
 use std::future::Future;
 use std::time::SystemTime;
@@ -86,14 +86,24 @@ pub trait MigrationMoves {
         id: Uuid,
     ) -> impl Future<Output = StoreResult<Vec<MigrationVolume>>> + Send;
 
-    /// Records what `side` reported of each volume of the migration `id`: on the source the pass
-    /// and what it sent, on the destination the pass held and its identifier there, and either
-    /// side's manifest; where both sides' manifests are in, where they first differ.
+    /// Records what `side` reported of each volume of the migration `id`: on the source what the
+    /// pass under way sent, on the destination that it holds the pass under way and its
+    /// identifier there, and either side's manifest; where both sides' manifests are in, where
+    /// they first differ. What it says of a pass not under way is not recorded.
     fn record_volume_progress(
         &mut self,
         id: Uuid,
         side: Side,
         volumes: &[VolumeProgress],
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Starts the pass `p` of a volume of the migration `id` at `at`: what either side reported of
+    /// the pass before it is of no pass under way.
+    fn start_pass(
+        &mut self,
+        id: Uuid,
+        p: NewPass,
+        at: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Records the streams' watermarks the source reported for the migration `id`.

@@ -866,6 +866,24 @@ message MigrationVolumeRole {
   // The helper's identifier for it on the source.
   string source_helper_id = 2;
   korpis.v1.MigrationCrossing crossing = 3;
+  // The volume (`vol_…`), which the pass's ticket names.
+  string volume = 4;
+  // In replicate and final_sync, the pass under way, which the control plane names: the source
+  // sends it and the destination admits it under its ticket, each reporting it by this name.
+  MigrationPass pass = 5;
+}
+
+// One pass of a volume (§8.1 of docs/05-scheduling.md).
+message MigrationPass {
+  // The pass, a UUID.
+  string pass = 1;
+  // The pass it is an increment from, which the destination holds; empty for a whole one, and
+  // always for a tree, which sends what differs.
+  string parent = 2;
+  // Its ticket (`korpismt_`), signed by the control plane's token key: the migration, the
+  // volume, the two nodes, the pass and its parent, and the expiry.
+  string ticket = 3;
+  google.protobuf.Timestamp expires_at = 4;
 }
 
 // One stream's watermark at quiesce: its next offset, and the position in its changes log the

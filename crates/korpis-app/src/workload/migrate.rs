@@ -30,6 +30,7 @@ mod conclude;
 mod crossing;
 mod cutover;
 mod end;
+mod passes;
 mod progress;
 
 pub use end::{EndMigration, MigrationView};

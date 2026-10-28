@@ -11,7 +11,7 @@ use crate::errors::from_sqlx;
 use crate::stored::from_time;
 use korpis_app::ports::{MigrationMoves, StoreResult};
 use korpis_core::workload::migration::{
-    Chunk, MigrationVolume, Phase, Side, VolumeProgress, Watermark, first_difference,
+    Chunk, MigrationVolume, NewPass, Phase, Side, VolumeProgress, Watermark, first_difference,
 };
 use serde_json::Value;
 use std::time::SystemTime;
@@ -49,12 +49,11 @@ impl PgTx {
     async fn one_volume(&mut self, id: Uuid, side: Side, v: &VolumeProgress) -> StoreResult<()> {
         let chunks = chunks_doc(&v.chunks);
         match side {
+            // A report names the pass the control plane started; of any other it says nothing.
             Side::Source => sqlx::query!(
                 "UPDATE migration_volume m
-                    SET passes = m.passes + CASE WHEN $3::uuid IS DISTINCT FROM m.pass
-                                                 AND $3::uuid IS NOT NULL THEN 1 ELSE 0 END,
-                        pass = coalesce($3, m.pass),
-                        sent_bytes = coalesce($4, m.sent_bytes),
+                    SET sent_bytes = CASE WHEN $3::uuid = m.pass THEN coalesce($4, m.sent_bytes)
+                                          ELSE m.sent_bytes END,
                         source_manifest = coalesce($5, m.source_manifest),
                         source_chunks = coalesce($6, m.source_chunks)
                    FROM volume v
@@ -71,7 +70,7 @@ impl PgTx {
             .map_err(from_sqlx)?,
             Side::Destination => sqlx::query!(
                 "UPDATE migration_volume m
-                    SET held_pass = CASE WHEN $3 THEN coalesce($4, m.held_pass) ELSE m.held_pass END,
+                    SET held_pass = CASE WHEN $3 AND $4::uuid = m.pass THEN $4 ELSE m.held_pass END,
                         destination_helper_id = coalesce($5, m.destination_helper_id),
                         destination_manifest = coalesce($6, m.destination_manifest),
                         destination_chunks = coalesce($7, m.destination_chunks)
@@ -139,6 +138,24 @@ impl MigrationMoves for PgTx {
             self.one_volume(id, side, v).await?;
         }
         self.differences(id).await
+    }
+
+    async fn start_pass(&mut self, id: Uuid, p: NewPass, at: SystemTime) -> StoreResult<()> {
+        sqlx::query!(
+            "UPDATE migration_volume
+                SET passes = passes + 1, pass = $3, pass_since = $4, parent_pass = $5,
+                    sent_bytes = NULL
+              WHERE migration_id = $1 AND volume_id = $2",
+            id,
+            p.volume,
+            p.pass,
+            from_time(at),
+            p.parent
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
     }
 
     async fn record_watermarks(&mut self, id: Uuid, watermarks: &[Watermark]) -> StoreResult<()> {

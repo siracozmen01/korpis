@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE migration_volume m\n                    SET sent_bytes = CASE WHEN $3::uuid = m.pass THEN coalesce($4, m.sent_bytes)\n                                          ELSE m.sent_bytes END,\n                        source_manifest = coalesce($5, m.source_manifest),\n                        source_chunks = coalesce($6, m.source_chunks)\n                   FROM volume v\n                  WHERE m.migration_id = $1 AND v.id = m.volume_id AND v.name = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Int8",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f0bb769f258a68245cd24b13a3750eacd27c66e94eba600ea92348cf7d136568"
+}

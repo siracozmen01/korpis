@@ -83,6 +83,7 @@ pub(super) struct VolumeRow {
     passes: i32,
     pass: Option<Uuid>,
     pass_since: Option<Time>,
+    parent_pass: Option<Uuid>,
     sent_bytes: Option<i64>,
     held_pass: Option<Uuid>,
     destination_helper_id: Option<String>,
@@ -105,6 +106,7 @@ impl VolumeRow {
             source_helper_id: self.source_helper_id,
             passes: u32::try_from(self.passes).unwrap_or(0),
             pass: self.pass.zip(self.pass_since.map(to_time)),
+            parent_pass: self.parent_pass,
             sent_bytes: self.sent_bytes.map(count),
             held_pass: self.held_pass,
             destination_helper_id: self.destination_helper_id,
@@ -138,7 +140,8 @@ pub(super) async fn volumes_of<'e, E: sqlx::PgExecutor<'e>>(
     sqlx::query_as!(
         VolumeRow,
         "SELECT m.migration_id, m.volume_id, v.name, m.crossing, m.size_bytes,
-                m.source_helper_id, m.passes, m.pass, m.pass_since, m.sent_bytes, m.held_pass,
+                m.source_helper_id, m.passes, m.pass, m.pass_since, m.parent_pass, m.sent_bytes,
+                m.held_pass,
                 m.destination_helper_id, m.source_manifest, m.destination_manifest,
                 m.first_difference
            FROM migration_volume m JOIN volume v ON v.id = m.volume_id

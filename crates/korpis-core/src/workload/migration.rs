@@ -260,7 +260,9 @@ pub struct MigrationVolume {
     pub passes: u32,
     /// The pass under way, and since when.
     pub pass: Option<(Uuid, SystemTime)>,
-    /// What the last pass sent.
+    /// The pass the one under way is an increment from, which the destination holds.
+    pub parent_pass: Option<Uuid>,
+    /// What the pass under way sent, once the source reported it.
     pub sent_bytes: Option<u64>,
     /// The last pass the destination reported held.
     pub held_pass: Option<Uuid>,
@@ -285,6 +287,7 @@ impl MigrationVolume {
             source_helper_id,
             passes: 0,
             pass: None,
+            parent_pass: None,
             sent_bytes: None,
             held_pass: None,
             destination_helper_id: None,
@@ -315,13 +318,15 @@ impl Migration {
     }
 }
 
+mod passes;
 mod progress;
 mod report;
 mod role;
 
+pub use passes::NewPass;
 pub use progress::{Next, Reported, Side, acts, failed, next};
 pub use report::{Chunk, Progress, Standing, VolumeProgress, first_difference};
-pub use role::{MigrationRole, VolumeRole, Watermark};
+pub use role::{MigrationRole, PASS_LIFETIME, PassRole, VolumeRole, Watermark};
 
 #[cfg(test)]
 mod tests;

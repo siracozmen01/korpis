@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.migration_id, m.volume_id, v.name, m.crossing, m.size_bytes,\n                m.source_helper_id, m.passes, m.pass, m.pass_since, m.sent_bytes, m.held_pass,\n                m.destination_helper_id, m.source_manifest, m.destination_manifest,\n                m.first_difference\n           FROM migration_volume m JOIN volume v ON v.id = m.volume_id\n          WHERE m.migration_id = ANY($1)\n          ORDER BY m.migration_id, v.name",
+  "query": "SELECT m.migration_id, m.volume_id, v.name, m.crossing, m.size_bytes,\n                m.source_helper_id, m.passes, m.pass, m.pass_since, m.parent_pass, m.sent_bytes,\n                m.held_pass,\n                m.destination_helper_id, m.source_manifest, m.destination_manifest,\n                m.first_difference\n           FROM migration_volume m JOIN volume v ON v.id = m.volume_id\n          WHERE m.migration_id = ANY($1)\n          ORDER BY m.migration_id, v.name",
   "describe": {
     "columns": [
       {
@@ -104,6 +104,17 @@
       },
       {
         "ordinal": 9,
+        "name": "parent_pass",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "parent_pass"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
         "name": "sent_bytes",
         "type_info": "Int8",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "held_pass",
         "type_info": "Uuid",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "destination_helper_id",
         "type_info": "Text",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "source_manifest",
         "type_info": "Text",
         "origin": {
@@ -147,7 +158,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "destination_manifest",
         "type_info": "Text",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "first_difference",
         "type_info": "Text",
         "origin": {
@@ -189,8 +200,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "4ce47c573ad39debdd01f302faa614bce7ba89eb013d077c39b29c4b20e58e27"
+  "hash": "e84c7bc2e88229ccbb8becc38c4089f3f8ed97fd8172fd59d5f14c027ec535bd"
 }

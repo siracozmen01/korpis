@@ -312,7 +312,8 @@ the plan a person approves, the record in `prepare` and the destination's capaci
 abandonment, both nodes' roles, the phases advanced on their reports, the cutover by the lease,
 rollback with the destination's copies kept divergent, release, and a silent node ending it
 rather than stalling it (Finding 214 there), and a destination the scheduler chose checked
-again at approval against every filter (Finding 215 there).
+again at approval against every filter (Finding 215 there); each pass named, ticketed, and
+judged by the control plane (Finding 216 there).
 Edges in failover groups, which is what `stable` exposure requires to exist at all and what lets it
 survive the move (§3.1 of `07-networking.md`); designed 2026-10-26 (§3.1 there, trace 78 of
 `23-walkthroughs.md`) as groups of two or more of an organization's own nodes, each stable address
@@ -571,7 +572,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: eighty-two traces and their 215 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: eighty-two traces and their 216 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

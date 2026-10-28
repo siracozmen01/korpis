@@ -1711,7 +1711,7 @@ in, as it believes a replica's receive (§2.2 of `06-storage.md`), and records a
 | Phase | Source | Destination | Done when, as the control plane evaluates it |
 |---|---|---|---|
 | `prepare` | runs on | the target's `Prepare`, its content fetched, its ids, a place to receive each volume | the destination reports it |
-| `replicate` | sends each volume, pass after pass | receives each pass | the source reports a small pass, and the destination reports that pass held |
+| `replicate` | sends each volume, pass after pass | receives each pass | the destination holds a pass the source reported small, for every volume sent |
 | `quiesce` | stops the workload, or captures its state; its stream writers seal | nothing | the source reports the object stopped and each stream's watermark |
 | `final_sync` | sends what changed since the last pass | receives it | the destination reports the last pass held |
 | `verify` | computes each volume's manifest | computes the same, and `Prepare` with the volumes in place | both manifests arrived and are equal, and the `Prepare` passed |
@@ -1719,9 +1719,18 @@ in, as it believes a replica's receive (§2.2 of `06-storage.md`), and records a
 | `release` | deletes its copies, after the hold | nothing | the source reports them deleted |
 
 A pass is small when it sent at most a hundredth of the volume or 64 MiB, whichever is larger, or
-when it is the tenth: the source evaluates it, from the bytes it sent. A node that restarts takes
-up the phase its assignment names, and each phase can be done again: a pass sent again is received
-again, whole or from what is held, and a manifest computed again is the same.
+when it is the tenth. The control plane names each pass and evaluates it, from the bytes the source
+reports it sent and the destination's report that it holds the pass, once both are in, in whichever
+order they arrive: a pass held and small ends the volume's part of `replicate`, one held and large
+starts the next, and `final_sync`'s one pass, started as the phase is entered, ends its part once
+held. Neither node reports a copying phase done. (Corrected 2026-10-28, P3.9c1: designed with the
+source evaluating smallness and reporting `replicate` done, which left the control plane to start
+the next pass on the destination's report of a pass held before it knew whether the source would
+send another, so a held report arriving first would have started a pass nobody needed; Finding 216
+of `23-walkthroughs.md`.) A pass whose ticket runs out before the destination holds it is started
+again under a new name. A node that restarts takes up the phase its assignment names, and each
+phase can be done again: a pass sent again is received again, whole or from what is held, and a
+manifest computed again is the same.
 
 **What crosses, per volume.** Decided by the volume's class on the source:
 
@@ -1759,7 +1768,8 @@ Every transfer is sent through the mesh as a replica's is (§2.2 of `06-storage.
 source's mesh address to the destination's transfer port, which the destination's table admits
 from the source's address alone while its assignment names the migration, under a ticket the
 control plane's token key signs over a purpose label of the migration's own (`korpismt_`) and the
-pass: the migration, the volume, the two nodes, the pass, and an expiry. **What evaluates "this
+pass: the migration, the volume, the two nodes, the pass, the pass it is an increment from, and an
+expiry, a transfer window after the pass started; both nodes' roles carry it. **What evaluates "this
 stream may be written into this volume's staging, from there":** the destination's agent, from the
 ticket and the token keys it holds, and its kernel, from the mesh's keys, as for a replica.
 
@@ -1899,6 +1909,20 @@ once the destination gave its own back; manifests differing at `verify`, the mig
 naming the first path and the plan failed; and two reports out of place rejected. What is not
 built yet: each node's side of every phase (P3.9c, P3.9d), and what follows the placement at
 cutover besides the volumes and the lease (P3.9e).
+
+**Built 2026-10-28, the passes and their tickets** (P3.9c1). The control plane starts each pass:
+as `replicate` and `final_sync` are entered, each volume sent gets one, named by the control plane,
+an increment from the last pass the destination held where the volume crosses by increments, and
+whole or a tree's difference otherwise; both nodes' roles carry it with its ticket, signed as the
+assignment is computed, expiring a transfer window after the pass started. A report about another
+pass than the one under way records nothing of it. Each pass is judged as both reports of it are
+in, as above, and the sweep that tends migrations starts again a pass whose ticket ran out. A
+phase that sends nothing, every volume shared or block, is done as it is entered. The ticket is
+of the same form as a replica's transfer ticket, its identifiers and expiry signed over a purpose
+label of its own, and each is refused where the other is presented. Tested: the ticket, its
+expiry, and its refusal as the other kind; the passes' judgement, the next pass's parent, and a
+pass started again; and over the API, a large pass followed by a small one, the passes counted,
+and every pass named by the control plane and carried with its ticket.
 
 ---
 

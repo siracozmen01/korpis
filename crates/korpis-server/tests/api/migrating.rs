@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A migration walked through its phases on both nodes' reports (§8.1 of docs/05-scheduling.md):
-//! each phase advances once every side acting in it reported it done; the source's release of its
+//! each pass is named by the control plane with its ticket, and judged from the bytes the source
+//! sent and the destination's word that it holds it, a large one followed by another; each other
+//! phase advances once every side acting in it reported it done; the source's release of its
 //! lease moves the placement, the volume with it onto the copy the destination holds, and the
 //! destination is granted the next epoch; the source's deletion after the hold completes it. A
 //! rollback after the move returns the workload to the source and keeps what the destination
@@ -113,11 +115,8 @@ async fn shown(h: &Harness, workload: &str) -> pb::Migration {
 }
 
 fn report(m: &str, (phase, side): (P, S), done: bool) -> agent::MigrationProgress {
-    let outcome = if done {
-        agent::MigrationOutcomeOfPhase::MIGRATION_OUTCOME_OF_PHASE_DONE
-    } else {
-        agent::MigrationOutcomeOfPhase::MIGRATION_OUTCOME_OF_PHASE_FAILED
-    };
+    use agent::MigrationOutcomeOfPhase as O;
+    let outcome = if done { O::MIGRATION_OUTCOME_OF_PHASE_DONE } else { O::default() };
     agent::MigrationProgress {
         migration: m.to_owned(),
         phase: phase.into(),
@@ -127,11 +126,12 @@ fn report(m: &str, (phase, side): (P, S), done: bool) -> agent::MigrationProgres
     }
 }
 
-fn volume(pass: &str, held: bool, manifest: &str) -> agent::MigrationVolumeProgress {
+fn volume(pass: &str, sent_bytes: u64, manifest: &str) -> agent::MigrationVolumeProgress {
+    let held = sent_bytes == 0;
     agent::MigrationVolumeProgress {
         name: "data".into(),
         pass: pass.into(),
-        sent_bytes: if held { 0 } else { 4096 },
+        sent_bytes,
         held,
         helper_id: if held { "mig.data".into() } else { String::new() },
         manifest: manifest.into(),
@@ -167,45 +167,63 @@ fn phase(m: &pb::Migration) -> Option<pb::MigrationPhase> {
     m.phase.as_known()
 }
 
-/// Walks `m` through `verify`, both manifests `(source, destination)`.
-async fn through_verify(m: &mut Moving, manifests: (&str, &str)) {
-    let id = m.migration.clone();
-    journal(
-        &mut m.destination,
-        report(&id, (P::MIGRATION_PHASE_PREPARE, S::MIGRATION_SIDE_DESTINATION), true),
+/// The pass the source is told to send in `phase`, once it is another than `before`.
+async fn pass_in(s: &mut Stream, db: &str, (phase, before): (P, &str)) -> agent::MigrationPass {
+    let told = until(
+        s,
+        assignment(|t| {
+            let role = t.migration.as_option().filter(|r| r.phase.as_known() == Some(phase));
+            let pass = role.and_then(|r| r.volumes.first()).and_then(|v| v.pass.as_option());
+            t.workload == db && pass.is_some_and(|p| p.pass != before)
+        }),
     )
     .await;
-    assert_eq!(
-        phase(&shown(&m.h, &m.db).await),
-        Some(pb::MigrationPhase::MIGRATION_PHASE_REPLICATE)
-    );
-    let pass = uuid::Uuid::now_v7().to_string();
-    for (phase_of, quiesce) in
-        [(P::MIGRATION_PHASE_REPLICATE, false), (P::MIGRATION_PHASE_FINAL_SYNC, true)]
-    {
-        if quiesce {
-            let mut q = report(&id, (P::MIGRATION_PHASE_QUIESCE, S::MIGRATION_SIDE_SOURCE), true);
-            q.watermarks = vec![agent::StreamWatermark {
-                stream: "console".into(),
-                next_offset: 10,
-                journaled_to: 5,
-                ..Default::default()
-            }];
-            journal(&mut m.source, q).await;
-        }
-        let mut sent = report(&id, (phase_of, S::MIGRATION_SIDE_SOURCE), true);
-        sent.volumes = vec![volume(&pass, false, "")];
-        journal(&mut m.source, sent).await;
-        let mut got = report(&id, (phase_of, S::MIGRATION_SIDE_DESTINATION), true);
-        got.volumes = vec![volume(&pass, true, "")];
-        journal(&mut m.destination, got).await;
+    let role = told.migration.into_option().unwrap();
+    role.volumes[0].pass.as_option().unwrap().clone()
+}
+
+/// Has the source send the pass it is told to in `phase`, other than `before`, sending `sent`
+/// bytes, and the destination hold it; the pass.
+async fn copy(m: &mut Moving, (phase, before): (P, &str), sent: u64) -> String {
+    let id = m.migration.clone();
+    let p = pass_in(&mut m.source.0, &m.db, (phase, before)).await;
+    assert!(p.ticket.starts_with("korpismt_") && p.parent.is_empty(), "a tree's: {p:?}");
+    let mut s = report(&id, (phase, S::MIGRATION_SIDE_SOURCE), false);
+    s.volumes = vec![volume(&p.pass, sent, "")];
+    journal(&mut m.source, s).await;
+    let mut d = report(&id, (phase, S::MIGRATION_SIDE_DESTINATION), false);
+    d.volumes = vec![volume(&p.pass, 0, "")];
+    journal(&mut m.destination, d).await;
+    p.pass
+}
+
+/// Walks `m` through `verify`, both manifests `(source, destination)`, its first pass sending
+/// `first` bytes.
+async fn through_verify(m: &mut Moving, manifests: (&str, &str), first: u64) {
+    use pb::MigrationPhase as M;
+    let id = m.migration.clone();
+    let dest = S::MIGRATION_SIDE_DESTINATION;
+    journal(&mut m.destination, report(&id, (P::MIGRATION_PHASE_PREPARE, dest), true)).await;
+    let mut pass = copy(m, (P::MIGRATION_PHASE_REPLICATE, ""), first).await;
+    if phase(&shown(&m.h, &m.db).await) == Some(M::MIGRATION_PHASE_REPLICATE) {
+        pass = copy(m, (P::MIGRATION_PHASE_REPLICATE, &pass), 4096).await;
     }
-    assert_eq!(phase(&shown(&m.h, &m.db).await), Some(pb::MigrationPhase::MIGRATION_PHASE_VERIFY));
+    assert_eq!(phase(&shown(&m.h, &m.db).await), Some(M::MIGRATION_PHASE_QUIESCE), "small");
+    let mut q = report(&id, (P::MIGRATION_PHASE_QUIESCE, S::MIGRATION_SIDE_SOURCE), true);
+    q.watermarks = vec![agent::StreamWatermark {
+        stream: "console".into(),
+        next_offset: 10,
+        journaled_to: 5,
+        ..Default::default()
+    }];
+    journal(&mut m.source, q).await;
+    let last = copy(m, (P::MIGRATION_PHASE_FINAL_SYNC, &pass), 4096).await;
+    assert_eq!(phase(&shown(&m.h, &m.db).await), Some(M::MIGRATION_PHASE_VERIFY));
     let mut a = report(&id, (P::MIGRATION_PHASE_VERIFY, S::MIGRATION_SIDE_SOURCE), true);
-    a.volumes = vec![volume(&pass, false, manifests.0)];
+    a.volumes = vec![volume(&last, 4096, manifests.0)];
     journal(&mut m.source, a).await;
-    let mut b = report(&id, (P::MIGRATION_PHASE_VERIFY, S::MIGRATION_SIDE_DESTINATION), true);
-    b.volumes = vec![volume(&pass, true, manifests.1)];
+    let mut b = report(&id, (P::MIGRATION_PHASE_VERIFY, dest), true);
+    b.volumes = vec![volume(&last, 0, manifests.1)];
     journal(&mut m.destination, b).await;
 }
 
@@ -259,7 +277,8 @@ async fn a_migration_walks_every_phase_on_both_reports_and_completes_after_its_h
     let r = m.told.migration.as_option().unwrap();
     assert_eq!(r.role.as_known(), Some(S::MIGRATION_SIDE_DESTINATION));
     assert!(!m.told.plan.is_set(), "a standby executes no plan");
-    through_verify(&mut m, ("sha256:same", "sha256:same")).await;
+    through_verify(&mut m, ("sha256:same", "sha256:same"), 900 << 20).await;
+    assert_eq!(shown(&m.h, &m.db).await.volumes[0].passes, 3, "a large pass, a small, the last");
     assert_eq!(phase(&shown(&m.h, &m.db).await), Some(pb::MigrationPhase::MIGRATION_PHASE_CUTOVER));
     cut_over(&mut m).await;
     let now = shown(&m.h, &m.db).await;
@@ -287,7 +306,7 @@ async fn a_migration_walks_every_phase_on_both_reports_and_completes_after_its_h
 #[tokio::test]
 async fn a_rollback_after_the_move_returns_the_workload_and_keeps_what_it_wrote_there() {
     let mut m = Box::pin(moving()).await;
-    through_verify(&mut m, ("sha256:same", "sha256:same")).await;
+    through_verify(&mut m, ("sha256:same", "sha256:same"), 4096).await;
     let moved = cut_over(&mut m).await;
     let rollback = pb::RollbackMigrationRequest {
         mutation: mutation("back").into(),
@@ -327,7 +346,7 @@ async fn manifests_that_differ_abandon_it_and_a_report_out_of_place_is_not_belie
     assert_eq!(phase(&shown(&m.h, &m.db).await), Some(pb::MigrationPhase::MIGRATION_PHASE_PREPARE));
     assert_eq!(m.h.effects("journal.rejected").await.len(), 2, "kept, visibly");
 
-    through_verify(&mut m, ("sha256:left", "sha256:arrived")).await;
+    through_verify(&mut m, ("sha256:left", "sha256:arrived"), 4096).await;
     let ended = shown(&m.h, &m.db).await;
     assert_eq!(ended.outcome.as_known(), Some(pb::MigrationOutcome::MIGRATION_OUTCOME_ABANDONED));
     assert!(ended.reason.contains("world/"), "{}", ended.reason);

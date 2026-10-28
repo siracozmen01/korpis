@@ -7,20 +7,13 @@
 //!
 //! A ticket names one transfer: the volume, the node sending, the node receiving, the snapshot
 //! the stream carries, the one it is an increment from (none for a whole one), and its expiry. It
-//! is signed by the control plane's token key, as the claims of [`super::sealed`] are, over a
-//! purpose label of its own, so nothing else the key signs is taken for one, and a ticket is
-//! taken for nothing else: it carries no grant and no right.
-//!
-//! The form: `korpistt_`, then the payload and its Ed25519 signature, each base64url without
-//! padding, joined by a dot. The payload is a version byte, the key id, the five identifiers,
-//! the parent the nil identifier for a whole snapshot, and the expiry in seconds since the epoch,
-//! big-endian.
+//! is a ticket of identifiers (`stamped`), prefixed `korpistt_` and signed over a purpose label
+//! of its own, so nothing else the key signs is taken for one, and a ticket is taken for nothing
+//! else: it carries no grant and no right.
 
+use super::stamped::Kind;
 use super::token::{KeyRing, SigningKey};
-use base64::Engine as _;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use ed25519_dalek::{Signature, Signer as _, VerifyingKey};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
 pub use super::sealed::SealError as TicketError;
@@ -28,14 +21,11 @@ use TicketError as SealError;
 
 /// Every ticket starts with this.
 pub const PREFIX: &str = "korpistt_";
-/// What the signature is over, before the payload.
-const PURPOSE: &[u8] = b"korpis.transfer.v1\0";
-/// The payload's version.
-const VERSION: u8 = 1;
-/// The payload: version, key id, five identifiers, expiry.
-const PAYLOAD: usize = 1 + 4 + 5 * 16 + 8;
-/// The payload and a 64-byte signature in base64url, the dot between them, and the prefix.
-const ENCODED: usize = PREFIX.len() + 124 + 1 + 86;
+/// The kind: its prefix, and what the signature is over before the payload.
+const KIND: Kind = Kind { prefix: PREFIX, purpose: b"korpis.transfer.v1\0" };
+/// The longest ticket.
+#[cfg(test)]
+const ENCODED: usize = KIND.encoded(5);
 
 /// How long a ticket works: the time one transfer may take.
 pub const LIFETIME: Duration = crate::workload::replica::TRANSFER_WINDOW;
@@ -60,81 +50,22 @@ pub struct Transfer {
 /// The ticket for `t`, signed by `key`.
 #[must_use]
 pub fn mint(key: &SigningKey, t: &Transfer) -> String {
-    let seconds = t.expires_at.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-    let mut payload = Vec::with_capacity(PAYLOAD);
-    payload.push(VERSION);
-    payload.extend_from_slice(&key.key_id.to_be_bytes());
-    for id in [t.volume, t.from, t.to, t.snapshot, t.parent.unwrap_or_default()] {
-        payload.extend_from_slice(id.as_bytes());
-    }
-    payload.extend_from_slice(&seconds.to_be_bytes());
-    let signing = ed25519_dalek::SigningKey::from_bytes(&key.seed());
-    let signature = signing.sign(&signed(&payload));
-    format!(
-        "{PREFIX}{}.{}",
-        URL_SAFE_NO_PAD.encode(&payload),
-        URL_SAFE_NO_PAD.encode(signature.to_bytes())
-    )
+    let ids = [t.volume, t.from, t.to, t.snapshot, t.parent.unwrap_or_default()];
+    KIND.mint(key, ids, t.expires_at)
 }
 
 /// The transfer `presented` names, if it is a ticket signed by a key in `keys` and not expired
 /// at `now`.
 pub fn open(keys: &KeyRing, presented: &str, now: SystemTime) -> Result<Transfer, SealError> {
-    if presented.len() > ENCODED {
-        return Err(SealError::Malformed);
-    }
-    let body = presented.strip_prefix(PREFIX).ok_or(SealError::Malformed)?;
-    let (payload, signature) = body.split_once('.').ok_or(SealError::Malformed)?;
-    let payload = URL_SAFE_NO_PAD.decode(payload).map_err(|_| SealError::Malformed)?;
-    let signature = URL_SAFE_NO_PAD.decode(signature).map_err(|_| SealError::Malformed)?;
-    let (key_id, transfer) = parse(&payload)?;
-    let public = keys.public_bytes(key_id).ok_or(SealError::Signature)?;
-    let public = <[u8; 32]>::try_from(public.as_slice()).map_err(|_| SealError::Signature)?;
-    let verifying = VerifyingKey::from_bytes(&public).map_err(|_| SealError::Signature)?;
-    let signature = Signature::from_slice(&signature).map_err(|_| SealError::Signature)?;
-    verifying.verify_strict(&signed(&payload), &signature).map_err(|_| SealError::Signature)?;
-    if now >= transfer.expires_at {
-        return Err(SealError::Expired);
-    }
-    Ok(transfer)
-}
-
-fn parse(payload: &[u8]) -> Result<(u32, Transfer), SealError> {
-    if payload.len() != PAYLOAD {
-        return Err(SealError::Malformed);
-    }
-    let (&[version], rest) = payload.split_first_chunk::<1>().ok_or(SealError::Malformed)?;
-    if version != VERSION {
-        return Err(SealError::Malformed);
-    }
-    let (key_id, mut rest) = rest.split_first_chunk::<4>().ok_or(SealError::Malformed)?;
-    let mut ids = [Uuid::nil(); 5];
-    for id in &mut ids {
-        let (bytes, tail) = rest.split_first_chunk::<16>().ok_or(SealError::Malformed)?;
-        *id = Uuid::from_bytes(*bytes);
-        rest = tail;
-    }
-    let (expiry, _) = rest.split_first_chunk::<8>().ok_or(SealError::Malformed)?;
-    // Read before the signature is checked, so it is anyone's bytes: an expiry past what a time
-    // can hold is malformed, never an overflow.
-    let expires_at = UNIX_EPOCH
-        .checked_add(Duration::from_secs(u64::from_be_bytes(*expiry)))
-        .ok_or(SealError::Malformed)?;
-    let [volume, from, to, snapshot, parent] = ids;
+    let ([volume, from, to, snapshot, parent], expires_at) = KIND.open(keys, presented, now)?;
     let parent = (!parent.is_nil()).then_some(parent);
-    let transfer = Transfer { volume, from, to, snapshot, parent, expires_at };
-    Ok((u32::from_be_bytes(*key_id), transfer))
-}
-
-fn signed(payload: &[u8]) -> Vec<u8> {
-    let mut message = PURPOSE.to_vec();
-    message.extend_from_slice(payload);
-    message
+    Ok(Transfer { volume, from, to, snapshot, parent, expires_at })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::UNIX_EPOCH;
 
     fn ring(key: &SigningKey) -> KeyRing {
         let mut keys = KeyRing::default();

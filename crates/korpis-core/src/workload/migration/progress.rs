@@ -61,22 +61,25 @@ impl Reported {
     }
 }
 
-/// Whether `side` acts in `phase`, and so reports it: the destination prepares, and starts the
-/// workload at cutover; the source stops it and, after the hold, deletes its copies; both take
-/// part in every copy and in the comparison.
+/// Whether `side` reports `phase` done, which the phase waits for: the destination prepares,
+/// and starts the workload at cutover; the source stops it and, after the hold, deletes its
+/// copies; both compute their manifests. Neither reports a copy done: the control plane judges
+/// each pass from what both report of it (`MigrationVolume::passed`).
 #[must_use]
 pub const fn acts(phase: Phase, side: Side) -> bool {
     match phase {
         Phase::Prepare | Phase::Cutover => matches!(side, Side::Destination),
         Phase::Quiesce | Phase::Release => matches!(side, Side::Source),
-        Phase::Replicate | Phase::FinalSync | Phase::Verify => true,
+        Phase::Verify => true,
+        Phase::Replicate | Phase::FinalSync => false,
     }
 }
 
 /// What the control plane does next with a migration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Next {
-    /// Nothing yet: a side acting in the phase has not reported it done.
+    /// Nothing yet: a side acting in the phase has not reported it done, or a volume's pass is
+    /// not judged.
     Wait,
     /// Moves both nodes on to this phase.
     Advance(Phase),
@@ -115,7 +118,8 @@ pub fn next(m: &Migration, reported: Reported, volumes: &[MigrationVolume]) -> N
         .filter(|s| acts(phase, *s))
         .all(|s| reported.by(s).is_some_and(|p| p >= phase));
     let verified = phase != Phase::Verify || volumes.iter().all(MigrationVolume::verified);
-    if !done || !verified {
+    let passed = volumes.iter().all(|v| v.passed(phase));
+    if !done || !verified || !passed {
         return Next::Wait;
     }
     phase.next().map_or(Next::Complete, Next::Advance)

@@ -70,15 +70,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.record_watermarks(m.id, &p.watermarks).await?;
         }
         let then = match p.standing {
-            Standing::Going => Next::Wait,
             Standing::Failed => failed(&m, p.phase, &p.detail),
-            Standing::Done => {
-                tx.record_reported(m.id, p.side, p.phase).await?;
+            Standing::Going | Standing::Done => {
                 let mut reported = m.reported;
-                match p.side {
-                    Side::Source => reported.source = Some(p.phase),
-                    Side::Destination => reported.destination = Some(p.phase),
+                if p.standing == Standing::Done {
+                    tx.record_reported(m.id, p.side, p.phase).await?;
+                    match p.side {
+                        Side::Source => reported.source = Some(p.phase),
+                        Side::Destination => reported.destination = Some(p.phase),
+                    }
                 }
+                self.start_due_passes(tx, &m).await?;
                 next(&m, reported, &tx.migration_volumes_in(m.id).await?)
             }
         };
@@ -94,21 +96,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         ))
     }
 
-    /// Carries out `then` for `m` in `tx`, recording an end as an effect of its own.
+    /// Carries out `then` for `m` in `tx`: each phase entered starts the passes it sends, and is
+    /// judged again at once, since one nothing is sent in is done as it is entered; an end is
+    /// recorded as an effect of its own.
     pub(super) async fn follow(
         &self,
         tx: &mut S::Tx,
         m: &Migration,
-        then: Next,
+        mut then: Next,
     ) -> Result<(), AppError> {
-        let now = self.clock.now();
+        while let Next::Advance(phase) = then {
+            let now = self.clock.now();
+            let hold_until = (phase == Phase::Release).then(|| now + m.hold);
+            tx.advance_migration(m.id, phase, (now, hold_until)).await?;
+            self.enter_passes(tx, m.id, phase).await?;
+            let Some(entered) = tx.migration_in(m.id).await? else { return Ok(()) };
+            then = next(&entered, entered.reported, &tx.migration_volumes_in(m.id).await?);
+        }
         let (action, why) = match then {
-            Next::Wait => return Ok(()),
-            Next::Advance(phase) => {
-                let hold_until = (phase == Phase::Release).then(|| now + m.hold);
-                tx.advance_migration(m.id, phase, (now, hold_until)).await?;
-                return Ok(());
-            }
+            Next::Wait | Next::Advance(_) => return Ok(()),
             Next::Complete => {
                 self.complete_migration(tx, m).await?;
                 ("migration.complete", String::new())
