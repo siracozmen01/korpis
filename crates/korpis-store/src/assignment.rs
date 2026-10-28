@@ -22,7 +22,7 @@ impl AssignmentRead for PgStore {
     async fn placed_on(&self, node: Uuid) -> StoreResult<Vec<Uuid>> {
         sqlx::query_scalar!(
             "SELECT p.workload_id FROM placement p
-              WHERE p.node_id = $1
+              WHERE p.node_id = $1 AND p.authoritative
                 AND (p.held_at IS NULL
                      OR EXISTS (SELECT 1 FROM plan r
                                  WHERE r.workload_id = p.workload_id AND r.kind = 'retire'

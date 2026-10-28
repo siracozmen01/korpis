@@ -149,6 +149,15 @@ The source node's final sample and the destination's first are cut at that insta
 fenced cutover this is unsolvable, which is a good illustration of why the fencing was designed
 first.
 
+How, designed 2026-10-27 (§8.1 of `05-scheduling.md`). The source journals a last sample of the
+workload when it releases its lease at `cutover`, so its counters reach the instant it stopped
+acting; the destination meters nothing of a workload it holds as a migration's destination until it
+is granted the next epoch, and its first sample then counts from zero, as the first on any node
+does. A sample of either node under an epoch it does not hold is `rejected`, as below, and gaps
+are written for the authoritative placement alone, so the destination's wait is not a gap and the
+source's hold is not one either. What the source keeps through the hold is not metered: it is the
+installation's assurance of a rollback, not storage the tenant asked for.
+
 ### Measuring it, as designed
 
 Designed 2026-10-21, when metering was built (Phase 2 of §4 of `20-roadmap.md`). Until then the

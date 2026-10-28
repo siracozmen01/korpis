@@ -130,6 +130,11 @@ table! {
     "korpis.v1.WorkloadService/Restart" => WorkloadServiceClient::restart(RestartRequest);
     "korpis.v1.WorkloadService/PlaceWorkload" => WorkloadServiceClient::place_workload(PlaceWorkloadRequest);
     "korpis.v1.WorkloadService/ConfirmPlacement" => WorkloadServiceClient::confirm_placement(ConfirmPlacementRequest);
+    "korpis.v1.WorkloadService/MigrateWorkload" => WorkloadServiceClient::migrate_workload(MigrateWorkloadRequest);
+    "korpis.v1.WorkloadService/ListMigrations" => WorkloadServiceClient::list_migrations(ListMigrationsRequest);
+    "korpis.v1.WorkloadService/AbandonMigration" => WorkloadServiceClient::abandon_migration(AbandonMigrationRequest);
+    "korpis.v1.WorkloadService/RollbackMigration" => WorkloadServiceClient::rollback_migration(RollbackMigrationRequest);
+    "korpis.v1.WorkloadService/ReleaseMigration" => WorkloadServiceClient::release_migration(ReleaseMigrationRequest);
     "korpis.v1.WorkloadService/SetClassification" => WorkloadServiceClient::set_classification(SetClassificationRequest);
     "korpis.v1.WorkloadService/DeleteWorkload" => WorkloadServiceClient::delete_workload(DeleteWorkloadRequest);
     "korpis.v1.WorkloadService/GetWorkload" => WorkloadServiceClient::get_workload(GetWorkloadRequest);

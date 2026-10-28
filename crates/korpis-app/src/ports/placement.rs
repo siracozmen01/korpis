@@ -14,6 +14,9 @@ use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+mod migration;
+pub use migration::{MigrationRead, MigrationWrite};
+
 /// Reading where workloads are.
 pub trait PlacementRead {
     /// A workload's authoritative placement.

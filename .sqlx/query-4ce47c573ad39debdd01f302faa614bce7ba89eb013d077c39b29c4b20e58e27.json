@@ -1,0 +1,196 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.migration_id, m.volume_id, v.name, m.crossing, m.size_bytes,\n                m.source_helper_id, m.passes, m.pass, m.pass_since, m.sent_bytes, m.held_pass,\n                m.destination_helper_id, m.source_manifest, m.destination_manifest,\n                m.first_difference\n           FROM migration_volume m JOIN volume v ON v.id = m.volume_id\n          WHERE m.migration_id = ANY($1)\n          ORDER BY m.migration_id, v.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "migration_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "migration_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "volume_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "volume_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "crossing",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "crossing"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "size_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "size_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "source_helper_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "source_helper_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "passes",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "passes"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "pass",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "pass"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "pass_since",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "pass_since"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "sent_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "sent_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "held_pass",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "held_pass"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "destination_helper_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "destination_helper_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "source_manifest",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "source_manifest"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "destination_manifest",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "destination_manifest"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "first_difference",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration_volume",
+            "name": "first_difference"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "4ce47c573ad39debdd01f302faa614bce7ba89eb013d077c39b29c4b20e58e27"
+}

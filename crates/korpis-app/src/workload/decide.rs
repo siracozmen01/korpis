@@ -10,7 +10,10 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::ports::{Clock, EffectWrite, RecipeSource, RetirementWrite, Store, Tx, WorkloadWrite};
+use crate::ports::{
+    Clock, EffectWrite, MigrationWrite as _, RecipeSource, RetirementWrite, Store, Tx,
+    WorkloadWrite,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::plan::PlanStatus;
@@ -59,8 +62,8 @@ fn stamp(
     Ok(())
 }
 
-fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
-    Ok(match plan.target {
+fn current(plan: &Plan, w: &Workload) -> bool {
+    match plan.target {
         PlanTarget::Intent(i) => i == w.intent && plan.from_intent == w.target,
         PlanTarget::Power(v) => v == w.power_version && plan.from_power == w.power_target_version,
         // A retire plan's steps were computed from what the workload was approved to be and do,
@@ -68,14 +71,14 @@ fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
         PlanTarget::Retire | PlanTarget::Remake => {
             plan.from_intent == w.target && plan.from_power == w.power_target_version
         }
-        PlanTarget::Migrate => {
-            return Err(AppError::NotYet { what: "migration plans", phase: 3 });
-        }
+        // A migration moves the workload as it was approved to be; its power is the source's
+        // until cutover and the destination's after (§8.1 of docs/05-scheduling.md).
+        PlanTarget::Migrate => plan.from_intent == w.target,
         // Deleting a retained volume asks nothing of the workload, retired or not; whether the
         // volume can still be deleted is read where the plan is approved. Neither does pruning
         // its backups, which outlive it.
         PlanTarget::Volume(..) | PlanTarget::Prune(_) => true,
-    })
+    }
 }
 
 pub(super) fn effect(
@@ -143,7 +146,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Some(PlanStatus::Expired));
         }
         let for_volume = matches!(plan.target, PlanTarget::Volume(..) | PlanTarget::Prune(_));
-        if (w.deleted_at.is_some() && !for_volume) || !current(plan, w)? {
+        if (w.deleted_at.is_some() && !for_volume) || !current(plan, w) {
             return Ok(Some(PlanStatus::Superseded));
         }
         if let PlanTarget::Volume(v, op) = plan.target
@@ -176,6 +179,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if tx.retiring(w.id).await? {
             return Err(retiring());
         }
+        // Nothing else changes a workload while it migrates but what its backups keep.
+        let changes_it = !matches!(plan.target, PlanTarget::Migrate | PlanTarget::Prune(_));
+        if changes_it && tx.live_migration_in(w.id).await?.is_some() {
+            return Err(super::migrate::migrating());
+        }
         let queued = tx.plan_applying(w.id).await?;
         stamp(&mut plan, (caller, now, cmd.apply_after), queued)?;
         let moved = tx.update_plan(&plan, PlanStatus::Proposed).await?
@@ -187,8 +195,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 PlanTarget::Retire
                 | PlanTarget::Remake
                 | PlanTarget::Volume(..)
-                | PlanTarget::Prune(_) => true,
-                PlanTarget::Migrate => false,
+                | PlanTarget::Prune(_)
+                | PlanTarget::Migrate => true,
             };
         if !moved {
             return Err(AppError::conflict(
@@ -208,8 +216,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 self.place_screened(&mut tx, &w, Some(&target), &screened).await?;
             }
             PlanTarget::Retire => self.begin_retirement(&mut tx, &mut plan, &w).await?,
+            PlanTarget::Migrate => self.begin_migration(&mut tx, &mut plan, &w).await?,
             PlanTarget::Power(_)
-            | PlanTarget::Migrate
             | PlanTarget::Remake
             | PlanTarget::Volume(..)
             | PlanTarget::Prune(_) => {}

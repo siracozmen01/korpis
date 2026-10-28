@@ -24,6 +24,7 @@ pub const CORE: &[&str] = &[
     "workload.file.write",
     "workload.secret.read",
     "workload.classify",
+    "workload.migrate",
     "extension.read",
     "extension.install",
     "extension.uninstall",

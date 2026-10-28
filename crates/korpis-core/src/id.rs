@@ -83,6 +83,8 @@ pub enum IdKind {
     AddressPool,
     /// An edge group (`egr_`).
     EdgeGroup,
+    /// A workload's migration (`mig_`).
+    Migration,
 }
 
 impl IdKind {
@@ -125,6 +127,7 @@ impl IdKind {
             Self::SshKey => "ssk",
             Self::AddressPool => "apl",
             Self::EdgeGroup => "egr",
+            Self::Migration => "mig",
         }
     }
 }

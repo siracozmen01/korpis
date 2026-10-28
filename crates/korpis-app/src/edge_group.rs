@@ -27,6 +27,7 @@ mod reach;
 mod tables;
 
 pub use lease::EdgeLeaseAnswer;
+pub(crate) use placed::Addressing;
 pub use probe::{ProbePlan, ProbeTarget};
 pub use reach::EdgeReach;
 pub use tables::EdgeTables;

@@ -10,6 +10,7 @@ pub mod dependency;
 pub mod endpoint;
 pub mod health;
 pub mod lease;
+pub mod migration;
 pub mod network;
 pub mod observation;
 pub mod peers;

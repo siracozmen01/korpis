@@ -1103,8 +1103,11 @@ Placement
 
 **Invariants**
 - A persistent workload has at most one active placement.
-- During migration two placements coexist, exactly one marked authoritative, until cutover (Rule
-  K-4).
+- During migration two placements coexist, exactly one marked authoritative: the source's until
+  cutover, the destination's from it (Rule K-4). The source's stays, not authoritative, until the
+  migration's hold ends, so a rollback has a place to return to. (Corrected 2026-10-27, when
+  migration was designed, §8.1 of `05-scheduling.md`: this said the two coexisted "until
+  cutover", which would have freed the source's capacity while its copies were still kept.)
 - Every placement records **why**. A scheduler that cannot explain its choice is a scheduler nobody
   trusts. Detail in `05-scheduling.md`.
 - A node's `allocated` is the sum of `reserved` over its placements, authoritative or not: during a
@@ -1112,6 +1115,37 @@ Placement
   size to the disk it allocates, since it takes as much space (§2.2 of `06-storage.md`).
 - A device is held in `passthrough` by at most one placement, counting every device that is the
   same hardware, and in `timeslice` by at most its `shares` (§6.3 of `05-scheduling.md`).
+
+#### Migration
+
+> One workload's move from one node to another, through the seven phases of §8 of
+> `05-scheduling.md`. Added 2026-10-27, when migration was designed (§8.1 there).
+
+```
+Migration
+  id            MigrationID      mig_…
+  plan          PlanID         the plan of kind `migrate` it carries out
+  workload      WorkloadID
+  source        NodeID
+  destination   NodeID
+  phase         prepare | replicate | quiesce | final_sync | verify | cutover | release
+  phase_since   Timestamp
+  hold          Duration       how long the source keeps its copies after cutover; a day
+  hold_until    Timestamp?     set at cutover
+  volumes       []VolumeMove   each attached volume: how it crosses, its passes and bytes, and
+                               both sides' manifest digests
+  watermarks    []Watermark    each stream's next offset and journaled position, from quiesce
+  outcome       completed | rolled_back | abandoned, with its reason; absent while it runs
+```
+
+**Invariants**
+- A workload has at most one migration whose outcome is absent.
+- The phase moves only on reports of the nodes assigned each side, and only forward, except that
+  an abandon or a rollback ends it.
+- Its destination is a placement of the workload from the moment it is made: not authoritative
+  before cutover, authoritative from it, and freed by an abandon, which deletes what it
+  received, or by a rollback, which keeps what the workload wrote there as divergent copies of
+  its volumes (§2.2 of `06-storage.md`).
 
 ---
 

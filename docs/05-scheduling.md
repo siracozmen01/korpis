@@ -370,14 +370,15 @@ What the override reaches, decided 2026-10-13 when it was built (`WorkloadServic
 `korpis workload place`). An operator binds a workload whose approved target has no node to the
 node they name. The choice overrides the node's cordon and taints, because those record the
 operator's own decisions about the node, and nothing else: every other check of §2.1 is a fact
-about whether the workload can run there (a driver, a tier, capacity, a storage class, the
-overlay) or its tenant's own declaration (constraints, affinity) or tenancy (the node's
-organization), and a node failing one is refused with `UNSATISFIABLE` naming each check,
-whoever chooses it. A draining or decommissioned node is not overridden: draining is the operator
-emptying it. It needs `node.place` on the node and `workload.write` on the workload, and the effect
-names the `node.place` grant and the reason. A workload already on a node moves only by migration
-(§8), so placing it elsewhere is refused until migration exists in Phase 3. The cost is that an
-operator cannot force a workload onto a node it does not fit, even when they know better than the
+about whether the workload can run there (a driver, a tier, capacity, a storage class, the overlay)
+or its tenant's own declaration (constraints, affinity) or tenancy (the node's organization), and a
+node failing one is refused with `UNSATISFIABLE` naming each check, whoever chooses it. A draining
+or decommissioned node is not overridden: draining is the operator emptying it. It needs
+`node.place` on the node and `workload.write` on the workload, and the effect names the
+`node.place` grant and the reason. A workload already on a node moves only by migration (§8), so
+placing it elsewhere is refused, naming `korpis workload move` (§8.1). (Corrected 2026-10-28, as
+migration's proposal was built: this was refused as not yet built.) The cost is that an operator
+cannot force a workload onto a node it does not fit, even when they know better than the
 measurement; the honest remedy is to correct the measurement, not to bind past it.
 
 **When a placement is bound.** In the transaction that approves a target (§3.3 of `01-model.md`),
@@ -1660,6 +1661,190 @@ stored offset refers to. The destination continues the sequence from the waterma
 
 Any range that could not be transferred is written as a **gap record**, the same marker used for
 drops under pressure, so a migrated console states what it lost rather than appearing complete.
+
+### 8.1 How a migration runs, as designed
+
+Designed 2026-10-27 (P3.9a in §4 of `20-roadmap.md`), before it is built. The phases and the
+invariants above stand; this says which component evaluates each phase, with what information,
+what crosses between the two nodes, and what it costs. Trace 82 of `23-walkthroughs.md` follows it.
+
+**A migration is asked for as a plan.** `WorkloadService.MigrateWorkload` names a workload and,
+optionally, a node. With none, the scheduler chooses as it places (§2), among every node but the
+one the workload is on; with one, the node is checked as `PlaceWorkload` checks it (§2.3) and the
+caller needs `node.place` on it. Either way the caller needs `workload.migrate` on the workload, an
+action implied by nothing (§5 of `10-api.md`): a grant that may restart a server was never one to
+take capacity on a second machine and move the server there. The call proposes a plan of kind
+`migrate` (§3.3 of `01-model.md`) whose one step, `migrate`, the control plane executes (§4.9 of
+`02-architecture.md`). The step is disruptive at the vocabulary's floor, since `quiesce` stops the
+workload, and a plan of kind `migrate` is never approved by a policy: a person approves it, or the
+Operation that generated it (§3), whose own approval was a person's. The plan names the destination
+with the scheduler's explanation, each volume with its size and what will cross for it (below),
+whether `quiesce` stops the workload or captures its state, and every exposure whose address
+changes (a `node_port` endpoint, §10 of `07-networking.md`). It is refused at proposal, saying why,
+for a workload holding an address of a `node` pool (§3.7 there), a workload already migrating, one
+with no placement, a destination failing any check of §2.1, and a local volume whose class cannot
+cross between the two nodes: one sending no increments where either node's helper does not declare
+`tree_sync` (§2 of `06-storage.md`), which it declares only where it finds rsync. **What evaluates
+"this volume can cross":** the control plane, from the classes both nodes declared at their last
+`Hello`.
+
+**The migration is a record, and the destination a placement.** Approving the plan makes a
+`migration` record when the plan becomes applying: the plan, the workload, the source and the
+destination, the phase and when it was entered, the hold (a day unless the call says otherwise),
+and, once it ends, its outcome, `completed`, `rolled_back`, or `abandoned`, with the reason. In the
+same transaction, under the placement lock, the destination is bound as a second placement of the
+workload, not authoritative and `bound_by: migration`, so its capacity, cores, and devices are held
+from `prepare` on (§3.4 of `01-model.md`); a destination that no longer fits fails the step before
+anything was done. A workload has one migration at a time.
+
+**Each phase is advanced on both nodes' reports.** While a workload migrates both nodes hold an
+assignment of it, each carrying a `MigrationRole` (§4.8 of `02-architecture.md`): the migration,
+the role, the phase, the peer, and, per volume, how it crosses and the ticket of the pass under
+way. The destination's assignment carries the target, the volumes, and no power, and its agent asks
+for no lease, which the control plane would refuse it anyway while its placement is not
+authoritative. Each node converges to its side of the phase and journals `MigrationProgress`
+(migration, phase, side, done or failed, and the phase's detail); the control plane believes a
+report only from the node assigned that side of that migration, about the phase the migration is
+in, as it believes a replica's receive (§2.2 of `06-storage.md`), and records any other as
+`journal.rejected`. It advances both assignments once the phase's condition holds:
+
+| Phase | Source | Destination | Done when, as the control plane evaluates it |
+|---|---|---|---|
+| `prepare` | runs on | the target's `Prepare`, its content fetched, its ids, a place to receive each volume | the destination reports it |
+| `replicate` | sends each volume, pass after pass | receives each pass | the source reports a small pass, and the destination reports that pass held |
+| `quiesce` | stops the workload, or captures its state; its stream writers seal | nothing | the source reports the object stopped and each stream's watermark |
+| `final_sync` | sends what changed since the last pass | receives it | the destination reports the last pass held |
+| `verify` | computes each volume's manifest | computes the same, and `Prepare` with the volumes in place | both manifests arrived and are equal, and the `Prepare` passed |
+| `cutover` | releases its lease | is granted the next, starts | the placement moved, and the destination reports the workload running under the new epoch |
+| `release` | deletes its copies, after the hold | nothing | the source reports them deleted |
+
+A pass is small when it sent at most a hundredth of the volume or 64 MiB, whichever is larger, or
+when it is the tenth: the source evaluates it, from the bytes it sent. A node that restarts takes
+up the phase its assignment names, and each phase can be done again: a pass sent again is received
+again, whole or from what is held, and a manifest computed again is the same.
+
+**What crosses, per volume.** Decided by the volume's class on the source:
+
+- *A local class able to send increments* (btrfs, and ZFS once built): the replica transfer of §2.2
+  of `06-storage.md`, the first pass whole, or, where the destination keeps a replica of the
+  volume, an increment from the replica's snapshot, and every later pass an increment from the one
+  before. The volume's own snapshots (§4 there) cross first, oldest first, each an increment from
+  the one before it, so a migrated volume keeps them. At `final_sync` the pass is a snapshot taken
+  stopped; at `cutover` the destination's last received snapshot becomes the volume, as a replica
+  is promoted.
+- *Any other local class:* the tree, by rsync: the source's helper runs the sender over the volume,
+  and the destination's runs rsync's daemon side over the same connection, confined by its own
+  `chroot` to a staging directory of the volume, keeping owners by number, hardlinks, ACLs,
+  extended attributes, and holes, and deleting what the source no longer has. Each pass sends what
+  differs, so `replicate` converges as increments do, though a pass taken from a running workload
+  is inconsistent, which the `final_sync` pass, taken stopped, repairs. At `cutover` the staging
+  directory is exchanged for the volume. Decided over GNU tar, which would send the whole tree
+  every pass and so leave the workload stopped for a whole copy, and over a format of Korpis's
+  own, which would be the one place the rules for hardlinks, ACLs, and holes were read differently
+  from every tool that restores them; as for btrfs-progs, a node offering such a class needs rsync
+  (§2 of `18-operations.md`).
+- *A shared or block class:* nothing. The destination reaches the same storage (§2.1 of
+  `06-storage.md`): a shared class's volume is the store's, and a block class's device is attached
+  to the destination for the new epoch at `cutover` by the reconciler that attaches it at a
+  failover, which fences the source.
+- *A stream's volume* crosses as its class's local volumes do, so segments travel with the workload
+  (Finding 3). The source's `quiesce` report names, for each stream, its next offset and the
+  position in its changes log its agent has journaled to; the destination's assignment carries both
+  from `cutover`, and its writer starts at the larger of the offset it finds and the one it was
+  handed, writing a gap record between them when less arrived than was written (§4 of
+  `14-streams.md`), while its agent follows the changes log from the position handed over, so no
+  segment is journaled or offloaded twice.
+
+Every transfer is sent through the mesh as a replica's is (§2.2 of `06-storage.md`): from the
+source's mesh address to the destination's transfer port, which the destination's table admits
+from the source's address alone while its assignment names the migration, under a ticket the
+control plane's token key signs over a purpose label of the migration's own (`korpismt_`) and the
+pass: the migration, the volume, the two nodes, the pass, and an expiry. **What evaluates "this
+stream may be written into this volume's staging, from there":** the destination's agent, from the
+ticket and the token keys it holds, and its kernel, from the mesh's keys, as for a replica.
+
+**`verify` compares manifests.** A volume's manifest is a canonical walk of it: every entry in the
+byte order of its path, with its type, mode, owner and group by number, extended attributes with
+the ACLs among them, and for a regular file its size, modification time, the SHA-256 of its
+content, and its holes (the ranges `SEEK_DATA` and `SEEK_HOLE` find), for a symlink its target, for
+a device node its numbers, and for a hardlink the first path of its group; its digest is the
+SHA-256 of the walk. Both helpers compute it, the source over what it sent last, stopped, the
+destination over what it received. **What evaluates "the destination holds what the source held":**
+the control plane, from the two digests the two nodes journaled; when they differ it asks both for
+the first entry that differs and records it, and the migration rolls back. A volume in a shared or
+block class is not compared, since there is one copy. This is the check Pterodactyl's #5429 lacked:
+a symlink, an attribute, or a hole lost in transit is a difference in the manifest, not in the
+bytes.
+
+**`cutover` is the lease.** The source's agent, its object stopped since `quiesce`, releases its
+lease (§4.5 of `02-architecture.md`) and journals its meter's last sample of the workload at that
+instant. On the release, or once the grantor's end of the source's lease has passed when the
+source is not heard, the control plane moves the placement in one transaction: the destination's
+becomes authoritative, the source's is not, and each local volume's record moves to the destination
+under the identifier the destination's helper gave it. The destination's assignment then carries
+the workload's power and the streams' watermarks; its agent asks for the lease and is granted the
+next epoch (invariant 2), starts the workload, and reports it running. What follows the placement
+follows it then, each by the reconciler that keeps it and only after the epoch changed: a block
+device's attach, a cluster pool's address through its router (§3.7 of `07-networking.md`), a
+stable endpoint's edges (§3.1 there), the ingress's upstreams, and the overlay's routes and
+dependents (§10 there). A destination that cannot start the workload is rolled back.
+
+**Abandon, rollback, and release.** Before `cutover`, any failed phase abandons the migration, as
+`korpis migration abandon` does: both assignments lose the role, the source starts the workload
+again if its power says so, the destination deletes what it received, and its placement is freed.
+After `cutover` and until `release`, `korpis migration rollback` moves the workload back the same
+way it came: the destination stops and releases its epoch, the placement moves back in one
+transaction, and the source is granted the next epoch over the copies it kept, which hold what they
+held at `quiesce`. What the workload wrote on the destination since `cutover` is not thrown away:
+each moved volume's copy there is kept as a divergent copy, listed on the volume and deleted only
+by a plan, as failover's is (§2.2 of `06-storage.md`). Once the hold passes, or `korpis migration
+release` ends it early, the source deletes its copies of the local volumes, its placement is freed,
+and the migration is completed; a shared or block class's volume is the destination's already.
+
+**The meter is cut at the epoch.** The source's samples are believed while it holds the lease, and
+the last is the one it journals at its release; the destination's first is under the new epoch and
+counts from zero, as the first sample on a node does; a sample of either node outside its lease is
+`rejected` (§2 of `15-observability.md`). So no interval is counted by both nodes and none by
+neither, and gaps are written for the authoritative placement alone. The copies the source keeps
+through the hold are the installation's assurance of a rollback, not the tenant's storage: they are
+in the source node's allocation, and in neither the meter nor the project's quota.
+
+**Live state.** Where the source's driver declares `runtime_snapshot` and the destination matches
+its `restore_requires` (§4.1 of `04-runtimes.md`), `quiesce` pauses the workload and captures its
+state, `final_sync` sends the state with the last pass, and the destination restores it rather than
+starting the workload; anywhere else `quiesce` stops it, and the plan says which. No driver
+declares `runtime_snapshot` yet; the `firecracker` driver's is built with migration, in Phase 3 of
+§4 of `20-roadmap.md`.
+
+What it costs. Capacity on two nodes from `prepare` until `release`, a day by default. The
+workload is stopped from `quiesce` until the destination starts it: the last pass, a manifest that
+reads every byte on both sides at the disk's speed, and a lease's grant; a volume of 40 GB on disks
+reading 1 GB/s adds about forty seconds of verification, and that is the price of #5429 not
+recurring. rsync on every node with a local class that cannot send increments. Transfers share the
+mesh with replication and are not shaped. What it does not do: move a workload holding a `node`
+pool's address; move a retained volume its target does not attach, which stays where it is; or
+move a workload between installations.
+
+**Built 2026-10-28, the proposal and the record** (P3.9b1). `WorkloadService.MigrateWorkload`
+proposes the plan, its one `migrate` step naming the source, the destination, the hold, each volume
+with its size and how it crosses, whether `quiesce` stops the workload, and each endpoint whose
+address changes; the plan waits for a person whatever the policy says. The destination is chosen
+by the scheduler among the nodes serving the workload but its own, with the volumes of shared and
+block classes as what it must reach, or checked as a placement by hand when named. Approving the
+plan checks the destination again, binds it as a placement that is not authoritative under the
+placement lock, and makes the migration record in `prepare` with each volume's crossing, in the
+transaction that marks the plan applying; it is refused while another plan of the workload applies,
+and every other plan of a migrating workload but a pruning is refused at approval. A node's
+assignments and the metering gaps read the authoritative placement alone, so the destination holds
+capacity and nothing yet runs there. `ListMigrations` reads a workload's migrations and
+`AbandonMigration` ends one before `cutover`, the destination freed and the plan cancelled;
+rolling back and releasing are refused before `cutover`. The CLI's `korpis workload move` and
+`korpis migration get|abandon|rollback|release` are §2 of `13-surface-cli.md`. Tested over the
+API: the plan, its approval holding both placements, a second migration refused, the abandonment;
+and the refusals of a workload on no node, of its own node, and of a volume the destination's
+helper cannot receive. What is not built yet: both nodes' roles in their assignments, the phases
+advanced on their reports, `cutover`, rollback, and release (P3.9b2), and the nodes' transfers
+(P3.9c).
 
 ---
 

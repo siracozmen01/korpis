@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT p.workload_id AS \"workload_id!\", p.node_id AS \"node_id!\", c.at AS \"from!\"\n                 FROM placement p\n                 LEFT JOIN metering_reading r\n                        ON r.workload_id = p.workload_id AND r.node_id = p.node_id\n                 CROSS JOIN LATERAL (SELECT CASE WHEN r.workload_id IS NULL THEN p.bound_at\n                      ELSE greatest(r.interval_end, coalesce(r.gapped_through, r.interval_end))\n                      END AS at) c\n                WHERE c.at < $1",
+  "query": "SELECT p.workload_id AS \"workload_id!\", p.node_id AS \"node_id!\", c.at AS \"from!\"\n                 FROM placement p\n                 LEFT JOIN metering_reading r\n                        ON r.workload_id = p.workload_id AND r.node_id = p.node_id\n                 CROSS JOIN LATERAL (SELECT CASE WHEN r.workload_id IS NULL THEN p.bound_at\n                      ELSE greatest(r.interval_end, coalesce(r.gapped_through, r.interval_end))\n                      END AS at) c\n                WHERE p.authoritative AND c.at < $1",
   "describe": {
     "columns": [
       {
@@ -43,5 +43,5 @@
       null
     ]
   },
-  "hash": "f6aa39e325ee86a21e82bf7d82871b01712bdd19d3f3f256130d0d89044c079f"
+  "hash": "6d11b290a3a9d0c99c2ec1c261ddfcbc3414afade00dc3a0c8dddf8ab82f91c1"
 }

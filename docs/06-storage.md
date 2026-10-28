@@ -41,6 +41,9 @@ StorageClass
     snapshot            bool
     snapshot_atomic     bool     consistent point-in-time without pausing writers
     incremental_send    bool     ship only the delta between two snapshots
+    tree_sync           bool     the helper can send and receive the volume's tree by rsync,
+                                 which a migration of a class without increments needs;
+                                 added 2026-10-27 (§8.1 of 05-scheduling.md)
     quota_enforced      bool     the kernel fails the write, not a monitor
     quota_dimensions    []       capacity | inodes
     thin_provision      bool
@@ -1697,12 +1700,23 @@ concretely:
 |---|---|---|
 | `incremental_send` | `zfs send -i` / `btrfs send -p`, block-level delta | fastest, exact |
 | `snapshot` only | snapshot, then file-level sync from the frozen view | fast, consistent |
-| neither | file-level sync from a live tree | slowest, and inconsistent unless the workload stops |
+| neither | file-level sync from a live tree, by rsync | slowest, and inconsistent unless the workload stops |
 
 This is why the storage class is a scheduling input and not merely a storage detail. A cluster on
 ZFS can drain a node in minutes with workloads running until cutover. A cluster on ext4 must stop
 each workload to move it. Same code, same operation, entirely different operational reality, and
 the operator should know which one they bought at the moment they choose the class.
+
+How each crosses was designed 2026-10-27 (§8.1 of `05-scheduling.md`). A class able to send
+increments sends them as a replica is sent (§2.2), the volume's snapshots first, and from a replica
+the destination already keeps where it keeps one; any other local class is synced by rsync, pass
+after pass while the workload runs and once more stopped, its receiving side confined to a staging
+directory of the volume; and a shared or block class sends nothing, its device attached to the
+destination at `cutover` for the new epoch (§2.1). What arrived is compared, not trusted: both
+helpers compute a manifest of each local volume, symlinks, extended attributes, ACLs, holes, and
+hardlinks included, and the control plane compares the two before the lease moves. The source keeps
+its copies through a hold, a day by default, so that a rollback re-grants the source over them;
+they are counted in its node's allocation and nowhere else.
 
 ---
 

@@ -117,7 +117,7 @@ pub use member::{Asked, MemberRead, MemberWrite};
 pub use metering::{MeteringRead, MeteringWrite, Overdue, UsageQuery};
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
-pub use placement::{PlacementRead, PlacementWrite};
+pub use placement::{MigrationRead, MigrationWrite, PlacementRead, PlacementWrite};
 pub use portal::{PortalRead, PortalWrite};
 pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
@@ -251,6 +251,7 @@ pub trait Store:
     + QuotaRead
     + NodeRead
     + PlacementRead
+    + MigrationRead
     + TrustRead
     + ThemeRead
     + LayoutRead
@@ -346,6 +347,7 @@ pub trait Tx:
     + QuotaSetWrite
     + NodeWrite
     + PlacementWrite
+    + MigrationWrite
     + RetirementWrite
     + TrustWrite
     + ThemeWrite

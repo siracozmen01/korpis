@@ -247,6 +247,17 @@ otherwise every reader's stored position would silently come to mean something e
 that offsets are the seek primitive would be false across the one event most likely to make someone
 go looking. Anything that could not be transferred becomes a gap record.
 
+How the offset crosses, designed 2026-10-27 (§8.1 of `05-scheduling.md`). A stream's directory is
+a volume, so its segments cross as its class's volumes do. At `quiesce` the source's writer seals
+and exits with the workload's task, and the source reports, for each stream, its next offset and
+the position in its changes log its agent has journaled and offloaded to. The destination is handed
+both at `cutover`: its writer starts at the larger of the offset it finds in the directory and the
+one handed over, and writes a gap record between them when less arrived than was written; its agent
+follows the changes log from the position handed over, so a segment the source already journaled
+and offloaded is neither journaled nor offloaded again. **What evaluates "this offset continues the
+sequence":** the destination's writer, from the watermark in its assignment, which the control
+plane took from the source's report, the one node that wrote the offsets before it.
+
 Segment files live in the tenant's storage and **count against the tenant's quota** (K-3). This is
 not bookkeeping pedantry: a workload that logs at 50 MB/s is a workload that fills a node, and a
 "log retention" setting that is not backed by an enforced quota is exactly the unenforced limit P4

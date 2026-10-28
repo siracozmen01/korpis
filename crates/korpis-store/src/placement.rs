@@ -23,6 +23,8 @@ use std::collections::BTreeMap;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+mod migration;
+
 /// The advisory lock every bind and every cordon holds: one key, for the installation.
 const PLACEMENT_LOCK: i64 = 0x6b6f_7270_6973_0001;
 

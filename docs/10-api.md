@@ -176,6 +176,7 @@ workload.exec                                        a new process inside; impli
 workload.file.read · workload.file.write
 workload.secret.read                                 read a field the recipe marks secret
 workload.classify                                    override how its plan steps are classified
+workload.migrate                                     move it to another node; implied by nothing
 extension.read · extension.install · extension.uninstall
 event.read                                           receive events about what it reaches
 metering.read                                        what a workload used, interval by interval
@@ -330,6 +331,12 @@ ext.<extension>.<action>              extensions define their own, namespaced
   included, because relaxing a step is choosing which changes a human sees before they happen,
   and a grant to edit configuration was never a grant to decide that. Added 2026-10-13, when the
   override was built: the model promised it and nothing could set it.
+- **`workload.migrate` moves a workload to another node** (§8.1 of `05-scheduling.md`): proposing
+  the migration's plan, and abandoning, rolling back, or releasing one. It is implied by nothing,
+  `workload.restart` included, because a migration takes capacity on a second machine for as long
+  as its hold, and a grant that may restart a server never said where it runs. Naming the node
+  needs `node.place` on it besides, as binding by hand does; approving the plan is `plan.approve`.
+  Added 2026-10-27, when migration was designed.
 - **`extension.install` is installing on a target the installer controls** (§4 and §4.1 of
   `16-extensions.md`): on the project or organization installed into, and on the organization
   whenever the extension provides anything, because a provider serves the organization's whole

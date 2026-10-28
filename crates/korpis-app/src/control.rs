@@ -16,7 +16,7 @@ use crate::ports::{
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::Plan;
-use korpis_core::workload::plan::{PlanStatus, Step, StepExecutor};
+use korpis_core::workload::plan::{PlanStatus, Step, StepAction, StepExecutor};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -34,7 +34,9 @@ pub fn backoff(attempt: u32) -> Duration {
 }
 
 /// The step of `plan` the control plane executes next, if it is due at `now`: the plan is
-/// approved or applying, its schedule has come, and its next step is the control plane's.
+/// approved or applying, its schedule has come, and its next step is the control plane's. A
+/// `migrate` step is no job: it is carried out by its migration's phases, which complete it
+/// when the migration ends (§8.1 of docs/05-scheduling.md).
 #[must_use]
 pub fn due(plan: &Plan, now: SystemTime) -> Option<&Step> {
     if !matches!(plan.status, PlanStatus::Approved | PlanStatus::Applying)
@@ -43,7 +45,8 @@ pub fn due(plan: &Plan, now: SystemTime) -> Option<&Step> {
         return None;
     }
     let next = plan.steps.iter().find(|s| plan.completed.is_none_or(|c| s.index > c))?;
-    (next.executor == StepExecutor::ControlPlane).then_some(next)
+    let job = next.executor == StepExecutor::ControlPlane && next.action != StepAction::Migrate;
+    job.then_some(next)
 }
 
 /// Which plan step a job is.

@@ -280,6 +280,9 @@ pub enum StorageFeature {
     SharedAccess,
     /// More than one node may attach it.
     MultiNodeAttach,
+    /// The helper sends and receives a volume's tree by rsync, which a migration of a class
+    /// that sends no increments needs (§8.1 of docs/05-scheduling.md).
+    TreeSync,
 }
 
 /// How a storage class stops a writer that has lost its lease (§2 of docs/06-storage.md).

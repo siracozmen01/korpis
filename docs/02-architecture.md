@@ -785,10 +785,21 @@ RunRef
   cycle         int?           the power cycle that requested it; exactly for a manual run
 
 MigrationRole
+  migration     MigrationID
   role          source | destination
   phase         prepare | replicate | quiesce | final_sync | verify | cutover | release
   peer          NodeID
+  volumes       []Crossing     each volume the target attaches: its helper identifier on each
+                               side, how it crosses (increments, tree, or nothing), and the
+                               pass under way with its ticket (§8.1 of 05-scheduling.md)
+  watermarks    []Watermark    from cutover, on the destination: each stream's next offset and
+                               the position its changes log was journaled to on the source
+  hold_until    Timestamp      when the source deletes its copies, unless rolled back first
 ```
+
+> Added 2026-10-27, when migration was designed (§8.1 of `05-scheduling.md`): `migration`,
+> `volumes`, `watermarks`, and `hold_until`. A phase alone told a node what to be and not what
+> to send, under which ticket, or from which offset the destination's consoles continue.
 
 > Corrected 2026-10-16, when the issuer of certificates added `challenges`. The block above
 > listed the assignment as first designed; the fields added as volumes, residual plans,
@@ -878,7 +889,10 @@ the gaps above:
 - **`migration` makes each phase a desired state on each side.** The control plane advances the
   phase on both assignments after it has observed the previous one complete, and every phase is
   idempotent (§8 of `05-scheduling.md`). The ordering lives in the control plane; the node only
-  ever converges to "you are the destination, in `replicate`, from node 4".
+  ever converges to "you are the destination, in `replicate`, from node 4". The destination's
+  assignment is a second assignment of the workload, for a placement not yet authoritative: it
+  carries the target and the volumes and no power, and its node asks for no lease until
+  `cutover` moves the placement (§8.1 there).
 - **`signature`** lets an agent prove what it was told. §8 of `03-state.md` uses that to recover
   assignments a restored control plane no longer remembers, and it means a compromised relay or
   proxy on the path cannot alter an assignment unnoticed. The agent believes a set only when every

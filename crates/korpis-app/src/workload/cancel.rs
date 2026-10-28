@@ -59,6 +59,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .await?
             .ok_or(AppError::NotFound { kind: "workload" })?;
         let from = plan.status;
+        if plan.target == PlanTarget::Migrate && from == PlanStatus::Applying {
+            let why = "a migration under way is abandoned or rolled back, never cancelled";
+            return Err(AppError::conflict("plan.migrating", why));
+        }
         match from {
             PlanStatus::Approved | PlanStatus::Queued if plan.completed.is_none() => {
                 self.withdraw_approved(&mut tx, &plan, &w).await?;

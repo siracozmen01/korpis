@@ -121,6 +121,23 @@ exact integers; the table rounds CPU time to the millisecond and memory to the t
 GiB-hour. The cost is width: fifteen columns wrap in a narrow terminal, and `--json` is the form a
 script reads.
 
+**Moving a workload, as designed.** Added 2026-10-27, when migration was designed (§8.1 of
+`05-scheduling.md`). `korpis workload move W` proposes moving `W` to the node the scheduler
+chooses, and `--to NODE` to that node; `--hold` says how long the source keeps its copies after the
+move, a day when not said. It prints the plan as `plan` does (§4): the destination and why it was
+chosen, each volume with its size and what will cross, whether the workload is stopped or its state
+captured, and each address that changes, so the approver sees the downtime's causes before it is
+spent. `korpis migration get` lists a workload's migrations, or prints one: its phase and since
+when, each volume's passes and bytes, the manifests' agreement, and, once ended, its outcome and
+why. `korpis migration abandon` ends one before `cutover`, `rollback` moves the workload back
+after it, and `release` ends the hold early, each under `workload.migrate`; `rollback` and
+`release` take `--yes`, since the first stops the workload again and returns it to what it held at
+`quiesce`, and the second deletes the source's copies, after which nothing can roll it back.
+`korpis status` shows a migrating workload's phase and peer. Built 2026-10-28 (P3.9b1, §8.1 of
+`05-scheduling.md`): `workload move` with `--to` and `--hold`, and `migration get`, `abandon`,
+`rollback`, and `release`, the last two refused by the API before `cutover`; `status` showing the
+phase is not built yet.
+
 ---
 
 ## 3. Declared files are intent bodies

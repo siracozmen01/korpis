@@ -10,7 +10,7 @@ use korpis_core::node::driver::{Fencing, StorageBackend, StorageCaps, StorageFea
 use korpis_proto::korpis::v1 as pb;
 
 /// Each feature with the wire field that carries it.
-fn flags(c: &pb::StorageCapabilities) -> [(StorageFeature, bool); 14] {
+fn flags(c: &pb::StorageCapabilities) -> [(StorageFeature, bool); 15] {
     use StorageFeature as F;
     [
         (F::Snapshot, c.snapshot),
@@ -27,6 +27,7 @@ fn flags(c: &pb::StorageCapabilities) -> [(StorageFeature, bool); 14] {
         (F::EncryptionAtRest, c.encryption_at_rest),
         (F::SharedAccess, c.shared_access),
         (F::MultiNodeAttach, c.multi_node_attach),
+        (F::TreeSync, c.tree_sync),
     ]
 }
 
@@ -161,6 +162,7 @@ pub fn storage_class_to_pb(c: &StorageClass) -> pb::StorageClassInfo {
             encryption_at_rest: has(F::EncryptionAtRest),
             shared_access: has(F::SharedAccess),
             multi_node_attach: has(F::MultiNodeAttach),
+            tree_sync: has(F::TreeSync),
             fencing: fencing_to_pb(c.capabilities.fencing).into(),
             ..Default::default()
         }

@@ -40,6 +40,19 @@ pub enum WorkloadAction {
         #[arg(long)]
         reason: String,
     },
+    /// Proposes moving it to another node: a plan a person approves, which stops it, copies
+    /// its volumes, and starts it there (§8.1 of docs/05-scheduling.md).
+    Move {
+        /// The workload.
+        #[arg(add = ArgValueCompleter::new(complete::workloads))]
+        workload: String,
+        /// The node, by name or identifier; the scheduler's choice when left out.
+        #[arg(long, add = ArgValueCompleter::new(complete::nodes))]
+        to: Option<String>,
+        /// How long the node it leaves keeps its copies for a rollback, e.g. `2d`; a day.
+        #[arg(long)]
+        hold: Option<String>,
+    },
     /// Sets how its plan steps are classified: the operator's layer, over the driver's and the
     /// recipe's and never below the vocabulary's floor (§3.3 of docs/01-model.md). The whole
     /// set: none clears it.

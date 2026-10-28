@@ -414,6 +414,26 @@ service WorkloadService {
   // the node, and workload.write on the workload. Refused for a placement not held; retiring the
   // workload is the other answer.
   rpc ConfirmPlacement(ConfirmPlacementRequest) returns (ConfirmPlacementResponse);
+  // Proposes moving a placed workload to another node: a plan of kind migrate, which a person
+  // approves (§8.1 of docs/05-scheduling.md). workload.migrate on the workload, and, naming the
+  // node, node.place on it; with none the scheduler chooses among the others. Refused for a
+  // workload holding an address of a node pool, one already migrating, one with no placement,
+  // a destination failing a placement check, and a volume that cannot cross between the two.
+  rpc MigrateWorkload(MigrateWorkloadRequest) returns (MigrateWorkloadResponse);
+  // workload.read. A workload's migrations, newest first, each with its phase, its volumes'
+  // passes and manifests, and how it ended.
+  rpc ListMigrations(ListMigrationsRequest) returns (ListMigrationsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // workload.migrate. Ends a migration before cutover: the source runs on, the destination
+  // deletes what it received, and its placement is freed.
+  rpc AbandonMigration(AbandonMigrationRequest) returns (AbandonMigrationResponse);
+  // workload.migrate. Moves a workload back to the source after cutover and before the hold
+  // ends; what it wrote on the destination is kept as divergent copies of its volumes.
+  rpc RollbackMigration(RollbackMigrationRequest) returns (RollbackMigrationResponse);
+  // workload.migrate. Ends a migration's hold now: the source deletes its copies, after which
+  // nothing can roll it back.
+  rpc ReleaseMigration(ReleaseMigrationRequest) returns (ReleaseMigrationResponse);
   // Replaces the operator's classification overrides of a workload, under its version, with
   // the operator's reason (§3.3 of docs/01-model.md). workload.classify on the workload. Plans
   // computed after it read the new set; a plan already proposed keeps the classification its
@@ -534,6 +554,121 @@ message PlaceWorkloadRequest {
 
 message PlaceWorkloadResponse {
   Placement placement = 1;
+}
+
+message MigrateWorkloadRequest {
+  Mutation mutation = 1;
+  string workload = 2;
+  // The node to move it to; empty for the scheduler's choice among every node but its own.
+  string node = 3;
+  // How long the source keeps its copies after cutover; absent for a day, and at most 31 days.
+  google.protobuf.Duration hold = 4;
+}
+
+message MigrateWorkloadResponse {
+  Plan plan = 1;
+  Consistency consistency = 2;
+}
+
+message ListMigrationsRequest {
+  string workload = 1;
+  Consistency consistency = 2;
+}
+
+message ListMigrationsResponse {
+  repeated Migration migrations = 1;
+}
+
+message Migration {
+  string id = 1;
+  string plan = 2;
+  string workload = 3;
+  string source = 4;
+  string destination = 5;
+  MigrationPhase phase = 6;
+  google.protobuf.Timestamp phase_since = 7;
+  google.protobuf.Duration hold = 8;
+  // Set at cutover.
+  google.protobuf.Timestamp hold_until = 9;
+  MigrationOutcome outcome = 10;
+  // Why it ended; empty while it runs.
+  string reason = 11;
+  google.protobuf.Timestamp made_at = 12;
+  repeated MigrationVolume volumes = 13;
+}
+
+enum MigrationPhase {
+  MIGRATION_PHASE_UNSPECIFIED = 0;
+  MIGRATION_PHASE_PREPARE = 1;
+  MIGRATION_PHASE_REPLICATE = 2;
+  MIGRATION_PHASE_QUIESCE = 3;
+  MIGRATION_PHASE_FINAL_SYNC = 4;
+  MIGRATION_PHASE_VERIFY = 5;
+  MIGRATION_PHASE_CUTOVER = 6;
+  MIGRATION_PHASE_RELEASE = 7;
+}
+
+enum MigrationOutcome {
+  // It runs.
+  MIGRATION_OUTCOME_UNSPECIFIED = 0;
+  MIGRATION_OUTCOME_COMPLETED = 1;
+  MIGRATION_OUTCOME_ROLLED_BACK = 2;
+  MIGRATION_OUTCOME_ABANDONED = 3;
+}
+
+message MigrationVolume {
+  string volume = 1;
+  // The name the workload's declaration gives it.
+  string name = 2;
+  MigrationCrossing crossing = 3;
+  uint64 size_bytes = 4;
+  uint32 passes = 5;
+  // What the last pass sent.
+  uint64 sent_bytes = 6;
+  // Whether both sides' manifests arrived, and agree; the first entry that differs when not.
+  bool verified = 7;
+  string first_difference = 8;
+}
+
+enum MigrationCrossing {
+  MIGRATION_CROSSING_UNSPECIFIED = 0;
+  // By increments between snapshots, as a replica is sent.
+  MIGRATION_CROSSING_INCREMENTS = 1;
+  // By rsync over its tree.
+  MIGRATION_CROSSING_TREE = 2;
+  // Not at all: the destination reaches the same storage.
+  MIGRATION_CROSSING_NOTHING = 3;
+}
+
+message AbandonMigrationRequest {
+  Mutation mutation = 1;
+  string migration = 2;
+  // Why, for the record; required.
+  string reason = 3;
+}
+
+message AbandonMigrationResponse {
+  Migration migration = 1;
+}
+
+message RollbackMigrationRequest {
+  Mutation mutation = 1;
+  string migration = 2;
+  // Why, for the record; required.
+  string reason = 3;
+}
+
+message RollbackMigrationResponse {
+  Migration migration = 1;
+}
+
+message ReleaseMigrationRequest {
+  Mutation mutation = 1;
+  string migration = 2;
+}
+
+message ReleaseMigrationResponse {
+  Migration migration = 1;
 }
 
 message ConfirmPlacementRequest {

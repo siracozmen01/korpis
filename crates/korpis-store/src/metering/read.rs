@@ -87,7 +87,7 @@ impl MeteringRead for PgStore {
                  CROSS JOIN LATERAL (SELECT CASE WHEN r.workload_id IS NULL THEN p.bound_at
                       ELSE greatest(r.interval_end, coalesce(r.gapped_through, r.interval_end))
                       END AS at) c
-                WHERE c.at < $1"#,
+                WHERE p.authoritative AND c.at < $1"#,
             from_time(cutoff)
         )
         .fetch_all(&self.pool)

@@ -15,6 +15,7 @@ use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension;
 use korpis_cli::cmd::files::files as remote_files;
 use korpis_cli::cmd::identity;
+use korpis_cli::cmd::migration;
 use korpis_cli::cmd::portal;
 use korpis_cli::cmd::quota;
 use korpis_cli::cmd::repository;
@@ -188,23 +189,6 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         }
         Command::Plan { files, set, action: None } => declared(cli, files, &[], true, set).await,
         Command::Get(g) => answer(cli, get::get(&cli.required().await?, g).await),
-        Command::Organization(_)
-        | Command::Project(_)
-        | Command::Quota(_)
-        | Command::Template(_)
-        | Command::Identity(_)
-        | Command::Grant(_)
-        | Command::Set(_)
-        | Command::Extension(_)
-        | Command::Volume(_)
-        | Command::Repository(_)
-        | Command::Certificate(_)
-        | Command::Domain(_)
-        | Command::Portal(_)
-        | Command::AddressPool(_)
-        | Command::EdgeGroup(_)
-        | Command::Theme(_)
-        | Command::Layout(_) => answer(cli, object(&cli.required().await?, &cli.command).await),
         Command::Status { workload } => {
             answer(cli, get::status(&cli.required().await?, workload).await)
         }
@@ -234,6 +218,8 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Call { method, data, list } => {
             call_method(cli, method.as_deref(), data, *list).await
         }
+        // Every other command is about one kind of object.
+        other => answer(cli, object(&cli.required().await?, other).await),
     }
 }
 
@@ -270,6 +256,7 @@ async fn object(c: &Connection, command: &Command) -> Result<Answer, CliError> {
         Command::Portal(a) => portal::portal(c, a).await,
         Command::AddressPool(a) => address_pool::address_pool(c, a).await,
         Command::EdgeGroup(a) => edge_group::edge_group(c, a).await,
+        Command::Migration(a) => migration::migration(c, a).await,
         Command::Theme(a) => theme::theme(c, a).await,
         Command::Layout(a) => layout::layout(c, a).await,
         _ => Err(CliError::Local("not a command about one kind of object".into())),

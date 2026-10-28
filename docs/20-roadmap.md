@@ -301,6 +301,15 @@ device bound to its own workload alone and one workload's failure kept its own (
 209 there), and the nodes' attach by loop, iSCSI, and RBD, a volume of files mounted and a guest's
 disk given to its driver as a device node, never mounted; tested end to end on two nodes with a
 provider of the tests' own, a workload failed over holding what it wrote (trace 81 there).
+Migration designed 2026-10-27 (§8.1 of `05-scheduling.md`, trace 82 of `23-walkthroughs.md`): a
+plan of kind `migrate` under `workload.migrate`, a migration record advanced on both nodes'
+reports, a volume crossing by increments, by rsync confined to its staging directory, or not at
+all for shared and block classes, a manifest both helpers compute compared before the lease moves,
+the meter and the consoles cut at the epoch, and a hold after which the source's copies go, until
+which a rollback re-grants the source (Findings 210 to 213 there); live state where a driver
+declares `runtime_snapshot`, the `firecracker` driver's included. Built 2026-10-28: its proposal,
+the plan a person approves, the record in `prepare` and the destination's capacity held, and its
+abandonment.
 Edges in failover groups, which is what `stable` exposure requires to exist at all and what lets it
 survive the move (§3.1 of `07-networking.md`); designed 2026-10-26 (§3.1 there, trace 78 of
 `23-walkthroughs.md`) as groups of two or more of an organization's own nodes, each stable address
@@ -559,7 +568,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: eighty-one traces and their 209 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: eighty-two traces and their 213 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

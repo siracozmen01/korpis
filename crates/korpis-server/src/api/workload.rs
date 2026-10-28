@@ -11,7 +11,7 @@ use super::wire::workload::{
     classification_from_pb, power_state_from_pb, power_to_pb, shown_intent_to_pb, workload_to_pb,
 };
 use super::wire::{self, name};
-use super::{Api, ServerApp, encode, error, mutation_key, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{
     ConnectError, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
 };
@@ -19,7 +19,7 @@ use korpis_app::Idempotent;
 use korpis_app::restore::ConfirmPlacement;
 use korpis_app::workload::{
     ChangePower, Classified, DeclareIntent, DeclareTarget, Declared, DeleteWorkload, ListWorkloads,
-    NewWorkload, PlaceWorkload, PowerChanged, SetClassification, Watch, WorkloadView,
+    NewWorkload, PlaceWorkload, PowerChanged, SetClassification,
 };
 use korpis_core::id::IdKind;
 use korpis_core::placement::Placement;
@@ -27,34 +27,10 @@ use korpis_core::workload::{Plan, PowerChange};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 use std::sync::Arc;
-use view::{classified, confirmed, placed, set_name, status, through_set};
+use view::{classified, confirmed, placed, set_name, status, through_set, watched};
 
+mod migrate;
 mod view;
-
-/// The watch as a stream: the status now, then each status that differs, until the client
-/// leaves, the feed ends, or a read is refused, which ends the stream with that refusal.
-fn watched(
-    app: Arc<ServerApp>,
-    caller: korpis_app::Caller,
-    first: &WorkloadView,
-    watch: Watch<korpis_store::Subscription>,
-) -> impl futures_util::Stream<Item = Result<pb::WatchWorkloadResponse, ConnectError>> + Send + use<>
-{
-    let now = pb::WatchWorkloadResponse { status: status(first).into(), ..Default::default() };
-    let rest = futures_util::stream::unfold(Some((app, caller, watch)), |state| async move {
-        let (app, caller, mut watch) = state?;
-        match app.next_status(&caller, &mut watch).await {
-            Ok(Some(v)) => {
-                let item =
-                    pb::WatchWorkloadResponse { status: status(&v).into(), ..Default::default() };
-                Some((Ok(item), Some((app, caller, watch))))
-            }
-            Ok(None) => None,
-            Err(e) => Some((Err(error::from_app(e)), None)),
-        }
-    });
-    futures_util::StreamExt::chain(futures_util::stream::once(async move { Ok(now) }), rest)
-}
 
 fn deleted(p: &Plan) -> pb::DeleteWorkloadResponse {
     pb::DeleteWorkloadResponse { plan: plan_to_pb(p).into(), ..Default::default() }
@@ -218,6 +194,55 @@ impl pb::WorkloadService for Api {
         let reply =
             self.app.confirm_placement(&caller, &idem, cmd).await.map_err(error::from_app)?;
         respond(reply, confirmed)
+    }
+
+    async fn migrate_workload(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::MigrateWorkloadRequest>,
+    ) -> ServiceResult<pb::MigrateWorkloadResponse> {
+        migrate::propose(self, ctx, request).await
+    }
+
+    async fn list_migrations(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListMigrationsRequest>,
+    ) -> ServiceResult<pb::ListMigrationsResponse> {
+        migrate::list(self, ctx, request).await
+    }
+
+    async fn abandon_migration(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::AbandonMigrationRequest>,
+    ) -> ServiceResult<pb::AbandonMigrationResponse> {
+        let req = request.to_owned_message();
+        let ended = (req.mutation.as_option(), req.migration.as_str(), req.reason.as_str());
+        let m = migrate::end(self, ctx, ended, migrate::End::Abandon).await?;
+        Response::ok(pb::AbandonMigrationResponse { migration: m.into(), ..Default::default() })
+    }
+
+    async fn rollback_migration(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::RollbackMigrationRequest>,
+    ) -> ServiceResult<pb::RollbackMigrationResponse> {
+        let req = request.to_owned_message();
+        let ended = (req.mutation.as_option(), req.migration.as_str(), req.reason.as_str());
+        let m = migrate::end(self, ctx, ended, migrate::End::Rollback).await?;
+        Response::ok(pb::RollbackMigrationResponse { migration: m.into(), ..Default::default() })
+    }
+
+    async fn release_migration(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ReleaseMigrationRequest>,
+    ) -> ServiceResult<pb::ReleaseMigrationResponse> {
+        let req = request.to_owned_message();
+        let ended = (req.mutation.as_option(), req.migration.as_str(), "");
+        let m = migrate::end(self, ctx, ended, migrate::End::Release).await?;
+        Response::ok(pb::ReleaseMigrationResponse { migration: m.into(), ..Default::default() })
     }
 
     async fn set_classification(

@@ -330,6 +330,9 @@ message StorageCapabilities {
   bool shared_access = 13;
   bool multi_node_attach = 14;
   Fencing fencing = 15;
+  // The helper sends and receives a volume's tree by rsync, which a migration of a class that
+  // sends no increments needs (§8.1 of docs/05-scheduling.md).
+  bool tree_sync = 16;
 }
 
 enum Fencing {

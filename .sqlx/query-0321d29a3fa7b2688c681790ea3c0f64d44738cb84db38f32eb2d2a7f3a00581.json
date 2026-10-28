@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM placement WHERE workload_id = $1 AND node_id = $2 AND NOT authoritative",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0321d29a3fa7b2688c681790ea3c0f64d44738cb84db38f32eb2d2a7f3a00581"
+}

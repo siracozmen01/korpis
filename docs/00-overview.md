@@ -324,4 +324,4 @@ written; §4 of that file states what each rests on.
 | `20-roadmap.md` | Build order and dependency graph |
 | `21-stack.md` | Implementation language: Rust throughout, TypeScript in the browser, and why |
 | `22-first-party.md` | The first-party recipe and extension set, and what it proves |
-| `23-walkthroughs.md` | Eighty-one end-to-end traces and the defects they found; two external reviews |
+| `23-walkthroughs.md` | Eighty-two end-to-end traces and the defects they found; two external reviews |

@@ -3,19 +3,20 @@
 //! The responses of `WorkloadService` that describe a workload: its status and its placement,
 //! and the set a declaration names.
 
-use super::super::error;
 use super::super::wire::placement::{bound_by_to_pb, explanation_to_pb};
 use super::super::wire::plan::plan_to_pb;
 use super::super::wire::spec::tier_to_pb;
 use super::super::wire::workload::{convergence_to_pb, shown_intent_to_pb, workload_to_pb};
 use super::super::wire::{self, Refuse, timestamp, wire_id};
+use super::super::{ServerApp, error};
 use connectrpc::ConnectError;
-use korpis_app::workload::{Classified, PlacementView, SetDeclaration, WorkloadView};
+use korpis_app::workload::{Classified, PlacementView, SetDeclaration, Watch, WorkloadView};
 use korpis_core::id::IdKind;
 use korpis_core::placement::Placement;
 use korpis_proto::korpis::v1 as pb;
 use korpis_wire::node::{holds_to_pb, resources_to_pb};
 use korpis_wire::observation::observation_to_pb;
+use std::sync::Arc;
 
 /// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md), its
 /// placement as the caller may see it. The observation is empty until a node reports one.
@@ -218,4 +219,29 @@ pub(super) fn classified(c: &Classified) -> pb::SetClassificationResponse {
         workload: workload_to_pb(&c.workload, &c.power).into(),
         ..Default::default()
     }
+}
+
+/// The watch as a stream: the status now, then each status that differs, until the client
+/// leaves, the feed ends, or a read is refused, which ends the stream with that refusal.
+pub(super) fn watched(
+    app: Arc<ServerApp>,
+    caller: korpis_app::Caller,
+    first: &WorkloadView,
+    watch: Watch<korpis_store::Subscription>,
+) -> impl futures_util::Stream<Item = Result<pb::WatchWorkloadResponse, ConnectError>> + Send + use<>
+{
+    let now = pb::WatchWorkloadResponse { status: status(first).into(), ..Default::default() };
+    let rest = futures_util::stream::unfold(Some((app, caller, watch)), |state| async move {
+        let (app, caller, mut watch) = state?;
+        match app.next_status(&caller, &mut watch).await {
+            Ok(Some(v)) => {
+                let item =
+                    pb::WatchWorkloadResponse { status: status(&v).into(), ..Default::default() };
+                Some((Ok(item), Some((app, caller, watch))))
+            }
+            Ok(None) => None,
+            Err(e) => Some((Err(error::from_app(e)), None)),
+        }
+    });
+    futures_util::StreamExt::chain(futures_util::stream::once(async move { Ok(now) }), rest)
 }

@@ -160,6 +160,7 @@ mirror!(
         EncryptionAtRest,
         SharedAccess,
         MultiNodeAttach,
+        TreeSync,
     }
 );
 

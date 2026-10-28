@@ -7122,3 +7122,78 @@ declaration gives a volume of no size the default one, so the case is not reache
 API, and the fix is the pass's own shape rather than one input's refusal. What it costs: a
 workload's devices that fail are retried each pass, and say why only in the log until a device of
 it is recorded, after which its status does.
+
+## 82. A game server moves to a new machine, and back
+
+Written 2026-10-27, as migration was designed (P3.9a in §4 of `20-roadmap.md`), and chosen because
+only trace 2 had crossed §8 of `05-scheduling.md`, before any of migration's mechanism was decided,
+and trace 77 stops at its refusal. A host has nodes A and B of one organization, both offering the
+local class `world` on a plain directory, which sends no increments, and both with rsync. A
+customer's game server `mc` runs on A with its world in `world`, a console, and a `stable`
+endpoint. The host moves `mc` to B to retire A's disk, and the next morning, a player having
+reported a corrupted region, rolls it back. The trace asks the algebra question of every step.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The host runs `korpis workload move mc --to B`; the control plane checks `workload.migrate` on `mc` and `node.place` on B, B against every check of placement, that `world` can cross between A and B, and that `mc` holds no `node` pool's address, and proposes a plan of kind `migrate` naming what crosses and what is stopped | `05-scheduling.md` §8.1; `10-api.md` §5; `13-surface-cli.md` §2 |
+| 2 | A person approves it; a migration record is made, and B is bound as a second placement of `mc`, not authoritative, its capacity held | `01-model.md` §3.4; `05-scheduling.md` §8.1 |
+| 3 | Both nodes' assignments carry a `MigrationRole`; B prepares and reports it; A sends the world by rsync over the mesh under a ticket, pass after pass while `mc` runs, until a pass is small, and B reports each pass held | `02-architecture.md` §4.8; `06-storage.md` §2.2, §8 |
+| 4 | A stops `mc`; its console's writer seals; A reports the object stopped and the stream's next offset and journaled position; A sends the last pass, stopped | `05-scheduling.md` §8.1; `14-streams.md` §4 |
+| 5 | Both helpers compute the world's manifest; the control plane finds the two digests equal | `05-scheduling.md` §8.1 |
+| 6 | A releases its lease and journals its meter's last sample of `mc`; the placement moves to B, and the volume's record with it; B is granted the next epoch, starts `mc`, its writer continuing the offsets, and the edges forward the stable address to B | `02-architecture.md` §4.5; `15-observability.md` §2; `07-networking.md` §10 |
+| 7 | The host runs `korpis migration rollback`; B stops `mc` and releases its epoch, the placement moves back, A is granted the next epoch over the copy it kept, and B's world is kept as a divergent copy | `05-scheduling.md` §8.1; `06-storage.md` §2.2 |
+
+Step 1 asks what evaluates "the world can cross": the control plane, from the classes A and B
+declared at their last `Hello`, which said nothing about whether a node could send or receive a
+tree (Finding 212). It asks too what evaluates "this workload's address cannot move": the control
+plane, from the pool the address is held from, at the proposal, before anything was spent. Step 2
+asks what holds B's capacity, and until when: the placement, under the placement lock, from the
+approval to the outcome, which the model's own invariant ended too soon (Finding 210). Step 3 asks
+what evaluates "this stream may be written into the world's staging, from A": B's agent, from the
+ticket and its token keys, and its kernel, from the mesh's keys, as for a replica, so the control
+plane's absence stops no pass in flight. It asks what evaluates "a pass is small": A, which
+measured what it sent. Step 4 asks what the console's next offset is, and who knows it: A's writer
+and agent, the only ones that wrote it, so it crosses as A's report. Step 5 asks what evaluates
+"B holds what A held": the control plane, from the two digests, each computed by the helper that
+holds the copy; neither node is asked to believe the other. Step 6 asks what stops A and B both
+acting for `mc`: the lease, whose next epoch is granted only after A released its own or its term
+provably ended; and what cuts the meter: the same epoch, believed per sample, which only holds if
+B's meter is silent before it (Finding 211); and what continues the console: B's writer from the
+watermark, and B's agent from the journaled position (Finding 213). Step 7 asks what A's copy
+holds: what `mc` wrote until step 4, so the rollback loses B's night, which is why B's copy is
+kept rather than deleted.
+
+**Finding 210.** §3.4 of `01-model.md` said a migration's two placements coexist "until cutover".
+Invariant 3 of §8 of `05-scheduling.md` keeps the source's data through a hold after cutover so a
+rollback re-grants the source; with the source's placement gone at cutover its capacity would have
+been free for another workload, and the rollback the hold exists for could have found no room on
+the node holding the data. Resolved in §3.4 of `01-model.md` and §8.1 of `05-scheduling.md`: the
+source's placement stays, not authoritative, until the hold ends. What it costs: a day of the
+workload's capacity on the source by default, which `korpis migration release` ends early.
+
+**Finding 211.** §2 of `15-observability.md` has the node sample every workload it holds an
+assignment for, and the control plane write a gap for every interval of an assigned workload no
+record covers. A migration's destination holds an assignment from `prepare`: it would have sampled
+a workload it does not run, each sample rejected under an epoch it does not hold, and the gap
+writer would have written gaps for it, so the tenant's usage would have shown a workload
+unreachable on a node it was never running on. Resolved in §2 of `15-observability.md` and §8.1 of
+`05-scheduling.md`: the destination meters nothing before its epoch, and gaps are written for the
+authoritative placement alone. What it costs: nothing.
+
+**Finding 212.** §8 of `06-storage.md` said a class that sends no increments migrates by
+file-level sync, and nothing declared whether a node could do one. A migration to or from a node
+without the tool would have failed at its first pass, after the destination's capacity was held,
+rather than being refused when proposed. Resolved in §2 of `06-storage.md`: the helper declares
+`tree_sync` for each class where it finds rsync, and §8.1 of `05-scheduling.md` refuses a
+migration whose volume cannot cross, from the two nodes' declarations. What it costs: one more
+capability, and rsync on nodes that offer such classes (§2 of `18-operations.md`).
+
+**Finding 213.** §4 of `14-streams.md` hands the destination the stream's final offset and nothing
+else. Its agent follows each stream's changes log from a position of its own to journal and
+offload what was sealed, and a destination starting that position at the log's beginning would
+have journaled every segment the source already had and offloaded each again, an hour of write
+access and a second copy for every one. Resolved in §4 of `14-streams.md`: the source's report
+names the position its agent journaled to, and the destination follows the log from there. What it
+costs: one more number per stream in the migration record and the destination's assignment.

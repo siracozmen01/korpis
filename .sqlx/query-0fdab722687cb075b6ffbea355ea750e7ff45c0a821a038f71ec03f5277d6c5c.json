@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE migration SET outcome = $2, reason = $3, ended_at = $4\n              WHERE id = $1 AND outcome IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0fdab722687cb075b6ffbea355ea750e7ff45c0a821a038f71ec03f5277d6c5c"
+}

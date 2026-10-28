@@ -11,6 +11,7 @@ use crate::cmd::edge_group::EdgeGroupAction;
 use crate::cmd::event::EventAction;
 use crate::cmd::extension::ExtensionAction;
 use crate::cmd::identity::IdentityAction;
+use crate::cmd::migration::MigrationAction;
 use crate::cmd::portal::PortalAction;
 use crate::cmd::quota::QuotaAction;
 use crate::cmd::repository::RepositoryAction;
@@ -111,6 +112,9 @@ pub enum Command {
     /// stable addresses.
     #[command(subcommand)]
     EdgeGroup(EdgeGroupAction),
+    /// Reads a workload's migrations, and abandons, rolls back, or releases one.
+    #[command(subcommand)]
+    Migration(MigrationAction),
     /// Shows, sets, and clears an organization's theme in the panel.
     #[command(subcommand)]
     Theme(theme::ThemeAction),

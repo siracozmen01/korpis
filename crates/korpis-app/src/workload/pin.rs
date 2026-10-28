@@ -36,7 +36,7 @@ pub struct PlaceWorkload {
     pub reason: String,
 }
 
-fn refused(rejections: &[Rejection]) -> AppError {
+pub(super) fn refused(rejections: &[Rejection]) -> AppError {
     let checks: Vec<String> =
         rejections.iter().map(|r| format!("{}: {}", r.check.as_str(), r.detail)).collect();
     AppError::Unsatisfiable {
@@ -78,7 +78,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         match tx.placement_in(w.id).await? {
             Some(p) if p.node == node.id => return Ok(Reply::Fresh(p)),
             Some(_) => {
-                return Err(AppError::NotYet { what: "moving a placed workload", phase: 3 });
+                let why = "a placed workload moves by migration (korpis workload move)";
+                return Err(AppError::conflict("workload.placed", why));
             }
             None => {}
         }
@@ -115,7 +116,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The intent the workload was approved to be, which is what is placed.
-    async fn approved_target(&self, w: &Workload) -> Result<Intent, AppError> {
+    pub(super) async fn approved_target(&self, w: &Workload) -> Result<Intent, AppError> {
         let id = w.target.ok_or_else(|| {
             AppError::invalid("workload", "nothing is approved to place; approve a plan first")
         })?;

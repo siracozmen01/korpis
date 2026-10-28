@@ -2477,6 +2477,15 @@ Collected here because it is the sequence that decides whether §1's central goa
 Every one of these is a step inside the `cutover` phase, ordered after `verify` and **after** the
 lease epoch change.
 
+How, designed 2026-10-27 (§8.1 of `05-scheduling.md`): none of them is a step of the migration's
+own. Each is kept by the reconciler that already keeps it from the workload's authoritative
+placement (an edge group's forwarding, §3.1; the ingress's upstreams, §3.2; a cluster pool's
+router, §3.7; the overlay's routes and a dependent's resolution, §5), and the placement moves in
+the one transaction `cutover` makes, which waits for the source to release its epoch or for that
+epoch's term to have ended. So each follows the move after the epoch changed, by the same path it
+follows a failover, and a `node` pool's address, which cannot follow, refuses the migration when it
+is proposed rather than at `cutover`.
+
 **What is guaranteed, and what takes time.**
 
 > Second external review, finding S41. Recorded in §17 of `23-walkthroughs.md`.

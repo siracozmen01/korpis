@@ -15,9 +15,11 @@ use crate::workload::{Power, PowerState};
 use uuid::Uuid;
 
 mod data;
+mod migrate;
 mod remake;
 
 pub use data::{BackupStep, RestoreStep, backup_steps, restore_steps};
+pub use migrate::{Crossed, Moving, destination_of, migrate_steps};
 pub use remake::{HeldVolume, Promotion, remake_steps};
 
 struct Builder<'a> {

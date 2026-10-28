@@ -52,7 +52,7 @@ async fn an_operator_places_on_a_node_they_cordoned_and_nowhere_it_cannot_run() 
 
     let other = h.node(None, "fra-4", &[]).await;
     let e = h.workloads(h.root()).place_workload(place("p2", &w, &other, "move")).await;
-    assert_eq!(e.unwrap_err().code, connectrpc::ErrorCode::Unimplemented, "a move is migration");
+    assert_eq!(reason(&e.unwrap_err()), "workload.placed", "a move is a migration");
 }
 
 #[tokio::test]

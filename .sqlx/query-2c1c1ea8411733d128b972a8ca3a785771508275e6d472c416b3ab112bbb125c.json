@@ -1,0 +1,160 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,\n                    hold_secs, hold_until, outcome, reason, made_at\n               FROM migration WHERE workload_id = $1 ORDER BY made_at DESC, id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "plan_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "plan_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "source_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "destination_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "destination_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "phase",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "phase"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "phase_since",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "phase_since"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "hold_secs",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "hold_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "hold_until",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "hold_until"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "outcome",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "made_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "migration",
+            "name": "made_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "2c1c1ea8411733d128b972a8ca3a785771508275e6d472c416b3ab112bbb125c"
+}

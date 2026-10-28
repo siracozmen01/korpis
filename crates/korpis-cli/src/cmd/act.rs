@@ -104,6 +104,7 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
     | WorkloadAction::Stop { workload }
     | WorkloadAction::Restart { workload }
     | WorkloadAction::Place { workload, .. }
+    | WorkloadAction::Move { workload, .. }
     | WorkloadAction::Classify { workload, .. }
     | WorkloadAction::Delete { workload, .. }
     | WorkloadAction::Recipe { workload, .. }) = action;
@@ -113,6 +114,9 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
             return super::recipe::recipe(c, id, locales).await;
         }
         WorkloadAction::Place { node, reason, .. } => return place(c, id, node, reason).await,
+        WorkloadAction::Move { to, hold, .. } => {
+            return super::migration::moved(c, id, to.as_deref(), hold.as_deref()).await;
+        }
         WorkloadAction::Classify { overrides, reason, .. } => {
             return super::classify::classify(c, id, overrides, reason).await;
         }
@@ -143,6 +147,7 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
         WorkloadAction::Restart { .. }
         | WorkloadAction::Delete { .. }
         | WorkloadAction::Place { .. }
+        | WorkloadAction::Move { .. }
         | WorkloadAction::Classify { .. }
         | WorkloadAction::Recipe { .. } => {
             let request =
