@@ -5,7 +5,7 @@ databases, jobs, virtual machines) on machines their operators control. A contro
 (`korpis-server`, PostgreSQL) holds the declared state; agents on the nodes converge reality toward
 it and report what is observed; the web panel, the CLI, chat and the API are peer clients of one
 API. It is a Rust workspace in `crates/` and a TypeScript panel in `web/`.
-[docs/00-overview.md](docs/00-overview.md) explains what it is for and how the parts fit.
+[docs/internals/overview.md](docs/internals/overview.md) explains what it is for and how the parts fit.
 
 It never compromises on:
 
@@ -71,7 +71,8 @@ The development machine is shared with other projects, their CI runners and thei
 
 - **Layers.** The domain (`korpis-core`) does no I/O; the application (`korpis-app`) never names a
   database or a transport; a handler holds no business rule. `scripts/check-layers.sh` enforces
-  the direction. Where a new thing goes is in [ARCHITECTURE.md](ARCHITECTURE.md).
+  the direction. Where a new thing goes is in
+  [architecture](docs/internals/architecture.md).
 - **Generated files.** `crates/korpis-proto/descriptor.binpb`,
   `crates/korpis-containerd/descriptor.binpb` and `web/src/gen/` come from the `.proto` files;
   `.sqlx/` comes from the queries and migrations. Regenerate them, never edit them; a stale one

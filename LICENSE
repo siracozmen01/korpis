@@ -4,8 +4,7 @@ KORPIS LICENSING
 Copyright the Korpis contributors.
 
 Korpis is not licensed under a single licence. It is split by layer, deliberately,
-for the reasons argued in section 5 of docs/00-overview.md and restated in section
-2 of docs/19-governance.md.
+for the reasons given in GOVERNANCE.md.
 
   Protocol definitions, client SDKs, recipe format, agent protocol,
   conformance suites
@@ -59,15 +58,15 @@ Contributions are accepted under the Developer Certificate of Origin. Sign off w
 assignment, which keeps copyright distributed: as other people's contributions
 accumulate, relicensing their code requires their consent. What the licence does
 not do is prevent new proprietary components from being added beside the open
-core; that is prevented by the project's policy (Principle P10 and Rule K-13), a
-public promise rather than a legal mechanism. Section 2 of docs/19-governance.md
+core; that is prevented by the project's policy (no tax on growth, no feature
+gated by edition), a public promise rather than a legal mechanism. GOVERNANCE.md
 states both halves. See CONTRIBUTING.md.
 
 DOCUMENTATION
 
-The documents in this repository are the specification. Until the first code
-release they are the whole of the work, and they are published under CC BY 4.0 so
-that they can be quoted, argued with, and built on freely. Attribution is the only
+The documents in this repository are the design the code is held to. They are
+published under CC BY 4.0 so that they can be quoted, argued with, and built on
+freely. Attribution is the only
 condition. The full licence text is in LICENSE-CC-BY.
 
 TRADEMARK
@@ -76,5 +75,4 @@ The Korpis name and marks are held separately from the code and are not licensed
 the above. Unmodified builds may use them freely, and commercial hosting under the
 Korpis name is explicitly permitted. A modified distribution must be renamed. Not to
 discourage forks, but so that a user who downloads something called Korpis gets
-Korpis and security advisories refer to a knowable artifact. See section 3 of
-docs/19-governance.md.
+Korpis and security advisories refer to a knowable artifact. See GOVERNANCE.md.

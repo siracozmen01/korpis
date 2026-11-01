@@ -47,6 +47,9 @@ rules() {
 
     echo "== layers (AGENTS.md, Invariants)"
     ./scripts/check-layers.sh
+
+    echo "== documentation (AGENTS.md, Documentation)"
+    node scripts/check-docs.mjs
 }
 
 licences() {
