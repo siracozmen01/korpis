@@ -121,14 +121,18 @@ impl Class {
         let (ours, theirs) = pair()?;
         rustix::io::fcntl_setfd(theirs.as_fd(), FdFlags::empty()).map_err(std::io::Error::from)?;
         let shell = format!("{} splice {}", relay.display(), theirs.as_raw_fd());
-        let spawned = Command::new(RSYNC)
+        let mut command = Command::new(RSYNC);
+        command
             .args(["-aHAXS", "--numeric-ids", "--delete", "--stats", "-e"])
             .arg(shell)
             .arg(format!("korpis::{MODULE}/"))
             .arg(format!("{}/", into.display()))
             .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .spawn();
+            .stdout(Stdio::piped());
+        // The client trusts the stream as far as rsync's receiver does: it sees nothing of the
+        // host but its programs and the copy it pulls into (Finding 218).
+        let spawned =
+            crate::confined::confine(&mut command, &into, relay).and_then(|()| command.spawn());
         // The child holds it now, or never will: either way the helper's copy goes.
         drop(theirs);
         Ok((ours, spawned?))

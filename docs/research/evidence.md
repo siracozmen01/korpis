@@ -741,9 +741,11 @@ Primary:
   upstream ([Debian security tracker,
   CVE-2024-12087](https://security-tracker.debian.org/tracker/CVE-2024-12087),
   [CVE-2024-12088](https://security-tracker.debian.org/tracker/CVE-2024-12088)).
-  The upstream announcement was not read from here, hence [R]. Why §8.1 of `../05-scheduling.md`
-  states that a migration's destination trusts its source's stream as far as rsync's receiver
-  does, and keeps rsync current.
+  Distributions carry both fixes into older numbers: Ubuntu's `3.2.7-1ubuntu1.5`, on this
+  repository's build host, says 3.2.7 and lists both CVEs in its packaging changelog, which is
+  why no rsync version is required of a node. The upstream announcement was not read from here,
+  hence [R]. Why §8.1 of `../05-scheduling.md` runs a migration's receiving rsync in a view of
+  its copy alone (Finding 218) and keeps rsync current.
 - **[V]** OpenSSH 9.6's client offers, by default, RSA signatures only as `rsa-sha2-512` and
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a

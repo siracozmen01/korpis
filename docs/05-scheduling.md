@@ -1944,13 +1944,24 @@ transfer connection. `TreeStatus` reads how either ended, the client's with the 
 statistics say crossed, which the destination reports. The helper starts no thread, so clearing the
 close-on-exec flag of the one descriptor the client inherits and closing it once the child holds it
 lets nothing else inherit it; the `splice` process adopts that descriptor by number, the crate's
-seventh unsafe module. **What it does not stop:** the destination's client runs as root,
-unconfined, and trusts the stream as far as rsync's receiver does; a source node under an
-attacker's control could reach the destination through a flaw of that receiver, of which rsync has
-had several (CVE-2024-12087, CVE-2024-12088; `research/evidence.md`), so a node's rsync is kept
-current as its other packages are (§2 of `18-operations.md`). Tested as root between two classes: a
-symlink, a hardlink, an extended attribute, an access ACL, a sparse file's holes, and an owner by
-number kept; a second pass sending only what changed and deleting what the source deleted.
+seventh unsafe module. The destination's client trusts the stream as far as rsync's receiver
+does, and rsync's receiver has had flaws that let a server write outside the destination
+(CVE-2024-12087, CVE-2024-12088; `research/evidence.md`), so it was first stated here as an honest
+negative that a source node under an attacker's control could reach the destination's host
+through one. Corrected for Finding 218: the client runs in a mount namespace of its own whose root
+is a fresh `tmpfs` holding, read only, the host's programs and libraries and the loader's cache,
+the helper's binary, and, writable, the destination's copy at its own path (the crate's eighth
+unsafe module, `confined`, which makes it between fork and exec). No version is required of rsync:
+distributions carry those fixes without changing its number, so a gate on the number would refuse
+patched builds and admit nothing safer. **What it does not stop:** the client still runs as root
+inside that view, so a flaw of rsync's receiver can still write anywhere in the copy it pulls into,
+which nothing runs on until `cutover` and `verify` compares after it (P3.9d), or reach the kernel
+through any call a root process may make; the view hides the host's files, not its kernel. A
+node's rsync is kept current as its other packages are (§2 of `18-operations.md`). Tested as
+root between two classes: a symlink, a hardlink, an extended attribute, an access ACL, a sparse
+file's holes, and an owner by number kept; a second pass sending only what changed and deleting
+what the source deleted; and a program in the receiving view writing its copy while finding the
+host's `/etc/hostname` and the copy's parent absent and its programs read only.
 
 **Built 2026-10-28, the nodes' transfers** (P3.9c4a). The transfer port a node receives replicas
 on reads each stream's ticket first, at most a short one in a few seconds, and hands one of a
