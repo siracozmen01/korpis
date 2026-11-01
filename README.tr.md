@@ -1,10 +1,8 @@
-<!-- Translation of README.md at 6551197. Update this hash when you re-sync. -->
-
 **Türkçe** · [English](./README.md)
 
 # Korpis
 
-**Kendi kontrolündeki makineler için bir iş yükü platformu. Tasarım spesifikasyonu.**
+**Kendi kontrolündeki makineler için bir iş yükü platformu.**
 
 Korpis, yaşam döngüsü olan her şeyi (bir oyun sunucusu, bir bot, bir web servisi, bir veritabanı,
 zamanlanmış bir görev, bir sanal makine) senin donanımında çalıştırır. İş yükünü bir düğüme
@@ -12,150 +10,101 @@ yerleştirir, istediğin kadar güçlü izole eder, depolama ve ağ verir, beyan
 ve hem senin hem de yetki devrettiğin kişilerin bunu bir panelden, terminalden, sohbetten veya
 API'den işletmesine izin verir.
 
-> **Önce tasarım geldi, kod ilk üç aşamasını tamamladı.** Yapım sırasının Phase 0, 1 ve 2'si
-> `crates/` (Rust, [`21-stack.md`](./docs/21-stack.md) §3) ve `web/` altında kuruldu: tek bir
-> makinedeki tek bir operatör onu kurar, iş yüklerini çalıştırır, yedekler ve geri yükler, dürüst
-> bir konsol okur; panelden ya da CLI'dan, gösterdiği her sınır çekirdek tarafından uygulanarak.
-> Ve başkalarına barındırma yapar: organizasyonlar altlarındaki organizasyonlara devralınan
-> kotayla yetki devreder, kişiler kendi kimlik sağlayıcılarıyla, onlar için hiçbir hesap
-> açılmadan oturum açar ve her kiracının kullandığı ölçülür.
-> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh),
-> [`scripts/e2e-phase1.sh`](./scripts/e2e-phase1.sh) ve
-> [`scripts/e2e-phase2.sh`](./scripts/e2e-phase2.sh) bunu bir operatörün yapacağı gibi doğrular.
-> İş yükleri henüz düğümler arasında taşınmaz ve bir konteynerden güçlü izolasyon Phase 3'te
-> gelir.
->
-> Yirmi dört doküman var ve kod onlara göre yazılıyor. Böyle bir sistemde bazı kararlar sonradan
-> takılamaz: durumun nasıl saklandığı, yetkinin nasıl devredildiği, güvenlik sınırının nerede
-> durduğu, ajan protokolünün ne söz verdiği. Bunları kâğıt üstünde yanlış yapmanın bedeli bir
-> paragraf. Dokuzuncu ayda yanlış yapmanın bedeli baştan yazmak, ki bu yazılım kategorisinin başına
-> birden fazla kez gelmiş bir şey.
+> **Henüz yayımlanmadı.** Yapımın Phase 0, 1 ve 2'si `crates/` (Rust) ve `web/` (TypeScript)
+> altında tamamlandı: tek bir makinedeki tek bir operatör onu kurar, iş yüklerini çalıştırır,
+> yedekler ve geri yükler, panelden ya da CLI'dan dürüst bir konsol okur; gösterdiği her sınır
+> çekirdek tarafından uygulanır. Ve başkalarına barındırma yapar: organizasyonlar altlarındaki
+> organizasyonlara devralınan kotayla yetki devreder, kişiler kendi kimlik sağlayıcılarıyla, onlar
+> için hiçbir hesap açılmadan oturum açar ve her kiracının kullandığı ölçülür.
+> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh), [`e2e-phase1.sh`](./scripts/e2e-phase1.sh) ve
+> [`e2e-phase2.sh`](./scripts/e2e-phase2.sh) bunu bir operatörün yapacağı gibi doğrular. Phase 3,
+> iş yüklerinin düğümler arasında taşınması ve bir konteynerden güçlü izolasyon, sürüyor; sırada ne
+> olduğunu [kilometre taşları](https://github.com/siracozmen01/korpis/milestones) söyler.
 
 ---
 
-## Farkı ne
+## Neyi farklı yapar
 
-**Emretmez, beyan eder.** Neyin doğru olması gerektiğini söylersin. Korpis gerçekliği sürekli
-olarak oraya yakınsatır ve gerçekte neyin doğru olduğunu bildirir. Hiçbir bileşen bir diğerine bir
-şey yapmasını söyleyip işe yaradığını varsaymaz; "panel durdu diyor ama sunucu çalışıyor" tam
-olarak oradan gelir.
+**Beyan eder, asla emretmez.** Neyin doğru olması gerektiğini sen söylersin. Korpis gerçekliği
+sürekli olarak ona yaklaştırır ve gerçekte neyin doğru olduğunu bildirir. Hiçbir bileşen bir
+diğerine bir şey yapmasını söyleyip işe yaradığını varsaymaz; "panel durdu diyor ama sunucu
+çalışıyor" tam olarak buradan gelir.
 
-**Farkı gerçek bir nesne yapar.** Her değişiklik, bir `Effect` üretmeden önce incelenebilir bir
-`Plan` üretir. Kuru çalıştırma, onaylar, zamanlanmış değişiklikler, geri alma ve yalan söyleyemeyen
-bir denetim izi; bunlar beş ayrı özellik değil, tek bir kararın sonuçları.
+**Farkı gerçek bir nesne yapar.** Her değişiklik, bir etki üretmeden önce incelenebilir bir plan
+üretir. Deneme çalıştırmaları, onaylar, zamanlanmış değişiklikler, geri alma ve yalan söyleyemeyen
+bir denetim izi, beş ayrı özellik değil, bu tek kararın sonuçlarıdır.
 
-**Rol diye bir şeyi yok.** Yetki bir *grant*'tir (bir özne, birkaç eylem, bir kapsam, birkaç koşul)
-ve bir grant yalnızca kendinden zayıf çocuklar üretebilir. Böylece "bu bağlantı arkadaşının
-önümüzdeki 24 saat boyunca sadece bu sunucuyu yeniden başlatmasına izin verir, hesap gerekmez"
-sıradan bir işlem olur; ve bayilik, birinin yazdığı bir özellik değil, modelin bedavaya yaptığı bir
-şey haline gelir.
+**Rolleri yoktur.** Yetki bir *grant*'tir (bir özne, bazı eylemler, bir kapsam, bazı koşullar) ve bir
+grant yalnızca daha zayıf çocuklar üretebilir. Böylece "bu bağlantı, arkadaşının bu tek sunucuyu
+önümüzdeki 24 saat boyunca, hesap gerekmeden yeniden başlatmasına izin verir" sıradan bir işlemdir ve
+bayilik, birinin yazdığı bir özellik değil, modelin bedavaya yaptığı bir şeydir.
 
-**İzolasyonu sen seçersin.** İş yükü başına `process`, `container`, `microvm`, `vm`; hepsi tek bir
-sürücü arayüzünün arkasında. Her kademe, ne durdurduğu kadar ne durdur*ma*dığıyla da belgelenir,
-çünkü izolasyon gibi görünüp izolasyon olmayan bir kademe, dürüstçe daha zayıf etiketlenmiş bir
-kademeden daha kötüdür.
+**İzolasyonu seçmene izin verir.** İş yükü başına `process`, `container`, `microvm`, `vm`, tek bir
+sürücü arayüzünün arkasında. Her katman, neyi durdurduğu kadar neyi *durdurmadığıyla* da belgelenir;
+çünkü izolasyon gibi görünüp olmayan bir katman, dürüstçe daha zayıf diye etiketlenmiş olandan
+kötüdür.
 
-**Zorlamadığı şeyi iddia etmez.** Gösterilen her limit çekirdek tarafından uygulanır ve ölçülür.
-Her durum gözlemlenir. Korpis bir şeyi göremiyorsa tahmin etmek yerine `unknown` der; veri
-düşürdüğünde temiz görünen bir boşluk değil, işaretlenmiş bir boşluk bırakır.
+**Uygulamadığı şeyi asla iddia etmez.** Gösterilen her sınır çekirdek tarafından uygulanır ve
+ölçülür. Her durum gözlemlenmiştir. Korpis bir şeyi göremediğinde tahmin etmek yerine `unknown`
+der; veri düşürdüğünde temiz görünen bir boşluk yerine işaretli bir boşluk bırakır.
 
-**Büyümeyi vergilendirmez.** İş yükü başına, düğüm başına, örnek başına, hesap başına veya alan adı
-başına hiçbir ücret yok; hiçbir ölçekte, asla. Sürüm ayrımı yok, kilitli özellik yok, ticari
-kullanım kısıtı yok.
+**Büyümeden vergi almaz.** İş yükü, düğüm, örnek, hesap veya alan adı başına hiçbir ücret yok, hiçbir
+ölçekte, hiçbir zaman. Sürüm ayrımı yok, kilitli özellik yok, ticari kullanım kısıtlaması yok.
 
 ---
 
 ## Buradan başla
 
-**[`00-overview.md`](./docs/00-overview.md)**: Korpis'in ne olduğu, bilerek ne *olmadığı*, on ilke,
-yanlışlanabilir dört bahis ve on ikisi kanıttan türetilmiş, bağlayıcı on sekiz kural.
-
-Sonrası, gerçekten neyi merak ettiğine bağlı:
-
-| Soru | Doküman |
+| Yapmak istediğin | Oku |
 |---|---|
-| Model tutarlı mı? | [`01-model.md`](./docs/01-model.md) · [`02-architecture.md`](./docs/02-architecture.md) · [`03-state.md`](./docs/03-state.md) |
-| Güvenli mi? | [`17-security.md`](./docs/17-security.md) · [`04-runtimes.md`](./docs/04-runtimes.md) · [`08-identity.md`](./docs/08-identity.md) |
-| **Gerçekle temasa dayanıyor mu?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): uçtan uca izlenen kırk beş senaryo, buldukları kusurlar ve iki dış inceleme |
-| Çalıştırabilir miyim? | [`18-operations.md`](./docs/18-operations.md) |
-| Üstüne bir şey inşa edebilir miyim? | [`10-api.md`](./docs/10-api.md) · [`16-extensions.md`](./docs/16-extensions.md) · [`09-recipes.md`](./docs/09-recipes.md) |
-| Önce ne yapılacak? | [`20-roadmap.md`](./docs/20-roadmap.md) |
-| Kararları kim veriyor? | [`19-governance.md`](./docs/19-governance.md) |
-| Bunların sebebi ne? | [`docs/research/evidence.md`](./docs/research/evidence.md) |
-
-Tam harita genel bakışın §7'sinde.
+| ne olduğunu ve parçaların nasıl birleştiğini anlamak | [overview](./docs/internals/overview.md), sonra [glossary](./docs/internals/glossary.md) |
+| kurmak ve düğüm eklemek | [install](./docs/user/install.md), [nodes](./docs/user/nodes.md), [recovery](./docs/user/recovery.md) |
+| güvenli olup olmadığını bilmek | [security](./docs/internals/security.md), [grants](./docs/internals/grants.md), [runtimes](./docs/internals/runtimes.md) |
+| üzerine bir şey inşa etmek | [api](./docs/internals/api.md), [extensions](./docs/internals/extensions.md), [recipes](./docs/internals/recipes.md) |
+| kod üzerinde çalışmak | [CONTRIBUTING.md](./CONTRIBUTING.md), [development](./docs/operations/development.md), [architecture](./docs/internals/architecture.md) |
+| kimin karar verdiğini bilmek | [GOVERNANCE.md](./GOVERNANCE.md) |
 
 ```
-README.md CONTRIBUTING.md SECURITY.md LICENSE*  giriş noktaları, inceleme, bildirim, lisans
-AGENTS.md                                       depoyu değiştiren herkesin uyduğu kurallar
-docs/00-overview.md .. docs/23-walkthroughs.md  spesifikasyon, bağımlılık sırasına göre numaralı
-docs/research/evidence.md                       her sapmanın dayandığı kaynaklar
-crates/                                         uygulama, bir Rust workspace'i
-ARCHITECTURE.md                                 kodun katmanları ve gerekçesi
+docs/internals/    kodun bağlı olduğu tasarım: her konu için yaşayan tek bir sayfa
+docs/user/         kurulum ve işletim, göreve göre
+docs/operations/   geliştirme, denetim ve yayımlama
+crates/            uygulama, bir Rust çalışma alanı
+web/               panel, statik bir TypeScript paketi
+AGENTS.md          depoyu değiştiren herkesin uyduğu kurallar
 ```
 
-**Açık sorular eksiklik değil, asıl mesele.** Dokümanlara dağılmış elli yedi açık soru var; her
-biri onu karara bağlayacak dokümanın içine yazıldı. Üzerinde adı olan ertelenmiş bir karar
-dürüsttür. Beyan edilmemiş olan ise birinin sonradan içine düşeceği bir tuzaktır.
+Karara bağlanmamış tasarım soruları [`question` etiketli issue'lardır](https://github.com/siracozmen01/korpis/issues?q=is%3Aissue+label%3Aquestion).
+Üzerinde bir isim olan ertelenmiş bir karar dürüsttür; beyan edilmemiş olan ise birinin sonradan
+düşeceği bir tuzaktır.
 
 ---
 
-## Bu nasıl yazıldı
+## Bu nasıl yazılıyor
 
-**Tek kişi tarafından, Claude ile.** Bunu birinin fark etmesine bırakmak yerine açıkça söylemek
-daha doğru.
+**Tek bir kişi tarafından, Claude ile.** Bunu birinin fark etmesine bırakmak yerine açıkça söylemeye
+değer. Kimse bir tasarıma, onu kimin ya da neyin ürettiğine bakarak güvenmemeli; bu yüzden:
 
-Hiç kimse bir spesifikasyona onu kimin ya da neyin ürettiğine bakarak güvenmemeli. O yüzden,
-okumaya değer olması için fiilen ne yapıldığı:
+- **Yaygın uygulamadan her sapma, alıntılanabilir bir şeye dayanarak savunulur ya da bir karar
+  olduğunu söyler.** Başka projeler hakkındaki iddialar, ilgili issue'ya, güvenlik bildirimine veya
+  belgeye satır içinde bağlantı verir.
+- **Tasarım bilerek saldırıya uğradı.** Somut senaryolar dokundukları her katman boyunca izlendi,
+  topun kimsede olmadığı adım arandı; bağımsız incelemeler her tanımı "bunu ne, nerede, hangi
+  bilgiyle değerlendiriyor?" diye okudu. Bulunan her kusur tasarımda ve kodda düzeltildi ve git
+  geçmişinde duruyor.
+- **Her sınır, uygulandığı yerde test edilir.** Testler gerçek PostgreSQL, gerçek bir kayıt defteri,
+  gerçek containerd ve gerçek microVM'lere karşı çalışır; panel, gerçek bir kontrol düzlemine karşı
+  gerçek bir tarayıcıda sürülür.
 
-- **Her sapma alıntılanabilir bir şeyden türetildi ya da bir karar olduğunu söylüyor.** Genel
-  bakışın §6'sındaki K-1 ile K-12 arasındaki kuralların her biri yayımlanmış bir güvenlik
-  bildirimine, belirli bir issue'ya veya belgelenmiş ürün davranışına dayanır; hepsi
-  [`docs/research/evidence.md`](./docs/research/evidence.md) içinde güven etiketleriyle toplandı.
-  K-13 ile K-18 politika ve tasarım kararlarıdır ve aynı dosya her birinin neye dayandığını yazar.
-  SEO içeriği çıkan kaynaklar öyle işaretlendi ve hiçbir şeye dayanak yapılmadı.
-- **Tasarıma kasıtlı olarak saldırıldı.** [`23-walkthroughs.md`](./docs/23-walkthroughs.md) on dört
-  somut senaryoyu dokundukları her katman boyunca izler ve özellikle hiçbir dokümanın topu
-  tutmadığı adımı arar. Yirmi üç kusur buldu: bir kota yarışı, geri yüklemeden sonra dirilebilen
-  iptal edilmiş yetki, her gözlem sağlıklı derken trafiği kesebilen bir kenar ve kaldırıldığında
-  hiçbir şeye yayılmayan bir sohbet rolü de bunların arasında. Hepsi düzeltildi ve inceleme
-  dokümanı onları sessizce yamamak yerine kayda geçirdi. Uygulama inşa edildikçe ondan yazılan
-  yirmi dokuz izleme daha başka kusurlar buldu ve her biri aynı şekilde kayda geçirildi.
-- **İkinci bir okuma dikişlere değil tanımlara saldırdı.** Farklı bir modelle yapılan bağımsız bir
-  inceleme, her dokümanın kendi cebrini hedef aldı: bu koşulu ne, hangi bilgiyle değerlendiriyor ve
-  değerlendirebilir mi. On dokuz şey buldu, on yedisi gerçekti; aralarında kimlik dokümanının
-  gösterdiği ama hiçbir doğrulayıcının uygulayamayacağı bir limit de vardı. Hepsi yamandı ve
-  [`23-walkthroughs.md`](./docs/23-walkthroughs.md) §16 hem her birini hem de denetimden geçemeyen
-  iki iddiayı kayda geçirdi.
-- **Sonra her şey yeniden okundu, hem kendisine hem kaynaklarına karşı.** İkinci bir inceleme her
-  dokümanı diğer her dokümana karşı okudu ve başka bir projeye dair her iddiayı birincil kaynağıyla
-  karşılaştırdı. Yetmiş dokuz şey buldu: önceki düzeltmelerin yarım bıraktığı protokol mekanikleri,
-  dışarı arama tasarımıyla çelişen bir veri yolu ve kanıt dosyasının kendisinde dokuz yanlış atıf;
-  aralarında yanıtsız denilen ama aynı gün yanıtlanmış bir issue da var.
-  [`23-walkthroughs.md`](./docs/23-walkthroughs.md) §17 her birini ve nerede düzeltildiğini
-  kaydeder.
-- **Düzeltmeler görünür bırakıldı.** [`01-model.md`](./docs/01-model.md) §2, bu depodaki daha eski
-  bir önerinin neden yanlış olduğunun kaydıdır. Hiçbir şey baştan belliymiş gibi sunulmuyor.
-
-Muhakemeler, öncelikler ve hatalar yazara ait. Burada bir şey yanlışsa, kendi gerekçeleriyle
-yanlıştır. Bir issue aç ve söyle.
+Muhakeme, öncelikler ve hatalar yazarındır. Burada bir şey yanlışsa bir issue aç ve söyle.
 
 ---
 
 ## Katkı
 
-Şu anda yapılabilecek en yararlı şey **tartışmak**. Kimsenin itiraz etmediği bir spesifikasyon
-incelenmemiş demektir.
-
-Özellikle aranan:
-
-- Muhakemenin tutmadığı bir yer veya hiç dile getirilmemiş bir varsayım
-- İncelemelerin kaçırdığı operasyonel bir arıza biçimi
-- [`docs/research/evidence.md`](./docs/research/evidence.md) içinde yanlış veya haksız olan
-  herhangi bir şey. Burada doğruluk, haklı olmaktan daha önemli
-- Bu tür yazılımı ölçekte işletme deneyimi; hiçbir tasarım bunun yerini tutmaz
-
-Bkz. [`CONTRIBUTING.md`](./CONTRIBUTING.md). Güvenlik politikası: [`SECURITY.md`](./SECURITY.md).
+Herkesin yapabileceği en faydalı şey **onunla tartışmak**: bir akıl yürütme boşluğu, belirtilmemiş bir
+varsayım, kimsenin izlemediği bir arıza biçimi, başka bir proje hakkında yanlış ya da haksız bir
+iddia, ya da bu sınıf yazılımı ölçekte işletme deneyimi. Bkz. [CONTRIBUTING.md](./CONTRIBUTING.md).
+Bir güvenlik açığı bildirmek için: [SECURITY.md](./SECURITY.md).
 
 ---
 
@@ -163,25 +112,18 @@ Bkz. [`CONTRIBUTING.md`](./CONTRIBUTING.md). Güvenlik politikası: [`SECURITY.m
 
 | Katman | Lisans |
 |---|---|
-| Protokol tanımları, istemci SDK'ları, tarif formatı, ajan protokolü, uyumluluk testleri | **Apache-2.0** |
-| Kontrol düzlemi, düğüm ajanı, aktarıcı (relay), web / CLI / sohbet istemcileri | **AGPL-3.0-or-later** |
-| Bu dokümanlar | **CC BY 4.0** |
-| Tarifler, eklentiler, temalar | Yazarın seçimi, tescilli dahil |
+| Protokol tanımları, istemci SDK'ları, recipe biçimi, ajan protokolü, uygunluk paketleri | **Apache-2.0** |
+| Kontrol düzlemi, düğüm ajanı, aktarıcı (relay), panel, CLI ve sohbet istemcileri | **AGPL-3.0-or-later** |
+| Belgeler | **CC BY 4.0** |
+| Recipe'ler, eklentiler, temalar | Yazarın seçimi, kapalı kaynak dahil |
 
-Açıkça söylemek gerekirse, çünkü AGPL sıkça kullanım kısıtı sanılıyor: **ticari olarak çalıştır,
-üzerinden kapasite sat, istediğin fiyatı iste, ona karşı kapalı eklentiler yaz.** Değiştirmeden,
-müşterilerin için çalıştırman hiçbir yükümlülük doğurmaz. Değiştirip değiştirilmiş sürümü ağ
-üzerinden sunarsan, kullanıcılarına kendi kaynak kodunu sunarsın; kopya dağıtırsan kaynak da
-onlarla gider, ki değiştirilmemiş bir derleme bunu zaten sağlar.
+Açıkça, çünkü AGPL bir kullanım kısıtlaması diye yanlış okunur: **ticari olarak çalıştır, üzerinde
+kapasite sat, istediğini ücretlendir, ona karşı kapalı eklentiler yaz.** Onu müşterilerin için
+değiştirmeden çalıştırmak hiçbir yükümlülük getirmez. Değiştirip değiştirilmiş sürümü bir ağ
+üzerinden sunmak, kullanıcılarına kaynak kodunu sunmak demektir; kopya dağıtmak, kaynağın onlarla
+gitmesi demektir ve değiştirilmemiş bir derleme bunu zaten sağlar.
 
-Katkılar Developer Certificate of Origin altında alınır; CLA ve telif devri yoktur, dolayısıyla
-kimse bir katkıcının kodunu onun rızası olmadan yeniden lisanslayamaz. Lisans tek başına
-open-core'a dönüşü engellemez; bunu projenin politikası (P10, K-13) engeller ve
-[`19-governance.md`](./docs/19-governance.md) §2 hangisinin hangisi olduğunu söyler.
-
----
-
-> **Dokümanlar İngilizce.** Bu README bir giriş noktası, spesifikasyonun kendisi değil. `docs/`
-> altındaki yirmi dört doküman İngilizce yazıldı ve öyle kalacak: ajan protokolü, kural adları ve
-> model isimleri tek bir dilde tanımlanmak zorunda, yoksa iki çeviri arasında sessizce ayrışırlar.
-> Bkz. [`AGENTS.md`](./AGENTS.md).
+Katkılar, CLA ve telif devri olmadan, bir Developer Certificate of Origin altında gelir; böylece kimse
+bir katkıcının kodunu onun rızası olmadan yeniden lisanslayamaz. Lisans tek başına açık çekirdekli
+(open-core) bir dönüşü engellemez; bunu projenin politikası engeller ve
+[GOVERNANCE.md](./GOVERNANCE.md) hangisinin hangisi olduğunu söyler.
