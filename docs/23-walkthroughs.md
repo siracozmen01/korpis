@@ -7243,3 +7243,15 @@ link named, which the tenant could then read in its copy. Resolved in §8.1 of
 into its copy, which nothing runs on until `cutover`. What it costs: B's client runs unconfined
 and trusts A's stream as far as rsync's receiver does, which §8.1 states as what it does not
 stop.
+
+**Finding 218.** Found 2026-10-28 by an automated security review of the commit that built the
+nodes' transfers (P3.9c4a). Step 3 again asks what B runs: the client Finding 217 put there pulled
+as root, unconfined, and what Finding 217 named as its cost was the defect itself. A source node an
+attacker holds controls the stream, and rsync's receiver has had flaws that let a server write
+outside the destination (CVE-2024-12087, CVE-2024-12088), so one such flaw would have reached B's
+host from A. Resolved in §8.1 of `05-scheduling.md`: B's client runs in a mount namespace of its
+own whose root holds, read only, the host's programs, libraries, and loader cache and the helper's
+binary, and, writable, the copy it pulls into, nothing else; a test runs a program in that view and
+finds the copy written, the host's `/etc/hostname` and the copy's own parent absent, and the
+programs read only. What it costs: a mount namespace per pass, and a view that hides the host's
+files but not its kernel, which §8.1 states as what it does not stop.
