@@ -65,9 +65,10 @@ read start to finish by someone who has not seen them before, so:
   independent clauses. A spaced hyphen is not a substitute. This is a hard rule for the project and
   it is checked before every commit.
 
-[`CLAUDE.md`](./CLAUDE.md) holds the full set of conventions, including which document owns which
-decision and how open questions are recorded. It is written for AI coding agents, and it is the
-shortest accurate description of how this repository works for humans too.
+[`AGENTS.md`](./AGENTS.md) holds the rules that are easy to get wrong: the commands, the ways to
+damage a shared machine, the invariants no single file shows, and how tests, documents and pull
+requests are written. It is written for AI coding agents and holds for people too. Which
+document owns which decision is in §7 of [`00-overview.md`](./docs/00-overview.md).
 
 ## Working on the code
 

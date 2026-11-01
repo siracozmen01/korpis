@@ -578,7 +578,7 @@ than architecture.
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
 | release pipeline (§6 of `19-governance.md`, §11 of `17-security.md`) | **not built**: reproducible builds, signed artifacts recorded in a transparency log, the SBOM, and the agent package that carries the microvm tier's files (question 7 of §10 of `18-operations.md`); blocks the first release, not a phase |
-| `CLAUDE.md` | complete: the rules anyone editing these documents works under |
+| `AGENTS.md` | complete: the rules anyone changing the repository works under |
 | `ARCHITECTURE.md`, `crates/`, `web/` | Phases 0 to 2 built: twenty-six crates and the panel, about 209,000 lines of Rust and 17,100 of TypeScript, 1,262 Rust tests and 136 of the panel's, 122 migrations, and the 162 calls of the public API |
 
 Seventy-two numbered open questions remain open, of 145 recorded. Sixteen of them are a question

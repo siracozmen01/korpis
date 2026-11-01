@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 # compilation's caches, about half of the target directory, buy it nothing but disk.
 export CARGO_INCREMENTAL=0
 
-echo "== em dash (CLAUDE.md rule 2)"
+echo "== em dash (AGENTS.md, Documentation)"
 if grep -rnPI --exclude-dir=.git --exclude-dir=target --exclude-dir=.tools --exclude-dir=node_modules \
     --exclude-dir=dist '\x{2014}' .; then exit 1; fi
 
@@ -24,7 +24,7 @@ long=$( (find crates scripts conformance -name '*.rs' -not -path '*/target/*'
                  END { if (n > 400) print prev ": " n " lines" }')
 if [ -n "$long" ]; then echo "$long"; exit 1; fi
 
-echo "== licence lines (CLAUDE.md, §2 of docs/19-governance.md)"
+echo "== licence lines (AGENTS.md, Invariants)"
 # Untracked files too, so a new file is checked before it is committed; a file deleted and not
 # yet staged is still listed, and is not there to check. The containerd API is vendored with its
 # own headers.

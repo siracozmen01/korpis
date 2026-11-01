@@ -16,6 +16,7 @@ Thumbs.db
 /target/
 
 # local agent state
-/.claude/
+/.claude/*
+!/.claude/settings.json
 /.tools/
 /.env
