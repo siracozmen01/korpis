@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The view a tree's receiving rsync runs in (Finding 218): a program in it runs, finds its
-//! libraries, and writes into the copy at its own path, and sees nothing else of the host, its
-//! `/etc/hostname` and the parent of the copy absent. It needs root, and is skipped without it.
+//! The view a tree's receiving rsync runs in: a program in it runs, finds its libraries, writes
+//! into the copy at its own path and gives a file an owner by number, sees nothing else of the
+//! host, its `/etc/hostname` and the parent of the copy absent, and cannot mount, which is how
+//! root would leave the view. It needs root, and says so and does not run without it.
 
-#![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
+#![allow(
+    clippy::unwrap_used,
+    clippy::print_stderr,
+    reason = "a failing test should fail loudly, and a skipped one should say so"
+)]
 
 use korpis_helper::confined::confine;
 use std::path::Path;
@@ -21,6 +26,7 @@ fn inside(copy: &Path, script: &str) -> bool {
 #[test]
 fn a_confined_program_sees_its_copy_and_nothing_else_of_the_host() {
     if !rustix::process::geteuid().is_root() || !Path::new("/etc/hostname").exists() {
+        eprintln!("needs root and /etc/hostname: not run");
         return;
     }
     let dir = tempfile::tempdir().unwrap();
@@ -34,4 +40,7 @@ fn a_confined_program_sees_its_copy_and_nothing_else_of_the_host() {
     let beside = dir.path().join("beside");
     assert!(!inside(&copy, &format!("test -e {}", beside.display())), "nor the copy's parent's");
     assert!(!inside(&copy, "touch /usr/korpis-written"), "and its programs are read only");
+    assert!(inside(&copy, &format!("chown 4321:4321 {c}/written")), "owners are kept by number");
+    let mounted = inside(&copy, &format!("mount -t tmpfs none {c}"));
+    assert!(!mounted, "nothing in it mounts, so it cannot reach the host through a proc mount");
 }
