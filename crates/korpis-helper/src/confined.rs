@@ -8,12 +8,14 @@
 //! the host is in it: no `/etc` beyond the loader's cache, no `/proc`, no other volume, so a
 //! stream that misleads rsync's receiver can write only into the copy it was pulling into.
 //!
-//! A receiver taken over by a hostile stream runs code as root, and root with every capability
-//! leaves a mount namespace easily: it mounts `proc` and walks `/proc/1/root` to the host's root.
-//! So the view also keeps only the capabilities a receiver keeping owners, modes, devices and
-//! extended attributes needs ([`KEPT`]), drops the rest from the bounding set so no program it
-//! runs regains them, sets `no_new_privs`, and has a network, IPC and host name of its own: it
-//! talks to the source only through the descriptor its remote shell inherited.
+//! A receiver taken over by a hostile stream runs whatever code the stream gives it. As root with
+//! every capability it would leave a mount namespace easily, mounting `proc` and walking
+//! `/proc/1/root` to the host's root, and as root at all it could signal every root process of
+//! the host. So the receiver is not root: it runs as a user of its own that no workload or host
+//! user is, keeping only the capabilities writing owners, modes, devices and extended attributes
+//! needs ([`KEPT`], which rsync uses under `--super`), none of them regainable, with
+//! `no_new_privs`, and with a network, IPC and host name of its own: it talks to the source only
+//! through the descriptor its remote shell inherited.
 //!
 //! This is one of the crate's unsafe modules, listed in the crate's header: the view is made in
 //! the child between fork and exec, which only `pre_exec` reaches, and there only calls that
@@ -21,8 +23,10 @@
 
 #![expect(unsafe_code, reason = "the view is made between fork and exec, by pre_exec")]
 
+use korpis_core::workload::assignment::{FIRST_WORKLOAD_ID, IDS_PER_WORKLOAD, IdRange};
 use rustix::fs::{Mode, OFlags};
 use rustix::mount::{MountFlags, MountPropagationFlags, UnmountFlags};
+use rustix::process::{Gid, Uid};
 use rustix::thread::{CapabilitySet, CapabilitySets, UnshareFlags};
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt as _;
@@ -145,13 +149,53 @@ impl Plan {
         rustix::process::pivot_root(self.root.as_c_str(), self.old.as_c_str())?;
         rustix::process::chdir(c"/")?;
         unmount(c"/.old", UnmountFlags::DETACH)?;
-        keep_only(KEPT)
+        become_receiver(KEPT)
     }
 }
 
-/// Keeps `kept` in every set and drops every other capability from the bounding set too, then
-/// sets `no_new_privs`; allocates nothing, so it may run between fork and exec.
-fn keep_only(kept: CapabilitySet) -> rustix::io::Result<()> {
+/// The first of the ids a receiver runs as: the last range of [`IDS_PER_WORKLOAD`] ids above
+/// [`FIRST_WORKLOAD_ID`], which reaches `u32::MAX` and so is never a workload's, and which no
+/// host user takes. A receiver is one of the 65,534 below `u32::MAX - 1`, by its process id, so
+/// two running at once are almost never the same user and cannot signal each other.
+fn receiver_ids() -> (u32, u32) {
+    let first = FIRST_WORKLOAD_ID + IdRange::slots() * IDS_PER_WORKLOAD;
+    (first, u32::MAX - 1 - first)
+}
+
+/// Gives up root: the child becomes a user of its own ([`receiver_ids`]) with no groups that
+/// keeps `kept`, as ambient capabilities, through its exec, and nothing else, with root's
+/// special treatment locked off and `no_new_privs` set. A user that is not root signals no
+/// process of the host's, and none of the host's users are it. Allocates nothing, so it may run
+/// between fork and exec.
+fn become_receiver(kept: CapabilitySet) -> rustix::io::Result<()> {
+    use rustix::thread::CapabilitiesSecureBits as Bits;
+    let (first, count) = receiver_ids();
+    let id = first + rustix::process::getpid().as_raw_nonzero().get().unsigned_abs() % count;
+    rustix::thread::set_capabilities_secure_bits(
+        Bits::NO_ROOT
+            | Bits::NO_ROOT_LOCKED
+            | Bits::NO_SETUID_FIXUP
+            | Bits::NO_SETUID_FIXUP_LOCKED
+            | Bits::KEEP_CAPS_LOCKED,
+    )?;
+    drop_bounding(kept)?;
+    rustix::thread::set_thread_groups(&[])?;
+    let (uid, gid) = (Uid::from_raw_unchecked(id), Gid::from_raw_unchecked(id));
+    rustix::thread::set_thread_res_gid(gid, gid, gid)?;
+    rustix::thread::set_thread_res_uid(uid, uid, uid)?;
+    let sets = CapabilitySets { effective: kept, permitted: kept, inheritable: kept };
+    rustix::thread::set_capabilities(None, sets)?;
+    for bit in 0..64u32 {
+        let cap = CapabilitySet::from_bits_retain(1u64 << bit);
+        if kept.contains(cap) {
+            rustix::thread::configure_capability_in_ambient_set(cap, true)?;
+        }
+    }
+    rustix::thread::set_no_new_privs(true)
+}
+
+/// Drops every capability but `kept` from the bounding set, so nothing executed regains one.
+fn drop_bounding(kept: CapabilitySet) -> rustix::io::Result<()> {
     for bit in 0..64u32 {
         let cap = CapabilitySet::from_bits_retain(1u64 << bit);
         if kept.contains(cap) {
@@ -163,10 +207,7 @@ fn keep_only(kept: CapabilitySet) -> rustix::io::Result<()> {
             Err(e) => return Err(e),
         }
     }
-    let sets =
-        CapabilitySets { effective: kept, permitted: kept, inheritable: CapabilitySet::empty() };
-    rustix::thread::set_capabilities(None, sets)?;
-    rustix::thread::set_no_new_privs(true)
+    Ok(())
 }
 
 /// Makes `command` run in a view holding only the host's programs and libraries, `relay`, and

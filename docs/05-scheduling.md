@@ -1954,9 +1954,12 @@ the helper's binary, and, writable, the destination's copy at its own path (the 
 unsafe module, `confined`, which makes it between fork and exec). No version is required of rsync:
 distributions carry those fixes without changing its number, so a gate on the number would refuse
 patched builds and admit nothing safer. Root with every capability would leave the view by
-mounting `proc` and walking `/proc/1/root`, so the client keeps only the capabilities writing what
-it receives needs (owners, modes, device files, file capabilities), drops the rest from its
-bounding set, runs with `no_new_privs`, and has a network, IPC and host name of its own.
+mounting `proc` and walking `/proc/1/root`, and root at all could signal every root process of the
+host, so the client is not root: it runs as a user of its own from the last range of host ids,
+which no workload is ever given and no host user takes, keeping as ambient capabilities only those
+writing what it receives needs (owners, modes, device files, file capabilities, which rsync uses
+under `--super`), none regainable, with root's special treatment locked off, `no_new_privs`, and a
+network, IPC and host name of its own.
 **What it does not stop:** a flaw of rsync's receiver can still write anywhere in the copy it pulls
 into, which nothing runs on until `cutover` and `verify` compares after it (P3.9d), and the kernel
 is still reached through every call those capabilities allow; the view hides the host's files and
