@@ -28,7 +28,9 @@ up)
         docker start "$NAME" >/dev/null
     fi
     for _ in $(seq 1 60); do
-        if docker exec "$NAME" pg_isready -U postgres >/dev/null 2>&1; then
+        # Over TCP: the image's first start runs a server on its socket alone while it initializes,
+        # then restarts it, so the socket answers before the server clients will reach is up.
+        if docker exec "$NAME" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then
             echo "$URL"; exit 0
         fi
         sleep 0.5
