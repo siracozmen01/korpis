@@ -15,6 +15,7 @@ use crate::providers::{Installed, installed_from};
 use crate::recipes::{body, create, project, push_paper};
 use crate::streams::held;
 use crate::support::Harness;
+use crate::watching::Shared;
 use crate::volumes::{ensured, list, volume_record};
 use korpis_extension::block::{BlockStorage, Failure, Storage};
 use korpis_extension::provider::{Provider, Registration};
@@ -24,7 +25,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as U
 use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeMap;
 use std::future::{Future, ready};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 /// One device: its size, and the node and epoch it is attached for.
@@ -36,11 +37,11 @@ pub(crate) struct Device {
 
 /// The storage, as its provider keeps it: devices by name, named for their volume.
 #[derive(Default, Clone)]
-pub(crate) struct Disks(pub(crate) Arc<Mutex<BTreeMap<String, Device>>>);
+pub(crate) struct Disks(pub(crate) Shared<BTreeMap<String, Device>>);
 
 impl Disks {
     pub(crate) fn with<T>(&self, f: impl FnOnce(&mut BTreeMap<String, Device>) -> T) -> T {
-        f(&mut self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
+        self.0.with(f)
     }
 }
 

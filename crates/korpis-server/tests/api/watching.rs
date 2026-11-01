@@ -68,3 +68,37 @@ where
     };
     tokio::time::timeout(BOUND, found).await.expect("what was waited for never came about")
 }
+
+/// A fake's state, announced to whoever waits on it: what a provider a test serves was asked.
+pub(crate) struct Shared<T>(std::sync::Arc<tokio::sync::watch::Sender<T>>);
+
+impl<T: Default> Default for Shared<T> {
+    fn default() -> Self {
+        Self(std::sync::Arc::new(tokio::sync::watch::Sender::new(T::default())))
+    }
+}
+
+impl<T> Clone for Shared<T> {
+    fn clone(&self) -> Self {
+        Self(std::sync::Arc::clone(&self.0))
+    }
+}
+
+impl<T> Shared<T> {
+    /// Runs `f` on the state, and wakes whoever waits on it.
+    pub(crate) fn with<R>(&self, f: impl FnOnce(&mut T) -> R) -> R {
+        let mut out = None;
+        self.0.send_modify(|state| out = Some(f(state)));
+        out.expect("send_modify runs its closure")
+    }
+
+    /// What `pick` finds in the state, once it finds anything.
+    pub(crate) async fn until<R>(&self, pick: impl Fn(&T) -> Option<R>) -> R {
+        let mut seen = self.0.subscribe();
+        let found = async {
+            let state = seen.wait_for(|s| pick(s).is_some()).await.expect("the state is kept");
+            pick(&state).expect("found just now")
+        };
+        tokio::time::timeout(BOUND, found).await.expect("what was waited for never came about")
+    }
+}

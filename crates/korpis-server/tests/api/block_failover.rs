@@ -103,13 +103,7 @@ async fn a_device_follows_its_workload_to_the_node_it_fails_over_to_and_goes_wit
     assert!(shown.reason.is_empty(), "{shown:?}");
 
     deleted(&h, &mut sb, (&db, &data.id), last + 2).await;
-    for _ in 0..200 {
-        if disks.with(|d| d.is_empty()) {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(300)).await;
-    }
-    panic!("the device outlived its volume: {:?}", disks.with(|d| d.clone()));
+    disks.0.until(|d| d.is_empty().then_some(())).await;
 }
 
 /// Retires `workload` on `s`'s node keeping its volume `volume`, then deletes the volume by a
