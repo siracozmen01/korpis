@@ -78,7 +78,8 @@ async fn a_volume_comes_back_as_it_was_and_a_second_backup_stores_what_changed()
     assert!(stats.bytes_new < 20 << 20, "the holes are not stored");
 
     let done = restore(&r, into(dst.path(), "b1", "")).await.unwrap();
-    assert!(done.files >= 7);
+    // Six regular files, and as root a seventh only root can give to another owner.
+    assert!(done.files >= if tree::root() { 7 } else { 6 }, "{} files", done.files);
     verify(&r, "b1", "", dst.path().to_owned()).await.unwrap();
     assert!(allocated(&dst.path().join("sparse.img")) < 4 << 20, "sparse stays sparse");
     assert!(allocated(&dst.path().join("hole.img")) < 1 << 20);

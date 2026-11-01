@@ -189,7 +189,8 @@ workspace() {
     else
         echo "the OIDC issuer is not installed (scripts/test-tools.sh), its conformance is not run"
     fi
-    cargo test --workspace --exclude korpis-e2e --all-features --locked
+    # Every failure at once, so one run of a slow tier names all it found.
+    cargo test --workspace --exclude korpis-e2e --all-features --locked --no-fail-fast
     cargo test "${conformance[@]}" "${conformance_target[@]}" --locked
 }
 
