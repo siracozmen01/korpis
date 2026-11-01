@@ -402,7 +402,7 @@ that breaks the panel fails like one that breaks the server.
 > by its environment and trusting the test authority alone, and a person signs in through it,
 > acts, and loses a group's authority by its refresh; so only the workload's own sandbox around
 > it is left untested.
-> `scripts/check.sh` runs them with the rest of the tests, and says so when no browser is
+> `scripts/check.sh full` runs them with the end-to-end suites, and says so when no browser is
 > installed and they are skipped. What it costs: about forty seconds of a check, and one
 > download trusted on its publisher's word. Written over one day, they found eight defects that
 > the component tests and the API tests had not (Findings 85 to 92 of `23-walkthroughs.md`).

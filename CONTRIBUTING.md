@@ -100,10 +100,12 @@ scripts/sqlx-prepare.sh   after changing a migration or a query: rebuilds the de
                           database and regenerates .sqlx/, which builds use offline; every
                           migration after 0074 is a .up.sql with its .down.sql, whose inverse
                           is tested (§4 of docs/18-operations.md)
-scripts/check.sh          every check a commit must pass: the text rules, file length, the
-                          licence lines, the layer rule, the schema, the web client
-                          (scripts/check-web.sh), rustfmt, clippy with warnings denied, the
-                          tests, and the dependency policy
+scripts/check.sh [tier]   the checks, in three tiers, each after the text rules, file length,
+                          the licence lines and the layer rule: `changed` (the default) formats,
+                          lints and tests the crates the branch touches and the panel if it
+                          changed; `pr` adds the schema, the web client, the query metadata,
+                          every crate's clippy and tests but the end-to-end suites, and the
+                          dependency policy; `full` adds the end-to-end suites
 scripts/e2e-phase0.sh     the Phase 0 done-when (§4 of docs/20-roadmap.md) as an operator runs
                           it: the five binaries as processes, the recipe published with oras,
                           every step through the CLI; needs root and containerd, and leaves

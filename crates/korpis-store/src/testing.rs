@@ -5,10 +5,11 @@
 //! the [`TestDb`] is dropped.
 
 mod nodes;
+mod template;
 
 pub use nodes::{FixtureError, capacity, enroll, oci_driver, ready_node};
 
-use crate::{Error, PgStore, migrate};
+use crate::{Error, PgStore};
 use korpis_app::ports::{CodecError, IntentCodec, MeteringWrite as _, Store as _, Tx as _};
 use korpis_core::metering::Record;
 use korpis_core::workload::IntentBody;
@@ -34,26 +35,27 @@ pub struct TestDb {
 }
 
 impl TestDb {
-    /// Creates and migrates a fresh database.
+    /// Creates a fresh database holding every migration, copied from the migrated template.
     pub async fn new() -> Result<Self, Error> {
-        let db = Self::empty().await?;
-        migrate(&db.owner_url).await?;
-        Ok(db)
+        let admin_url = admin_url();
+        let template = template::ensure(&admin_url).await?;
+        Self::create(admin_url, &template).await
     }
 
     /// Creates a fresh database with no migration applied.
     pub async fn empty() -> Result<Self, Error> {
-        let admin_url =
-            std::env::var("KORPIS_TEST_PG_URL").unwrap_or_else(|_| DEFAULT_ADMIN_URL.to_owned());
+        Self::create(admin_url(), "template0").await
+    }
+
+    async fn create(admin_url: String, template: &str) -> Result<Self, Error> {
         let name = format!("korpis_test_{}", uuid::Uuid::now_v7().simple());
         let mut admin = PgConnection::connect(&admin_url).await?;
-        // The name is generated from a UUID above, never from input.
-        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE DATABASE {name} TEMPLATE template0")))
-            .execute(&mut admin)
-            .await?;
+        // The name is generated from a UUID above and the template's from the migrations, never
+        // from input.
+        let create = format!("CREATE DATABASE {name} TEMPLATE {template}");
+        sqlx::query(sqlx::AssertSqlSafe(create)).execute(&mut admin).await?;
         admin.close().await?;
-        let base = admin_url.rsplit_once('/').map_or(admin_url.as_str(), |(base, _)| base);
-        let owner_url = format!("{base}/{name}");
+        let owner_url = database_url(&admin_url, &name);
         Ok(Self { admin_url, name, owner_url })
     }
 
@@ -85,8 +87,7 @@ impl TestDb {
             }
         }
         admin.close().await?;
-        let base = self.admin_url.rsplit_once('/').map_or(self.admin_url.as_str(), |(b, _)| b);
-        let owner_url = format!("{base}/{name}");
+        let owner_url = database_url(&self.admin_url, &name);
         Ok(Self { admin_url: self.admin_url.clone(), name, owner_url })
     }
 
@@ -137,6 +138,16 @@ impl Drop for TestDb {
         })
         .join();
     }
+}
+
+fn admin_url() -> String {
+    std::env::var("KORPIS_TEST_PG_URL").unwrap_or_else(|_| DEFAULT_ADMIN_URL.to_owned())
+}
+
+/// The URL of database `name` on the server `admin_url` reaches, as the same user.
+fn database_url(admin_url: &str, name: &str) -> String {
+    let base = admin_url.rsplit_once('/').map_or(admin_url, |(base, _)| base);
+    format!("{base}/{name}")
 }
 
 /// Best effort: a database a crashed test leaves behind goes with `scripts/dev-pg.sh destroy`.
