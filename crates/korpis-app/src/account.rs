@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Accounts (§9.6 of docs/08-identity.md): redeeming an invitation by registering a first factor,
-//! signing in, and managing one's own factors. An account holds no authority by being one; what
-//! it may do is the grants issued to it, so nothing here consults a grant, and every use case
-//! answers a refusal of a credential as [`AppError::Unauthenticated`], saying nothing of which
-//! part of it failed.
+//! Accounts: redeeming an invitation by registering a first factor, signing in, and managing one's
+//! own factors. An account holds no authority by being one; what it may do is the grants issued to
+//! it, so nothing here consults a grant, and every use case answers a refusal of a credential as
+//! [`AppError::Unauthenticated`], saying nothing of which part of it failed.
 
 mod ceremony;
 mod check;
@@ -53,9 +52,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
-    /// The relying party of an address: the portal `portal`'s, whose identifier is its whole
-    /// name and whose one origin is its own, or for none the installation's (§9.8 of
-    /// docs/08-identity.md). A portal deleted since the ceremony began has none.
+    /// The relying party of an address: the portal `portal`'s, whose identifier is its whole name
+    /// and whose one origin is its own, or for none the installation's. A portal deleted since the
+    /// ceremony began has none.
     pub(crate) async fn relying_party_at(
         &self,
         portal: Option<Uuid>,

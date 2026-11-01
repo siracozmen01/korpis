@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Forgetting what has lapsed: the rate limit buckets that are full again (§10 of
-//! docs/10-api.md), since a bucket kept nowhere is full, so the addresses and invented sign-in
-//! names a flood brings leave nothing behind once their buckets refill; the user sessions ended
-//! by age or idleness (§9.4 of docs/08-identity.md), with the credentials they rotated; and the
-//! device authorizations that expired undecided or unspent.
+//! Forgetting what has lapsed: the rate limit buckets that are full again, since a bucket kept
+//! nowhere is full, so the addresses and invented sign-in names a flood brings leave nothing behind
+//! once their buckets refill; the user sessions ended by age or idleness, with the credentials they
+//! rotated; and the device authorizations that expired undecided or unspent.
 
 use crate::api::Api;
 use korpis_app::ports::{DeviceGrantRead as _, RateBuckets as _, UserSessionRead as _};

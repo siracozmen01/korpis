@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Unpacking an archive for `extract` (§4 of docs/09-recipes.md): tar, bare or in gzip, zstd, or
-//! xz, and zip, recognised by their first bytes. An entry with an absolute path or a `..`
-//! component is refused, as is a device, a FIFO, a link that would point out of the tree being
-//! unpacked, and a hard link to anything not unpacked with it; nothing is unpacked for an archive
-//! that holds one. `strip` drops leading components and `include` keeps only the entries at or
-//! beneath the paths it names, both read after normalising. Entries are created by the worker,
-//! so they belong to the workload's root, whatever owner an archive records.
+//! Unpacking an archive for `extract`: tar, bare or in gzip, zstd, or xz, and zip, recognised by
+//! their first bytes. An entry with an absolute path or a `..` component is refused, as is a
+//! device, a FIFO, a link that would point out of the tree being unpacked, and a hard link to
+//! anything not unpacked with it; nothing is unpacked for an archive that holds one. `strip` drops
+//! leading components and `include` keeps only the entries at or beneath the paths it names, both
+//! read after normalising. Entries are created by the worker, so they belong to the workload's
+//! root, whatever owner an archive records.
 
 use super::beneath;
 use super::files;

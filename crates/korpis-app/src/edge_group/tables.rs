@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What every node is told of edges (§3.1 of docs/07-networking.md), computed from what the
-//! control plane holds: every group, every address and port a `stable` endpoint holds, each
-//! group's ingress addresses and the `ingress` endpoints it serves, where each such workload is
-//! placed and whether its node observes it running there, each mesh member's own address, and
-//! the challenges standing for the names each member's proxy serves.
+//! What every node is told of edges, computed from what the control plane holds: every group, every
+//! address and port a `stable` endpoint holds, each group's ingress addresses and the `ingress`
+//! endpoints it serves, where each such workload is placed and whether its node observes it running
+//! there, each mesh member's own address, and the challenges standing for the names each member's
+//! proxy serves.
 
 use crate::App;
 use crate::error::AppError;

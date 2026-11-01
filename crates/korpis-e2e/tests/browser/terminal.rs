@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis login` on a terminal, waiting for a person in the browser to approve it (§9.4 of
-//! docs/08-identity.md), and what it said once they did.
+//! `korpis login` on a terminal, waiting for a person in the browser to approve it, and what it
+//! said once they did.
 
 use crate::support::ControlPlane;
 use std::path::Path;

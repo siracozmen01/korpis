@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading what workloads used (§2 of docs/15-observability.md): of one workload, a project's,
-//! or an organization's subtree's, under `metering.read` over what is named (§5 of
-//! docs/10-api.md), and the days of metering with where each stands. A record's node is shown
-//! only to a caller who may read that node, as an effect's is (§4 there).
+//! Reading what workloads used: of one workload, a project's, or an organization's subtree's, under
+//! `metering.read` over what is named, and the days of metering with where each stands. A record's
+//! node is shown only to a caller who may read that node, as an effect's is.
 
 use crate::App;
 use crate::caller::Caller;

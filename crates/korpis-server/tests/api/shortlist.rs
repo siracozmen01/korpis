@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The shortlist query (§2.1 of docs/05-scheduling.md): before a workload is bound, the best
-//! scored nodes are asked whether their driver accepts it. A refusal passes the node over and is
-//! kept for that target; a node that does not answer in time is passed over for that bind alone;
-//! and an agent that does not say it answers is not asked at all.
+//! The shortlist query: before a workload is bound, the best scored nodes are asked whether their
+//! driver accepts it. A refusal passes the node over and is kept for that target; a node that does
+//! not answer in time is passed over for that bind alone; and an agent that does not say it answers
+//! is not asked at all.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::recipes::{body, create, project, push_paper};

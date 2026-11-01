@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A running workload's identity (§9.5 of docs/08-identity.md): its node asks for a credential
-//! on the workload's behalf, and the control plane issues one only for a workload it places on
-//! that node, authoritatively, under a lease that node holds and that has not expired. The
-//! node's word is only which workload asked; who that workload is, is the control plane's: an
-//! installed extension's workload is `extension:<id>`, every other `workload:<id>` (§3.2 of
-//! docs/16-extensions.md).
+//! A running workload's identity: its node asks for a credential on the workload's behalf, and the
+//! control plane issues one only for a workload it places on that node, authoritatively, under a
+//! lease that node holds and that has not expired. The node's word is only which workload asked;
+//! who that workload is, is the control plane's: an installed extension's workload is
+//! `extension:<id>`, every other `workload:<id>`.
 //!
 //! Issuing is not an effect, as minting a capability token is not: what the credential is used
 //! for is, and every such effect names the workload or extension that acted.

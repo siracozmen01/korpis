@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The steps of a remake plan (§2.4 of docs/05-scheduling.md): a workload made again on the node
-//! it was placed on again, with what it holds, and a volume whose only copy was on the node that
-//! is gone made from the freshest replica of it the new node keeps (§2.2 of docs/06-storage.md).
+//! The steps of a remake plan: a workload made again on the node it was placed on again, with what
+//! it holds, and a volume whose only copy was on the node that is gone made from the freshest
+//! replica of it the new node keeps.
 
 use super::{Builder, int, text};
 use crate::object::{Kind, ObjectRef};

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Plans a restore recovers from what nodes present (§8 of docs/03-state.md): a plan in flight
-//! the store lacks, recorded as applying and recovered, or one it holds as approved or queued,
-//! started; and any other plan of the workload the store holds as applying, cancelled, since the
-//! node has moved past it.
+//! Plans a restore recovers from what nodes present: a plan in flight the store lacks, recorded as
+//! applying and recovered, or one it holds as approved or queued, started; and any other plan of
+//! the workload the store holds as applying, cancelled, since the node has moved past it.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

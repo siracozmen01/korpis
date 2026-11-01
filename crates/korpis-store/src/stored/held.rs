@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What a workload holds against quota, and what an entry's workloads hold together, as they are
-//! kept (question 7 of §10 of docs/05-scheduling.md): amounts per dimension keyed by the
-//! dimension's wire name, an unbounded limit as `null` in a holding and as a count in totals.
+//! kept: amounts per dimension keyed by the dimension's wire name, an unbounded limit as `null` in
+//! a holding and as a count in totals.
 
 use super::from_json;
 use korpis_app::ports::{StoreError, StoreResult};

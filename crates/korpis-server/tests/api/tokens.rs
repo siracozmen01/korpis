@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Tokens issued to hold one grant (§3.7 of docs/08-identity.md): the secret is answered once,
-//! the token authenticates online so revoking its grant takes effect at once, and a grant with
-//! no parent named is attenuated from the one grant the caller holds that it is valid from.
+//! Tokens issued to hold one grant: the secret is answered once, the token authenticates online so
+//! revoking its grant takes effect at once, and a grant with no parent named is attenuated from the
+//! one grant the caller holds that it is valid from.
 
 use crate::support::{Harness, detail, mutation, org_scope};
 use korpis_core::principal::Principal;

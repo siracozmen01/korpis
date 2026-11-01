@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Address pools: `korpis.v1.AddressPool` (§3.6 of docs/01-model.md, §3.7 of
-//! docs/07-networking.md).
+//! Address pools: `korpis.v1.AddressPool`.
 
 use crate::{Result, duration, id, invalid, timestamp, wire_id};
 use korpis_core::address::{AddressPool, Routing, Scope};

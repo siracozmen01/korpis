@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Health probes run by the agent (Rule K-16, §5 of docs/04-runtimes.md), with the in-memory
-//! runtime standing in for a driver and a server on this machine standing in for the workload:
-//! its addresses come from a loopback pool, which the server listens on, and the in-memory host
-//! opens the probe's socket here. A dependent waits until its database's readiness probe passes
-//! (§5 of docs/07-networking.md); the database's health is its liveness probe's verdict; and a
-//! liveness probe that fails restarts it, recorded with its cause.
+//! Health probes run by the agent, with the in-memory runtime standing in for a driver and a server
+//! on this machine standing in for the workload: its addresses come from a loopback pool, which the
+//! server listens on, and the in-memory host opens the probe's socket here. A dependent waits until
+//! its database's readiness probe passes; the database's health is its liveness probe's verdict;
+//! and a liveness probe that fails restarts it, recorded with its cause.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation, push_paper};

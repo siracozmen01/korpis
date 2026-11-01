@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node removed as compromised held (§9 of docs/17-security.md): the certificate keys it
-//! was given. An `acme` certificate whose key it held is given a new key at once, wherever its
-//! endpoint is placed next, and the chain the node held is revoked through the directory; a
-//! `provided` one says its key was exposed until its organization replaces it with a chain for
-//! another key. Either is told to its organization as a `certificate.exposed` event.
+//! What a node removed as compromised held: the certificate keys it was given. An `acme`
+//! certificate whose key it held is given a new key at once, wherever its endpoint is placed next,
+//! and the chain the node held is revoked through the directory; a `provided` one says its key was
+//! exposed until its organization replaces it with a chain for another key. Either is told to its
+//! organization as a `certificate.exposed` event.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::issuance::{placed, send, served_at, shown};

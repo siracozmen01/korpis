@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A password with its second factor beside it, a code from an authenticator app or a recovery
-// code (§9.3 of docs/08-identity.md): signing in asks for the sign-in name too, re-authenticating
-// does not, since the session already names the account.
+// A password with its second factor beside it, a code from an authenticator app or a recovery code:
+// signing in asks for the sign-in name too, re-authenticating does not, since the session already
+// names the account.
 
 import { useState } from "react";
 import {

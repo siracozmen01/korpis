@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control stream (§4.2 of docs/02-architecture.md): the first agent message is a Hello,
-//! the control plane answers with a Welcome declaring the session's intervals, and from then on
-//! the stream carries facts up and decisions down.
+//! The control stream: the first agent message is a Hello, the control plane answers with a Welcome
+//! declaring the session's intervals, and from then on the stream carries facts up and decisions
+//! down.
 
 use super::downlink::Downlink;
 use super::published;
@@ -104,8 +104,7 @@ fn hello_from_pb(h: &agent::Hello) -> Result<Hello, ConnectError> {
     })
 }
 
-/// The Welcome; `present` asks the agent to present what it holds, while a restore settles (§8 of
-/// docs/03-state.md).
+/// The Welcome; `present` asks the agent to present what it holds, while a restore settles.
 fn welcome(app: &ServerApp, s: &Session, present: bool) -> agent::ControlMessage {
     agent::ControlMessage {
         message: Some(Down::Welcome(Box::new(agent::Welcome {
@@ -121,8 +120,8 @@ fn welcome(app: &ServerApp, s: &Session, present: bool) -> agent::ControlMessage
     }
 }
 
-/// The token keys in force, sent before anything signed with them: a restore's rotation retired
-/// the ones the agent was given at enrollment (§8 of docs/03-state.md).
+/// The token keys in force, sent before anything signed with them: a restore's rotation retired the
+/// ones the agent was given at enrollment.
 async fn token_keys(app: &ServerApp) -> Result<agent::ControlMessage, ConnectError> {
     use korpis_app::ports::EnrollmentRead as _;
     let keys = app.store().verify_keys("token").await.map_err(|e| error::from_app(e.into()))?;

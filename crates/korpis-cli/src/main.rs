@@ -108,7 +108,7 @@ fn no_server() -> CliError {
 }
 
 /// `korpis ssh-key …`; a change refused as not recent signs the terminal in again by the device
-/// flow and is asked once more (Finding 135 of docs/23-walkthroughs.md).
+/// flow and is asked once more.
 #[expect(clippy::print_stderr, reason = "where to approve the code is said on standard error")]
 async fn ssh_keys(cli: &Cli, a: &ssh_key::SshKeyAction) -> Result<Answer, CliError> {
     let first = ssh_key::ssh_key(&cli.required().await?, a).await;

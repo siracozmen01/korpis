@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recipe's install step (§4 of docs/09-recipes.md). The step's detail carries every action the
-//! install runs; the node fetches what they read into its content store (each `fetch` by its hash,
-//! and the recipe's own files), then has the helper run them in a worker that sees nothing but the
-//! workload's volumes and that content. An install outlasts many passes of the loop, as a backup
-//! does: each pass asks the helper where its job is, and waits while it runs. A workload whose
-//! driver takes its volumes as block devices has its installs run by that driver instead, in a
-//! service guest (§4.4 of docs/04-runtimes.md), asked after the same way.
+//! A recipe's install step. The step's detail carries every action the install runs; the node
+//! fetches what they read into its content store (each `fetch` by its hash, and the recipe's own
+//! files), then has the helper run them in a worker that sees nothing but the workload's volumes
+//! and that content. An install outlasts many passes of the loop, as a backup does: each pass asks
+//! the helper where its job is, and waits while it runs. A workload whose driver takes its volumes
+//! as block devices has its installs run by that driver instead, in a service guest, asked after
+//! the same way.
 //!
 //! How far an install has come is kept per install, not per plan: a digest of the workload and its
-//! actions names it, and its job. A worker that fails, or is lost, has its progress kept and its job
-//! forgotten, so the next attempt, in this plan for a lost worker or in a later one after a
+//! actions names it, and its job. A worker that fails, or is lost, has its progress kept and its
+//! job forgotten, so the next attempt, in this plan for a lost worker or in a later one after a
 //! failure, starts a job of the same name at the action that did not finish. A worker lost three
 //! times in a row fails the step rather than looping.
 
@@ -202,9 +202,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Who runs the installs of `a`'s workload: its driver, in a service guest, when it takes
-    /// its volumes as block devices, whose files only a guest's kernel may parse (§4.4 of
-    /// docs/04-runtimes.md); the helper otherwise.
+    /// Who runs the installs of `a`'s workload: its driver, in a service guest, when it takes its
+    /// volumes as block devices, whose files only a guest's kernel may parse; the helper otherwise.
     async fn installer(
         &mut self,
         a: &agent::Assignment,

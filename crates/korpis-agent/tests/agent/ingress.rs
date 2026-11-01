@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's ingress as its agent runs it (§3.2 of docs/07-networking.md), the test playing the
-//! proxy the helper would start: the agent holds the sockets and says at once that it serves the
-//! ingress, hands them to the proxy that connects, sends it the routes of its ingress endpoints as
-//! they change, and has it started again when it goes away.
+//! The node's ingress as its agent runs it, the test playing the proxy the helper would start: the
+//! agent holds the sockets and says at once that it serves the ingress, hands them to the proxy
+//! that connects, sends it the routes of its ingress endpoints as they change, and has it started
+//! again when it goes away.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation, push_paper};

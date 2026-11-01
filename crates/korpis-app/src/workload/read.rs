@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading workloads (§4.3 of docs/02-architecture.md): everything a client needs to render one
-//! honestly, and the intent chain. Existence is gated by read authority (§8 of docs/10-api.md).
+//! Reading workloads: everything a client needs to render one honestly, and the intent chain.
+//! Existence is gated by read authority.
 
 use super::explain::{Found, PlacementView, UnplacedView};
 use super::observed::Observed;
@@ -42,37 +42,33 @@ pub struct WorkloadView {
     pub observation: Option<Observed>,
     /// Present when it belongs to a set and its head was declared outside it.
     pub drift: Option<Drift>,
-    /// Its endpoints as placed, each with the addresses its node advertises, which a client
-    /// reaches the ports at (§3 of docs/07-networking.md).
+    /// Its endpoints as placed, each with the addresses its node advertises, which a client reaches
+    /// the ports at.
     pub endpoints: Vec<(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)>,
     /// The certificate each of its ingress endpoints is served with, by endpoint name, once its
-    /// names are routed (§3.2 of docs/07-networking.md).
+    /// names are routed.
     pub certificates: Vec<(String, korpis_core::dns::certificate::Certificate)>,
-    /// Each name its ingress endpoints route, in DNS, by endpoint name (§3.5 of
-    /// docs/07-networking.md).
+    /// Each name its ingress endpoints route, in DNS, by endpoint name.
     pub names: Vec<(String, korpis_core::dns::published::EndpointRecord)>,
     /// The configuration keys whose values were left out of its head and target, as secrets the
-    /// caller may not read (§5.2 of docs/09-recipes.md).
+    /// caller may not read.
     pub withheld: Withheld,
-    /// Its newest run, for a workload that has runs (§4 of docs/05-scheduling.md).
+    /// Its newest run, for a workload that has runs.
     pub newest_run: Option<korpis_core::workload::run::Run>,
     /// Whether a suspension of its organization, or of one above it, holds it stopped whatever
-    /// power it declares (§2.1 of docs/08-identity.md).
+    /// power it declares.
     pub held_by_suspension: bool,
-    /// Its dependencies: what each reaches and how, and what each names and does not reach
-    /// (§5 of docs/07-networking.md).
+    /// Its dependencies: what each reaches and how, and what each names and does not reach.
     pub dependencies: Vec<korpis_core::workload::dependency::DependencyStatus>,
-    /// Each of its rules naming workloads: what it matched, and what it names at no address on
-    /// its node, with why (§6 of docs/07-networking.md); none while it is not placed.
+    /// Each of its rules naming workloads: what it matched, and what it names at no address on its
+    /// node, with why; none while it is not placed.
     pub named_rules: Vec<korpis_core::workload::peers::Resolved>,
-    /// The dedicated address it holds, if any, and whether it waits on its router to be routed
-    /// to its node (§3.7 of docs/07-networking.md).
+    /// The dedicated address it holds, if any, and whether it waits on its router to be routed to
+    /// its node.
     pub dedicated: Option<(korpis_core::address::Holding, bool)>,
-    /// The device of each of its volumes in a block class, and what its provider last answered
-    /// (§2.1 of docs/06-storage.md).
+    /// The device of each of its volumes in a block class, and what its provider last answered.
     pub block_devices: Vec<korpis_core::workload::block::DeviceStatus>,
-    /// Each of its `stable` endpoints, by name, with its edge group and why it is not reached
-    /// (§3.1 of docs/07-networking.md).
+    /// Each of its `stable` endpoints, by name, with its edge group and why it is not reached.
     pub edges: Vec<(String, crate::edge_group::EdgeReach)>,
 }
 
@@ -93,7 +89,7 @@ pub struct Withheld {
     pub target: Vec<String>,
 }
 
-/// A member of a set whose head was declared outside it (§6 of docs/13-surface-cli.md).
+/// A member of a set whose head was declared outside it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Drift {
     /// The set.
@@ -145,8 +141,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let held = self.store.dedicated_of(id).await?;
         let dedicated = held.as_ref().map(|h| h.address);
         let stable = self.store.stable_of(id).await?;
-        // `ingress` an edge group serves is reached at the group's ingress addresses (§3.1 of
-        // docs/07-networking.md).
+        // `ingress` an edge group serves is reached at the group's ingress addresses.
         let group = self.store.ingress_served_of(id).await?;
         let proxied = match group {
             Some(g) => self.store.ingress_addresses_of(g).await?,
@@ -164,9 +159,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 endpoints.push((e, dedicated.into_iter().collect()));
                 continue;
             }
-            // A `stable` endpoint an edge serves, at its group's address and port (§3.1 of
-            // docs/07-networking.md), which no port of its node is; one routed, at the
-            // `cluster` pool's address its workload holds, on its own port.
+            // A `stable` endpoint an edge serves, at its group's address and port, which no port of
+            // its node is; one routed, at the `cluster` pool's address its workload holds, on its
+            // own port.
             if e.exposure == Exposure::Stable {
                 let at: Vec<_> = stable.iter().filter(|p| p.endpoint == e.name).collect();
                 let routed = held.as_ref().filter(|h| h.cluster && at.is_empty());

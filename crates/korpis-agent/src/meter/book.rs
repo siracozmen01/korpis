@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The meter's accounts, apart from anything it reads them from (§2 of docs/15-observability.md,
-//! "Measuring it, as designed"): each workload's counter is a base and the last reading of each
-//! source still running, so a source that ends adds its last reading to the base and a workload's
-//! counters run on across every object it is run as. A reading below the one before is a source
-//! made again without the meter seeing it end, and what that source used since is a loss.
+//! The meter's accounts, apart from anything it reads them from ("Measuring it, as designed"): each
+//! workload's counter is a base and the last reading of each source still running, so a source that
+//! ends adds its last reading to the base and a workload's counters run on across every object it
+//! is run as. A reading below the one before is a source made again without the meter seeing it
+//! end, and what that source used since is a loss.
 
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
@@ -236,7 +236,7 @@ impl Book {
 
     /// Integrates what `workload`'s placement holds on the node, `cores` dedicated cores and
     /// `devices` of each class, over the `elapsed` since the last reading: held, whatever ran on
-    /// them (§2 of docs/15-observability.md). Nothing is counted for a placement holding none.
+    /// them. Nothing is counted for a placement holding none.
     pub fn held(
         &mut self,
         workload: &str,

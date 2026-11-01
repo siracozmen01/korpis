@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's data key, as each custody gives it (§5.5 of docs/06-storage.md). Under `operator`
-//! custody the vault opens it, and a job's node is handed it. Under `tenant` custody the tenant's
-//! key management service makes it and opens it, each time, sealed to a one-time recipient: a
-//! job's node, which names one with its request, so the control plane never holds that key; or
-//! the control plane itself, for its own read, whose recipient lives for that one opening. What
-//! is stored is the key as the tenant's service wrapped it, which opens only through that service.
+//! A workload's data key, as each custody gives it. Under `operator` custody the vault opens it,
+//! and a job's node is handed it. Under `tenant` custody the tenant's key management service makes
+//! it and opens it, each time, sealed to a one-time recipient: a job's node, which names one with
+//! its request, so the control plane never holds that key; or the control plane itself, for its own
+//! read, whose recipient lives for that one opening. What is stored is the key as the tenant's
+//! service wrapped it, which opens only through that service.
 
 use super::job::JobGrant;
 use crate::App;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A restore recovers the runs its nodes are running from the assignments they present (§8 of
-//! docs/03-state.md): a run the backup lacks is recorded running on the node that presented it,
-//! a run the backup holds as pending is started there, and the run maker makes nothing while
-//! the restore settles, so it never makes a second run of what a node is running.
+//! A restore recovers the runs its nodes are running from the assignments they present: a run the
+//! backup lacks is recorded running on the node that presented it, a run the backup holds as
+//! pending is started there, and the run maker makes nothing while the restore settles, so it never
+//! makes a second run of what a node is running.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::leases::{connect, send};

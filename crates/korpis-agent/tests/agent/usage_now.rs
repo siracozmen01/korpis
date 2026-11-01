@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a workload uses now, wired as `korpis-agent run` wires it (§2 of
-//! docs/15-observability.md): a client that opens a `metering.read` session through the relay is
-//! sent the meter's readings of the workload as they are taken, each rate over the window from
-//! the reading before.
+//! What a workload uses now, wired as `korpis-agent run` wires it: a client that opens a
+//! `metering.read` session through the relay is sent the meter's readings of the workload as they
+//! are taken, each rate over the window from the reading before.
 
 use crate::console_write::running;
 use crate::data::{frame, open, opened};

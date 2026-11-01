@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Relays running as their own process (§3.1 of docs/02-architecture.md): enrolled over the root
-//! organization with a one-use token, joined once with the relay's keys, given a certificate for
-//! their URL's host under the installation's authority, listed, and removed.
+//! Relays running as their own process: enrolled over the root organization with a one-use token,
+//! joined once with the relay's keys, given a certificate for their URL's host under the
+//! installation's authority, listed, and removed.
 
 use crate::support::{Harness, mutation};
 use connectrpc::ErrorCode;

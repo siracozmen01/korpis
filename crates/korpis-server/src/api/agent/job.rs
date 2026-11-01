@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's request for what a backup or restore job needs, or a session reading a block
-//! device's backup, and its answer on the same stream (§5.5 and §5.4 of docs/06-storage.md). Granting access calls the repository's backup target, which may
-//! take seconds, so each request is answered from a task of its own and the session goes on
-//! meanwhile. The answer always comes, echoing the request.
+//! A node's request for what a backup or restore job needs, or a session reading a block device's
+//! backup, and its answer on the same stream. Granting access calls the repository's backup target,
+//! which may take seconds, so each request is answered from a task of its own and the session goes
+//! on meanwhile. The answer always comes, echoing the request.
 
 use crate::api::ServerApp;
 use crate::api::wire::{id, timestamp};

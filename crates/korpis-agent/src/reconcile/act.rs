@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the reconciler does to a runtime object: build it from the approved target, start it,
-//! stop it, restart it, and destroy it. An object built from an older target is rebuilt before it
-//! is started again, so a reconfiguration takes effect at the next start, never silently later.
-//! Every object is labelled at creation with what adoption matches it by (§4.4 of
-//! docs/02-architecture.md).
+//! What the reconciler does to a runtime object: build it from the approved target, start it, stop
+//! it, restart it, and destroy it. An object built from an older target is rebuilt before it is
+//! started again, so a reconfiguration takes effect at the next start, never silently later. Every
+//! object is labelled at creation with what adoption matches it by.
 
 use super::volume::Why;
 use super::{Reconciler, Tracked};
@@ -68,10 +67,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Fills in the devices `a`'s placement holds here, by id, class, and mode (§4.2 of
-    /// docs/04-runtimes.md). One the node no longer offers is refused as a driver refuses a
-    /// target, before anything is made, so a workload not yet made here is placed elsewhere
-    /// (§6.3 of docs/05-scheduling.md).
+    /// Fills in the devices `a`'s placement holds here, by id, class, and mode. One the node no
+    /// longer offers is refused as a driver refuses a target, before anything is made, so a
+    /// workload not yet made here is placed elsewhere.
     fn give(
         &self,
         a: &agent::Assignment,
@@ -124,10 +122,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(())
     }
 
-    /// Ensures the console stream's volume, sized to what its limits let it hold, and watches
-    /// its changes from then on; nothing if the driver captures no stream. A run's console is a
-    /// stream of its own, in a volume of its own, so runs never share a writer (§4 of
-    /// docs/14-streams.md).
+    /// Ensures the console stream's volume, sized to what its limits let it hold, and watches its
+    /// changes from then on; nothing if the driver captures no stream. A run's console is a stream
+    /// of its own, in a volume of its own, so runs never share a writer.
     async fn stream(
         &mut self,
         a: &agent::Assignment,
@@ -263,8 +260,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(Some(id))
     }
 
-    /// Moves the stop of the runtime object on (§6 of docs/02-architecture.md); whether it has
-    /// stopped, as it has when there is none.
+    /// Moves the stop of the runtime object on; whether it has stopped, as it has when there is
+    /// none.
     pub(super) async fn stop(&mut self, t: &mut Tracked) -> Result<bool, Failure> {
         let Some(id) = t.runtime.clone() else { return Ok(true) };
         t.stopped_by_us = true;
@@ -288,8 +285,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         match self.runtime.destroy(&id).await {
             Ok(()) | Err(RuntimeError::NotFound(_)) => {}
             // Not answered in time, or not reached: nothing says the object is not gone or going,
-            // and destroying it again is harmless, so a later pass asks again rather than fail
-            // the retirement for a moment of the driver's (§6 of docs/02-architecture.md).
+            // and destroying it again is harmless, so a later pass asks again rather than fail the
+            // retirement for a moment of the driver's.
             Err(RuntimeError::Unavailable(why)) => {
                 tracing::warn!(%why, "the object was not destroyed yet; a later pass asks again");
                 return Ok(false);

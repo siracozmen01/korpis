@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The placement policy (§2.2 of docs/05-scheduling.md): how candidates that can run a workload
-//! are ranked. Spread and affinity operate on topology labels and are orthogonal to the strategy.
+//! The placement policy: how candidates that can run a workload are ranked. Spread and affinity
+//! operate on topology labels and are orthogonal to the strategy.
 
 use crate::labels::LabelSelector;
 use crate::workload::spec::placement::AffinityRule;
@@ -75,10 +75,9 @@ impl Signal {
     ];
 
     /// Its weight where a policy sets none. Content locality weighs a quarter, so it decides
-    /// between nodes whose utilization is close and never overrides the strategy: at the
-    /// weight of utilization, a node holding a popular recipe would take every workload of it
-    /// whatever the strategy said (question 3 of §10 of docs/05-scheduling.md). Every other
-    /// signal weighs 1.
+    /// between nodes whose utilization is close and never overrides the strategy: at the weight of
+    /// utilization, a node holding a popular recipe would take every workload of it whatever the
+    /// strategy said. Every other signal weighs 1.
     #[must_use]
     pub const fn default_weight(self) -> f64 {
         match self {
@@ -132,10 +131,10 @@ impl PlacementPolicy {
     }
 }
 
-/// The policies one placement is decided by (§2.2 of docs/05-scheduling.md): the workload's,
-/// whose spread constraints and affinity rules it is placed under, and each node owner's, whose
-/// strategy and weights its nodes are scored by. Nodes are compared within the nearest owner
-/// first, so no two policies' scores are ever compared.
+/// The policies one placement is decided by: the workload's, whose spread constraints and affinity
+/// rules it is placed under, and each node owner's, whose strategy and weights its nodes are scored
+/// by. Nodes are compared within the nearest owner first, so no two policies' scores are ever
+/// compared.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Policies {
     /// The policy nearest the workload's own organization, or the installation's.

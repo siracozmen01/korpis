@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The CLI's sign-in (§9.4 of docs/08-identity.md, RFC 8628): a device authorization polled until
-//! a recently signed-in account approves its user code, then spent by the poll that begins the
-//! CLI's session; polled too soon it slows, denied or expired it is over.
+//! The CLI's sign-in (RFC 8628): a device authorization polled until a recently signed-in account
+//! approves its user code, then spent by the poll that begins the CLI's session; polled too soon it
+//! slows, denied or expired it is over.
 
 use crate::support::{Fixture, browser, client, fixture, in_session, invite, redeem, signed_in};
 use korpis_app::AppError;

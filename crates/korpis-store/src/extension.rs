@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Extension installations (§4 of docs/16-extensions.md).
+//! Extension installations.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, principal, to_time};

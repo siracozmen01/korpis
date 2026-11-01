@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The device verbs of block classes (§2.1 of docs/06-storage.md): letting go of a volume's
-//! device, which the storage keeps, and listing every device attached here with the workload it
-//! was attached for, which the agent lets go of once nothing holds it.
+//! The device verbs of block classes: letting go of a volume's device, which the storage keeps, and
+//! listing every device attached here with the workload it was attached for, which the agent lets
+//! go of once nothing holds it.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};

@@ -1,30 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a console over the data path: the handler of `workload.console.read` (§2 and §8 of
-//! docs/14-streams.md). The session's params are a `ConsoleRead`; the node reads the workload's
-//! stream from its own segment files, the one being written included, and sends what it finds as
-//! `ConsoleChunk`s, in offset order, each saying where to read from next. Offsets asked for that
-//! the node no longer holds are said to be missing rather than skipped in silence. Following, it
-//! reads again as soon as the stream's directory changes ([`super::wake`]), and at least every
-//! second whatever it hears, until the client is done or the session ends.
+//! Reading a console over the data path: the handler of `workload.console.read`. The session's
+//! params are a `ConsoleRead`; the node reads the workload's stream from its own segment files, the
+//! one being written included, and sends what it finds as `ConsoleChunk`s, in offset order, each
+//! saying where to read from next. Offsets asked for that the node no longer holds are said to be
+//! missing rather than skipped in silence. Following, it reads again as soon as the stream's
+//! directory changes ([`super::wake`]), and at least every second whatever it hears, until the
+//! client is done or the session ends.
 //!
 //! A search is a scan of the files the node holds, with the pattern bounded as `korpis-stream`
 //! bounds it. Gap records are sent whatever the pattern, so a search says where it could not look.
 //!
-//! A session whose grant is limited to a range of the stream (§8 of docs/14-streams.md) reads
-//! from the first record written at its start, sends only records written within it, and ends at
-//! the first record written at or after its end, or, following, once the node's clock passes it
-//! with nothing left to read. Its bounds are the node's clock, as each record states its time.
+//! A session whose grant is limited to a range of the stream reads from the first record written at
+//! its start, sends only records written within it, and ends at the first record written at or
+//! after its end, or, following, once the node's clock passes it with nothing left to read. Its
+//! bounds are the node's clock, as each record states its time.
 //!
-//! A task or scheduled workload's runs each write their own console (§4 of docs/14-streams.md):
-//! the params name the run, and the node looks for its stream only beneath the session's
-//! workload.
+//! A task or scheduled workload's runs each write their own console: the params name the run, and
+//! the node looks for its stream only beneath the session's workload.
 //!
-//! A read is an effect before it is anything else (§8 of docs/17-security.md): once the node has
-//! found the stream, it journals that the session's subject read it, on this session, under the
-//! grant its token was minted from, and sends nothing until the journal holds that. So a console
-//! someone read is never one the journal does not say they read, and the control plane believes
-//! it as it believes typed input, as far as that grant permitted the read then.
+//! A read is an effect before it is anything else: once the node has found the stream, it journals
+//! that the session's subject read it, on this session, under the grant its token was minted from,
+//! and sends nothing until the journal holds that. So a console someone read is never one the
+//! journal does not say they read, and the control plane believes it as it believes typed input, as
+//! far as that grant permitted the read then.
 
 use super::handler::{Ended, Handler, Io, Opened, Serving};
 use super::wake::Wake;

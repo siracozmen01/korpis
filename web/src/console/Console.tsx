@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The console screen (§8 and §9 of docs/11-surface-web.md): the stream, gaps drawn as gaps, a
-// marker for what left the window, older records on request, and a reading mode that holds the
-// view still, without a live region, for a screen reader, telling how much arrived meanwhile.
+// The console screen: the stream, gaps drawn as gaps, a marker for what left the window, older
+// records on request, and a reading mode that holds the view still, without a live region, for a
+// screen reader, telling how much arrived meanwhile.
 
 import { useEffect, useMemo, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";

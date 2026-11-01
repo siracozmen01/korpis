@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A health provider's half of a `query` probe (§5 of docs/04-runtimes.md, §5 of
-//! docs/16-extensions.md). The node holds the socket and the provider holds the protocol: the node
-//! connects from inside the workload's network namespace and runs each round, sending what it is
-//! told and reading what comes back, and the provider, given the rounds so far, says what to send
-//! next or how the workload is. The provider is never given a way to the workload itself, so a
-//! provider an operator installed for its customers' game servers reaches none of them; and the
-//! bounds here keep an exchange small enough that it is a probe and not a session.
+//! A health provider's half of a `query` probe. The node holds the socket and the provider holds
+//! the protocol: the node connects from inside the workload's network namespace and runs each
+//! round, sending what it is told and reading what comes back, and the provider, given the rounds
+//! so far, says what to send next or how the workload is. The provider is never given a way to the
+//! workload itself, so a provider an operator installed for its customers' game servers reaches
+//! none of them; and the bounds here keep an exchange small enough that it is a probe and not a
+//! session.
 
 use std::collections::BTreeMap;
 use std::time::Duration;

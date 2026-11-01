@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of the organizations directly beneath the organizations $1, with the parent\n-- each is beneath: what those parents promised them (§5.1 of docs/05-scheduling.md, Finding 139).\n-- Read without a lock: every change to what one of them counts, or to what it was given, takes\n-- the lock of its parent's entry of its shape first, which the caller holds.\nSELECT e.id, e.owner_kind, e.owner_id, e.selector, e.nodes, e.reservations, e.limits, e.version,\n       e.held, e.egress_budget, o.parent_id AS \"parent!\"\n  FROM quota_entry e\n  JOIN organization o ON e.owner_kind = 'organization' AND o.id = e.owner_id\n WHERE o.parent_id = ANY($1)\n ORDER BY e.id\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of the organizations directly beneath the organizations $1, with the parent\n-- each is beneath: what those parents promised them. Read without a lock: every change to what one\n-- of them counts, or to what it was given, takes the lock of its parent's entry of its shape first,\n-- which the caller holds.\nSELECT e.id, e.owner_kind, e.owner_id, e.selector, e.nodes, e.reservations, e.limits, e.version,\n       e.held, e.egress_budget, o.parent_id AS \"parent!\"\n  FROM quota_entry e\n  JOIN organization o ON e.owner_kind = 'organization' AND o.id = e.owner_id\n WHERE o.parent_id = ANY($1)\n ORDER BY e.id\n",
   "describe": {
     "columns": [
       {
@@ -144,5 +144,5 @@
       true
     ]
   },
-  "hash": "49c84ebc268202c76c29835a5d11e26aaa6ceec925c57a2b462cbb838880f3e5"
+  "hash": "457408b33d3c95a2707d73c8f77c75f9d6bab6811383bf7a488f4c0976fbe15a"
 }

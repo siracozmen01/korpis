@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The step of a prune plan (§5.3 of docs/06-storage.md): one, executed by the control plane,
-//! naming the backups it forgets and why each other one is kept, so that what is approved is the
-//! list of what goes. Executing it forgets no backup the list does not name.
+//! The step of a prune plan: one, executed by the control plane, naming the backups it forgets and
+//! why each other one is kept, so that what is approved is the list of what goes. Executing it
+//! forgets no backup the list does not name.
 
 use super::step::{Classifier, Step, StepAction, StepExecutor};
 use crate::backup::retention::Judged;

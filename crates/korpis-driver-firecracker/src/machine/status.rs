@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! `Inspect` and `Stats`: an object's state read from its record, its Firecracker's process, and
-//! the sixteen bytes its guest wrote on its config drive before it ended (§6 of
-//! docs/04-runtimes.md); its counters from its Firecracker's cgroup, which holds the guest's
-//! vCPUs and memory, so what the guest uses is what the kernel counts there.
+//! the sixteen bytes its guest wrote on its config drive before it ended; its counters from its
+//! Firecracker's cgroup, which holds the guest's vCPUs and memory, so what the guest uses is what
+//! the kernel counts there.
 
 use super::{Machine, MachineResult, failed};
 use crate::object::{Object, Vm};

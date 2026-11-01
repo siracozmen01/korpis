@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The replica verbs (§2.2 of docs/06-storage.md): sending from the class holding a volume, and
-//! receiving, listing, releasing, and promoting in the class a request names. A receive's
-//! process is kept here by its volume and snapshot until a status reads how it ended; a helper
-//! that restarted knows of none, and says whether the snapshot is held instead.
+//! The replica verbs: sending from the class holding a volume, and receiving, listing, releasing,
+//! and promoting in the class a request names. A receive's process is kept here by its volume and
+//! snapshot until a status reads how it ended; a helper that restarted knows of none, and says
+//! whether the snapshot is held instead.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};

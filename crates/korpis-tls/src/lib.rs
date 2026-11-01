@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Whom a node or a relay trusts (§3 of docs/18-operations.md, §7 of docs/02-architecture.md).
-//! When it joins it knows only the fingerprint the join command carries: the control plane
-//! presents the installation CA behind its certificate, and the connection is accepted only if
-//! that CA has the fingerprint and the certificate verifies under it. The CA is kept, and from
-//! then on trusted alone, so the first connection is verified rather than trusted, and every
-//! later one is pinned. The agent and a relay running as its own process share this, so the two
-//! cannot disagree about what joining trusts.
+//! Whom a node or a relay trusts. When it joins it knows only the fingerprint the join command
+//! carries: the control plane presents the installation CA behind its certificate, and the
+//! connection is accepted only if that CA has the fingerprint and the certificate verifies under
+//! it. The CA is kept, and from then on trusted alone, so the first connection is verified rather
+//! than trusted, and every later one is pinned. The agent and a relay running as its own process
+//! share this, so the two cannot disagree about what joining trusts.
 
 use rustls::client::WebPkiServerVerifier;
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};

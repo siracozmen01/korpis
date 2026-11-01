@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's preflight (§2 of docs/18-operations.md), run by `korpis-server install`
-//! before it changes anything: the PostgreSQL server, what the installing role may do on it,
-//! whether it is shared, the data directory, and the backup target declared outside Korpis. It
-//! reads; the one thing it writes is a probe file in the backup target, made and removed.
+//! The control plane's preflight, run by `korpis-server install` before it changes anything: the
+//! PostgreSQL server, what the installing role may do on it, whether it is shared, the data
+//! directory, and the backup target declared outside Korpis. It reads; the one thing it writes is a
+//! probe file in the backup target, made and removed.
 
 use super::target::{self, BackupTarget};
 use korpis_core::preflight::{Check, Outcome, Report};
@@ -74,8 +74,7 @@ fn installed(f: &ServerFacts) -> Check {
             "holds an installation".to_owned(),
             Outcome::Lacking {
                 costs: "nothing is installed over an installation".into(),
-                fix: "name an empty database; an installation is upgraded, not installed again \
-                      (§4 of docs/18-operations.md)"
+                fix: "name an empty database; an installation is upgraded, not installed again"
                     .into(),
             },
         )
@@ -122,7 +121,7 @@ fn shared(f: &ServerFacts) -> Check {
     } else {
         Outcome::Lacking {
             costs: "a transaction another application leaves open holds back every event \
-                    subscriber until it ends (§2 of docs/18-operations.md)"
+                    subscriber until it ends"
                 .into(),
             fix: "a PostgreSQL server of Korpis's own, or, for each other application's role, \
                   ALTER ROLE <role> SET idle_in_transaction_session_timeout = '60s'"

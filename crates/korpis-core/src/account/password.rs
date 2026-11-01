@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Passwords (§9.6 of docs/08-identity.md): Argon2id with the parameters OWASP recommends,
-//! 19 MiB, two passes, one lane, stored as the PHC string so the parameters travel with the hash
-//! and a later raise of them rehashes on the next sign-in. A password is never a sign-in alone.
+//! Passwords: Argon2id with the parameters OWASP recommends, 19 MiB, two passes, one lane, stored
+//! as the PHC string so the parameters travel with the hash and a later raise of them rehashes on
+//! the next sign-in. A password is never a sign-in alone.
 
 use argon2::password_hash::{PasswordHash, PasswordHasher as _, PasswordVerifier as _, SaltString};
 use argon2::{Algorithm, Argon2, Params, Version};

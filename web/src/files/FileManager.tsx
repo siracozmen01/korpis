@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The file manager (§8 of docs/11-surface-web.md): a client of the workload's file session and
-// nothing more, holding no privilege of its own. It lists a directory a page at a time, downloads
-// a file as it streams, uploads in mebibyte chunks that resume from the size already written,
-// makes directories, renames, and removes after a confirmation; changes are offered only where
-// the caller may write.
+// The file manager: a client of the workload's file session and nothing more, holding no privilege
+// of its own. It lists a directory a page at a time, downloads a file as it streams, uploads in
+// mebibyte chunks that resume from the size already written, makes directories, renames, and
+// removes after a confirmation; changes are offered only where the caller may write.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";

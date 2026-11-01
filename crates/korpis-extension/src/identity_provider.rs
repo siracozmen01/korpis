@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Writing an identity provider (§5 of docs/08-identity.md): an OIDC issuer, a SAML identity
-//! provider, a chat platform. It answers two calls, over its own stream, which is what makes its
-//! word its own: whether a set it vouches for still is what it was and which of some people are
-//! still in it (re-verification, §5.1), and who presented a piece of evidence and which of its
-//! sets they are in (§5.2). Whatever it says is believed for its own subjects and nobody else's,
-//! so it says nothing it has not verified: a signature checked, a timestamp within five minutes,
-//! a presentation it names so the control plane accepts it once. A provider that signs people
-//! in (§9.7) answers a third, where to send a person, and registers with `sign_in`. Requires
-//! the `provider.identity` capability.
+//! Writing an identity provider: an OIDC issuer, a SAML identity provider, a chat platform. It
+//! answers two calls, over its own stream, which is what makes its word its own: whether a set it
+//! vouches for still is what it was and which of some people are still in it (re-verification), and
+//! who presented a piece of evidence and which of its sets they are in. Whatever it says is
+//! believed for its own subjects and nobody else's, so it says nothing it has not verified: a
+//! signature checked, a timestamp within five minutes, a presentation it names so the control plane
+//! accepts it once. A provider that signs people in answers a third, where to send a person, and
+//! registers with `sign_in`. Requires the `provider.identity` capability.
 
 pub use crate::provider::Failure;
 use crate::provider::{Handler, Outcome, Unsupported};

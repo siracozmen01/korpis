@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// What the console shows (§8 of docs/11-surface-web.md, §2 and §3 of docs/14-streams.md): the
-// last records of the stream in offset order, each line its runs of styled text, and a gap
-// wherever records are missing, whether the node said so with a gap record or the offsets
-// simply were not there. Only a window of the newest lines is kept, so a workload printing
-// thousands of lines a second cannot take the tab down; what falls out of the window is counted
-// and said, never dropped silently. Older records are read on request, and prepended.
+// What the console shows: the last records of the stream in offset order, each line its runs of
+// styled text, and a gap wherever records are missing, whether the node said so with a gap record
+// or the offsets simply were not there. Only a window of the newest lines is kept, so a workload
+// printing thousands of lines a second cannot take the tab down; what falls out of the window is
+// counted and said, never dropped silently. Older records are read on request, and prepended.
 
 import {
   type ConsoleChunk,
@@ -58,7 +57,7 @@ function gapSays(r: StreamRecord): string {
 }
 
 /** The lines of the records of `chunk`, from `style`. */
-/** Who typed an input record and what (§6 of docs/14-streams.md): its body is the JSON the
+/** Who typed an input record and what: its body is the JSON the
  * stream writer wrote, `{"by", "session", "text"}`; `undefined` for anything else. */
 function inputOf(r: StreamRecord): { by: string; text: string } | undefined {
   try {

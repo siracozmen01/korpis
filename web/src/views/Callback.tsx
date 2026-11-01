@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Where an identity provider returns a person to (§9.7 of docs/08-identity.md, §1 of
-// docs/11-surface-web.md): `/sign-in/callback`, open signed out. It completes the sign-in this
-// tab began with the state and code the provider returned and the verifier the tab kept, then
-// goes where the sign-in was begun from. A sign-in that re-authenticates completes with the
-// session's access token, so the session is confirmed rather than another begun. A tab that kept
-// nothing, because another browser began the sign-in, completes nothing and says so.
+// Where an identity provider returns a person to: `/sign-in/callback`, open signed out. It
+// completes the sign-in this tab began with the state and code the provider returned and the
+// verifier the tab kept, then goes where the sign-in was begun from. A sign-in that
+// re-authenticates completes with the session's access token, so the session is confirmed rather
+// than another begun. A tab that kept nothing, because another browser began the sign-in, completes
+// nothing and says so.
 
 import type { Client } from "@connectrpc/connect";
 import { useEffect, useState } from "react";

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How an intent names a recipe. The digest is the identity; name and version are the pointer
-//! that resolved to it at declaration (§2 and §8 of docs/09-recipes.md).
+//! How an intent names a recipe. The digest is the identity; name and version are the pointer that
+//! resolved to it at declaration.
 
 /// A resolved recipe reference.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -12,12 +12,12 @@ pub struct RecipeRef {
     pub version: String,
     /// `sha256:` and 64 lowercase hexadecimal digits.
     pub digest: String,
-    /// What vouched for the recipe when it was declared, under the declaring organization's
-    /// policy (§7 of docs/09-recipes.md); `None` only in a declaration not yet resolved.
+    /// What vouched for the recipe when it was declared, under the declaring organization's policy;
+    /// `None` only in a declaration not yet resolved.
     pub trust: Option<crate::recipe::trust::Vouched>,
     /// The installation that answers each step kind the recipe's install names, and each query
-    /// protocol its probes name, pinned at declaration with its artifact's digest (§4.1 of
-    /// docs/16-extensions.md), one per type and name, in that order.
+    /// protocol its probes name, pinned at declaration with its artifact's digest, one per type and
+    /// name, in that order.
     pub providers: Vec<ProviderPin>,
 }
 

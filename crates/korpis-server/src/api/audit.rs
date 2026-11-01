@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `EffectService`: the effect log, read through what it concerns (§4 of
-//! docs/15-observability.md).
+//! `EffectService`: the effect log, read through what it concerns.
 
 use super::wire::Refuse;
 use super::wire::audit::effect_to_pb;

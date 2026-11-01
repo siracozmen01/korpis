@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! When a plan installs (§4 of docs/09-recipes.md), and what: every verb and template when a
-//! workload is created, unless a volume of it is seeded from a backup, which already holds the
-//! installed tree; the new recipe's verbs and templates when its recipe changes; and, when only
-//! its configuration changes, the templates that use a value that changed, rendered again.
+//! When a plan installs, and what: every verb and template when a workload is created, unless a
+//! volume of it is seeded from a backup, which already holds the installed tree; the new recipe's
+//! verbs and templates when its recipe changes; and, when only its configuration changes, the
+//! templates that use a value that changed, rendered again.
 
 use crate::recipe::RecipeError;
 use crate::recipe::document::Recipe;
@@ -27,8 +27,8 @@ pub fn install_detail(
             return Ok(None);
         }
         None => (InstallReason::Create, (true, every)),
-        // A provider pinned anew is the lockfile changing, as a new recipe digest is (§8 of
-        // docs/09-recipes.md): its steps may now resolve to other bytes.
+        // A provider pinned anew is the lockfile changing, as a new recipe digest is: its steps may
+        // now resolve to other bytes.
         Some(f)
             if f.recipe.digest != to.recipe.digest || f.recipe.providers != to.recipe.providers =>
         {

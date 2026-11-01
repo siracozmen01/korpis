@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity bindings (§5 of docs/08-identity.md), on a real control plane: an operator declares
-//! that an identity provider installed into the organization vouches for a set, and a grant to
-//! the set is then issued like any other, from the template its binding names. A grant names an
-//! external identity only through a live binding, a provider vouches nowhere above where it is
-//! installed, and whether a set's grants may carry irreversible actions is the binding's to say.
+//! Identity bindings, on a real control plane: an operator declares that an identity provider
+//! installed into the organization vouches for a set, and a grant to the set is then issued like
+//! any other, from the template its binding names. A grant names an external identity only through
+//! a live binding, a provider vouches nowhere above where it is installed, and whether a set's
+//! grants may carry irreversible actions is the binding's to say.
 
 use crate::extensions::{DNS, install, push_document};
 use crate::recipes::project;

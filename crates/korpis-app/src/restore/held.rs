@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Confirming a placement a restore held (Finding 97 of docs/23-walkthroughs.md): its node
-//! presented its assignments without it, which a retirement after the backup explains and so
-//! does an assignment never delivered, and only an operator can say which. Confirming sends it to
-//! its node again; retiring it is the other answer, and needs nothing here.
+//! Confirming a placement a restore held: its node presented its assignments without it, which a
+//! retirement after the backup explains and so does an assignment never delivered, and only an
+//! operator can say which. Confirming sends it to its node again; retiring it is the other answer,
+//! and needs nothing here.
 
 use crate::App;
 use crate::caller::Caller;

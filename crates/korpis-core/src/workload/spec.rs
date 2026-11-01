@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The intent body: what a subject declares should be true (§3.3 of docs/01-model.md).
-//! Validation here is of the declaration's own consistency; whether its configuration fits its
-//! recipe is the recipe's question (`crate::recipe`), and whether the caller may declare it is
-//! the application's.
+//! The intent body: what a subject declares should be true. Validation here is of the declaration's
+//! own consistency; whether its configuration fits its recipe is the recipe's question
+//! (`crate::recipe`), and whether the caller may declare it is the application's.
 
 pub mod cron;
 pub mod dependencies;
@@ -72,7 +71,7 @@ pub enum Lifecycle {
 
 impl Lifecycle {
     /// Whether a workload of it has runs, each executed in an object of its own, rather than
-    /// running its own object (§4 of docs/05-scheduling.md).
+    /// running its own object.
     #[must_use]
     pub fn has_runs(self) -> bool {
         matches!(self, Self::Task | Self::Scheduled)
@@ -92,7 +91,7 @@ pub enum ConsoleMode {
     Serial,
 }
 
-/// The isolation tiers of docs/04-runtimes.md, weakest first.
+/// The isolation tiers, weakest first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IsolationTier {
     /// A confined process.
@@ -116,8 +115,7 @@ pub struct RuntimeSpec {
     pub config: ValueMap,
 }
 
-/// What a node does with the workload when it loses its lease (§4.5 of
-/// docs/02-architecture.md).
+/// What a node does with the workload when it loses its lease.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Continuity {
     /// Derived from the volumes: stop if any is attachable from another node.
@@ -130,7 +128,7 @@ pub enum Continuity {
 }
 
 /// Whether failover may start a workload on a replica of its volumes, losing what the replica
-/// lacks (§2.4 of docs/05-scheduling.md, §2.2 of docs/06-storage.md).
+/// lacks.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ReplicaFailover {
     /// Never: a replica is what an operator's evacuation starts from.
@@ -152,7 +150,7 @@ pub struct IntentBody {
     /// The IANA zone the schedule is read in; UTC when absent; only with a schedule.
     pub timezone: Option<String>,
     /// How its runs are made and kept; only for task and scheduled workloads, the defaults when
-    /// absent (§4 of docs/05-scheduling.md).
+    /// absent.
     pub runs: Option<RunPolicy>,
     /// Its console.
     pub console: ConsoleMode,
@@ -160,7 +158,7 @@ pub struct IntentBody {
     pub runtime: RuntimeSpec,
     /// What it reserves and is limited to.
     pub resources: ResourceSpec,
-    /// The devices it holds while placed (§6.3 of docs/05-scheduling.md).
+    /// The devices it holds while placed.
     pub devices: Vec<devices::DeviceRequest>,
     /// What it mounts.
     pub volumes: Vec<VolumeSpec>,
@@ -168,7 +166,7 @@ pub struct IntentBody {
     pub endpoints: Vec<EndpointSpec>,
     /// How its health is judged.
     pub health: HealthSpec,
-    /// Its configuration, validated against the recipe's schema (Rule K-17).
+    /// Its configuration, validated against the recipe's schema.
     pub config: ValueMap,
     /// Where it may run.
     pub placement: PlacementSpec,
@@ -206,8 +204,8 @@ impl IntentBody {
         if self.replica_failover == ReplicaFailover::Automatic
             && self.continuity == Continuity::KeepRunning
         {
-            // Failover moves only a workload that stops when its lease ends (§2.4 of
-            // docs/05-scheduling.md), so the two together would declare what never happens.
+            // Failover moves only a workload that stops when its lease ends, so the two together
+            // would declare what never happens.
             let why = "a workload that keeps running when its lease ends is never failed over";
             return Err(SpecError::new("continuity.replica_failover", why));
         }
@@ -240,8 +238,7 @@ impl IntentBody {
             (Some(_), Lifecycle::Persistent) => {
                 Err(SpecError::new("runs", "only for task and scheduled workloads"))
             }
-            // Concurrent runs share the workload's network, where two cannot hold one endpoint
-            // (§4.2 of docs/05-scheduling.md, Finding 101).
+            // Concurrent runs share the workload's network, where two cannot hold one endpoint.
             (Some(policy), _)
                 if policy.concurrency == Concurrency::Allow && !self.endpoints.is_empty() =>
             {

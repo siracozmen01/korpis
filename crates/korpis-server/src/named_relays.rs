@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The relays this replica names to the nodes it holds sessions with (§3.1 of
-//! docs/02-architecture.md): every relay enrolled to run as its own process and not removed, and
-//! whether this process serves the role itself. Each replica recomputes them every [`EVERY`] from
-//! the same rows and publishes them when they changed; every session sends the current ones
-//! when it opens and each change after, so a relay enrolled or removed reaches every connected
-//! node within about [`EVERY`]. The SFTP the relays report serving is listed alongside, for
-//! `ServerInfo` to name to clients.
+//! The relays this replica names to the nodes it holds sessions with: every relay enrolled to run
+//! as its own process and not removed, and whether this process serves the role itself. Each
+//! replica recomputes them every [`EVERY`] from the same rows and publishes them when they changed;
+//! every session sends the current ones when it opens and each change after, so a relay enrolled or
+//! removed reaches every connected node within about [`EVERY`]. The SFTP the relays report serving
+//! is listed alongside, for `ServerInfo` to name to clients.
 
 use crate::api::Api;
 use korpis_proto::korpis::agent::v1 as agent;

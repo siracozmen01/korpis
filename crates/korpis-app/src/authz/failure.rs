@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Failed attempts to authenticate (§10 of docs/10-api.md). Each is charged to its source's
-//! bucket, and answered `RATE_LIMITED` once that bucket refuses, so a client in a loop is told
-//! to back off and for how long; and each is recorded as a denial is, the first of a source,
-//! kind, and target at once and its repeats within the window as one effect, so a flood of bad
-//! credentials cannot become an unbounded write path. A credential that opens is never charged
-//! here, whatever its source has done.
+//! Failed attempts to authenticate. Each is charged to its source's bucket, and answered
+//! `RATE_LIMITED` once that bucket refuses, so a client in a loop is told to back off and for how
+//! long; and each is recorded as a denial is, the first of a source, kind, and target at once and
+//! its repeats within the window as one effect, so a flood of bad credentials cannot become an
+//! unbounded write path. A credential that opens is never charged here, whatever its source has
+//! done.
 
 use crate::App;
 use crate::error::AppError;
@@ -67,7 +67,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Records a failed sign-in from `ip` whose buckets were charged before it was checked, so
-    /// charges nothing more (§10 of docs/10-api.md).
+    /// charges nothing more.
     pub(crate) async fn guess_failed(&self, ip: Option<IpAddr>) -> Result<(), AppError> {
         let key = FailureKey { source: source(ip), attempt: Attempt::SignIn, target: None };
         self.record_failure(&key, true).await

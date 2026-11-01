@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's streams as the control plane knows them (§3.6 of docs/01-model.md): the index of
-//! their segments, never their bytes (§4 of docs/14-streams.md). The node that writes a stream
-//! seals, offloads, and prunes its segments and journals each; the index is kept from those
-//! records, so an offloaded segment stays findable when its node is gone, and what is held only
-//! on a node is known by how much.
+//! A workload's streams as the control plane knows them: the index of their segments, never their
+//! bytes. The node that writes a stream seals, offloads, and prunes its segments and journals each;
+//! the index is kept from those records, so an offloaded segment stays findable when its node is
+//! gone, and what is held only on a node is known by how much.
 
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -48,15 +47,15 @@ impl StreamKind {
         format!("{workload}.{}", self.volume_name())
     }
 
-    /// The node's volume holding a stream of this kind of `run` of `workload`: a run's console
-    /// is a stream of its own (§4 of docs/14-streams.md).
+    /// The node's volume holding a stream of this kind of `run` of `workload`: a run's console is a
+    /// stream of its own.
     #[must_use]
     pub fn run_volume(self, workload: &str, run: &str) -> String {
         format!("{workload}.{}.{run}", self.volume_name())
     }
 
-    /// The name the workload's plans give the volume holding a stream of this kind: what a
-    /// deletion names to delete the stream (§4 of docs/14-streams.md).
+    /// The name the workload's plans give the volume holding a stream of this kind: what a deletion
+    /// names to delete the stream.
     #[must_use]
     pub fn volume_name(self) -> String {
         format!("stream_{}", self.as_str())
@@ -101,17 +100,16 @@ pub struct Segment {
     pub digest: String,
     /// The node holding it, while one does.
     pub node: Option<Uuid>,
-    /// The repository holding it once offloaded (§4 of docs/14-streams.md).
+    /// The repository holding it once offloaded.
     pub repository: Option<Uuid>,
 }
 
-/// The name of the object an offloaded segment is kept as, beneath its workload's stream prefix
-/// (§4 of docs/14-streams.md): its first offset and the hexadecimal digits of its digest, so the
-/// same segment offloaded twice is one object and a listing reads in offset order, beneath
-/// `runs/` and its run's identifier for a run's stream, whose offsets start from zero again.
-/// `None` for a digest that is not `sha256:` and 64 lowercase hexadecimal digits.
-/// `korpis-backup` writes by the same rule, which it cannot take from here, and a test holds the
-/// two to it.
+/// The name of the object an offloaded segment is kept as, beneath its workload's stream prefix:
+/// its first offset and the hexadecimal digits of its digest, so the same segment offloaded twice
+/// is one object and a listing reads in offset order, beneath `runs/` and its run's identifier for
+/// a run's stream, whose offsets start from zero again. `None` for a digest that is not `sha256:`
+/// and 64 lowercase hexadecimal digits. `korpis-backup` writes by the same rule, which it cannot
+/// take from here, and a test holds the two to it.
 #[must_use]
 pub fn segment_object(run: Option<Uuid>, first_offset: u64, digest: &str) -> Option<String> {
     let hex = digest.strip_prefix("sha256:")?;
@@ -129,8 +127,8 @@ impl Segment {
     }
 }
 
-/// Which stream: a workload's of a kind, and for a task or scheduled workload's console one
-/// run's, each run's its own (§4 of docs/14-streams.md).
+/// Which stream: a workload's of a kind, and for a task or scheduled workload's console one run's,
+/// each run's its own.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StreamKey {
     /// The workload.
@@ -179,8 +177,7 @@ pub struct Stream {
     pub id: Uuid,
     /// The workload it belongs to.
     pub workload: Uuid,
-    /// The run whose console it is, for a task or scheduled workload, each run's its own (§4 of
-    /// docs/14-streams.md).
+    /// The run whose console it is, for a task or scheduled workload, each run's its own.
     pub run: Option<Uuid>,
     /// What it carries.
     pub kind: StreamKind,
@@ -189,8 +186,7 @@ pub struct Stream {
 }
 
 impl Stream {
-    /// Bytes held only on a node, not offloaded: what the node's loss would lose (§4 of
-    /// docs/14-streams.md).
+    /// Bytes held only on a node, not offloaded: what the node's loss would lose.
     #[must_use]
     pub fn node_only_bytes(&self) -> u64 {
         let only = self.segments.iter().filter(|s| s.node.is_some() && !s.offloaded());

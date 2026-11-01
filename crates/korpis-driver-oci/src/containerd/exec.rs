@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A command run inside a running container (§4.2 of docs/04-runtimes.md), as containerd's task
-//! exec runs one: the container's own process, its user, environment, working directory,
-//! capabilities, and limits, with the command in place of the entry, in the container's
-//! namespaces and its cgroup. Its stdout and stderr go to one FIFO in the driver's state
-//! directory, which the driver opens before the process starts and reads as it is written: what
-//! is over the limit is read and dropped, so the command never blocks on a full pipe. A command
-//! that outlives its timeout is killed, and the process is deleted from the task however it ended.
+//! A command run inside a running container, as containerd's task exec runs one: the container's
+//! own process, its user, environment, working directory, capabilities, and limits, with the
+//! command in place of the entry, in the container's namespaces and its cgroup. Its stdout and
+//! stderr go to one FIFO in the driver's state directory, which the driver opens before the process
+//! starts and reads as it is written: what is over the limit is read and dropped, so the command
+//! never blocks on a full pipe. A command that outlives its timeout is killed, and the process is
+//! deleted from the task however it ended.
 
 use super::{Containerd, lifecycle::KILL_WAIT};
 use crate::error::{DriverError, DriverResult};

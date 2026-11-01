@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's physical cores offered for dedication (§5.2 of docs/05-scheduling.md). Read strictly
-//! and bounded: what an agent reports becomes what the scheduler gives workloads.
+//! A node's physical cores offered for dedication. Read strictly and bounded: what an agent reports
+//! becomes what the scheduler gives workloads.
 
 use crate::{Result, invalid};
 use korpis_core::node::cores::{Core, check};

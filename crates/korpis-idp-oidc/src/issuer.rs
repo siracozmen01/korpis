@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The issuer, over HTTP (§5.3 of docs/08-identity.md): its discovery document, whose `issuer`
-//! must be the one configured, kept for an hour; its keys, fetched again when a token names one
-//! not held, at most once a minute; and its token endpoint, where a code is redeemed and a
-//! refresh token used. Every request has the HTTP client's deadline, and no answer is read past
-//! a megabyte.
+//! The issuer, over HTTP: its discovery document, whose `issuer` must be the one configured, kept
+//! for an hour; its keys, fetched again when a token names one not held, at most once a minute; and
+//! its token endpoint, where a code is redeemed and a refresh token used. Every request has the
+//! HTTP client's deadline, and no answer is read past a megabyte.
 
 use crate::config::{Settings, secure};
 use crate::jwk::{self, Key};

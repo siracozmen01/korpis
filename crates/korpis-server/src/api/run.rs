@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `RunService` (§4 of docs/05-scheduling.md): runs, read under `workload.read` on their
-//! workload and cancelled under `workload.stop`.
+//! `RunService`: runs, read under `workload.read` on their workload and cancelled under
+//! `workload.stop`.
 
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, respond};

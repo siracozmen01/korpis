@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's devices and the holds placements keep on them (§6 of docs/05-scheduling.md). Read
-//! strictly and bounded: what an agent reports becomes what the scheduler gives workloads.
+//! A node's devices and the holds placements keep on them. Read strictly and bounded: what an agent
+//! reports becomes what the scheduler gives workloads.
 
 use super::{device_from_pb, device_to_pb};
 use crate::{Result, invalid};

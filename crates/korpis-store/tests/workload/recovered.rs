@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where a restore recovers a workload to run (Finding 96 of docs/23-walkthroughs.md): to the
-//! node that presented it, and between two that did, to the higher lease epoch, never to one
-//! that presents an epoch no higher than the store's lease; and under the id slot its node runs
-//! it under, unless a workload placed there holds it.
+//! Where a restore recovers a workload to run: to the node that presented it, and between two that
+//! did, to the higher lease epoch, never to one that presents an epoch no higher than the store's
+//! lease; and under the id slot its node runs it under, unless a workload placed there holds it.
 
 use crate::support::{create, fixture, now};
 use korpis_app::ports::{

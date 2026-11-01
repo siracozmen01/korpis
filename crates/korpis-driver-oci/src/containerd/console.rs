@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An interactive console's input and resizing (§6 of docs/14-streams.md). Input goes to the
-//! container's stream writer, which records it with who sent it and then feeds the workload's
-//! stdin; a resize is recorded the same way and applied to the task's terminal by containerd.
+//! An interactive console's input and resizing. Input goes to the container's stream writer, which
+//! records it with who sent it and then feeds the workload's stdin; a resize is recorded the same
+//! way and applied to the task's terminal by containerd.
 
 use super::Containerd;
 use super::stream::{frames, takes_input};

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis extension` end to end (§4 of docs/16-extensions.md): the first step shows what an
-//! extension needs and the command that approves exactly that digest; the second installs it;
-//! uninstalling revokes what it was granted and proposes its workload's retirement.
+//! `korpis extension` end to end: the first step shows what an extension needs and the command that
+//! approves exactly that digest; the second installs it; uninstalling revokes what it was granted
+//! and proposes its workload's retirement.
 
 use crate::support::{ControlPlane, registry};
 

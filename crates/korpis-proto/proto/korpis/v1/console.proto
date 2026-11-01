@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Reading and writing a workload's console over the data path (§2, §6, and §8 of
-// docs/14-streams.md), each a session opened at a relay (relay.proto) and served by the node that
-// holds the workload. A `workload.console.read` session's params are a ConsoleRead, and every
-// data frame the node sends is one ConsoleChunk. Records are identified by offset, so a reader
-// that reconnects asks for the offset it was told to read from next and misses nothing and
-// repeats nothing. A `workload.console.write` session takes no params, and every data frame the
-// client sends is one ConsoleInput. Reading and writing are separate actions, so watching and
-// typing are delegated separately.
+// Reading and writing a workload's console over the data path, each a session opened at a relay
+// (relay.proto) and served by the node that holds the workload. A `workload.console.read` session's
+// params are a ConsoleRead, and every data frame the node sends is one ConsoleChunk. Records are
+// identified by offset, so a reader that reconnects asks for the offset it was told to read from
+// next and misses nothing and repeats nothing. A `workload.console.write` session takes no params,
+// and every data frame the client sends is one ConsoleInput. Reading and writing are separate
+// actions, so watching and typing are delegated separately.
 
 syntax = "proto3";
 
@@ -19,17 +18,16 @@ import "google/protobuf/timestamp.proto";
 message ConsoleRead {
   // The first offset wanted. Offsets before the oldest one the node holds are reported missing.
   uint64 from_offset = 1;
-  // Start instead at the first record written at or after this node-clock time; from_offset is
-  // then ignored. Times are informational (§2 of docs/14-streams.md), so this is a starting
-  // point, never an identity.
+  // Start instead at the first record written at or after this node-clock time; from_offset is then
+  // ignored. Times are informational, so this is a starting point, never an identity.
   google.protobuf.Timestamp since = 2;
   // Keep the session open once the held records are sent, and send records as they are written.
   bool follow = 3;
   // End the session once this many records are sent; zero is no limit.
   uint64 limit = 4;
-  // Send only the text and structured records whose body matches, searching the node's
-  // retention window (§8 of docs/14-streams.md). Gap records are always sent, so a search says
-  // where it could not look. Empty matches everything.
+  // Send only the text and structured records whose body matches, searching the node's retention
+  // window. Gap records are always sent, so a search says where it could not look. Empty matches
+  // everything.
   string pattern = 5;
   // Whether pattern is a regular expression, matched in time linear in the input, rather than a
   // substring.
@@ -37,10 +35,9 @@ message ConsoleRead {
   // Start at the last this many records the node holds, as a console attaching shows its
   // scrollback; from_offset and since are then ignored.
   uint64 last = 7;
-  // A run of the session's workload, `run_…`, whose console to read: a task or scheduled
-  // workload's runs each write their own (§4 of docs/14-streams.md). Empty reads the workload's
-  // own. The node finds a run's stream only beneath the session's workload, so a run of another
-  // workload is not found.
+  // A run of the session's workload, `run_…`, whose console to read: a task or scheduled workload's
+  // runs each write their own. Empty reads the workload's own. The node finds a run's stream only
+  // beneath the session's workload, so a run of another workload is not found.
   string run = 8;
 }
 
@@ -63,7 +60,7 @@ message OffsetRange {
   uint64 end = 2;
 }
 
-// One record of a stream (§2 of docs/14-streams.md).
+// One record of a stream.
 message StreamRecord {
   // Its position in the stream: monotonic, from zero.
   uint64 offset = 1;
@@ -72,7 +69,7 @@ message StreamRecord {
   // stdout, stderr, file:<path>, korpis, or input.
   string source = 3;
   StreamRecordKind kind = 4;
-  // Its bytes, redacted before they were written (§7 of docs/14-streams.md).
+  // Its bytes, redacted before they were written.
   bytes body = 5;
   // For a gap record, what was lost; its body holds the same as JSON.
   StreamGap gap = 6;
@@ -84,13 +81,13 @@ enum StreamRecordKind {
   STREAM_RECORD_KIND_TEXT = 1;
   // One JSON value the workload wrote whole.
   STREAM_RECORD_KIND_STRUCTURED = 2;
-  // Records lost (§3 of docs/14-streams.md).
+  // Records lost.
   STREAM_RECORD_KIND_GAP = 3;
   // A terminal event: resize, signal, end of input.
   STREAM_RECORD_KIND_CONTROL = 4;
 }
 
-// What a gap record says was lost (§3 of docs/14-streams.md).
+// What a gap record says was lost.
 message StreamGap {
   // Records lost whole.
   uint64 records = 1;
@@ -102,9 +99,8 @@ message StreamGap {
   string reason = 4;
 }
 
-// What a writer sends: every data frame of a `workload.console.write` session is one (§6 of
-// docs/14-streams.md). The node sends nothing back but the session's end, whose reason says why
-// an input was refused.
+// What a writer sends: every data frame of a `workload.console.write` session is one. The node
+// sends nothing back but the session's end, whose reason says why an input was refused.
 message ConsoleInput {
   oneof input {
     // Bytes for the workload's stdin, as typed.

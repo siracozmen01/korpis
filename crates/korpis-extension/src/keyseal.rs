@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Keys sealed to one recipient (§5.5 of docs/06-storage.md). A key management provider never
-//! answers with a data key in the clear: every call names a recipient's one-time X25519 public
-//! key, and the provider seals the key to it with HPKE (RFC 9180, base mode, DHKEM(X25519,
-//! HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305), bound to the call's context. What the control
-//! plane stores and passes on is then opened only by the recipient: a backup job on its node, or
-//! the control plane's own read, whose secret lives in memory for one call.
+//! Keys sealed to one recipient. A key management provider never answers with a data key in the
+//! clear: every call names a recipient's one-time X25519 public key, and the provider seals the key
+//! to it with HPKE (RFC 9180, base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256,
+//! ChaCha20-Poly1305), bound to the call's context. What the control plane stores and passes on is
+//! then opened only by the recipient: a backup job on its node, or the control plane's own read,
+//! whose secret lives in memory for one call.
 //!
 //! ```text
 //! sealed = encapsulated key (32 bytes) || ciphertext and tag of the 32-byte key

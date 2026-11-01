@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A workload's configuration (§5 of docs/09-recipes.md): the form Korpis generates from its
-// recipe's schema, every field not hidden with its label in the recipe's words for the viewer's
-// language (§5.3 there), its value, and saving it as a new intent whose plan interrupts as much
-// as its risk calls for (planned.tsx). Which fields the viewer may change is the control plane's
-// to say, field by field. A secret the viewer may not read is never shown and never needed: left
-// empty it is kept as it is, which the API's `keep` says without knowing it.
+// A workload's configuration: the form Korpis generates from its recipe's schema, every field not
+// hidden with its label in the recipe's words for the viewer's language, its value, and saving it
+// as a new intent whose plan interrupts as much as its risk calls for (planned.tsx). Which fields
+// the viewer may change is the control plane's to say, field by field. A secret the viewer may not
+// read is never shown and never needed: left empty it is kept as it is, which the API's `keep` says
+// without knowing it.
 
 import { clone, create } from "@bufbuild/protobuf";
 import { ConnectError } from "@connectrpc/connect";

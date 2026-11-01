@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's part in its workloads' migrations (§4.8 of docs/02-architecture.md, §8.1 of
-//! docs/05-scheduling.md). Each side's assignment of a migrating workload carries the
-//! migration's role: which side, which phase, the peer, what crosses for each volume with the
-//! pass under way and its ticket, signed here with the token key, and, on the destination once
-//! the placement moved, the streams' watermarks. The side the workload is
-//! not placed on authoritatively, the destination before the cutover and the source after it,
-//! is a standby: told the target and its volumes, held stopped, executing no plan, and holding
-//! no endpoint, run, or challenge of its node. The source is told the workload stopped from
-//! `quiesce` on, which is what quiescing is.
+//! A node's part in its workloads' migrations. Each side's assignment of a migrating workload
+//! carries the migration's role: which side, which phase, the peer, what crosses for each volume
+//! with the pass under way and its ticket, signed here with the token key, and, on the destination
+//! once the placement moved, the streams' watermarks. The side the workload is not placed on
+//! authoritatively, the destination before the cutover and the source after it, is a standby: told
+//! the target and its volumes, held stopped, executing no plan, and holding no endpoint, run, or
+//! challenge of its node. The source is told the workload stopped from `quiesce` on, which is what
+//! quiescing is.
 
 use super::Desired;
 use crate::App;

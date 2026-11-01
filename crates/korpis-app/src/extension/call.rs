@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Calling a provider (§3.3 and §5 of docs/16-extensions.md). The caller queues the call and
-//! waits for it to finish; whichever replica holds a stream of the newest registered version with
-//! a slot free claims it and sends it down; the provider's result, the stream's end, or the
-//! deadline finishes it. Nothing waits past the deadline, and a call nobody serves fails by it.
+//! Calling a provider. The caller queues the call and waits for it to finish; whichever replica
+//! holds a stream of the newest registered version with a slot free claims it and sends it down;
+//! the provider's result, the stream's end, or the deadline finishes it. Nothing waits past the
+//! deadline, and a call nobody serves fails by it.
 
 use crate::App;
 use crate::caller::Caller;
@@ -74,9 +74,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// [`Self::call_provider`], to the organization's own provider only: no ancestor's stands in
-    /// for it. An identity provider vouches for its own subjects alone (§5 of
-    /// docs/08-identity.md), so an ancestor's provider of the same name answering for it would
-    /// be another provider's word.
+    /// for it. An identity provider vouches for its own subjects alone, so an ancestor's provider
+    /// of the same name answering for it would be another provider's word.
     pub async fn call_own_provider(
         &self,
         target: &CallTarget,

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Relays that run as their own process (§3.1 of docs/02-architecture.md). A relay carries every
-//! organization's sessions, so it is enrolled, listed, readmitted, and removed with authority over
-//! the root organization: `node.enroll` to enroll, readmit, or remove one, `node.read` to list
-//! them. The control
-//! plane's own relay role is not a relay here; it needs no enrollment.
+//! Relays that run as their own process. A relay carries every organization's sessions, so it is
+//! enrolled, listed, readmitted, and removed with authority over the root organization:
+//! `node.enroll` to enroll, readmit, or remove one, `node.read` to list them. The control plane's
+//! own relay role is not a relay here; it needs no enrollment.
 
 mod advertised;
 mod enroll;
@@ -88,10 +87,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         finish(tx, caller, idem, OPERATION, relay).await
     }
 
-    /// Readmits a relay a restore held (§8 of docs/03-state.md): `node.enroll` over the root
-    /// organization. Its feed is served again, and nodes are told of it with the next relays they
-    /// are named. Readmitting says the operator knows the relay to be the one that joined; a
-    /// relay they do not know is removed instead.
+    /// Readmits a relay a restore held: `node.enroll` over the root organization. Its feed is
+    /// served again, and nodes are told of it with the next relays they are named. Readmitting says
+    /// the operator knows the relay to be the one that joined; a relay they do not know is removed
+    /// instead.
     pub async fn readmit_relay(
         &self,
         caller: &Caller,

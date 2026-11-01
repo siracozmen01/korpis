@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A secret that arrives in the address's fragment (§6 of docs/11-surface-web.md): an invitation's
-// or a share link's. A fragment is never sent to the server in a request line, so it lands in no
-// access log and no `Referer`; the panel reads it once, keeps it in memory, and clears it from
-// the address bar so it is not left in the history either.
+// A secret that arrives in the address's fragment: an invitation's or a share link's. A fragment is
+// never sent to the server in a request line, so it lands in no access log and no `Referer`; the
+// panel reads it once, keeps it in memory, and clears it from the address bar so it is not left in
+// the history either.
 
 /** The secrets taken so far, by prefix: a second render reads the one the first took. */
 const held = new Map<string, string>();

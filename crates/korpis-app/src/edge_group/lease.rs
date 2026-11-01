@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Granting and releasing leases on the addresses of edge pools (§3.1 of
-//! docs/07-networking.md). The decision is [`decide`]'s, for the member [`designate`] names from
-//! the group's health; this applies it in one transaction holding the address's group, so two
-//! members asking for one address are decided one after the other, against what the first left.
-//! Epochs come from the sequence workloads' do, spent from the asking node's own bucket first.
+//! Granting and releasing leases on the addresses of edge pools. The decision is [`decide`]'s, for
+//! the member [`designate`] names from the group's health; this applies it in one transaction
+//! holding the address's group, so two members asking for one address are decided one after the
+//! other, against what the first left. Epochs come from the sequence workloads' do, spent from the
+//! asking node's own bucket first.
 
 use crate::App;
 use crate::error::AppError;

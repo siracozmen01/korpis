@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The quota entries that name the nodes they count, and where each placement was counted by
-//! them (§5.1 of docs/05-scheduling.md, "Where a workload runs"). Read and written under the
-//! placement lock, which every change to them holds.
+//! The quota entries that name the nodes they count, and where each placement was counted by them
+//! ("Where a workload runs"). Read and written under the placement lock, which every change to them
+//! holds.
 
 use super::EntryRow;
 use crate::PgTx;

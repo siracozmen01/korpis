@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The few route-netlink requests a workload's network needs (§4.1 of docs/07-networking.md):
-//! making a veth pair whose peer is in another namespace, finding and removing a link, reading
-//! its hardware address, bringing one up, and adding an address, a route, or a neighbour. A socket belongs to the namespace it was opened in,
-//! so one opened on a thread inside a workload's namespace configures that namespace.
+//! The few route-netlink requests a workload's network needs: making a veth pair whose peer is in
+//! another namespace, finding and removing a link, reading its hardware address, bringing one up,
+//! and adding an address, a route, or a neighbour. A socket belongs to the namespace it was opened
+//! in, so one opened on a thread inside a workload's namespace configures that namespace.
 
 mod addresses;
 mod links;

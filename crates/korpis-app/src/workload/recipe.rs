@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's recipe as a client shows it (§5 and §5.3 of docs/09-recipes.md): what it is, the
-//! configuration it declares, and the words it shows, in the viewer's language where the recipe
-//! speaks it and in its own otherwise.
+//! A workload's recipe as a client shows it: what it is, the configuration it declares, and the
+//! words it shows, in the viewer's language where the recipe speaks it and in its own otherwise.
 
 use crate::App;
 use crate::caller::Caller;

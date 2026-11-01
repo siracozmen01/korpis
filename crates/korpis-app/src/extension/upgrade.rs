@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Upgrading an installation in place (§9 question 6 of docs/16-extensions.md). The new version
+//! Upgrading an installation in place. The new version
 //! of the same artifact is resolved under the trust policy and checked against the contract; the
 //! upgrader approves its needs exactly as an installer does; each grant the installation holds
 //! that a need still asks for is kept, a need no grant serves gets a grant attenuated from the

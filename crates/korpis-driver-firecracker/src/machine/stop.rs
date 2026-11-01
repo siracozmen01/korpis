@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Stopping, signalling, killing, and asking a guest (§6 of docs/04-runtimes.md): whether its
-//! agent answers, a terminal's size, and a command to run. A signal named
-//! reaches the entry through the guest's agent on the control port, and a stop the agent does not
-//! take reaches it as Ctrl+Alt+Del, which the guest's first process turns into `SIGTERM` for the
-//! entry's group; a kill is Ctrl+Alt+Del sent until the guest has ended, then its Firecracker
-//! killed past a bound.
+//! Stopping, signalling, killing, and asking a guest: whether its agent answers, a terminal's size,
+//! and a command to run. A signal named reaches the entry through the guest's agent on the control
+//! port, and a stop the agent does not take reaches it as Ctrl+Alt+Del, which the guest's first
+//! process turns into `SIGTERM` for the entry's group; a kill is Ctrl+Alt+Del sent until the guest
+//! has ended, then its Firecracker killed past a bound.
 
 use super::{AGAIN, KILL_BOUND, Machine, MachineError, MachineResult, failed};
 use crate::object::{Object, Vm};
@@ -32,9 +31,9 @@ impl Machine {
     }
 
     /// Sends the entry of object `id`'s guest the signal `signal` names, `SIGTERM` where it names
-    /// none, through the guest's agent (§6 of docs/04-runtimes.md). A stop the agent does not
-    /// take is sent as Ctrl+Alt+Del instead, which reaches the entry as `SIGTERM`; any other
-    /// signal it does not take is an error. A guest not running has nothing to signal.
+    /// none, through the guest's agent. A stop the agent does not take is sent as Ctrl+Alt+Del
+    /// instead, which reaches the entry as `SIGTERM`; any other signal it does not take is an
+    /// error. A guest not running has nothing to signal.
     pub async fn signal(&self, id: &str, signal: &str) -> MachineResult<()> {
         let name = if signal.is_empty() { "SIGTERM" } else { signal };
         if !control::SIGNALS.contains(&name) {
@@ -130,8 +129,8 @@ impl Machine {
     }
 
     /// Runs `c` inside object `id`'s guest through its agent, as its entry runs, sending what it
-    /// writes and how it ended on `out` (§4.2 of docs/04-runtimes.md). A guest that does not run
-    /// is refused, and one still booting is waited for, within a bound.
+    /// writes and how it ended on `out`. A guest that does not run is refused, and one still
+    /// booting is waited for, within a bound.
     pub async fn exec(&self, id: &str, c: Command, out: mpsc::Sender<Ran>) -> MachineResult<()> {
         if !self.load(id)?.vm.as_ref().is_some_and(process::alive) {
             return Err(MachineError::Refused(format!("{id} does not run")));

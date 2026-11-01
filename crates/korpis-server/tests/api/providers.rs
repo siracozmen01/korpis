@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Provider registration (§3.3 of docs/16-extensions.md): an installed extension's workload,
-//! authenticated as its installation, opens a stream and registers one of the `provides` entries
-//! its installation recorded. The registration lasts as long as the stream and the installation.
+//! Provider registration: an installed extension's workload, authenticated as its installation,
+//! opens a stream and registers one of the `provides` entries its installation recorded. The
+//! registration lasts as long as the stream and the installation.
 
 use crate::agent::{self, TestAgent};
 use crate::extensions::{install, needs, push_dns};

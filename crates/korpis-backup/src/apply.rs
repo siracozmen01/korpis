@@ -15,8 +15,7 @@ use std::fs::File;
 use std::os::fd::{AsFd, OwnedFd};
 use std::os::unix::fs::FileExt as _;
 
-/// Where recipe content a backup recorded by reference is read from at restore (§5.2 of
-/// docs/06-storage.md).
+/// Where recipe content a backup recorded by reference is read from at restore.
 pub trait ContentSource: Send + Sync {
     /// The file holding the content whose sha256 is `sha256`, if there is one.
     fn open(&self, sha256: &str) -> std::io::Result<Option<File>>;

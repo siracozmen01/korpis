@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Types shared by every Korpis surface. Identifiers are opaque strings with a type prefix
-// ("wl_", "org_", ...); they are immutable and never reused (§5 of docs/01-model.md).
+// Types shared by every Korpis surface. Identifiers are opaque strings with a type prefix ("wl_",
+// "org_",...); they are immutable and never reused.
 
 syntax = "proto3";
 
@@ -86,8 +86,8 @@ enum NullValue {
   NULL_VALUE_UNSPECIFIED = 0;
 }
 
-// A structured, machine-readable error (§8 of docs/10-api.md). Clients branch on `code` and
-// `reason`, never on a message string.
+// A structured, machine-readable error. Clients branch on `code` and `reason`, never on a message
+// string.
 message Error {
   ErrorCode code = 1;
   // Stable identifier, e.g. "quota.memory.exceeded".
@@ -113,7 +113,7 @@ enum ErrorCode {
   ERROR_CODE_OVERFLOW = 8;
   ERROR_CODE_UNAVAILABLE = 9;
   ERROR_CODE_INTERNAL = 10;
-  // A rate limit bucket is empty (§10 of docs/10-api.md): retryable, after retry_after.
+  // A rate limit bucket is empty: retryable, after retry_after.
   ERROR_CODE_RATE_LIMITED = 11;
 }
 
@@ -135,9 +135,9 @@ message Resources {
   uint64 endpoints = 12;
   uint64 dedicated_ipv4 = 13;
   uint64 pids = 14;
-  // Ports of a node held by node_port and node_bound endpoints (§3 of docs/07-networking.md).
+  // Ports of a node held by node_port and node_bound endpoints.
   uint64 node_ports = 15;
-  // Devices held, one each, a timeslice share counting one (§6.4 of docs/05-scheduling.md).
+  // Devices held, one each, a timeslice share counting one.
   uint64 devices_gpu = 16;
   uint64 devices_usb = 17;
   uint64 devices_pci = 18;
@@ -145,8 +145,8 @@ message Resources {
   uint64 devices_serial = 20;
 }
 
-// The kinds of thing Korpis calls out to an extension for (§5 of docs/16-extensions.md). Here
-// rather than beside the extension messages, so that a recipe reference can name one.
+// The kinds of thing Korpis calls out to an extension for. Here rather than beside the extension
+// messages, so that a recipe reference can name one.
 enum ProviderType {
   PROVIDER_TYPE_UNSPECIFIED = 0;
   PROVIDER_TYPE_DNS = 1;
@@ -157,18 +157,15 @@ enum ProviderType {
   PROVIDER_TYPE_IDENTITY = 6;
   PROVIDER_TYPE_EDGE_ROUTER = 7;
   PROVIDER_TYPE_CHAT_ADAPTER = 8;
-  // A key management service holding a repository's key-encryption key for its tenant (§5.5 of
-  // docs/06-storage.md).
+  // A key management service holding a repository's key-encryption key for its tenant.
   PROVIDER_TYPE_KEY_MANAGEMENT = 9;
-  // A router moving a cluster pool's addresses to the node holding each (§3.7 of
-  // docs/07-networking.md). Added 2026-10-26.
+  // A router moving a cluster pool's addresses to the node holding each.
   PROVIDER_TYPE_ADDRESS_ROUTER = 10;
-  // Network block storage, a volume a device one node attaches at a time (§2.1 of
-  // docs/06-storage.md). Added 2026-10-27.
+  // Network block storage, a volume a device one node attaches at a time.
   PROVIDER_TYPE_BLOCK_STORAGE = 11;
 }
 
-// A class of device a driver can give a workload (§6 of docs/05-scheduling.md).
+// A class of device a driver can give a workload.
 enum DeviceClass {
   DEVICE_CLASS_UNSPECIFIED = 0;
   DEVICE_CLASS_GPU = 1;
@@ -178,8 +175,7 @@ enum DeviceClass {
   DEVICE_CLASS_SERIAL = 5;
 }
 
-// How a workload holds a device (§6.2 of docs/05-scheduling.md). Was `GpuMode`, whose `NONE` an
-// empty list now says.
+// How a workload holds a device. Was `GpuMode`, whose `NONE` an empty list now says.
 enum DeviceMode {
   reserved 1;
   reserved "GPU_MODE_NONE";
@@ -192,7 +188,7 @@ enum DeviceMode {
   DEVICE_MODE_TIMESLICE = 4;
 }
 
-// How a node attaches a block class's device (§2.1 of docs/06-storage.md).
+// How a node attaches a block class's device.
 enum BlockProtocol {
   BLOCK_PROTOCOL_UNSPECIFIED = 0;
   // An iSCSI LUN, logged in with open-iscsi.
@@ -204,8 +200,7 @@ enum BlockProtocol {
   BLOCK_PROTOCOL_LOOP = 3;
 }
 
-// How a volume crosses from a migration's source to its destination (§8.1 of
-// docs/05-scheduling.md).
+// How a volume crosses from a migration's source to its destination.
 enum MigrationCrossing {
   MIGRATION_CROSSING_UNSPECIFIED = 0;
   // By increments between snapshots, as a replica is sent.

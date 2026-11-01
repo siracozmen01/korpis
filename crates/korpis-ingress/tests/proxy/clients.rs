@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Client certificates (§3.2 of docs/07-networking.md): a route that asks for one is accepted
-//! with its own TLS configuration, verified against its own authorities, and its workload is told
-//! the certificate in `Client-Cert` (RFC 9440), which no client can say for itself; and a
-//! connection made for a name that asks for nothing reaches no name that requires one, though
-//! one certificate serves both and HTTP/2 would reuse the connection (Finding 137 of
-//! docs/23-walkthroughs.md).
+//! Client certificates: a route that asks for one is accepted with its own TLS configuration,
+//! verified against its own authorities, and its workload is told the certificate in `Client-Cert`
+//! (RFC 9440), which no client can say for itself; and a connection made for a name that asks for
+//! nothing reaches no name that requires one, though one certificate serves both and HTTP/2 would
+//! reuse the connection.
 
 use crate::support::{Identity, Pki, Proxy, get, route, tls_as, workload};
 use base64::Engine as _;

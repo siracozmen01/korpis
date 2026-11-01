@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The names of ingress endpoints in DNS (§3.5 of docs/07-networking.md): each name an endpoint
-//! routes is published through the organization's DNS provider that serves its zone, resolving
-//! to its node's advertised addresses, and published again when they change; a name no provider
-//! serves is its holder's, and its status says so; a name no longer routed is withdrawn.
+//! The names of ingress endpoints in DNS: each name an endpoint routes is published through the
+//! organization's DNS provider that serves its zone, resolving to its node's advertised addresses,
+//! and published again when they change; a name no provider serves is its holder's, and its status
+//! says so; a name no longer routed is withdrawn.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::extensions::{DNS, push_document};

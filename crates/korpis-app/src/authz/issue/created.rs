@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What issuing a grant writes beside it: the account and invitation a grant to a new user
-//! creates (§9.6 of docs/08-identity.md), and the effect that records the issue.
+//! What issuing a grant writes beside it: the account and invitation a grant to a new user creates,
+//! and the effect that records the issue.
 
 use crate::caller::Caller;
 use crate::error::AppError;

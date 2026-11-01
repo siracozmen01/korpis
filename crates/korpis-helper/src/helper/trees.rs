@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The tree verbs (§8.1 of docs/05-scheduling.md): sending a pass of a volume's tree from the
-//! class holding it, receiving one into a volume of the class a request names, and reading how
-//! either ended. Each side's process is kept here by its volume, its pass, and its side until a
-//! status reads how it ended; a helper that restarted knows of none, and says so.
+//! The tree verbs: sending a pass of a volume's tree from the class holding it, receiving one into
+//! a volume of the class a request names, and reading how either ended. Each side's process is kept
+//! here by its volume, its pass, and its side until a status reads how it ended; a helper that
+//! restarted knows of none, and says so.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};

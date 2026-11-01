@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's devices (§2.1 of docs/06-storage.md): wanted for a placed workload's volumes,
-//! each made and attached by its class's provider, and what the node it is attached to needs.
+//! A block class's devices: wanted for a placed workload's volumes, each made and attached by its
+//! class's provider, and what the node it is attached to needs.
 
 use super::{SealedKey, StoreResult, VaultError};
 use crate::page::Page;

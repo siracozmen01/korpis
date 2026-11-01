@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's meter (§2 of docs/15-observability.md, "Measuring it, as designed"). It knows every
-//! runtime object the node runs and the workload each is (the [`metered`] runtime tells it), reads
-//! each object's counters every ten seconds and the workload's interface beside them, keeps its
-//! accounts in a file of its own replaced at every reading, and at the end of each metering
-//! interval journals one sample for every workload the node holds an assignment for.
+//! The node's meter ("Measuring it, as designed"). It knows every runtime object the node runs and
+//! the workload each is (the [`metered`] runtime tells it), reads each object's counters every ten
+//! seconds and the workload's interface beside them, keeps its accounts in a file of its own
+//! replaced at every reading, and at the end of each metering interval journals one sample for
+//! every workload the node holds an assignment for.
 
 pub mod book;
 pub mod metered;
@@ -32,8 +32,7 @@ pub use sample::{Sampler, Sources};
 
 /// How often the meter reads every source.
 pub const READ_EVERY: Duration = Duration::from_secs(10);
-/// The metering interval where the installation declares none: an hour (§7 of
-/// docs/15-observability.md, question 1).
+/// The metering interval where the installation declares none: an hour.
 pub const DEFAULT_INTERVAL: Duration = Duration::from_secs(3600);
 
 /// How the meter runs.

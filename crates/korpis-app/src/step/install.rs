@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Resolving a provider step of an install a node runs (§4 of docs/09-recipes.md). The node asks
-//! for one action of an install step; the control plane checks that the node is where the
-//! workload is placed and the plan is still open, that the installation the intent pinned still
-//! answers for the step kind (§4.1 of docs/16-extensions.md), calls it, and marks the workload
-//! unreproducible the first time a step resolves to whatever a channel held (§3.3 of
-//! docs/01-model.md).
+//! Resolving a provider step of an install a node runs. The node asks for one action of an install
+//! step; the control plane checks that the node is where the workload is placed and the plan is
+//! still open, that the installation the intent pinned still answers for the step kind, calls it,
+//! and marks the workload unreproducible the first time a step resolves to whatever a channel held.
 
 use crate::App;
 use crate::error::AppError;
@@ -168,7 +166,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     async fn mark_unreproducible(&self, workload: Uuid, reason: &str) -> Result<(), AppError> {
         let mut tx = self.store.begin().await?;
         // Whether this call or an earlier one set it, the workload is marked; the first reason
-        // stands (§3.3 of docs/01-model.md).
+        // stands.
         tx.mark_unreproducible(workload, self.clock.now(), reason).await?;
         tx.commit().await?;
         Ok(())

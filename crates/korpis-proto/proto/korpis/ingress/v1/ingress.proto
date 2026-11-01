@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// What an agent tells its node's ingress proxy (§3.2 of docs/07-networking.md), over a Unix
-// socket the agent listens on and names to the proxy when it starts it. Every message is a
-// four-byte big-endian length followed by its encoding. The first is `Listeners`, with the
-// sockets the proxy serves attached as SCM_RIGHTS; every later one is an `IngressConfig`, the
-// whole configuration, sent each time anything in it changes, which replaces what the proxy
-// serves. The proxy keeps nothing on disk.
+// What an agent tells its node's ingress proxy, over a Unix socket the agent listens on and names
+// to the proxy when it starts it. Every message is a four-byte big-endian length followed by its
+// encoding. The first is `Listeners`, with the sockets the proxy serves attached as SCM_RIGHTS;
+// every later one is an `IngressConfig`, the whole configuration, sent each time anything in it
+// changes, which replaces what the proxy serves. The proxy keeps nothing on disk.
 
 syntax = "proto3";
 
@@ -43,13 +42,12 @@ message Route {
   // The workload and endpoint, for what the proxy logs.
   string workload = 5;
   string endpoint = 6;
-  // For ROUTE_MODE_PASSTHROUGH alone, and refused with any other mode: the workload is sent a
-  // PROXY header, version 2, naming its client and the address the client reached, before the
-  // first byte spliced to it (§3.2 of docs/07-networking.md).
+  // For ROUTE_MODE_PASSTHROUGH alone, and refused with any other mode: the workload is sent a PROXY
+  // header, version 2, naming its client and the address the client reached, before the first byte
+  // spliced to it.
   bool proxy_protocol = 7;
-  // For ROUTE_MODE_HTTP and ROUTE_MODE_HTTPS: whether clients are asked for a certificate, and
-  // the authorities, in PEM, it is verified against; refused with passthrough (§3.2 of
-  // docs/07-networking.md).
+  // For ROUTE_MODE_HTTP and ROUTE_MODE_HTTPS: whether clients are asked for a certificate, and the
+  // authorities, in PEM, it is verified against; refused with passthrough.
   ClientCertificates client_certificates = 8;
   string client_ca = 9;
 }

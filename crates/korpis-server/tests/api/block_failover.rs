@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's device through its workload's life (§2.1 of docs/06-storage.md): made and
-//! attached for the lease its workload holds on one node, its volume taking the device's
-//! identifier; once that node falls silent and the workload fails over, attached to the other
-//! node for the new lease's epoch, the storage holding it for that epoch alone, and the status
-//! saying so; and once the workload is retired and its volume deleted, detached and deleted by
-//! the provider, so that nothing is left in the storage.
+//! A block class's device through its workload's life: made and attached for the lease its workload
+//! holds on one node, its volume taking the device's identifier; once that node falls silent and
+//! the workload fails over, attached to the other node for the new lease's epoch, the storage
+//! holding it for that epoch alone, and the status saying so; and once the workload is retired and
+//! its volume deleted, detached and deleted by the provider, so that nothing is left in the
+//! storage.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::block_storage::{Disks, fast, serving};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A run policy: `korpis.v1.RunPolicy` (§4 of docs/05-scheduling.md). A field left unset is the
-//! default, so the wire's absent and the policy's default are one value.
+//! A run policy: `korpis.v1.RunPolicy`. A field left unset is the default, so the wire's absent and
+//! the policy's default are one value.
 
 use crate::{Result, duration, duration_from};
 use korpis_core::workload::spec::runs::ALLOW_ACTIVE;

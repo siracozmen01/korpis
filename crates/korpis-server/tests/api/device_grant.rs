@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The CLI's sign-in over the API (§9.4 of docs/08-identity.md, RFC 8628): a device authorization
-//! begun without a credential and pointed at the panel's device page, pending until a signed-in
-//! user approves its code, then answered with a CLI session whose refresh credential exchanges
-//! in the body.
+//! The CLI's sign-in over the API (RFC 8628): a device authorization begun without a credential and
+//! pointed at the panel's device page, pending until a signed-in user approves its code, then
+//! answered with a CLI session whose refresh credential exchanges in the body.
 
 use crate::panel::{PANEL, access, browser, invite, redeem_keeping_cookie};
 use crate::refusal::{detail, reason};

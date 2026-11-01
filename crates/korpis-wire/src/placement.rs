@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placement policies and explanations (§2 of docs/05-scheduling.md).
+//! Placement policies and explanations.
 
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::spec::health::{affinity_from_pb, affinity_to_pb};

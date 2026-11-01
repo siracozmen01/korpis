@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a stream's offloaded segments through the control plane (§4 of docs/14-streams.md):
-//! the use case decides who may, records the read, and grants the workload's key with minutes of
-//! read access to its stream prefix in each repository holding a segment; this fetches each
-//! segment, checks it is the one the index names, and sends its records as `ConsoleChunk`s, in
-//! offset order. Offsets between the segments, which no offloaded segment holds, are sent as
-//! missing; offsets after the last are not offloaded yet, and the last chunk says where that is.
+//! Reading a stream's offloaded segments through the control plane: the use case decides who may,
+//! records the read, and grants the workload's key with minutes of read access to its stream prefix
+//! in each repository holding a segment; this fetches each segment, checks it is the one the index
+//! names, and sends its records as `ConsoleChunk`s, in offset order. Offsets between the segments,
+//! which no offloaded segment holds, are sent as missing; offsets after the last are not offloaded
+//! yet, and the last chunk says where that is.
 
 use super::error;
 use connectrpc::ConnectError;

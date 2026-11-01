@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! This replica's side of the provider call queue (§3.3 of docs/16-extensions.md): it claims
-//! the calls the streams it holds may take, sends them down, cancels those still unanswered at
-//! their deadline, confirms the registrations it holds, and withdraws those of replicas gone.
+//! This replica's side of the provider call queue: it claims the calls the streams it holds may
+//! take, sends them down, cancels those still unanswered at their deadline, confirms the
+//! registrations it holds, and withdraws those of replicas gone.
 
 use crate::api::Api;
 use korpis_app::ports::Wakeups as _;

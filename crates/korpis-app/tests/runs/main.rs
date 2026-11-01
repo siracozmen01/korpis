@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Making runs against the real schema (§4 of docs/05-scheduling.md), at moments a test sets: a
-//! nightly job's run is made once at 03:00 however many control planes look, a run its node never
-//! started gives way to the next night's, and stopping the workload cancels what is active.
-//! Needs the development database (`scripts/dev-pg.sh up`).
+//! Making runs against the real schema, at moments a test sets: a nightly job's run is made once at
+//! 03:00 however many control planes look, a run its node never started gives way to the next
+//! night's, and stopping the workload cancels what is active. Needs the development database
+//! (`scripts/dev-pg.sh up`).
 
 #![allow(
     clippy::unwrap_used,

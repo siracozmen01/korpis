@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The `config` block (§5 of docs/09-recipes.md).
+//! The `config` block.
 
 use super::dto;
 use super::scalars::{named, value};
@@ -26,7 +26,8 @@ const PERMISSIONS: [(&str, FieldPermission); 3] = [
     ("system", FieldPermission::System),
 ];
 
-// §5.2 calls the tenant-file channel `file`; the wire calls it `template`. Both are accepted.
+// The recipe format calls the tenant-file channel `file`; the wire calls it `template`. Both are
+// accepted.
 const CHANNELS: [(&str, ConfigDelivery); 5] = [
     ("template", ConfigDelivery::Template),
     ("file", ConfigDelivery::Template),

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Steps 2 and 3 of §38 of docs/23-walkthroughs.md, in a browser: the friend redeems the invitation
+// In a browser: the friend redeems the invitation
 // the operator issued by registering a passkey, keeps the recovery codes, signs out, signs in
 // again with the passkey alone, and approves `korpis login` on a terminal.
 
@@ -26,9 +26,8 @@ test("an invitation is redeemed with a passkey, which signs its holder in and a 
   await page.getByRole("button", { name: "Sign in with a passkey" }).click();
   await expect(page.getByRole("heading", { name: "What you can reach" })).toBeVisible();
 
-  // `korpis login` waits in the harness with a code; the friend, just signed in, approves it at
-  // the address it named, having been shown what asks and from where (§9.4 of
-  // docs/08-identity.md).
+  // `korpis login` waits in the harness with a code; the friend, just signed in, approves it at the
+  // address it named, having been shown what asks and from where.
   await visit(page, given("KORPIS_E2E_DEVICE_URL"));
   await expect(page.getByRole("heading", { name: "Sign in a command-line client" })).toBeVisible();
   await expect(page.getByText("It asked from")).toBeVisible();

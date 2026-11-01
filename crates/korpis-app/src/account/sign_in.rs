@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in (§9.6 of docs/08-identity.md): a passkey alone, or a password with a TOTP code or a
-//! recovery code beside it, each checked as `check` says, and a session begun.
+//! Signing in: a passkey alone, or a password with a TOTP code or a recovery code beside it, each
+//! checked as `check` says, and a session begun.
 
 use super::check::Checked;
 use super::{Begun, Client, record};
@@ -41,8 +41,8 @@ pub struct Assertion {
 pub struct SignedIn {
     /// The account.
     pub account: Uuid,
-    /// Whether it satisfies `requires_mfa` (§9 of docs/08-identity.md): every sign-in this
-    /// accepts does, since none is one factor.
+    /// Whether it satisfies `requires_mfa`: every sign-in this accepts does, since none is one
+    /// factor.
     pub mfa: bool,
     /// The session, and its refresh credential.
     pub session: Begun,

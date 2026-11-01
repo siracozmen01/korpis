@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Creating a relay's enrollment token: one-use, bound to the relay's name and URL, holding a
-//! grant of `node.enroll` over the root organization attenuated from the creator's, exactly as a
-//! node's is (§3 of docs/18-operations.md).
+//! Creating a relay's enrollment token: one-use, bound to the relay's name and URL, holding a grant
+//! of `node.enroll` over the root organization attenuated from the creator's, exactly as a node's
+//! is.
 
 use crate::App;
 use crate::caller::Caller;

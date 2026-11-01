@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placement policies per organization (§2.2 of docs/05-scheduling.md, question 8 of §10). An
-//! organization sets one for its subtree under `org.write`; a node is scored by the strategy and
-//! weights of the policy nearest its owner, and a workload placed under the spread and affinity
-//! of the policy nearest its own organization, each the installation's where no organization on
-//! the way set one. A policy is taken whole from where it was set, never merged.
+//! Placement policies per organization. An organization sets one for its subtree under `org.write`;
+//! a node is scored by the strategy and weights of the policy nearest its owner, and a workload
+//! placed under the spread and affinity of the policy nearest its own organization, each the
+//! installation's where no organization on the way set one. A policy is taken whole from where it
+//! was set, never merged.
 
 use crate::App;
 use crate::caller::Caller;

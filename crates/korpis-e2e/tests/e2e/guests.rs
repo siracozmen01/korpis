@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The `firecracker` driver on a test's node, beside the `oci` driver (§3 of
-//! docs/04-runtimes.md): whether this machine can run a guest, the driver serving in the node's
-//! directory over the agent's content store and the helper's volumes and namespaces, and every
-//! guest ended as the node is dropped.
+//! The `firecracker` driver on a test's node, beside the `oci` driver: whether this machine can run
+//! a guest, the driver serving in the node's directory over the agent's content store and the
+//! helper's volumes and namespaces, and every guest ended as the node is dropped.
 
 use crate::node::{built, writer};
 use korpis_agent::state::StateDir;

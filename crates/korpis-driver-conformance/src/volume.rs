@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! A workload's volumes, made as the node's helper makes them, so a driver is given what a node
-//! gives it (§3.1 of docs/06-storage.md). For a driver whose volumes are files, a volume is a
-//! directory under the volume root, given to the workload's first id; the mount's source is the
-//! directory. For one that takes them as block devices, the same directory holds `block.ext4`, an
-//! image of the volume's size made sparse and formatted empty as ext4 by `mke2fs`, and says so in
-//! the extended attribute `trusted.korpis.volume`, whose value is `block_device`; the mount's
-//! source is the image. The suite needs `mke2fs` for such a driver, and root for the attribute.
+//! gives it. For a driver whose volumes are files, a volume is a directory under the volume root,
+//! given to the workload's first id; the mount's source is the directory. For one that takes them
+//! as block devices, the same directory holds `block.ext4`, an image of the volume's size made
+//! sparse and formatted empty as ext4 by `mke2fs`, and says so in the extended attribute
+//! `trusted.korpis.volume`, whose value is `block_device`; the mount's source is the image. The
+//! suite needs `mke2fs` for such a driver, and root for the attribute.
 
 use std::io;
 use std::os::unix::fs::{DirBuilderExt as _, OpenOptionsExt as _};

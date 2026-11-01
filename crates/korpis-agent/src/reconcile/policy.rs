@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's own network policy, from its target body to what the helper applies (§6 of
-//! docs/07-networking.md): its egress rules and limits, and each endpoint's rules and limits on
-//! who connects to it. The control plane refuses at declaration every rule a node cannot hold;
-//! one that arrives anyway fails the workload's network rather than being left out, because a
-//! deny left out is a weaker policy than the one declared.
+//! A workload's own network policy, from its target body to what the helper applies: its egress
+//! rules and limits, and each endpoint's rules and limits on who connects to it. The control plane
+//! refuses at declaration every rule a node cannot hold; one that arrives anyway fails the
+//! workload's network rather than being left out, because a deny left out is a weaker policy than
+//! the one declared.
 
 use super::act::Failure;
 use korpis_proto::korpis::agent::v1 as agent;
@@ -71,9 +71,8 @@ fn rules(
         .collect()
 }
 
-/// What `body` may send and be sent, as the helper holds it (§7 of docs/07-networking.md): an
-/// egress reservation with no limit is its own limit, as placement counts it; none where it
-/// sets nothing.
+/// What `body` may send and be sent, as the helper holds it: an egress reservation with no limit is
+/// its own limit, as placement counts it; none where it sets nothing.
 fn bandwidth(body: &pb::IntentBody) -> Option<helper::Bandwidth> {
     let b = body.resources.as_option()?.bandwidth.as_option()?;
     let egress = b.egress.as_option().cloned().unwrap_or_default();
@@ -86,9 +85,9 @@ fn bandwidth(body: &pb::IntentBody) -> Option<helper::Bandwidth> {
     })
 }
 
-/// Holds the workload `request` makes the network of to what a spent egress budget says,
-/// where `shaping` says one is spent (§5.1 of docs/05-scheduling.md): its floor in place of its
-/// limit, or nothing leaving its link for beyond the node.
+/// Holds the workload `request` makes the network of to what a spent egress budget says, where
+/// `shaping` says one is spent: its floor in place of its limit, or nothing leaving its link for
+/// beyond the node.
 pub(super) fn spent(request: &mut helper::EnsureNetworkRequest, shaping: Option<&agent::Shaping>) {
     let Some(s) = shaping.filter(|s| s.egress_exhausted) else { return };
     let mut b = request.bandwidth.as_option().cloned().unwrap_or_default();
@@ -96,9 +95,9 @@ pub(super) fn spent(request: &mut helper::EnsureNetworkRequest, shaping: Option<
     request.bandwidth = b.into();
 }
 
-/// Sets on `request` the workload's own outbound rules and limits, and on each of its inbound
-/// ports the rules and limits of the endpoint listening there, from `body`, each rule naming
-/// workloads naming what `peers` resolved it to (§6 of docs/07-networking.md).
+/// Sets on `request` the workload's own outbound rules and limits, and on each of its inbound ports
+/// the rules and limits of the endpoint listening there, from `body`, each rule naming workloads
+/// naming what `peers` resolved it to.
 pub(super) fn apply(
     request: &mut helper::EnsureNetworkRequest,
     body: Option<&pb::IntentBody>,

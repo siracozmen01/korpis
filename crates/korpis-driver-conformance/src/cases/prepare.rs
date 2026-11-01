@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! `Describe` and `Prepare`: a driver says what it is when asked, and `Prepare` changes nothing,
-//! answers the same each time, and refuses with a rejection, not an error, what this driver on
-//! this node cannot run (§4.1 and §4.2 of docs/04-runtimes.md).
+//! answers the same each time, and refuses with a rejection, not an error, what this driver on this
+//! node cannot run.
 
 use super::Stopped;
 use crate::case::Verdict;

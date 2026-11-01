@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Attenuation: every dimension of a child is checked against its parent (§3 of
-//! docs/08-identity.md).
+//! Attenuation: every dimension of a child is checked against its parent.
 
 use korpis_core::authz::evaluate::ChainError;
 use korpis_core::authz::grant::At;
@@ -38,7 +37,7 @@ fn the_moderator_mints_a_link_and_the_link_mints_nothing() {
     };
     assert_eq!(grant, link.id);
     assert_eq!(chain, vec![link.id, moderator.id, root.id]);
-    assert!(redeem, "a use-limited link is redeemed online (§6.2)");
+    assert!(redeem, "a use-limited link is redeemed online");
 
     let mut grandchild =
         child(&link, "someone-else", &["workload.restart"], Scope::Object(tree.w1));

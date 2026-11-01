@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A guest's console (§6 of docs/04-runtimes.md; §4 and §6 of docs/14-streams.md). The guest's
-//! serial port is its Firecracker's standard input and output, and with no stream both are empty.
-//! With one, each run starts `korpis-stream-writer` first, handing it the read end of a pipe whose
-//! write end is the Firecracker's output, as containerd's shim hands it a container's; once the
-//! guest's cgroup exists the writer is moved into it, so it is counted with its guest and outlives
-//! a restart of the driver, and it ends when the guest's Firecracker does, having read what was
-//! left. An interactive console's input is a FIFO the writer holds and feeds, which is the
-//! Firecracker's standard input.
+//! A guest's console. The guest's serial port is its Firecracker's standard input and output, and
+//! with no stream both are empty. With one, each run starts `korpis-stream-writer` first, handing
+//! it the read end of a pipe whose write end is the Firecracker's output, as containerd's shim
+//! hands it a container's; once the guest's cgroup exists the writer is moved into it, so it is
+//! counted with its guest and outlives a restart of the driver, and it ends when the guest's
+//! Firecracker does, having read what was left. An interactive console's input is a FIFO the writer
+//! holds and feeds, which is the Firecracker's standard input.
 
 use command_fds::{CommandFdExt as _, FdMapping};
 use korpis_driver_kit::console;

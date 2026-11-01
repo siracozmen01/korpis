@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Where an SFTP client reaches a workload's files (§8 of docs/11-surface-web.md, §3.1 of
-// docs/02-architecture.md): for each server `ServerInfo` names, the line a client takes, the host
-// key's fingerprint a client shows on its first connection, and a `known_hosts` line, so that
-// connection is checked rather than trusted. Nothing where no server serves SFTP, or the
-// control plane could not be asked: the file manager above is the panel's own way in.
+// Where an SFTP client reaches a workload's files: for each server `ServerInfo` names, the line a
+// client takes, the host key's fingerprint a client shows on its first connection, and a
+// `known_hosts` line, so that connection is checked rather than trusted. Nothing where no server
+// serves SFTP, or the control plane could not be asked: the file manager above is the panel's own
+// way in.
 
 import { useCallback } from "react";
 import { useReach } from "../clients";

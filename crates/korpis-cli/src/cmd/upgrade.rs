@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis extension upgrade` (§7 of docs/13-surface-cli.md, §9 question 6 of
-//! docs/16-extensions.md): without `--approve` it shows what the new version needs and what the
-//! upgrade would grant and revoke, and the command that approves exactly that digest; with it, it
-//! upgrades the installation in place.
+//! `korpis extension upgrade`: without `--approve` it
+//! shows what the new version needs and what the upgrade would grant and revoke, and the command
+//! that approves exactly that digest; with it, it upgrades the installation in place.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

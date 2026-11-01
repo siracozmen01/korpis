@@ -45,8 +45,8 @@ impl Signalled {
     }
 }
 
-/// A terminal's size as a [`super::Kind::Resize`] frame carries it: columns, then rows, each two bytes,
-/// little-endian.
+/// A terminal's size as a [`super::Kind::Resize`] frame carries it: columns, then rows, each two
+/// bytes, little-endian.
 #[must_use]
 pub fn size(cols: u16, rows: u16) -> [u8; 4] {
     let mut out = [0; 4];
@@ -98,7 +98,7 @@ impl Resized {
 }
 
 /// A command the host asks the agent to run inside the guest, as the entry runs: its user, its
-/// environment, its working directory, in the workload's root (§4.2 of docs/04-runtimes.md).
+/// environment, its working directory, in the workload's root.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Exec {
     /// The command and its arguments.

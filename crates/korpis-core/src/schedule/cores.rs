@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Which of a node's cores a workload asking for dedicated cores is given (§5.2 of
-//! docs/05-scheduling.md): those its placement following its target in place holds first, then
-//! cores of the NUMA node with the most free, then the lowest ids; never a core another placement
-//! holds. A placement reserves what its cores take on its node, every logical CPU of each, rather
-//! than the CPU it declared.
+//! Which of a node's cores a workload asking for dedicated cores is given: those its placement
+//! following its target in place holds first, then cores of the NUMA node with the most free, then
+//! the lowest ids; never a core another placement holds. A placement reserves what its cores take
+//! on its node, every logical CPU of each, rather than the CPU it declared.
 
 use super::{Request, reservation};
 use crate::node::Node;

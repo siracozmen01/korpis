@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An installation's grants (§4 of docs/16-extensions.md): one per approved need, held by
-//! `extension:<id>`, each attenuated from a grant the installer holds that covers it. The check is
-//! the one every issued grant passes (§3.2 of docs/08-identity.md), so an extension can never
-//! hold what its installer could not have given.
+//! An installation's grants: one per approved need, held by `extension:<id>`, each attenuated from
+//! a grant the installer holds that covers it. The check is the one every issued grant passes, so
+//! an extension can never hold what its installer could not have given.
 
 use crate::App;
 use crate::authz::MAX_LABEL;

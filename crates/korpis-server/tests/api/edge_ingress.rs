@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ingress` through an edge group (§3.1 of docs/07-networking.md, trace 78 of
-//! docs/23-walkthroughs.md), the control plane's half. A workload whose `ingress` endpoint a group
-//! of two members serving the ingress serves is placed on a node that serves none, its names
+//! `ingress` through an edge group, the control plane's half. A workload whose `ingress` endpoint a
+//! group of two members serving the ingress serves is placed on a node that serves none, its names
 //! resolving to the group's ingress address, whose ports 80 and 443 a `stable` endpoint is never
 //! given; every member is told the group's ingress address and the route, the node behind each
-//! member's proxy, through the mesh; a member is given the certificate it serves the names
-//! with; and a certificate ordered for them is not looked at by the directory until every
-//! connected member has said its proxy holds the challenge.
+//! member's proxy, through the mesh; a member is given the certificate it serves the names with;
+//! and a certificate ordered for them is not looked at by the directory until every connected
+//! member has said its proxy holds the challenge.
 
 use crate::across::running_at;
 use crate::agent::{Stream, TestAgent};

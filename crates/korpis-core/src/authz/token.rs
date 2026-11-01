@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Capability tokens: the wire form of a grant (§6 of docs/08-identity.md).
+//! Capability tokens: the wire form of a grant.
 //!
-//! A token is a Biscuit whose authority block, signed by the control plane's token key, states
-//! the grant chain it was minted from, the actions, the scope, and the expiry. Relays and agents
-//! verify it offline: signature, expiry, scope, action, and the revocation list, which names
-//! grant identifiers so that revoking any link of the chain refuses the token (§6.3). A holder
-//! may attenuate it further by appending blocks, which can only add checks.
+//! A token is a Biscuit whose authority block, signed by the control plane's token key, states the
+//! grant chain it was minted from, the actions, the scope, and the expiry. Relays and agents verify
+//! it offline: signature, expiry, scope, action, and the revocation list, which names grant
+//! identifiers so that revoking any link of the chain refuses the token. A holder may attenuate it
+//! further by appending blocks, which can only add checks.
 //!
-//! The gateway mints a token only after [`super::evaluate`] has permitted the request it covers,
-//! so the online-only conditions (`max_uses`, `requires_mfa`, `requires_approval_by`) are settled
-//! before a token exists, and tokens never carry them (§6.2).
+//! The gateway mints a token only after [`super::evaluate`] has permitted the request it covers, so
+//! the online-only conditions (`max_uses`, `requires_mfa`, `requires_approval_by`) are settled
+//! before a token exists, and tokens never carry them.
 
 use super::grant::StreamRange;
 use super::scope::{Kind, ObjectRef, Resource};
@@ -48,7 +48,7 @@ impl SigningKey {
         Ok(Self { key_id, keypair })
     }
 
-    /// The 32 private bytes, for storage outside the database (§6 of docs/18-operations.md).
+    /// The 32 private bytes, for storage outside the database.
     #[must_use]
     pub fn private_bytes(&self) -> Vec<u8> {
         self.keypair.private().to_bytes().to_vec()
@@ -60,12 +60,12 @@ impl SigningKey {
         self.keypair.public().to_bytes()
     }
 
-    /// The key pair, for minting another kind of token (§6.1 of docs/08-identity.md).
+    /// The key pair, for minting another kind of token.
     pub(super) const fn keypair(&self) -> &KeyPair {
         &self.keypair
     }
 
-    /// The Ed25519 seed, for signing what is not a token (the revocation list, §6.3).
+    /// The Ed25519 seed, for signing what is not a token (the revocation list).
     pub(super) fn seed(&self) -> [u8; 32] {
         let private = self.keypair.private().to_bytes();
         <[u8; 32]>::try_from(private.as_slice()).unwrap_or_default()
@@ -126,7 +126,7 @@ pub struct Claims {
     pub stream_range: Option<StreamRange>,
 }
 
-/// What a verifier knows of the client's address (§3.1 of docs/02-architecture.md).
+/// What a verifier knows of the client's address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Client {
     /// The client connected from this address: the relay, the first hop that sees it.
@@ -260,10 +260,10 @@ pub fn verify<S: BuildHasher>(
     authorizer.authorize().map_err(|e| TokenError::Unauthorized(e.to_string()))?;
 
     check_source(&mut authorizer, client)?;
-    // A private action does not reach into an organization from a scope above it, offline
-    // exactly as online (§3.3 of docs/08-identity.md): the token's scope must be the resource
-    // itself, which the gateway judged when it minted the token, or sit at or below the
-    // resource's owning organization in the resource's own chain.
+    // A private action does not reach into an organization from a scope above it, offline exactly
+    // as online: the token's scope must be the resource itself, which the gateway judged when it
+    // minted the token, or sit at or below the resource's owning organization in the resource's own
+    // chain.
     if super::action::PRIVATE.contains(&action) {
         let scope: Vec<(String, String)> = authorizer.query("data($k, $i) <- scope($k, $i)")?;
         let owner_at = resource.chain.iter().position(|n| n.object.kind == Kind::Organization);
@@ -354,15 +354,15 @@ pub fn restrict_expiry(
     Ok(biscuit.append(block)?.to_base64()?)
 }
 
-/// The default and maximum lifetime of a session token (§6 of docs/08-identity.md): revocation
-/// latency equals the token lifetime, so it is short.
+/// The default and maximum lifetime of a session token: revocation latency equals the token
+/// lifetime, so it is short.
 pub const SESSION_TOKEN_LIFETIME: Duration = Duration::from_secs(120);
 
 /// The longest any token this control plane mints can live. The revocation list's horizon is
-/// derived from it (§6.3 of docs/08-identity.md), so a longer-lived kind of token raises it
-/// here or outlives its own revocation. It also bounds how long a derived suspension takes to
-/// reach an offline verifier, since such a suspension is refused at renewal and is not on the
-/// list: raising it is the change that brings derived suspension onto the list.
+/// derived from it, so a longer-lived kind of token raises it here or outlives its own revocation.
+/// It also bounds how long a derived suspension takes to reach an offline verifier, since such a
+/// suspension is refused at renewal and is not on the list: raising it is the change that brings
+/// derived suspension onto the list.
 pub const LONGEST_TOKEN_LIFETIME: Duration = SESSION_TOKEN_LIFETIME;
 
 /// The name a token key is published under: `token-<epoch>`.

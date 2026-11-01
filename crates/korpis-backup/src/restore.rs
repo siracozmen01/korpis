@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Restoring a backup (§5.4 of docs/06-storage.md): the whole volume into an empty directory, or
-//! one path of it beside what is there, never over it. Every name is created relative to a
-//! directory this restore created, exclusively, so a tree cannot direct a write anywhere else,
-//! and the trees are checked before any name in them is created.
+//! Restoring a backup: the whole volume into an empty directory, or one path of it beside what is
+//! there, never over it. Every name is created relative to a directory this restore created,
+//! exclusively, so a tree cannot direct a write anywhere else, and the trees are checked before any
+//! name in them is created.
 
 use crate::apply::{ContentSource, Source, data, inode, node};
 use crate::error::{Error, Result, sys};

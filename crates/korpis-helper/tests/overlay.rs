@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The mesh's interface, made by the helper (§9.1 of docs/07-networking.md), between two
-//! network namespaces of the test's own joined by a veth pair, each standing in for a node's
-//! host, so no interface is made in this machine's own namespace and no port opened on its
-//! addresses. Each node has a workload, a namespace of its own behind a link with an address of
-//! its node's pool, which the node forwards for, as Korpis's own links are. B's workload reaches
-//! A's through the mesh on the one port A admits it to and on no other, and only once admitted;
-//! peers and routes no longer asked for are removed. Needs root and the kernel's WireGuard, which
-//! the kernel loads when the first such link is asked for; skipped without them.
+//! The mesh's interface, made by the helper, between two network namespaces of the test's own
+//! joined by a veth pair, each standing in for a node's host, so no interface is made in this
+//! machine's own namespace and no port opened on its addresses. Each node has a workload, a
+//! namespace of its own behind a link with an address of its node's pool, which the node forwards
+//! for, as Korpis's own links are. B's workload reaches A's through the mesh on the one port A
+//! admits it to and on no other, and only once admitted; peers and routes no longer asked for are
+//! removed. Needs root and the kernel's WireGuard, which the kernel loads when the first such link
+//! is asked for; skipped without them.
 
 #![allow(
     clippy::unwrap_used,

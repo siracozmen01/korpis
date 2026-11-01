@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Page tokens (§8 of docs/10-api.md). A token resumes a list after a row, and that row may be one
-//! the caller may not see, when a filtered page stops reading before it is full; so a token is
-//! the row's identifier sealed under a key every control plane of the installation shares, with
-//! the kind it pages bound in, and says nothing to the caller but "continue here". A token that
-//! does not open, or opens for another kind, is refused as invalid.
+//! Page tokens. A token resumes a list after a row, and that row may be one the caller may not see,
+//! when a filtered page stops reading before it is full; so a token is the row's identifier sealed
+//! under a key every control plane of the installation shares, with the kind it pages bound in, and
+//! says nothing to the caller but "continue here". A token that does not open, or opens for another
+//! kind, is refused as invalid.
 
 use super::error;
 use super::{Api, ConnectError, Page, pb};
@@ -65,8 +65,8 @@ impl Cursors {
     }
 
     /// The token resuming the effect log after `after`: its ingest time and identifier, sealed as
-    /// any other list's row is, since a filtered page of the log may stop on an effect the
-    /// caller may not see (§4 of docs/15-observability.md).
+    /// any other list's row is, since a filtered page of the log may stop on an effect the caller
+    /// may not see.
     pub fn seal_effect(&self, after: EffectCursor) -> Result<String, ConnectError> {
         self.seal_timed(EFFECT_CONTEXT, (after.at, after.id))
     }

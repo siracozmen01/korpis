@@ -3,8 +3,8 @@
 //! The kernel's connection tracking, read and pruned over its netlink family: every IPv4 and IPv6
 //! connection with the tuples it began and is answered with, and a connection forgotten by its
 //! original tuple. An edge forgets the connections of an address it stops holding and of a port
-//! whose target moved, so a UDP flow, which a client keeps alive with every datagram, is not
-//! left translated to a node its workload left (§3.1 of docs/07-networking.md).
+//! whose target moved, so a UDP flow, which a client keeps alive with every datagram, is not left
+//! translated to a node its workload left.
 
 use netlink_sys::protocols::NETLINK_NETFILTER;
 use netlink_sys::{Socket, SocketAddr};

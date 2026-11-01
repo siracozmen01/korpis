@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading installations (§4 of docs/16-extensions.md), under `extension.read` where each is
-//! installed. What an installation declares is read back from its artifact's document, which the
-//! store keeps by digest, and what vouched for the artifact from its workload's intent, so neither
-//! is a second copy that could disagree with the first.
+//! Reading installations, under `extension.read` where each is installed. What an installation
+//! declares is read back from its artifact's document, which the store keeps by digest, and what
+//! vouched for the artifact from its workload's intent, so neither is a second copy that could
+//! disagree with the first.
 
 use crate::App;
 use crate::caller::Caller;

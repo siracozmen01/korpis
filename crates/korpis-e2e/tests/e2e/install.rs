@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recipe's install on a real node (§4 of docs/09-recipes.md, §31 of docs/23-walkthroughs.md).
-//! Every verb but `chown` runs beneath the workload's volume, as the workload's own root, in the
-//! helper's confined worker: a fetch served on loopback, an archive the recipe carries extracted,
-//! a file written, a mode set, a link made, a directory made, and a template rendered. An install
-//! that fails at its extract for want of room resumes there once the volume is declared larger,
-//! its earlier actions not run again, and a new version of the recipe installs again.
+//! A recipe's install on a real node. Every verb but `chown` runs beneath the workload's volume, as
+//! the workload's own root, in the helper's confined worker: a fetch served on loopback, an archive
+//! the recipe carries extracted, a file written, a mode set, a link made, a directory made, and a
+//! template rendered. An install that fails at its extract for want of room resumes there once the
+//! volume is declared larger, its earlier actions not run again, and a new version of the recipe
+//! installs again.
 
 use crate::node::Node;
 use crate::recipes::busybox;
@@ -222,8 +222,7 @@ async fn a_recipe_installs_resumes_where_it_failed_and_installs_again_when_upgra
     assert_eq!(fetches.load(Ordering::SeqCst), 1, "fetched once: the node keeps it by its hash");
     let world = std::fs::metadata(vol.join("pkg/world.dat")).unwrap();
     assert_eq!(world.len(), 32 * MIB, "extracted whole, its top directory stripped");
-    // Stored by the ids the workload sees, its own root here; the mapping is the mount's (§4.5 of
-    // docs/04-runtimes.md).
+    // Stored by the ids the workload sees, its own root here; the mapping is the mount's.
     assert_eq!((world.uid(), world.gid()), (0, 0), "the workload's own root, as stored");
     let run = std::fs::metadata(vol.join("pkg/run.sh")).unwrap();
     assert_eq!(run.permissions().mode() & 0o777, 0o755);

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the mesh lets into the node (§9.1 of docs/07-networking.md), in the host's table: the
-//! replies to what the node's workloads opened through it; each dependent on another node to the
-//! endpoint it depends on, counted under `dependency`; each node sending this one's replicas to
-//! the node's own mesh address on the transfer port, counted under `transfer`; and nothing else,
-//! to a workload or to the node itself, counted under `overlay` as it is dropped. WireGuard has already authenticated each
-//! packet's source as the node holding its pool, so the rules name addresses. What enters the
-//! mesh has its TCP segment size clamped to the route's MTU, which is the interface's.
+//! What the mesh lets into the node, in the host's table: the replies to what the node's workloads
+//! opened through it; each dependent on another node to the endpoint it depends on, counted under
+//! `dependency`; each node sending this one's replicas to the node's own mesh address on the
+//! transfer port, counted under `transfer`; and nothing else, to a workload or to the node itself,
+//! counted under `overlay` as it is dropped. WireGuard has already authenticated each packet's
+//! source as the node holding its pool, so the rules name addresses. What enters the mesh has its
+//! TCP segment size clamped to the route's MTU, which is the interface's.
 
 use super::INTERFACE;
 use crate::error::{HelperError, HelperResult};
@@ -92,8 +92,7 @@ pub(crate) fn transfers(r: &helper::KeepOverlayRequest) -> HelperResult<Option<T
 
 /// The rules of `t`'s port, and the commands that fill its sources' set: what reaches the port at
 /// the mesh address by any other interface dropped, since Linux takes a packet for an address of
-/// its own on whichever interface it arrives (Finding 207 of docs/23-walkthroughs.md); and the
-/// sources admitted from the mesh.
+/// its own on whichever interface it arrives; and the sources admitted from the mesh.
 fn transfer_rules(t: Option<&Transfers>) -> (Vec<Value>, Vec<Value>) {
     let mut setup = vec![
         json!({"add": {"set": {"family": "inet", "table": TABLE, "name": SENDERS,
@@ -149,9 +148,8 @@ fn replies() -> Value {
         "right": ["established", "related"]}})
 }
 
-/// The rules edges add (§3.1 of docs/07-networking.md): their own chains, sets, and rules; the
-/// rules of the mesh's input chain ahead of its drop; and those of its forward and input chains
-/// for what arrives by an edge's link.
+/// The rules edges add: their own chains, sets, and rules; the rules of the mesh's input chain
+/// ahead of its drop; and those of its forward and input chains for what arrives by an edge's link.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct EdgeRules {
     pub(crate) setup: Vec<Value>,

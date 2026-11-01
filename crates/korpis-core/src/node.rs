@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node (§3.4 of docs/01-model.md): a machine running the Korpis agent, owned by the
-//! organization it was enrolled into, with two independent states. What the operator decided
-//! (`admin`) and whether the control plane can hear it (`connectivity`) change for different
-//! reasons, so they are kept apart and the status a client shows is derived from both.
+//! The node: a machine running the Korpis agent, owned by the organization it was enrolled into,
+//! with two independent states. What the operator decided (`admin`) and whether the control plane
+//! can hear it (`connectivity`) change for different reasons, so they are kept apart and the status
+//! a client shows is derived from both.
 
 pub mod advertised;
 pub mod cores;
@@ -39,7 +39,7 @@ pub enum NodeAdmin {
     Active,
     /// Takes no new placements; what runs there keeps running.
     Cordoned,
-    /// Everything is being moved off, by an operation (§3 of docs/05-scheduling.md).
+    /// Everything is being moved off, by an operation.
     Draining,
     /// Retired: empty, and never used again.
     Decommissioned,
@@ -93,7 +93,7 @@ impl NodeStatus {
     }
 }
 
-/// Whether a node can be reached for inbound traffic (§9 of docs/07-networking.md).
+/// Whether a node can be reached for inbound traffic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reachability {
     /// A measured public address on the node itself.
@@ -122,11 +122,11 @@ pub struct Node {
     pub allocatable: Bounds,
     /// The runtime drivers it offers, with their declared capabilities.
     pub drivers: Vec<DriverInfo>,
-    /// The devices its agent found described (§6.1 of docs/05-scheduling.md).
+    /// The devices its agent found described.
     pub devices: Vec<device::Device>,
     /// The devices described that it does not offer, and why.
     pub unoffered_devices: Vec<device::UnofferedDevice>,
-    /// The physical cores it offers for dedication (§5.2 of docs/05-scheduling.md).
+    /// The physical cores it offers for dedication.
     pub cores: Vec<cores::Core>,
     /// The storage classes it offers.
     pub storage_classes: Vec<StorageClass>,
@@ -177,8 +177,8 @@ impl Node {
     }
 
     /// Moves the operator's decision to `to`: `active ⇄ cordoned` only. Draining and
-    /// decommissioning are operations (§3 of docs/05-scheduling.md), not toggles, and a node in
-    /// either leaves it only through its operation. Returns whether anything changed.
+    /// decommissioning are operations, not toggles, and a node in either leaves it only through its
+    /// operation. Returns whether anything changed.
     pub fn set_admin(&mut self, to: NodeAdmin) -> Result<bool, AdminError> {
         use NodeAdmin as A;
         match (self.admin, to) {
@@ -191,10 +191,10 @@ impl Node {
         }
     }
 
-    /// Retires the node for good. A node is removed from `cordoned`, once it holds nothing,
-    /// which the caller checks; one removed as `compromised` is removed from any state, since
-    /// nothing it holds can be trusted to leave by an operation it takes part in (§9 of
-    /// docs/17-security.md). Returns whether anything changed.
+    /// Retires the node for good. A node is removed from `cordoned`, once it holds nothing, which
+    /// the caller checks; one removed as `compromised` is removed from any state, since nothing it
+    /// holds can be trusted to leave by an operation it takes part in. Returns whether anything
+    /// changed.
     pub fn decommission(&mut self, compromised: bool) -> Result<bool, AdminError> {
         match self.admin {
             NodeAdmin::Decommissioned => Ok(false),

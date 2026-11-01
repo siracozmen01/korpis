@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Errors on the wire (§8 of docs/10-api.md): a Connect code for transports, and a structured
-//! `korpis.v1.Error` detail that clients branch on. Never a message string to parse.
+//! Errors on the wire: a Connect code for transports, and a structured `korpis.v1.Error` detail
+//! that clients branch on. Never a message string to parse.
 
 use connectrpc::{ConnectError, ErrorCode, ErrorDetail};
 use korpis_app::AppError;
@@ -85,8 +85,8 @@ pub fn altered(reason: &str, message: &str) -> ConnectError {
     })
 }
 
-/// A data-path session refused, by the relay or by the node (§3.1 of
-/// docs/02-architecture.md). Only an unavailable node is worth trying again.
+/// A data-path session refused, by the relay or by the node. Only an unavailable node is worth
+/// trying again.
 #[must_use]
 pub fn session_refused(code: pb::ErrorCode, reason: &str, message: &str) -> ConnectError {
     let retryable = code == pb::ErrorCode::ERROR_CODE_UNAVAILABLE;
@@ -181,9 +181,9 @@ pub fn from_app(e: AppError) -> ConnectError {
             message: &message,
             retryable: false,
         }),
-        AppError::NotYet { what, phase } => ConnectError::unimplemented(format!(
-            "{what} arrive in Phase {phase} (§4 of docs/20-roadmap.md)"
-        )),
+        AppError::NotYet { what, phase } => {
+            ConnectError::unimplemented(format!("{what} arrive in Phase {phase}"))
+        }
         AppError::Unavailable { what, detail } => {
             tracing::warn!(%detail, "{what} is unavailable");
             build(&Wire {

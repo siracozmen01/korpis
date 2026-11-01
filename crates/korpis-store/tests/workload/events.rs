@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The event log (§5 of docs/15-observability.md, migration 0023): every effect is an event, a
-//! key's events are numbered in commit order, and positions are given only below the snapshot
-//! horizon, so delivering by position never passes over an event that commits late.
+//! The event log (migration 0023): every effect is an event, a key's events are numbered in commit
+//! order, and positions are given only below the snapshot horizon, so delivering by position never
+//! passes over an event that commits late.
 
 use crate::support::fixture;
 use sqlx::{Postgres, Transaction};
@@ -27,7 +27,7 @@ async fn effect(tx: &mut Transaction<'_, Postgres>, grant: Uuid, action: &str) {
 async fn sequenced(store: &korpis_store::PgStore, n: u64) {
     let mut total = 0;
     // Up to a minute: the horizon is the shared test server's, which other tests' teardowns hold
-    // back for seconds at a time (§5 of docs/15-observability.md).
+    // back for seconds at a time.
     for _ in 0..1200 {
         total += store.sequence_events().await.unwrap();
         if total >= n {

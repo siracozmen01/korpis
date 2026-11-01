@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Each record of a window, on request (§2 of docs/15-observability.md): the interval it covers,
-// whether it was measured, is a gap, or arrived after its day closed, why where it says, and its
-// quantities, "-" where nothing measured one, never a zero.
+// Each record of a window, on request: the interval it covers, whether it was measured, is a gap,
+// or arrived after its day closed, why where it says, and its quantities, "-" where nothing
+// measured one, never a zero.
 
 import type { ReactNode } from "react";
 import { type UsageRecord, UsageKind } from "../gen/korpis/v1/metering_pb";

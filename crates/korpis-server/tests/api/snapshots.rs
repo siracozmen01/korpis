@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Snapshots (§4 of docs/06-storage.md): taken by a plan that applies at once, in a class that
-//! declares it can, under `volume.snapshot.create`; rolled back to by a plan that stops and starts
-//! the running workload around the rollback and waits for a person; deleted the same way; and
-//! kept as the node reports them.
+//! Snapshots: taken by a plan that applies at once, in a class that declares it can, under
+//! `volume.snapshot.create`; rolled back to by a plan that stops and starts the running workload
+//! around the rollback and waits for a person; deleted the same way; and kept as the node reports
+//! them.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{ack, assignment, complete, send, until};

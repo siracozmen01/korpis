@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The root a worker beside a workload's volumes is confined to, shared by the install worker (§4
-//! of docs/09-recipes.md) and the filesystem worker (§3.2 of docs/06-storage.md).
+//! The root a worker beside a workload's volumes is confined to, shared by the install worker and
+//! the filesystem worker.
 //!
 //! What the first process, still root, builds for the worker once the worker has made its own
 //! user, mount, network, and IPC namespaces: the worker's ids mapped to its workload's, and its

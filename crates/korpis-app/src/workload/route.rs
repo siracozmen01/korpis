@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The names a workload's `ingress` endpoints route (§3.2 of docs/07-networking.md). Each must be
-//! held by the workload's organization, which is the holder of the most specific verified domain
-//! covering it, and routed by no other workload in the installation. Both are checked at
-//! declaration, from the records as they are, and again when a plan moves the target, under the
-//! domains lock, where the names are claimed: the declaration's check answers early, and the
-//! claim is what holds. A route records the certificate its endpoint serves with, which must
-//! serve every name the endpoint routes, checked the same two times.
+//! The names a workload's `ingress` endpoints route. Each must be held by the workload's
+//! organization, which is the holder of the most specific verified domain covering it, and routed
+//! by no other workload in the installation. Both are checked at declaration, from the records as
+//! they are, and again when a plan moves the target, under the domains lock, where the names are
+//! claimed: the declaration's check answers early, and the claim is what holds. A route records the
+//! certificate its endpoint serves with, which must serve every name the endpoint routes, checked
+//! the same two times.
 
 use crate::App;
 use crate::certificate::{named, servable};
@@ -81,11 +81,7 @@ fn not_held(name: &DomainName) -> AppError {
 fn portal(name: &DomainName) -> AppError {
     AppError::conflict(
         "endpoint.name_portal",
-        format!(
-            "{} is a portal, which the control plane answers under itself (§3.6 of \
-             docs/07-networking.md)",
-            name.as_str()
-        ),
+        format!("{} is a portal, which the control plane answers under itself", name.as_str()),
     )
 }
 

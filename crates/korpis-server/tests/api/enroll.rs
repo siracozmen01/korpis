@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Enrolling a node (§3 of docs/18-operations.md, §7 of docs/02-architecture.md): a one-time
-//! token bound to an organization, a name, and labels, redeemed online by the agent with the
-//! public half of a key it generated itself.
+//! Enrolling a node: a one-time token bound to an organization, a name, and labels, redeemed online
+//! by the agent with the public half of a key it generated itself.
 
 use crate::support::{Harness, mutation, org_scope, reason};
 use connectrpc::client::HttpClient;

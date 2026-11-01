@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The landing screen (question 2 of §10 of docs/11-surface-web.md): the layout an organization
-// composed for those it serves, its items in order, each read with the viewer's own credential,
-// so a host's landing shown to a customer shows the customer's view; with no layout, the
-// panel's own, what the viewer's grants open. A notice is shown as text and a link with the host
-// it goes to, since the panel does not vouch for either. A layout that cannot be read leaves the
-// panel's own landing, which is what its absence means.
+// The landing screen: the layout an organization composed for those it serves, its items in order,
+// each read with the viewer's own credential, so a host's landing shown to a customer shows the
+// customer's view; with no layout, the panel's own, what the viewer's grants open. A notice is
+// shown as text and a link with the host it goes to, since the panel does not vouch for either. A
+// layout that cannot be read leaves the panel's own landing, which is what its absence means.
 
 import { useCallback } from "react";
 import { useReach } from "../clients";

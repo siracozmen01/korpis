@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The egress budget, reckoned (§5.1 of docs/05-scheduling.md, "The egress budget"): every
-//! minute each entry with a budget sums what the workloads it counts sent beyond their links this
-//! month, as an invoice sums their records, and an entry whose sum reaches its budget is spent
-//! until the month ends. Each workload a spent entry counts, where it is placed, is held to the
-//! strictest of its spent entries' exhaustions; written apart from the entry, that hold announces
-//! the workload, and its node is told in its next assignment (§4.3 of docs/02-architecture.md).
+//! The egress budget, reckoned ("The egress budget"): every minute each entry with a budget sums
+//! what the workloads it counts sent beyond their links this month, as an invoice sums their
+//! records, and an entry whose sum reaches its budget is spent until the month ends. Each workload
+//! a spent entry counts, where it is placed, is held to the strictest of its spent entries'
+//! exhaustions; written apart from the entry, that hold announces the workload, and its node is
+//! told in its next assignment.
 //!
 //! A workload an entry has counted once in a month it counts for the rest of that month, whatever
 //! its labels say later: a workload's labels are its holder's to change, and a holder who could
 //! relabel a held workload out of a spent entry's selector would lift its hold, and take what it
-//! sent out of the entry's sum, so lift every hold the entry made (Finding 126 of
-//! docs/23-walkthroughs.md). Which nodes an entry names is the operator's, and is read again for
-//! each record.
+//! sent out of the entry's sum, so lift every hold the entry made. Which nodes an entry names is
+//! the operator's, and is read again for each record.
 
 use crate::App;
 use crate::error::AppError;

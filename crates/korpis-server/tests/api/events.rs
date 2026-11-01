@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Event subscriptions (§5 of docs/15-observability.md): a subscription is its subject's own
-//! stored position, starting at the end of the log; an extension's are created with its
-//! installation and end with it (§4 of docs/16-extensions.md).
+//! Event subscriptions: a subscription is its subject's own stored position, starting at the end of
+//! the log; an extension's are created with its installation and end with it.
 
 use crate::extensions::{install, needs, push_dns};
 use crate::recipes::project;
@@ -103,10 +102,10 @@ async fn open(h: &Harness, config: connectrpc::client::ClientConfig, s: &str) ->
 }
 
 /// How long a test waits for an event it expects. Delivery waits for every transaction on the
-/// PostgreSQL server that could still commit an earlier event (§5 of docs/15-observability.md),
-/// and the test server is shared by every test running at once, whose teardowns drop databases
-/// in transactions that last seconds while they wait for checkpoints; so an expected event may
-/// come many seconds late, and is never lost.
+/// PostgreSQL server that could still commit an earlier event, and the test server is shared by
+/// every test running at once, whose teardowns drop databases in transactions that last seconds
+/// while they wait for checkpoints; so an expected event may come many seconds late, and is never
+/// lost.
 const DELIVERY: u64 = 60;
 
 /// The next event delivered, within `seconds`; `None` if none comes.

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `RelayService` (§3.1 of docs/02-architecture.md): a client opens a session with a workload.
-//! The relay verifies the token offline, as a relay without a database does: against the token
-//! keys, the revocation list it holds, and the client's address, which this is the first hop to
-//! see. Then it asks the node to carry the session and joins the two.
+//! `RelayService`: a client opens a session with a workload. The relay verifies the token offline,
+//! as a relay without a database does: against the token keys, the revocation list it holds, and
+//! the client's address, which this is the first hop to see. Then it asks the node to carry the
+//! session and joins the two.
 //!
 //! The same services serve in the control plane's process and in a relay's own, over a
 //! [`Verifier`] that is the control plane's state in one and the feed's in the other.
@@ -169,8 +169,8 @@ impl<V: Verifier> RelayRole<V> {
         self.carry_from(ip, open, send_key).await
     }
 
-    /// [`Self::carry`], for a client at `ip`: what the SFTP server of this relay opens for the
-    /// SSH client it serves (§3.1 of docs/02-architecture.md).
+    /// [`Self::carry`], for a client at `ip`: what the SFTP server of this relay opens for the SSH
+    /// client it serves.
     pub(crate) async fn carry_from(
         &self,
         ip: std::net::IpAddr,

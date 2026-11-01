@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What each node is told of edges (§3.1 of docs/07-networking.md): as a member of a group, the
-//! group's whole forwarding table, so a member taking an address over has its forwarding in
-//! place, with the group's ingress addresses and every route its proxy serves there; and as a
-//! node an edge forwards to, each edge and what it may reach there, through its GRE link or, for
-//! its proxy, through the mesh. Pure: the caller gives the groups, every forwarded address and
-//! port and every `ingress` endpoint a group serves, with where its workload runs, and each mesh
-//! member's own address.
+//! What each node is told of edges: as a member of a group, the group's whole forwarding table, so
+//! a member taking an address over has its forwarding in place, with the group's ingress addresses
+//! and every route its proxy serves there; and as a node an edge forwards to, each edge and what it
+//! may reach there, through its GRE link or, for its proxy, through the mesh. Pure: the caller
+//! gives the groups, every forwarded address and port and every `ingress` endpoint a group serves,
+//! with where its workload runs, and each mesh member's own address.
 
 use super::{EdgeGroup, IngressAddress};
 use crate::workload::endpoint::Endpoint;
@@ -52,8 +51,7 @@ pub struct Entry {
     pub target: Option<Target>,
 }
 
-/// An `ingress` endpoint a group serves (§3.1 of docs/07-networking.md), routed by every
-/// member's proxy.
+/// An `ingress` endpoint a group serves, routed by every member's proxy.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Proxied {
     /// The group.

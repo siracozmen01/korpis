@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An image as the node's content store holds it (§6 of docs/04-runtimes.md): the manifest for
-//! this machine, chosen from an index where the image is one, its configuration, and its layers,
-//! each read from `blobs/sha256` and checked against its digest. The store is the agent's to
-//! fill; this only reads it.
+//! An image as the node's content store holds it: the manifest for this machine, chosen from an
+//! index where the image is one, its configuration, and its layers, each read from `blobs/sha256`
+//! and checked against its digest. The store is the agent's to fill; this only reads it.
 
 use korpis_core::content::image::ImageConfig;
 use korpis_core::content::{self as oci, Descriptor, Document};

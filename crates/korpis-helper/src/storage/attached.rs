@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's volume on this node (§2.1 of docs/06-storage.md): a directory under the
-//! class's root, on which the volume's device is mounted, `nosuid` and `nodev`, once it is
-//! attached as its provider answered. A device holding nothing is formatted ext4 first, its root
-//! owned by id 0 as the workload sees it, as any volume's is; one holding ext4 is mounted as it
-//! is, which is what lets the volume follow its workload to another node; one holding anything
-//! else is refused, never mounted. Only a host's kernel writes such a filesystem, since a device
-//! is given to a guest only when it was made for one, and is then never mounted
-//! ([`super::guest`]), so mounting it parses nothing a tenant wrote raw. Releasing it unmounts it
-//! and lets go of the device, whose bytes the storage keeps.
+//! A block class's volume on this node: a directory under the class's root, on which the volume's
+//! device is mounted, `nosuid` and `nodev`, once it is attached as its provider answered. A device
+//! holding nothing is formatted ext4 first, its root owned by id 0 as the workload sees it, as any
+//! volume's is; one holding ext4 is mounted as it is, which is what lets the volume follow its
+//! workload to another node; one holding anything else is refused, never mounted. Only a host's
+//! kernel writes such a filesystem, since a device is given to a guest only when it was made for
+//! one, and is then never mounted ([`super::guest`]), so mounting it parses nothing a tenant wrote
+//! raw. Releasing it unmounts it and lets go of the device, whose bytes the storage keeps.
 
 use super::Class;
 use crate::error::{HelperError, HelperResult, identifier};

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's query probe, the control plane's half (§5 of docs/04-runtimes.md, §5 of
-//! docs/16-extensions.md). The node runs the exchange from inside the workload's network
-//! namespace and asks, after each round, what comes next; the control plane checks that the node
-//! is where the workload is placed and that the probe is a query probe of the intent the node
-//! names, calls the health provider that intent pinned with the rounds so far, and answers with
-//! the provider's next round or verdict. Anything that keeps the probe from being judged, the
-//! provider's failure or its breaker among them, is answered as unjudged: a workload's health is
-//! then unknown, never unhealthy, so a failed prober cannot get what it probes restarted.
+//! A node's query probe, the control plane's half. The node runs the exchange from inside the
+//! workload's network namespace and asks, after each round, what comes next; the control plane
+//! checks that the node is where the workload is placed and that the probe is a query probe of the
+//! intent the node names, calls the health provider that intent pinned with the rounds so far, and
+//! answers with the provider's next round or verdict. Anything that keeps the probe from being
+//! judged, the provider's failure or its breaker among them, is answered as unjudged: a workload's
+//! health is then unknown, never unhealthy, so a failed prober cannot get what it probes restarted.
 
 use crate::App;
 use crate::error::AppError;

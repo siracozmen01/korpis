@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A restore's steps (§5.4 of docs/06-storage.md). Restoring outlasts many passes of the loop,
-//! as a backup does: each pass asks the helper where the step's job is, starts it with the key
-//! and read access the control plane grants this node for this step when the helper knows none,
-//! and waits while it runs. A restore that ended whole and verified completes the step; one that
-//! did not fails it. Replacing a volume is a later step of the same plan, once the workload is
-//! stopped: the helper makes the volume what the job staged, which it does once however often it
-//! is asked.
+//! A restore's steps. Restoring outlasts many passes of the loop, as a backup does: each pass asks
+//! the helper where the step's job is, starts it with the key and read access the control plane
+//! grants this node for this step when the helper knows none, and waits while it runs. A restore
+//! that ended whole and verified completes the step; one that did not fails it. Replacing a volume
+//! is a later step of the same plan, once the workload is stopped: the helper makes the volume what
+//! the job staged, which it does once however often it is asked.
 
 use super::act::{Failure, volume_id};
 use super::jobs::job_of;
@@ -109,7 +108,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             None => volume_id(a, detail(s, "volume").unwrap_or_default()),
         };
         // A block device's path is copied from its image in a guest by a later step: this one
-        // stages the image beside the volume, for reading (§5.4 of docs/06-storage.md).
+        // stages the image beside the volume, for reading.
         let reading = detail(s, "image_filesystem").is_some_and(|f| !f.is_empty());
         let unless_reading = |key| if reading { "" } else { detail(s, key).unwrap_or_default() };
         let work = helper::RestoreVolume {

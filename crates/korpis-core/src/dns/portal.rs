@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Portals (§3.6 of docs/07-networking.md, §3.6 of docs/01-model.md): a name an organization
-//! holds, under which the control plane serves its API and panel for that organization. A
-//! portal's name is held as an endpoint's names are, by the organization whose verified domain is
-//! the most specific one covering it; it is no endpoint's route and no other portal's; and it is
-//! never one of the installation's own hosts, which the control plane serves already.
+//! Portals: a name an organization holds, under which the control plane serves its API and panel
+//! for that organization. A portal's name is held as an endpoint's names are, by the organization
+//! whose verified domain is the most specific one covering it; it is no endpoint's route and no
+//! other portal's; and it is never one of the installation's own hosts, which the control plane
+//! serves already.
 
 use super::domain::DomainName;
 use std::time::SystemTime;

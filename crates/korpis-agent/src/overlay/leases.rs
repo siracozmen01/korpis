@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The member's leases on the edge addresses it is told to hold (§3.1 of docs/07-networking.md),
-//! kept as a workload's are (§4.5 of docs/02-architecture.md) in a book of their own: an address
-//! is asked for while the control plane's table names it for this member, renewed a third of the
-//! way through its term, and held only while its lease is valid on this machine's own clock,
-//! counted from the request. An address the helper held and holds no longer is released once
-//! the helper has taken it off and forgotten its connections, so the next member is issued it
-//! without waiting out the term.
+//! The member's leases on the edge addresses it is told to hold, kept as a workload's are in a book
+//! of their own: an address is asked for while the control plane's table names it for this member,
+//! renewed a third of the way through its term, and held only while its lease is valid on this
+//! machine's own clock, counted from the request. An address the helper held and holds no longer is
+//! released once the helper has taken it off and forgotten its connections, so the next member is
+//! issued it without waiting out the term.
 
 use crate::lease::{Book, Grant, OnExpiry, Refusal, Request, Standing, nonce};
 use crate::session::Event;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The mesh between nodes (§9.1 of docs/07-networking.md), as the control plane judges it from
-//! what every node reports: its members, the nodes outside it, and whether a node reaches every
-//! other member, which is what `Node.overlay` says.
+//! The mesh between nodes, as the control plane judges it from what every node reports: its
+//! members, the nodes outside it, and whether a node reaches every other member, which is what
+//! `Node.overlay` says.
 
 use crate::App;
 use crate::error::AppError;

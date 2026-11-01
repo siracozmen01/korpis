@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A workload's usage (§8 of docs/11-surface-web.md, §2 of docs/15-observability.md): what it
-// uses now, as its node read it moments ago, beside what was accounted over the last day, the
-// figures it is billed on. Each says where it came from, over what window, and how it was
-// measured, and the two are shown side by side, never one reconciled to the other: a reading is
-// ten seconds of the node's meter, a record an interval of its counters differenced. A span the
-// control plane did not hear is shown as unheard, and a sum over the day says it leaves it out.
+// A workload's usage: what it uses now, as its node read it moments ago, beside what was accounted
+// over the last day, the figures it is billed on. Each says where it came from, over what window,
+// and how it was measured, and the two are shown side by side, never one reconciled to the other: a
+// reading is ten seconds of the node's meter, a record an interval of its counters differenced. A
+// span the control plane did not hear is shown as unheard, and a sum over the day says it leaves it
+// out.
 
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { type ReactNode, useEffect, useState } from "react";

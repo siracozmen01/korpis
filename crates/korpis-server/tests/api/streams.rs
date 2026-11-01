@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A stream's segment index (§4 of docs/14-streams.md): kept from what the node journals, so the
-//! control plane knows where every run of records is and how much is held only on the node, and
-//! believed only from a node that once held the workload's lease: a segment is sealed as the
-//! container goes and pruned long after, when the node no longer runs it.
+//! A stream's segment index: kept from what the node journals, so the control plane knows where
+//! every run of records is and how much is held only on the node, and believed only from a node
+//! that once held the workload's lease: a segment is sealed as the container goes and pruned long
+//! after, when the node no longer runs it.
 
 use crate::agent::{Stream, TestAgent, next, welcome};
 use crate::journal::{ack, assignment, send, until};

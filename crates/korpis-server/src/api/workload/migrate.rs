@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `WorkloadService`'s migrations (§8.1 of docs/05-scheduling.md): proposing one, reading a
-//! workload's, and ending one.
+//! `WorkloadService`'s migrations: proposing one, reading a workload's, and ending one.
 
 use super::super::wire::Refuse;
 use super::super::wire::migration::migration_to_pb;

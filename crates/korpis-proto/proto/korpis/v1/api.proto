@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The client API (docs/10-api.md). Web, CLI, chat, and integrations are peer clients of exactly
-// these services (P2). Every mutation carries an idempotency key and, where it changes a
-// versioned object, the expected version; every write returns a consistency token (§6).
+// The client API. Web, CLI, chat, and integrations are peer clients of exactly these services.
+// Every mutation carries an idempotency key and, where it changes a versioned object, the expected
+// version; every write returns a consistency token.
 
 syntax = "proto3";
 
@@ -48,7 +48,7 @@ service ServerInfoService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // The theme the sign-in page wears before anyone has signed in: the installation's root
-  // organization's (§7 of docs/11-surface-web.md). Answered to anyone, as the page it styles is.
+  // organization's. Answered to anyone, as the page it styles is.
   rpc GetSignInTheme(GetSignInThemeRequest) returns (GetSignInThemeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -65,30 +65,29 @@ message GetServerInfoRequest {}
 
 message GetServerInfoResponse {
   string version = 1;
-  // The exact source revision, and where it is published (§2 of docs/19-governance.md).
+  // The exact source revision, and where it is published.
   string source_revision = 2;
   string source_url = 3;
-  // The capabilities of the extension contract this control plane offers (§6 of
-  // docs/16-extensions.md): an extension requiring one not listed is refused at install.
+  // The capabilities of the extension contract this control plane offers: an extension requiring
+  // one not listed is refused at install.
   repeated string capabilities = 4;
-  // Agent protocol versions this control plane accepts (§4 of docs/10-api.md).
+  // Agent protocol versions this control plane accepts.
   repeated string agent_protocols = 5;
   // Extension contract versions this control plane serves, oldest first.
   repeated string extension_contracts = 6;
-  // Where a client opens a session with a workload (RelayService, §3.1 of
-  // docs/02-architecture.md): the relays running as their own process, each an https URL, as
-  // this replica last named them to nodes; any of them reaches every connected node.
+  // Where a client opens a session with a workload (RelayService): the relays running as their own
+  // process, each an https URL, as this replica last named them to nodes; any of them reaches every
+  // connected node.
   repeated string relays = 7;
   // Whether this control plane serves RelayService itself, at the address the client reached.
   bool control_plane_relay = 8;
-  // At a portal (§3.6 of docs/07-networking.md): the portal the connection's certificate named,
-  // as `ptl_…`, and its organization, whose theme the panel there wears and beneath which every
-  // session begun there acts (§9.8 of docs/08-identity.md). Both empty at the installation's own
-  // address.
+  // At a portal: the portal the connection's certificate named, as `ptl_…`, and its organization,
+  // whose theme the panel there wears and beneath which every session begun there acts. Both empty
+  // at the installation's own address.
   string portal = 9;
   string portal_organization = 10;
-  // Where SFTP is served (§3.1 of docs/02-architecture.md): by this control plane's own relay
-  // role, where it serves it, and by each relay admitted that reports serving it.
+  // Where SFTP is served: by this control plane's own relay role, where it serves it, and by each
+  // relay admitted that reports serving it.
   repeated SftpServer sftp = 11;
 }
 
@@ -117,61 +116,57 @@ service OrganizationService {
   }
   // org.quota.write.
   rpc SetQuota(SetQuotaRequest) returns (SetQuotaResponse);
-  // org.suspend over the organization's parent: reversible, and only from above (§2.1 of
-  // docs/08-identity.md).
+  // org.suspend over the organization's parent: reversible, and only from above.
   rpc SuspendOrganization(SuspendOrganizationRequest) returns (SuspendOrganizationResponse);
   // org.resume over the organization's parent.
   rpc ResumeOrganization(ResumeOrganizationRequest) returns (ResumeOrganizationResponse);
-  // org.read. The recipe trust policy that governs the organization (§7 of
-  // docs/09-recipes.md): its own, else its nearest ancestor's, else the default.
+  // org.read. The recipe trust policy that governs the organization: its own, else its nearest
+  // ancestor's, else the default.
   rpc GetTrustPolicy(GetTrustPolicyRequest) returns (GetTrustPolicyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // org.write. Sets or removes the organization's own policy. mutation.expected_version is
   // the own_version GetTrustPolicy returned, absent when the organization has none.
   rpc SetTrustPolicy(SetTrustPolicyRequest) returns (SetTrustPolicyResponse);
-  // org.read. The delegation ceiling at the organization (§5.1 of docs/08-identity.md): the
-  // longest a grant beneath a set subject lasts there, as it sets it and as it is in force.
+  // org.read. The delegation ceiling at the organization: the longest a grant beneath a set subject
+  // lasts there, as it sets it and as it is in force.
   rpc GetDelegationCeiling(GetDelegationCeilingRequest) returns (GetDelegationCeilingResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // org.write. Sets or removes the organization's own ceiling: at least an hour, and below the
   // root at most what is in force above it, so only the root raises it (at most ninety days).
   rpc SetDelegationCeiling(SetDelegationCeilingRequest) returns (SetDelegationCeilingResponse);
-  // The theme that applies to an organization, a project, or a workload (§7 of
-  // docs/11-surface-web.md): its organization's own, else its nearest ancestor's. Under the read
-  // action of the object asked about.
+  // The theme that applies to an organization, a project, or a workload: its organization's own,
+  // else its nearest ancestor's. Under the read action of the object asked about.
   rpc GetTheme(GetThemeRequest) returns (GetThemeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // org.write. Sets or removes the organization's own theme. mutation.expected_version is the
   // own_version GetTheme returned for the organization, absent when it has none.
   rpc SetTheme(SetThemeRequest) returns (SetThemeResponse);
-  // The layout that applies to an organization, a project, or a workload (question 2 of §10 of
-  // docs/11-surface-web.md): its organization's own, else its nearest ancestor's. Under the read
-  // action of the object asked about.
+  // The layout that applies to an organization, a project, or a workload: its organization's own,
+  // else its nearest ancestor's. Under the read action of the object asked about.
   rpc GetLayout(GetLayoutRequest) returns (GetLayoutResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // The layout the caller's landing shows: that of the organization they land at, whoever
-  // provides their access (Finding 134 of docs/23-walkthroughs.md). At a portal it is the
-  // portal's organization; elsewhere the nearest organization above everything the caller's
-  // grants reach, beneath the one a confined session is confined to; with no grant, the
-  // installation's root. Answered to any caller signed in, though they may read none of those
-  // organizations; a share link's holder is refused as anyone not signed in is.
+  // The layout the caller's landing shows: that of the organization they land at, whoever provides
+  // their access. At a portal it is the portal's organization; elsewhere the nearest organization
+  // above everything the caller's grants reach, beneath the one a confined session is confined to;
+  // with no grant, the installation's root. Answered to any caller signed in, though they may read
+  // none of those organizations; a share link's holder is refused as anyone not signed in is.
   rpc GetLandingLayout(GetLandingLayoutRequest) returns (GetLandingLayoutResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // The theme a signed-in caller wears: that of the organization they land at, as
-  // GetLandingLayout chooses it (§7 of docs/11-surface-web.md).
+  // The theme a signed-in caller wears: that of the organization they land at, as GetLandingLayout
+  // chooses it.
   rpc GetLandingTheme(GetLandingThemeRequest) returns (GetLandingThemeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // org.write. Sets or removes the organization's own layout. mutation.expected_version is the
   // own_version GetLayout returned for the organization, absent when it has none.
   rpc SetLayout(SetLayoutRequest) returns (SetLayoutResponse);
-  // org.read. The placement policy at the organization (§2.2 of docs/05-scheduling.md): the one
-  // it sets for its subtree, and the one in force there.
+  // org.read. The placement policy at the organization: the one it sets for its subtree, and the
+  // one in force there.
   rpc GetPlacementPolicy(GetPlacementPolicyRequest) returns (GetPlacementPolicyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -215,7 +210,7 @@ message ListOrganizationsResponse {
 }
 
 // Replaces an organization's quota set, or one of its projects', as its parent's holder of
-// org.quota.write decides it (§5.1 of docs/05-scheduling.md).
+// org.quota.write decides it.
 message SetQuotaRequest {
   Mutation mutation = 1;
   // The organization whose set it is, or whose project's.
@@ -390,11 +385,10 @@ message ListProjectsResponse {
 }
 
 service WorkloadService {
-  // workload.create (new workload) or workload.write (new intent). Validates the body against
-  // the recipe's config schema and field permissions, holds quota in the same transaction, and
-  // computes the plan. `dry_run` computes and returns the plan without persisting anything;
-  // `propose` persists the intent and its plan and approves nothing (§4 of
-  // docs/13-surface-cli.md).
+  // workload.create (new workload) or workload.write (new intent). Validates the body against the
+  // recipe's config schema and field permissions, holds quota in the same transaction, and computes
+  // the plan. `dry_run` computes and returns the plan without persisting anything; `propose`
+  // persists the intent and its plan and approves nothing.
   rpc DeclareIntent(DeclareIntentRequest) returns (DeclareIntentResponse);
   // workload.start.
   rpc Start(StartRequest) returns (PowerResponse);
@@ -405,20 +399,19 @@ service WorkloadService {
   // workload.delete: a plan of kind retire. Volumes are not deleted by it.
   rpc DeleteWorkload(DeleteWorkloadRequest) returns (DeleteWorkloadResponse);
   // Binds a workload whose approved target has no node to a node an operator chooses, with the
-  // operator's reason (§2.3 of docs/05-scheduling.md). The choice overrides the node's cordon
-  // and taints, the operator's own decisions about it, and nothing else. node.place on the
-  // node, and workload.write on the workload. A placed workload moves only by migration.
+  // operator's reason. The choice overrides the node's cordon and taints, the operator's own
+  // decisions about it, and nothing else. node.place on the node, and workload.write on the
+  // workload. A placed workload moves only by migration.
   rpc PlaceWorkload(PlaceWorkloadRequest) returns (PlaceWorkloadResponse);
-  // Releases a placement a restore held, whose node presented its assignments without it, with
-  // the operator's reason (§8 of docs/03-state.md): it is sent to its node again. node.place on
-  // the node, and workload.write on the workload. Refused for a placement not held; retiring the
-  // workload is the other answer.
+  // Releases a placement a restore held, whose node presented its assignments without it, with the
+  // operator's reason: it is sent to its node again. node.place on the node, and workload.write on
+  // the workload. Refused for a placement not held; retiring the workload is the other answer.
   rpc ConfirmPlacement(ConfirmPlacementRequest) returns (ConfirmPlacementResponse);
   // Proposes moving a placed workload to another node: a plan of kind migrate, which a person
-  // approves (§8.1 of docs/05-scheduling.md). workload.migrate on the workload, and, naming the
-  // node, node.place on it; with none the scheduler chooses among the others. Refused for a
-  // workload holding an address of a node pool, one already migrating, one with no placement,
-  // a destination failing a placement check, and a volume that cannot cross between the two.
+  // approves. workload.migrate on the workload, and, naming the node, node.place on it; with none
+  // the scheduler chooses among the others. Refused for a workload holding an address of a node
+  // pool, one already migrating, one with no placement, a destination failing a placement check,
+  // and a volume that cannot cross between the two.
   rpc MigrateWorkload(MigrateWorkloadRequest) returns (MigrateWorkloadResponse);
   // workload.read. A workload's migrations, newest first, each with its phase, its volumes'
   // passes and manifests, and how it ended.
@@ -434,17 +427,17 @@ service WorkloadService {
   // workload.migrate. Ends a migration's hold now: the source deletes its copies, after which
   // nothing can roll it back.
   rpc ReleaseMigration(ReleaseMigrationRequest) returns (ReleaseMigrationResponse);
-  // Replaces the operator's classification overrides of a workload, under its version, with
-  // the operator's reason (§3.3 of docs/01-model.md). workload.classify on the workload. Plans
-  // computed after it read the new set; a plan already proposed keeps the classification its
-  // proposer saw. An override that would relax the vocabulary's floor is refused.
+  // Replaces the operator's classification overrides of a workload, under its version, with the
+  // operator's reason. workload.classify on the workload. Plans computed after it read the new set;
+  // a plan already proposed keeps the classification its proposer saw. An override that would relax
+  // the vocabulary's floor is refused.
   rpc SetClassification(SetClassificationRequest) returns (SetClassificationResponse);
   rpc GetWorkload(GetWorkloadRequest) returns (GetWorkloadResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // workload.read. The recipe the workload runs, as its approved intent names it (its head's
-  // while nothing is approved): its metadata and configuration schema, and every message it
-  // shows in the first of the caller's locales it speaks (§5.3 of docs/09-recipes.md).
+  // workload.read. The recipe the workload runs, as its approved intent names it (its head's while
+  // nothing is approved): its metadata and configuration schema, and every message it shows in the
+  // first of the caller's locales it speaks.
   rpc GetWorkloadRecipe(GetWorkloadRecipeRequest) returns (GetWorkloadRecipeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -468,22 +461,22 @@ message DeclareIntentRequest {
   }
   IntentBody body = 4;
   bool dry_run = 5;
-  // Persist the intent and its plan, and leave the plan waiting for confirmation even when
-  // default policy would approve it at once, so the plan a person reviews is the one that
-  // applies (§3.3 of docs/01-model.md). Not with `dry_run`.
+  // Persist the intent and its plan, and leave the plan waiting for confirmation even when default
+  // policy would approve it at once, so the plan a person reviews is the one that applies. Not with
+  // `dry_run`.
   bool propose = 6;
-  // Declare through the set of this name in the workload's project, creating it in advisory
-  // mode if it does not exist (§5 and §6 of docs/13-surface-cli.md).
+  // Declare through the set of this name in the workload's project, creating it in advisory mode if
+  // it does not exist.
   string set = 7;
   // With `set`, onto a member drifted in an advisory set: discard the out-of-band change, which
   // is recorded with its author.
   bool reconcile = 8;
   // With `set`, onto a workload that belongs to no set: take it into the set.
   bool adopt = 9;
-  // Configuration keys whose values are kept from the workload's head intent as they are, and
-  // left out of `body`: how a client that may not read a secret (an intent's `withheld`) declares
-  // a change to everything else without knowing it (§5.2 of docs/09-recipes.md). Only onto an
-  // existing workload; a key may not be both kept and declared.
+  // Configuration keys whose values are kept from the workload's head intent as they are, and left
+  // out of `body`: how a client that may not read a secret (an intent's `withheld`) declares a
+  // change to everything else without knowing it. Only onto an existing workload; a key may not be
+  // both kept and declared.
   repeated string keep = 10;
 }
 
@@ -505,27 +498,27 @@ message DeclareIntentResponse {
 message StartRequest {
   Mutation mutation = 1;
   string workload = 2;
-  // Persist the power declaration and its plan, and leave the plan waiting for confirmation
-  // even when default policy would approve it at once, as DeclareIntentRequest.propose does: the
-  // panel previews a plan and confirms that one (§4 of docs/11-surface-web.md).
+  // Persist the power declaration and its plan, and leave the plan waiting for confirmation even
+  // when default policy would approve it at once, as DeclareIntentRequest.propose does: the panel
+  // previews a plan and confirms that one.
   bool propose = 3;
 }
 
 message StopRequest {
   Mutation mutation = 1;
   string workload = 2;
-  // Persist the power declaration and its plan, and leave the plan waiting for confirmation
-  // even when default policy would approve it at once, as DeclareIntentRequest.propose does: the
-  // panel previews a plan and confirms that one (§4 of docs/11-surface-web.md).
+  // Persist the power declaration and its plan, and leave the plan waiting for confirmation even
+  // when default policy would approve it at once, as DeclareIntentRequest.propose does: the panel
+  // previews a plan and confirms that one.
   bool propose = 3;
 }
 
 message RestartRequest {
   Mutation mutation = 1;
   string workload = 2;
-  // Persist the power declaration and its plan, and leave the plan waiting for confirmation
-  // even when default policy would approve it at once, as DeclareIntentRequest.propose does: the
-  // panel previews a plan and confirms that one (§4 of docs/11-surface-web.md).
+  // Persist the power declaration and its plan, and leave the plan waiting for confirmation even
+  // when default policy would approve it at once, as DeclareIntentRequest.propose does: the panel
+  // previews a plan and confirms that one.
   bool propose = 3;
 }
 
@@ -540,7 +533,7 @@ message DeleteWorkloadRequest {
   string workload = 2;
   // Volumes to delete with it, by the name the workload knows each by (`stream_console` for its
   // console stream's), each one named explicitly; every other volume is retained. Each is deleted
-  // by its own irreversible step under `volume.delete` (§7 of docs/06-storage.md).
+  // by its own irreversible step under `volume.delete`.
   repeated string delete_volumes = 3;
 }
 
@@ -722,8 +715,7 @@ message GetWorkloadRecipeResponse {
   map<string, string> messages = 5;
 }
 
-// Everything a client needs to render one workload honestly (§4.3 of
-// docs/02-architecture.md).
+// Everything a client needs to render one workload honestly.
 message WorkloadStatus {
   Workload workload = 1;
   Intent target = 2;
@@ -737,37 +729,35 @@ message WorkloadStatus {
   Unplaced unplaced = 8;
   // Present when the workload belongs to a set and its head was declared outside it.
   Drift drift = 9;
-  // Its endpoints as placed: the exposure each resolved to and where it is reached (§3 of
-  // docs/07-networking.md). Empty while it is not placed.
+  // Its endpoints as placed: the exposure each resolved to and where it is reached. Empty while it
+  // is not placed.
   repeated Endpoint endpoints = 10;
   // The certificate each of its ingress endpoints is served with, as the control plane holds it:
-  // its state, its validity, and for one not issued why (§3.2 of docs/07-networking.md). Without
-  // its chain. Present once the endpoint's names are routed.
+  // its state, its validity, and for one not issued why. Without its chain. Present once the
+  // endpoint's names are routed.
   repeated EndpointCertificate certificates = 11;
-  // Each name its ingress endpoints route, in DNS: the addresses it should resolve to, and
-  // whether a DNS provider of its organization publishes them, or its holder must (§3.5 of
-  // docs/07-networking.md).
+  // Each name its ingress endpoints route, in DNS: the addresses it should resolve to, and whether
+  // a DNS provider of its organization publishes them, or its holder must.
   repeated EndpointName names = 12;
-  // Its newest run, for a task or scheduled workload (§4 of docs/05-scheduling.md); absent
-  // before its first.
+  // Its newest run, for a task or scheduled workload; absent before its first.
   Run newest_run = 13;
-  // Whether a suspension of its organization, or of one above it, holds it stopped whatever
-  // power it declares (§2.1 of docs/08-identity.md); resuming returns it to its own.
+  // Whether a suspension of its organization, or of one above it, holds it stopped whatever power
+  // it declares; resuming returns it to its own.
   bool held_by_suspension = 14;
-  // Its dependencies: each target and how the workload reaches it, and each workload a
-  // dependency names and does not reach, with why (§5 and §9.1 of docs/07-networking.md).
-  // Nodes are not named: whoever reads the workload may not read them. Added 2026-10-25.
+  // Its dependencies: each target and how the workload reaches it, and each workload a dependency
+  // names and does not reach, with why. Nodes are not named: whoever reads the workload may not
+  // read them.
   repeated DependencyStatus dependencies = 15;
-  // Each of its rules naming workloads (§6 of docs/07-networking.md): the workloads it matched,
-  // and those it names at no address on its node, with why; nodes are not named. None while it
-  // is not placed, since what a rule names depends on its node. Added 2026-10-26.
+  // Each of its rules naming workloads: the workloads it matched, and those it names at no address
+  // on its node, with why; nodes are not named. None while it is not placed, since what a rule
+  // names depends on its node.
   repeated NamedRuleStatus named_rules = 16;
-  // The address of its own it holds, where an endpoint of it is `dedicated_ip` (§3.7 of
-  // docs/07-networking.md); unset where it holds none. Added 2026-10-26.
+  // The address of its own it holds, where an endpoint of it is `dedicated_ip`; unset where it
+  // holds none.
   DedicatedAddressStatus dedicated = 17;
-  // The device of each of its volumes in a block class, by the volume's name: whether its
-  // class's provider has made it and attached it for the lease the workload holds, and why its
-  // last answer failed while it is asked again (§2.1 of docs/06-storage.md). Added 2026-10-27.
+  // The device of each of its volumes in a block class, by the volume's name: whether its class's
+  // provider has made it and attached it for the lease the workload holds, and why its last answer
+  // failed while it is asked again.
   repeated BlockDeviceStatus block_devices = 18;
 }
 
@@ -918,10 +908,9 @@ message WatchWorkloadResponse {
   WorkloadStatus status = 1;
 }
 
-// Declared sets (§3.3 of docs/01-model.md). project.read lists them; project.write changes a
-// mode.
-// A workload's streams as the control plane knows them (§4 of docs/14-streams.md): the index of
-// their segments, never their records, which the node serves over the data path (console.proto).
+// Declared sets. project.read lists them; project.write changes a mode. A workload's streams as the
+// control plane knows them: the index of their segments, never their records, which the node serves
+// over the data path (console.proto).
 service StreamService {
   // The stream and its index. Takes workload.console.read: how much a workload wrote, and when,
   // is part of what it wrote. NOT_FOUND for a workload with no stream of that kind.
@@ -929,10 +918,9 @@ service StreamService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // The offloaded segments of a stream from an offset, read from the repositories holding them
-  // rather than from a node (§4 of docs/14-streams.md): how a stream is read once its node is
-  // gone, or its workload retired. Takes workload.console.read, and is recorded as a read. Each
-  // segment's digest is checked before a record of it is sent; offsets no offloaded segment holds
-  // are sent as missing.
+  // rather than from a node: how a stream is read once its node is gone, or its workload retired.
+  // Takes workload.console.read, and is recorded as a read. Each segment's digest is checked before
+  // a record of it is sent; offsets no offloaded segment holds are sent as missing.
   rpc ReadOffloaded(ReadOffloadedRequest) returns (stream ConsoleChunk);
 }
 
@@ -962,14 +950,12 @@ message GetStreamResponse {
   // Its identifier is empty until the first segment is sealed, when the index first hears of it;
   // its retention is the one the intent its node runs declares.
   Stream stream = 1;
-  // Offsets held nowhere: pruned from the node before they were offloaded (§3 of
-  // docs/14-streams.md).
+  // Offsets held nowhere: pruned from the node before they were offloaded.
   repeated OffsetRange lost = 2;
 }
 
-// Repositories (§5.3 of docs/06-storage.md): where an organization's backups are kept and under
-// whose key. Making one takes repository.write on its project or organization; reading one,
-// repository.read.
+// Repositories: where an organization's backups are kept and under whose key. Making one takes
+// repository.write on its project or organization; reading one, repository.read.
 service RepositoryService {
   rpc CreateRepository(CreateRepositoryRequest) returns (CreateRepositoryResponse);
   rpc GetRepository(GetRepositoryRequest) returns (GetRepositoryResponse) {
@@ -1021,9 +1007,9 @@ message ListRepositoriesResponse {
   PageResponse page = 2;
 }
 
-// Domains (§3.2 of docs/07-networking.md): asked for under domain.write on the organization that
-// will hold them; delegated under domain.write on the parent's holder as well; attested under
-// domain.attest on the installation's root organization.
+// Domains: asked for under domain.write on the organization that will hold them; delegated under
+// domain.write on the parent's holder as well; attested under domain.attest on the installation's
+// root organization.
 service DomainService {
   rpc CreateDomain(CreateDomainRequest) returns (CreateDomainResponse);
   // Verifies a DOMAIN_VERIFICATION_DNS_TXT domain by its TXT record; a verified domain is
@@ -1090,9 +1076,9 @@ message DeleteDomainResponse {
   uint64 deleted = 1;
 }
 
-// Certificates the ingress serves with (§3.2 of docs/07-networking.md): uploaded and replaced
-// under certificate.write on the organization holding them; read under certificate.read. A
-// certificate's key is sent once, when it is uploaded, and never returned.
+// Certificates the ingress serves with: uploaded and replaced under certificate.write on the
+// organization holding them; read under certificate.read. A certificate's key is sent once, when it
+// is uploaded, and never returned.
 service CertificateService {
   // Uploads a chain and its key; the chain's leaf must be valid now and the key its own.
   rpc CreateCertificate(CreateCertificateRequest) returns (CreateCertificateResponse);
@@ -1158,9 +1144,8 @@ message DeleteCertificateRequest {
 
 message DeleteCertificateResponse {}
 
-// Portals (§3.6 of docs/07-networking.md): made, changed, and deleted under portal.write on the
-// organization holding the name, and read under portal.read; naming a provided certificate takes
-// certificate.read on it beside.
+// Portals: made, changed, and deleted under portal.write on the organization holding the name, and
+// read under portal.read; naming a provided certificate takes certificate.read on it beside.
 service PortalService {
   // Makes a portal of a name the organization holds, served with its own acme certificate unless
   // a provided one is named.
@@ -1194,12 +1179,11 @@ message GetPortalRequest {
 
 message GetPortalResponse {
   Portal portal = 1;
-  // The passkeys registered at the portal, which deleting it removes (§9.8 of
-  // docs/08-identity.md).
+  // The passkeys registered at the portal, which deleting it removes.
   uint64 passkeys = 2;
   // The accounts with a passkey at the portal and nothing else that signs in: no password, and no
-  // passkey at another address. Deleting the portal leaves each to be recovered as §9.3 recovers
-  // anyone.
+  // passkey at another address. Deleting the portal leaves each to be recovered as account recovery
+  // recovers anyone.
   uint64 accounts_only_here = 3;
 }
 
@@ -1231,10 +1215,9 @@ message DeletePortalRequest {
 
 message DeletePortalResponse {}
 
-// Address pools (§3.7 of docs/07-networking.md): made under address_pool.attest on the
-// installation's root organization, an operator vouching that the organization holds the range,
-// deleted under address_pool.write on their organization, and read under address_pool.read.
-// Added 2026-10-26.
+// Address pools: made under address_pool.attest on the installation's root organization, an
+// operator vouching that the organization holds the range, deleted under address_pool.write on
+// their organization, and read under address_pool.read.
 service AddressPoolService {
   // Makes a pool. One overlapping any other pool is refused, without saying whose.
   rpc CreateAddressPool(CreateAddressPoolRequest) returns (CreateAddressPoolResponse);
@@ -1272,8 +1255,8 @@ message DeleteAddressPoolRequest {
 
 message DeleteAddressPoolResponse {}
 
-// An organization's edge groups (§3.1 of docs/07-networking.md): made, changed, and deleted under
-// edge_group.write on their organization, and read under edge_group.read. Added 2026-10-26.
+// An organization's edge groups: made, changed, and deleted under edge_group.write on their
+// organization, and read under edge_group.read.
 service EdgeGroupService {
   // Makes a group of nodes of its organization.
   rpc CreateEdgeGroup(CreateEdgeGroupRequest) returns (CreateEdgeGroupResponse);
@@ -1334,7 +1317,7 @@ message DeleteEdgeGroupRequest {
 
 message DeleteEdgeGroupResponse {}
 
-// Backups (§5 of docs/06-storage.md), authorized on the workload whose volume they are of.
+// Backups, authorized on the workload whose volume they are of.
 service BackupService {
   // Proposes backing a volume up into a repository, under backup.create on the volume's
   // workload: a plan of one step that changes nothing the workload sees and applies at once.
@@ -1358,10 +1341,10 @@ service BackupService {
   // its workload, which shows no other name. Recorded as a sensitive read. The stream ends in an
   // error, never quietly, when what was read is not what the backup recorded.
   rpc ReadBackupFile(ReadBackupFileRequest) returns (stream ReadBackupFileResponse);
-  // Proposes pruning a workload's backups in a repository under backup.prune on the workload:
-  // a plan of one step, always awaiting approval, whose detail names each backup it forgets and
-  // why every other one is kept. Applying it forgets them and marks what only they held; that is
-  // deleted after a grace period longer than any job's access (§5.5 of docs/06-storage.md).
+  // Proposes pruning a workload's backups in a repository under backup.prune on the workload: a
+  // plan of one step, always awaiting approval, whose detail names each backup it forgets and why
+  // every other one is kept. Applying it forgets them and marks what only they held; that is
+  // deleted after a grace period longer than any job's access.
   rpc PruneBackups(PruneBackupsRequest) returns (PruneBackupsResponse);
 }
 
@@ -1470,8 +1453,8 @@ message ListBackupsResponse {
   PageResponse page = 2;
 }
 
-// Volumes as the control plane knows them (§7 of docs/06-storage.md): kept from what nodes
-// report, outliving the workloads they were made for. Reading one takes volume.read.
+// Volumes as the control plane knows them: kept from what nodes report, outliving the workloads
+// they were made for. Reading one takes volume.read.
 service VolumeService {
   rpc GetVolume(GetVolumeRequest) returns (GetVolumeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -1480,8 +1463,8 @@ service VolumeService {
   rpc ListVolumes(ListVolumesRequest) returns (ListVolumesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // Proposes deleting a retained volume no workload holds: a plan of one irreversible step,
-  // which always waits for a person (§7 of docs/06-storage.md).
+  // Proposes deleting a retained volume no workload holds: a plan of one irreversible step, which
+  // always waits for a person.
   rpc DeleteVolume(DeleteVolumeRequest) returns (DeleteVolumeResponse);
   // Proposes taking a snapshot of a volume, in a class that can, under volume.snapshot.create.
   rpc CreateSnapshot(CreateSnapshotRequest) returns (CreateSnapshotResponse);
@@ -1602,11 +1585,11 @@ service PlanService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // A plan waiting for authority (proposed under requires_approval_by) needs plan.approve by a
-  // subject other than the proposer (§3.6 of docs/08-identity.md). A plan waiting only for
-  // confirmation may be confirmed by its proposer (§3.3 of docs/01-model.md).
+  // subject other than the proposer. A plan waiting only for confirmation may be confirmed by its
+  // proposer.
   rpc ApprovePlan(ApprovePlanRequest) returns (ApprovePlanResponse);
   rpc RejectPlan(RejectPlanRequest) returns (RejectPlanResponse);
-  // plan.cancel: lowers `through` on the nodes executing it (§7 of docs/03-state.md).
+  // plan.cancel: lowers `through` on the nodes executing it.
   rpc CancelPlan(CancelPlanRequest) returns (CancelPlanResponse);
 }
 
@@ -1671,8 +1654,7 @@ service EffectService {
 
 message ListEffectsRequest {
   // Exactly one of the five: what the effects are about. An organization asks for its whole
-  // subtree, and each effect is answered only to a caller who may read its object (§4 of
-  // docs/15-observability.md).
+  // subtree, and each effect is answered only to a caller who may read its object.
   optional string workload = 1;
   optional string plan = 2;
   optional string node = 3;
@@ -1690,9 +1672,9 @@ message ListEffectsResponse {
 }
 
 service NodeService {
-  // node.enroll over the organization: a one-time token the agent exchanges for its node
-  // identity (§3 of docs/18-operations.md). The token is a Token subject holding a grant of
-  // node.enroll attenuated from the caller's, with max_uses 1 (§7 of docs/02-architecture.md).
+  // node.enroll over the organization: a one-time token the agent exchanges for its node identity.
+  // The token is a Token subject holding a grant of node.enroll attenuated from the caller's, with
+  // max_uses 1.
   rpc CreateEnrollmentToken(CreateEnrollmentTokenRequest) returns (CreateEnrollmentTokenResponse);
   rpc GetNode(GetNodeRequest) returns (GetNodeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -1704,13 +1686,13 @@ service NodeService {
   rpc CordonNode(CordonNodeRequest) returns (CordonNodeResponse);
   rpc UncordonNode(UncordonNodeRequest) returns (UncordonNodeResponse);
   // node.remove, irreversible: decommissions a node for good, its key opening nothing and its
-  // session ended (§3 of docs/18-operations.md). Refused unless it is cordoned and holds no
-  // workload and no volume, except as `compromised`, which removes it whatever it holds and
-  // places each of its workloads again from its target (§9 of docs/17-security.md).
+  // session ended. Refused unless it is cordoned and holds no workload and no volume, except as
+  // `compromised`, which removes it whatever it holds and places each of its workloads again from
+  // its target.
   rpc RemoveNode(RemoveNodeRequest) returns (RemoveNodeResponse);
-  // node.enroll over the root organization: a one-time token a relay exchanges for its identity
-  // and its certificate (§3.1 of docs/02-architecture.md). A relay carries every organization's
-  // sessions, so only authority over the root enrolls one.
+  // node.enroll over the root organization: a one-time token a relay exchanges for its identity and
+  // its certificate. A relay carries every organization's sessions, so only authority over the root
+  // enrolls one.
   rpc CreateRelayEnrollmentToken(CreateRelayEnrollmentTokenRequest)
       returns (CreateRelayEnrollmentTokenResponse);
   // node.read over the root organization: every relay, removed ones included.
@@ -1720,8 +1702,8 @@ service NodeService {
   // node.enroll over the root organization. A removed relay is named to no node and told
   // nothing more.
   rpc RemoveRelay(RemoveRelayRequest) returns (RemoveRelayResponse);
-  // node.enroll over the root organization: a relay a restore held is fed and named to nodes
-  // again (§6 of docs/18-operations.md). Refused unless it is held and not removed.
+  // node.enroll over the root organization: a relay a restore held is fed and named to nodes again.
+  // Refused unless it is held and not removed.
   rpc ReadmitRelay(ReadmitRelayRequest) returns (ReadmitRelayResponse);
 }
 
@@ -1773,7 +1755,7 @@ message ReadmitRelayResponse {
   Relay relay = 1;
 }
 
-// A relay running as its own process (§3.1 of docs/02-architecture.md).
+// A relay running as its own process.
 message Relay {
   string id = 1;
   string name = 2;
@@ -1787,8 +1769,8 @@ message Relay {
   // Whether its feed was served within the last ninety seconds: the relay is running and
   // verifying by what it is sent.
   bool connected = 8;
-  // When a restore held it: its feed is answered as unavailable and it is named to no node until
-  // it is readmitted or removed (§6 of docs/18-operations.md).
+  // When a restore held it: its feed is answered as unavailable and it is named to no node until it
+  // is readmitted or removed.
   google.protobuf.Timestamp held_at = 9;
 }
 
@@ -1805,13 +1787,12 @@ message CreateEnrollmentTokenRequest {
 }
 
 message CreateEnrollmentTokenResponse {
-  // Shown once and never stored. A replay of the same mutation returns the response without
-  // it: a secret recorded for replay would be a secret stored (§6 of docs/10-api.md).
+  // Shown once and never stored. A replay of the same mutation returns the response without it: a
+  // secret recorded for replay would be a secret stored.
   string token = 1;
   google.protobuf.Timestamp expires_at = 2;
-  // sha256: of the DER of the certificate authority the agent pins at enrollment (§3 of
-  // docs/18-operations.md), so the join command can carry it and the first connection is
-  // verified rather than trusted.
+  // sha256: of the DER of the certificate authority the agent pins at enrollment, so the join
+  // command can carry it and the first connection is verified rather than trusted.
   string ca_fingerprint = 3;
 }
 
@@ -1864,8 +1845,8 @@ message UncordonNodeResponse {
 }
 
 service GrantService {
-  // Attenuate a grant the caller holds into a child (§3.2 of docs/08-identity.md). Needs no
-  // action: only the parent's delegation policy.
+  // Attenuate a grant the caller holds into a child. Needs no action: only the parent's delegation
+  // policy.
   rpc IssueGrant(IssueGrantRequest) returns (IssueGrantResponse);
   // grant.read.
   rpc GetGrant(GetGrantRequest) returns (GetGrantResponse) {
@@ -1874,11 +1855,11 @@ service GrantService {
   rpc ListGrants(ListGrantsRequest) returns (ListGrantsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // grant.revoke, or the issuer of the grant or an ancestor (§3.5 of docs/08-identity.md).
+  // grant.revoke, or the issuer of the grant or an ancestor.
   rpc RevokeGrant(RevokeGrantRequest) returns (RevokeGrantResponse);
   // A capability token for a grant the caller holds, attenuated to what the call needs.
   rpc MintToken(MintTokenRequest) returns (MintTokenResponse);
-  // template.write on its organization (§4 of docs/08-identity.md).
+  // template.write on its organization.
   rpc CreateGrantTemplate(CreateGrantTemplateRequest) returns (CreateGrantTemplateResponse);
   // template.write on its organization, against the version read: a new version.
   rpc UpdateGrantTemplate(UpdateGrantTemplateRequest) returns (UpdateGrantTemplateResponse);
@@ -1899,8 +1880,7 @@ service GrantService {
 message IssueGrantRequest {
   Mutation mutation = 1;
   // The grant to attenuate; the caller must hold it. Empty: the one grant the caller holds that
-  // this attenuation is valid from, refused when there are several (§3.2 of
-  // docs/08-identity.md).
+  // this attenuation is valid from, refused when there are several.
   string parent = 2;
   // Who holds it. Absent exactly when `to_new_token` is set.
   Subject subject = 3;
@@ -1911,17 +1891,16 @@ message IssueGrantRequest {
   bool link_form = 8;
   // Provenance only; required with `to_new_token`, which it names.
   string label = 9;
-  // Issue to an API token created in the same transaction, which exists only to hold this grant
-  // and expires with it (§3.7 of docs/08-identity.md).
+  // Issue to an API token created in the same transaction, which exists only to hold this grant and
+  // expires with it.
   bool to_new_token = 10;
-  // Issue to an account created in the same transaction, holding this grant and no factor, with
-  // an invitation to register its first (§9.6 of docs/08-identity.md). Exclusive with
-  // `subject`, `to_new_token`, and `link_form`.
+  // Issue to an account created in the same transaction, holding this grant and no factor, with an
+  // invitation to register its first. Exclusive with `subject`, `to_new_token`, and `link_form`.
   NewUser to_new_user = 11;
-  // Issue from this version of a grant template (§4 of docs/08-identity.md): the template says
-  // the actions, the delegation, and the scope, from the object `scope` names, so `actions` and
-  // `delegation` are empty; `conditions`, when given, replace the template's defaults. The
-  // version is the one the issuer read; a template edited since is a conflict.
+  // Issue from this version of a grant template: the template says the actions, the delegation, and
+  // the scope, from the object `scope` names, so `actions` and `delegation` are empty;
+  // `conditions`, when given, replace the template's defaults. The version is the one the issuer
+  // read; a template edited since is a conflict.
   TemplateRef template = 12;
 }
 
@@ -1939,7 +1918,7 @@ message IssueGrantResponse {
   string link_token = 2;
   Consistency consistency = 3;
   // With `to_new_token`: the token's secret, shown once and never stored. A replay of the same
-  // mutation returns the response without it (§6 of docs/10-api.md).
+  // mutation returns the response without it.
   string token = 4;
   // With `to_new_user`: the invitation's secret, `korpisiv_` and the rest, shown once and stored
   // only as its digest; a replay returns the response without it.
@@ -1961,7 +1940,7 @@ message ListGrantsRequest {
     Scope scope = 1;
     Subject subject = 2;
     // The grants issued from this template, at any version, that the caller may read under
-    // grant.read over their scopes (§3.5 of docs/08-identity.md).
+    // grant.read over their scopes.
     string template = 4;
   }
   PageRequest page = 3;
@@ -1990,18 +1969,17 @@ message MintTokenRequest {
   Scope scope = 3;
   // Bounded by the grant's own expiry and the server's maximum token lifetime.
   uint32 ttl_seconds = 4;
-  // The live session token this one renews: the same holder's, on the same object, through the
-  // same chain, carrying no action it did not. A renewal spends no use of a use-limited grant,
-  // because the session it keeps alive spent one when it opened (§6.1 of docs/08-identity.md).
+  // The live session token this one renews: the same holder's, on the same object, through the same
+  // chain, carrying no action it did not. A renewal spends no use of a use-limited grant, because
+  // the session it keeps alive spent one when it opened.
   string renews = 5;
 }
 
 message MintTokenResponse {
   string token = 1;
   google.protobuf.Timestamp expires_at = 2;
-  // For a token on a workload that is placed: the node a relay carries its sessions to, sealed
-  // so the holder cannot read it. Passed to RelayService.Open as it is (§3.1 of
-  // docs/02-architecture.md).
+  // For a token on a workload that is placed: the node a relay carries its sessions to, sealed so
+  // the holder cannot read it. Passed to RelayService.Open as it is.
   string route = 3;
 }
 
@@ -2072,9 +2050,9 @@ message ListGrantTemplatesResponse {
   PageResponse page = 2;
 }
 
-// Identity bindings (§5 of docs/08-identity.md): which identity provider vouches for an external
-// person or set, how often that is re-checked, and what a set's members receive. A binding
-// grants nothing; a grant to its subject is issued like any other, by attenuation.
+// Identity bindings: which identity provider vouches for an external person or set, how often that
+// is re-checked, and what a set's members receive. A binding grants nothing; a grant to its subject
+// is issued like any other, by attenuation.
 service IdentityService {
   // identity.binding.write on the organization its provider is installed into.
   rpc CreateIdentityBinding(CreateIdentityBindingRequest) returns (CreateIdentityBindingResponse);
@@ -2083,13 +2061,12 @@ service IdentityService {
   // identity.binding.write on its organization: it vouches for nothing since, and every grant
   // rooted in it is suspended.
   rpc RetireIdentityBinding(RetireIdentityBindingRequest) returns (RetireIdentityBindingResponse);
-  // identity.binding.write on its organization: its provider is asked now rather than at its
-  // next interval, and the answer recorded (§5.1 of docs/08-identity.md).
+  // identity.binding.write on its organization: its provider is asked now rather than at its next
+  // interval, and the answer recorded.
   rpc VerifyIdentityBinding(VerifyIdentityBindingRequest) returns (VerifyIdentityBindingResponse);
   // identity.relay on the provider's organization, held by the client relaying what a person
-  // presented (§5.2 of docs/08-identity.md). The provider asserts it, the presentation is
-  // accepted once, and the client is handed a ticket for the one action on the one object, used
-  // beside its own credential within a minute.
+  // presented. The provider asserts it, the presentation is accepted once, and the client is handed
+  // a ticket for the one action on the one object, used beside its own credential within a minute.
   rpc AssertIdentity(AssertIdentityRequest) returns (AssertIdentityResponse);
   // org.read on its organization.
   rpc GetIdentityBinding(GetIdentityBindingRequest) returns (GetIdentityBindingResponse) {
@@ -2108,8 +2085,7 @@ message IdentityBindingTerms {
   BindingConstraints constraints = 2;
   // Fifteen minutes when absent.
   google.protobuf.Duration reverify_interval = 3;
-  // For a set: let its grants carry irreversible actions, deliberately (§5.2 of
-  // docs/08-identity.md).
+  // For a set: let its grants carry irreversible actions, deliberately.
   bool allows_irreversible = 4;
 }
 
@@ -2171,8 +2147,8 @@ message AssertIdentityRequest {
   map<string, string> headers = 4;
   // The one action the person asked for.
   string action = 5;
-  // The one object they asked it of; a grant only when the action is grant.revoke, so a
-  // person revokes that one grant (§5.2 of docs/08-identity.md).
+  // The one object they asked it of; a grant only when the action is grant.revoke, so a person
+  // revokes that one grant.
   ObjectRef object = 6;
 }
 
@@ -2207,7 +2183,7 @@ message ListIdentityBindingsResponse {
   PageResponse page = 2;
 }
 
-// The delegation ceiling at an organization (§5.1 of docs/08-identity.md).
+// The delegation ceiling at an organization.
 message DelegationCeiling {
   // The one the organization sets itself; absent when it sets none.
   google.protobuf.Duration own = 1;
@@ -2234,7 +2210,7 @@ message SetDelegationCeilingResponse {
   DelegationCeiling ceiling = 1;
 }
 
-// The placement policy at an organization (§2.2 of docs/05-scheduling.md).
+// The placement policy at an organization.
 message OrganizationPlacementPolicy {
   // The one the organization sets itself; absent when it sets none.
   PlacementPolicy own = 1;

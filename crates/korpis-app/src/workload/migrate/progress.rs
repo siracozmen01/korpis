@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's report of its side of a migration's phase (§8.1 of docs/05-scheduling.md), and what
-//! the control plane does with it. A report is believed only from the node assigned that side,
-//! about the phase the migration is in; anything else is `journal.rejected`. Once every side
-//! acting in the phase reported it done, both nodes move on; a phase failed ends the migration,
-//! abandoned before the placement moved and rolled back from then, and the source's deletion
-//! of its copies ends it completed. Each end is an effect of its own.
+//! A node's report of its side of a migration's phase, and what the control plane does with it. A
+//! report is believed only from the node assigned that side, about the phase the migration is in;
+//! anything else is `journal.rejected`. Once every side acting in the phase reported it done, both
+//! nodes move on; a phase failed ends the migration, abandoned before the placement moved and
+//! rolled back from then, and the source's deletion of its copies ends it completed. Each end is an
+//! effect of its own.
 
 use crate::App;
 use crate::error::AppError;

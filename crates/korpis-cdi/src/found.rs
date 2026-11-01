@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The devices a node's spec files describe (§6.1 of docs/05-scheduling.md), each found or why
-//! not: a device is found with the host nodes its own edits give and its edits, its file's then
-//! its own; an aggregate, a device giving no node of its own, a device whose hook's program
-//! anyone but the owner may write, and a name two files of one directory describe are not. A
-//! later directory's device replaces an earlier one's of the same name, as CDI's reference
-//! implementation orders them.
+//! The devices a node's spec files describe, each found or why not: a device is found with the host
+//! nodes its own edits give and its edits, its file's then its own; an aggregate, a device giving
+//! no node of its own, a device whose hook's program anyone but the owner may write, and a name two
+//! files of one directory describe are not. A later directory's device replaces an earlier one's of
+//! the same name, as CDI's reference implementation orders them.
 
 use crate::file::{Read, hook_program, specs_in};
 use crate::spec::{Edits, Spec, SpecDevice, readable};
@@ -38,8 +37,8 @@ pub struct Described {
     pub unread: Vec<(String, String)>,
 }
 
-/// What the spec files of `dirs` describe, read as `owner`'s alone (§6.5 of
-/// docs/05-scheduling.md), a later directory's device replacing an earlier one's.
+/// What the spec files of `dirs` describe, read as `owner`'s alone, a later directory's device
+/// replacing an earlier one's.
 #[must_use]
 pub fn describe(dirs: &[PathBuf], owner: u32) -> Described {
     let mut described = Described::default();

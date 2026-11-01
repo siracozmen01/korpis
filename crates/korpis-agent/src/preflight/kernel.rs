@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What every tier needs of the kernel (§2 of docs/18-operations.md): a 6.1 floor, cgroup v2
-//! with the controllers limits are enforced through, user namespaces, seccomp, and Landlock for
-//! the tenant file API.
+//! What every tier needs of the kernel: a 6.1 floor, cgroup v2 with the controllers limits are
+//! enforced through, user namespaces, seccomp, and Landlock for the tenant file API.
 
 use super::{Check, Machine, Outcome, Probes};
 
 /// The kernel floor: 6.1, the LTS with every interface the node uses.
 const FLOOR: (u32, u32) = (6, 1);
 
-/// The cgroup controllers the limits of §10 of docs/17-security.md are enforced through.
+/// The cgroup controllers the resource limits are enforced through.
 const CONTROLLERS: [&str; 4] = ["cpu", "memory", "pids", "io"];
 
 /// The checks of the kernel.

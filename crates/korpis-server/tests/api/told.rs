@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node is told (§4.8 of docs/02-architecture.md, Finding 52 of docs/23-walkthroughs.md):
-//! what the workload's plans reached, or what its active plan is reaching, never a target no plan
-//! has made. A create approved for a later window, and a create whose plan failed, are told with
-//! nothing to run; the node keeps the assignment, and with it what the plan's steps saved.
+//! What a node is told: what the workload's plans reached, or what its active plan is reaching,
+//! never a target no plan has made. A create approved for a later window, and a create whose plan
+//! failed, are told with nothing to run; the node keeps the assignment, and with it what the plan's
+//! steps saved.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{ack, assignment, send, step_done, until};

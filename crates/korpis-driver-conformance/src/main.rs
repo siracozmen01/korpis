@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! `korpis-driver-conformance`, the runner a third party starts on its own (§8 of
-//! docs/04-runtimes.md). Given a fixture file, which says how its driver is started, the socket
-//! it serves on, and the node's paths it is started with, it runs every case against the driver,
-//! prints each verdict, and writes the report as JSON where it is asked to. It exits 0 when the
-//! driver conforms, 1 when a case failed, and 2 when the suite could not run or its report could
-//! not be written. It runs as root, since it gives volumes to ids and marks block devices.
+//! `korpis-driver-conformance`, the runner a third party starts on its own. Given a fixture file,
+//! which says how its driver is started, the socket it serves on, and the node's paths it is
+//! started with, it runs every case against the driver, prints each verdict, and writes the report
+//! as JSON where it is asked to. It exits 0 when the driver conforms, 1 when a case failed, and 2
+//! when the suite could not run or its report could not be written. It runs as root, since it gives
+//! volumes to ids and marks block devices.
 
 use clap::Parser;
 use korpis_driver_conformance::{Fixture, Report};

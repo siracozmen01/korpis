@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity bindings (§5 of docs/08-identity.md): declared, edited, and retired under
-//! `identity.binding.write` on the organization their provider is installed into, and read there
-//! under `org.read`. A binding grants nothing; it decides which provider vouches for a subject,
-//! which is why declaring one takes authority over the whole organization that provider serves.
+//! Identity bindings: declared, edited, and retired under `identity.binding.write` on the
+//! organization their provider is installed into, and read there under `org.read`. A binding grants
+//! nothing; it decides which provider vouches for a subject, which is why declaring one takes
+//! authority over the whole organization that provider serves.
 
 use crate::App;
 use crate::caller::Caller;
@@ -115,7 +115,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             subject: asked.subject,
             origin: BindingOrigin::Operator,
             terms: asked.terms,
-            // Nothing has confirmed it yet: grants rooted in it wait for its provider (§5.1).
+            // Nothing has confirmed it yet: grants rooted in it wait for its provider.
             state: BindingState::Unverified,
             last_verified_at: None,
             verifications: 0,
@@ -232,8 +232,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Paged { items, next })
     }
 
-    /// `binding` with the state evaluation finds now rather than the one last recorded, which
-    /// says verified until a re-verification finds its confirmation lapsed (Finding 118).
+    /// `binding` with the state evaluation finds now rather than the one last recorded, which says
+    /// verified until a re-verification finds its confirmation lapsed.
     fn as_evaluated(&self, mut binding: IdentityBinding) -> IdentityBinding {
         binding.state = binding.state_at(self.clock.now());
         binding

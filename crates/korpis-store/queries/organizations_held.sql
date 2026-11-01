@@ -1,8 +1,8 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
--- The organizations a subject ($1, its key) holds a live grant in at $2 (§10 of docs/10-api.md):
--- for each of its grants whose every link up to the root is unrevoked, unsuspended, and unexpired,
--- the organization its scope is anchored in, found as the first step of ancestry.sql finds it.
--- Every grant is read, however many it holds, so none of its organizations goes uncharged.
+-- The organizations a subject ($1, its key) holds a live grant in at $2: for each of its grants
+-- whose every link up to the root is unrevoked, unsuspended, and unexpired, the organization its
+-- scope is anchored in, found as the first step of ancestry.sql finds it. Every grant is read,
+-- however many it holds, so none of its organizations goes uncharged.
 WITH RECURSIVE
 held AS (
     SELECT id, scope_kind, scope_id FROM grants WHERE subject_key = $1

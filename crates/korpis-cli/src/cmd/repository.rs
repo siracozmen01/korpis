@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis repository …` (§5.3 of docs/06-storage.md): where an organization's backups are kept,
-//! at what place in which backup target, and how long.
+//! `korpis repository …`: where an organization's backups are kept, at what place in which backup
+//! target, and how long.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;
@@ -47,16 +47,15 @@ pub enum RepositoryAction {
         /// A floor beneath which nothing prunes, in days.
         #[arg(long, default_value_t = 1)]
         min_retention_days: u32,
-        /// Take the streams of the workloads it serves (§4 of docs/14-streams.md); by default it
-        /// does unless another repository already takes them here.
+        /// Take the streams of the workloads it serves; by default it does unless another
+        /// repository already takes them here.
         #[arg(long, conflicts_with = "no_streams")]
         streams: bool,
         /// Do not take them.
         #[arg(long)]
         no_streams: bool,
-        /// Tenant custody: the organization's key management provider, by name, which makes
-        /// and opens every data key and never hands one over in the clear (§5.5 of
-        /// docs/06-storage.md).
+        /// Tenant custody: the organization's key management provider, by name, which makes and
+        /// opens every data key and never hands one over in the clear.
         #[arg(long, requires = "kms_key")]
         kms_provider: Option<String>,
         /// Tenant custody: the tenant's key in that service, as it names it.

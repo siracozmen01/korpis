@@ -2,8 +2,8 @@
 
 //! The guest's network: loopback up, and `eth0`, the microVM's one interface, up with the
 //! workload's addresses and a default route through each gateway, taken to be on the link, as the
-//! helper sets the link of a container (§4.1 of docs/07-networking.md). Set over route netlink,
-//! since the image need not hold any tool that would.
+//! helper sets the link of a container. Set over route netlink, since the image need not hold any
+//! tool that would.
 
 use korpis_guest::config::Network;
 use netlink_packet_core::{

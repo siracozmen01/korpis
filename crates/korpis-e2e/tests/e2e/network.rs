@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's network on a real node (§4.1 of docs/07-networking.md): the agent allocates its
-//! address, the helper makes its namespace and routed link, the container joins that namespace
-//! rather than making its own, the host reaches it at its address, its declared policy holds
-//! there (§6), and retiring the workload releases all of it.
+//! A workload's network on a real node: the agent allocates its address, the helper makes its
+//! namespace and routed link, the container joins that namespace rather than making its own, the
+//! host reaches it at its address, its declared policy holds there, and retiring the workload
+//! releases all of it.
 
 use crate::node::{Node, live};
 use crate::recipes::push_answerer;
@@ -108,8 +108,7 @@ async fn a_workload_joins_its_own_routed_network_and_retiring_it_releases_it() {
     assert!(ping.status.success(), "the host reaches the workload at its address");
 
     // Its resolver, named alone, answers it over UDP and TCP from inside its own namespace,
-    // whatever the host's firewall; the metadata address answers nothing (§5.1 and §6 of
-    // docs/07-networking.md).
+    // whatever the host's firewall; the metadata address answers nothing.
     let conf = std::fs::read_to_string(format!("/proc/{pid}/root/etc/resolv.conf")).unwrap();
     assert_eq!(conf, "nameserver 169.254.1.53\n");
     let net = bound.join("net");

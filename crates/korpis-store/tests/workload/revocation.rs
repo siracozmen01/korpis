@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The revocation list's entries (§6.3 of docs/08-identity.md): grants revoked within the
-//! horizon, and grants suspended within it whose suspension stands, recomputed from the rows so
-//! that a lifted suspension leaves the list.
+//! The revocation list's entries: grants revoked within the horizon, and grants suspended within it
+//! whose suspension stands, recomputed from the rows so that a lifted suspension leaves the list.
 
 use crate::support::fixture;
 use korpis_app::ports::GrantRead;

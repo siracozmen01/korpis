@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declared files (§3 of docs/13-surface-cli.md): a file is an intent body, written as plain
-//! YAML, with the workload and project it is for. What it leaves out the recipe supplies on the
-//! control plane. A field the format does not know is an error with its line, never ignored.
+//! Declared files: a file is an intent body, written as plain YAML, with the workload and project
+//! it is for. What it leaves out the recipe supplies on the control plane. A field the format does
+//! not know is an error with its line, never ignored.
 
 use crate::error::CliError;
 use korpis_core::quantity::Quantity;

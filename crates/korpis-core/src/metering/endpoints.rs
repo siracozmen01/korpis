@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What each endpoint whose accounting is on carried (§2 of docs/15-observability.md, "Bytes by
-//! endpoint, and egress"): counted in its node's host table, cumulative in a sample, and the
-//! differences in a record, named by the endpoint's name.
+//! What each endpoint whose accounting is on carried ("Bytes by endpoint, and egress"): counted in
+//! its node's host table, cumulative in a sample, and the differences in a record, named by the
+//! endpoint's name.
 
 use std::collections::BTreeMap;
 

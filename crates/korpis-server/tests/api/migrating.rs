@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A migration walked through its phases on both nodes' reports (§8.1 of docs/05-scheduling.md):
-//! each pass is named by the control plane with its ticket, and judged from the bytes the source
-//! sent and the destination's word that it holds it, a large one followed by another; each other
-//! phase advances once every side acting in it reported it done; the source's release of its
-//! lease moves the placement, the volume with it onto the copy the destination holds, and the
-//! destination is granted the next epoch; the source's deletion after the hold completes it. A
-//! rollback after the move returns the workload to the source and keeps what the destination
-//! wrote as a divergent copy; manifests that differ at `verify` abandon it, naming where; and a
-//! report from a node that is not that side, or of another phase, is not believed.
+//! A migration walked through its phases on both nodes' reports: each pass is named by the control
+//! plane with its ticket, and judged from the bytes the source sent and the destination's word that
+//! it holds it, a large one followed by another; each other phase advances once every side acting
+//! in it reported it done; the source's release of its lease moves the placement, the volume with
+//! it onto the copy the destination holds, and the destination is granted the next epoch; the
+//! source's deletion after the hold completes it. A rollback after the move returns the workload to
+//! the source and keeps what the destination wrote as a divergent copy; manifests that differ at
+//! `verify` abandon it, naming where; and a report from a node that is not that side, or of another
+//! phase, is not believed.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{ack, assignment, complete, plan_status, send, until};

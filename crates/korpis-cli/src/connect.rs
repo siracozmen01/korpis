@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! How the CLI reaches a control plane: its URL, the installation's certificate authority, which
-//! the CLI trusts alone for it (the system's roots are never consulted, so a public CA cannot
-//! vouch for a Korpis control plane), and the bearer of its calls: a capability token read from
-//! the environment or a file the operator names, or the access token of the session `korpis
-//! login` began, renewed while the command runs (§7 of docs/13-surface-cli.md). Inside a
-//! workload, the workload's own credential, carried through its node's relay ([`crate::inside`]).
+//! the CLI trusts alone for it (the system's roots are never consulted, so a public CA cannot vouch
+//! for a Korpis control plane), and the bearer of its calls: a capability token read from the
+//! environment or a file the operator names, or the access token of the session `korpis login`
+//! began, renewed while the command runs. Inside a workload, the workload's own credential, carried
+//! through its node's relay ([`crate::inside`]).
 
 use crate::error::CliError;
 use crate::session::{self, Access, Held, MARGIN};
@@ -23,8 +23,8 @@ pub struct Endpoint {
     pub server: String,
     /// The installation CA, in PEM.
     pub ca: PathBuf,
-    /// The capability token, an API token's secret, or a share link: the link's URL as it was
-    /// sent, or the credential in its fragment (§6.1 of docs/08-identity.md).
+    /// The capability token, an API token's secret, or a share link: the link's URL as it was sent,
+    /// or the credential in its fragment.
     pub token: String,
 }
 

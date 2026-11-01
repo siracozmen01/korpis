@@ -2,10 +2,10 @@
 
 //! The workload's root, assembled at `root` on the boot drive: the image drive read-only, a small
 //! tmpfs above it in an overlay so the mount points it lacks can be made, then the overlay made
-//! read-only, as a container's root is (§2 of docs/04-runtimes.md). Beneath it, the kernel's
-//! filesystems, small tmpfs mounts at `/tmp`, `/run`, and `/dev/shm` so a read-only root is
-//! livable, the volumes, each its own drive's filesystem, and the resolver the guest is given.
-//! A service guest's root holds the volumes and no image.
+//! read-only, as a container's root is. Beneath it, the kernel's filesystems, small tmpfs mounts at
+//! `/tmp`, `/run`, and `/dev/shm` so a read-only root is livable, the volumes, each its own drive's
+//! filesystem, and the resolver the guest is given. A service guest's root holds the volumes and no
+//! image.
 
 use crate::failed;
 use korpis_guest::config::Config;
@@ -67,9 +67,9 @@ fn overlay(root: &str, config: &Config) -> Result<(), String> {
         .map_err(failed("making the root read-only"))
 }
 
-/// Writes `/etc/resolv.conf` beneath `root`, naming `resolvers` alone, in the overlay's
-/// writable layer, as a container is given its own (§5.1 of docs/07-networking.md). What the
-/// image holds there is removed first, never written through: it may be a link.
+/// Writes `/etc/resolv.conf` beneath `root`, naming `resolvers` alone, in the overlay's writable
+/// layer, as a container is given its own. What the image holds there is removed first, never
+/// written through: it may be a link.
 fn resolv(root: &str, resolvers: &[IpAddr]) -> Result<(), String> {
     if resolvers.is_empty() {
         return Ok(());
@@ -119,10 +119,9 @@ pub fn root(root: &str, config: &Config) -> Result<(), String> {
     volumes(root, config)
 }
 
-/// A service guest's root at `root` (§4.4 of docs/04-runtimes.md): no image, only a small tmpfs
-/// holding the mount points, made read-only, then the kernel's filesystems and the volumes at
-/// their paths, which is all a file session's worker reaches; for an install, its content drive
-/// beneath `/run`.
+/// A service guest's root at `root`: no image, only a small tmpfs holding the mount points, made
+/// read-only, then the kernel's filesystems and the volumes at their paths, which is all a file
+/// session's worker reaches; for an install, its content drive beneath `/run`.
 pub fn service(root: &str, config: &Config) -> Result<(), String> {
     let tmpfs = MsFlags::MS_NOSUID | MsFlags::MS_NODEV;
     mounted("tmpfs", Path::new(root), "tmpfs", tmpfs, Some("size=1m,mode=0755"))?;

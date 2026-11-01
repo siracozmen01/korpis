@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The confinement every job the helper starts applies to itself (§6 of
-//! docs/02-architecture.md): a backup or restore job (§5.5 of docs/06-storage.md) and an install
-//! job (§4 of docs/09-recipes.md). Each is started as root because its work needs some of root;
-//! these are the steps by which it gives up the rest, written once so that every job gives it up
-//! the same way. Each applies to the calling thread and to every thread or process it starts
-//! afterwards, so a job applies them while it is still one thread.
+//! The confinement every job the helper starts applies to itself: a backup or restore job and an
+//! install job. Each is started as root because its work needs some of root; these are the steps by
+//! which it gives up the rest, written once so that every job gives it up the same way. Each
+//! applies to the calling thread and to every thread or process it starts afterwards, so a job
+//! applies them while it is still one thread.
 
 pub mod root;
 

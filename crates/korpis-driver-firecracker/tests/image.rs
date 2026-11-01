@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block device's backup, browsed in a live guest (§5.4 of docs/06-storage.md): the image the
-//! node staged is served read-only at `/backup` by a service guest of its own, which runs beside
-//! the workload's own guest; an image taken from a running guest, whose journal still needs
-//! replaying, is mounted all the same; a write is refused; two sessions share one guest, which
-//! ends with the last; and an image outside the volume root, one not marked a block device's, and
-//! one holding a filesystem its guests do not mount are refused. Needs what the driver's runtime tests need.
+//! A block device's backup, browsed in a live guest: the image the node staged is served read-only
+//! at `/backup` by a service guest of its own, which runs beside the workload's own guest; an image
+//! taken from a running guest, whose journal still needs replaying, is mounted all the same; a
+//! write is refused; two sessions share one guest, which ends with the last; and an image outside
+//! the volume root, one not marked a block device's, and one holding a filesystem its guests do not
+//! mount are refused. Needs what the driver's runtime tests need.
 
 #![allow(
     clippy::unwrap_used,

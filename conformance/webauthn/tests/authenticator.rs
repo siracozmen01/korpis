@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The relying party against a software authenticator (§9.6 of docs/08-identity.md): a passkey
-//! registered and asserted with as a browser would, and every way a ceremony is refused.
+//! The relying party against a software authenticator: a passkey registered and asserted with as a
+//! browser would, and every way a ceremony is refused.
 
 #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
 

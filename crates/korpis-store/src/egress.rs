@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The egress budget's state (§5.1 of docs/05-scheduling.md, "The egress budget"): a month's
-//! egress by workload and node, read from the metering records as an invoice sums them, what
-//! each entry was reckoned to have spent, and what each workload of a spent entry is held to.
+//! The egress budget's state ("The egress budget"): a month's egress by workload and node, read
+//! from the metering records as an invoice sums them, what each entry was reckoned to have spent,
+//! and what each workload of a spent entry is held to.
 
 use crate::errors::from_sqlx;
 use crate::quota::EntryRow;

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis ssh-key …` (§9.9 of docs/08-identity.md, §8 of docs/13-surface-cli.md): the SSH keys
-//! the signed-in person reaches their files with over SFTP. Adding or removing one needs a
-//! sign-in within ten minutes; refused as not recent, the binary signs the terminal in again by
-//! the device flow and asks once more (Finding 135 of docs/23-walkthroughs.md). A key is added
-//! with its signature over the account's name, which `ssh-keygen -Y sign` makes with the private
-//! key beside the `.pub` file, or with the agent holding it, or which is given made elsewhere.
+//! `korpis ssh-key …`: the SSH keys the signed-in person reaches their files with over SFTP. Adding
+//! or removing one needs a sign-in within ten minutes; refused as not recent, the binary signs the
+//! terminal in again by the device flow and asks once more. A key is added with its signature over
+//! the account's name, which `ssh-keygen -Y sign` makes with the private key beside the `.pub`
+//! file, or with the agent holding it, or which is given made elsewhere.
 
 use super::{Answer, json};
 use crate::connect::Connection;

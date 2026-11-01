@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! One workload, one pass. What the reconciler may do is decided by the lease first (§4.5 of
-//! docs/02-architecture.md): under a lease it executes the plan's steps and then keeps the
-//! approved state; with the lease expired it changes nothing except bringing back a workload
-//! that crashed, if it keeps running on expiry (§4.6), and stops it if it stops on expiry; when
-//! another node holds the workload it stops it and keeps its data; and before a first lease it
-//! waits. A retired workload's lease is released once its runtime object is gone.
+//! One workload, one pass. What the reconciler may do is decided by the lease first: under a lease
+//! it executes the plan's steps and then keeps the approved state; with the lease expired it
+//! changes nothing except bringing back a workload that crashed, if it keeps running on expiry, and
+//! stops it if it stops on expiry; when another node holds the workload it stops it and keeps its
+//! data; and before a first lease it waits. A retired workload's lease is released once its runtime
+//! object is gone.
 
 use super::act::running;
 use super::runs::has_runs;
@@ -80,8 +80,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     }
 
     /// A residual assignment: the steps of its plan, which delete what a retired workload left
-    /// here, and nothing else. No lease fences them, because no other node holds what they
-    /// touch, and nothing is built, started, or observed (§7 of docs/06-storage.md).
+    /// here, and nothing else. No lease fences them, because no other node holds what they touch,
+    /// and nothing is built, started, or observed.
     async fn residual(&mut self, a: &agent::Assignment) {
         let Some(plan) = a.plan.as_option() else { return };
         let mut t = Tracked::default();
@@ -132,8 +132,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         self.level(a, t).await
     }
 
-    /// The approved state, with no step outstanding: a decision already made, which the node
-    /// keeps without asking (§4.6 of docs/02-architecture.md).
+    /// The approved state, with no step outstanding: a decision already made, which the node keeps
+    /// without asking.
     async fn level(
         &mut self,
         a: &agent::Assignment,
@@ -147,7 +147,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             return Ok(());
         }
         if has_runs(a) {
-            // Its own object is never started: each run is (§4.2 of docs/05-scheduling.md).
+            // Its own object is never started: each run is.
             return self.runs(a, t, true).await;
         }
         if !wants_running(a) || t.runtime.is_none() {
@@ -158,15 +158,15 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             return self.stop(t).await.map(drop);
         }
         if t.runtime.is_none() {
-            // A required dependency not yet running here and ready holds its dependent back (§5
-            // of docs/07-networking.md); it is created once the dependency is.
+            // A required dependency not yet running here and ready holds its dependent back; it is
+            // created once the dependency is.
             if !self.held_back(a, t) {
                 self.start(a, t).await?;
             }
             return Ok(());
         }
-        // A liveness probe that fails restarts it (§5 of docs/04-runtimes.md), before anything
-        // else is kept: its stop may take several passes.
+        // A liveness probe that fails restarts it, before anything else is kept: its stop may take
+        // several passes.
         if let Some(restarted) = self.unhealthy(a, t).await {
             return restarted;
         }
@@ -229,10 +229,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 const UNKNOWN_BOUND: Duration = Duration::from_secs(60);
 
 /// Whether `t`'s object is in a state its driver cannot tell, and has been for less than
-/// [`UNKNOWN_BOUND`]. containerd says so when a task's shim fails to answer (§4.4 of
-/// docs/02-architecture.md), and starting the object then would replace a task that may be
-/// running; a shim gone for good stays unknown, so past the bound the object is acted on as
-/// stopped.
+/// [`UNKNOWN_BOUND`]. containerd says so when a task's shim fails to answer, and starting the
+/// object then would replace a task that may be running; a shim gone for good stays unknown, so
+/// past the bound the object is acted on as stopped.
 fn undetermined(t: &mut Tracked) -> bool {
     let unknown = t
         .status

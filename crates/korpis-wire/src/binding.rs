@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity bindings (§5 of docs/08-identity.md).
+//! Identity bindings.
 
 use crate::{duration, duration_from, id, invalid, principal, timestamp, wire_id};
 use korpis_core::authz::TemplateRef;
@@ -12,7 +12,7 @@ use korpis_core::id::IdKind;
 use korpis_core::principal::Principal;
 use korpis_proto::korpis::v1 as pb;
 
-/// A binding's terms from a request; the defaults of §5.1 where a duration is not said.
+/// A binding's terms from a request; the defaults where a duration is not said.
 pub fn terms_from_pb(
     t: Option<&pb::IdentityBindingTerms>,
 ) -> Result<BindingTerms, crate::WireError> {

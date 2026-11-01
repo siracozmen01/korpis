@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The driver's own door (§6.1 of docs/02-architecture.md). Access to containerd is root, so
-//! this check, not the supervisor, is what stands between a compromised supervisor and the host:
-//! every spec is checked against the container tier's invariants (§2 of docs/04-runtimes.md)
-//! before anything is built from it, and a spec the supervisor could not have produced from an
-//! honest assignment is refused. Only a [`Valid`] spec can be turned into a runtime spec, and only
-//! this module makes one.
+//! The driver's own door. Access to containerd is root, so this check, not the supervisor, is what
+//! stands between a compromised supervisor and the host: every spec is checked against the
+//! container tier's invariants before anything is built from it, and a spec the supervisor could
+//! not have produced from an honest assignment is refused. Only a [`Valid`] spec can be turned into
+//! a runtime spec, and only this module makes one.
 //!
 //! What is checked here is lexical: a path is judged by its text. That a volume's source is
 //! really under the helper's root, with no symbolic link leading out, is checked again on the
@@ -16,8 +15,8 @@ use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::path::{Component, Path, PathBuf};
 
-/// The most processes and threads a workload may hold when its intent sets no limit: there is
-/// no configuration without one (§5.2 of docs/05-scheduling.md).
+/// The most processes and threads a workload may hold when its intent sets no limit: there is no
+/// configuration without one.
 pub const DEFAULT_PIDS: u64 = 4096;
 /// The longest argument, environment entry, or path accepted, in bytes.
 const MAX_STRING: usize = 64 << 10;
@@ -49,18 +48,17 @@ pub struct Policy {
     /// The directory the helper keeps volumes under.
     pub volume_root: PathBuf,
     /// The roots of the node's shared storage classes, each a network filesystem the operator
-    /// mounted, whose volumes the helper keeps there (§2.1 of docs/06-storage.md).
+    /// mounted, whose volumes the helper keeps there.
     pub shared_roots: Vec<PathBuf>,
-    /// The directory the helper mounts block classes' volumes under, one directory per class
-    /// (§2.1 of docs/06-storage.md).
+    /// The directory the helper mounts block classes' volumes under, one directory per class.
     pub block_root: PathBuf,
-    /// The directory the agent makes the workloads' identity sockets under, one directory each
-    /// (§9.5 of docs/08-identity.md). These two roots, the `resolv.conf` in the network
-    /// directory a spec joins, and what the node's CDI files give a device, read by the driver
-    /// itself, are the only host paths ever mounted.
+    /// The directory the agent makes the workloads' identity sockets under, one directory each.
+    /// These two roots, the `resolv.conf` in the network directory a spec joins, and what the
+    /// node's CDI files give a device, read by the driver itself, are the only host paths ever
+    /// mounted.
     pub identity_root: PathBuf,
-    /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
-    /// docs/07-networking.md): the only namespaces a container joins rather than makes.
+    /// The directory the helper binds workloads' network namespaces under, one each: the only
+    /// namespaces a container joins rather than makes.
     pub netns_root: PathBuf,
     /// The node's Container Device Interface files, the only source of a device's edits.
     pub devices: crate::devices::Specs,
@@ -157,9 +155,9 @@ fn network(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation
     Ok(())
 }
 
-/// The stream directory, if any, is the workload's own stream volume under the helper's root,
-/// or, for an object that executes one of its runs, that run's (§4 of docs/14-streams.md): a
-/// run writes its own console, and never another run's or the workload's.
+/// The stream directory, if any, is the workload's own stream volume under the helper's root, or,
+/// for an object that executes one of its runs, that run's: a run writes its own console, and never
+/// another run's or the workload's.
 fn stream(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation> {
     let Some(s) = spec.stream.as_option() else { return Ok(()) };
     if !korpis_driver_kit::console::own_dir(spec, &policy.volume_root) {

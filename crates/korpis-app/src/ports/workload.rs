@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Workloads, their intents and power declarations, and their plans (§3.3 of docs/01-model.md,
-//! §3 and §7 of docs/03-state.md).
+//! Workloads, their intents and power declarations, and their plans.
 
 use super::StoreResult;
 use crate::page::Page;
@@ -16,7 +15,7 @@ use uuid::Uuid;
 #[error("intent body: {0}")]
 pub struct CodecError(pub String);
 
-/// How an intent body is written to and read from the store. §3.1 of docs/03-state.md stores it
+/// How an intent body is written to and read from the store. The store keeps it
 /// in the wire schema's canonical JSON, a format the store does not own and must not depend on,
 /// so the composition root hands the store an implementation of this.
 pub trait IntentCodec: std::fmt::Debug + Send + Sync + 'static {
@@ -113,10 +112,10 @@ pub trait WorkloadRead {
 }
 
 /// Writing workloads. The compare-and-swaps return `false` when the state they were computed
-/// against has moved, which the use case reports as a conflict (§3.2 of docs/03-state.md).
+/// against has moved, which the use case reports as a conflict.
 pub trait WorkloadWrite {
-    /// One intent, read within the transaction, so a use case holding one never asks the pool
-    /// for a second connection (Finding 71 of docs/23-walkthroughs.md).
+    /// One intent, read within the transaction, so a use case holding one never asks the pool for a
+    /// second connection.
     fn intent_within(
         &mut self,
         id: Uuid,
@@ -147,14 +146,12 @@ pub trait WorkloadWrite {
         power: &PowerRecord,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Whether a plan of `workload` is applying: a plan approved meanwhile is queued behind it
-    /// (§7 of docs/03-state.md).
+    /// Whether a plan of `workload` is applying: a plan approved meanwhile is queued behind it.
     fn plan_applying(&mut self, workload: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Whether `workload` was made on a node and nothing is under way: an intent or remake plan
-    /// of it applied, and none of its plans is approved, queued, or applying. Such a workload
-    /// placed on a node it was not made on is made there by a remake plan (§2.4 of
-    /// docs/05-scheduling.md).
+    /// Whether `workload` was made on a node and nothing is under way: an intent or remake plan of
+    /// it applied, and none of its plans is approved, queued, or applying. Such a workload placed
+    /// on a node it was not made on is made there by a remake plan.
     fn made_and_settled(
         &mut self,
         workload: Uuid,
@@ -175,8 +172,8 @@ pub trait WorkloadWrite {
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Marks every other proposed plan of `keep`'s workload and kind superseded, and returns how
-    /// many there were: a newer declaration supersedes every unapproved plan for an older one
-    /// (§3.3 of docs/01-model.md), and a power change leaves a pending intent plan alone.
+    /// many there were: a newer declaration supersedes every unapproved plan for an older one, and
+    /// a power change leaves a pending intent plan alone.
     fn supersede_proposed(&mut self, keep: &Plan) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Marks the workload as no longer reproducible from its recipe alone, at `at` for `reason`,
@@ -198,10 +195,10 @@ pub trait WorkloadWrite {
         expected: u64,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Moves the target to `to`, if the target version is still `expected` and `to` is the
-    /// head: only the head is approvable (§3.2 of docs/03-state.md). The first time a target is
-    /// set, the workload's first power declaration is approved with it, because the plan that
-    /// moved it was computed with that power.
+    /// Moves the target to `to`, if the target version is still `expected` and `to` is the head:
+    /// only the head is approvable. The first time a target is set, the workload's first power
+    /// declaration is approved with it, because the plan that moved it was computed with that
+    /// power.
     fn move_target(
         &mut self,
         workload: Uuid,
@@ -220,7 +217,7 @@ pub trait WorkloadWrite {
 
     /// Puts the target back to `to` (absent: none) and the power target back to `power`, if the
     /// target version is still `expected`: a plan cancelled before any of its steps completed
-    /// leaves the workload as it was (§7 of docs/03-state.md).
+    /// leaves the workload as it was.
     fn restore_targets(
         &mut self,
         workload: Uuid,

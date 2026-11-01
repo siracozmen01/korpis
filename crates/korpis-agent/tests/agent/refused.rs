@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A driver that refuses after the bind (§2.1 of docs/05-scheduling.md), on real agents: both
-//! nodes accept when the shortlist asks, the workload is bound to the preferred one with its plan
-//! approved to apply later, and that node's driver refuses by the time the plan reaches it. The
-//! agent journals the refusal as `step.refused`, nothing having been made there, and the workload
-//! converges on the other node, its plan never failed.
+//! A driver that refuses after the bind, on real agents: both nodes accept when the shortlist asks,
+//! the workload is bound to the preferred one with its plan approved to apply later, and that
+//! node's driver refuses by the time the plan reaches it. The agent journals the refusal as
+//! `step.refused`, nothing having been made there, and the workload converges on the other node,
+//! its plan never failed.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation, push_paper};

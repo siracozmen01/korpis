@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The nftables rules of a workload's network (§4.1 of docs/07-networking.md), written as the
-//! `nft` command's JSON input in one transaction each, so a change is never half applied. The
-//! host's table, `inet korpis`, translates what leaves the node from a workload; a workload's own
-//! table, in its namespace, drops every new connection in that its endpoints do not declare. The
-//! rows of the egress default are added to the host's table by the policy (§6 there).
+//! The nftables rules of a workload's network, written as the `nft` command's JSON input in one
+//! transaction each, so a change is never half applied. The host's table, `inet korpis`, translates
+//! what leaves the node from a workload; a workload's own table, in its namespace, drops every new
+//! connection in that its endpoints do not declare. The rows of the egress default are added to the
+//! host's table by the policy.
 
 use super::policy::{Inbound, limited, matches};
 use korpis_core::workload::network::RESOLVER_V4;
@@ -43,8 +43,7 @@ fn masquerade(family: &str, ula_only: bool) -> Value {
         json!({"match": {"op": "==", "left": meta("nfproto"), "right": family}}),
         json!({"match": {"op": "==", "left": meta("iifname"), "right": LINKS}}),
         json!({"match": {"op": "!=", "left": meta("oifname"), "right": LINKS}}),
-        // What leaves into the mesh keeps its source, a workload address its peer allows
-        // (§9.1 of docs/07-networking.md).
+        // What leaves into the mesh keeps its source, a workload address its peer allows.
         json!({"match": {"op": "!=", "left": meta("oifname"), "right": crate::overlay::INTERFACE}}),
     ];
     if ula_only {
@@ -128,13 +127,13 @@ fn admitted(chain: &str) -> [Value; 3] {
     ]
 }
 
-/// A workload's own table, written whole: new connections in are dropped, except over loopback,
-/// the messages a network needs, and to the ports `inbound` its endpoints listen on, each through
-/// its endpoint's rules and limits where it has any; replies to its own connections are let back.
-/// What an endpoint with a limit of its own sends from its port is put in its class on `eth0`
-/// (§7 of docs/07-networking.md), by the priority its output chain sets, which the workload,
-/// holding no `NET_ADMIN`, cannot change. A priority it sets on a socket itself can put what it
-/// sends only in another of its own classes, each beneath its own limit.
+/// A workload's own table, written whole: new connections in are dropped, except over loopback, the
+/// messages a network needs, and to the ports `inbound` its endpoints listen on, each through its
+/// endpoint's rules and limits where it has any; replies to its own connections are let back. What
+/// an endpoint with a limit of its own sends from its port is put in its class on `eth0`, by the
+/// priority its output chain sets, which the workload, holding no `NET_ADMIN`, cannot change. A
+/// priority it sets on a socket itself can put what it sends only in another of its own classes,
+/// each beneath its own limit.
 ///
 /// For a microVM, whose guest is behind a tap, the same rules hold on the forward hook, since
 /// the guest's connections pass through the namespace rather than end in it, and its priorities

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Runs: `korpis.v1.Run` (§4 of docs/05-scheduling.md).
+//! Runs: `korpis.v1.Run`.
 
 use crate::{duration, timestamp, wire_id};
 use korpis_core::id::IdKind;

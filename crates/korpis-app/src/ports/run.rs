@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Runs, and what the control plane keeps of each workload that has them (§4 of
-//! docs/05-scheduling.md).
+//! Runs, and what the control plane keeps of each workload that has them.
 
 use super::StoreResult;
 use crate::page::Page;

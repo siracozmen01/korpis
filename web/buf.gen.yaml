@@ -1,6 +1,5 @@
-# The panel's API client, generated from the same schema as the server (§3 of
-# docs/10-api.md, §9 of docs/21-stack.md). The output is committed, and the check regenerates it
-# and fails on any difference, as it does for the server's descriptor.
+# The panel's API client, generated from the same schema as the server. The output is committed, and
+# the check regenerates it and fails on any difference, as it does for the server's descriptor.
 version: v2
 plugins:
   - local: node_modules/.bin/protoc-gen-es

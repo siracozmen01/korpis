@@ -2,10 +2,9 @@
 
 //! Identifiers on the wire: a type prefix and a UUID, e.g. `wl_0192f3...`.
 //!
-//! The store keys everything by UUID (version 7, time-ordered). The API shows the same UUID with
-//! a prefix naming what it identifies, so an identifier pasted into the wrong field is refused
-//! rather than silently looked up as something else. Identifiers are immutable and never reused
-//! (§5 of docs/01-model.md).
+//! The store keys everything by UUID (version 7, time-ordered). The API shows the same UUID with a
+//! prefix naming what it identifies, so an identifier pasted into the wrong field is refused rather
+//! than silently looked up as something else. Identifiers are immutable and never reused.
 
 use std::fmt;
 use uuid::Uuid;

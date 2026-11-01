@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis grant issue|revoke|list|show` (§7 of docs/13-surface-cli.md). Issuing to no named
-//! holder creates a token that exists only to hold the grant (§3.7 of docs/08-identity.md),
-//! which is how a pipeline gets a bounded, dated, attributable credential.
+//! `korpis grant issue|revoke|list|show`. Issuing to no named holder creates a token that exists
+//! only to hold the grant, which is how a pipeline gets a bounded, dated, attributable credential.
 
 use super::{Answer, GrantAction, Issue, json, mutation, pairs, seconds};
 use crate::connect::Connection;

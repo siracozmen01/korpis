@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis quota show|set` (§5.1 of docs/05-scheduling.md): an organization's quota set, or a
-//! project's, what the workloads each entry counts hold, and, for an organization, what it has
-//! given below of each entry's shape: guaranteed beside what it was guaranteed, and sold beside
-//! what it may sell, its own limit times the overcommit it was permitted, and each organization
-//! beneath it with what it was given and holds. A set is set from above, from a file holding
-//! what `quota show --json` prints of it.
+//! `korpis quota show|set`: an organization's quota set, or a project's, what the workloads each
+//! entry counts hold, and, for an organization, what it has given below of each entry's shape:
+//! guaranteed beside what it was guaranteed, and sold beside what it may sell, its own limit times
+//! the overcommit it was permitted, and each organization beneath it with what it was given and
+//! holds. A set is set from above, from a file holding what `quota show --json` prints of it.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;
@@ -176,8 +175,8 @@ fn exhaustion(e: Option<&pb::EgressExhaustion>) -> String {
     }
 }
 
-/// The egress budget of each entry of `set` that has one, and what it spent this month; none
-/// where no entry has a budget (§5.1 of docs/05-scheduling.md).
+/// The egress budget of each entry of `set` that has one, and what it spent this month; none where
+/// no entry has a budget.
 fn egress_rows(set: &pb::QuotaSet) -> Option<String> {
     let header = ["SHAPE", "EGRESS A MONTH", "SENT THIS MONTH", "ONCE SPENT", "NOW", "RECKONED"];
     let mut all = vec![header.iter().map(|h| (*h).to_owned()).collect::<Vec<_>>()];

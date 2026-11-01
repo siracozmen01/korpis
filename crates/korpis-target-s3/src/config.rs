@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The provider's configuration, from its workload's environment (§2 of docs/16-extensions.md:
+//! The provider's configuration, from its workload's environment (
 //! the store's own credential lives in the extension's configuration and nowhere else).
 
 use crate::sts::Sts;

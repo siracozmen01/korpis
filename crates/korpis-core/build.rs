@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Records the source revision every Korpis binary was built from, so that `korpis version`
-//! and the web client's `/about/source` can name it (§2 of `docs/19-governance.md`).
+//! Records the source revision every Korpis binary was built from, so that `korpis version` and the
+//! web client's `/about/source` can name it.
 
 use std::process::Command;
 

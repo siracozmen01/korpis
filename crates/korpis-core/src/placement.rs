@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The binding of a workload to a node, and why (§3.4 of docs/01-model.md, §2.3 of
-//! docs/05-scheduling.md).
+//! The binding of a workload to a node, and why.
 
 use crate::schedule::Explanation;
 use crate::tenancy::quota::Bounds;
@@ -17,11 +16,9 @@ pub enum BoundBy {
     Operator,
     /// A migration, during cutover.
     Migration,
-    /// A restore, to the node that presented the workload's assignment (§8 of
-    /// docs/03-state.md).
+    /// A restore, to the node that presented the workload's assignment.
     Recovery,
-    /// Failover: placed again once its node went silent and its lease ended (§2.4 of
-    /// docs/05-scheduling.md).
+    /// Failover: placed again once its node went silent and its lease ended.
     Failover,
 }
 
@@ -57,8 +54,7 @@ pub struct Placement {
     /// The approved intent it was bound for; when the target moves on and still fits here, the
     /// placement follows it in place.
     pub intent: Uuid,
-    /// What it reserves on the node: that intent's reservations (§5.2 of
-    /// docs/05-scheduling.md).
+    /// What it reserves on the node: that intent's reservations.
     pub reserved: Bounds,
     /// When.
     pub bound_at: SystemTime,
@@ -70,13 +66,12 @@ pub struct Placement {
     pub explanation: Explanation,
     /// During a migration two placements coexist and exactly one is authoritative.
     pub authoritative: bool,
-    /// When a restore held it: its node presented its assignments without this one, so nothing
-    /// is sent for it until an operator confirms it or it is retired (§8 of docs/03-state.md).
+    /// When a restore held it: its node presented its assignments without this one, so nothing is
+    /// sent for it until an operator confirms it or it is retired.
     pub held_at: Option<SystemTime>,
-    /// The node's devices it holds, chosen when it was bound (§6.3 of docs/05-scheduling.md).
+    /// The node's devices it holds, chosen when it was bound.
     pub devices: Vec<crate::node::device::DeviceHold>,
-    /// The node's cores it holds, chosen when it was bound for dedicated cores (§5.2 of
-    /// docs/05-scheduling.md).
+    /// The node's cores it holds, chosen when it was bound for dedicated cores.
     pub cores: Vec<u32>,
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Charging rate limit buckets (§10 of docs/10-api.md).
+//! Charging rate limit buckets.
 
 use super::StoreResult;
 use korpis_core::rate::{Bucket, Standing};
@@ -53,8 +53,7 @@ pub trait RateBuckets {
 }
 
 /// Charging buckets inside a transaction: a use case that holds one charges on its connection,
-/// never asking the pool for a second while it waits on its first (Finding 71 of
-/// docs/23-walkthroughs.md).
+/// never asking the pool for a second while it waits on its first.
 pub trait RateWrite {
     /// As [`RateBuckets::charge`], within the transaction.
     fn charge_within(

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a quota refusal tells whom (§5.1 of docs/05-scheduling.md, Finding 140 of
-//! docs/23-walkthroughs.md): it names the set that refused, with its bound and what would be
-//! held, to a caller who may read the set's owner; a customer refused by its reseller's set is
-//! told only the dimension, since the reseller's bound and what all its customers hold together
-//! are the reseller's own.
+//! What a quota refusal tells whom: it names the set that refused, with its bound and what would be
+//! held, to a caller who may read the set's owner; a customer refused by its reseller's set is told
+//! only the dimension, since the reseller's bound and what all its customers hold together are the
+//! reseller's own.
 
 use crate::delegation::{Holder, delegate, delegation, organization};
 use crate::recipes::{body, create, project, push_paper};

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Wearing an organization's theme (§7 of docs/11-surface-web.md): its colours replace the panel's
-// tokens, its stylesheet follows the panel's own, its name and logo stand in the chrome. Both
-// sheets are constructed in the page rather than loaded or inlined, so the page's policy keeps
-// `style-src 'self'`; a constructed sheet ignores `@import`, which the control plane refused
-// anyway, and what its rules load is still fenced by `img-src`, `font-src`, and `connect-src`.
-// Nothing a theme says is trusted twice: a colour is used only if it is `#rrggbb`, a logo only if
-// it is one of the three image types, whatever the control plane let through.
+// Wearing an organization's theme: its colours replace the panel's tokens, its stylesheet follows
+// the panel's own, its name and logo stand in the chrome. Both sheets are constructed in the page
+// rather than loaded or inlined, so the page's policy keeps `style-src 'self'`; a constructed sheet
+// ignores `@import`, which the control plane refused anyway, and what its rules load is still
+// fenced by `img-src`, `font-src`, and `connect-src`. Nothing a theme says is trusted twice: a
+// colour is used only if it is `#rrggbb`, a logo only if it is one of the three image types,
+// whatever the control plane let through.
 
 import type { Logo, Theme, ThemeColors } from "../gen/korpis/v1/tenancy_pb";
 

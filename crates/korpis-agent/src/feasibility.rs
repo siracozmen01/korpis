@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Answering the control plane's `FeasibilityQuery` (§2.1 of docs/05-scheduling.md): the driver's
-//! `Prepare` over the intent and the manifest the query carries. Nothing is fetched, created, or
-//! kept; a query is answered whatever the node holds, since it is a question about a workload
-//! the node does not run yet. The session answers, each query in a task of its own, and says in
-//! its `Hello` that it does, so a control plane never waits on an agent that cannot.
+//! Answering the control plane's `FeasibilityQuery`: the driver's `Prepare` over the intent and the
+//! manifest the query carries. Nothing is fetched, created, or kept; a query is answered whatever
+//! the node holds, since it is a question about a workload the node does not run yet. The session
+//! answers, each query in a task of its own, and says in its `Hello` that it does, so a control
+//! plane never waits on an agent that cannot.
 
 use crate::runtime::{Prepared, Runtime};
 use korpis_proto::korpis::agent::v1 as agent;

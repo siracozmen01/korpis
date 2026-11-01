@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a client is shown of a recipe (§5 of docs/09-recipes.md): `korpis.v1.RecipeMetadata` and
-//! `korpis.v1.ConfigSchema`. Only ever sent: a client declares values against the schema, never
-//! the schema itself.
+//! What a client is shown of a recipe: `korpis.v1.RecipeMetadata` and `korpis.v1.ConfigSchema`.
+//! Only ever sent: a client declares values against the schema, never the schema itself.
 
 use crate::value::to_pb as value_to_pb;
 use korpis_core::recipe::{

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The control plane's two signing keys, separate because they have different jobs and different
-//! fates on restore (finding 16 of docs/23-walkthroughs.md): the token key signs capability tokens
-//! and is rotated on every restore; the assignment key signs what nodes are told and is kept, so
-//! a restored control plane can verify the assignments nodes present (§8 of docs/03-state.md).
+//! fates on restore: the token key signs capability tokens and is rotated on every restore; the
+//! assignment key signs what nodes are told and is kept, so a restored control plane can verify the
+//! assignments nodes present.
 
 use crate::data::{DataDir, write_secret};
 use ed25519_dalek::SigningKey as AssignmentKey;
@@ -44,8 +44,8 @@ pub struct Keys {
     pub assignment_key_id: String,
 }
 
-/// The first epoch of each key. The token key's epoch rises each time a restore rotates it (§8
-/// of docs/03-state.md); the assignment key's never does, since nodes present what it signed.
+/// The first epoch of each key. The token key's epoch rises each time a restore rotates it; the
+/// assignment key's never does, since nodes present what it signed.
 pub const FIRST_EPOCH: u32 = 1;
 
 /// The token key's current epoch: the highest `token-<n>.key` in the data directory, or the

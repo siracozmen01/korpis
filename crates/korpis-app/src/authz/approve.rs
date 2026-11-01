@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Who may decide a plan (§3.3 of docs/01-model.md, §3.6 of docs/08-identity.md).
+//! Who may decide a plan.
 //!
-//! A plan that needs **confirmation** was proposed under a grant that permits its action; it
-//! waits only so that a human sees it. Its proposer may confirm it, re-checked now, and so may
-//! anyone else who may perform its action or holds `plan.approve` over the workload. The
-//! proposer deciding it through the grant it was proposed under continues the call that
-//! proposed it, which spent the one use the action costs, so the decision spends none: a share
-//! link's restart, proposed and confirmed, is one use (§6.1 of docs/08-identity.md). A plan that
-//! needs **authority** was proposed under a grant that may only propose: approving it is
-//! `may_approve`, which no subject can satisfy for their own plan.
+//! A plan that needs **confirmation** was proposed under a grant that permits its action; it waits
+//! only so that a human sees it. Its proposer may confirm it, re-checked now, and so may anyone
+//! else who may perform its action or holds `plan.approve` over the workload. The proposer deciding
+//! it through the grant it was proposed under continues the call that proposed it, which spent the
+//! one use the action costs, so the decision spends none: a share link's restart, proposed and
+//! confirmed, is one use. A plan that needs **authority** was proposed under a grant that may only
+//! propose: approving it is `may_approve`, which no subject can satisfy for their own plan.
 
 use super::Snapshot;
 use super::gateway::core_action;

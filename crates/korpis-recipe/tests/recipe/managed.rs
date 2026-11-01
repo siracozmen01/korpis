@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Managed files (§5.2 of docs/09-recipes.md): an operator's setting, a secret among them,
-//! rendered outside every volume the tenant writes, from a template that may name only the fields
-//! delivered that way, and no such field left with nowhere to go.
+//! Managed files: an operator's setting, a secret among them, rendered outside every volume the
+//! tenant writes, from a template that may name only the fields delivered that way, and no such
+//! field left with nowhere to go.
 
 use crate::support::PAPER;
 use korpis_core::recipe::managed::{MANAGED_DIR, context};

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The SFTP half: version 3 packets read from the channel, each answered by the session's verbs
-//! (§3.2 of docs/06-storage.md). Reads and writes of an open file go to the node as they arrive,
-//! up to as many as the node holds unanswered, and are answered as the node answers them, so a
-//! client that keeps several in flight, as every client does, is not held to one round trip each;
-//! any other request waits for those before it, so it sees what they did. A packet that cannot be
-//! read ends the connection, which is all a stream that has lost its framing can do.
+//! The SFTP half: version 3 packets read from the channel, each answered by the session's verbs.
+//! Reads and writes of an open file go to the node as they arrive, up to as many as the node holds
+//! unanswered, and are answered as the node answers them, so a client that keeps several in flight,
+//! as every client does, is not held to one round trip each; any other request waits for those
+//! before it, so it sees what they did. A packet that cannot be read ends the connection, which is
+//! all a stream that has lost its framing can do.
 
 use super::Authorizer;
 use super::answers::{refused, status};

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node journal (§4.10 of docs/02-architecture.md): ingested exactly once and in order,
-//! acknowledged, believed only as far as the node's assignments reach; step completions apply
-//! plans, and a retirement completed removes the workload.
+//! The node journal: ingested exactly once and in order, acknowledged, believed only as far as the
+//! node's assignments reach; step completions apply plans, and a retirement completed removes the
+//! workload.
 
 use crate::agent::{Stream, TestAgent, next, welcome};
 use crate::lifecycle::approve;

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Serving the node's ingress sockets (§3.2 of docs/07-networking.md). On port 80 the proxy
-//! answers ACME's HTTP challenges and redirects everything else it routes to HTTPS. On 443 it
-//! reads the name the client asks for, then either splices the connection to a `passthrough`
-//! workload unread or terminates TLS with the route's certificate and serves HTTP/1.1 and
-//! HTTP/2, routing each request whose `Host` is one of the route's names, and a WebSocket opened
-//! on either; and over UDP on 443 it serves HTTP/3 (`quic`), which its responses over TCP
-//! advertise.
+//! Serving the node's ingress sockets. On port 80 the proxy answers ACME's HTTP challenges and
+//! redirects everything else it routes to HTTPS. On 443 it reads the name the client asks for, then
+//! either splices the connection to a `passthrough` workload unread or terminates TLS with the
+//! route's certificate and serves HTTP/1.1 and HTTP/2, routing each request whose `Host` is one of
+//! the route's names, and a WebSocket opened on either; and over UDP on 443 it serves HTTP/3
+//! (`quic`), which its responses over TCP advertise.
 
 use crate::forward::{Backends, Body, Origin, answer};
 use crate::headers::{wants_websocket, wants_websocket_h2};

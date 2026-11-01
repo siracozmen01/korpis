@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An install's provider actions, resolved before its worker starts (§4 of docs/09-recipes.md).
-//! Each is asked of the control plane, which calls the step provider the intent pinned, and the
-//! install waits until every one is answered. The answers are kept beside the progress, so the
-//! worker, and a worker resumed at an action, runs one list: the step's own actions with each
-//! provider action replaced by what it resolved to. A file becomes a `fetch` to `to/path` and a
-//! `chmod` to its mode; an archive is fetched into the content store and unpacked at `to/path` by
-//! an `extract` that reads what fetches downloaded, never a recipe's file (Finding 49).
+//! An install's provider actions, resolved before its worker starts. Each is asked of the control
+//! plane, which calls the step provider the intent pinned, and the install waits until every one is
+//! answered. The answers are kept beside the progress, so the worker, and a worker resumed at an
+//! action, runs one list: the step's own actions with each provider action replaced by what it
+//! resolved to. A file becomes a `fetch` to `to/path` and a `chmod` to its mode; an archive is
+//! fetched into the content store and unpacked at `to/path` by an `extract` that reads what fetches
+//! downloaded, never a recipe's file.
 
 use super::{Reconciler, failed};
 use crate::host::Host;

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's proxy proving an endpoint's name by TLS-ALPN-01 (§3.2 of docs/07-networking.md),
-//! against Pebble taking every challenge as valid. A certificate first proven over HTTP-01 is
-//! recorded as proven so; one recorded as proven by TLS-ALPN-01, as a node whose port 80 is
-//! closed leaves it, is renewed that way: its digest reaches the node in its assignment, beside
-//! no HTTP-01 token, the directory is told to look only once the node holds it, and the way is
-//! kept for the next renewal.
+//! A node's proxy proving an endpoint's name by TLS-ALPN-01, against Pebble taking every challenge
+//! as valid. A certificate first proven over HTTP-01 is recorded as proven so; one recorded as
+//! proven by TLS-ALPN-01, as a node whose port 80 is closed leaves it, is renewed that way: its
+//! digest reaches the node in its assignment, beside no HTTP-01 token, the directory is told to
+//! look only once the node holds it, and the way is kept for the next renewal.
 
 use crate::agent::Stream;
 use crate::issuance::{placed, send, served_at};

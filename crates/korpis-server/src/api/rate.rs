@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Rate limits on the client API (§10 of docs/10-api.md): an interceptor every client service
-//! passes through before its handler. It authenticates the request once, charges it to the
-//! caller's buckets, hands the caller on to the handler, and says on every response where each
-//! bucket stands. The agent's and the relays' services, and the server's own description, are
-//! not charged here: they authenticate by their own proofs, or not at all.
+//! Rate limits on the client API: an interceptor every client service passes through before its
+//! handler. It authenticates the request once, charges it to the caller's buckets, hands the caller
+//! on to the handler, and says on every response where each bucket stands. The agent's and the
+//! relays' services, and the server's own description, are not charged here: they authenticate by
+//! their own proofs, or not at all.
 
 use super::{Api, error};
 use connectrpc::interceptor::{StreamRequest, StreamResponse, UnaryRequest, UnaryResponse};
@@ -27,11 +27,11 @@ const UNCHARGED: [&str; 4] = [
 ];
 
 /// The procedures anyone may call without a credential, whose every request is charged to its
-/// source instead: each sign-in or redemption the account service begins writes a challenge,
-/// a refresh credential is presented without another, and a CLI begins and polls its device
-/// authorization before it has one; the sign-in page's theme, which reads the store; and a
-/// sign-in through an identity provider, offered, begun, and completed (§9.7 of
-/// docs/08-identity.md), which writes a pending sign-in and calls a provider.
+/// source instead: each sign-in or redemption the account service begins writes a challenge, a
+/// refresh credential is presented without another, and a CLI begins and polls its device
+/// authorization before it has one; the sign-in page's theme, which reads the store; and a sign-in
+/// through an identity provider, offered, begun, and completed, which writes a pending sign-in and
+/// calls a provider.
 const ANONYMOUS: [&str; 9] = [
     "/korpis.v1.AccountService/",
     "/korpis.v1.ServerInfoService/GetSignInTheme",
@@ -76,9 +76,9 @@ impl Charging {
 
     /// Charges the request `ctx` carries, handing its caller on to the handler; where its buckets
     /// stand, or the refusal. A request presenting no credential is not charged to a caller: its
-    /// handler refuses it, or serves it if it needs none, and one to the account service is
-    /// charged to its source. One presenting a credential that opens nothing is a failed
-    /// attempt, charged to its source's failure bucket (§10 of docs/10-api.md).
+    /// handler refuses it, or serves it if it needs none, and one to the account service is charged
+    /// to its source. One presenting a credential that opens nothing is a failed attempt, charged
+    /// to its source's failure bucket.
     async fn admit(&self, ctx: &mut RequestContext) -> Result<Vec<Standing>, ConnectError> {
         let Some(path) = ctx.path().map(str::to_owned) else { return Ok(Vec::new()) };
         if UNCHARGED.iter().any(|p| path.starts_with(p)) {

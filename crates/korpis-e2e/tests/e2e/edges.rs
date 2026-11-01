@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An edge group on real nodes (§3.1 of docs/07-networking.md, trace 78 of
-//! docs/23-walkthroughs.md). Two edges and a node, each with its data plane in a network
+//! An edge group on real nodes. Two edges and a node, each with its data plane in a network
 //! namespace of the test's own, share one link with a client, as machines share a network, so
-//! nothing is made in this machine's own namespace. A server on the node, its endpoint `stable`,
-//! is given an address and port of each of the group's pools on that link, IPv4 and IPv6; the
-//! edge holding each under its lease puts it on the link and forwards the client's connection
-//! through the mesh to the server, IPv6 inside the IPv4 tunnel. When the holder loses power, its agent stopped and its link down, the control plane
-//! hears nothing from it, and once its term has passed grants the other edge the address, which
-//! announces it, and the client reaches the server through it (step 8 of the trace). Needs root,
-//! containerd, and the kernel's WireGuard and GRE; skipped without them.
+//! nothing is made in this machine's own namespace. A server on the node, its endpoint `stable`, is
+//! given an address and port of each of the group's pools on that link, IPv4 and IPv6; the edge
+//! holding each under its lease puts it on the link and forwards the client's connection through
+//! the mesh to the server, IPv6 inside the IPv4 tunnel. When the holder loses power, its agent
+//! stopped and its link down, the control plane hears nothing from it, and once its term has passed
+//! grants the other edge the address, which announces it, and the client reaches the server through
+//! it (step 8 of the trace). Needs root, containerd, and the kernel's WireGuard and GRE; skipped
+//! without them.
 //!
 //! The control plane runs in this machine's own namespace, which no route joins to the link, so
 //! its probe reaches no edge, and it judges which edge holds the address by their sessions, as it

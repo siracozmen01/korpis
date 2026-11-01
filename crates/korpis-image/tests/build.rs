@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An image drive built by `korpis-image-build` from a content store (§6 of
-//! docs/04-runtimes.md): two layers, packed two ways, the upper whiting out a file of the lower;
-//! the drive is root's and read-only, its files owned by the workload's own ids; and a layer
-//! that is not its digest, or an owner beyond the workload's ids, leaves no drive and no work
-//! behind. Needs root and `debugfs`, and is skipped without root.
+//! An image drive built by `korpis-image-build` from a content store: two layers, packed two ways,
+//! the upper whiting out a file of the lower; the drive is root's and read-only, its files owned by
+//! the workload's own ids; and a layer that is not its digest, or an owner beyond the workload's
+//! ids, leaves no drive and no work behind. Needs root and `debugfs`, and is skipped without root.
 
 #![allow(
     clippy::unwrap_used,

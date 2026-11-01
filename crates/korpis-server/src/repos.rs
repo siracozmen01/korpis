@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A workload's backup repository as the control plane reads it: through the access a target
-//! granted, under the workload's key (§5.4 and §5.5 of docs/06-storage.md).
+//! granted, under the workload's key.
 
 use korpis_app::backup::job::JobGrant;
 use korpis_backup::s3::{S3Config, S3Store};

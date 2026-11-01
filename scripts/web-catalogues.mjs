@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// The panel's catalogues against its source (question 4 of §10 of docs/11-surface-web.md):
-// `web/src/i18n/en.json` must be what extracting the source writes, so no message is missing
-// from it and none it holds is unused; and each translation in `web/src/i18n/catalogues` may
-// name only messages the source has. Whether a translation's ICU parses is `formatjs compile`'s
-// to say, which check-web.sh runs. Arguments: the freshly extracted catalogue.
+// The panel's catalogues against its source: `web/src/i18n/en.json` must be what extracting the
+// source writes, so no message is missing from it and none it holds is unused; and each translation
+// in `web/src/i18n/catalogues` may name only messages the source has. Whether a translation's ICU
+// parses is `formatjs compile`'s to say, which check-web.sh runs. Arguments: the freshly extracted
+// catalogue.
 import { readFileSync, readdirSync } from "node:fs";
 
 const [fresh] = process.argv.slice(2);

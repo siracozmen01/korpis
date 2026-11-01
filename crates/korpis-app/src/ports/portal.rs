@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Portals (§3.6 of docs/07-networking.md): names the control plane answers under for an
-//! organization.
+//! Portals: names the control plane answers under for an organization.
 
 use super::StoreResult;
 use crate::page::Page;
@@ -26,9 +25,9 @@ pub trait PortalRead {
     /// Every portal of the installation, which every replica serves.
     fn all_portals(&self) -> impl Future<Output = StoreResult<Vec<Portal>>> + Send;
 
-    /// What deleting `portal` would remove: how many passkeys are registered there, and how
-    /// many accounts have one there and nothing else that signs in, no password and no passkey
-    /// at another address (§9.8 of docs/08-identity.md).
+    /// What deleting `portal` would remove: how many passkeys are registered there, and how many
+    /// accounts have one there and nothing else that signs in, no password and no passkey at
+    /// another address.
     fn portal_reach(&self, portal: Uuid) -> impl Future<Output = StoreResult<(u64, u64)>> + Send;
 
     /// The TLS-ALPN-01 digest an order for `name` is answering with now, if one is.

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `OrganizationService.GetLayout`, `GetLandingLayout`, and `SetLayout` (question 2 of §10 of
-//! docs/11-surface-web.md).
+//! `OrganizationService.GetLayout`, `GetLandingLayout`, and `SetLayout`.
 
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, respond};

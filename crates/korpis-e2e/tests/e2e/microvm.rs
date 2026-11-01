@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A microVM on a node that runs both drivers (§3 and §6 of docs/04-runtimes.md): the `oci` and
-//! `firecracker` drivers serve one agent, a container and a guest are placed on the node side by
-//! side, and the guest converges as the container does. Its console is read with `korpis logs`,
-//! its endpoint answers through the node's port, its volume, a disk the helper made, keeps what it
-//! wrote across a restart, it sees no more memory than its limit, its readiness probe is
-//! answered by the guest's server through its tap, and its liveness probe by `korpis-guest` over
-//! the guest's vsock device. Needs what the node tests need, and KVM with the pinned Firecracker and
-//! guest kernel (`scripts/tools.sh`, `scripts/guest-kernel.sh`); skipped without them.
+//! A microVM on a node that runs both drivers: the `oci` and `firecracker` drivers serve one agent,
+//! a container and a guest are placed on the node side by side, and the guest converges as the
+//! container does. Its console is read with `korpis logs`, its endpoint answers through the node's
+//! port, its volume, a disk the helper made, keeps what it wrote across a restart, it sees no more
+//! memory than its limit, its readiness probe is answered by the guest's server through its tap,
+//! and its liveness probe by `korpis-guest` over the guest's vsock device. Needs what the node
+//! tests need, and KVM with the pinned Firecracker and guest kernel (`scripts/tools.sh`,
+//! `scripts/guest-kernel.sh`); skipped without them.
 
 use crate::network::served;
 use crate::node::{Node, host_address, live};
@@ -71,9 +71,9 @@ async fn answered(cp: &ControlPlane, w: &str, wanted: &str) -> String {
     }
 }
 
-/// Waits until the node judges `w` healthy and its endpoint ready (§5 of docs/04-runtimes.md):
-/// its liveness probe, which the driver asks of the guest's agent over vsock, and its readiness
-/// probe, made from inside its network namespace and through the tap.
+/// Waits until the node judges `w` healthy and its endpoint ready: its liveness probe, which the
+/// driver asks of the guest's agent over vsock, and its readiness probe, made from inside its
+/// network namespace and through the tap.
 async fn healthy(cp: &ControlPlane, w: &str) {
     let until = Instant::now() + Duration::from_secs(60);
     loop {

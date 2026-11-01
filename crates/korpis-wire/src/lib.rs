@@ -5,7 +5,7 @@
 //! Everything a client sends passes through here before it reaches a use case, so every function
 //! that reads the wire refuses malformed input rather than defaulting it, and names the field it
 //! refused. Nothing here decides anything. The control plane's API, its store (for the intent
-//! body, which §3.1 of docs/03-state.md keeps in its wire encoding), and later the CLI and the
+//! body, which it keeps in its wire encoding), and later the CLI and the
 //! agent share this one mapping, so they cannot disagree about what a message means.
 
 /// Maps a domain enum to a wire enum and back. Reading refuses the unspecified value and any

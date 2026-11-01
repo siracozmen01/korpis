@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What pruning reads and writes (§5.3 and §5.5 of docs/06-storage.md): the backups a policy
-//! judges, the ones being read, the access granted to a workload's prefix, the objects a prune
-//! marked, and the sweep that holds the prefix while it deletes them.
+//! What pruning reads and writes: the backups a policy judges, the ones being read, the access
+//! granted to a workload's prefix, the objects a prune marked, and the sweep that holds the prefix
+//! while it deletes them.
 
 use super::StoreResult;
 use korpis_core::backup::retention::Candidate;
@@ -20,7 +20,7 @@ pub type Prefix = (Uuid, Uuid);
 pub enum Area {
     /// Its backups, beneath `workloads/<workload>/`.
     Backups,
-    /// Its offloaded streams, beneath `streams/<workload>/` (§4 of docs/14-streams.md).
+    /// Its offloaded streams, beneath `streams/<workload>/`.
     Streams,
 }
 
@@ -92,8 +92,7 @@ pub trait PruneRead {
 
 /// Writing what a prune decides, in a transaction.
 pub trait PruneWrite {
-    /// [`PruneRead::writable_until`], read within the transaction (Finding 71 of
-    /// docs/23-walkthroughs.md).
+    /// [`PruneRead::writable_until`], read within the transaction.
     fn writable_until_within(
         &mut self,
         prefix: Prefix,

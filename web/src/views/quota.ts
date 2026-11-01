@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A quota set as the panel reads and edits it (§5.1 of docs/05-scheduling.md): its dimensions,
-// an entry's shape as the labels its two selectors match, what an organization has given below
-// of each entry's shape, and the set an edit of it asks for. Pure, so what the screen shows is
-// tested apart from the screen.
+// A quota set as the panel reads and edits it: its dimensions, an entry's shape as the labels its
+// two selectors match, what an organization has given below of each entry's shape, and the set an
+// edit of it asks for. Pure, so what the screen shows is tested apart from the screen.
 
 import { create } from "@bufbuild/protobuf";
 import { type LabelSelector, LabelSelectorSchema } from "../gen/korpis/v1/common_pb";

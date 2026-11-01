@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an extension's document declares, `korpis.v1.ExtensionManifest` (§3.1 of
-//! docs/16-extensions.md).
+//! What an extension's document declares, `korpis.v1.ExtensionManifest`.
 
 use crate::event::filter_to_pb;
 use crate::{Result, invalid};

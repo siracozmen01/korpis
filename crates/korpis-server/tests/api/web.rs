@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The panel on the API's address (§1 and §7 of docs/11-surface-web.md): its files from
-//! `--web-root` beside the API, a route of its own answered with its index, the hashed assets kept
-//! and the rest asked again; `/about/source` naming both builds; cross-origin calls answered for
-//! the listed origins alone; and without `--web-root`, no panel at all.
+//! The panel on the API's address: its files from `--web-root` beside the API, a route of its own
+//! answered with its index, the hashed assets kept and the rest asked again; `/about/source` naming
+//! both builds; cross-origin calls answered for the listed origins alone; and without `--web-root`,
+//! no panel at all.
 
 use crate::panel::PANEL;
 use crate::support::Harness;

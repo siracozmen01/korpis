@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's data connections (§3.1 of docs/02-architecture.md): one dialled out to each relay
-//! the control plane names, its own address among them when it serves the relay role. Each
-//! attaches with a `DataHello` naming the relay dialled, then opens every session the relay asks for, after judging it again from
-//! what the client sent: the token, offline, against the token keys and the revocation list the
-//! node holds; the workload, against the set the node holds; the action, against the handlers
-//! the node runs. A node never sees the client's address, and never evaluates it.
+//! The node's data connections: one dialled out to each relay the control plane names, its own
+//! address among them when it serves the relay role. Each attaches with a `DataHello` naming the
+//! relay dialled, then opens every session the relay asks for, after judging it again from what the
+//! client sent: the token, offline, against the token keys and the revocation list the node holds;
+//! the workload, against the set the node holds; the action, against the handlers the node runs. A
+//! node never sees the client's address, and never evaluates it.
 
 pub mod backup;
 mod carry;
@@ -47,7 +47,7 @@ type Recv = BidiRecvHalf<
 /// What the data connections judge sessions by.
 #[derive(Debug, Clone)]
 pub struct Judged {
-    /// The token keys in force, as the control plane last sent them (§8 of docs/03-state.md).
+    /// The token keys in force, as the control plane last sent them.
     pub keys: watch::Receiver<Arc<KeyRing>>,
     /// The revocation list held.
     pub revoked: watch::Receiver<Arc<RevocationList>>,

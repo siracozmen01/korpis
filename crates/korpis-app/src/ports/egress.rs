@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The egress budget's store (§5.1 of docs/05-scheduling.md, "The egress budget"): what each
-//! workload sent in a month, where, and what the workloads of spent entries are held to.
+//! The egress budget's store ("The egress budget"): what each workload sent in a month, where, and
+//! what the workloads of spent entries are held to.
 
 use super::StoreResult;
 use korpis_core::tenancy::quota::{Exhaustion, QuotaEntry, Spent};

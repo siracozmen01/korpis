@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An installation (§4 of docs/16-extensions.md): an extension's artifact installed into an
-//! organization or one of its projects, running as one workload, and the subject its grants are
-//! issued to.
+//! An installation: an extension's artifact installed into an organization or one of its projects,
+//! running as one workload, and the subject its grants are issued to.
 
 use crate::principal::Principal;
 use std::time::SystemTime;

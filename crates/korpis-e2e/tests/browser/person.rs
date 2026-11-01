@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A person who signs in through their organization's identity provider (§9.7 of
-//! docs/08-identity.md), as §44 of docs/23-walkthroughs.md traces it: the independent issuer of
+//! A person who signs in through their organization's identity provider: the independent issuer of
 //! `conformance/oidc` on a loopback port, and `korpis-idp-oidc` installed into the root
 //! organization as `corp`, its workload on a real node. The provider itself is served from here,
 //! through the identity socket and the relay the node serves that workload, exactly as its own
 //! `main` serves it inside the workload: the node's egress rules deny a workload every address of
-//! its own host (§7 of docs/07-networking.md), and the issuer is on this one. The issuer serves
-//! HTTPS under a test authority the provider alone trusts, since the control plane sends a
-//! browser to no identity provider over plain HTTP.
+//! its own host, and the issuer is on this one. The issuer serves HTTPS under a test authority the
+//! provider alone trusts, since the control plane sends a browser to no identity provider over
+//! plain HTTP.
 
 use crate::node::Node;
 use crate::recipes::{VERSION, busybox, push};

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! API tokens: the credential of a Token principal (§3.2 of docs/01-model.md).
+//! API tokens: the credential of a Token principal.
 //!
 //! A secret is 256 bits from the operating system's generator with a fixed prefix, shown once
 //! and stored only as its SHA-256 digest. With that much entropy a slow hash protects nothing,
@@ -15,21 +15,20 @@ use uuid::Uuid;
 /// Every API token secret starts with this, so a leaked one is recognizable to secret scanners.
 pub const SECRET_PREFIX: &str = "korpis_";
 
-/// Every workload credential starts with this (§9.5 of docs/08-identity.md): distinct from an
-/// API token's, so authentication knows which record to look for and a scanner which kind it
-/// found.
+/// Every workload credential starts with this: distinct from an API token's, so authentication
+/// knows which record to look for and a scanner which kind it found.
 pub const WORKLOAD_PREFIX: &str = "korpiswl_";
 
-/// Every invitation starts with this (§9.6 of docs/08-identity.md).
+/// Every invitation starts with this.
 pub const INVITATION_PREFIX: &str = "korpisiv_";
 
-/// Every refresh credential starts with this (§9.4 of docs/08-identity.md).
+/// Every refresh credential starts with this.
 pub const REFRESH_PREFIX: &str = "korpisrt_";
 
-/// Every device code starts with this (§9.4 of docs/08-identity.md).
+/// Every device code starts with this.
 pub const DEVICE_CODE_PREFIX: &str = "korpisdv_";
 
-/// Every ticket an assertion is redeemed by starts with this (§5.2 of docs/08-identity.md).
+/// Every ticket an assertion is redeemed by starts with this.
 pub const TICKET_PREFIX: &str = "korpisas_";
 
 /// Which kind of credential a secret is, by its prefix.
@@ -37,19 +36,17 @@ pub const TICKET_PREFIX: &str = "korpisas_";
 pub enum SecretKind {
     /// An API token's: the credential of a Token subject.
     ApiToken,
-    /// A running workload's, issued through its node (§9.5 of docs/08-identity.md).
+    /// A running workload's, issued through its node.
     Workload,
-    /// An invitation's, redeemed once to create an account (§9.6 of docs/08-identity.md).
+    /// An invitation's, redeemed once to create an account.
     Invitation,
-    /// A session's refresh credential, exchanged for access tokens (§9.4 of
-    /// docs/08-identity.md). Never a bearer of API calls.
+    /// A session's refresh credential, exchanged for access tokens. Never a bearer of API calls.
     Refresh,
-    /// A device authorization's device code, which the CLI polls with until its user approves
-    /// it (§9.4 of docs/08-identity.md). Never a bearer of API calls.
+    /// A device authorization's device code, which the CLI polls with until its user approves it.
+    /// Never a bearer of API calls.
     DeviceCode,
-    /// A ticket for one action as an asserted external identity (§5.2 of
-    /// docs/08-identity.md), presented beside the relaying client's own credential, never as
-    /// the bearer of a call.
+    /// A ticket for one action as an asserted external identity, presented beside the relaying
+    /// client's own credential, never as the bearer of a call.
     Ticket,
 }
 
@@ -141,7 +138,7 @@ pub struct ApiToken {
     pub expires_at: Option<SystemTime>,
 }
 
-/// How long a workload credential lasts (§9.5 of docs/08-identity.md).
+/// How long a workload credential lasts.
 pub const WORKLOAD_CREDENTIAL_LIFETIME: std::time::Duration = std::time::Duration::from_secs(900);
 
 /// A workload credential as stored: who it authenticates as, and the placement it was issued

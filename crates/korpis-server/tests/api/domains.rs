@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Domains (§3.2 of docs/07-networking.md): asked for under `domain.write`, verified by a TXT
-//! record the control plane resolves, by delegation beneath an ancestor's verified domain, or by
-//! an operator's attestation; refused where another organization holds a verified domain
-//! overlapping the name; deleted with what was delegated beneath them.
+//! Domains: asked for under `domain.write`, verified by a TXT record the control plane resolves, by
+//! delegation beneath an ancestor's verified domain, or by an operator's attestation; refused where
+//! another organization holds a verified domain overlapping the name; deleted with what was
+//! delegated beneath them.
 
 use crate::support::{Harness, mutation, org_scope, reason};
 use crate::zone::Zone;

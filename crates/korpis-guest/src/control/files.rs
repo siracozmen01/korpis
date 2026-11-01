@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The workload's files as the host sends them into its guest (§6 of docs/04-runtimes.md): its
-//! managed files in `config/` and its dependencies' files in `deps/`, which a container sees in
-//! its node's directory at `/run/korpis` and a guest is given a copy of. A file is sent in parts,
-//! each a frame, and a sync ends with what each directory keeps, the rest removed. The host
-//! encodes these and the guest decodes them; what the guest answers is one byte.
+//! The workload's files as the host sends them into its guest: its managed files in `config/` and
+//! its dependencies' files in `deps/`, which a container sees in its node's directory at
+//! `/run/korpis` and a guest is given a copy of. A file is sent in parts, each a frame, and a sync
+//! ends with what each directory keeps, the rest removed. The host encodes these and the guest
+//! decodes them; what the guest answers is one byte.
 
 /// The most files one directory of a guest's `/run/korpis` holds: their names fit one frame.
 pub const MOST_FILES: usize = 200;
@@ -16,9 +16,9 @@ pub const PART: usize = 60 * 1024;
 /// Which of the workload's directories a file is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Place {
-    /// `config/`, the recipe's managed files (§5.2 of docs/09-recipes.md).
+    /// `config/`, the recipe's managed files.
     Config,
-    /// `deps/`, its dependencies' files (§5 of docs/07-networking.md).
+    /// `deps/`, its dependencies' files.
     Deps,
 }
 

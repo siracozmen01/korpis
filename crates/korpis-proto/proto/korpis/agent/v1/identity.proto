@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // The service the agent serves a workload on its identity socket, mounted read-only at
-// /run/korpis/identity.sock inside that workload and nowhere else (§9.5 of
-// docs/08-identity.md). A workload asks it for a credential and renews by asking again; the
-// socket is the workload's identity, so the request carries no claim about who is asking.
+// /run/korpis/identity.sock inside that workload and nowhere else. A workload asks it for a
+// credential and renews by asking again; the socket is the workload's identity, so the request
+// carries no claim about who is asking.
 
 syntax = "proto3";
 
@@ -15,9 +15,9 @@ service WorkloadIdentityService {
   // A credential for this socket's workload, valid until its expiry. Refused when the
   // control plane no longer places the workload on this node.
   rpc GetCredential(GetCredentialRequest) returns (GetCredentialResponse);
-  // That this socket's workload is alive, for its heartbeat probe (§5 of docs/04-runtimes.md).
-  // The node keeps when it last heard, and nothing else: a beat goes no further than the node,
-  // asks nothing of the control plane, and is answered at once.
+  // That this socket's workload is alive, for its heartbeat probe. The node keeps when it last
+  // heard, and nothing else: a beat goes no further than the node, asks nothing of the control
+  // plane, and is answered at once.
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 }
 
@@ -25,10 +25,9 @@ message GetCredentialRequest {}
 
 message GetCredentialResponse {
   Credential credential = 1;
-  // Where the credential is used: the control plane's address as this node reaches it, and the
-  // CA its certificate is verified under, PEM, as the node pinned it at enrollment (§9.5 of
-  // docs/08-identity.md). Whether the address is reachable from inside the workload is its
-  // network's (§6 of docs/07-networking.md).
+  // Where the credential is used: the control plane's address as this node reaches it, and the CA
+  // its certificate is verified under, PEM, as the node pinned it at enrollment. Whether the
+  // address is reachable from inside the workload is its network's.
   string control_plane = 2;
   bytes ca_pem = 3;
 }

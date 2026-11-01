@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an event subscription selects (§5 of docs/15-observability.md): kinds, a minimum
-//! severity, and narrowing by project and workload labels. The log itself is the store's; this is
-//! the part of it a subscriber writes, and that an extension's document declares.
+//! What an event subscription selects: kinds, a minimum severity, and narrowing by project and
+//! workload labels. The log itself is the store's; this is the part of it a subscriber writes, and
+//! that an extension's document declares.
 
 use crate::labels::LabelSelector;
 use crate::workload::observation::Health;
@@ -40,8 +40,8 @@ impl Severity {
     }
 }
 
-/// A condition the control plane decided changed: an event of its own, beside the effects
-/// (§5 of docs/15-observability.md). Keyed to its workload.
+/// A condition the control plane decided changed: an event of its own, beside the effects. Keyed to
+/// its workload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Condition {
     /// The workload it concerns.
@@ -166,7 +166,7 @@ impl EventFilter {
     }
 }
 
-/// An event as the log holds it (§5 of docs/15-observability.md).
+/// An event as the log holds it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Event {
     /// Its position, which is its identifier.
@@ -195,8 +195,7 @@ pub struct Event {
     pub detail: serde_json::Map<String, serde_json::Value>,
 }
 
-/// A subscription: a stored position in the log, and what it selects (§5 of
-/// docs/15-observability.md).
+/// A subscription: a stored position in the log, and what it selects.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subscription {
     /// Its identifier.

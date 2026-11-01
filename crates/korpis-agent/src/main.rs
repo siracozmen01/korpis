@@ -36,7 +36,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Enroll this machine with a one-time token (§3 of docs/18-operations.md).
+    /// Enroll this machine with a one-time token.
     Join {
         /// The control plane, e.g. `https://korpis.example:7443`.
         #[arg(long)]
@@ -51,9 +51,8 @@ enum Command {
         #[arg(long, default_value = "")]
         hostname: String,
     },
-    /// Report what this machine lacks of what the node is configured to offer, and how to fix
-    /// each; change nothing (§2 of docs/18-operations.md). Fails only when the node could offer
-    /// nothing at all.
+    /// Report what this machine lacks of what the node is configured to offer, and how to fix each;
+    /// change nothing. Fails only when the node could offer nothing at all.
     Preflight(PreflightArgs),
     /// Run the node: hold the control stream, keep the journal, and reconcile.
     Run(Box<RunArgs>),
@@ -67,8 +66,8 @@ struct RunArgs {
     /// agent without one.
     #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "oci")]
     driver: String,
-    /// A driver's socket; repeatable, one for each tier the node offers through its own
-    /// driver process (§3 of docs/04-runtimes.md).
+    /// A driver's socket; repeatable, one for each tier the node offers through its own driver
+    /// process.
     #[arg(long, default_values = ["/run/korpis/driver-oci.sock"])]
     driver_socket: Vec<PathBuf>,
     /// The privileged helper's socket.
@@ -78,9 +77,9 @@ struct RunArgs {
     /// registry only: content is verified by digest either way.
     #[arg(long = "plain-http")]
     plain_http: Vec<String>,
-    /// A network an install's `fetch` may reach besides the public internet, as a CIDR, for
-    /// a private mirror; repeatable. Loopback, private, and link-local addresses are
-    /// otherwise refused (§4 of docs/09-recipes.md).
+    /// A network an install's `fetch` may reach besides the public internet, as a CIDR, for a
+    /// private mirror; repeatable. Loopback, private, and link-local addresses are otherwise
+    /// refused.
     #[arg(long = "fetch-allow")]
     fetch_allow: Vec<IpNet>,
     /// Millicores kept back from placement for the machine's own system.
@@ -99,33 +98,30 @@ struct RunArgs {
     #[arg(long, default_value = "30000-32767")]
     ports: PortRange,
     /// The IPv4 pool workloads get addresses from, private to this node; unset, the pool the
-    /// control plane gave it when it enrolled, or `10.47.0.0/16` for a node enrolled before
-    /// pools were given; name one when it collides with a network the node reaches (§4.1 and
-    /// §9.1 of docs/07-networking.md).
+    /// control plane gave it when it enrolled, or `10.47.0.0/16` for a node enrolled before pools
+    /// were given; name one when it collides with a network the node reaches.
     #[arg(long)]
     workload_ipv4: Option<Ipv4Net>,
     /// An IPv6 prefix routed to this node, which gives workloads routable addresses; unset,
     /// they get unique local ones, translated on the way out.
     #[arg(long)]
     workload_ipv6: Option<Ipv6Net>,
-    /// The UDP port the mesh between nodes listens on (§9.1 of docs/07-networking.md).
+    /// The UDP port the mesh between nodes listens on.
     #[arg(long, default_value_t = korpis_agent::overlay::DEFAULT_PORT)]
     overlay_port: u16,
-    /// Serve the ingress: the helper opens ports 80 and 443 on the advertised addresses for
-    /// the node's ingress proxy, and the node says it serves it, so workloads with ingress
-    /// endpoints are placed here (§3.2 of docs/07-networking.md).
+    /// Serve the ingress: the helper opens ports 80 and 443 on the advertised addresses for the
+    /// node's ingress proxy, and the node says it serves it, so workloads with ingress endpoints
+    /// are placed here.
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     ingress: bool,
-    /// An interface the node's workloads leave by and the capacity it sells, as
-    /// `eth0=1gbit`, keeping five percent for the node unless `,reserve=50mbit` says
-    /// otherwise; repeatable. Declared, since a virtual machine's link speed is not what
-    /// its provider sold; none, and the node enforces no bandwidth (§7 of
-    /// docs/07-networking.md).
+    /// An interface the node's workloads leave by and the capacity it sells, as `eth0=1gbit`,
+    /// keeping five percent for the node unless `,reserve=50mbit` says otherwise; repeatable.
+    /// Declared, since a virtual machine's link speed is not what its provider sold; none, and the
+    /// node enforces no bandwidth.
     #[arg(long = "uplink", value_parser = korpis_agent::shaping::parse_uplink)]
     uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
-    /// A directory of Container Device Interface spec files the node's devices are read
-    /// from; repeatable, a later one's device replacing an earlier one's of the same name
-    /// (§6.1 of docs/05-scheduling.md).
+    /// A directory of Container Device Interface spec files the node's devices are read from;
+    /// repeatable, a later one's device replacing an earlier one's of the same name.
     #[arg(long = "cdi-dir", default_values = ["/etc/cdi", "/var/run/cdi"])]
     cdi_dirs: Vec<PathBuf>,
     /// The class of a device kind whose name is none Korpis knows, as
@@ -133,13 +129,12 @@ struct RunArgs {
     #[arg(long = "device-class", value_parser = korpis_agent::devices::parse_class)]
     device_classes: Vec<(String, DeviceClass)>,
     /// How many workloads may hold one device of a kind at once in `timeslice`, as
-    /// `vendor.com/kind=N`; repeatable. Timeslicing isolates nothing between its holders
-    /// (§6.2 of docs/05-scheduling.md); a kind not named is given in `passthrough` alone.
+    /// `vendor.com/kind=N`; repeatable. Timeslicing isolates nothing between its holders; a kind
+    /// not named is given in `passthrough` alone.
     #[arg(long = "device-share", value_parser = korpis_agent::devices::parse_share)]
     device_shares: Vec<(String, u32)>,
-    /// The physical cores offered for dedication, by id (the lowest logical CPU of each), as
-    /// a kernel CPU list such as `2-11`; unset, every core but the one holding CPU 0 (§5.2
-    /// of docs/05-scheduling.md).
+    /// The physical cores offered for dedication, by id (the lowest logical CPU of each), as a
+    /// kernel CPU list such as `2-11`; unset, every core but the one holding CPU 0.
     #[arg(long = "dedicated-cores", value_parser = korpis_topology::cpu_list)]
     dedicated_cores: Option<std::collections::BTreeSet<u32>>,
 }

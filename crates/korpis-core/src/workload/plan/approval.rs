@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Whether a plan applies on its own, needs its proposer to confirm it, or needs someone else's
-//! authority (§3.3 of docs/01-model.md, §3.6 of docs/08-identity.md).
+//! authority.
 //!
 //! Two different things were both called approval, and the rules only hold once they are told
 //! apart:
@@ -11,7 +11,7 @@
 //! - **Confirmation.** A plan its proposer was permitted to apply, but which is not
 //!   auto-approvable (a disruptive or irreversible step, an unknown impact), waits for a human to
 //!   confirm that they have read it. The proposer may confirm their own plan: that is
-//!   `korpis apply --plan` (§4 of docs/13-surface-cli.md), and it is what keeps P5's promise that
+//!   `korpis apply --plan`, and it is what keeps P5's promise that
 //!   a human sees the change without making a lone operator unable to stop their own server.
 
 use super::impact::Impact;

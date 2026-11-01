@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! One job, as the node runs it (§5.5 of docs/06-storage.md): the spec read from standard input,
-//! the job confined, the work done against the store the spec grants, and the result written
-//! where the helper reads it, whether the work succeeded or not. A restore is verified before it
-//! is reported.
+//! One job, as the node runs it: the spec read from standard input, the job confined, the work done
+//! against the store the spec grants, and the result written where the helper reads it, whether the
+//! work succeeded or not. A restore is verified before it is reported.
 
 use crate::confine::{Bounds, Work, confine};
 use crate::error::Error;
@@ -117,8 +116,8 @@ fn repo(spec: &pb::JobSpec) -> Result<Repo<S3Store>, Error> {
     Ok(Repo::new(Arc::new(S3Store::new(config)?), Arc::new(Keys::derive(&key))))
 }
 
-/// The repository's copy of recipe content, where it was granted on the store's own endpoint:
-/// the job reaches no other (§5.2 of docs/06-storage.md).
+/// The repository's copy of recipe content, where it was granted on the store's own endpoint: the
+/// job reaches no other.
 fn kept(spec: &pb::JobSpec) -> Result<Option<Kept<S3Store>>, Error> {
     let (Some(store), Some(content)) = (spec.store.as_option(), spec.content_store.as_option())
     else {

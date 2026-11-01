@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis theme …` (§7 of docs/11-surface-web.md): an organization's brand, which the panel
-//! wears for it and everything beneath it that sets none of its own. `set` replaces the
-//! organization's own theme with what its flags say, each unsaid field the panel's own.
+//! `korpis theme …`: an organization's brand, which the panel wears for it and everything beneath
+//! it that sets none of its own. `set` replaces the organization's own theme with what its flags
+//! say, each unsaid field the panel's own.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

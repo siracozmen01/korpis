@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Installation: the first organization and the first grant (§9.1 of docs/08-identity.md).
-//! Every other grant descends from the one created here, held by an account whose bootstrap
-//! invitation only registering a passkey redeems, or, for what cannot register one, by an API
-//! token; and `recover` issues another to a new account when the last holder is locked out
-//! (§9.2).
+//! Installation: the first organization and the first grant. Every other grant descends from the
+//! one created here, held by an account whose bootstrap invitation only registering a passkey
+//! redeems, or, for what cannot register one, by an API token; and `recover` issues another to a
+//! new account when the last holder is locked out.
 
 mod recover;
 

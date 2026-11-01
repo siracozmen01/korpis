@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The mesh between nodes as the control plane keeps it (§9.1 of docs/07-networking.md): each
-//! node that reports its side is told every other member, with its key, endpoint, and pools; a
-//! node reporting a pool it was not given is told it is outside, and why, since every other member
-//! would route that pool to it; and
+//! The mesh between nodes as the control plane keeps it: each node that reports its side is told
+//! every other member, with its key, endpoint, and pools; a node reporting a pool it was not given
+//! is told it is outside, and why, since every other member would route that pool to it; and
 //! `Node.overlay` is available only once both sides of every pair with the node report a fresh
 //! handshake, the node showing its key, port, pools, and each pair with it.
 

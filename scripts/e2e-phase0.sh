@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# The Phase 0 done-when (§4 of docs/20-roadmap.md), end to end, the way an operator runs it: the
-# five binaries started as processes with their own flags, the recipe published with oras, and
-# every step taken through the `korpis` CLI. It installs a control plane into a fresh database,
-# enrolls this machine as a node, applies a thin recipe, waits for it to converge, upgrades the
-# agent (its binary replaced, as a package does, and restarted) and checks the workload kept
-# running in the same process, has a reader try a change it may not make, and then checks the
-# effect log: every permitted action names its grant, and the denial is recorded with its
-# subject and the action that was missing.
+# The Phase 0 done-when, end to end, the way an operator runs it: the five binaries started as
+# processes with their own flags, the recipe published with oras, and every step taken through the
+# `korpis` CLI. It installs a control plane into a fresh database, enrolls this machine as a node,
+# applies a thin recipe, waits for it to converge, upgrades the agent (its binary replaced, as a
+# package does, and restarted) and checks the workload kept running in the same process, has a
+# reader try a change it may not make, and then checks the effect log: every permitted action names
+# its grant, and the denial is recorded with its subject and the action that was missing.
 #
 # Needs root, containerd, docker (for scripts/dev-pg.sh and scripts/dev-registry.sh), psql, jq,
 # and oras from scripts/tools.sh. Leaves nothing behind: its processes, containers, networks,

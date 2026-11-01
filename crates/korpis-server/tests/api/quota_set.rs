@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Setting quota sets from above (§5.1 of docs/05-scheduling.md, §3.1 of docs/01-model.md), on
-//! a real control plane: the host gives its reseller a set, which the reseller cannot raise
-//! itself; what the reseller gives its customers fits what it was given, reservations never
-//! oversubscribed and limits oversold by the ratio the host permitted; the host cannot lower the
-//! reseller below what it gave; a bound of zero allows none; a project's sub-limit fits its
-//! organization's; and an entry kept by shape keeps what it counts.
+//! Setting quota sets from above, on a real control plane: the host gives its reseller a set, which
+//! the reseller cannot raise itself; what the reseller gives its customers fits what it was given,
+//! reservations never oversubscribed and limits oversold by the ratio the host permitted; the host
+//! cannot lower the reseller below what it gave; a bound of zero allows none; a project's sub-limit
+//! fits its organization's; and an entry kept by shape keeps what it counts.
 
 use crate::delegation::{Holder, delegate, delegation, organization};
 use crate::recipes::{body, create, project, push_paper};

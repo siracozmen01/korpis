@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `Prepare` (§4.2 of docs/04-runtimes.md): from an approved intent and the recipe it names, the
-//! spec `Create` would build, or why this driver on this node cannot build it. It reads its
-//! arguments and nothing else, so it changes nothing and answers the same every time. Volume
-//! sources are left empty: where a volume lives is the helper's to say, and the agent fills
-//! them in before `Create`, which validates the whole spec again. Every driver prepares the same
-//! way; what differs is its name and its tier ([`Serves`]).
+//! `Prepare`: from an approved intent and the recipe it names, the spec `Create` would build, or
+//! why this driver on this node cannot build it. It reads its arguments and nothing else, so it
+//! changes nothing and answers the same every time. Volume sources are left empty: where a volume
+//! lives is the helper's to say, and the agent fills them in before `Create`, which validates the
+//! whole spec again. Every driver prepares the same way; what differs is its name and its tier
+//! ([`Serves`]).
 
 use korpis_core::content::this_machine;
 use korpis_core::recipe::runtime::{RuntimeTarget, TargetSource};
@@ -93,8 +93,8 @@ fn mounts(body: &pb::IntentBody) -> Vec<driver::Mount> {
         .collect()
 }
 
-/// The intent's resources, with the default process limit where it sets none and the driver
-/// holds one (§5.2 of docs/05-scheduling.md).
+/// The intent's resources, with the default process limit where it sets none and the driver holds
+/// one.
 fn resources(serves: &Serves, body: &pb::IntentBody) -> pb::ResourceSpec {
     let mut r = body.resources.as_option().cloned().unwrap_or_default();
     if let Some(limit) = serves.default_pids
@@ -153,7 +153,7 @@ pub fn prepare(
     })?;
     let values: ValueMap = body.config.iter().map(|(k, v)| (k.clone(), value_of(v))).collect();
     // Managed files are the agent's to render, into the directory it hands the driver as the
-    // identity directory (§5.2 of docs/09-recipes.md); the driver sets only env and args.
+    // identity directory; the driver sets only env and args.
     let delivered = recipe.config.delivered(&values).map_err(|e| refuse(e.to_string()))?;
     let stream = stream(body, delivered.secrets);
     Ok(driver::PreparedSpec {

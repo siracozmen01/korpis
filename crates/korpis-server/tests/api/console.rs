@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Console input a node reports (§6 of docs/14-streams.md): recorded as the act of the subject
-//! it names only if the grant it names is that subject's and permitted the input. A node can
-//! attribute input only to someone who could have given it.
+//! Console input a node reports: recorded as the act of the subject it names only if the grant it
+//! names is that subject's and permitted the input. A node can attribute input only to someone who
+//! could have given it.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, send, until};

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The data path, as a client meets it (§3.1 of docs/02-architecture.md): a session with one
-// workload, opened at a relay with a capability token and carried to the node that runs the
-// workload over the connection that node dialled out. The relay verifies the token offline and
-// checks the client's address against it; the agent verifies it again. Console bytes, file
-// transfers, and stream segments travel here, never through the control plane.
+// The data path, as a client meets it: a session with one workload, opened at a relay with a
+// capability token and carried to the node that runs the workload over the connection that node
+// dialled out. The relay verifies the token offline and checks the client's address against it; the
+// agent verifies it again. Console bytes, file transfers, and stream segments travel here, never
+// through the control plane.
 
 syntax = "proto3";
 
@@ -16,10 +16,9 @@ service RelayService {
   // A session: the first message opens it, then data flows both ways until either side ends it.
   // A session the relay or the node refuses fails with the reason, and nothing is opened.
   rpc Open(stream RelayRequest) returns (stream RelayResponse);
-  // The same session for a client that cannot stream both ways, a browser above all ("From a
-  // browser" in §3.1 of docs/02-architecture.md): opened as Open's first message opens it, its
-  // frames streamed back, the first answer `opened` with the key that Send names it by. The
-  // session ends when this stream does.
+  // The same session for a client that cannot stream both ways, a browser above all: opened as
+  // Open's first message opens it, its frames streamed back, the first answer `opened` with the key
+  // that Send names it by. The session ends when this stream does.
   rpc Watch(RelayOpen) returns (stream RelayResponse);
   // Delivers the client's frames to a session opened with Watch, in order and once: a frame
   // already delivered, sent again by a retried call, is acknowledged and not delivered again.
@@ -45,7 +44,7 @@ message RelayResponse {
 }
 
 message RelayOpen {
-  // A capability token for `action` on exactly `workload` (§6 of docs/08-identity.md).
+  // A capability token for `action` on exactly `workload`.
   string token = 1;
   // The action the session performs, one the token carries; it chooses what the node runs.
   string action = 2;

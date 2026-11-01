@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The view a tree's receiving rsync runs in (§8.1 of docs/05-scheduling.md, Finding 218): a
-//! mount namespace of its own whose root is a fresh `tmpfs` holding, read only, the host's
-//! programs and libraries (`/usr` and what `/bin`, `/lib`, `/lib64`, and `/sbin` are, links kept
-//! as links) and the loader's cache, the helper's own binary, which rsync runs as its remote
-//! shell, and, writable, the destination's copy of the volume at its own path. Nothing else of
-//! the host is in it: no `/etc` beyond the loader's cache, no `/proc`, no other volume, so a
-//! stream that misleads rsync's receiver can write only into the copy it was pulling into.
+//! The view a tree's receiving rsync runs in: a mount namespace of its own whose root is a fresh
+//! `tmpfs` holding, read only, the host's programs and libraries (`/usr` and what `/bin`, `/lib`,
+//! `/lib64`, and `/sbin` are, links kept as links) and the loader's cache, the helper's own binary,
+//! which rsync runs as its remote shell, and, writable, the destination's copy of the volume at its
+//! own path. Nothing else of the host is in it: no `/etc` beyond the loader's cache, no `/proc`, no
+//! other volume, so a stream that misleads rsync's receiver can write only into the copy it was
+//! pulling into.
 //!
 //! A receiver taken over by a hostile stream runs whatever code the stream gives it. As root with
 //! every capability it would leave a mount namespace easily, mounting `proc` and walking

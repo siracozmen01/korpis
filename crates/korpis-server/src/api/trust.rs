@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `OrganizationService.GetTrustPolicy` and `SetTrustPolicy` (§7 of docs/09-recipes.md).
+//! `OrganizationService.GetTrustPolicy` and `SetTrustPolicy`.
 
 use super::wire::recipe::{policy_from_pb, policy_to_pb};
 use super::wire::{self, Refuse, principal, timestamp};

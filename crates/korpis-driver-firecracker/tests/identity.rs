@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A microVM's `/run/korpis` (§9.5 of docs/08-identity.md, §6 of docs/04-runtimes.md): what the
-//! workload says on its identity socket inside its guest reaches its own socket on the host, and
-//! is answered; the API relay is served inside once the node serves it on the host, and withdrawn
-//! with it; a restarted driver serves a running guest's relays again; an identity directory that
-//! resolves to another workload's is refused at the start; and the workload's managed and
-//! dependency files are in its guest before its entry starts, and change there as on the host. Needs what the driver's runtime
-//! tests need.
+//! A microVM's `/run/korpis`: what the workload says on its identity socket inside its guest
+//! reaches its own socket on the host, and is answered; the API relay is served inside once the
+//! node serves it on the host, and withdrawn with it; a restarted driver serves a running guest's
+//! relays again; an identity directory that resolves to another workload's is refused at the start;
+//! and the workload's managed and dependency files are in its guest before its entry starts, and
+//! change there as on the host. Needs what the driver's runtime tests need.
 
 #![allow(
     clippy::unwrap_used,

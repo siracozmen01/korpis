@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declaring intents (§3.3 of docs/01-model.md, §3.1 of docs/09-recipes.md).
+//! Declaring intents.
 
 use crate::recipes::{body, change, create, project, push_paper, text};
 use crate::support::{Harness, detail, reason};
@@ -27,7 +27,7 @@ async fn a_new_workload_is_completed_by_its_recipe_and_approved_when_nothing_nee
         declared.plan.as_option().unwrap(),
     );
     let b = intent.body.as_option().unwrap();
-    // Completed from the preset and the probes (§3.1 of docs/09-recipes.md).
+    // Completed from the preset and the probes.
     assert!(b.recipe.as_option().unwrap().digest.starts_with("sha256:"));
     let runtime = b.runtime.as_option().unwrap();
     assert_eq!(runtime.driver, "oci");
@@ -36,7 +36,7 @@ async fn a_new_workload_is_completed_by_its_recipe_and_approved_when_nothing_nee
     assert_eq!(b.endpoints.len(), 3);
     assert_eq!(b.volumes[0].path, "/data");
     assert!(b.health.as_option().unwrap().readiness.is_set());
-    // Configuration resolved: defaults written, derived values computed (K-17).
+    // Configuration resolved: defaults written, derived values computed.
     assert!(b.config.contains_key("difficulty"));
     assert!(b.config.contains_key("java_heap"));
     // Nothing disruptive or irreversible: approved now, and the target moved.
@@ -45,8 +45,8 @@ async fn a_new_workload_is_completed_by_its_recipe_and_approved_when_nothing_nee
     assert_eq!(w.target.as_deref(), Some(intent.id.as_str()));
     let actions: Vec<_> = plan.steps.iter().map(|s| s.action.as_str()).collect();
     assert_eq!(actions, ["pull_recipe", "create_volume", "install", "create", "start"]);
-    // Every verb, then the template, into the volume the plan creates: it writes over nothing,
-    // so it can be undone (§4 of docs/09-recipes.md).
+    // Every verb, then the template, into the volume the plan creates: it writes over nothing, so
+    // it can be undone.
     let install = &plan.steps[2];
     assert_eq!(installed(install), ("create".to_owned(), 4));
     assert!(install.reversible);

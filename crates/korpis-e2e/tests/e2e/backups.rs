@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backup and restore on a real node (§5 of docs/06-storage.md), its volumes on a btrfs made for
-//! the test, its repository in a real object store (MinIO), reached through the first-party S3
-//! target provider: an extension the node runs, whose provider the test serves with the
-//! credential the node hands the extension's workload through its identity socket, as its
-//! container would. A running workload is backed up twice by its node, and a prune approved
-//! forgets the first, which no one read; the second is listed, one file read from it, and cloned
-//! into a new workload that runs on what it held. It needs root, containerd, `mkfs.btrfs`, and
-//! MinIO, and is skipped without them.
+//! Backup and restore on a real node, its volumes on a btrfs made for the test, its repository in a
+//! real object store (MinIO), reached through the first-party S3 target provider: an extension the
+//! node runs, whose provider the test serves with the credential the node hands the extension's
+//! workload through its identity socket, as its container would. A running workload is backed up
+//! twice by its node, and a prune approved forgets the first, which no one read; the second is
+//! listed, one file read from it, and cloned into a new workload that runs on what it held. It
+//! needs root, containerd, `mkfs.btrfs`, and MinIO, and is skipped without them.
 
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, push_sleeper, push_target};

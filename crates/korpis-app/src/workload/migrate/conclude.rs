@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How a migration ends (§8.1 of docs/05-scheduling.md), whoever ends it. Abandoned, the source
-//! runs on and the destination's placement is freed with what it held. Rolled back, the
-//! placement moves back to the source where it had moved, each volume onto the copy the source
-//! kept, and what the destination's copies hold since is kept as a divergent volume of each, as
-//! a failover onto a replica leaves one (§2.2 of docs/06-storage.md). Completed, the source's
-//! placement is freed once it deleted its copies. Its plan ends with it: applied where it
-//! completed, failed where a phase failed, and cancelled where a person ended it.
+//! How a migration ends, whoever ends it. Abandoned, the source runs on and the destination's
+//! placement is freed with what it held. Rolled back, the placement moves back to the source where
+//! it had moved, each volume onto the copy the source kept, and what the destination's copies hold
+//! since is kept as a divergent volume of each, as a failover onto a replica leaves one. Completed,
+//! the source's placement is freed once it deleted its copies. Its plan ends with it: applied where
+//! it completed, failed where a phase failed, and cancelled where a person ended it.
 
 use crate::App;
 use crate::error::AppError;

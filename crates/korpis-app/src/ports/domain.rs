@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Domains organizations hold (§3.2 of docs/07-networking.md).
+//! Domains organizations hold.
 
 use super::StoreResult;
 use crate::page::Page;

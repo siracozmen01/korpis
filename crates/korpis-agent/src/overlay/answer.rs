@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Answering the control plane's probe of the edges that forward to this node (§3.1 of
-//! docs/07-networking.md). The node listens on its own addresses in the mesh, on each probe port
-//! an edge forwards to it, and answers each probe with its node key's signature over the probe's
-//! group, the address it probed, the node, and the nonce. The probe reaches that address only
-//! through an edge's GRE link and the edge's translation, and the answer leaves through them, so
-//! an answer the control plane verifies proves the edge's forwarding both ways.
+//! Answering the control plane's probe of the edges that forward to this node. The node listens on
+//! its own addresses in the mesh, on each probe port an edge forwards to it, and answers each probe
+//! with its node key's signature over the probe's group, the address it probed, the node, and the
+//! nonce. The probe reaches that address only through an edge's GRE link and the edge's
+//! translation, and the answer leaves through them, so an answer the control plane verifies proves
+//! the edge's forwarding both ways.
 
 use ed25519_dalek::SigningKey;
 use korpis_core::edge::probe::{REQUEST, answer_message, read_request};

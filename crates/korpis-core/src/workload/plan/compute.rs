@@ -39,8 +39,8 @@ fn text(s: &str) -> Value {
 impl Builder<'_> {
     fn push(&mut self, action: StepAction, detail: ValueMap, touched: &[String]) {
         let (disruptive, classified_by, reason) = self.classifier.classify(action, touched);
-        // What a stop of a running object can take, as the node moves it on: the recipe's
-        // hook's wait, then the grace (§3 of docs/09-recipes.md, §6 of docs/02-architecture.md).
+        // What a stop of a running object can take, as the node moves it on: the recipe's hook's
+        // wait, then the grace.
         let mut detail = detail;
         if matches!(action, StepAction::Stop | StepAction::Restart | StepAction::Retire) {
             let bound = self.classifier.stop_bound().as_secs();
@@ -67,9 +67,8 @@ impl Builder<'_> {
     }
 
     fn add_volume(&mut self, v: &VolumeSpec) {
-        // The class it is in: the one it names, or for one attached the one it was made in,
-        // which its declaration records, so its node finds it where it is (§2.1 of
-        // docs/06-storage.md).
+        // The class it is in: the one it names, or for one attached the one it was made in, which
+        // its declaration records, so its node finds it where it is.
         let mut detail = ValueMap::from([
             ("volume".to_owned(), text(&v.name)),
             ("storage_class".to_owned(), text(&v.storage_class)),
@@ -135,9 +134,9 @@ fn first_intent(
     for v in &to.volumes {
         b.add_volume(v);
     }
-    // Into the volumes just made, before anything runs on them. Written only into volumes this
-    // plan creates, it writes over nothing, and undoing the plan removes what it wrote: then, and
-    // only then, an install can be undone (§4 of docs/09-recipes.md).
+    // Into the volumes just made, before anything runs on them. Written only into volumes this plan
+    // creates, it writes over nothing, and undoing the plan removes what it wrote: then, and only
+    // then, an install can be undone.
     if let Some(detail) = install {
         b.push(StepAction::Install, detail, &[]);
         if let Some(step) = b.steps.last_mut() {
@@ -248,12 +247,11 @@ pub fn power_steps(
     b.steps
 }
 
-/// The steps of a retire plan for `workload` (§4.8 of docs/02-architecture.md), from its
-/// approved body and power. A workload stops, its volumes are detached and retained, and its
-/// runtime is removed; then each volume in `deleting`, which the deletion named explicitly, is
-/// deleted by its own irreversible step (§7 of docs/06-storage.md), after the runtime that
-/// mounted it is gone. A workload nothing was ever approved for has reached no node, holds no
-/// volume, and the control plane retires it alone.
+/// The steps of a retire plan for `workload`, from its approved body and power. A workload stops,
+/// its volumes are detached and retained, and its runtime is removed; then each volume in
+/// `deleting`, which the deletion named explicitly, is deleted by its own irreversible step, after
+/// the runtime that mounted it is gone. A workload nothing was ever approved for has reached no
+/// node, holds no volume, and the control plane retires it alone.
 #[must_use]
 pub fn retire_steps(
     workload: Uuid,

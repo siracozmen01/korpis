@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Removing a node (§3 of docs/18-operations.md, §9 of docs/17-security.md). A node is removed
-//! once it is cordoned and holds nothing: no workload placed on it and no volume not deleted,
-//! since nothing moves a volume off a node before migration. One removed as compromised is
-//! removed whatever it holds: each workload placed on it is placed again from its target as any
-//! workload is, with the node no longer among those that serve, and its endpoints there are
-//! dropped; its volumes stay where they are, lost with the node, and a workload attached to one
-//! stays unplaced, saying why, until it is restored from a backup elsewhere.
+//! Removing a node. A node is removed once it is cordoned and holds nothing: no workload placed on
+//! it and no volume not deleted, since nothing moves a volume off a node before migration. One
+//! removed as compromised is removed whatever it holds: each workload placed on it is placed again
+//! from its target as any workload is, with the node no longer among those that serve, and its
+//! endpoints there are dropped; its volumes stay where they are, lost with the node, and a workload
+//! attached to one stays unplaced, saying why, until it is restored from a backup elsewhere.
 //!
-//! Either way the node is decommissioned, for good: its key opens no session, the session it
-//! holds ends on whichever replica holds it, and its leases are fenced by the clocks, as any
-//! silent node's are (§4.5 of docs/02-architecture.md): it cannot renew them, so each ends within
-//! one term, and the next issue, to another node, raises the epoch.
+//! Either way the node is decommissioned, for good: its key opens no session, the session it holds
+//! ends on whichever replica holds it, and its leases are fenced by the clocks, as any silent
+//! node's are: it cannot renew them, so each ends within one term, and the next issue, to another
+//! node, raises the epoch.
 
 use super::{NodeView, admin_name};
 use crate::App;
@@ -115,7 +114,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             moved += usize::from(self.displace(tx, w, id).await?);
         }
         let endpoints = tx.drop_node_endpoints(id).await?;
-        // Its pool is free for a node enrolled after (§9.1 of docs/07-networking.md).
+        // Its pool is free for a node enrolled after.
         let pool = tx.release_pool(id).await?;
         let exposed =
             if compromised { tx.expose_certificates(id, self.clock.now()).await? } else { 0 };

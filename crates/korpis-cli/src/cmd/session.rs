@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A data-path session with one workload, as the interactive commands open one (§3.1 of
-//! docs/02-architecture.md): a capability token minted for the action on the one workload, with
-//! the route the gateway seals with it, presented at a relay, and renewed on the session itself
-//! before it expires.
+//! A data-path session with one workload, as the interactive commands open one: a capability token
+//! minted for the action on the one workload, with the route the gateway seals with it, presented
+//! at a relay, and renewed on the session itself before it expires.
 
 use crate::connect::Connection;
 use crate::error::CliError;
@@ -54,9 +53,8 @@ pub async fn mint(
     minted(c, workload, action, None).await
 }
 
-/// [`mint`], renewing `renews` when it is given: a renewal spends no use of a use-limited grant,
-/// a share link's included, because the session spent one when it opened (§6.1 of
-/// docs/08-identity.md).
+/// [`mint`], renewing `renews` when it is given: a renewal spends no use of a use-limited grant, a
+/// share link's included, because the session spent one when it opened.
 async fn minted(
     c: &Connection,
     workload: &str,

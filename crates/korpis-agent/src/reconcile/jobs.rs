@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Which job each step works through, and forgetting the jobs nothing names any more (§5.5 of
-//! docs/06-storage.md). A job is named once for its plan, so the plan's steps and a pass after a
-//! restart all find the same one, and it is kept for as long as its plan is in an assignment: a
-//! step never forgets its own, because doing it again after a crash must find the job it began,
-//! and a replacing restore's staging place outlives the step that made it. Once the plan has left
-//! the set, the helper is asked to forget the job, which releases what it keeps on the volume. A
-//! job still running is never touched, nor one a live session reading a backup holds, and nothing
-//! is forgotten before a set has been held.
+//! Which job each step works through, and forgetting the jobs nothing names any more. A job is
+//! named once for its plan, so the plan's steps and a pass after a restart all find the same one,
+//! and it is kept for as long as its plan is in an assignment: a step never forgets its own,
+//! because doing it again after a crash must find the job it began, and a replacing restore's
+//! staging place outlives the step that made it. Once the plan has left the set, the helper is
+//! asked to forget the job, which releases what it keeps on the volume. A job still running is
+//! never touched, nor one a live session reading a backup holds, and nothing is forgotten before a
+//! set has been held.
 
 use super::Reconciler;
 use super::install::install_job;

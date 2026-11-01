@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What comes up a session after the Hello: heartbeats, acknowledgements, and lease requests and
-//! releases (§4.2, §4.5 of docs/02-architecture.md), a workload's and an edge address's
-//! (§3.1 of docs/07-networking.md). A lease request is answered on the same stream, echoing its
-//! nonce.
+//! releases, a workload's and an edge address's. A lease request is answered on the same stream,
+//! echoing its nonce.
 
 use super::credential;
 use super::session::facts;

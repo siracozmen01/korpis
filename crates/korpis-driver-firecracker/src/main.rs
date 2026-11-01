@@ -41,8 +41,8 @@ struct Cli {
     /// `korpis-image-build`; by default the one installed beside this binary.
     #[arg(long)]
     image_build: Option<PathBuf>,
-    /// `korpis-stream-writer`, which writes a guest's console to its stream (§4 of
-    /// docs/14-streams.md); by default the one installed beside this binary.
+    /// `korpis-stream-writer`, which writes a guest's console to its stream; by default the one
+    /// installed beside this binary.
     #[arg(long)]
     stream_writer: Option<PathBuf>,
     /// The node's content store, which the agent fills and the driver only reads.
@@ -51,12 +51,10 @@ struct Cli {
     /// The directory the helper keeps volumes under.
     #[arg(long, default_value = "/var/lib/korpis/volumes")]
     volume_root: PathBuf,
-    /// The root of a shared storage class, as the helper's `--shared-class` names it; repeatable
-    /// (§2.1 of docs/06-storage.md).
+    /// The root of a shared storage class, as the helper's `--shared-class` names it; repeatable.
     #[arg(long = "shared-root")]
     shared_roots: Vec<PathBuf>,
-    /// The directory the helper keeps block classes' volumes under, as its `--block-root` names
-    /// it (§2.1 of docs/06-storage.md).
+    /// The directory the helper keeps block classes' volumes under, as its `--block-root` names it.
     #[arg(long, default_value = "/var/lib/korpis/block")]
     block_root: PathBuf,
     /// The directory the helper binds workloads' network namespaces under.

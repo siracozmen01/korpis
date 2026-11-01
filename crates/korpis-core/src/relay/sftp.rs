@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where a relay serves SFTP (§3.1 of docs/02-architecture.md, §3 of docs/18-operations.md): the
-//! address clients reach it at, `host:port`, which a relay behind a balancer or a port forward is
-//! told with `--sftp-advertise` and otherwise takes from its own URL's host and the port it
-//! listens on; and the line a client's `known_hosts` takes for it.
+//! Where a relay serves SFTP: the address clients reach it at, `host:port`, which a relay behind a
+//! balancer or a port forward is told with `--sftp-advertise` and otherwise takes from its own
+//! URL's host and the port it listens on; and the line a client's `known_hosts` takes for it.
 
 use super::{RelayUrl, RelayUrlError};
 use std::fmt;

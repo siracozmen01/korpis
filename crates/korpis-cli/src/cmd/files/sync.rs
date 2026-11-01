@@ -82,9 +82,9 @@ fn names(dir: &OwnedFd, label: &Path) -> Result<Vec<String>, CliError> {
     Ok(names)
 }
 
-/// `name` in the open directory `dir`, opened with `flags` and no link followed, if it is still
-/// the entry `seen` described: a directory swapped for a link, or for another file, after it
-/// was looked at is refused rather than read (Finding 81 of docs/23-walkthroughs.md).
+/// `name` in the open directory `dir`, opened with `flags` and no link followed, if it is still the
+/// entry `seen` described: a directory swapped for a link, or for another file, after it was looked
+/// at is refused rather than read.
 fn reopen(
     dir: &OwnedFd,
     name: &str,

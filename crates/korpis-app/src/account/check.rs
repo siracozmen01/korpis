@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Checking a factor (§9.6 of docs/08-identity.md), for a sign-in and for a re-authentication
-//! alike: a passkey's assertion, or a password with a code beside it. Every refusal is
-//! [`AppError::Unauthenticated`], whichever part failed, and a password is checked against a
-//! stand-in hash when there is no account to check it against, so how long a refusal takes does
-//! not say whether a sign-in name exists.
+//! Checking a factor, for a sign-in and for a re-authentication alike: a passkey's assertion, or a
+//! password with a code beside it. Every refusal is [`AppError::Unauthenticated`], whichever part
+//! failed, and a password is checked against a stand-in hash when there is no account to check it
+//! against, so how long a refusal takes does not say whether a sign-in name exists.
 
 use super::Client;
 use super::record;
@@ -36,8 +35,7 @@ pub(super) struct CheckedPasskey {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Verifies the passkey assertion `a`, answered at the address `portal` names, where the
-    /// passkey must be registered (§9.8 of docs/08-identity.md); spent with
-    /// [`Self::spend_passkey`].
+    /// passkey must be registered; spent with [`Self::spend_passkey`].
     pub(super) async fn check_passkey(
         &self,
         a: Assertion,
@@ -90,7 +88,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Records that a passkey of `account` answered with a counter that did not advance: two
-    /// authenticators hold its credential, and its holder should know (§9.6).
+    /// authenticators hold its credential, and its holder should know.
     async fn suspect(&self, account: Uuid, label: &str) -> Result<(), AppError> {
         let mut tx = self.store.begin().await?;
         let more = [("passkey", label.into())];
@@ -111,15 +109,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Runs `check`, a guess at `name`'s password from `client`, inside the buckets that bound
     /// guessing.
     ///
-    /// A password and a six-digit code can be guessed, as no other credential can, so the
-    /// buckets are charged before anything is checked: the failures of the source, and the
-    /// guesses at the name, or at the device and its account when the browser holds a device
-    /// cookie for it. Once one refuses, nothing is checked, the right password included, so a
-    /// guesser that ignores the refusal learns nothing more (Finding 69 of
-    /// docs/23-walkthroughs.md). They are charged in one statement that admits or refuses, and
+    /// A password and a six-digit code can be guessed, as no other credential can, so the buckets
+    /// are charged before anything is checked: the failures of the source, and the guesses at the
+    /// name, or at the device and its account when the browser holds a device cookie for it. Once
+    /// one refuses, nothing is checked, the right password included, so a guesser that ignores the
+    /// refusal learns nothing more. They are charged in one statement that admits or refuses, and
     /// given back when the check succeeds, so guesses sent at once cannot all pass a bucket that
-    /// has room for one (Findings 70 and 71); a refusal is then recorded as a failed attempt and
-    /// charged nothing more.
+    /// has room for one; a refusal is then recorded as a failed attempt and charged nothing more.
     pub(super) async fn guarded<T>(
         &self,
         name: &str,
@@ -140,11 +136,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         checked
     }
 
-    /// Checks `password` and `second` for `name`, answering the account, a transaction in which
-    /// the second factor is spent, the factors checked, and the organization the two were both
-    /// seen beneath if they were (§9.8 of docs/08-identity.md); the caller records what they
-    /// were for and commits. Everything read is read before the transaction begins, so it never
-    /// holds a connection while asking the pool for another (Finding 71).
+    /// Checks `password` and `second` for `name`, answering the account, a transaction in which the
+    /// second factor is spent, the factors checked, and the organization the two were both seen
+    /// beneath if they were; the caller records what they were for and commits. Everything read is
+    /// read before the transaction begins, so it never holds a connection while asking the pool for
+    /// another.
     pub(super) async fn check_password(
         &self,
         name: &str,

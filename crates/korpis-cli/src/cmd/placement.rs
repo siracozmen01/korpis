@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis organization placement` (§2.2 of docs/05-scheduling.md): the placement policy at an
-//! organization, its own beside the one in force and where that one was set; with `-f` it sets
-//! its own from a file, JSON or YAML, as `--json` prints a policy, and `--remove` removes it.
+//! `korpis organization placement`: the placement policy at an organization, its own beside the one
+//! in force and where that one was set; with `-f` it sets its own from a file, JSON or YAML, as
+//! `--json` prints a policy, and `--remove` removes it.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

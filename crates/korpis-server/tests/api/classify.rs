@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The operator's layer of the classification chain (§3.3 of docs/01-model.md): set on the
-//! record, under the workload's version, by `workload.classify`, and never below the floor.
+//! The operator's layer of the classification chain: set on the record, under the workload's
+//! version, by `workload.classify`, and never below the floor.
 
 use crate::lifecycle::{power, workload};
 use crate::support::{Harness, detail, reason};
@@ -85,7 +85,7 @@ async fn an_operator_makes_a_stop_routine_on_the_record_and_the_next_stop_needs_
     assert!(!stop.disruptive, "the recipe said disruptive; the operator said otherwise");
     assert_eq!(stop.classified_by.as_known(), Some(pb::StepLayer::STEP_LAYER_OPERATOR));
     // The longest the stop can take is shown on the step: the example recipe's hook waits two
-    // minutes for the server to exit, then the node's grace (§3 of docs/09-recipes.md).
+    // minutes for the server to exit, then the node's grace.
     let within = stop.detail.get("stops_within_seconds").and_then(|v| match v.kind {
         Some(pb::__buffa::oneof::value::Kind::IntValue(n)) => Some(n),
         _ => None,

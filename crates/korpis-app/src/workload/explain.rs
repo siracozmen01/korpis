@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where a workload is, and why, as one viewer may see it (§2.3 of docs/05-scheduling.md, §8 of
-//! docs/08-identity.md). The store keeps the full derivation; this filters it per caller.
+//! Where a workload is, and why, as one viewer may see it. The store keeps the full derivation;
+//! this filters it per caller.
 
 use super::read::WorkloadView;
 use crate::App;
@@ -43,13 +43,12 @@ pub struct PlacementView {
     pub reserved: Bounds,
     /// The derivation, filtered.
     pub explanation: ExplanationView,
-    /// When a restore held it, until an operator confirms it (§8 of docs/03-state.md).
+    /// When a restore held it, until an operator confirms it.
     pub held_at: Option<SystemTime>,
-    /// The devices it holds on its node, by their names there, which say what was given and
-    /// not which node holds them (§6.3 of docs/05-scheduling.md).
+    /// The devices it holds on its node, by their names there, which say what was given and not
+    /// which node holds them.
     pub devices: Vec<korpis_core::node::device::DeviceHold>,
-    /// The cores it holds on its node, by id, for dedicated cores (§5.2 of
-    /// docs/05-scheduling.md).
+    /// The cores it holds on its node, by id, for dedicated cores.
     pub cores: Vec<u32>,
 }
 
@@ -92,8 +91,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Found, AppError> {
         // Read before the placement, so a bind committed between the two reads is seen as the
         // placement; an attempt that failed for the intent now placed is then past, and dropped,
-        // unless it was made after the placement was bound: a failover that found no node (§2.4
-        // of docs/05-scheduling.md).
+        // unless it was made after the placement was bound: a failover that found no node.
         let unplaced = self.store.unplaced(w.id).await?;
         let Some(p) = self.store.placement(w.id).await? else {
             return Ok(Found { placement: None, unplaced });

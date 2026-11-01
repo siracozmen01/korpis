@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A volume's replicas (§2.2 of docs/06-storage.md).
+//! A volume's replicas.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};

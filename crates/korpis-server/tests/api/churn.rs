@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Churn (§2.2 of docs/05-scheduling.md): a node the sweep marks unreachable while it holds a
-//! workload has a loss recorded, once however many it held, and a node that held nothing has
-//! none; a node's recent losses lower its churn score in every later placement.
+//! Churn: a node the sweep marks unreachable while it holds a workload has a loss recorded, once
+//! however many it held, and a node that held nothing has none; a node's recent losses lower its
+//! churn score in every later placement.
 
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::Harness;

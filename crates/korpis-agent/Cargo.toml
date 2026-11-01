@@ -26,27 +26,27 @@ hyper = { version = "1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1", "http2"] }
 ipnet = "2"
 korpis-egress = { workspace = true }
-# The node's Container Device Interface spec files (§6.1 of docs/05-scheduling.md).
+# The node's Container Device Interface spec files.
 korpis-cdi = { workspace = true }
 # The cores it offers are read from the kernel's topology as a driver reads them.
 korpis-topology = { workspace = true }
 korpis-core = { workspace = true, features = ["authz", "content", "identity", "mesh"] }
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-stream = { workspace = true }
-# Sealed data keys under tenant custody (§5.5 of docs/06-storage.md).
+# Sealed data keys under tenant custody.
 korpis-extension = { workspace = true }
 # A file session's frames, and the verbs the in-memory host serves sessions with.
 korpis-files = { path = "../korpis-files" }
-# Offloading console streams: the repository format and its S3 client (§4 of docs/14-streams.md).
+# Offloading console streams: the repository format and its S3 client.
 korpis-backup = { path = "../korpis-backup" }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
 # Preflight asks which Landlock ABI the kernel speaks, by making rulesets it never applies.
 landlock = "0.4"
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"] }
-# An install's `fetch`, by URL and hash, into the content store (§4 of docs/09-recipes.md).
-# The recipe document's reader, without its registry client, as the driver uses it: the agent
-# reads the managed files a recipe declares (reconcile/managed.rs).
+# An install's `fetch`, by URL and hash, into the content store. The recipe document's reader,
+# without its registry client, as the driver uses it: the agent reads the managed files a recipe
+# declares (reconcile/managed.rs).
 korpis-recipe = { path = "../korpis-recipe", default-features = false }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "http2"] }
 # inotify on a stream's directory, which wakes a console's followers (data/wake.rs).

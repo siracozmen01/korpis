@@ -61,10 +61,10 @@ pub struct Paged<T, C = Uuid> {
 pub const VISIBLE_READS: usize = 8;
 
 /// A page of what the caller may see: pages of the source after the cursor are read, and what
-/// `keep` keeps of each, until the page holds its size, the source runs out, or
-/// [`VISIBLE_READS`] pages were read. Its cursor is the last item it returns when it is full,
-/// and otherwise the last row it read, which may be one the caller may not see; the API seals
-/// every cursor, so a token says nothing of what was left out (§8 of docs/10-api.md).
+/// `keep` keeps of each, until the page holds its size, the source runs out, or [`VISIBLE_READS`]
+/// pages were read. Its cursor is the last item it returns when it is full, and otherwise the last
+/// row it read, which may be one the caller may not see; the API seals every cursor, so a token
+/// says nothing of what was left out.
 pub(crate) async fn visible<T, C, R, RF, K, KF>(
     page: Page<C>,
     id: impl Fn(&T) -> C,
@@ -95,8 +95,8 @@ where
             return Ok(Paged { items, next: None });
         }
     }
-    // Read as much as one call may: what was found, and the row it stopped after, which the
-    // token seals so the caller learns nothing of it (§8 of docs/10-api.md).
+    // Read as much as one call may: what was found, and the row it stopped after, which the token
+    // seals so the caller learns nothing of it.
     Ok(Paged { items, next: after })
 }
 

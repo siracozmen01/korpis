@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Providers' wire forms (§3.3 of docs/16-extensions.md): registrations,
-//! `korpis.v1.ProviderRegistration`, and the calls sent down a provider's stream and the results
-//! that come back up it.
+//! Providers' wire forms: registrations, `korpis.v1.ProviderRegistration`, and the calls sent down
+//! a provider's stream and the results that come back up it.
 
 use crate::dns::record_to_pb;
 use crate::extension::provider_type_to_pb;

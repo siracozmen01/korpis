@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Portals (§3.6 of docs/07-networking.md): names the control plane answers under for an
-//! organization. A portal is made under `portal.write` on its organization, of a name the
-//! organization holds, that no endpoint routes and no other portal has, and that is not one of the
-//! installation's own hosts. All of it is checked under the domains lock, which a route's claim
-//! and every change to which domains are verified take too, so no two of them can each find the
-//! name free. A portal is served with its own `acme` certificate, made with it, or with a
-//! `provided` one of its organization covering its name, named under `certificate.read` on it.
+//! Portals: names the control plane answers under for an organization. A portal is made under
+//! `portal.write` on its organization, of a name the organization holds, that no endpoint routes
+//! and no other portal has, and that is not one of the installation's own hosts. All of it is
+//! checked under the domains lock, which a route's claim and every change to which domains are
+//! verified take too, so no two of them can each find the name free. A portal is served with its
+//! own `acme` certificate, made with it, or with a `provided` one of its organization covering its
+//! name, named under `certificate.read` on it.
 
 mod change;
 mod serve;
@@ -108,9 +108,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
-    /// The port the installation is reached on, from its public URL's origin; none for HTTPS's
-    /// own, or without a public URL, so a portal's origin is `https://<name>` (§3.6 of
-    /// docs/07-networking.md).
+    /// The port the installation is reached on, from its public URL's origin; none for HTTPS's own,
+    /// or without a public URL, so a portal's origin is `https://<name>`.
     #[must_use]
     pub fn public_port(&self) -> Option<u16> {
         let own = self.relying_party.as_ref()?.origins.first()?;
@@ -123,8 +122,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(self.store.portal(portal).await?.map(|p| p.organization))
     }
 
-    /// The origin of every portal, whose panels open sessions at the relays (§3.6 of
-    /// docs/07-networking.md).
+    /// The origin of every portal, whose panels open sessions at the relays.
     pub async fn portal_origins(&self) -> Result<Vec<String>, AppError> {
         let port = self.public_port();
         Ok(self.store.all_portals().await?.iter().map(|p| p.origin(port)).collect())
@@ -212,9 +210,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.viewed(portal).await
     }
 
-    /// What deleting portal `id`, which the caller may read, would remove: the passkeys
-    /// registered there, and the accounts that sign in nowhere else (§9.8 of
-    /// docs/08-identity.md).
+    /// What deleting portal `id`, which the caller may read, would remove: the passkeys registered
+    /// there, and the accounts that sign in nowhere else.
     pub async fn portal_reach(&self, caller: &Caller, id: Uuid) -> Result<PortalReach, AppError> {
         self.authorize(caller, "portal.read", ObjectRef::new(Kind::Portal, id)).await?;
         let (passkeys, accounts_only_here) = self.store.portal_reach(id).await?;

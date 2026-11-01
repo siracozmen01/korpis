@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Assignments: `korpis.agent.v1.Assignment` (§4.8 of docs/02-architecture.md). The bytes of the
-//! encoded message are what the control plane signs, so the encoding is deterministic: every map
-//! in the schema is ordered.
+//! Assignments: `korpis.agent.v1.Assignment`. The bytes of the encoded message are what the control
+//! plane signs, so the encoding is deterministic: every map in the schema is ordered.
 
 use crate::endpoint::endpoint_to_pb;
 use crate::plan::{plan_to_pb, step_to_pb};

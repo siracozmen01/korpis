@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backup and restore jobs (§5.5 of docs/06-storage.md), and install jobs (§4 of
-//! docs/09-recipes.md, in [`install`]): each a process the helper starts and then only watches. The helper names every path the job uses from identifiers
-//! it checks; the job receives its spec, the data key and the store's access with it, on its
-//! standard input, and the helper never writes the spec anywhere. Each job has a directory in the
-//! helper's state for its result and its log, and a cgroup of its own beside the workloads', with
-//! a low weight and a ceiling, which the job joins before it does anything. A job outlives a
-//! helper that exits: a restarted helper finds it by the process its pid file names, if that
-//! process is still the job binary.
+//! Backup and restore jobs, and install jobs (in [`install`]): each a process the helper starts and
+//! then only watches. The helper names every path the job uses from identifiers it checks; the job
+//! receives its spec, the data key and the store's access with it, on its standard input, and the
+//! helper never writes the spec anywhere. Each job has a directory in the helper's state for its
+//! result and its log, and a cgroup of its own beside the workloads', with a low weight and a
+//! ceiling, which the job joins before it does anything. A job outlives a helper that exits: a
+//! restarted helper finds it by the process its pid file names, if that process is still the job
+//! binary.
 
 use crate::error::{HelperError, HelperResult, identifier};
 use crate::kept::Kept;

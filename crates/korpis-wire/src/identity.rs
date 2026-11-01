@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity provider calls on the wire (§5 of docs/08-identity.md).
+//! Identity provider calls on the wire.
 
 use crate::{time, timestamp};
 use korpis_core::extension::identity::{Assertion, Authorization, Evidence, Members, MembersAsked};

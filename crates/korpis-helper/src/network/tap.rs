@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A microVM's link (§4.1 of docs/07-networking.md): the guest's `eth0` is a tap, `tap0`, in its
-//! workload's namespace, and the guest's own kernel holds the workload's addresses. The
-//! namespace routes between the tap and its end of the link, as the host routes between the link
-//! and its uplinks, and answers for each side on the other: on `eth0` for the workload's
-//! addresses, by proxy ARP and a proxy NDP entry, and on the tap for the gateways, the same way,
-//! so neither the host nor the guest learns that a hop stands between them. The namespace holds
-//! no address of its own on either link, so it reaches the gateway through a permanent entry for
-//! the host side's hardware address, never by asking.
+//! A microVM's link: the guest's `eth0` is a tap, `tap0`, in its workload's namespace, and the
+//! guest's own kernel holds the workload's addresses. The namespace routes between the tap and its
+//! end of the link, as the host routes between the link and its uplinks, and answers for each side
+//! on the other: on `eth0` for the workload's addresses, by proxy ARP and a proxy NDP entry, and on
+//! the tap for the gateways, the same way, so neither the host nor the guest learns that a hop
+//! stands between them. The namespace holds no address of its own on either link, so it reaches the
+//! gateway through a permanent entry for the host side's hardware address, never by asking.
 //!
 //! The tap is persistent, so it outlives the VMM that opens it, and owned by the workload's first
 //! id, which the jailer runs the VMM as, so no other user of the host can attach to it. A tap has

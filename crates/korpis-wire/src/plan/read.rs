@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Plans read back: the one place a plan enters the control plane from outside, a restore
-//! recovering the plan a node presents in full inside a signed assignment (§8 of
-//! docs/03-state.md). The inverse of [`super::plan_to_pb`].
+//! recovering the plan a node presents in full inside a signed assignment. The inverse of
+//! [`super::plan_to_pb`].
 
 use crate::spec::endpoints::exposure_from_pb;
 use crate::value::map_from_pb;

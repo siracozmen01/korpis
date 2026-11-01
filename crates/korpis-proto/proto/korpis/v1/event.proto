@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The event log and its subscriptions (§5 of docs/15-observability.md, §5 of
-// docs/16-extensions.md). Every event is written in the transaction of the fact it reports;
-// a key's events are numbered in commit order; a subscription is a stored position, delivered
-// at least once.
+// The event log and its subscriptions. Every event is written in the transaction of the fact it
+// reports; a key's events are numbered in commit order; a subscription is a stored position,
+// delivered at least once.
 
 syntax = "proto3";
 
@@ -60,8 +59,7 @@ message Subscription {
   // The last event acknowledged; empty before the first.
   string acked = 4;
   google.protobuf.Timestamp created = 5;
-  // Set for a subscription an extension's installation created (§4 of
-  // docs/16-extensions.md); it ends with the installation.
+  // Set for a subscription an extension's installation created; it ends with the installation.
   optional string extension = 6;
 }
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Releasing what replication no longer needs (§2.2 of docs/06-storage.md). What the node is
-//! told is the whole of what it keeps: of a volume of its own, the snapshots its replicas'
-//! next increments are based on and those under way; of a replica it keeps, the snapshot it
-//! holds and the one being received; of anything else, nothing. Every other snapshot the helper
-//! lists is released. A node told nothing yet releases nothing, since it does not know.
+//! Releasing what replication no longer needs. What the node is told is the whole of what it keeps:
+//! of a volume of its own, the snapshots its replicas' next increments are based on and those under
+//! way; of a replica it keeps, the snapshot it holds and the one being received; of anything else,
+//! nothing. Every other snapshot the helper lists is released. A node told nothing yet releases
+//! nothing, since it does not know.
 
 use super::Replication;
 use crate::host::Replicating;

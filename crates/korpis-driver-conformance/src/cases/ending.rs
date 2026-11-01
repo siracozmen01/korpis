@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! How an object ends (§4.2 of docs/04-runtimes.md): `Stop` reaches its entry with the driver's
-//! graceful default and kills it only once its grace is over, `Kill` ends it at once, an entry
-//! that exits is inspected with its status and sent as an event, `Destroy` releases it so the
-//! driver no longer holds it, and each of these asked again of an object already where it asks
-//! leaves it there.
+//! How an object ends: `Stop` reaches its entry with the driver's graceful default and kills it
+//! only once its grace is over, `Kill` ends it at once, an entry that exits is inspected with its
+//! status and sent as an event, `Destroy` releases it so the driver no longer holds it, and each of
+//! these asked again of an object already where it asks leaves it there.
 
 use super::Stopped;
 use crate::case::Verdict;

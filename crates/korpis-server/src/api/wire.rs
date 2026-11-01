@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The wire mapping (`korpis-wire`), and what only the API needs beside it: turning a refused
-//! translation into the structured error of §8 of docs/10-api.md, and the effect log's page
+//! translation into the structured error, and the effect log's page
 //! cursor.
 
 pub use korpis_wire::{

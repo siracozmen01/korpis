@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Presentations and tickets in the store (§5.2 of docs/08-identity.md): a presentation is
-//! accepted once, a ticket works once, for the client it was handed to, before it expires, and
-//! a person is bound at their first use once.
+//! Presentations and tickets in the store: a presentation is accepted once, a ticket works once,
+//! for the client it was handed to, before it expires, and a person is bound at their first use
+//! once.
 
 use crate::support::{Fixture, alice, fixture, now};
 use korpis_app::ports::{AssertionWrite, BindingRead, BindingWrite, Store, Tx};

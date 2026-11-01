@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Workloads that have runs (§4 of docs/05-scheduling.md): a schedule is read in a zone the
-//! control plane's database knows, a policy is stored as it applies with the defaults written
-//! out, and a policy on a workload that has no runs is refused. A task's first run is made once
-//! it is declared, read by whoever may read the workload, and cancelled only by whoever may stop
-//! it, once.
+//! Workloads that have runs: a schedule is read in a zone the control plane's database knows, a
+//! policy is stored as it applies with the defaults written out, and a policy on a workload that
+//! has no runs is refused. A task's first run is made once it is declared, read by whoever may read
+//! the workload, and cancelled only by whoever may stop it, once.
 
 use crate::recipes::{body, create, project, push_paper};
 use crate::refusal::{detail, reason};

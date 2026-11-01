@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An endpoint's client certificates (§3.2 of docs/07-networking.md): the authorities a
-//! declaration gives in PEM read back as the certificates they are, and anything that is not one
-//! of them, a key above all, refused rather than skipped.
+//! An endpoint's client certificates: the authorities a declaration gives in PEM read back as the
+//! certificates they are, and anything that is not one of them, a key above all, refused rather
+//! than skipped.
 
 use korpis_core::workload::spec::endpoints::{ClientCertificates, TlsSpec};
 use korpis_proto::korpis::v1 as pb;

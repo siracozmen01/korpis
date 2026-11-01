@@ -37,8 +37,8 @@ pub trait TenancyRead {
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<Project>>> + Send;
 
-    /// The placement policies those of `organizations` set themselves, by organization; one
-    /// that sets none is absent (§2.2 of docs/05-scheduling.md).
+    /// The placement policies those of `organizations` set themselves, by organization; one that
+    /// sets none is absent.
     fn placement_policies(
         &self,
         organizations: &[Uuid],
@@ -68,17 +68,15 @@ pub trait TenancyWrite {
     ) -> impl Future<Output = StoreResult<Option<Organization>>> + Send;
 
     /// Sets the delegation ceiling organization `id` sets for its subtree, or removes it with
-    /// `None` (§5.1 of docs/08-identity.md); the one it replaced, or `None` outside if the
-    /// organization does not exist.
+    /// `None`; the one it replaced, or `None` outside if the organization does not exist.
     fn set_delegation_ceiling(
         &mut self,
         id: Uuid,
         ceiling: Option<Duration>,
     ) -> impl Future<Output = StoreResult<Option<Option<Duration>>>> + Send;
 
-    /// Sets the placement policy organization `id` sets for its subtree, or removes it with
-    /// `None` (§2.2 of docs/05-scheduling.md); the one it replaced, or `None` outside if the
-    /// organization does not exist.
+    /// Sets the placement policy organization `id` sets for its subtree, or removes it with `None`;
+    /// the one it replaced, or `None` outside if the organization does not exist.
     fn set_placement_policy(
         &mut self,
         id: Uuid,

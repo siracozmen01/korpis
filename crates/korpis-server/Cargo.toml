@@ -13,9 +13,8 @@ publish.workspace = true
 testing = ["dep:tempfile"]
 
 [dependencies]
-# SFTP at a relay (§3.1 of docs/02-architecture.md): SSH over the ring backend the TLS stack
-# already brings, with RSA keys verified (never signed with), and the SFTP subsystem over its
-# channel.
+# SFTP at a relay: SSH over the ring backend the TLS stack already brings, with RSA keys verified
+# (never signed with), and the SFTP subsystem over its channel.
 russh = { version = "0.64", default-features = false, features = ["ring", "rsa"] }
 russh-sftp = "3.0"
 base64 = "0.22"
@@ -23,7 +22,7 @@ buffa = { version = "=0.9.2", features = ["json"] }
 buffa-types = { version = "=0.9.2", features = ["json"] }
 clap = { version = "4", features = ["derive", "env", "string"] }
 connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "gzip", "client", "client-tls", "server", "server-tls"] }
-# Repository keys are sealed under the control plane's backup key (§5.5 of docs/06-storage.md).
+# Repository keys are sealed under the control plane's backup key.
 chacha20poly1305 = "0.10"
 ed25519-dalek = "2.2"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
@@ -39,17 +38,16 @@ http-body = "1"
 http-body-util = "0.1"
 ipnet = "2"
 korpis-app = { workspace = true }
-# The control plane reads a backup's trees and files when one is browsed or read (§5.4 of
-# docs/06-storage.md).
+# The control plane reads a backup's trees and files when one is browsed or read.
 korpis-backup = { path = "../korpis-backup" }
 korpis-core = { workspace = true, features = ["accounts", "authz", "identity"] }
 korpis-egress = { workspace = true }
-# Sealed data keys under tenant custody (§5.5 of docs/06-storage.md).
+# Sealed data keys under tenant custody.
 korpis-extension = { workspace = true }
 korpis-proto = { workspace = true, features = ["client", "services"] }
 korpis-recipe = { workspace = true }
 korpis-store = { workspace = true }
-# Offloaded segments, checked and read as the control plane serves them (§4 of docs/14-streams.md).
+# Offloaded segments, checked and read as the control plane serves them.
 korpis-stream = { workspace = true }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }

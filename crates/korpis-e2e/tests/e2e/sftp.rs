@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! SFTP on a real node (§3.1 of docs/02-architecture.md, §3.2 of docs/06-storage.md, trace 50 of
-//! docs/23-walkthroughs.md), served by the control plane's own relay role and driven by OpenSSH's
+//! SFTP on a real node, served by the control plane's own relay role and driven by OpenSSH's
 //! `sftp`: a person whose key is registered uploads part of a world, resumes it with `reput` from
 //! the size the file has, lists it, and downloads it whole; and a connection whose key is removed
 //! meanwhile is ended when its token next renews, within one token's lifetime. It needs root,

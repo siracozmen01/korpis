@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A quota set as a parent sets it (§5.1 of docs/05-scheduling.md, §3.1 of docs/01-model.md):
-//! one entry of each shape, no reservation above its limit, overcommit only where it is
-//! possible; what children are given sums within the parent's reservations, never
-//! oversubscribed, and within its limits times the ratio it permits; a project's sub-limit fits
-//! its organization's.
+//! A quota set as a parent sets it: one entry of each shape, no reservation above its limit,
+//! overcommit only where it is possible; what children are given sums within the parent's
+//! reservations, never oversubscribed, and within its limits times the ratio it permits; a
+//! project's sub-limit fits its organization's.
 
 use crate::support::GIB;
 use korpis_core::labels::LabelSelector;

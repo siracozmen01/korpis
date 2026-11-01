@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A migration's cutover (§8.1 of docs/05-scheduling.md): once nobody can be acting under the
-//! source's epoch, released or past its grantor's end, the authoritative placement moves to the
-//! destination in one transaction, each volume with it, onto the copy the destination reported
-//! holding, or, for a volume nothing is sent for, the one both reach. The destination is then
-//! granted the next epoch when it asks, by the ordinary lease rule (§4.5 of
-//! docs/02-architecture.md), since it is where the workload is placed. Tried when the source's
-//! journal says it released the lease, and every heartbeat interval for a lease that ran out,
-//! by the sweep that also ends a migration one of whose nodes is not heard.
+//! A migration's cutover: once nobody can be acting under the source's epoch, released or past its
+//! grantor's end, the authoritative placement moves to the destination in one transaction, each
+//! volume with it, onto the copy the destination reported holding, or, for a volume nothing is sent
+//! for, the one both reach. The destination is then granted the next epoch when it asks, by the
+//! ordinary lease rule, since it is where the workload is placed. Tried when the source's journal
+//! says it released the lease, and every heartbeat interval for a lease that ran out, by the sweep
+//! that also ends a migration one of whose nodes is not heard.
 
 use crate::App;
 use crate::error::AppError;
@@ -23,12 +22,12 @@ use uuid::Uuid;
 
 use super::conclude::EndedBy;
 
-/// What the sweep does with a migration whose side `silent` names is not heard (§8.1 of
-/// docs/05-scheduling.md), if anything: before the placement moved, a silent destination, or a
-/// silent source before `cutover`, abandons it; a source silent at `cutover` is waited out, its
-/// lease's end being what the cutover needs; a destination silent at `cutover` after the move
-/// did not start the workload, and rolls it back. In `release` nothing: the workload runs on the
-/// destination, and the source deletes its copies once it is heard again.
+/// What the sweep does with a migration whose side `silent` names is not heard, if anything: before
+/// the placement moved, a silent destination, or a silent source before `cutover`, abandons it; a
+/// source silent at `cutover` is waited out, its lease's end being what the cutover needs; a
+/// destination silent at `cutover` after the move did not start the workload, and rolls it back. In
+/// `release` nothing: the workload runs on the destination, and the source deletes its copies once
+/// it is heard again.
 fn silenced(m: &Migration, silent: Side) -> Option<Next> {
     let why = format!("the {} node is unreachable", silent.as_str());
     match (m.moved_at.is_some(), silent) {

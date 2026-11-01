@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `OrganizationService.GetDelegationCeiling` and `SetDelegationCeiling` (§5.1 of
-//! docs/08-identity.md).
+//! `OrganizationService.GetDelegationCeiling` and `SetDelegationCeiling`.
 
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, respond};

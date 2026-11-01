@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The reachability prober of this process (§9 of docs/07-networking.md): for every node whose
-//! session it holds and whose advertised addresses are unmeasured or measured too long ago, it
-//! asks the node to listen on a port of its range, then tries each advertised address over TCP
-//! and over UDP, sending a nonce and checking that the answer is the node key's signature. The
-//! node is `public` if one address answers over both, and `edge_only` otherwise. The result is
-//! recorded only if the node still advertises what was measured.
+//! The reachability prober of this process: for every node whose session it holds and whose
+//! advertised addresses are unmeasured or measured too long ago, it asks the node to listen on a
+//! port of its range, then tries each advertised address over TCP and over UDP, sending a nonce and
+//! checking that the answer is the node key's signature. The node is `public` if one address
+//! answers over both, and `edge_only` otherwise. The result is recorded only if the node still
+//! advertises what was measured.
 //!
-//! The measurement is from where this process runs. A prober inside the node's network, or on
-//! the node's own machine, reaches what a client on the internet may not; §9 says what that
-//! costs.
+//! The measurement is from where this process runs. A prober inside the node's network, or on the
+//! node's own machine, reaches what a client on the internet may not; the mesh design says what
+//! that costs.
 
 use crate::api::Api;
 use korpis_app::node::ProbeDue;

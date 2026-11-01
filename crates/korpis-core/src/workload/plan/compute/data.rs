@@ -24,8 +24,8 @@ pub struct BackupStep {
 }
 
 /// The one step of a plan backing up `v`: the node snapshots it for the job where `consistent`,
-/// reads it, and releases the snapshot, all inside the step (§5.1 of docs/06-storage.md), so
-/// taking a backup changes nothing a workload sees and loses nothing.
+/// reads it, and releases the snapshot, all inside the step, so taking a backup changes nothing a
+/// workload sees and loses nothing.
 #[must_use]
 pub fn backup_steps(
     workload: Uuid,
@@ -44,7 +44,7 @@ pub fn backup_steps(
     steps.steps
 }
 
-/// A restore a plan makes into a volume (§5.4 of docs/06-storage.md).
+/// A restore a plan makes into a volume.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RestoreStep<'a> {
     /// The job that does it, named once so every step of the plan names the same one.
@@ -55,8 +55,8 @@ pub struct RestoreStep<'a> {
     pub path: &'a str,
     /// The new directory of the volume restored into, or `None` to replace the volume.
     pub into: Option<&'a str>,
-    /// For a block device, the filesystem its backup's image holds: a path is then copied from
-    /// the image inside a guest (§5.4 of docs/06-storage.md).
+    /// For a block device, the filesystem its backup's image holds: a path is then copied from the
+    /// image inside a guest.
     pub image_filesystem: Option<&'a str>,
 }
 

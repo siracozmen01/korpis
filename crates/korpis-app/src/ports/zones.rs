@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Time zones by name (§4.1 of docs/05-scheduling.md). The control plane reads a schedule in the
-//! zone its intent names, from its own zone database, which is the one thing that knows which
-//! names exist and what their rules are; the domain reads no files, so the database is a port.
+//! Time zones by name. The control plane reads a schedule in the zone its intent names, from its
+//! own zone database, which is the one thing that knows which names exist and what their rules are;
+//! the domain reads no files, so the database is a port.
 
 use jiff::tz::TimeZone;
 

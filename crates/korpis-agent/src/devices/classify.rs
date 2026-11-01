@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! From the devices the spec files describe to those the node offers (§6.1 of
-//! docs/05-scheduling.md): each with its class, the kind's name where it names one or the
-//! operator's mapping, its shares, and within the bounds the node's facts carry; a device of a
-//! kind with no class is not offered, and nor is any device the files do not describe as one.
+//! From the devices the spec files describe to those the node offers: each with its class, the
+//! kind's name where it names one or the operator's mapping, its shares, and within the bounds the
+//! node's facts carry; a device of a kind with no class is not offered, and nor is any device the
+//! files do not describe as one.
 
 use super::{Catalog, Config};
 use korpis_cdi::{Described, Found};

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server restore` (§6 of docs/18-operations.md): from the control-plane backup and its
-//! key, into a data directory lost with its machine, the keys are put back, the epochs fenced
-//! with the window left for the next start, the token key rotated, the relays held, and the gap
-//! recorded; a data directory holding a key other than the backup's is refused, changing nothing.
+//! `korpis-server restore`: from the control-plane backup and its key, into a data directory lost
+//! with its machine, the keys are put back, the epochs fenced with the window left for the next
+//! start, the token key rotated, the relays held, and the gap recorded; a data directory holding a
+//! key other than the backup's is refused, changing nothing.
 
 use base64::Engine as _;
 use korpis_app::ports::{EnrollmentRead as _, SystemClock};

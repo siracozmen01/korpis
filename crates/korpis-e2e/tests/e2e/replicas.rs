@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A replicated volume on real nodes (§2.2 of docs/06-storage.md, trace 80 of
-//! docs/23-walkthroughs.md): two nodes, each with its volumes on a btrfs of its own and its data
-//! plane in a network namespace of the test's own, joined by a veth as two machines by a network.
-//! A workload whose volume asks for one replica runs on the first, which writes into the volume;
-//! once the second joins, the control plane chooses it, the first sends it the volume's snapshot
-//! whole through the mesh, the second's table admitting to the transfer port the first's mesh
-//! address alone, and the second holds what the volume held, read-only, and says so. Then the
-//! first loses its power: the workload, which accepts losing what the replica lacks, is made on
-//! the second from the replica, holding what the first wrote, and the volume says it is there
-//! now and that a divergent copy is left on the first. Needs root, containerd, the kernel's
-//! WireGuard, and btrfs-progs; skipped without them.
+//! A replicated volume on real nodes: two nodes, each with its volumes on a btrfs of its own and
+//! its data plane in a network namespace of the test's own, joined by a veth as two machines by a
+//! network. A workload whose volume asks for one replica runs on the first, which writes into the
+//! volume; once the second joins, the control plane chooses it, the first sends it the volume's
+//! snapshot whole through the mesh, the second's table admitting to the transfer port the first's
+//! mesh address alone, and the second holds what the volume held, read-only, and says so. Then the
+//! first loses its power: the workload, which accepts losing what the replica lacks, is made on the
+//! second from the replica, holding what the first wrote, and the volume says it is there now and
+//! that a divergent copy is left on the first. Needs root, containerd, the kernel's WireGuard, and
+//! btrfs-progs; skipped without them.
 
 use crate::helper::btrfs_in;
 use crate::mesh::{Netns, machines, until_available};

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The tenancy tree of the examples, and the grants §3.2 and §6.1 of docs/08-identity.md build.
+//! The tenancy tree of the examples, and the grants the design's examples build.
 
 use korpis_core::authz::scope::Vouched;
 use korpis_core::authz::{
@@ -14,13 +14,13 @@ use uuid::Uuid;
 pub struct Tree {
     pub parents: HashMap<ObjectRef, ObjectRef>,
     pub labels: HashMap<ObjectRef, BTreeMap<String, String>>,
-    /// The organizations suspended (§2.1 of docs/08-identity.md).
+    /// The organizations suspended.
     pub suspended: BTreeSet<ObjectRef>,
-    /// The live bindings of external subjects, by key (§5 of docs/08-identity.md).
+    /// The live bindings of external subjects, by key.
     pub bindings: HashMap<String, Vouched>,
-    /// The delegation ceilings organizations set (§5.1 of docs/08-identity.md).
+    /// The delegation ceilings organizations set.
     pub ceilings: HashMap<ObjectRef, Duration>,
-    /// Until when each (set, member) membership was last confirmed to hold (§5.1).
+    /// Until when each (set, member) membership was last confirmed to hold.
     pub members: HashMap<(String, String), SystemTime>,
     pub host: ObjectRef,
     pub reseller: ObjectRef,
@@ -136,7 +136,7 @@ pub fn child(parent: &Grant, subject: &str, acts: &[&str], scope: Scope) -> Gran
     }
 }
 
-/// §3.2's moderator: workload.restart on Survival for 90 days, may mint one further level.
+/// The moderator: workload.restart on Survival for 90 days, may mint one further level.
 pub fn moderator(tree: &Tree, root: &Grant, now: SystemTime) -> Grant {
     let mut g = child(root, "discord:mod-1", &["workload.restart"], Scope::Object(tree.survival));
     g.conditions.expires_at = Some(now + days(90));
@@ -145,7 +145,7 @@ pub fn moderator(tree: &Tree, root: &Grant, now: SystemTime) -> Grant {
     g
 }
 
-/// §6.1's link: restart on W1 for 24 hours, three uses, no account, never delegates.
+/// The share link: restart on W1 for 24 hours, three uses, no account, never delegates.
 pub fn link(tree: &Tree, moderator: &Grant, now: SystemTime) -> Grant {
     let mut g = child(moderator, "link:abc", &["workload.restart"], Scope::Object(tree.w1));
     g.conditions.expires_at = Some(now + days(1));

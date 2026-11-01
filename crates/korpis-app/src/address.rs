@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Address pools (§3.7 of docs/07-networking.md, §3.6 of docs/01-model.md): made by an operator
-//! vouching for the range, for any organization, deleted by whoever may write them in that
-//! organization, and their addresses held on that organization's own nodes alone, since a node
-//! holding one translates every connection to it.
+//! Address pools: made by an operator vouching for the range, for any organization, deleted by
+//! whoever may write them in that organization, and their addresses held on that organization's own
+//! nodes alone, since a node holding one translates every connection to it.
 
 use crate::App;
 use crate::caller::Caller;
@@ -70,8 +69,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if p.cidr.addr().is_ipv6() && p.group().is_none() {
             return Err(AppError::invalid(
                 "pool.cidr",
-                "a dedicated address is IPv4: a workload's IPv6 address is its own already \
-                 (§3.7 of docs/07-networking.md)",
+                "a dedicated address is IPv4: a workload's IPv6 address is its own already",
             ));
         }
         match &p.scope {
@@ -151,9 +149,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Reply::Replayed(r));
         }
         // Nothing in the protocol proves who holds an address range, and pools never overlap, so
-        // making one is an operator vouching for it, as `domain.attest` vouches for a name: held
-        // on the installation's root organization, for any organization beneath it (Finding 187
-        // of docs/23-walkthroughs.md).
+        // making one is an operator vouching for it, as `domain.attest` vouches for a name: held on
+        // the installation's root organization, for any organization beneath it.
         let root = ObjectRef::new(Kind::Organization, self.root_of(cmd.organization).await?);
         let permit = self.authorize(caller, "address_pool.attest", root).await?;
         let pool = AddressPool {

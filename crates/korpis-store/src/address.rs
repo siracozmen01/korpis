@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Address pools and dedicated addresses (migration 0130, §3.7 of docs/07-networking.md). Two
-//! pools never overlap, which an exclusion constraint holds, and an address is one workload's at
-//! most, which its key does; a released address keeps its row, resting, until it is given again.
+//! Address pools and dedicated addresses (migration 0130). Two pools never overlap, which an
+//! exclusion constraint holds, and an address is one workload's at most, which its key does; a
+//! released address keeps its row, resting, until it is given again.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};

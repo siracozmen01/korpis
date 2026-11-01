@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Delegation ceilings (§5.1 of docs/08-identity.md): the longest a grant beneath a set subject
-//! lasts, counted from its issue. Seven days where no organization says; the root organization
-//! sets the installation's, and any organization lowers it for its own subtree. Authorization
-//! takes the lowest along a scope's organizations at every use.
+//! Delegation ceilings: the longest a grant beneath a set subject lasts, counted from its issue.
+//! Seven days where no organization says; the root organization sets the installation's, and any
+//! organization lowers it for its own subtree. Authorization takes the lowest along a scope's
+//! organizations at every use.
 
 use crate::App;
 use crate::authz::Snapshot;
@@ -101,9 +101,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         finish(tx, caller, idem, OPERATION, set).await
     }
 
-    /// Clamps `child`'s expiry to the ceiling it is issued under when a set subject holds a
-    /// grant on the chain above it, whatever was asked, so what a grant shows is what
-    /// evaluation enforces (K-3).
+    /// Clamps `child`'s expiry to the ceiling it is issued under when a set subject holds a grant
+    /// on the chain above it, whatever was asked, so what a grant shows is what evaluation
+    /// enforces.
     pub(crate) async fn clamp_to_ceiling(
         &self,
         child: &mut Grant,

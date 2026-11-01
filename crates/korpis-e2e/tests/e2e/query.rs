@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A query probe on a real node (§5 of docs/04-runtimes.md, §5 of docs/16-extensions.md): an
-//! extension written with the SDK, running in a container on the node, provides the
-//! `korpis-test/echo` query protocol, and a server whose liveness probe queries it is judged by it.
-//! The node runs each round from inside the server's namespace and asks the control plane what to
-//! send next; the provider never reaches the server. Healthy while it answers `pong`; unhealthy,
-//! and restarted, once it stops; and once the provider is gone, unjudged: its health unknown, and
-//! nothing restarted for it.
+//! A query probe on a real node: an extension written with the SDK, running in a container on the
+//! node, provides the `korpis-test/echo` query protocol, and a server whose liveness probe queries
+//! it is judged by it. The node runs each round from inside the server's namespace and asks the
+//! control plane what to send next; the provider never reaches the server. Healthy while it answers
+//! `pong`; unhealthy, and restarted, once it stops; and once the provider is gone, unjudged: its
+//! health unknown, and nothing restarted for it.
 
 use crate::dependencies::running;
 use crate::extension::{install, pinged_as};

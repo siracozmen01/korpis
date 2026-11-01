@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The plan lifecycle (§3.3 of docs/01-model.md, §3.2 and §7 of docs/03-state.md).
+//! The plan lifecycle.
 
 use crate::lifecycle::{approve, pointers, power, workload};
 use crate::recipes::{body, change, text};
@@ -24,7 +24,7 @@ async fn a_disruptive_stop_waits_and_reaches_nodes_only_when_confirmed() {
     assert_eq!(pointers(&h, &w).await, (true, 2, 1), "declared, not yet what nodes are told");
     let e = workloads.stop(power("s2", &w, 1)).await.unwrap_err();
     assert_eq!(reason(&e), "workload.power_moved");
-    // The proposer may confirm their own plan (§3.3 of docs/01-model.md).
+    // The proposer may confirm their own plan.
     let confirmed =
         h.plans(h.root()).approve_plan(approve("a1", &plan.id)).await.unwrap().into_owned();
     assert_eq!(

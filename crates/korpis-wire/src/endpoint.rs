@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Endpoints as placed: `korpis.v1.Endpoint` (§3.6 of docs/01-model.md).
+//! Endpoints as placed: `korpis.v1.Endpoint`.
 
 use crate::spec::endpoints::{exposure_to_pb, protocol_to_pb, tls_to_pb};
 use crate::wire_id;
@@ -20,9 +20,8 @@ pub const INGRESS_PORT: u16 = 443;
 pub fn endpoint_to_pb(e: &Endpoint, addresses: &[IpAddr]) -> pb::Endpoint {
     let ingress = e.exposure == Exposure::Ingress;
     // An ingress endpoint is reached on 443 of its node's addresses, where its node's proxy
-    // listens, and on 80 for the redirect and ACME's challenge (§3.2 of docs/07-networking.md).
-    // A dedicated address is the workload's own, reached on the endpoint's own port, once it
-    // holds one (§3.7 of docs/07-networking.md).
+    // listens, and on 80 for the redirect and ACME's challenge. A dedicated address is the
+    // workload's own, reached on the endpoint's own port, once it holds one.
     let dedicated = e.exposure == Exposure::DedicatedIp;
     let port = match e.exposure {
         Exposure::Ingress => Some(INGRESS_PORT),
@@ -43,10 +42,9 @@ pub fn endpoint_to_pb(e: &Endpoint, addresses: &[IpAddr]) -> pb::Endpoint {
         container_port: u32::from(e.container_port),
         exposure: exposure_to_pb(e.exposure).into(),
         address: address.into(),
-        // The node forwards to the workload by translating the destination alone (§3 of
-        // docs/07-networking.md); the ingress proxy is the workload's peer, and says who the
-        // client was in a header only it writes (§3.4 there), or, to a workload whose TLS it
-        // passes through and that declared it, in a PROXY header (§3.2 there).
+        // The node forwards to the workload by translating the destination alone; the ingress proxy
+        // is the workload's peer, and says who the client was in a header only it writes, or, to a
+        // workload whose TLS it passes through and that declared it, in a PROXY header.
         client_address: if matches!(e.tls, Some(TlsSpec::Passthrough { proxy_protocol: true })) {
             pb::ClientAddress::CLIENT_ADDRESS_PROXY_PROTOCOL.into()
         } else if ingress {

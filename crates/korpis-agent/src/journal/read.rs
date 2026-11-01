@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading the journal back, to send it. What follows a cursor is read in order; where the
-//! journal no longer holds a number the control plane has not ingested, a gap record is made
-//! for it on the way out, so the control plane's cursor can pass the hole instead of waiting
-//! for records nobody has. It names why: discarded, because the cursor is older than the
-//! journal's tail (a control plane restored from a backup older than the retention window,
-//! §8 of docs/03-state.md), or damaged, because the disk no longer reads them.
+//! Reading the journal back, to send it. What follows a cursor is read in order; where the journal
+//! no longer holds a number the control plane has not ingested, a gap record is made for it on the
+//! way out, so the control plane's cursor can pass the hole instead of waiting for records nobody
+//! has. It names why: discarded, because the cursor is older than the journal's tail (a control
+//! plane restored from a backup older than the retention window), or damaged, because the disk no
+//! longer reads them.
 
 use super::segment::{self, HEADER};
 use super::{Journal, ReadPos};

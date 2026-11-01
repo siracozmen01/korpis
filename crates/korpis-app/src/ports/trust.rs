@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recipe trust policies, per organization (§7 of docs/09-recipes.md).
+//! Recipe trust policies, per organization.
 
 use super::StoreResult;
 use korpis_core::principal::Principal;

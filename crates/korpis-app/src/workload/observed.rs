@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Measuring a workload against what its node reports (§4.3 of docs/02-architecture.md). An
-//! observation is current only while it comes from the node the workload is placed on and that
-//! node is heard; otherwise it is shown as what it is, the last thing known, and convergence is
-//! `unknown` (P4).
+//! Measuring a workload against what its node reports. An observation is current only while it
+//! comes from the node the workload is placed on and that node is heard; otherwise it is shown as
+//! what it is, the last thing known, and convergence is `unknown`.
 
 use crate::App;
 use crate::error::AppError;
@@ -43,8 +42,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .is_some_and(|n| n.connectivity == Connectivity::Connected);
         let current = heard && placed_on == Some(observation.node);
         let generation = self.store.assignment_generation(w.id, observation.node).await?;
-        // Measured against what its node is told: stopped while a suspension holds it (§2.1 of
-        // docs/08-identity.md), which its status says beside.
+        // Measured against what its node is told: stopped while a suspension holds it, which its
+        // status says beside.
         let held = self.held_by(w.organization).await?.is_some();
         let mut power = self.store.power_at(w.id, w.power_target_version).await?;
         if let Some(p) = power.as_mut().filter(|_| held) {

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Obtaining certificates from an ACME directory (§3.2 of docs/07-networking.md, RFC 8555), with
-//! the installation's account there. One call runs a whole order: the challenges the directory
-//! offers for each name are handed to the caller, which publishes one of each name's and says
-//! which, and the order goes on once they are published, so whatever holds an order's state stays
-//! in the adapter. Each name is proven its own way, so one certificate may cover names of a zone a
-//! DNS provider serves and names only a node's proxy answers for.
+//! Obtaining certificates from an ACME directory (RFC 8555), with the installation's account there.
+//! One call runs a whole order: the challenges the directory offers for each name are handed to the
+//! caller, which publishes one of each name's and says which, and the order goes on once they are
+//! published, so whatever holds an order's state stays in the adapter. Each name is proven its own
+//! way, so one certificate may cover names of a zone a DNS provider serves and names only a node's
+//! proxy answers for.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -27,7 +27,7 @@ pub enum Proof {
     Dns01,
     /// By answering a TLS connection to port 443 of the name that offers only the protocol
     /// `acme-tls/1` with a certificate made for the challenge (RFC 8737), as the control plane's
-    /// own listener does for a portal (§3.6 of docs/07-networking.md).
+    /// own listener does for a portal.
     TlsAlpn01,
 }
 

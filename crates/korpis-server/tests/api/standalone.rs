@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A relay running as its own process (§3.1 of docs/02-architecture.md), in this test's process
-//! but holding nothing of the control plane's: it joins, follows its feed, admits a node's data
-//! connection by the keys the feed sent and only for its own URL, and carries a session opened
-//! through it. Every node is named the relay, and the control plane alongside it.
+//! A relay running as its own process, in this test's process but holding nothing of the control
+//! plane's: it joins, follows its feed, admits a node's data connection by the keys the feed sent
+//! and only for its own URL, and carries a session opened through it. Every node is named the
+//! relay, and the control plane alongside it.
 
 use crate::agent::{TestAgent, next_relays};
 use crate::lifecycle::workload;

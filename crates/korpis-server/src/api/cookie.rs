@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The browser's cookies (§9.4 and §9.6 of docs/08-identity.md): the session's refresh
-//! credential, and a device cookie for each account the browser has signed in to. Each is one no
-//! script can read (`HttpOnly`), sent only over TLS and never on a request another site starts
-//! (`Secure`, `SameSite=Strict`), and `__Host-` prefixed, which makes the browser refuse one set
-//! with a `Domain` or for any path but `/`: a workload served under a sibling name of the
-//! installation's cannot plant one the control plane would read (Finding 72 of
-//! docs/23-walkthroughs.md).
+//! The browser's cookies: the session's refresh credential, and a device cookie for each account
+//! the browser has signed in to. Each is one no script can read (`HttpOnly`), sent only over TLS
+//! and never on a request another site starts (`Secure`, `SameSite=Strict`), and `__Host-`
+//! prefixed, which makes the browser refuse one set with a `Domain` or for any path but `/`: a
+//! workload served under a sibling name of the installation's cannot plant one the control plane
+//! would read.
 
 use http::{HeaderMap, HeaderValue};
 use std::time::{Duration, SystemTime};

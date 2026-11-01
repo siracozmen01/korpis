@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An exec probe in a microVM on a real node (§4.2 and §5 of docs/04-runtimes.md): its liveness
-//! command runs inside the guest, as its entry runs, through the `firecracker` driver's `Exec` and
-//! the guest's agent on its vsock device. The guest makes itself sick on its first boot, counted
-//! on its volume, so it is healthy, then unhealthy and restarted for its command failing, and
-//! healthy again in its second boot. Needs what the microVM test needs, and is skipped without it.
+//! An exec probe in a microVM on a real node: its liveness command runs inside the guest, as its
+//! entry runs, through the `firecracker` driver's `Exec` and the guest's agent on its vsock device.
+//! The guest makes itself sick on its first boot, counted on its volume, so it is healthy, then
+//! unhealthy and restarted for its command failing, and healthy again in its second boot. Needs
+//! what the microVM test needs, and is skipped without it.
 
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, busybox, push};

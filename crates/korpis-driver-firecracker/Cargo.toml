@@ -23,7 +23,7 @@ korpis-core = { workspace = true, features = ["content"] }
 korpis-driver-kit = { path = "../korpis-driver-kit" }
 # A guest's dedicated cores are read as CPU lists the kernel writes.
 korpis-topology = { workspace = true }
-# The bound on a file session's frames, the same as the worker's (§4.4 of docs/04-runtimes.md).
+# The bound on a file session's frames, the same as the worker's.
 korpis-files = { path = "../korpis-files" }
 # The drive order and config drive the guest reads, and the drives a guest is built from.
 korpis-guest = { path = "../korpis-guest" }

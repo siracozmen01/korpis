@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The `korpis` command line's commands (§2 of docs/13-surface-cli.md): what each is called, the
-//! help it prints, and the arguments it takes. The binary parses them and runs each.
+//! The `korpis` command line's commands: what each is called, the help it prints, and the arguments
+//! it takes. The binary parses them and runs each.
 
 use crate::cmd::address_pool::AddressPoolAction;
 use crate::cmd::backup::BackupAction;

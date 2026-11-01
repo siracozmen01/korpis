@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Service guests (§4.4 of docs/04-runtimes.md): guests of Korpis's own, booted from the boot
-//! drive with no image, holding a stopped workload's volumes as its own guest would and running no
-//! entry. One serves a stopped object's file sessions with the worker a running guest runs, and is
-//! stopped, its volumes synced, when the last ends; one booted for an install also runs the
-//! install job ([`super::install`]) and stays while it runs. There is one per workload at a time,
-//! since a block device is attached to one guest at a time, so it is keyed by workload, not by
-//! object: a first install runs before the workload has an object at all. One serving a backup's
-//! staged image ([`super::image`]) holds a copy and not the workload's volume, so it is keyed by
-//! the image and runs beside the workload's own guest. The object's start ends
-//! a service guest serving files first, which ends its sessions, so a file manager left open does
-//! not hold a workload from starting, and is refused while an install runs. The services' lock is
-//! taken before the verbs' lock, never after.
+//! Service guests: guests of Korpis's own, booted from the boot drive with no image, holding a
+//! stopped workload's volumes as its own guest would and running no entry. One serves a stopped
+//! object's file sessions with the worker a running guest runs, and is stopped, its volumes synced,
+//! when the last ends; one booted for an install also runs the install job ([`super::install`]) and
+//! stays while it runs. There is one per workload at a time, since a block device is attached to
+//! one guest at a time, so it is keyed by workload, not by object: a first install runs before the
+//! workload has an object at all. One serving a backup's staged image ([`super::image`]) holds a
+//! copy and not the workload's volume, so it is keyed by the image and runs beside the workload's
+//! own guest. The object's start ends a service guest serving files first, which ends its sessions,
+//! so a file manager left open does not hold a workload from starting, and is refused while an
+//! install runs. The services' lock is taken before the verbs' lock, never after.
 
 use super::stop::ended;
 use super::{JAILER_BOUND, Machine, MachineError, MachineResult, failed, now_ms};

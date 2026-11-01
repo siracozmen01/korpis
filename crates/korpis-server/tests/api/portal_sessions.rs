@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in at a portal (§9.8 of docs/08-identity.md), over the portal's own connection: an
-//! invitation redeemed there registers a passkey for the portal's relying party, whose challenge
-//! is answered there and nowhere else; the session it begins acts only beneath the portal's
-//! organization, as every access token it is exchanged for does, whatever the account's grants
-//! reach, and what it issues is held there too.
+//! Signing in at a portal, over the portal's own connection: an invitation redeemed there registers
+//! a passkey for the portal's relying party, whose challenge is answered there and nowhere else;
+//! the session it begins acts only beneath the portal's organization, as every access token it is
+//! exchanged for does, whatever the account's grants reach, and what it issues is held there too.
 
 use crate::domains::child;
 use crate::panel::accounts;
@@ -72,7 +71,7 @@ async fn a_portal_s_passkey_signs_in_there_alone_and_its_session_acts_beneath_it
     let revoked = h.grants(confined).revoke_grant(revoke).await.unwrap_err();
     assert_eq!(reason(&revoked), "session.portal_confined", "nor its own grant above it");
 
-    // A `korpis login` approved from the portal's session is confined as it is (Finding 129).
+    // A `korpis login` approved from the portal's session is confined as it is.
     let cli = h.config(Some(&cli_approved_by(&h, &access).await));
     let above = h.orgs(cli.clone()).get_organization(get(&h.root_org())).await.unwrap_err();
     assert_eq!(above.code, ErrorCode::NotFound);

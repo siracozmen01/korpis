@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Typed, permissioned configuration (§5 of docs/09-recipes.md, Rule K-17): the schema a recipe
-//! declares, and the rules it must satisfy when the recipe is loaded.
+//! Typed, permissioned configuration: the schema a recipe declares, and the rules it must satisfy
+//! when the recipe is loaded.
 
 use super::derive::Expr;
 use crate::value::Value;
@@ -33,7 +33,7 @@ impl ConfigType {
     }
 }
 
-/// Who may change a field, as a rule the gateway evaluates (§5 of docs/09-recipes.md).
+/// Who may change a field, as a rule the gateway evaluates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FieldPermission {
     /// A holder of `workload.write` on the workload.
@@ -45,11 +45,11 @@ pub enum FieldPermission {
     System,
 }
 
-/// How a value reaches the software (§5.2 of docs/09-recipes.md).
+/// How a value reaches the software.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigDelivery {
     /// Rendered by templates into files in the workload's volumes, which the tenant can write.
-    /// §5.2 of docs/09-recipes.md calls this channel `file`.
+    /// The recipe format calls this channel `file`.
     Template,
     /// An environment variable set by the runtime.
     Env,
@@ -163,7 +163,7 @@ fn check_authority(f: &ConfigField) -> Result<(), SchemaError> {
     if f.derived.is_some() && !f.ty.numeric() {
         return Err(err(k, "a derived field must be integer, number, or quantity"));
     }
-    // §5.2: a protected value may only travel by a channel the tenant cannot write.
+    // A protected value may only travel by a channel the tenant cannot write.
     let protected = f.permission == FieldPermission::Operator || f.secret;
     if protected && f.deliver == ConfigDelivery::Template {
         return Err(err(k, "operator and secret fields cannot be delivered through tenant files"));

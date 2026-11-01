@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The agent, assembled: the control stream, the journal and its maintenance, the lease keeper,
-//! and the reconciler, over one runtime driver and the node's helper (§6 of
-//! docs/02-architecture.md). It starts whether or not the control plane is reachable, because a
-//! node keeps doing its job from the set it holds (§4.6), and a clean stop writes what the
-//! journal still holds in memory before the process exits.
+//! The agent, assembled: the control stream, the journal and its maintenance, the lease keeper, and
+//! the reconciler, over one runtime driver and the node's helper. It starts whether or not the
+//! control plane is reachable, because a node keeps doing its job from the set it holds, and a
+//! clean stop writes what the journal still holds in memory before the process exits.
 
 use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
@@ -70,24 +69,21 @@ pub struct Options {
     /// Where the workloads' identity sockets are made, one directory each; `identity` in the
     /// state directory when unset. The driver must be given the same root.
     pub identity_root: Option<std::path::PathBuf>,
-    /// What serves each action of the sessions clients open through a relay (§3.1 of
-    /// docs/02-architecture.md), beside `workload.console.read`, which the agent always serves;
-    /// an action with none is refused.
+    /// What serves each action of the sessions clients open through a relay, beside
+    /// `workload.console.read`, which the agent always serves; an action with none is refused.
     pub handlers: Handlers,
-    /// The pools the node's workloads get addresses from, when it gives them networks (§4.1 of
-    /// docs/07-networking.md); none gives them loopback alone.
+    /// The pools the node's workloads get addresses from, when it gives them networks; none gives
+    /// them loopback alone.
     pub network: Option<Pools>,
-    /// Runs the node's ingress proxy, setting this when it holds the ingress's ports (§3.2 of
-    /// docs/07-networking.md); none runs no ingress. It needs the node to give its workloads
-    /// networks and to advertise an address.
+    /// Runs the node's ingress proxy, setting this when it holds the ingress's ports; none runs no
+    /// ingress. It needs the node to give its workloads networks and to advertise an address.
     pub ingress: Option<Arc<std::sync::atomic::AtomicBool>>,
-    /// The meter's interval and where it reads interfaces (§2 of docs/15-observability.md).
+    /// The meter's interval and where it reads interfaces.
     pub metering: Metering,
-    /// The node's devices, which a placement's holds are given from (§6.3 of
-    /// docs/05-scheduling.md); none where the node offers none.
+    /// The node's devices, which a placement's holds are given from; none where the node offers
+    /// none.
     pub devices: Option<crate::devices::Devices>,
-    /// The UDP port the mesh between nodes listens on, where the node gives its workloads
-    /// networks (§9.1 of docs/07-networking.md).
+    /// The UDP port the mesh between nodes listens on, where the node gives its workloads networks.
     pub overlay_port: u16,
 }
 
@@ -147,8 +143,7 @@ fn control_plane(identity: &crate::state::Identity) -> ControlPlane {
 }
 
 /// The workloads' identity sockets, under `root` or `identity` in the state directory, answered
-/// through `credentials` and reaching the control plane `identity` names (§9.5 of
-/// docs/08-identity.md).
+/// through `credentials` and reaching the control plane `identity` names.
 fn identity_sockets(
     state: &StateDir,
     root: Option<std::path::PathBuf>,
@@ -201,8 +196,8 @@ fn overlay<H: Host + Clone>(
     (Some(overlay), with_overlay(facts, reported))
 }
 
-/// The node's part in replication (§2.2 of docs/06-storage.md), for a node in the mesh: this
-/// node, and its own mesh address, the last of its IPv4 pool.
+/// The node's part in replication, for a node in the mesh: this node, and its own mesh address, the
+/// last of its IPv4 pool.
 fn replicating(
     identity: &crate::state::Identity,
     options: &Options,

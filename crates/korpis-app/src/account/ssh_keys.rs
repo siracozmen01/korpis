@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A signed-in person managing the SSH keys they reach their files with over SFTP (§9.9 of
-//! docs/08-identity.md). Adding or removing one is a change to how they reach their account, so
-//! it needs a recent sign-in, as every change to their factors does; and a key is added only with
-//! its signature over the account's name, since a public key is public and naming one proves
-//! nothing. A key added from a confined session records the organization it was confined beneath,
-//! so a key a portal's holder could have seen reaches no further than the portal's organization;
-//! a confined session sees and removes only the keys confined as it is.
+//! A signed-in person managing the SSH keys they reach their files with over SFTP. Adding or
+//! removing one is a change to how they reach their account, so it needs a recent sign-in, as every
+//! change to their factors does; and a key is added only with its signature over the account's
+//! name, since a public key is public and naming one proves nothing. A key added from a confined
+//! session records the organization it was confined beneath, so a key a portal's holder could have
+//! seen reaches no further than the portal's organization; a confined session sees and removes only
+//! the keys confined as it is.
 
 use super::{label, own_account, record};
 use crate::App;

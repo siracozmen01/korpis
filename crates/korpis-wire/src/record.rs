@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A stream's records as the API sends them (§2 of docs/14-streams.md): from a node reading its
-//! segment files, or from the control plane reading offloaded ones.
+//! A stream's records as the API sends them: from a node reading its segment files, or from the
+//! control plane reading offloaded ones.
 
 use buffa_types::google::protobuf::Timestamp;
 use korpis_proto::korpis::v1 as pb;

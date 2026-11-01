@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an install's provider steps resolved to (§4 of docs/09-recipes.md): asked of the control
-//! plane up the session, naming the plan, the install step, and the provider action, and answered
-//! down it with the artifacts to fetch and write. The control plane calls the step provider, which
-//! may take a while.
+//! What an install's provider steps resolved to: asked of the control plane up the session, naming
+//! the plan, the install step, and the provider action, and answered down it with the artifacts to
+//! fetch and write. The control plane calls the step provider, which may take a while.
 //!
 //! Asking never holds the reconciler's loop: an install asks and moves on, and a later pass finds
 //! the answer. A question unanswered for longer than the control plane waits on a provider is

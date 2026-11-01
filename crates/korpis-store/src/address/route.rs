@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Asking a pool's router to route its addresses (migrations 0131 and 0134, §3.7 and §3.1 of
-//! docs/07-networking.md). A cluster pool's address is due when its holder's authoritative
-//! placement is on another node than its router last said it routes it to, or when no placed
-//! workload holds it and it is still routed; a routed edge pool's, likewise of the member its
-//! lease names (`edge`); and either only when its backoff has passed and no control plane holds
-//! it. One is taken at a time, skipping those another transaction has locked, and held for a
-//! while, so that one control plane asks.
+//! Asking a pool's router to route its addresses (migrations 0131 and 0134). A cluster pool's
+//! address is due when its holder's authoritative placement is on another node than its router last
+//! said it routes it to, or when no placed workload holds it and it is still routed; a routed edge
+//! pool's, likewise of the member its lease names (`edge`); and either only when its backoff has
+//! passed and no control plane holds it. One is taken at a time, skipping those another transaction
+//! has locked, and held for a while, so that one control plane asks.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

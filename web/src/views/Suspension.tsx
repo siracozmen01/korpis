@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// An organization's suspension (§2.1 of docs/08-identity.md): shown to everyone who reads the
-// organization, with why, since when, what became of its workloads, and what its tenant still
-// reads; and pulled or lifted from above by someone whose own grants hold that over an
-// organization above it. Whether they do is read from their grants as a courtesy (§5 of
-// docs/11-surface-web.md); the control plane decides, and says why when it refuses.
+// An organization's suspension: shown to everyone who reads the organization, with why, since when,
+// what became of its workloads, and what its tenant still reads; and pulled or lifted from above by
+// someone whose own grants hold that over an organization above it. Whether they do is read from
+// their grants as a courtesy; the control plane decides, and says why when it refuses.
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useCallback, useState } from "react";

@@ -10,7 +10,7 @@ use korpis_recipe::artifact::{Artifact, File};
 use korpis_recipe::registry::Registry;
 use uuid::Uuid;
 
-/// The example recipe of §3 of docs/09-recipes.md, as the recipe crate's tests load it.
+/// The documentation's example recipe, as the recipe crate's tests load it.
 pub const PAPER: &str = include_str!("../../../korpis-recipe/tests/recipe/paper.yaml");
 
 pub fn registry_address() -> String {

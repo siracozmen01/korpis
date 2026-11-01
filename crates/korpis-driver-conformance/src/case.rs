@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! What a case ends in, and the report of a run: a driver conforms when no case failed (§8 of
-//! docs/04-runtimes.md). A case the driver's declared capabilities put out of its reach is not
-//! applicable, and says which capability; it never passes for a driver that lacks it.
+//! What a case ends in, and the report of a run: a driver conforms when no case failed. A case the
+//! driver's declared capabilities put out of its reach is not applicable, and says which
+//! capability; it never passes for a driver that lacks it.
 
 use std::fmt;
 
@@ -36,7 +36,7 @@ impl Verdict {
 pub struct Outcome {
     /// The case, by name.
     pub case: &'static str,
-    /// Where in the specification the behaviour it tests is stated.
+    /// The page of `docs/internals`, and its heading, stating the behaviour it tests.
     pub section: &'static str,
     /// How it ended.
     pub verdict: Verdict,
@@ -49,7 +49,7 @@ pub struct Report {
     pub driver: String,
     /// Every case, in the order it ran.
     pub outcomes: Vec<Outcome>,
-    /// What §8 of docs/04-runtimes.md requires that the suite does not test yet, each with
+    /// What the conformance design requires that the suite does not test yet, each with
     /// where it is stated: a driver's conformance says nothing of it.
     pub untested: Vec<(&'static str, &'static str)>,
 }
@@ -71,9 +71,9 @@ impl Report {
         self.outcomes.iter().filter(|o| matches!(o.verdict, Verdict::Fail(_)))
     }
 
-    /// This report as the runner writes it (§8 of docs/04-runtimes.md): the suite and the
-    /// protocol it speaks, the driver, whether it conforms, each case with its verdict (`pass`,
-    /// `fail`, or `not_applicable`) and what was seen, and each requirement not tested.
+    /// This report as the runner writes it: the suite and the protocol it speaks, the driver,
+    /// whether it conforms, each case with its verdict (`pass`, `fail`, or `not_applicable`) and
+    /// what was seen, and each requirement not tested.
     #[must_use]
     pub fn to_json(&self) -> serde_json::Value {
         let outcomes: Vec<serde_json::Value> = self
@@ -142,16 +142,16 @@ mod tests {
     #[test]
     fn the_report_says_each_verdict_and_conforms_only_without_a_failure() {
         let mut report = Report { driver: "d".into(), ..Report::default() };
-        report.add(("a", "04 §4.2"), Verdict::Pass);
-        report.add(("b", "04 §4.1"), Verdict::NotApplicable("no exec".into()));
-        report.untested.push(("isolation", "04 §8"));
+        report.add(("a", "runtimes#lifecycle"), Verdict::Pass);
+        report.add(("b", "runtimes#capabilities"), Verdict::NotApplicable("no exec".into()));
+        report.untested.push(("isolation", "driver-conformance"));
         let json = report.to_json();
         assert_eq!(json["conforms"], true);
         assert_eq!(json["outcomes"][1]["verdict"], "not_applicable");
         assert_eq!(json["outcomes"][1]["detail"], "no exec");
-        assert_eq!(json["untested"][0]["section"], "04 §8");
+        assert_eq!(json["untested"][0]["section"], "driver-conformance");
         assert!(report.to_string().ends_with("1 requirement is not tested"));
-        report.add(("c", "04 §8"), Verdict::fail("seen"));
+        report.add(("c", "driver-conformance"), Verdict::fail("seen"));
         let json = report.to_json();
         assert_eq!(
             (json["conforms"].clone(), json["outcomes"][2]["verdict"].clone()),

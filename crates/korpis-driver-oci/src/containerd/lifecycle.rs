@@ -23,7 +23,7 @@ use std::time::{Duration, Instant};
 
 /// The type containerd stores a runtime spec under.
 const SPEC_TYPE: &str = "types.containerd.io/opencontainers/runtime-spec/1/Spec";
-/// The labels adoption matches a container by (§4.4 of docs/02-architecture.md).
+/// The labels adoption matches a container by.
 pub(crate) const LABEL_WORKLOAD: &str = "korpis.workload";
 pub(crate) const LABEL_INTENT: &str = "korpis.intent";
 const LABEL_GENERATION: &str = "korpis.assignment_generation";
@@ -31,7 +31,7 @@ const LABEL_CYCLE: &str = "korpis.power_cycle";
 const LABEL_EPOCH: &str = "korpis.lease_epoch";
 pub(crate) const LABEL_RUN: &str = "korpis.run";
 /// The CPUs of the dedicated cores a container was made holding, so one is never handed back for
-/// other cores (§4.2 of docs/04-runtimes.md).
+/// other cores.
 pub(crate) const LABEL_CPUS: &str = "korpis.cpus";
 /// How long a killed task is given to be reaped.
 pub(crate) const KILL_WAIT: Duration = Duration::from_secs(10);
@@ -301,7 +301,7 @@ impl Containerd {
     }
 
     /// That the driver holds the container `id`: every verb naming one it does not is answered
-    /// `NotFound` (§4.2 of docs/04-runtimes.md).
+    /// `NotFound`.
     async fn held(&self, id: &str) -> DriverResult<()> {
         if self.container_exists(id).await? {
             Ok(())

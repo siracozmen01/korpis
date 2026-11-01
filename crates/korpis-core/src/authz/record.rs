@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A grant as it is kept: the grant evaluation reads, and its provenance (§3 of
-//! docs/08-identity.md).
+//! A grant as it is kept: the grant evaluation reads, and its provenance.
 
 use super::grant::Grant;
 use crate::principal::Principal;
@@ -18,15 +17,15 @@ pub struct GrantRecord {
     pub issued_by: Principal,
     /// When it was issued.
     pub issued_at: SystemTime,
-    /// When it was revoked, if it was. Revocation is written on this record only and derived
-    /// for its descendants (§3.5).
+    /// When it was revoked, if it was. Revocation is written on this record only and derived for
+    /// its descendants.
     pub revoked_at: Option<SystemTime>,
     /// When it was suspended, if it is.
     pub suspended_at: Option<SystemTime>,
     /// What it is for, for people; no decision reads it.
     pub label: String,
-    /// The template and version it was issued from, as provenance: tooling finds it by this,
-    /// and no decision reads it (§3.5 and §4 of docs/08-identity.md).
+    /// The template and version it was issued from, as provenance: tooling finds it by this, and no
+    /// decision reads it.
     pub from_template: Option<TemplateRef>,
 }
 
@@ -39,7 +38,7 @@ pub struct TemplateRef {
     pub version: u64,
 }
 
-/// What a grant's state is, as a client is told (§3 of docs/08-identity.md).
+/// What a grant's state is, as a client is told.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GrantState {
     /// In force.
@@ -56,7 +55,7 @@ pub enum GrantState {
 
 impl GrantRecord {
     /// The record's own state at `now`. Ancestors are not consulted: a grant whose ancestor is
-    /// revoked shows as issued and is refused at use, which is what §3.5 says.
+    /// revoked shows as issued and is refused at use, as revocation cascades.
     #[must_use]
     pub fn state(&self, now: SystemTime) -> GrantState {
         let c = &self.grant.conditions;
@@ -75,8 +74,8 @@ impl GrantRecord {
 }
 
 /// Whether a chain, in either order, is in force at `now`: every record in it issued, none
-/// revoked, suspended, expired, or exhausted, which is the cascade of §3.5 of
-/// docs/08-identity.md derived for its leaf. It says nothing of what the chain permits, nor of
+/// revoked, suspended, expired, or exhausted, which is revocation's cascade
+/// derived for its leaf. It says nothing of what the chain permits, nor of
 /// an organization's suspension, which is derived from the scopes' ancestry.
 #[must_use]
 pub fn in_force(chain: &[GrantRecord], now: SystemTime) -> bool {

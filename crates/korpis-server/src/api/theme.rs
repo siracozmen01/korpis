@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! `OrganizationService.GetTheme`, `GetLandingTheme`, and `SetTheme`, and
-//! `ServerInfoService.GetSignInTheme` (§7 of docs/11-surface-web.md).
+//! `ServerInfoService.GetSignInTheme`.
 
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, respond};

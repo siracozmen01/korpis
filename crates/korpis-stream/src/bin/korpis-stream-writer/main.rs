@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-stream-writer`: one workload's stream writer (§4 of docs/14-streams.md). The oci
-//! driver names it as the task's logging binary, so containerd's shim starts it with the task and
-//! hands it the workload's stdout and stderr. It drains both for as long as the task lives, so the
-//! workload never waits on its own output (§5), and writes them into the stream's directory,
-//! redacted (§7), limited, and cut into segments, each seal and prune recorded for the agent to
-//! journal. Being the shim's child, it outlives a restart of the agent or the driver.
+//! `korpis-stream-writer`: one workload's stream writer. The oci driver names it as the task's
+//! logging binary, so containerd's shim starts it with the task and hands it the workload's stdout
+//! and stderr. It drains both for as long as the task lives, so the workload never waits on its own
+//! output, and writes them into the stream's directory, redacted, limited, and cut into segments,
+//! each seal and prune recorded for the agent to journal. Being the shim's child, it outlives a
+//! restart of the agent or the driver.
 //!
 //! When the task is deleted the shim closes the workload's pipes and sends the writer SIGTERM,
 //! killing it a few seconds later if it is still there. The writer takes SIGTERM as the end: it

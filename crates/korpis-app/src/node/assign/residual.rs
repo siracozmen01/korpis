@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A residual assignment (§7 of docs/06-storage.md): a workload that no longer runs on the node
-//! but left a volume there is sent the plan deleting it, and nothing the node acts on besides.
+//! A residual assignment: a workload that no longer runs on the node but left a volume there is
+//! sent the plan deleting it, and nothing the node acts on besides.
 
 use super::{Desired, active_plan};
 use crate::App;

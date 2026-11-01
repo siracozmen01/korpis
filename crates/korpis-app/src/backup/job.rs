@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node's backup or restore job is given, or why it is given nothing (§5.5 of
-//! docs/06-storage.md): the workload's data key and access to its prefix in the repository,
-//! granted to the one node holding the volume the step operates on, while its plan is open. A
-//! backup writes, and its workload's key is made at its first backup; a restore reads, with the
-//! key of the workload whose backup it is.
+//! What a node's backup or restore job is given, or why it is given nothing: the workload's data
+//! key and access to its prefix in the repository, granted to the one node holding the volume the
+//! step operates on, while its plan is open. A backup writes, and its workload's key is made at its
+//! first backup; a restore reads, with the key of the workload whose backup it is.
 
 use crate::App;
 use crate::error::AppError;
@@ -22,7 +21,7 @@ use std::time::Duration;
 use uuid::Uuid;
 
 /// How long a job's access lasts: long enough for a large volume over a slow link, and no longer
-/// than a target grants (§5.6 of docs/06-storage.md).
+/// than a target grants.
 const JOB_ACCESS: Duration = Duration::from_secs(12 * 3600);
 
 /// How much later than its own clock says the control plane takes access to end: the target's
@@ -41,9 +40,8 @@ pub struct JobGrant {
     pub data_key: super::keys::JobKey,
     /// Access to the workload's prefix, until it expires.
     pub access: ObjectAccess,
-    /// Access to the repository's recipe content, in the same mode, for as long; `None` where
-    /// the target refused it or the job needs none, and the job does without (§5.2 of
-    /// docs/06-storage.md).
+    /// Access to the repository's recipe content, in the same mode, for as long; `None` where the
+    /// target refused it or the job needs none, and the job does without.
     pub content: Option<ObjectAccess>,
 }
 
@@ -225,9 +223,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Ok(JobTarget { repo, workload: b.workload, mode: AccessMode::Read, backup: Some(b.id) }))
     }
 
-    /// Records access to `prefix` for `ttl` from now, before it is asked for, so a sweep knows
-    /// of every writer and a prune of every reader (§5.5 of docs/06-storage.md). It is recorded
-    /// as lasting a little longer than asked, since the target's clock decides when it ends.
+    /// Records access to `prefix` for `ttl` from now, before it is asked for, so a sweep knows of
+    /// every writer and a prune of every reader. It is recorded as lasting a little longer than
+    /// asked, since the target's clock decides when it ends.
     pub(super) async fn record_access(
         &self,
         (prefix, area): (crate::ports::Prefix, crate::ports::Area),

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Plans: the computed difference between a declaration and reality, persisted, inspectable,
-//! and approvable (§3.3 of docs/01-model.md). Every change to what a node is assigned passes
-//! through one (P5).
+//! Plans: the computed difference between a declaration and reality, persisted, inspectable, and
+//! approvable. Every change to what a node is assigned passes through one.
 
 pub mod approval;
 pub mod compute;
@@ -38,17 +37,16 @@ pub enum PlanTarget {
     Retire,
     /// Another node, with the intent unchanged.
     Migrate,
-    /// Its approved target made again on the node it was placed on again, once made on another:
-    /// by failover, or away from a node removed as compromised (§2.4 of docs/05-scheduling.md).
-    /// The control plane approves it, since it carries out a decision already made.
+    /// Its approved target made again on the node it was placed on again, once made on another: by
+    /// failover, or away from a node removed as compromised. The control plane approves it, since
+    /// it carries out a decision already made.
     Remake,
     /// An operation on this volume, apart from any change to the workload: deleting a retained
-    /// volume, or taking, rolling back to, or deleting one of its snapshots. The plan's workload
-    /// is the one holding the volume, or the one that created it when none holds it (§7 of
-    /// docs/06-storage.md).
+    /// volume, or taking, rolling back to, or deleting one of its snapshots. The plan's workload is
+    /// the one holding the volume, or the one that created it when none holds it.
     Volume(Uuid, VolumeOp),
-    /// Pruning the workload's backups in this repository (§5.3 of docs/06-storage.md): the
-    /// plan's workload is the one whose backups they are, retired or not.
+    /// Pruning the workload's backups in this repository: the plan's workload is the one whose
+    /// backups they are, retired or not.
     Prune(Uuid),
 }
 
@@ -143,7 +141,7 @@ pub struct Plan {
     pub workload: Uuid,
     /// What it moves the workload to.
     pub target: PlanTarget,
-    /// The operation that generated it, if any (§3 of docs/05-scheduling.md).
+    /// The operation that generated it, if any.
     pub operation: Option<Uuid>,
     /// The workload's target intent when the plan was computed; the plan is valid only
     /// against it.
@@ -155,7 +153,7 @@ pub struct Plan {
     /// Who it was computed for.
     pub computed_by: Principal,
     /// The grant it was proposed under; `None` for a plan a restore recovered whose grant the
-    /// restored store does not hold (§8 of docs/03-state.md).
+    /// restored store does not hold.
     pub proposed_under: Option<Uuid>,
     /// The steps, in order.
     pub steps: Vec<Step>,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in through an identity provider (§9.7 of docs/08-identity.md), the session service's
-//! procedures that take no credential: which providers the sign-in page offers, a sign-in begun,
-//! and one completed, which re-authenticates the caller's session if it has one. Each is answered
-//! for the address the connection reached, a portal or the installation's own (§9.8).
+//! Signing in through an identity provider, the session service's procedures that take no
+//! credential: which providers the sign-in page offers, a sign-in begun, and one completed, which
+//! re-authenticates the caller's session if it has one. Each is answered for the address the
+//! connection reached, a portal or the installation's own.
 
 use super::account::{at, client, with_cookie};
 use super::wire::{self, Refuse as _};

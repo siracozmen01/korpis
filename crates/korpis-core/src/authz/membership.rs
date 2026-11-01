@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Holding a grant as a member of a set (§5.1 and §5.2 of docs/08-identity.md): through the
-//! sets an assertion names, at the moment of use, and, for what a member delegated, only while
-//! the set's re-verification still confirms them.
+//! Holding a grant as a member of a set: through the sets an assertion names, at the moment of use,
+//! and, for what a member delegated, only while the set's re-verification still confirms them.
 
 use super::binding::{BindingState, IdentityBinding};
 use super::evaluate::ChainError;
@@ -12,10 +11,10 @@ use crate::scope::Hierarchy;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-/// Whether `subject`, asserted a member of `memberships`, holds a grant to `holder`: they are
-/// it, or the assertion names them a member of it and of every set its binding requires its
-/// members to be in (§5.2 of docs/08-identity.md). Re-verification asks a provider about the
-/// set; only the assertion says, at the moment of use, which sets this member is in.
+/// Whether `subject`, asserted a member of `memberships`, holds a grant to `holder`: they are it,
+/// or the assertion names them a member of it and of every set its binding requires its members to
+/// be in. Re-verification asks a provider about the set; only the assertion says, at the moment of
+/// use, which sets this member is in.
 ///
 /// # Errors
 /// [`ChainError::WrongSubject`] if they are neither it nor a member of it, and
@@ -36,9 +35,9 @@ pub fn holds(
     if requires.iter().all(member) { Ok(()) } else { Err(ChainError::MembershipRequired) }
 }
 
-/// Refuses a grant a member issued through a set once their membership is no longer confirmed:
-/// it stands only while the set's binding vouches for the member too, so a member who left the
-/// set suspends what they delegated, and everything beneath it (§5.1 of docs/08-identity.md).
+/// Refuses a grant a member issued through a set once their membership is no longer confirmed: it
+/// stands only while the set's binding vouches for the member too, so a member who left the set
+/// suspends what they delegated, and everything beneath it.
 pub(crate) fn member_vouched(
     link: &Grant,
     hierarchy: &impl Hierarchy,
@@ -52,8 +51,8 @@ pub(crate) fn member_vouched(
 }
 
 /// A member of a bound set who issued a grant through it, and whether their membership was last
-/// confirmed (§5.1 of docs/08-identity.md). Recorded when they issue, unverified until the set's
-/// next re-verification asks about them, and asked about with the set on its interval.
+/// confirmed. Recorded when they issue, unverified until the set's next re-verification asks about
+/// them, and asked about with the set on its interval.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemberRecord {
     /// The set's binding.
@@ -65,8 +64,8 @@ pub struct MemberRecord {
     /// When it last said so.
     pub last_verified_at: Option<SystemTime>,
     /// How many times the record was written, by a re-verification or a sign-in: what an answer
-    /// asked about it is recorded against, so an older answer that they are still in the set
-    /// never replaces a newer one (Finding 141 of docs/23-walkthroughs.md).
+    /// asked about it is recorded against, so an older answer that they are still in the set never
+    /// replaces a newer one.
     pub answers: u64,
 }
 

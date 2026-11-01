@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The `firecracker` driver on this machine's KVM (§4.2 and §6 of docs/04-runtimes.md): a guest
-//! created from an image in the content store runs its entry as its user, within its memory,
-//! writing its volume, and its exit status is inspected; a stop reaches its entry and a kill ends
-//! one that ignores it; a restarted driver finds its guests; and a spec outside what the driver
-//! builds is refused. Needs root, /dev/kvm, Firecracker and its jailer (scripts/tools.sh), the
-//! guest kernel (scripts/guest-kernel.sh), mkfs.ext4 and debugfs, and is skipped without them.
+//! The `firecracker` driver on this machine's KVM: a guest created from an image in the content
+//! store runs its entry as its user, within its memory, writing its volume, and its exit status is
+//! inspected; a stop reaches its entry and a kill ends one that ignores it; a restarted driver
+//! finds its guests; and a spec outside what the driver builds is refused. Needs root, /dev/kvm,
+//! Firecracker and its jailer (scripts/tools.sh), the guest kernel (scripts/guest-kernel.sh),
+//! mkfs.ext4 and debugfs, and is skipped without them.
 
 #![allow(
     clippy::unwrap_used,

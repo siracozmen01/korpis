@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What of the effect log a tenant reads (§4 of docs/15-observability.md): an effect about its
-//! workload without the operator's node it landed on, an enrollment without its node's name,
-//! and a person signed in through their set reading under the set's grant while the set has
-//! them.
+//! What of the effect log a tenant reads: an effect about its workload without the operator's node
+//! it landed on, an enrollment without its node's name, and a person signed in through their set
+//! reading under the set's grant while the set has them.
 
 use crate::external_complete::signed_in;
 use crate::external_sign_in::{GONE, issuing};

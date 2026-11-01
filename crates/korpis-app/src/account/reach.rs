@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How far a session reaches, and what a confined one may change of its account (§9.8 of
-//! docs/08-identity.md, Findings 131 and 133 of docs/23-walkthroughs.md). A session begun at a
-//! portal reaches beneath the portal's organization; one begun with a password and a second
-//! factor both set beneath nested organizations reaches beneath the narrower, wherever it is
-//! begun, since one holder may have seen both; and one that is both reaches beneath the narrower
-//! of all, a sign-in where they are disjoint being refused, since it would reach nothing.
+//! How far a session reaches, and what a confined one may change of its account. A session begun at
+//! a portal reaches beneath the portal's organization; one begun with a password and a second
+//! factor both set beneath nested organizations reaches beneath the narrower, wherever it is begun,
+//! since one holder may have seen both; and one that is both reaches beneath the narrower of all, a
+//! sign-in where they are disjoint being refused, since it would reach nothing.
 
 use super::own_holder;
 use crate::App;
@@ -53,8 +52,8 @@ pub(super) fn sees_passkey(own: Option<&UserSession>, portal: Option<Uuid>) -> b
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The caller's session, if it is confined: what bounds the sessions and passkeys it sees
-    /// and ends (§9.8 of docs/08-identity.md); none for one that is not.
+    /// The caller's session, if it is confined: what bounds the sessions and passkeys it sees and
+    /// ends; none for one that is not.
     pub(super) async fn confining(&self, caller: &Caller) -> Result<Option<UserSession>, AppError> {
         if caller.within.is_none() {
             return Ok(None);
@@ -112,12 +111,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// Checks that a shared secret of `account` may be changed through a session confined
-    /// beneath `within`: only while every grant the account holds lies beneath that
-    /// organization, since the secret serves every address and the session's holder would
-    /// otherwise replace what protects the rest (Finding 131). Read before the change's
-    /// transaction, which [`still_changeable`] confirms against: the grants checked, none for a
-    /// session that is not confined.
+    /// Checks that a shared secret of `account` may be changed through a session confined beneath
+    /// `within`: only while every grant the account holds lies beneath that organization, since the
+    /// secret serves every address and the session's holder would otherwise replace what protects
+    /// the rest. Read before the change's transaction, which [`still_changeable`] confirms against:
+    /// the grants checked, none for a session that is not confined.
     pub(super) async fn secrets_changeable(
         &self,
         account: Uuid,

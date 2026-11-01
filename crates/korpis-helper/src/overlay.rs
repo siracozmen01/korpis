@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's side of the mesh (§9.1 of docs/07-networking.md): one WireGuard interface, made
-//! with a key the helper generates the first time and keeps in its state, whose private half is
-//! never answered to anyone; the peers the agent names, each allowed its workload pools, every
-//! other removed; and a route to each of those pools through the interface, every other route
-//! through it removed. WireGuard accepts a packet from a peer only with a source in that peer's
-//! allowed IPs, so what arrives on the interface comes from the node holding its source's pool;
-//! of that, only the dependents the agent names reach a workload, each its own endpoint.
+//! The node's side of the mesh: one WireGuard interface, made with a key the helper generates the
+//! first time and keeps in its state, whose private half is never answered to anyone; the peers the
+//! agent names, each allowed its workload pools, every other removed; and a route to each of those
+//! pools through the interface, every other route through it removed. WireGuard accepts a packet
+//! from a peer only with a source in that peer's allowed IPs, so what arrives on the interface
+//! comes from the node holding its source's pool; of that, only the dependents the agent names
+//! reach a workload, each its own endpoint.
 
 mod admit;
 mod edge;
@@ -32,11 +32,9 @@ pub(crate) use wg::Key;
 /// The interface's name.
 pub const INTERFACE: &str = "korpis-overlay";
 
-/// The GRE links to and from edges (§3.1 of docs/07-networking.md), as nftables matches their
-/// names.
+/// The GRE links to and from edges, as nftables matches their names.
 pub(crate) const EDGE_LINKS: &str = "kg*";
-/// Its MTU: a 1,500-byte link less WireGuard's 80 bytes over IPv6 (§5 of
-/// docs/research/evidence.md).
+/// Its MTU: a 1,500-byte link less WireGuard's 80 bytes over IPv6.
 pub const MTU: u32 = 1420;
 /// How often a peer is sent a keepalive, which keeps a NAT's mapping open for a peer behind it.
 pub const KEEPALIVE_SECONDS: u16 = 25;

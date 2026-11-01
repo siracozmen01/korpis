@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where the PostgreSQL server comes from (§2 of docs/18-operations.md): one the operator already
-//! runs, named by URL; or one the installer provisions through the system package manager or a
-//! container, and then leaves alone. Either provisioned server is given the same owner, a login
-//! `korpis_owner` with `CREATEROLE` and no superuser rights, owning a database `korpis`, made by
-//! [`OWNER_SQL`] as the server's own superuser; what installation does next it does as that
-//! owner, exactly as it would on a server the operator named.
+//! Where the PostgreSQL server comes from: one the operator already runs, named by URL; or one the
+//! installer provisions through the system package manager or a container, and then leaves alone.
+//! Either provisioned server is given the same owner, a login `korpis_owner` with `CREATEROLE` and
+//! no superuser rights, owning a database `korpis`, made by [`OWNER_SQL`] as the server's own
+//! superuser; what installation does next it does as that owner, exactly as it would on a server
+//! the operator named.
 
 pub mod container;
 pub mod package;

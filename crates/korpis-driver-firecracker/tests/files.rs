@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A file session in a live guest (§4.4 of docs/04-runtimes.md): the driver opens it on the
-//! guest's files port, the guest runs the file worker its boot drive carries, and the session
-//! lists the workload's volumes and nothing else, writes a file the workload then reads, reads it
-//! back, and is refused a write to a volume the workload mounts read-only, beyond its volumes, or
-//! in a session opened to read. A stopped guest's volumes are served by a service guest, shared
-//! by its sessions, ended with the last, and ended by the object's start. Needs what the driver's
-//! runtime tests need.
+//! A file session in a live guest: the driver opens it on the guest's files port, the guest runs
+//! the file worker its boot drive carries, and the session lists the workload's volumes and nothing
+//! else, writes a file the workload then reads, reads it back, and is refused a write to a volume
+//! the workload mounts read-only, beyond its volumes, or in a session opened to read. A stopped
+//! guest's volumes are served by a service guest, shared by its sessions, ended with the last, and
+//! ended by the object's start. Needs what the driver's runtime tests need.
 
 #![allow(
     clippy::unwrap_used,

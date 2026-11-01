@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Offloading a console stream (§4 and question 1 of docs/14-streams.md), against a real object
-//! store (MinIO, `scripts/test-tools.sh`; skipped without it): nothing is offloaded while no
-//! repository takes the stream, and nothing is lost meanwhile; once one does, every segment the
-//! node still holds goes, sealed under the workload's key, and is journaled as offloaded; an
-//! agent that restarts goes on from where it was; and a stream whose workload left is followed
-//! until it is offloaded through.
+//! Offloading a console stream, against a real object store (MinIO, `scripts/test-tools.sh`;
+//! skipped without it): nothing is offloaded while no repository takes the stream, and nothing is
+//! lost meanwhile; once one does, every segment the node still holds goes, sealed under the
+//! workload's key, and is journaled as offloaded; an agent that restarts goes on from where it was;
+//! and a stream whose workload left is followed until it is offloaded through.
 
 use korpis_agent::jobs::JobAccesses;
 use korpis_agent::journal::{Bounds, JournalHandle};

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recipe's `pre_stop` hook on a real node (§3 of docs/09-recipes.md, Finding 87 of
-//! docs/23-walkthroughs.md): software that saves and exits only when told `stop` on its console,
-//! and that ignores `SIGTERM` as a container's first process with no handler does, is restarted.
-//! The node writes the hook's data to its console first, it exits by itself, and the restart
-//! completes well inside the thirty seconds a signal and its grace would have taken.
+//! A recipe's `pre_stop` hook on a real node: software that saves and exits only when told `stop`
+//! on its console, and that ignores `SIGTERM` as a container's first process with no handler does,
+//! is restarted. The node writes the hook's data to its console first, it exits by itself, and the
+//! restart completes well inside the thirty seconds a signal and its grace would have taken.
 
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, busybox, push};

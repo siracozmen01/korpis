@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! TLS for the routes the proxy terminates (§3.2 of docs/07-networking.md): TLS 1.2 and 1.3,
-//! HTTP/2 and HTTP/1.1 offered by ALPN, and the certificate chosen by the name the client asks
-//! for, from the table as it is when the client asks. One configuration serves every connection
-//! to a route that asks for no client certificate, so a client resumes a session with any of
-//! them. A route that asks for one has a configuration of its own, made with its table, whose
-//! sessions and tickets are its own: a session made where no certificate was asked for is never
-//! resumed where one is, and the authorities that verify a client's are that route's alone.
+//! TLS for the routes the proxy terminates: TLS 1.2 and 1.3, HTTP/2 and HTTP/1.1 offered by ALPN,
+//! and the certificate chosen by the name the client asks for, from the table as it is when the
+//! client asks. One configuration serves every connection to a route that asks for no client
+//! certificate, so a client resumes a session with any of them. A route that asks for one has a
+//! configuration of its own, made with its table, whose sessions and tickets are its own: a session
+//! made where no certificate was asked for is never resumed where one is, and the authorities that
+//! verify a client's are that route's alone.
 
 use crate::table::Table;
 use rustls::pki_types::CertificateDer;
@@ -98,9 +98,8 @@ pub fn asking_clients(
     Ok(Arc::new(config))
 }
 
-/// What verifies a client's certificate against the authorities `pem` holds, a client without
-/// one let through unless `required`. No revocation is checked: no CRL is given, and none is
-/// fetched (§6 of docs/17-security.md).
+/// What verifies a client's certificate against the authorities `pem` holds, a client without one
+/// let through unless `required`. No revocation is checked: no CRL is given, and none is fetched.
 pub fn clients(pem: &str, required: bool) -> Result<Arc<dyn ClientCertVerifier>, String> {
     let mut roots = rustls::RootCertStore::empty();
     for cert in CertificateDer::pem_slice_iter(pem.as_bytes()) {

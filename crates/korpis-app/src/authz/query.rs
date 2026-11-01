@@ -20,8 +20,8 @@ pub enum GrantsFilter {
     On(ObjectRef),
     /// Those held by a principal; only the caller's own may be listed this way.
     HeldBy(Principal),
-    /// Those issued from a template, at any version: each one the caller holds or may read
-    /// under `grant.read` over its scope (§3.5 of docs/08-identity.md).
+    /// Those issued from a template, at any version: each one the caller holds or may read under
+    /// `grant.read` over its scope.
     FromTemplate(Uuid),
 }
 
@@ -35,10 +35,9 @@ pub struct GrantWithChain {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// One grant with its chain, if the caller holds it or may read grants over its scope. A
-    /// share link's holder reads what the link grants and not the chain above it: the link was
-    /// sent to someone with no account, and who issued it, holding what, is not theirs to read
-    /// (§6.1 of docs/08-identity.md).
+    /// One grant with its chain, if the caller holds it or may read grants over its scope. A share
+    /// link's holder reads what the link grants and not the chain above it: the link was sent to
+    /// someone with no account, and who issued it, holding what, is not theirs to read.
     pub async fn get_grant(&self, caller: &Caller, id: Uuid) -> Result<GrantWithChain, AppError> {
         caller.direct()?;
         let mut records = self.store.grant_chain(id).await?;

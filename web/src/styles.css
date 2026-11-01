@@ -2,9 +2,9 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-/* The panel's one stylesheet (§9 of docs/11-surface-web.md): a few tokens, light and dark, and
+/* The panel's one stylesheet: a few tokens, light and dark, and
    layouts that hold at 400 px with nothing scrolling sideways. Loaded as a file of its own, so
-   the page's policy keeps style-src to 'self'. Branding (§7) replaces the tokens, not the rules. */
+   the page's policy keeps style-src to 'self'. Branding replaces the tokens, not the rules. */
 
 :root {
   color-scheme: light dark;
@@ -188,7 +188,7 @@ details {
   margin: var(--gap) 0;
 }
 
-/* A value the panel no longer hears is shown, dimmed, never as current (§2). */
+/* A value the panel no longer hears is shown, dimmed, never as current. */
 .stale {
   opacity: 0.6;
 }
@@ -285,7 +285,7 @@ a:focus-visible {
 }
 
 /* A landing screen's own heading, above what its layout places, and a notice's text, whose line
-   breaks are its author's (question 2 of §10 of docs/11-surface-web.md). */
+   breaks are its author's. */
 .landing-name {
   font-size: 1.25rem;
   font-weight: 600;

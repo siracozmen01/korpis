@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The files a control-plane backup holds, put back into a data directory (§6 of
-//! docs/18-operations.md): every one under `keys` and `tls`, written where it is missing, kept
-//! where it is there with the same bytes, and refused where it is there with others, since a key
-//! that differs from the backup's is either newer or someone else's, and only the operator can
-//! say which. Nothing outside `keys` and `tls` is written, whatever the file names. It is written
-//! by the data directory's owner and no one else, as the backup is read, and through no link: what
-//! a compromised control plane could put in its own data directory steers nothing a restore run
-//! by a more privileged user would write.
+//! The files a control-plane backup holds, put back into a data directory: every one under `keys`
+//! and `tls`, written where it is missing, kept where it is there with the same bytes, and refused
+//! where it is there with others, since a key that differs from the backup's is either newer or
+//! someone else's, and only the operator can say which. Nothing outside `keys` and `tls` is
+//! written, whatever the file names. It is written by the data directory's owner and no one else,
+//! as the backup is read, and through no link: what a compromised control plane could put in its
+//! own data directory steers nothing a restore run by a more privileged user would write.
 
 use crate::data::DataDir;
 use base64::Engine as _;

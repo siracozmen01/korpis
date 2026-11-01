@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The token keys the node verifies capability tokens and revocation lists with (§6 of
-//! docs/08-identity.md): those it was given when it enrolled, until the control plane sends the
-//! keys in force, which it does as every session opens. A restore rotates the token key and
-//! retires every earlier one (§8 of docs/03-state.md), so the set is replaced, never added to: a
-//! retired key the node still held would keep the tokens it signed working. The set is kept, so a
-//! restart verifies with what was last sent rather than with what enrollment gave.
+//! The token keys the node verifies capability tokens and revocation lists with: those it was given
+//! when it enrolled, until the control plane sends the keys in force, which it does as every
+//! session opens. A restore rotates the token key and retires every earlier one, so the set is
+//! replaced, never added to: a retired key the node still held would keep the tokens it signed
+//! working. The set is kept, so a restart verifies with what was last sent rather than with what
+//! enrollment gave.
 
 use crate::revoked::token_ring;
 use buffa::Message as _;

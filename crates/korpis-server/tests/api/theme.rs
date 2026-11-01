@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Organizations' themes (§7 of docs/11-surface-web.md): set by `org.write`, inherited from the
-//! nearest organization that set one, checked field by field, worn by the sign-in page before
-//! anyone signs in, and read under the read action of whatever the panel shows.
+//! Organizations' themes: set by `org.write`, inherited from the nearest organization that set one,
+//! checked field by field, worn by the sign-in page before anyone signs in, and read under the read
+//! action of whatever the panel shows.
 
 use crate::support::{Harness, detail, mutation, reason};
 use connectrpc::ErrorCode;

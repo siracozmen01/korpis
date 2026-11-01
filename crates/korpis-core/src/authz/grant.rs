@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grants and attenuation (§3.2 of docs/08-identity.md). A child is valid only if every
-//! dimension holds against its parent; the same check runs at issue and again at every use.
+//! Grants and attenuation. A child is valid only if every dimension holds against its parent; the
+//! same check runs at issue and again at every use.
 
 use super::action::Action;
 use super::scope::{Hierarchy, Scope, scope_within};
@@ -23,12 +23,12 @@ pub struct Conditions {
     pub source_cidr: Vec<IpNet>,
     /// Whether every use needs a second factor.
     pub requires_mfa: bool,
-    /// This grant can propose, not apply (§3.6).
+    /// This grant can propose, not apply.
     pub requires_approval_by: Option<Scope>,
-    /// Redeemed online (§6.2).
+    /// Redeemed online.
     pub max_uses: Option<u64>,
-    /// Only the records of a workload's stream written within this range may be read under it
-    /// (§8 of docs/14-streams.md); a grant carrying one permits nothing but reading the stream.
+    /// Only the records of a workload's stream written within this range may be read under it; a
+    /// grant carrying one permits nothing but reading the stream.
     pub stream_range: Option<StreamRange>,
 }
 
@@ -71,7 +71,7 @@ impl StreamRange {
     }
 }
 
-/// Whether, how deep, and with which actions a grant may be attenuated (§3.2).
+/// Whether, how deep, and with which actions a grant may be attenuated.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Delegation {
     /// Whether the holder may attenuate it further at all.
@@ -82,8 +82,8 @@ pub struct Delegation {
     pub actions: BTreeSet<Action>,
 }
 
-/// The set a member held a grant through when they issued another from it, and the member
-/// (§5.1 of docs/08-identity.md): a condition on the child, not a fact about who issued it.
+/// The set a member held a grant through when they issued another from it, and the member: a
+/// condition on the child, not a fact about who issued it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Via {
     /// The set subject that holds the parent.
@@ -110,11 +110,10 @@ impl Via {
 pub struct Grant {
     /// Immutable identity.
     pub id: Uuid,
-    /// When it was issued, from which a delegation ceiling counts (§5.1 of
-    /// docs/08-identity.md).
+    /// When it was issued, from which a delegation ceiling counts.
     pub issued_at: SystemTime,
-    /// For a grant a member issued through a set: the set and the member, so it stands only
-    /// while both are verified (§5.1 of docs/08-identity.md).
+    /// For a grant a member issued through a set: the set and the member, so it stands only while
+    /// both are verified.
     pub via: Option<Via>,
     /// Who holds it.
     pub subject: Subject,
@@ -128,7 +127,7 @@ pub struct Grant {
     pub parent: Option<Uuid>,
     /// What the holder may pass on.
     pub delegation: Delegation,
-    /// Held by whoever presents its link, rather than by a named subject (§6.1).
+    /// Held by whoever presents its link, rather than by a named subject.
     pub link_form: bool,
     /// Online redemptions so far, and uses handed to children at issue.
     pub uses: u64,
@@ -137,14 +136,14 @@ pub struct Grant {
     /// Suspended on this grant itself.
     pub suspended: bool,
     /// For a grant to a set subject: the operator deliberately overrode the default that keeps
-    /// irreversible actions out of it (§5.2). Never meaningful for a link-form grant. Set by the
-    /// control plane from the subject's identity binding, never from a request; [`issue`]
-    /// refuses a child that carries it otherwise.
+    /// irreversible actions out of it. Never meaningful for a link-form grant. Set by the control
+    /// plane from the subject's identity binding, never from a request; [`issue`] refuses a child
+    /// that carries it otherwise.
     ///
     /// [`issue`]: super::evaluate::issue
     pub irreversible_override: bool,
-    /// A root grant: created at installation or by local root recovery (§9 of
-    /// docs/08-identity.md), the only kind of grant with no parent.
+    /// A root grant: created at installation or by local root recovery, the only kind of grant with
+    /// no parent.
     pub root: bool,
 }
 
@@ -157,7 +156,7 @@ impl Grant {
 }
 
 /// Why a child grant is not a valid attenuation of its parent. One variant per row of the table
-/// in §3.2, so a refusal names the dimension that failed.
+/// in the attenuation table, so a refusal names the dimension that failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AttenuationError {
     /// The parent does not allow delegation.
@@ -199,7 +198,7 @@ pub enum AttenuationError {
     /// A link-form grant would delegate.
     #[error("a link-form grant can never delegate")]
     LinkFormDelegates,
-    /// An irreversible action would go to a bearer link or a set (§5.2).
+    /// An irreversible action would go to a bearer link or a set.
     #[error("action {0} is irreversible and cannot be held by a link-form or set-subject grant")]
     IrreversibleToBearerOrSet(Action),
     /// The child's stream range is missing or reaches outside the parent's.
@@ -221,8 +220,8 @@ pub enum At {
     Use,
 }
 
-/// Checks every row of §3.2's table, the delegation rules beneath it, and the approval
-/// ordering of §3.6, for `child` attenuated from `parent`.
+/// Checks every row of the attenuation table, the delegation rules beneath it, and the approval
+/// ordering, for `child` attenuated from `parent`.
 pub fn check_attenuation(
     parent: &Grant,
     child: &Grant,
@@ -244,8 +243,8 @@ pub fn check_attenuation(
             return Err(AttenuationError::ActionNotDelegable(action.clone()));
         }
     }
-    // Grants to set subjects and link-form grants cannot include irreversible actions (§5.2,
-    // §6.1). A set's binding may be overridden by an operator, deliberately; a link never.
+    // Grants to set subjects and link-form grants cannot include irreversible actions. A set's
+    // binding may be overridden by an operator, deliberately; a link never.
     let exposed = child.link_form || (child.subject.set && !child.irreversible_override);
     if exposed && let Some(a) = child.actions.iter().find(|a| a.is_irreversible()) {
         return Err(AttenuationError::IrreversibleToBearerOrSet(a.clone()));
@@ -297,8 +296,8 @@ fn check_conditions(
     {
         return Err(AttenuationError::RangeWider);
     }
-    // "At least as strict" means equal or larger: approval may move up the tree toward fewer,
-    // more senior approvers, never down toward the child's holder (§3.6).
+    // "At least as strict" means equal or larger: approval may move up the tree toward fewer, more
+    // senior approvers, never down toward the child's holder.
     if let Some(p) = &parent.requires_approval_by {
         match &child.requires_approval_by {
             Some(c) if scope_within(p, c, hierarchy) => {}

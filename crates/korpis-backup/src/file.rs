@@ -2,10 +2,9 @@
 
 //! A file's data. Only the runs the filesystem says hold data are read (`SEEK_DATA` and
 //! `SEEK_HOLE`), so a sparse file is stored as its data and restored sparse; each run is cut at
-//! content-defined boundaries, so an insertion moves the chunks around it and no others. The
-//! whole content, holes read as zeros, is hashed as it goes, for verification. A file whose bytes
-//! are recipe content is recorded by that content's digest and stores nothing (§5.2 of
-//! docs/06-storage.md).
+//! content-defined boundaries, so an insertion moves the chunks around it and no others. The whole
+//! content, holes read as zeros, is hashed as it goes, for verification. A file whose bytes are
+//! recipe content is recorded by that content's digest and stores nothing.
 
 use crate::error::{Error, Result};
 use crate::keys::Keys;

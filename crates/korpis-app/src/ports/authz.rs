@@ -28,8 +28,7 @@ pub trait GrantRead {
     ) -> impl Future<Output = StoreResult<Vec<GrantRecord>>> + Send;
 
     /// Every chain whose leaf is held by `subject_key` and is not itself revoked. Revoked and
-    /// suspended ancestors are included as they are: evaluation derives the cascade (§3.5 of
-    /// docs/08-identity.md).
+    /// suspended ancestors are included as they are: evaluation derives the cascade.
     fn chains_held_by(
         &self,
         subject_key: &str,
@@ -57,7 +56,7 @@ pub trait GrantRead {
     ) -> impl Future<Output = StoreResult<Vec<GrantRecord>>> + Send;
 
     /// Grants revoked at or after `since`, and grants suspended at or after it whose suspension
-    /// stands, sorted: the entries of the revocation list (§6.3 of docs/08-identity.md).
+    /// stands, sorted: the entries of the revocation list.
     fn revoked_since(
         &self,
         since: SystemTime,
@@ -87,8 +86,8 @@ pub trait GrantWrite {
     /// How many grants descend from `grant`, for reporting what a revocation cascaded to.
     fn descendant_count(&mut self, grant: Uuid) -> impl Future<Output = StoreResult<u64>> + Send;
 
-    /// Takes `n` uses from a grant limited to `max` if it still has them: the compare-and-swap
-    /// that makes redemption and attenuation race-free (§6.2 of docs/08-identity.md).
+    /// Takes `n` uses from a grant limited to `max` if it still has them: the compare-and-swap that
+    /// makes redemption and attenuation race-free.
     fn take_uses(
         &mut self,
         grant: Uuid,
@@ -107,7 +106,7 @@ pub trait CredentialRead {
     ) -> impl Future<Output = StoreResult<Option<ApiToken>>> + Send;
 
     /// The live workload credential whose secret has `digest`, if its workload is still placed,
-    /// authoritatively, on the node it was issued through (§9.5 of docs/08-identity.md).
+    /// authoritatively, on the node it was issued through.
     fn authenticate_workload(
         &self,
         digest: &[u8; 32],
@@ -134,8 +133,7 @@ pub trait CredentialWrite {
     ) -> impl Future<Output = StoreResult<()>> + Send;
 }
 
-/// The public halves of the control plane's signing keys. The private halves never reach the
-/// store (§6 of docs/18-operations.md).
+/// The public halves of the control plane's signing keys. The private halves never reach the store.
 pub trait KeyRegistry {
     /// Records a public key; recording the same key again does nothing.
     fn register_key(

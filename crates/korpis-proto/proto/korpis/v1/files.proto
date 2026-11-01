@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// A workload's files over the data path (§3.2 of docs/06-storage.md), a session opened at a relay
-// (relay.proto) for `workload.file.read` or `workload.file.write`, which implies it, and served
-// on the node by a filesystem worker that sees the workload's volumes and nothing else. The
-// session takes no params. Every data frame the client sends is one FileRequest, and every one the
-// node sends is one FileResponse answering the request of the same number, in the order asked.
-// Paths are absolute within the workload, as its volumes are mounted: `/data/world/level.dat`.
-// A path that is in no volume, or resolves outside one through a symbolic link, is refused.
+// A workload's files over the data path, a session opened at a relay (relay.proto) for
+// `workload.file.read` or `workload.file.write`, which implies it, and served on the node by a
+// filesystem worker that sees the workload's volumes and nothing else. The session takes no params.
+// Every data frame the client sends is one FileRequest, and every one the node sends is one
+// FileResponse answering the request of the same number, in the order asked. Paths are absolute
+// within the workload, as its volumes are mounted: `/data/world/level.dat`. A path that is in no
+// volume, or resolves outside one through a symbolic link, is refused.
 
 syntax = "proto3";
 
@@ -129,7 +129,7 @@ enum FileErrorCode {
   FILE_ERROR_CODE_UNSPECIFIED = 0;
   FILE_ERROR_CODE_NOT_FOUND = 1;
   FILE_ERROR_CODE_EXISTS = 2;
-  // The volume's quota is used up (EDQUOT, §3 of docs/06-storage.md).
+  // The volume's quota is used up (EDQUOT).
   FILE_ERROR_CODE_FULL = 3;
   FILE_ERROR_CODE_NOT_A_DIRECTORY = 4;
   FILE_ERROR_CODE_IS_A_DIRECTORY = 5;
@@ -144,12 +144,11 @@ enum FileErrorCode {
   FILE_ERROR_CODE_MOVED = 10;
 }
 
-// The params of a session of `backup.browse` or `backup.read` on the data path (§5.4 of
-// docs/06-storage.md): which backup of the session's workload it reads, a block device's, whose
-// image only a guest's kernel parses. The session then carries FileRequest and FileResponse as a
-// file session does, read-only, with the image's files at /backup. A `backup.browse` session ends
-// at the first FileRead it sends: browsing is names, kinds, sizes, and times, and never a file's
-// bytes.
+// The params of a session of `backup.browse` or `backup.read` on the data path: which backup of the
+// session's workload it reads, a block device's, whose image only a guest's kernel parses. The
+// session then carries FileRequest and FileResponse as a file session does, read-only, with the
+// image's files at /backup. A `backup.browse` session ends at the first FileRead it sends: browsing
+// is names, kinds, sizes, and times, and never a file's bytes.
 message BackupFiles {
   // The backup, `bkp_…`.
   string backup = 1;

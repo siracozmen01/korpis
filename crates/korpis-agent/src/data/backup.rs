@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A block device's backup read over the data path: the handler of `backup.browse` and
-//! `backup.read` (§5.4 of docs/06-storage.md). Reading inside such a backup is parsing a
-//! filesystem the tenant's guest wrote, which only a guest's kernel does, so the node stages the
-//! image and the workload's driver serves it read-only from a service guest of the image's own
-//! (§4.4 of docs/04-runtimes.md).
+//! `backup.read`. Reading inside such a backup is parsing a filesystem the tenant's guest wrote,
+//! which only a guest's kernel does, so the node stages the image and the workload's driver serves
+//! it read-only from a service guest of the image's own.
 //!
 //! The node holds neither the repository's credentials nor what says which workload a backup is
 //! of, so it asks the control plane, as a restore step does, naming the session's backup and

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The generated schema round-trips through both encodings the API serves, and the JSON names
-//! are the canonical `ProtoJSON` ones a `curl` user writes (§3 of docs/10-api.md).
+//! The generated schema round-trips through both encodings the API serves, and the JSON names are
+//! the canonical `ProtoJSON` ones a `curl` user writes.
 
 use buffa::Message;
 use korpis_proto::korpis::agent::v1::{Assignment, NodePlan, SignedAssignment};

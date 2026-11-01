@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Issuing: only a holder of a valid parent attenuates it, and roots come from installation
-//! (§3.4 and §9.1 of docs/08-identity.md).
+//! Issuing: only a holder of a valid parent attenuates it, and roots come from installation.
 
 use korpis_core::authz::evaluate::{ChainError, IssueError, issue};
 use korpis_core::authz::{Action, Decision, Hierarchy, Scope, Subject, evaluate};

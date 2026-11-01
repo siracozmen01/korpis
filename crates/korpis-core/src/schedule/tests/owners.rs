@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placement policy per organization (§2.2 of docs/05-scheduling.md, question 8 of §10): a node
-//! is scored by the strategy and weights of its owner's policy, the nearest owner's nodes are
-//! ranked first, and a workload's spread constraints are its own wherever it runs.
+//! Placement policy per organization: a node is scored by the strategy and weights of its owner's
+//! policy, the nearest owner's nodes are ranked first, and a workload's spread constraints are its
+//! own wherever it runs.
 
 use super::{GIB, ORG, PROJECT, body, node, req};
 use crate::node::Node;

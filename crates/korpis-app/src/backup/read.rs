@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a backup in the control plane (§5.4 of docs/06-storage.md, Finding 13 of
-//! docs/23-walkthroughs.md): browsing its tree under `backup.browse`, which shows every path,
-//! name, and size, and reading a file under `backup.read`, which shows its bytes. Neither implies
-//! the other, both are recorded as sensitive reads before anything is read (§4 of
-//! docs/15-observability.md), and both are done with read access to the workload's prefix and
-//! the workload's key.
+//! Reading a backup in the control plane: browsing its tree under `backup.browse`, which shows
+//! every path, name, and size, and reading a file under `backup.read`, which shows its bytes.
+//! Neither implies the other, both are recorded as sensitive reads before anything is read, and
+//! both are done with read access to the workload's prefix and the workload's key.
 
 use super::job::JobGrant;
 use crate::App;
@@ -19,9 +17,8 @@ use korpis_core::object::{Kind, ObjectRef};
 use std::time::Duration;
 use uuid::Uuid;
 
-/// How long the control plane's own read access lasts: minutes for one listing, and for one
-/// file as long as a job's, since a large file over a slow link takes as long to read as to
-/// restore (Finding 36 of docs/23-walkthroughs.md).
+/// How long the control plane's own read access lasts: minutes for one listing, and for one file as
+/// long as a job's, since a large file over a slow link takes as long to read as to restore.
 const BROWSE_ACCESS: Duration = Duration::from_secs(15 * 60);
 const READ_ACCESS: Duration = Duration::from_secs(12 * 3600);
 

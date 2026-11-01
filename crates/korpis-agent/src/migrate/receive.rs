@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Receiving (§8.1 of docs/05-scheduling.md). The transfer port hands this node each stream whose
-//! ticket is a migration pass's. It is admitted only under a ticket the token keys open, naming
-//! this node, a migration whose destination this node is, the peer its role names as the node
-//! sending, and a volume and pass its role names, from that peer's mesh address, which WireGuard
-//! admits from that node's key alone. **What evaluates "this stream may be written into this
-//! volume's copy, from there":** this agent, from the ticket, the keys it holds, and its role,
-//! and its kernel, from the mesh's keys; nothing asks the control plane. The pass is received
-//! into the destination's copy of the volume by the tree verbs, or into its replica directory by
-//! the replica verbs for a volume sent by increments, and the agent journals that it holds it,
-//! under the identifier its copy has here.
+//! Receiving. The transfer port hands this node each stream whose ticket is a migration pass's. It
+//! is admitted only under a ticket the token keys open, naming this node, a migration whose
+//! destination this node is, the peer its role names as the node sending, and a volume and pass its
+//! role names, from that peer's mesh address, which WireGuard admits from that node's key alone.
+//! **What evaluates "this stream may be written into this volume's copy, from there":** this agent,
+//! from the ticket, the keys it holds, and its role, and its kernel, from the mesh's keys; nothing
+//! asks the control plane. The pass is received into the destination's copy of the volume by the
+//! tree verbs, or into its replica directory by the replica verbs for a volume sent by increments,
+//! and the agent journals that it holds it, under the identifier its copy has here.
 
 use super::{Incoming, Migrating, reported};
 use crate::host::{Replicating, Trees};

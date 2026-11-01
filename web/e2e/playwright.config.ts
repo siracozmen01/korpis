@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The panel's browser tests (§9 of docs/21-stack.md): run by the browser test of
-// korpis-e2e against a real control plane serving the built panel, whose address and the secrets
-// the tests begin from it passes in the environment. One browser, one test at a time: each test
-// is a step of one person's use of one installation, as §38 of docs/23-walkthroughs.md traces it.
+// The panel's browser tests: run by the browser test of korpis-e2e against a real control plane
+// serving the built panel, whose address and the secrets the tests begin from it passes in the
+// environment. One browser, one test at a time: each test is a step of one person's use of one
+// installation.
 
 import { defineConfig, devices } from "@playwright/test";
 

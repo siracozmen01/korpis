@@ -42,9 +42,8 @@ pub(crate) fn helper(
 }
 
 /// As [`helper`], serving from a thread inside the network namespace at `node`, as a node's own
-/// helper runs in its host's, and keeping the mesh's interface there, its key with the rest of
-/// its state (§9.1 of docs/07-networking.md). Nothing it makes is in this machine's own
-/// namespace.
+/// helper runs in its host's, and keeping the mesh's interface there, its key with the rest of its
+/// state. Nothing it makes is in this machine's own namespace.
 #[allow(dead_code, reason = "the browser test, a binary of its own, runs no mesh")]
 pub(crate) fn helper_in(socket: &Path, volumes: &Path, dirs: (&Path, &Path, &Path), node: &Path) {
     let overlay = korpis_helper::overlay::Overlay::new(dirs.0.join("overlay.key"));
@@ -72,10 +71,9 @@ pub(crate) fn btrfs_in(dir: &Path) -> Option<std::path::PathBuf> {
     Some(at)
 }
 
-/// The helper with its storage, jobs, network, ingress, and file sessions, and the cpusets
-/// beneath `parent` where one is named; and a shared class `shared` on the directory `shared`
-/// names, where it names one, which another node of the test shares as a network filesystem
-/// would be shared (§2.1 of docs/06-storage.md).
+/// The helper with its storage, jobs, network, ingress, and file sessions, and the cpusets beneath
+/// `parent` where one is named; and a shared class `shared` on the directory `shared` names, where
+/// it names one, which another node of the test shares as a network filesystem would be shared.
 fn built(
     (volumes, extra): (&Path, Option<&Storage>),
     (state, content, netns): (&Path, &Path, &Path),

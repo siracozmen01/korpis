@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A file session's frames between the node and a guest's worker (§4.4 of docs/04-runtimes.md):
-//! each request's frame written to the worker as the worker reads one, four bytes of
-//! little-endian length then the bytes, and each frame the worker writes passed back as a
-//! response, its length bounded before anything is read for it. Neither is read beyond that: the
-//! node decodes them, as it does a host worker's.
+//! A file session's frames between the node and a guest's worker: each request's frame written to
+//! the worker as the worker reads one, four bytes of little-endian length then the bytes, and each
+//! frame the worker writes passed back as a response, its length bounded before anything is read
+//! for it. Neither is read beyond that: the node decodes them, as it does a host worker's.
 
 use connectrpc::{ConnectError, ErrorCode, InboundStream};
 use futures_util::StreamExt as _;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A runtime object as the driver keeps it, in a directory of its own named by its identifier:
-//! the spec it was created from, its config drive, and, once started, which process is its
-//! Firecracker. Everything `Recover` returns and `Inspect` reads is here, so the driver can be
-//! restarted while its guests run (§4.2 of docs/04-runtimes.md).
+//! A runtime object as the driver keeps it, in a directory of its own named by its identifier: the
+//! spec it was created from, its config drive, and, once started, which process is its Firecracker.
+//! Everything `Recover` returns and `Inspect` reads is here, so the driver can be restarted while
+//! its guests run.
 
 use buffa::Message as _;
 use korpis_proto::korpis::driver::v1 as driver;
@@ -122,7 +122,7 @@ impl Object {
 
     /// Marks that the guest in `dir` has been sent its stop in this run: false if it already had
     /// been, since a guest reads a second as its kill, and a stop is asked again by an agent that
-    /// restarts in the middle of one (§6 of docs/02-architecture.md).
+    /// restarts in the middle of one.
     pub fn tell(dir: &Path) -> io::Result<bool> {
         match std::fs::OpenOptions::new().write(true).create_new(true).open(dir.join(TOLD)) {
             Ok(_) => Ok(true),

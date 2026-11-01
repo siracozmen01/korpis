@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's part in edge groups (§3.1 of docs/07-networking.md). As a member it translates
-//! each address, transport, and port of its group's table to its workload, IPv4 and IPv6 alike,
-//! marking what goes to another node so policy routing sends it into that node's GRE link, an
-//! IPv4 link whichever family it carries, and refuses every other packet to an address it holds
-//! but an IPv6 one's neighbour discovery. As a node behind edges it accepts GRE from each edge's
-//! mesh address alone, takes from each edge's link only what that edge may reach, marks each
-//! such connection with its link, and routes the replies back into it by the mark, so the
-//! workload sees its client's own address and the edge reverses its translation.
+//! The node's part in edge groups. As a member it translates each address, transport, and port of
+//! its group's table to its workload, IPv4 and IPv6 alike, marking what goes to another node so
+//! policy routing sends it into that node's GRE link, an IPv4 link whichever family it carries, and
+//! refuses every other packet to an address it holds but an IPv6 one's neighbour discovery. As a
+//! node behind edges it accepts GRE from each edge's mesh address alone, takes from each edge's
+//! link only what that edge may reach, marks each such connection with its link, and routes the
+//! replies back into it by the mark, so the workload sees its client's own address and the edge
+//! reverses its translation.
 
 mod flows;
 mod links;

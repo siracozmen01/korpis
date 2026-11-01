@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis backup clone` (§5.4 of docs/06-storage.md): a new workload declared with the body of
-//! the workload a backup is of, the backed-up volume created holding what the backup held and
-//! every other volume created empty, so the copy runs beside the original. It is how a restore is
-//! tested. It is composed of reads and one declaration, which takes `backup.read` on the source
-//! as any volume created from a backup does.
+//! `korpis backup clone`: a new workload declared with the body of the workload a backup is of, the
+//! backed-up volume created holding what the backup held and every other volume created empty, so
+//! the copy runs beside the original. It is how a restore is tested. It is composed of reads and
+//! one declaration, which takes `backup.read` on the source as any volume created from a backup
+//! does.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

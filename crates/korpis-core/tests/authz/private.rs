@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Private actions stop at the organization boundary unless granted explicitly (§7 of
-//! docs/08-identity.md).
+//! Private actions stop at the organization boundary unless granted explicitly.
 
 use korpis_core::authz::evaluate::ChainError;
 use korpis_core::authz::grant::At;
@@ -45,7 +44,7 @@ fn private_actions_do_not_cross_into_a_customer_implicitly() {
         Decision::Deny(_)
     ));
 
-    // The explicit grant of §7: the host mints itself a grant scoped to the customer.
+    // The explicit grant: the host mints itself a grant scoped to the customer.
     let support =
         child(&root, "user:host-admin", &["workload.file.read"], Scope::Object(tree.customer));
     check_attenuation(&root, &support, &tree, At::Issue).unwrap();

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Endpoints as placed (§3 of docs/07-networking.md): what each endpoint of a placed workload
-//! became on its node, and the ports of the node they hold.
+//! Endpoints as placed: what each endpoint of a placed workload became on its node, and the ports
+//! of the node they hold.
 
 use super::StoreResult;
 use korpis_core::dns::published::EndpointRecord;
@@ -22,8 +22,7 @@ pub trait EndpointRead {
     /// One endpoint, by its identifier.
     fn endpoint(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Endpoint>>> + Send;
 
-    /// The names of `workload`'s ingress endpoints in DNS, routed now (§3.5 of
-    /// docs/07-networking.md).
+    /// The names of `workload`'s ingress endpoints in DNS, routed now.
     fn endpoint_records(
         &self,
         workload: Uuid,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The convergence timeline (§3 of docs/11-surface-web.md): what was declared and when, when its
-// node acknowledged it, and when it converged, each with its lag from the declaration. The
-// control plane keeps no history of these moments beyond the effect log, so the panel records
-// each as it hears it happen, at the time of the observation that first showed it; a moment
-// that passed before the screen opened is shown as done, without a time it does not know.
+// The convergence timeline: what was declared and when, when its node acknowledged it, and when it
+// converged, each with its lag from the declaration. The control plane keeps no history of these
+// moments beyond the effect log, so the panel records each as it hears it happen, at the time of
+// the observation that first showed it; a moment that passed before the screen opened is shown as
+// done, without a time it does not know.
 
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { Convergence, type WorkloadStatus } from "../gen/korpis/v1/api_pb";

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Authority: grants, conditions, delegation, templates, and identity bindings (§3.2 of
-// docs/01-model.md, §3 to §6 of docs/08-identity.md). There are no roles.
+// Authority: grants, conditions, delegation, templates, and identity bindings. There are no roles.
 
 syntax = "proto3";
 
@@ -12,12 +11,12 @@ import "google/protobuf/timestamp.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/tenancy.proto";
 
-// The only authority primitive. A grant can never exceed its parent (§3.2 of
-// docs/08-identity.md), and every authority traces to a root grant.
+// The only authority primitive. A grant can never exceed its parent, and every authority traces to
+// a root grant.
 message Grant {
   string id = 1;
   Subject subject = 2;
-  // Action names from the vocabulary of §5 of docs/10-api.md, or "ext.<extension>.<action>".
+  // Action names from the action vocabulary, or "ext.<extension>.<action>".
   repeated string actions = 3;
   Scope scope = 4;
   Conditions conditions = 5;
@@ -25,14 +24,13 @@ message Grant {
   optional string parent = 6;
   DelegationPolicy delegation = 7;
   Subject issued_by = 8;
-  // Present when issued by a member exercising a set grant (§5.1 of docs/08-identity.md).
+  // Present when issued by a member exercising a set grant.
   SetMemberIssue via = 9;
   // Provenance only; no authorization decision reads it.
   optional TemplateRef from_template = 10;
   google.protobuf.Timestamp issued_at = 11;
   google.protobuf.Timestamp revoked_at = 12;
-  // A link-form grant is redeemed by bearer and can never delegate (§6.1 of
-  // docs/08-identity.md).
+  // A link-form grant is redeemed by bearer and can never delegate.
   bool link_form = 13;
   // State as computed by the control plane; never written by a client.
   GrantState state = 14;
@@ -47,7 +45,7 @@ enum GrantState {
   GRANT_STATE_EXPIRED = 2;
   GRANT_STATE_EXHAUSTED = 3;
   GRANT_STATE_REVOKED = 4;
-  // Rooted in an external binding that failed re-verification (§5.1 of docs/08-identity.md).
+  // Rooted in an external binding that failed re-verification.
   GRANT_STATE_SUSPENDED = 5;
 }
 
@@ -61,9 +59,8 @@ message TemplateRef {
   uint64 version = 2;
 }
 
-// Where a grant applies. Containment (§3.3 of docs/08-identity.md):
-// volume, endpoint, stream ⊑ workload ⊑ project ⊑ organization ⊑ any ancestor organization;
-// a selector within P ⊑ P.
+// Where a grant applies. Containment: volume, endpoint, stream ⊑ workload ⊑ project ⊑ organization
+// ⊑ any ancestor organization; a selector within P ⊑ P.
 message Scope {
   oneof kind {
     string organization = 1;
@@ -75,18 +72,16 @@ message Scope {
     string node = 7;
     SelectorScope selector = 8;
     string repository = 9;
-    // A domain an organization holds (§3.2 of docs/07-networking.md).
+    // A domain an organization holds.
     string domain = 10;
-    // A certificate an organization holds for the ingress (§3.2 of docs/07-networking.md).
+    // A certificate an organization holds for the ingress.
     string certificate = 11;
-    // A portal, a name the control plane answers under for an organization (§3.6 of
-    // docs/07-networking.md).
+    // A portal, a name the control plane answers under for an organization.
     string portal = 12;
   }
 }
 
-// Every object inside `within` that the selector matches at evaluation time (§3.4 of
-// docs/08-identity.md).
+// Every object inside `within` that the selector matches at evaluation time.
 message SelectorScope {
   Scope within = 1;
   LabelSelector selector = 2;
@@ -99,14 +94,12 @@ message Conditions {
   // Absent means unrestricted. Checked at the gateway and at the relay.
   repeated string source_cidr = 3;
   bool requires_mfa = 4;
-  // This grant can propose, not apply; approvers hold plan.approve over a scope containing it
-  // (§3.6 of docs/08-identity.md).
+  // This grant can propose, not apply; approvers hold plan.approve over a scope containing it.
   Scope requires_approval_by = 5;
-  // Redeemed online (§6.2 of docs/08-identity.md).
+  // Redeemed online.
   optional uint64 max_uses = 6;
-  // Only the records of a workload's stream written in this range, by the node's clock, may be
-  // read under it; a grant carrying one permits nothing but workload.console.read (§8 of
-  // docs/14-streams.md).
+  // Only the records of a workload's stream written in this range, by the node's clock, may be read
+  // under it; a grant carrying one permits nothing but workload.console.read.
   TimeRange stream_range = 7;
 }
 
@@ -116,8 +109,8 @@ message TimeRange {
   google.protobuf.Timestamp to = 2;
 }
 
-// Whether, how deep, and with which actions a grant may be attenuated into children (§3.2 of
-// docs/08-identity.md). Delegating is a property of the grant, not an action.
+// Whether, how deep, and with which actions a grant may be attenuated into children. Delegating is
+// a property of the grant, not an action.
 message DelegationPolicy {
   bool allowed = 1;
   // How many further levels may exist beneath this grant. Absent means unbounded, which only a
@@ -127,9 +120,9 @@ message DelegationPolicy {
   repeated string actions = 3;
 }
 
-// A named, versioned request for a grant, owned by an organization and offered to its subtree.
-// A role in the interface, not in the model (§4 of docs/08-identity.md): applying one attenuates
-// a grant the issuer holds, and no authorization decision reads it.
+// A named, versioned request for a grant, owned by an organization and offered to its subtree. A
+// role in the interface, not in the model: applying one attenuates a grant the issuer holds, and no
+// authorization decision reads it.
 message GrantTemplate {
   reserved 7;
   string id = 1;
@@ -170,9 +163,9 @@ message TemplateConditions {
   optional uint64 max_uses = 4;
 }
 
-// How an external identity maps to a subject (§5 of docs/08-identity.md, the one definition).
-// A binding grants nothing: it says which provider vouches for its subject, how often that is
-// re-checked, and, for a set, what its members receive.
+// How an external identity maps to a subject (the one definition). A binding grants nothing: it
+// says which provider vouches for its subject, how often that is re-checked, and, for a set, what
+// its members receive.
 message IdentityBinding {
   string id = 1;
   // The identity provider that verifies it: its name among the identity providers installed
@@ -182,22 +175,21 @@ message IdentityBinding {
   // A person or a set, as the subject says.
   BindingKind kind = 4;
   BindingOrigin created_by = 5;
-  // For a set: the template every grant to it is issued from, at this version (§3.4 of
-  // docs/08-identity.md). Without one, a grant to the set may not delegate.
+  // For a set: the template every grant to it is issued from, at this version. Without one, a grant
+  // to the set may not delegate.
   optional TemplateRef template = 6;
   BindingConstraints constraints = 7;
   // Between one minute and one day; fifteen minutes when not said.
   google.protobuf.Duration reverify_interval = 8;
   // As evaluation finds it when read: unverified once its last confirmation, interval, and grace
-  // have passed, though no re-verification has recorded that yet (§5.1 of docs/08-identity.md).
+  // have passed, though no re-verification has recorded that yet.
   BindingState state = 9;
   // Absent until its provider first confirms it.
   google.protobuf.Timestamp last_verified_at = 10;
   // The organization its provider is installed into, where it is declared; it vouches only
   // there and beneath.
   string organization = 11;
-  // For a set: an operator deliberately let grants to it carry irreversible actions (§5.2 of
-  // docs/08-identity.md).
+  // For a set: an operator deliberately let grants to it carry irreversible actions.
   bool allows_irreversible = 12;
   // 1 when made, one more at every change; an edit names the version it was made against.
   uint64 version = 13;
@@ -226,12 +218,11 @@ enum BindingState {
 }
 
 message BindingConstraints {
-  // For a set: other sets at the same provider its members must also be in, checked when a
-  // member acts through the set against the sets the provider has just asserted they are in
-  // (§5.2 of docs/08-identity.md), and asked of the provider at every re-verification.
+  // For a set: other sets at the same provider its members must also be in, checked when a member
+  // acts through the set against the sets the provider has just asserted they are in, and asked of
+  // the provider at every re-verification.
   repeated ExternalSet require_membership = 1;
-  // How long an unreachable provider extends the binding past its interval before its grants
-  // are suspended (§5.1 of docs/08-identity.md): at most one hour; fifteen minutes when not
-  // said.
+  // How long an unreachable provider extends the binding past its interval before its grants are
+  // suspended: at most one hour; fifteen minutes when not said.
   google.protobuf.Duration grace = 2;
 }

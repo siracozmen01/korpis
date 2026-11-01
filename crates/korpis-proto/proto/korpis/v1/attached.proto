@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Attached resources: volumes, endpoints, and streams (§3.6 of docs/01-model.md). Extensions
-// (§3.7) are in extension.proto.
+// Attached resources: volumes, endpoints, and streams. Extensions are in extension.proto.
 
 syntax = "proto3";
 
@@ -25,22 +24,21 @@ message Volume {
   repeated string snapshots = 9;
   google.protobuf.Timestamp created = 10;
   google.protobuf.Timestamp deleted_at = 11;
-  // Whether its size is enforced in the write path; size_bytes is zero, and shown nowhere, when
-  // it is not (Rule K-3, §2 of docs/06-storage.md).
+  // Whether its size is enforced in the write path; size_bytes is zero, and shown nowhere, when it
+  // is not.
   bool quota_enforced = 12;
   VolumeKind kind = 13;
   // When the workload it was attached to let go of it; the volume and its data remain.
   google.protobuf.Timestamp detached_at = 14;
   // The workload it was created for.
   string created_by = 15;
-  // The storage a shared class's volume is in, as the nodes offering it read it at their mounts
-  // (§2.1 of docs/06-storage.md); empty for a volume on one node's disk, whose node is set.
+  // The storage a shared class's volume is in, as the nodes offering it read it at their mounts;
+  // empty for a volume on one node's disk, whose node is set.
   string store = 16;
-  // The nodes keeping a replica of it, by node, for a volume whose workload asks for replicas
-  // (§2.2 of docs/06-storage.md).
+  // The nodes keeping a replica of it, by node, for a volume whose workload asks for replicas.
   repeated VolumeReplica replicas = 17;
-  // The copies of it left on nodes its workload failed over from onto a replica, each holding
-  // what was written there after the replica last received (§2.2 of docs/06-storage.md).
+  // The copies of it left on nodes its workload failed over from onto a replica, each holding what
+  // was written there after the replica last received.
   repeated VolumeDivergent divergent = 18;
   // For such a copy, itself a volume, the volume it diverged from.
   optional string divergent_of = 19;
@@ -59,9 +57,9 @@ message VolumeReplica {
   google.protobuf.Timestamp stale_at = 4;
 }
 
-// A copy of a volume left on the node it was on when its workload failed over onto a replica:
-// a volume of its own, retained and held by no workload, never collected, and deleted as any
-// retained volume is, only by a plan (§7 of docs/06-storage.md).
+// A copy of a volume left on the node it was on when its workload failed over onto a replica: a
+// volume of its own, retained and held by no workload, never collected, and deleted as any retained
+// volume is, only by a plan.
 message VolumeDivergent {
   string node = 1;
   // When the volume left it.
@@ -73,8 +71,8 @@ message VolumeDivergent {
   string volume = 4;
 }
 
-// A point a volume can be rolled back to, on its node and filesystem (§4 of docs/06-storage.md):
-// no protection against losing either, which is what a backup is for.
+// A point a volume can be rolled back to, on its node and filesystem: no protection against losing
+// either, which is what a backup is for.
 message Snapshot {
   string id = 1;
   string volume = 2;
@@ -88,7 +86,7 @@ enum VolumeKind {
   VOLUME_KIND_UNSPECIFIED = 0;
   // One the workload declared.
   VOLUME_KIND_DECLARED = 1;
-  // Its console stream's (§4 of docs/14-streams.md).
+  // Its console stream's.
   VOLUME_KIND_STREAM = 2;
 }
 
@@ -108,9 +106,9 @@ message Endpoint {
   NetworkPolicy policy = 11;
   bool accounting = 12;
   ShapingSpec shaping = 13;
-  // For an ingress endpoint the proxy terminates: the certificate it is served with, once one
-  // with a key is held, and that certificate's revision; its node fetches the certificate again
-  // when the revision changes (§3.2 of docs/07-networking.md).
+  // For an ingress endpoint the proxy terminates: the certificate it is served with, once one with
+  // a key is held, and that certificate's revision; its node fetches the certificate again when the
+  // revision changes.
   string certificate = 14;
   int64 certificate_revision = 15;
 }
@@ -124,9 +122,9 @@ message Address {
   string node = 3;
   // For stable: the edge failover group serving it.
   string edge_group = 4;
-  // For stable: why the control plane does not know it reached now, which its group's probe
-  // and its address's lease say; empty where they do not. The workload keeps its state and
-  // placement either way (§3.1 of docs/07-networking.md).
+  // For stable: why the control plane does not know it reached now, which its group's probe and its
+  // address's lease say; empty where they do not. The workload keeps its state and placement either
+  // way.
   string unreached = 5;
 }
 
@@ -140,26 +138,26 @@ message Stream {
     uint64 retention_bytes = 5;
   }
   // Was `bool indexed`, a field the model gave no meaning: a stream is searched by scanning the
-  // node's segment files (§8 of docs/14-streams.md), so there is no index to turn on.
+  // node's segment files, so there is no index to turn on.
   reserved 6;
   reserved "indexed";
-  // Bytes held only on the node, not yet offloaded (§4 of docs/14-streams.md).
+  // Bytes held only on the node, not yet offloaded.
   uint64 node_only_bytes = 7;
   // Its segments, oldest first, as the control plane last heard of them.
   repeated StreamSegment segments = 8;
   // How long an offloaded segment is kept: what the workload declares, raised to the operator's
   // floor where it is lower.
   google.protobuf.Duration offload_retention = 9;
-  // The operator's floor, disclosed (§8 of docs/17-security.md); zero when there is none.
+  // The operator's floor, disclosed; zero when there is none.
   google.protobuf.Duration retention_floor = 10;
-  // The run whose console it is, for a task or scheduled workload, each run's its own (§4 of
-  // docs/14-streams.md); empty for a persistent workload's.
+  // The run whose console it is, for a task or scheduled workload, each run's its own; empty for a
+  // persistent workload's.
   string run = 11;
 }
 
-// A contiguous run of a stream's records, the unit a node seals, offloads, and migrates (§4 of
-// docs/14-streams.md). The agent journals each seal and offload; the control plane holds this
-// index, so offloaded segments stay findable when their node is gone.
+// A contiguous run of a stream's records, the unit a node seals, offloads, and migrates. The agent
+// journals each seal and offload; the control plane holds this index, so offloaded segments stay
+// findable when their node is gone.
 message StreamSegment {
   // The offset of its first record, and one past its last.
   uint64 first_offset = 1;
@@ -188,7 +186,7 @@ enum StreamKind {
   STREAM_KIND_METRIC = 4;
 }
 
-// A place in a backup target that workloads' backups are kept in (§5.3 of docs/06-storage.md).
+// A place in a backup target that workloads' backups are kept in.
 message Repository {
   string id = 1;
   string organization = 2;
@@ -203,16 +201,15 @@ message Repository {
   KeyCustody key_custody = 7;
   RetentionPolicy retention = 8;
   google.protobuf.Timestamp created = 9;
-  // Whether the console streams of the workloads it serves are offloaded to it (§4 of
-  // docs/14-streams.md): at most one repository per organization as a whole and one per
-  // project, the project's taken first.
+  // Whether the console streams of the workloads it serves are offloaded to it: at most one
+  // repository per organization as a whole and one per project, the project's taken first.
   bool streams = 10;
   // Under tenant custody, the tenant's key that makes and opens its data keys.
   TenantKey kms = 11;
 }
 
 // A tenant's key in its own key management service, reached through the organization's
-// key_management provider (§5.5 of docs/06-storage.md).
+// key_management provider.
 message TenantKey {
   // The provider, by name.
   string provider = 1;
@@ -220,7 +217,7 @@ message TenantKey {
   string key = 2;
 }
 
-// Who holds a repository's key-encryption key (§5.5 of docs/06-storage.md).
+// Who holds a repository's key-encryption key.
 enum KeyCustody {
   KEY_CUSTODY_UNSPECIFIED = 0;
   // The control plane: the operator can read tenants' backups, through a grant naming the
@@ -246,7 +243,7 @@ message RetentionPolicy {
   google.protobuf.Duration min_retention = 8;
 }
 
-// One backup of one volume, as the node that ran it reported it (§5 of docs/06-storage.md).
+// One backup of one volume, as the node that ran it reported it.
 message Backup {
   string id = 1;
   string repository = 2;
@@ -270,9 +267,9 @@ message Backup {
   google.protobuf.Timestamp created = 18;
   google.protobuf.Timestamp finished = 19;
   google.protobuf.Timestamp deleted_at = 20;
-  // For a block device's backup, the filesystem its image holds (`ext4`): the backup is that
-  // one image, and its files are browsed and read inside a guest, never by the control plane
-  // (§5.4 of docs/06-storage.md). Empty for a volume of files.
+  // For a block device's backup, the filesystem its image holds (`ext4`): the backup is that one
+  // image, and its files are browsed and read inside a guest, never by the control plane. Empty for
+  // a volume of files.
   string image_filesystem = 21;
 }
 
@@ -283,9 +280,8 @@ enum BackupStatus {
   BACKUP_STATUS_FAILED = 3;
 }
 
-// A DNS name an organization holds (§3.2 of docs/07-networking.md, §3.6 of docs/01-model.md): it
-// covers itself and every name beneath it, and its organization's endpoints may route the names
-// it is the most specific verified domain for.
+// A DNS name an organization holds: it covers itself and every name beneath it, and its
+// organization's endpoints may route the names it is the most specific verified domain for.
 message Domain {
   string id = 1;
   string organization = 2;
@@ -301,8 +297,8 @@ message Domain {
   google.protobuf.Timestamp created_at = 9;
 }
 
-// A certificate an organization holds for the ingress (§3.2 of docs/07-networking.md, §3.6 of
-// docs/01-model.md), without its key, which the control plane keeps sealed.
+// A certificate an organization holds for the ingress, without its key, which the control plane
+// keeps sealed.
 message Certificate {
   string id = 1;
   string organization = 2;
@@ -321,16 +317,16 @@ message Certificate {
   // Raised whenever its chain and key change.
   int64 revision = 11;
   google.protobuf.Timestamp created_at = 12;
-  // Its key was given to a node later removed as compromised (§9 of docs/17-security.md): an
-  // acme certificate is given a new key at once; a provided one waits for its organization to
-  // replace it with a chain for another key, which clears this.
+  // Its key was given to a node later removed as compromised: an acme certificate is given a new
+  // key at once; a provided one waits for its organization to replace it with a chain for another
+  // key, which clears this.
   bool exposed = 13;
   // For CERTIFICATE_SOURCE_ACME made for a portal: the portal whose name it is for.
   string portal = 14;
 }
 
-// A name the control plane answers under for an organization (§3.6 of docs/07-networking.md,
-// §3.6 of docs/01-model.md): its API, its panel in the organization's theme, and its sign-in.
+// A name the control plane answers under for an organization: its API, its panel in the
+// organization's theme, and its sign-in.
 message Portal {
   string id = 1;
   string organization = 2;
@@ -345,9 +341,8 @@ message Portal {
   google.protobuf.Timestamp created_at = 8;
 }
 
-// An address pool (§3.6 of docs/01-model.md, §3.7 of docs/07-networking.md): addresses an
-// organization's nodes hold for the workloads with a `dedicated_ip` endpoint that it and those
-// below it run. Added 2026-10-26.
+// An address pool: addresses an organization's nodes hold for the workloads with a `dedicated_ip`
+// endpoint that it and those below it run.
 message AddressPool {
   string id = 1;
   string organization = 2;
@@ -357,7 +352,7 @@ message AddressPool {
   // For a node pool, the node its addresses are routed to.
   string node = 5;
   // For a cluster pool, the address router that moves each to the node holding it: an extension
-  // installation providing the `address_router` kind (§5 of docs/16-extensions.md).
+  // installation providing the `address_router` kind.
   string router = 6;
   AddressRouting routing = 7;
   // The node's interface its addresses are answered for on, where they are on the node's link;
@@ -371,14 +366,13 @@ message AddressPool {
   // and ports `stable` endpoints hold.
   uint64 held = 11;
   google.protobuf.Timestamp created_at = 12;
-  // For an edge pool, the edge group whose members hold its addresses, `egr_...` (§3.1 of
-  // docs/07-networking.md); its router, where it names one, is `router`. Added 2026-10-26.
+  // For an edge pool, the edge group whose members hold its addresses, `egr_...`; its router, where
+  // it names one, is `router`.
   string group = 13;
 }
 
 // Two or more of an organization's nodes holding the stable addresses of its `stable` endpoints,
-// and those of the organizations below it, each address on one member at a time (§3.1 of
-// docs/07-networking.md, §3.6 of docs/01-model.md). Added 2026-10-26.
+// and those of the organizations below it, each address on one member at a time.
 message EdgeGroup {
   string id = 1;
   string organization = 2;
@@ -403,8 +397,7 @@ message EdgeGroup {
   // Each address of its pools, with the member holding it.
   repeated EdgeHolding holdings = 13;
   // Its ingress addresses, one of each family at most, at which its members' proxies serve the
-  // names of the `ingress` endpoints it serves (§3.1 of docs/07-networking.md); none until a
-  // placement first needs one.
+  // names of the `ingress` endpoints it serves; none until a placement first needs one.
   repeated string ingress_addresses = 14;
 }
 

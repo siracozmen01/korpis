@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Serving a portal (§3.6 of docs/07-networking.md), validated for real: Pebble resolves the
-//! portal's name to this machine and proves it by TLS-ALPN-01 against the control plane's own
-//! listener, which answers from the challenge the issuer recorded; the certificate issued is then
-//! served to a client naming the portal, which verifies it against Pebble's issuing root; a
-//! request naming another host on its connection is refused 421; and a cross-origin call is
-//! answered for the portal's own origin alone.
+//! Serving a portal, validated for real: Pebble resolves the portal's name to this machine and
+//! proves it by TLS-ALPN-01 against the control plane's own listener, which answers from the
+//! challenge the issuer recorded; the certificate issued is then served to a client naming the
+//! portal, which verifies it against Pebble's issuing root; a request naming another host on its
+//! connection is refused 421; and a cross-origin call is answered for the portal's own origin
+//! alone.
 
 use crate::panel::PANEL;
 use crate::routes::attest;

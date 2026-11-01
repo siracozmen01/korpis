@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's dedicated address, given where it is placed (§3.7 of docs/07-networking.md):
-//! under the placement lock, in the transaction that binds it, the lowest free address of a pool
-//! that serves it and reaches its node, or the one it holds where that reaches the node already.
-//! A workload whose `stable` endpoints are routed, no edge group serving it, holds its address of
-//! a `cluster` pool alone, which follows it to any node (§3.1 there).
+//! A workload's dedicated address, given where it is placed: under the placement lock, in the
+//! transaction that binds it, the lowest free address of a pool that serves it and reaches its
+//! node, or the one it holds where that reaches the node already. A workload whose `stable`
+//! endpoints are routed, no edge group serving it, holds its address of a `cluster` pool alone,
+//! which follows it to any node.
 
 use crate::App;
 use crate::error::AppError;

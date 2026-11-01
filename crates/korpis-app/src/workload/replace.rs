@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Re-placing a workload whose bound node's driver refused it after the bind (§2.1 of
-//! docs/05-scheduling.md). The node runs `Prepare` again before it makes anything, because the
-//! node may have changed since the shortlist asked, and a refusal before anything of the workload
-//! was made there is journalled as `step.refused`. Nothing there is lost by moving it: the refusal
-//! is kept for the target, the placement is undone, and the workload is placed again with that
-//! node left out, its plan still open, to run from its first step wherever it lands. A workload an
-//! operator placed by hand is not moved, since the scheduler does not overrule that choice (§2.3);
-//! its plan fails as any other does, and a workload that ran on the node never reports a refusal
-//! this way, so it stays and moving it is migration (§8). A workload on a node removed as
-//! compromised is placed again the same way, from its target.
+//! Re-placing a workload whose bound node's driver refused it after the bind. The node runs
+//! `Prepare` again before it makes anything, because the node may have changed since the shortlist
+//! asked, and a refusal before anything of the workload was made there is journalled as
+//! `step.refused`. Nothing there is lost by moving it: the refusal is kept for the target, the
+//! placement is undone, and the workload is placed again with that node left out, its plan still
+//! open, to run from its first step wherever it lands. A workload an operator placed by hand is not
+//! moved, since the scheduler does not overrule that choice; its plan fails as any other does, and
+//! a workload that ran on the node never reports a refusal this way, so it stays and moving it is
+//! migration. A workload on a node removed as compromised is placed again the same way, from its
+//! target.
 
 use super::place::place_effect;
 use crate::App;
@@ -66,10 +66,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(true)
     }
 
-    /// Places `workload` again away from `node`, which is being removed as compromised (§9 of
-    /// docs/17-security.md): its placement there is undone and it is placed from its target as
-    /// any workload is, the node no longer among those that serve; whether it was on `node`.
-    /// An operator's placement there is undone too, since the node it named is gone.
+    /// Places `workload` again away from `node`, which is being removed as compromised: its
+    /// placement there is undone and it is placed from its target as any workload is, the node no
+    /// longer among those that serve; whether it was on `node`. An operator's placement there is
+    /// undone too, since the node it named is gone.
     pub(crate) async fn displace(
         &self,
         tx: &mut S::Tx,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Health providers' calls in the stored queue (§5 of docs/04-runtimes.md): a query probe's
-//! step, with the rounds a node ran, each sent and read byte as hex, and the provider's answer,
-//! the next round or the verdict. A query's bytes are a game's status, never a secret, and they
-//! are kept an hour with every finished call.
+//! Health providers' calls in the stored queue: a query probe's step, with the rounds a node ran,
+//! each sent and read byte as hex, and the provider's answer, the next round or the verdict. A
+//! query's bytes are a game's status, never a secret, and they are kept an hour with every finished
+//! call.
 
 use super::keys::{hex, unhex};
 use korpis_core::extension::health::{HealthNext, HealthStep, Round, Transport};

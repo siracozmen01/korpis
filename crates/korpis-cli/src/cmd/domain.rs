@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis domain …` (§3.2 of docs/07-networking.md): the names an organization holds, which its
-//! endpoints may route once verified.
+//! `korpis domain …`: the names an organization holds, which its endpoints may route once verified.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

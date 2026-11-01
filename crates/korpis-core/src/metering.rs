@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Metering (§2 of docs/15-observability.md, "Measuring it, as designed"): what a node's sample
-//! says, and what the control plane makes of it. A sample carries a workload's counters since it
-//! first ran on its node, so what an interval used is the difference of two samples of the same
-//! workload on the same node, and samples lost between them leave one record spanning their
-//! intervals: the total measured, its division among them not.
+//! Metering ("Measuring it, as designed"): what a node's sample says, and what the control plane
+//! makes of it. A sample carries a workload's counters since it first ran on its node, so what an
+//! interval used is the difference of two samples of the same workload on the same node, and
+//! samples lost between them leave one record spanning their intervals: the total measured, its
+//! division among them not.
 
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -179,9 +179,9 @@ pub const OLDEST: Duration = Duration::from_secs(400 * 86_400);
 /// How far ahead of it: a node's clock that runs ahead by more is not believed.
 pub const AHEAD: Duration = Duration::from_secs(3600);
 
-/// Why `sample` cannot be believed at `now`, if it cannot: a node's word is checked before it
-/// is stored, so one record no store could hold rejects that record rather than stopping its
-/// node's journal behind it (§4.10 of docs/02-architecture.md).
+/// Why `sample` cannot be believed at `now`, if it cannot: a node's word is checked before it is
+/// stored, so one record no store could hold rejects that record rather than stopping its node's
+/// journal behind it.
 #[must_use]
 pub fn implausible(sample: &Sample, now: SystemTime) -> Option<&'static str> {
     let oldest = now.checked_sub(OLDEST).unwrap_or(SystemTime::UNIX_EPOCH);
@@ -292,7 +292,7 @@ pub struct Record {
     pub memory_peak_bytes: Option<u64>,
     /// The bytes its volumes held at its end.
     pub disk_bytes: Option<u64>,
-    /// Those bytes are what block devices' images have allocated (§3.1 of docs/06-storage.md).
+    /// Those bytes are what block devices' images have allocated.
     pub disk_allocated: bool,
     /// What the node could not measure within it.
     pub losses: Vec<Loss>,

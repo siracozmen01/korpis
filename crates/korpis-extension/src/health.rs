@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Writing a health provider (§5 of docs/04-runtimes.md, §5 of docs/16-extensions.md). A health
-//! provider knows a query protocol, a game's status query say, and nothing of where the workload
-//! is: the node that runs the workload holds the socket, inside the workload's network namespace,
-//! and runs each round of the exchange, and the provider is asked, after each, what to send next
-//! or how the workload is. At most four rounds are run before a verdict is due; an answer beyond
-//! the bounds of `korpis.v1.HealthSend` is the provider's malfunction. Requires the
-//! `provider.health` capability.
+//! Writing a health provider. A health provider knows a query protocol, a game's status query say,
+//! and nothing of where the workload is: the node that runs the workload holds the socket, inside
+//! the workload's network namespace, and runs each round of the exchange, and the provider is
+//! asked, after each, what to send next or how the workload is. At most four rounds are run before
+//! a verdict is due; an answer beyond the bounds of `korpis.v1.HealthSend` is the provider's
+//! malfunction. Requires the `provider.health` capability.
 
 pub use crate::provider::Failure;
 use crate::provider::{Handler, Outcome, Unsupported};

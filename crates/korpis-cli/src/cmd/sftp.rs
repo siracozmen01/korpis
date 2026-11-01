@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis sftp <workload>` (§8 of docs/13-surface-cli.md): where an SFTP client reaches a
-//! workload's files, and which host key to expect, for each server `ServerInfo` names. It opens
-//! nothing itself, the client being the person's own; it prints the line a client takes, the
-//! fingerprint a client shows on its first connection, and a `known_hosts` line to add, so that
-//! connection is checked rather than trusted.
+//! `korpis sftp <workload>`: where an SFTP client reaches a workload's files, and which host key to
+//! expect, for each server `ServerInfo` names. It opens nothing itself, the client being the
+//! person's own; it prints the line a client takes, the fingerprint a client shows on its first
+//! connection, and a `known_hosts` line to add, so that connection is checked rather than trusted.
 
 use super::{Answer, json};
 use crate::connect::Connection;

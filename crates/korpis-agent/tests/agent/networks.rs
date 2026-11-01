@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A running workload's network follows its assignment (§5.1 of docs/05-scheduling.md, Finding
-//! 181 of docs/23-walkthroughs.md): when the control plane holds it to a spent egress budget, its
-//! node asks the helper for its network again, held, without the workload being created again;
-//! and lets it go again once the hold is lifted.
+//! A running workload's network follows its assignment: when the control plane holds it to a spent
+//! egress budget, its node asks the helper for its network again, held, without the workload being
+//! created again; and lets it go again once the hold is lifted.
 
 use crate::health::{declare, observed};
 use crate::session::until;

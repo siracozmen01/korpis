@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // The calls behind a workload's actions. Each is proposed (a power change with `propose`, a
-// deletion always), so the control plane computes and keeps its plan and applies nothing yet;
-// the panel then confirms that very plan, by its identifier, or withdraws it. A plan previewed is
+// deletion always), so the control plane computes and keeps its plan and applies nothing yet; the
+// panel then confirms that very plan, by its identifier, or withdraws it. A plan previewed is
 // therefore the plan that runs, and a world that moved in between is a refusal rather than a
-// surprise (§4 of docs/13-surface-cli.md).
+// surprise.
 
 import type { Clients } from "../clients";
 import type { WorkloadStatus } from "../gen/korpis/v1/api_pb";
 import { PowerState, type Plan } from "../gen/korpis/v1/workload_pb";
 import { t } from "../i18n/intl";
 
-/** An action on a workload, by the action name a grant holds for it (§5 of docs/10-api.md). */
+/** An action on a workload, by the action name a grant holds for it. */
 export type Action = "workload.start" | "workload.stop" | "workload.restart" | "workload.delete";
 
 /** The words of each action's button. */
@@ -69,7 +69,7 @@ export async function propose(
     case "workload.restart":
       return (await w.restart({ mutation: power, workload, propose: true })).plan;
     case "workload.delete":
-      // A deletion is always proposed: it is irreversible (§5 of docs/10-api.md).
+      // A deletion is always proposed: it is irreversible.
       return (
         await w.deleteWorkload({
           mutation: { idempotencyKey: key(), expectedVersion: status.head?.version ?? 0n },

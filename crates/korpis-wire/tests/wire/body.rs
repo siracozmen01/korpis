@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The stored intent body (§3.1 of docs/03-state.md).
+//! The stored intent body.
 
 use crate::support::body;
 use korpis_wire::body::{SCHEMA_VERSION, decode, encode};

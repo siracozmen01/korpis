@@ -24,7 +24,7 @@ struct Cli {
     #[arg(long, default_value = "/run/containerd/containerd.sock")]
     containerd: PathBuf,
     /// containerd's state directory, its `state` setting, where its runtime keeps each task's
-    /// bundle: what the driver cleans up after a shim that died (§4.2 of docs/04-runtimes.md).
+    /// bundle: what the driver cleans up after a shim that died.
     #[arg(long, default_value = korpis_driver_oci::containerd::STATE)]
     containerd_state: PathBuf,
     /// The node's content store, which the agent fills and the driver only reads.
@@ -33,12 +33,11 @@ struct Cli {
     /// The directory the helper keeps volumes under.
     #[arg(long, default_value = "/var/lib/korpis/volumes")]
     volume_root: PathBuf,
-    /// The root of a shared storage class, as the helper's `--shared-class` names it; repeatable
-    /// (§2.1 of docs/06-storage.md).
+    /// The root of a shared storage class, as the helper's `--shared-class` names it; repeatable.
     #[arg(long = "shared-root")]
     shared_roots: Vec<PathBuf>,
     /// The directory the helper mounts block classes' volumes under, as its `--block-root` names
-    /// it (§2.1 of docs/06-storage.md).
+    /// it.
     #[arg(long, default_value = "/var/lib/korpis/block")]
     block_root: PathBuf,
     /// The directory the agent makes workload identity sockets under; with the volume root, the
@@ -52,20 +51,20 @@ struct Cli {
     /// A user allowed to connect, by uid; repeatable. Without one, only the driver's own user.
     #[arg(long = "allow-uid")]
     allow_uids: Vec<u32>,
-    /// The stream writer containerd starts beside each task (§4 of docs/14-streams.md); by
-    /// default the `korpis-stream-writer` installed beside this binary.
+    /// The stream writer containerd starts beside each task; by default the `korpis-stream-writer`
+    /// installed beside this binary.
     #[arg(long, env = "KORPIS_STREAM_WRITER")]
     stream_writer: Option<PathBuf>,
     /// The driver's own state: the files it hands each task's stream writer.
     #[arg(long, default_value = "/var/lib/korpis-driver-oci")]
     state_dir: PathBuf,
-    /// A directory of Container Device Interface spec files a device's edits are read from, as
-    /// the agent's `--cdi-dir` names them; repeatable (§4.2 of docs/04-runtimes.md).
+    /// A directory of Container Device Interface spec files a device's edits are read from, as the
+    /// agent's `--cdi-dir` names them; repeatable.
     #[arg(long = "cdi-dir", default_values = ["/etc/cdi", "/var/run/cdi"])]
     cdi_dirs: Vec<PathBuf>,
     /// The cgroup, from the unified hierarchy's root, its containers live under: those holding
     /// dedicated cores in its `dedicated` cgroup, the rest in its `shared` one, whose cpusets the
-    /// node's helper keeps (§5.2 of docs/05-scheduling.md).
+    /// node's helper keeps.
     #[arg(long, default_value = "/korpis")]
     cgroup_parent: String,
     /// `kept`: a container holding dedicated cores is a cpuset partition of its own, so the

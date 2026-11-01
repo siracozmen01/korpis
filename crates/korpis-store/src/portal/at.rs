@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What was begun and registered at a portal (§9.8 of docs/08-identity.md): its sessions and its
-//! passkeys, counted before it is deleted and ended and removed when it is.
+//! What was begun and registered at a portal: its sessions and its passkeys, counted before it is
+//! deleted and ended and removed when it is.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

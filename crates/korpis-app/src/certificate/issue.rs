@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Issuing `acme` certificates (§3.2 of docs/07-networking.md). The issuer takes one certificate
-//! due at a time, under a lease no other issuer takes it through, and orders it from the
-//! directory, each name proven by DNS or over HTTP as `publish` says. What is issued is read and
-//! checked like an upload, its key sealed, and its revision raised, so the nodes fetch it; the
-//! order's DNS records are withdrawn however it ended. A failure is recorded with its reason and
-//! retried after a backoff; a certificate issued before keeps serving meanwhile.
+//! Issuing `acme` certificates. The issuer takes one certificate due at a time, under a lease no
+//! other issuer takes it through, and orders it from the directory, each name proven by DNS or over
+//! HTTP as `publish` says. What is issued is read and checked like an upload, its key sealed, and
+//! its revision raised, so the nodes fetch it; the order's DNS records are withdrawn however it
+//! ended. A failure is recorded with its reason and retried after a backoff; a certificate issued
+//! before keeps serving meanwhile.
 
 use crate::App;
 use crate::error::AppError;
@@ -41,11 +41,9 @@ pub(super) struct Order {
     /// portal's.
     pub(super) nodes: Vec<Uuid>,
     /// The members of each edge group serving its endpoint that serve the ingress and are
-    /// connected, which say what their proxies hold of the challenges themselves (§3.1 of
-    /// docs/07-networking.md).
+    /// connected, which say what their proxies hold of the challenges themselves.
     pub(super) members: Vec<Uuid>,
-    /// Whether it is a portal's, which no node serves, so HTTP-01 has nowhere to be answered
-    /// (§3.6 of docs/07-networking.md).
+    /// Whether it is a portal's, which no node serves, so HTTP-01 has nowhere to be answered.
     pub(super) portal: bool,
     /// The way a node's proxy is to prove the names no DNS provider proves, this attempt.
     pub(super) way: NodeProof,

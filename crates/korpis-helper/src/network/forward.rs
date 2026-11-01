@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The ports of the node forwarded to a workload (§3 of docs/07-networking.md). The host's table
-//! has one map, from a node's port to the chain of the workload holding it, consulted for every
-//! new connection to an address of the node; each workload's chain translates the destination
-//! of its ports to its own address and the port inside it, and leaves the source alone, so the
-//! workload sees the client's own address. The loopback addresses are not forwarded: a packet
-//! from 127.0.0.1 cannot leave the host for a workload's link. Ports are unique on a node
-//! whatever their transport, since the control plane allocates them so, which is what lets the
-//! map be keyed by the port alone.
+//! The ports of the node forwarded to a workload. The host's table has one map, from a node's port
+//! to the chain of the workload holding it, consulted for every new connection to an address of the
+//! node; each workload's chain translates the destination of its ports to its own address and the
+//! port inside it, and leaves the source alone, so the workload sees the client's own address. The
+//! loopback addresses are not forwarded: a packet from 127.0.0.1 cannot leave the host for a
+//! workload's link. Ports are unique on a node whatever their transport, since the control plane
+//! allocates them so, which is what lets the map be keyed by the port alone.
 
 use super::nft::{TABLE, chain};
 use serde_json::{Value, json};

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server install` and `korpis-server admin recover-root` (§9.1 and §9.2 of
-//! docs/08-identity.md): by default the root grant is held by an account whose invitation is
-//! printed once; `--root-token` prints a token instead; and recovery runs only against an
-//! installation's own data directory.
+//! `korpis-server install` and `korpis-server admin recover-root`: by default the root grant is
+//! held by an account whose invitation is printed once; `--root-token` prints a token instead; and
+//! recovery runs only against an installation's own data directory.
 
 use korpis_core::tenancy::Name;
 use korpis_server::data::DataDir;

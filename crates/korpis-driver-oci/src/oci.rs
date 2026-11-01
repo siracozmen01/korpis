@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The OCI runtime specification of a container, built from a [`Valid`] spec and the image's
-//! configuration: the container tier's hardening, always and never as an option (§2 of
-//! docs/04-runtimes.md). User-namespace remapping onto the workload's id range, a read-only root
-//! filesystem, `no-new-privileges`, a short capability list, the kernel's sensitive interfaces
-//! masked, the seccomp allowlist, every namespace of its own (its network namespace holds only
-//! loopback until the networking of Phase 1), and its limits as cgroup v2 enforces them. A volume
-//! is bind-mounted with an idmapped mount, so its files keep workload-relative ids on disk (§4.5).
+//! configuration: the container tier's hardening, always and never as an option. User-namespace
+//! remapping onto the workload's id range, a read-only root filesystem, `no-new-privileges`, a
+//! short capability list, the kernel's sensitive interfaces masked, the seccomp allowlist, every
+//! namespace of its own (its network namespace holds only loopback until the networking of Phase
+//! 1), and its limits as cgroup v2 enforces them. A volume is bind-mounted with an idmapped mount,
+//! so its files keep workload-relative ids on disk.
 
 use crate::devices::Given;
 use crate::seccomp::{Seccomp, profile};
@@ -129,10 +129,10 @@ struct Namespace {
     path: Option<String>,
 }
 
-/// The namespaces a container runs in: each its own, except where the agent had a network made
-/// for it (§4.1 of docs/07-networking.md), whose network namespace and the user namespace that
-/// owns it, in the directory `made`, it joins by path. Its capabilities leave out
-/// `CAP_NET_ADMIN`, so it cannot change the network it joins.
+/// The namespaces a container runs in: each its own, except where the agent had a network made for
+/// it, whose network namespace and the user namespace that owns it, in the directory `made`, it
+/// joins by path. Its capabilities leave out `CAP_NET_ADMIN`, so it cannot change the network it
+/// joins.
 fn namespaces(made: &str) -> Vec<Namespace> {
     let kinds = ["pid", "ipc", "uts", "mount", "network", "user", "cgroup"];
     let joined = |file: &str| (!made.is_empty()).then(|| format!("{made}/{file}"));
@@ -334,14 +334,13 @@ pub fn runtime_spec(
         mounts.push(volume);
     }
     // The identity socket's directory: read-only, and not id-mapped, so the socket keeps the
-    // agent's ownership and the workload connects through its mode (§9.5 of
-    // docs/08-identity.md).
+    // agent's ownership and the workload connects through its mode.
     if !s.identity_dir.is_empty() {
         let options = ["rbind", "nosuid", "nodev", "noexec", "ro"];
         mounts.push(mount(IDENTITY_MOUNT, "bind", &s.identity_dir, &options));
     }
-    // The resolver its network was made with, named alone (§5.1 of docs/07-networking.md):
-    // read-only, so the workload cannot point itself elsewhere through the file.
+    // The resolver its network was made with, named alone: read-only, so the workload cannot point
+    // itself elsewhere through the file.
     let resolv = std::path::Path::new(&s.namespaces).join("resolv.conf");
     if !s.namespaces.is_empty() && resolv.is_file() {
         let options = ["rbind", "nosuid", "nodev", "noexec", "ro"];
@@ -353,7 +352,7 @@ pub fn runtime_spec(
     let mut spec = RuntimeSpec {
         oci_version: OCI_VERSION,
         process: Process {
-            // An interactive console runs under a terminal (§6 of docs/14-streams.md).
+            // An interactive console runs under a terminal.
             terminal: s.stream.as_option().is_some_and(|c| c.input),
             user: User { uid: image.user.0, gid: image.user.1, additional_gids: Vec::new() },
             args,

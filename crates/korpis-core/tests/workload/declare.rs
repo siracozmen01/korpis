@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A declaration completed by its recipe (§3.1 of docs/09-recipes.md).
+//! A declaration completed by its recipe.
 
 use korpis_core::recipe::behaviour::LifecycleHooks;
 use korpis_core::recipe::runtime::{
@@ -138,7 +138,7 @@ fn what_is_declared_wins_and_what_is_left_out_comes_from_the_preset() {
     let game = &body.endpoints[0];
     assert_eq!((game.container_port, game.exposure), (25565, Exposure::NodePort));
     let map = body.endpoints.iter().find(|e| e.name == "map").unwrap();
-    assert_eq!(map.exposure, Exposure::Stable, "the default exposure (§3 of 07-networking.md)");
+    assert_eq!(map.exposure, Exposure::Stable, "the default exposure");
 }
 
 #[test]

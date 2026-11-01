@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where recipes come from, and the store's copy of every recipe ever resolved (§2 and §8 of
-//! docs/09-recipes.md).
+//! Where recipes come from, and the store's copy of every recipe ever resolved.
 
 use super::StoreResult;
 use korpis_core::extension::ExtensionManifest;
@@ -25,15 +24,14 @@ pub enum SourceError {
     Invalid(String),
 }
 
-/// What a document describes: a workload, and, for an extension's document, the extension
-/// (§3.1 of docs/16-extensions.md).
+/// What a document describes: a workload, and, for an extension's document, the extension.
 #[derive(Debug, Clone)]
 pub struct Described {
     /// The validated recipe: all of a recipe's document, the workload of an extension's.
     pub recipe: Recipe,
     /// The validated `extension` block, exactly when the document is an extension's.
     pub extension: Option<ExtensionManifest>,
-    /// Its catalogues by locale, each checked against it (§5.3 of docs/09-recipes.md).
+    /// Its catalogues by locale, each checked against it.
     pub catalogues: BTreeMap<String, Catalogue>,
 }
 
@@ -88,7 +86,7 @@ pub struct CachedRecipe {
     pub version: String,
     /// The document.
     pub document: Vec<u8>,
-    /// The catalogues it came with, by locale (§5.3 of docs/09-recipes.md).
+    /// The catalogues it came with, by locale.
     pub catalogues: BTreeMap<String, Catalogue>,
 }
 

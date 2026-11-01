@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The effect log's record (§4 of docs/03-state.md): what was done, by whom, under which grant,
-//! and how it turned out. Every action is one, refusals included.
+//! The effect log's record: what was done, by whom, under which grant, and how it turned out. Every
+//! action is one, refusals included.
 
 pub mod denial;
 pub mod failure;
@@ -53,8 +53,8 @@ impl Outcome {
     }
 }
 
-/// Where a node-originated effect sits in that node's journal (§4.10 of
-/// docs/02-architecture.md); the pair is unique, which makes ingestion exactly-once.
+/// Where a node-originated effect sits in that node's journal; the pair is unique, which makes
+/// ingestion exactly-once.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JournalOrigin {
     /// The node.
@@ -80,16 +80,15 @@ pub struct Effect {
     pub workload: Option<Uuid>,
     /// The node it concerns.
     pub node: Option<Uuid>,
-    /// What it is about, the object its action was authorized over (§4 of
-    /// docs/15-observability.md); unnamed, its workload's or node's.
+    /// What it is about, the object its action was authorized over; unnamed, its workload's or
+    /// node's.
     pub object: Option<ObjectRef>,
     /// The organization whose subtree holds its object, which the store resolves as it writes
     /// it; `None` before then, and for a node or for nothing.
     pub organization: Option<Uuid>,
     /// Who acted.
     pub actor: Principal,
-    /// The client that relayed what the actor presented, when they acted through one (§5.2 of
-    /// docs/08-identity.md).
+    /// The client that relayed what the actor presented, when they acted through one.
     pub relay: Option<Principal>,
     /// The grant that permitted it; `None` for a refusal and for installation.
     pub grant: Option<Uuid>,
@@ -103,7 +102,7 @@ pub struct Effect {
     pub before: Option<Map<String, Value>>,
     /// The state after, for changes.
     pub after: Option<Map<String, Value>>,
-    /// Coalesced repeats: how many this entry stands for (§10 of docs/10-api.md).
+    /// Coalesced repeats: how many this entry stands for.
     pub count: u64,
     /// For coalesced repeats: the last one it covers; `occurred_at` is the first.
     pub window_end: Option<SystemTime>,

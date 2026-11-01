@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's key vault for `operator` custody (§5.5 of docs/06-storage.md): a backup
-//! key in the data directory, which seals each repository's key-encryption key, which seals each
-//! workload's data key. Each seal is XChaCha20-Poly1305 under a fresh random nonce with what it is
-//! for bound in as associated data, so a sealed key copied to another repository or workload does
-//! not open. The backup key is kept on restore, like the assignment key: without it no backup
-//! made under it can be read (§8 of docs/03-state.md).
+//! The control plane's key vault for `operator` custody: a backup key in the data directory, which
+//! seals each repository's key-encryption key, which seals each workload's data key. Each seal is
+//! XChaCha20-Poly1305 under a fresh random nonce with what it is for bound in as associated data,
+//! so a sealed key copied to another repository or workload does not open. The backup key is kept
+//! on restore, like the assignment key: without it no backup made under it can be read.
 
 use crate::data::DataDir;
 use crate::keys::{KeyError, load_or_create};

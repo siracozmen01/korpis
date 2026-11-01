@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What this process publishes, down one session: the current value when the session opens,
-//! then every value published after it, until the session ends or another replaces it. The
-//! revocation list (§6.3 of docs/08-identity.md) and the relays named (§3.1 of
-//! docs/02-architecture.md) both reach a node this way.
+//! What this process publishes, down one session: the current value when the session opens, then
+//! every value published after it, until the session ends or another replaces it. The revocation
+//! list and the relays named both reach a node this way.
 
 use crate::sessions::Sessions;
 use korpis_proto::korpis::agent::v1 as agent;

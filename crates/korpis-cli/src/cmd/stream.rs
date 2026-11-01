@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis stream` (§8 of docs/13-surface-cli.md): a workload's console stream as the control
-//! plane indexes it (§4 of docs/14-streams.md): how much its node keeps, how long its offloaded
-//! segments are kept and the operator's floor beneath that, which every tenant is shown (§8 of
-//! docs/17-security.md), how much is held only on the node, and which offsets are lost.
+//! `korpis stream`: a workload's console stream as the control plane indexes it: how much its node
+//! keeps, how long its offloaded segments are kept and the operator's floor beneath that, which
+//! every tenant is shown, how much is held only on the node, and which offsets are lost.
 
 use super::{Answer, json};
 use crate::connect::Connection;

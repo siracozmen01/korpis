@@ -49,10 +49,9 @@ begin() {
 }
 
 # Leaves the machine as it was: the processes stopped, then whatever the nodes made that they did
-# not remove themselves, the containers of the workloads in $WORKLOADS and every network under
-# each node's netns root (the helper's own release, as for a machine whose node is gone, §3 of
-# docs/18-operations.md), then the volumes' filesystem if one was mounted, the job cgroups, the
-# database, and the files.
+# not remove themselves, the containers of the workloads in $WORKLOADS and every network under each
+# node's netns root (the helper's own release, as for a machine whose node is gone), then the
+# volumes' filesystem if one was mounted, the job cgroups, the database, and the files.
 leave() {
     set +e
     for pid in "${PIDS[@]}"; do kill "$pid" 2>/dev/null; done
@@ -123,11 +122,12 @@ korpis() { "$BIN/korpis" --plain-http "$REGISTRY" "$@"; }
 # Enrolls this machine as node $1 and starts its helper and driver, as their units would: their
 # volumes under $2 ($NODE/volumes unless given), which is $VOLUMES after it, their workloads'
 # networks bound under $NODE/netns, and the helper's jobs in a cgroup of the node's own beneath
-# $CGROUPS, this run's, which delegates the controllers a job is limited by. Called once per node, it enrolls this one machine as several, each in a directory of its own, $NODE for the
-# one enrolled last, and each given ports and an IPv4 pool no other node of the run uses, $PORTS
-# and $POOL, for its agent's --ports and --workload-ipv4. The agent is the script's to start,
-# since what it is told differs; at most one node's agent may serve the ingress, as ports 80 and
-# 443 on this machine's address are one pair, so each helper is started without the proxy.
+# $CGROUPS, this run's, which delegates the controllers a job is limited by. Called once per node,
+# it enrolls this one machine as several, each in a directory of its own, $NODE for the one enrolled
+# last, and each given ports and an IPv4 pool no other node of the run uses, $PORTS and $POOL, for
+# its agent's --ports and --workload-ipv4. The agent is the script's to start, since what it is told
+# differs; at most one node's agent may serve the ingress, as ports 80 and 443 on this machine's
+# address are one pair, so each helper is started without the proxy.
 NODES=()
 enroll() {
     local index=${#NODES[@]}

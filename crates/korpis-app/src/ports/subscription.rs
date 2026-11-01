@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Event subscriptions (§5 of docs/15-observability.md): stored positions in the log.
+//! Event subscriptions: stored positions in the log.
 
 use super::StoreResult;
 use crate::Page;

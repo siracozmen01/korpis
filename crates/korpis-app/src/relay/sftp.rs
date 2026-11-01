@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A file token for an SFTP client, asked for by the relay serving it (§3.1 of
-//! docs/02-architecture.md, §9.9 of docs/08-identity.md). The relay has checked that the client
-//! holds the SSH key it offered, which nothing lets it prove here, so the control plane believes
-//! the relay, and records each first token under the relay's name. It finds the key's account,
-//! evaluates that account's grants on the workload from the client's address, confined beneath
-//! where the key was registered from a confined session, and mints a token for writing the
+//! A file token for an SFTP client, asked for by the relay serving it. The relay has checked that
+//! the client holds the SSH key it offered, which nothing lets it prove here, so the control plane
+//! believes the relay, and records each first token under the relay's name. It finds the key's
+//! account, evaluates that account's grants on the workload from the client's address, confined
+//! beneath where the key was registered from a confined session, and mints a token for writing the
 //! workload's files, or else for reading them.
 
 use crate::App;

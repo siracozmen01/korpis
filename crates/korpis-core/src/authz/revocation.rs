@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The revocation list (§6.3 of docs/08-identity.md): the grants a verifier refuses in any
-//! token's chain, computed whole by the control plane and signed by the token key, so a relay or
-//! an agent trusts it exactly as far as it trusts the tokens it checks, and a copy cached on disk
-//! carries its own proof.
+//! The revocation list: the grants a verifier refuses in any token's chain, computed whole by the
+//! control plane and signed by the token key, so a relay or an agent trusts it exactly as far as it
+//! trusts the tokens it checks, and a copy cached on disk carries its own proof.
 //!
 //! A list replaces the one before it. An entry is a grant revoked, or suspended and not lifted,
 //! within the horizon: the longest a token can outlive the moment its grant stopped, plus the

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Storage classes as the helper declares them (§2 of docs/06-storage.md): what implements each
-//! and what it can do. Read strictly: an unknown backend or fencing mode is refused rather than
-//! read as one the scheduler or the backup planner would then trust.
+//! Storage classes as the helper declares them: what implements each and what it can do. Read
+//! strictly: an unknown backend or fencing mode is refused rather than read as one the scheduler or
+//! the backup planner would then trust.
 
 use crate::{Result, invalid};
 use korpis_core::node::StorageClass;
@@ -78,9 +78,9 @@ pub(crate) const fn fencing_to_pb(f: Fencing) -> pb::Fencing {
 /// A shared class's store: a UUID, the form the helper writes it in, and only on a class reached
 /// over the network, since a class on one node's disk is no storage another node shares. A block
 /// class is reached over the network too, and names no store: its store is its organization's,
-/// which the control plane sets (§2.1 of docs/06-storage.md); and it declares
-/// `multi_node_attach`, which makes `stop` the derived answer to a lease's end for a workload
-/// holding one of its volumes, so that it can fail over (§2 of docs/06-storage.md).
+/// which the control plane sets; and it declares `multi_node_attach`, which makes `stop` the
+/// derived answer to a lease's end for a workload holding one of its volumes, so that it can fail
+/// over.
 fn store_from_pb(field: &str, c: &pb::StorageClassInfo) -> Result<Option<String>> {
     let network = c.backend.as_known() == Some(pb::StorageBackend::STORAGE_BACKEND_NETWORK);
     if crate::block::protocol_from_pb(c.block_protocol).is_some() {

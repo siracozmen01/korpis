@@ -170,8 +170,8 @@ impl ControlPlane {
         panic!("no volume {name} was reported");
     }
 
-    /// A project in the root organization, whose policy runs unsigned recipes: the agent's
-    /// tests are about the node, not about trust (§7 of docs/09-recipes.md).
+    /// A project in the root organization, whose policy runs unsigned recipes: the agent's tests
+    /// are about the node, not about trust.
     pub async fn project(&self) -> String {
         let policy = pb::TrustPolicy { allow_unsigned: true, ..Default::default() };
         pb::OrganizationServiceClient::new(self.http(), self.config())
@@ -273,9 +273,9 @@ impl ControlPlane {
         sqlx::query_as(sql).bind(arg.to_owned()).fetch_optional(store.pool()).await.unwrap()
     }
 
-    /// Waits until every connected node's reachability has been measured (§9 of
-    /// docs/07-networking.md): past a first attempt that measured nothing, as one does on a
-    /// loaded machine or when the node's session ends under it, and the retry after it.
+    /// Waits until every connected node's reachability has been measured: past a first attempt that
+    /// measured nothing, as one does on a loaded machine or when the node's session ends under it,
+    /// and the retry after it.
     pub async fn measured(&self) {
         let wait = korpis_server::testing::PROBE_RETRY + Duration::from_secs(30);
         let rounds = wait.as_millis() / 100;

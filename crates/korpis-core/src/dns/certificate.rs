@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Certificates the ingress terminates TLS with (§3.2 of docs/07-networking.md, §3.6 of
-//! docs/01-model.md). A certificate is its organization's, for the names its leaf names; an
-//! endpoint serves with one only if it covers every name the endpoint routes and is valid now.
-//! Reading a chain and matching its key is the adapter's (a port of the application); what the
-//! leaf says, and what follows from it, is decided here.
+//! Certificates the ingress terminates TLS with. A certificate is its organization's, for the names
+//! its leaf names; an endpoint serves with one only if it covers every name the endpoint routes and
+//! is valid now. Reading a chain and matching its key is the adapter's (a port of the application);
+//! what the leaf says, and what follows from it, is decided here.
 
 use super::domain::DomainName;
 use crate::event::Severity;
@@ -169,8 +168,7 @@ pub struct Certificate {
     pub created_at: SystemTime,
     /// For `Acme`: the endpoint whose names it is for.
     pub owner: Option<Owner>,
-    /// For `Acme`: the portal whose name it is for, where no endpoint's names are (§3.6 of
-    /// docs/07-networking.md).
+    /// For `Acme`: the portal whose name it is for, where no endpoint's names are.
     pub portal: Option<Uuid>,
     /// For `Acme`: how many attempts in a row to issue it failed.
     pub attempts: u32,
@@ -178,8 +176,8 @@ pub struct Certificate {
     pub next_attempt: Option<SystemTime>,
     /// Its key's identifier, once it holds one ([`Leaf::key_id`]).
     pub key_id: Option<String>,
-    /// Whether its key was given to a node later removed as compromised (§9 of
-    /// docs/17-security.md), until a chain with another key replaces it.
+    /// Whether its key was given to a node later removed as compromised, until a chain with another
+    /// key replaces it.
     pub exposed: bool,
 }
 
@@ -238,7 +236,7 @@ impl Certificate {
 }
 
 /// When a certificate valid from `not_before` to `not_after` is renewed: two thirds of the way
-/// through its life (§3.2 of docs/07-networking.md).
+/// through its life.
 #[must_use]
 pub fn renew_after(not_before: SystemTime, not_after: SystemTime) -> SystemTime {
     let life = not_after.duration_since(not_before).unwrap_or(Duration::ZERO);

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a workload starts as, from its spec and its image's configuration: the same for every
-//! tier, so an image runs one way whether a container or a guest runs it (§6 of
-//! docs/04-runtimes.md).
+//! What a workload starts as, from its spec and its image's configuration: the same for every tier,
+//! so an image runs one way whether a container or a guest runs it.
 
 use korpis_core::content::image::ImageConfig;
 use korpis_proto::korpis::driver::v1 as driver;

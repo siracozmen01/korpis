@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node reports about one workload (§4.3 of docs/02-architecture.md): field by field,
-//! what it has converged to, and what it sees. The latest replaces the one before: it is "now",
-//! not history, and history is the effect log.
+//! What a node reports about one workload: field by field, what it has converged to, and what it
+//! sees. The latest replaces the one before: it is "now", not history, and history is the effect
+//! log.
 
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -24,7 +24,7 @@ pub enum ObservedState {
     Unsatisfiable,
 }
 
-/// Why a node cannot satisfy an assignment (§7 of docs/05-scheduling.md).
+/// Why a node cannot satisfy an assignment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnsatisfiableReason {
     /// The driver the intent needs is not on the node.
@@ -148,10 +148,9 @@ pub struct Observation {
     pub volumes: Vec<VolumeSeen>,
     /// When the state last changed, by the node's clock: exact however late the report.
     pub since: Option<SystemTime>,
-    /// Its IPv4 address on its node, which the node gave it (§4.1 of docs/07-networking.md);
-    /// none where it has no network.
+    /// Its IPv4 address on its node, which the node gave it; none where it has no network.
     pub address: Option<std::net::Ipv4Addr>,
     /// Its IPv6 address on its node, where the node gave it one, which a rule naming workloads
-    /// names of it (§6 of docs/07-networking.md).
+    /// names of it.
     pub address_ipv6: Option<std::net::Ipv6Addr>,
 }

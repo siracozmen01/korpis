@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server install --postgres container` (§2 of docs/18-operations.md): the official image,
-//! pinned by digest and published on loopback, given an owner that is not a superuser, and the
-//! installation made in it as on any server. Run against this machine's docker, with a container
-//! and a port of the test's own, removed when it ends.
+//! `korpis-server install --postgres container`: the official image, pinned by digest and published
+//! on loopback, given an owner that is not a superuser, and the installation made in it as on any
+//! server. Run against this machine's docker, with a container and a port of the test's own,
+//! removed when it ends.
 
 use sqlx::Connection as _;
 

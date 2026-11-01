@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server backup` (§6 of docs/18-operations.md): every key of the data directory and the
-//! epoch watermark, sealed with the key installation printed, in the target it declared, read
-//! back whole; and a failure that says so when the database itself is not archived.
+//! `korpis-server backup`: every key of the data directory and the epoch watermark, sealed with the
+//! key installation printed, in the target it declared, read back whole; and a failure that says so
+//! when the database itself is not archived.
 
 use base64::Engine as _;
 use korpis_core::tenancy::Name;

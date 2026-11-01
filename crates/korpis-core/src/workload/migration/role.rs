@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's part in a migration, as its assignment of the workload carries it (§4.8 of
-//! docs/02-architecture.md, §8.1 of docs/05-scheduling.md): which side it is, of which
-//! migration, in which phase, with which peer, what crosses for each volume, the streams'
+//! A node's part in a migration, as its assignment of the workload carries it: which side it is, of
+//! which migration, in which phase, with which peer, what crosses for each volume, the streams'
 //! watermarks once the destination needs them, and when the source's hold ends.
 
 use super::{Crossing, Migration, MigrationVolume, Phase, Side};
@@ -12,7 +11,7 @@ use std::time::{Duration, SystemTime};
 pub const PASS_LIFETIME: Duration = crate::workload::replica::TRANSFER_WINDOW;
 use uuid::Uuid;
 
-/// One stream's watermark at `quiesce` (§4 of docs/14-streams.md).
+/// One stream's watermark at `quiesce`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Watermark {
     /// The stream, by the name its node watches it under.

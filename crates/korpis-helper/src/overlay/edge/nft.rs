@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The nftables rules of the node's part in edge groups (§3.1 of docs/07-networking.md): its own
-//! base chains and sets, written whole, and the rules of the mesh's chains. Every address of a
-//! member's or a node's part may be IPv4 or IPv6, and each family has sets of its own, since an
-//! nftables set holds one; the GRE links that carry both are IPv4 whatever they carry.
+//! The nftables rules of the node's part in edge groups: its own base chains and sets, written
+//! whole, and the rules of the mesh's chains. Every address of a member's or a node's part may be
+//! IPv4 or IPv6, and each family has sets of its own, since an nftables set holds one; the GRE
+//! links that carry both are IPv4 whatever they carry.
 
 use super::{
     ADMITTED, CHAINS, EDGE_MARK, HELD, HELD_ON, KORPIS_MARKS, Kept, LINKS, MARKS_MASK, PREROUTING,

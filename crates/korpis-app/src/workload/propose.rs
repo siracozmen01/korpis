@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Plans as a declaration produces them: computed, classified, and, when nothing in them needs a
-//! human, approved in the same transaction (§3.3 of docs/01-model.md).
+//! human, approved in the same transaction.
 
 use crate::App;
 use crate::caller::Caller;
@@ -36,7 +36,7 @@ pub(super) struct Proposal<'a> {
 }
 
 /// How a step is classified for a workload of this recipe on these drivers, with the operator's
-/// overrides of the workload (§3.3 of docs/01-model.md).
+/// overrides of the workload.
 pub(super) fn classifier<'a>(
     driver: &'a DriverClass,
     (recipe, stop_wait): (&'a Disruption, Duration),
@@ -46,9 +46,8 @@ pub(super) fn classifier<'a>(
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The driver's layer of the classification chain for a workload of `organization` at
-    /// `tier`: what every driver that could run it there makes disruptive (§3.3 of
-    /// docs/01-model.md).
+    /// The driver's layer of the classification chain for a workload of `organization` at `tier`:
+    /// what every driver that could run it there makes disruptive.
     pub(super) async fn driver_class(
         &self,
         organization: Uuid,
@@ -88,8 +87,8 @@ pub(super) fn plan(caller: &Caller, p: Proposal<'_>, now: SystemTime) -> Plan {
     }
 }
 
-/// Approves an auto-approvable plan now, by default policy: it becomes approved, or queued
-/// behind a plan already applying (§7 of docs/03-state.md). Returns whether it was.
+/// Approves an auto-approvable plan now, by default policy: it becomes approved, or queued behind a
+/// plan already applying. Returns whether it was.
 pub(super) async fn approve_if_auto<T: WorkloadWrite>(
     tx: &mut T,
     plan: &mut Plan,

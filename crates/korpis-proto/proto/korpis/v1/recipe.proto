@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // The Recipe: a signed, versioned, content-addressed package describing how to run a class of
-// workload (§3.5 of docs/01-model.md, docs/09-recipes.md). Its identity is its digest.
+// workload. Its identity is its digest.
 
 syntax = "proto3";
 
@@ -11,20 +11,20 @@ import "google/protobuf/duration.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/workload_spec.proto";
 
-// How an intent names a recipe. The digest is resolved once, centrally, at declaration, and is
-// the identity; name and version are the pointer that resolved to it (§8 of docs/09-recipes.md).
+// How an intent names a recipe. The digest is resolved once, centrally, at declaration, and is the
+// identity; name and version are the pointer that resolved to it.
 message RecipeRef {
   // e.g. "korpis.io/minecraft/paper".
   string name = 1;
   string version = 2;
   // "sha256:<hex>".
   string digest = 3;
-  // What vouched for the recipe when it was declared (§7 of docs/09-recipes.md). Set by the
-  // control plane at resolution; whatever a client sends here is replaced.
+  // What vouched for the recipe when it was declared. Set by the control plane at resolution;
+  // whatever a client sends here is replaced.
   RecipeTrust trust = 4;
   // The installation that answers each step kind the recipe's install names, pinned with its
-  // artifact's digest at declaration (§4.1 of docs/16-extensions.md). Set by the control plane at
-  // resolution; whatever a client sends here is replaced.
+  // artifact's digest at declaration. Set by the control plane at resolution; whatever a client
+  // sends here is replaced.
   repeated ProviderPin providers = 5;
 }
 
@@ -48,15 +48,15 @@ message RecipeTrust {
   bool unsigned = 2;
 }
 
-// An organization's recipe trust policy (§7 of docs/09-recipes.md). An organization without
-// one is governed by its nearest ancestor's; with none up to the root, by the default, this
-// message empty, which runs no recipe at all.
+// An organization's recipe trust policy. An organization without one is governed by its nearest
+// ancestor's; with none up to the root, by the default, this message empty, which runs no recipe at
+// all.
 message TrustPolicy {
   // Signers whose signature over a recipe's digest makes it usable.
   repeated Signer accepted_signers = 1;
   // Use recipes no accepted signer has signed; every such use is recorded as an effect.
   bool allow_unsigned = 2;
-  // Use imported recipes graded unverified (§9 of docs/09-recipes.md).
+  // Use imported recipes graded unverified.
   bool allow_unverified = 3;
 }
 
@@ -90,7 +90,7 @@ message RecipeMetadata {
   // SPDX expression for the software the recipe runs.
   string license = 5;
   map<string, string> annotations = 6;
-  // The locale its own messages are written in, a BCP 47 tag (§5.3 of docs/09-recipes.md).
+  // The locale its own messages are written in, a BCP 47 tag.
   string locale = 7;
 }
 
@@ -147,7 +147,7 @@ message PresetResources {
   uint64 cpu_recommended_millis = 4;
 }
 
-// Typed, permissioned configuration (§5 of docs/09-recipes.md, Rule K-17).
+// Typed, permissioned configuration.
 message ConfigSchema {
   repeated ConfigField fields = 1;
 }
@@ -166,12 +166,12 @@ message ConfigField {
   // An anchored regular expression the value must match.
   string pattern = 10;
   repeated Value choices = 11;
-  // Redacted from streams (§7 of docs/14-streams.md); read needs workload.secret.read.
+  // Redacted from streams; read needs workload.secret.read.
   bool secret = 12;
   bool hidden = 13;
   // An expression over the intent, e.g. "resources.memory * 0.8"; makes the field system-set.
   string derived = 14;
-  // How the value reaches the workload (§5.2 of docs/09-recipes.md).
+  // How the value reaches the workload.
   ConfigDelivery deliver = 15;
   // For deliver = env or arg: the variable name or the argument template.
   string deliver_as = 16;
@@ -210,7 +210,7 @@ enum ConfigDelivery {
   CONFIG_DELIVERY_MANAGED_FILE = 4;
 }
 
-// The closed install vocabulary (§4 of docs/09-recipes.md). There is no step that runs code.
+// The closed install vocabulary. There is no step that runs code.
 message InstallStep {
   oneof verb {
     FetchStep fetch = 1;
@@ -262,7 +262,7 @@ message TemplateStep {
   string from = 1;
   string to = 2;
   repeated string vars = 3;
-  // How values are encoded in it, as for a TemplateSpec (§6 of docs/09-recipes.md).
+  // How values are encoded in it, as for a TemplateSpec.
   TemplateFormat format = 4;
 }
 
@@ -287,7 +287,7 @@ message DeleteStep {
   string path = 1;
 }
 
-// An extension-provided step, pinned in the lockfile (§4 of docs/09-recipes.md).
+// An extension-provided step, pinned in the lockfile.
 message ProviderStep {
   // "<publisher>/<step>".
   string provider = 1;
@@ -298,14 +298,14 @@ message TemplateSpec {
   // Where it is rendered, inside the workload.
   string path = 1;
   TemplateFormat format = 2;
-  // The allow-listed variables; nothing else is in scope (Rule K-2).
+  // The allow-listed variables; nothing else is in scope.
   repeated string vars = 3;
-  // The source: a file of the recipe artifact (§2 of docs/09-recipes.md).
+  // The source: a file of the recipe artifact.
   string from = 4;
 }
 
-// Templates encode values for their output format (§6 of docs/09-recipes.md). There is no plain
-// text format: a format with no structure has no encoding to keep a value inside its place.
+// Templates encode values for their output format. There is no plain text format: a format with no
+// structure has no encoding to keep a value inside its place.
 enum TemplateFormat {
   reserved 1;
   reserved "TEMPLATE_FORMAT_TEXT";
@@ -349,8 +349,8 @@ message ConsoleWriteHook {
   google.protobuf.Duration wait_for_exit = 2;
 }
 
-// What this software costs to interrupt (§5.1 of docs/09-recipes.md). It may only make a step
-// more disruptive than the driver says.
+// What this software costs to interrupt. It may only make a step more disruptive than the driver
+// says.
 message Disruption {
   DisruptionDecl stop = 1;
   DisruptionDecl restart = 2;

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota sets on the wire (§5.1 of docs/05-scheduling.md): bounds with explicit presence, so a
-//! bound of zero allows none of a dimension; an entry's shape by its two selectors; and what the
-//! workloads it counts hold.
+//! Quota sets on the wire: bounds with explicit presence, so a bound of zero allows none of a
+//! dimension; an entry's shape by its two selectors; and what the workloads it counts hold.
 
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::{Result, invalid};

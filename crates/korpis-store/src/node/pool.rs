@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Each node's workload pool (§9.1 of docs/07-networking.md): the lowest free /22 of the
-//! installation's range, chosen under a lock every enrollment takes, so two enrolling at once
-//! are never given one.
+//! Each node's workload pool: the lowest free /22 of the installation's range, chosen under a lock
+//! every enrollment takes, so two enrolling at once are never given one.
 
 use crate::errors::from_sqlx;
 use crate::{PgStore, PgTx};

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An identity binding read as evaluation finds it (§5.1 of docs/08-identity.md): one whose
-//! last confirmation, interval, and grace have passed reads unverified before any
-//! re-verification records it, so a reader is never shown a binding as vouching when it does
-//! not (Finding 118 of docs/23-walkthroughs.md).
+//! An identity binding read as evaluation finds it: one whose last confirmation, interval, and
+//! grace have passed reads unverified before any re-verification records it, so a reader is never
+//! shown a binding as vouching when it does not.
 
 use crate::support::fixture;
 use korpis_app::Page;

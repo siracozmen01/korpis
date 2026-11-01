@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The recipe document (§3 of docs/09-recipes.md): YAML in, a validated domain `Recipe` out.
-//! Recipes come from registries anyone can publish to, so the parser is bounded and panic-free,
-//! and a recipe that breaks any rule does not load. An extension's document is a recipe's with
-//! one more block (§3.1 of docs/16-extensions.md), and reads the same way.
+//! The recipe document: YAML in, a validated domain `Recipe` out. Recipes come from registries
+//! anyone can publish to, so the parser is bounded and panic-free, and a recipe that breaks any
+//! rule does not load. An extension's document is a recipe's with one more block, and reads the
+//! same way.
 
 mod args;
 mod config;

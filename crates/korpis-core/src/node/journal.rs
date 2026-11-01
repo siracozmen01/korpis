@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node journal (§4.10 of docs/02-architecture.md): every record a node originates, numbered
-//! by a per-node sequence and ingested exactly once, in order. The node's journal is the buffer:
-//! anything not acknowledged is sent again, so the control plane keeps nothing beyond the next
-//! record it expects.
+//! The node journal: every record a node originates, numbered by a per-node sequence and ingested
+//! exactly once, in order. The node's journal is the buffer: anything not acknowledged is sent
+//! again, so the control plane keeps nothing beyond the next record it expects.
 
 use crate::audit::Outcome;
 use crate::principal::Principal;
@@ -34,7 +33,7 @@ pub struct NodeEffect {
     /// What it left behind.
     pub after: Option<Map<String, Value>>,
     /// Who acted, when the node carried an act of a subject's rather than executing a decision:
-    /// console input (§6 of docs/14-streams.md). Believed only as far as `grant` permits it.
+    /// console input. Believed only as far as `grant` permits it.
     pub actor: Option<Principal>,
     /// The grant the actor's session token was minted from, the leaf of its chain.
     pub grant: Option<Uuid>,
@@ -45,9 +44,9 @@ pub struct NodeEffect {
 pub enum Body {
     /// An effect.
     Effect(NodeEffect),
-    /// A metering sample (§2 of docs/15-observability.md).
+    /// A metering sample.
     Metering(crate::metering::Sample),
-    /// A break-glass session opened on the machine (§10 of docs/02-architecture.md).
+    /// A break-glass session opened on the machine.
     BreakGlass {
         /// The operator, as the machine knows them.
         operator: String,
@@ -74,19 +73,17 @@ pub enum Body {
         /// Why.
         cause: String,
     },
-    /// A volume was ensured or deleted on the node (§7 of docs/06-storage.md).
+    /// A volume was ensured or deleted on the node.
     Volume(ReportedVolume),
-    /// A snapshot was taken, rolled back to, or deleted on the node (§4 of
-    /// docs/06-storage.md).
+    /// A snapshot was taken, rolled back to, or deleted on the node.
     Snapshot(ReportedSnapshot),
-    /// A backup job ended (§5 of docs/06-storage.md).
+    /// A backup job ended.
     Backup(crate::backup::ReportedBackup),
-    /// A receive into a replica the node keeps ended (§2.2 of docs/06-storage.md).
+    /// A receive into a replica the node keeps ended.
     Replica(crate::workload::replica::ReportedReplica),
-    /// The node's side of a migration's phase (§8.1 of docs/05-scheduling.md).
+    /// The node's side of a migration's phase.
     Migration(crate::workload::migration::Progress),
-    /// A segment of a workload's stream was sealed, offloaded, or pruned on the node (§4 of
-    /// docs/14-streams.md).
+    /// A segment of a workload's stream was sealed, offloaded, or pruned on the node.
     Segment {
         /// The workload.
         workload: Uuid,

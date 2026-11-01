@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a refusal says, as a client reads it (§8 of docs/10-api.md).
+//! What a refusal says, as a client reads it.
 
 use buffa::Message;
 use connectrpc::ConnectError;
 use korpis_proto::korpis::v1 as pb;
 
-/// The structured error detail of §8 of docs/10-api.md.
+/// The structured error detail.
 pub fn detail(e: &ConnectError) -> pb::Error {
     use base64::Engine;
     e.details
@@ -20,7 +20,7 @@ pub fn detail(e: &ConnectError) -> pb::Error {
         .unwrap_or_default()
 }
 
-/// The structured reason a client branches on (§8 of docs/10-api.md).
+/// The structured reason a client branches on.
 pub fn reason(e: &ConnectError) -> String {
     detail(e).reason
 }

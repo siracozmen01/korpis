@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's devices on this node (§2.1 of docs/06-storage.md): each attached by the
-//! kernel's own initiator, as the storage's provider answered for this node and this lease's
-//! epoch, and let go of again. The provider's answer comes from an extension, so every part of it
-//! that reaches a command line, a sysfs write, or a path is checked against what the protocol
-//! allows before it is used: a loop target is a bare file name in the directory the operator
-//! named, an iSCSI target a portal, a qualified name and a number, an RBD target monitors, a pool
-//! and an image, each from a closed set of characters. What was attached for a volume, and for
-//! which workload, is recorded beside the class, the credential never, so that letting go of it
-//! needs nothing but the volume, and the agent can tell, after either restarts, what is attached.
+//! A block class's devices on this node: each attached by the kernel's own initiator, as the
+//! storage's provider answered for this node and this lease's epoch, and let go of again. The
+//! provider's answer comes from an extension, so every part of it that reaches a command line, a
+//! sysfs write, or a path is checked against what the protocol allows before it is used: a loop
+//! target is a bare file name in the directory the operator named, an iSCSI target a portal, a
+//! qualified name and a number, an RBD target monitors, a pool and an image, each from a closed set
+//! of characters. What was attached for a volume, and for which workload, is recorded beside the
+//! class, the credential never, so that letting go of it needs nothing but the volume, and the
+//! agent can tell, after either restarts, what is attached.
 
 use crate::error::{HelperError, HelperResult};
 use std::path::{Path, PathBuf};

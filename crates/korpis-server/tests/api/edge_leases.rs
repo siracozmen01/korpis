@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Leases on an edge group's addresses (§3.1 of docs/07-networking.md, trace 78 of
-//! docs/23-walkthroughs.md): the control plane names one member in its table to hold a stable
-//! address, and grants that member alone the address's lease; another member asking is told who
-//! holds it; the holder renews under its epoch, and once it has released the address a lease on
+//! Leases on an edge group's addresses: the control plane names one member in its table to hold a
+//! stable address, and grants that member alone the address's lease; another member asking is told
+//! who holds it; the holder renews under its epoch, and once it has released the address a lease on
 //! it is a new epoch. An address no endpoint holds is nobody's to lease.
 
 use crate::across::running_at;

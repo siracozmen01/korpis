@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Organizations' layouts (question 2 of §10 of docs/11-surface-web.md).
+//! Organizations' layouts.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_json, from_time, to_count, to_json};

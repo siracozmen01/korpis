@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Rules naming workloads (§6 of docs/07-networking.md), the control plane's half: each rule of a
-//! workload that names workloads by a selector, resolved to the addresses its node routes to the
-//! workloads of its project the selector matches, as their nodes observed them. Only the control
-//! plane holds where every workload runs and at what address, so it alone resolves them.
+//! Rules naming workloads, the control plane's half: each rule of a workload that names workloads
+//! by a selector, resolved to the addresses its node routes to the workloads of its project the
+//! selector matches, as their nodes observed them. Only the control plane holds where every
+//! workload runs and at what address, so it alone resolves them.
 
 use crate::App;
 use crate::error::AppError;
@@ -32,9 +32,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut located = Vec::with_capacity(held.len());
         for (other, _) in &held {
             let placed = self.store.placement(other.id).await?.map(|p| p.node);
-            // Only what its node observes where it is placed now, and while its network is made
-            // and it may send: an address it held elsewhere, or before, may be another
-            // workload's now, or no one's (Finding 184 of docs/23-walkthroughs.md).
+            // Only what its node observes where it is placed now, and while its network is made and
+            // it may send: an address it held elsewhere, or before, may be another workload's now,
+            // or no one's.
             let seen = self.store.observation(other.id).await?.filter(|o| {
                 Some(o.node) == placed
                     && matches!(
@@ -78,9 +78,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.rule_peers((node, &members), w, body).await
     }
 
-    /// The workloads of `w`'s project, `w` aside, whose rules name workloads: their nodes are
-    /// told again whenever `w` changes, since it may be one they name (§6 of
-    /// docs/07-networking.md).
+    /// The workloads of `w`'s project, `w` aside, whose rules name workloads: their nodes are told
+    /// again whenever `w` changes, since it may be one they name.
     pub(crate) async fn naming_in_project(&self, w: &Workload) -> Result<Vec<Uuid>, AppError> {
         let held = self.project_workloads(w.project, w.id).await?;
         let names = |i: &korpis_core::workload::Intent| !naming_workloads(&i.body).is_empty();

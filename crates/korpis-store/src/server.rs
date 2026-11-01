@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What installation asks of the PostgreSQL server before it touches it (§2 of
-//! docs/18-operations.md), and the login the control plane runs as: a role of its own, a member
-//! of [`crate::APP_ROLE`] and nothing else, so the credential a running control plane holds can
-//! neither change the schema nor undo the immutability grants, which the owner's could.
+//! What installation asks of the PostgreSQL server before it touches it, and the login the control
+//! plane runs as: a role of its own, a member of [`crate::APP_ROLE`] and nothing else, so the
+//! credential a running control plane holds can neither change the schema nor undo the immutability
+//! grants, which the owner's could.
 
 use crate::Error;
 use sqlx::{Connection as _, PgConnection};
@@ -111,8 +111,8 @@ pub async fn ensure_login(owner_url: &str, role: &str, password: &str) -> Result
     Ok(())
 }
 
-/// What the first fence of a restore computes from (§8 of docs/03-state.md): the highest lease
-/// epoch issued, and the rate epochs are issued at, at most.
+/// What the first fence of a restore computes from: the highest lease epoch issued, and the rate
+/// epochs are issued at, at most.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EpochWatermark {
     /// `max_issued_epoch`.
@@ -135,8 +135,8 @@ pub async fn epoch_watermark(url: &str) -> Result<EpochWatermark, Error> {
     Ok(EpochWatermark { max_issued, issue_rate_per_sec })
 }
 
-/// Whether the server archives its write-ahead log, which is how the database is backed up (§8 of
-/// docs/03-state.md): what `archive_mode` says and what `pg_stat_archiver` has seen.
+/// Whether the server archives its write-ahead log, which is how the database is backed up: what
+/// `archive_mode` says and what `pg_stat_archiver` has seen.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Archiving {
     /// `archive_mode`: `off`, `on`, or `always`.

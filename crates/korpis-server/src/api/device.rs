@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The CLI's sign-in, the device authorization grant of RFC 8628 (§9.4 of
-//! docs/08-identity.md), as `SessionService` answers it: what each procedure sends back, and
-//! where the user code is typed.
+//! The CLI's sign-in, the device authorization grant of RFC 8628, as `SessionService` answers it:
+//! what each procedure sends back, and where the user code is typed.
 
 use super::account::client;
 use super::{Api, error};

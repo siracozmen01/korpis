@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Portals (§3.6 of docs/07-networking.md): a name its organization holds, routed by no endpoint
-//! and no other portal's, served with its own `acme` certificate or a provided one covering it;
-//! kept from being taken by a domain's deletion or delegation, and from any endpoint's route.
+//! Portals: a name its organization holds, routed by no endpoint and no other portal's, served with
+//! its own `acme` certificate or a provided one covering it; kept from being taken by a domain's
+//! deletion or delegation, and from any endpoint's route.
 
 use crate::certificates::{issued, upload};
 use crate::domains::child;

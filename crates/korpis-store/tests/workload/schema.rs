@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Migrations reversible for one version (§4 of docs/18-operations.md): every migration after the
-//! baseline carries its inverse, each inverse leaves exactly the schema the migrations before it
-//! made, and undoing and reapplying them on a populated store keeps every row.
+//! Migrations reversible for one version: every migration after the baseline carries its inverse,
+//! each inverse leaves exactly the schema the migrations before it made, and undoing and reapplying
+//! them on a populated store keeps every row.
 
 use crate::support::{create, fixture};
 use korpis_app::ports::WorkloadRead as _;

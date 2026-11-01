@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A device given to a workload on a real node (§6 of docs/05-scheduling.md, §4.2 of
-//! docs/04-runtimes.md). The device is a stand-in: a spec file of the test's own naming the
-//! host's `/dev/zero` as `/dev/korpis-standin`, which no container has otherwise. The agent
-//! reports it, the first workload asking for it holds it and reads it inside its container, user
-//! namespace and all, with the environment its file gives; a second asking for it in
-//! `passthrough` is not placed while the first holds it, and is placed once the first is
+//! A device given to a workload on a real node. The device is a stand-in: a spec file of the test's
+//! own naming the host's `/dev/zero` as `/dev/korpis-standin`, which no container has otherwise.
+//! The agent reports it, the first workload asking for it holds it and reads it inside its
+//! container, user namespace and all, with the environment its file gives; a second asking for it
+//! in `passthrough` is not placed while the first holds it, and is placed once the first is
 //! deleted. No real GPU is given here: this machine's is never passed through.
 
 use crate::node::{Node, STANDIN, live};

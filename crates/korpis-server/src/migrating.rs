@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server migrate` (§4 of docs/18-operations.md): applies what this build carries, or,
-//! with `--to`, undoes what a newer build applied, so that an older binary can be put back. It
-//! runs as the schema's owner, named by flag or environment, or read from the file installation
-//! keeps it in.
+//! `korpis-server migrate`: applies what this build carries, or, with `--to`, undoes what a newer
+//! build applied, so that an older binary can be put back. It runs as the schema's owner, named by
+//! flag or environment, or read from the file installation keeps it in.
 
 use clap::Args;
 use korpis_store::schema;

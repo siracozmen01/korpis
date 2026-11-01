@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block device's backup, browsed (§5.4 of docs/06-storage.md): the node has the helper restore
-//! its image into a staging place of its own, and the driver serves a read-only file session on
-//! that copy from a service guest of the copy's own ([`super::service`]), at [`AT`] in the
-//! session. The guest's kernel parses the image and the host's never does. The copy is attached
-//! writable, so the journal of an image taken from a running guest is replayed into the copy
-//! rather than refusing the mount, and mounted read-only, and the worker serves it read-only. The
-//! guest holds the copy and not the workload's volume, so it runs whether or not the workload's
-//! own guest does; one serves every session on the same copy, and ends with the last.
+//! A block device's backup, browsed: the node has the helper restore its image into a staging place
+//! of its own, and the driver serves a read-only file session on that copy from a service guest of
+//! the copy's own ([`super::service`]), at [`AT`] in the session. The guest's kernel parses the
+//! image and the host's never does. The copy is attached writable, so the journal of an image taken
+//! from a running guest is replayed into the copy rather than refusing the mount, and mounted
+//! read-only, and the worker serves it read-only. The guest holds the copy and not the workload's
+//! volume, so it runs whether or not the workload's own guest does; one serves every session on the
+//! same copy, and ends with the last.
 
 use super::files::{Session, spec};
 use super::service::{Wanted, service_id};

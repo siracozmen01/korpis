@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! File sessions (§3.2 of docs/06-storage.md): a `korpis-fsworker` process serving one
-//! session on a workload's volumes, as the workload's own ids, confined as an install's worker is.
-//! The helper names each volume's directory from its identifier, checks each path the workload
-//! sees it at, and refuses an id range its ledger does not record for the workload, as it does for
-//! an install; it gives the worker its spec on a pipe and one end of a socket pair as its output,
-//! and answers with the other end, so the session's bytes never pass through the helper. The
-//! worker ends when that end is closed. Every worker runs in one cgroup beside the jobs', with a
-//! job's limits.
+//! File sessions: a `korpis-fsworker` process serving one session on a workload's volumes, as the
+//! workload's own ids, confined as an install's worker is. The helper names each volume's directory
+//! from its identifier, checks each path the workload sees it at, and refuses an id range its
+//! ledger does not record for the workload, as it does for an install; it gives the worker its spec
+//! on a pipe and one end of a socket pair as its output, and answers with the other end, so the
+//! session's bytes never pass through the helper. The worker ends when that end is closed. Every
+//! worker runs in one cgroup beside the jobs', with a job's limits.
 
 use crate::error::{HelperError, HelperResult};
 use crate::ids::Ledger;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The human form of what the API answers. `--json` prints the API's own objects instead; this
-//! form is for reading, never for parsing (§2 of docs/13-surface-cli.md).
+//! The human form of what the API answers. `--json` prints the API's own objects instead; this form
+//! is for reading, never for parsing.
 
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::value::Kind as V;
@@ -51,7 +51,7 @@ pub fn plan(p: &pb::Plan, workload: &str) -> String {
 }
 
 /// What a plan does to one endpoint's exposure, in a line: the mode it resolves to, the one
-/// declared where they differ, and what it survives (§3 of docs/07-networking.md).
+/// declared where they differ, and what it survives.
 fn exposure(e: &pb::ExposureImpact) -> String {
     let resolved = short(e.resolved, "EXPOSURE_");
     let declared = short(e.declared, "EXPOSURE_");

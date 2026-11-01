@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The PostgreSQL adapter: the schema, its migrations, and the store ports of `korpis-app`
-//! (§1 of ARCHITECTURE.md, docs/03-state.md).
+//! The PostgreSQL adapter: the schema, its migrations, and the store ports of `korpis-app`.
 //!
-//! The database enforces referential integrity and immutability and nothing else; authorization
-//! is decided in the application (§3.3 of docs/03-state.md). The control plane runs as
-//! `korpis_app`, which may insert into the append-only tables and may not update or delete them.
+//! The database enforces referential integrity and immutability and nothing else; authorization is
+//! decided in the application. The control plane runs as `korpis_app`, which may insert into the
+//! append-only tables and may not update or delete them.
 
 #![warn(missing_docs)]
 
@@ -102,12 +101,11 @@ pub enum Error {
 }
 
 /// Two pools of connections acting as [`APP_ROLE`]: one that transactions are begun on, and one
-/// that every other query, and the change feed's listening connection, takes from. A
-/// transaction holds its connection while it reads from the other pool and while it waits for
-/// a lock, and a read holds its connection only for its one query, so a transaction waiting for
-/// a read connection always gets one, however many transactions wait (Finding 177 of
-/// docs/23-walkthroughs.md). In one pool, every connection held by a transaction waiting for a
-/// second left none to give.
+/// that every other query, and the change feed's listening connection, takes from. A transaction
+/// holds its connection while it reads from the other pool and while it waits for a lock, and a
+/// read holds its connection only for its one query, so a transaction waiting for a read connection
+/// always gets one, however many transactions wait. In one pool, every connection held by a
+/// transaction waiting for a second left none to give.
 #[derive(Debug, Clone)]
 pub struct PgStore {
     pool: PgPool,
@@ -129,10 +127,10 @@ pub fn split(max_connections: u32) -> (u32, u32) {
 pub const DEFAULT_WATCH_RESYNC: std::time::Duration = std::time::Duration::from_secs(15);
 
 impl PgStore {
-    /// Connects with `url`, `max_connections` split between reads and transactions by
-    /// [`split`], and assumes [`APP_ROLE`] on every connection, so that the immutability grants
-    /// of the schema bind the control plane whatever login it used. Intent bodies are written
-    /// and read with `bodies` (§3.1 of docs/03-state.md).
+    /// Connects with `url`, `max_connections` split between reads and transactions by [`split`],
+    /// and assumes [`APP_ROLE`] on every connection, so that the immutability grants of the schema
+    /// bind the control plane whatever login it used. Intent bodies are written and read with
+    /// `bodies`.
     pub async fn connect(
         url: &str,
         max_connections: u32,

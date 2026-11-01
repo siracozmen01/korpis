@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Completion resolves against what the caller can read (§7 of docs/13-surface-cli.md): the
-//! shell asks the binary, the binary lists through the API with the token in the environment, and
-//! a token that cannot read a project completes none of its names.
+//! Completion resolves against what the caller can read: the shell asks the binary, the binary
+//! lists through the API with the token in the environment, and a token that cannot read a project
+//! completes none of its names.
 
 use crate::support::{ControlPlane, push_recipe};
 use std::process::Command;

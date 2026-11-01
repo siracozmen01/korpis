@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The revocation list (§6.3 of docs/08-identity.md), computed whole from current state: a grant
-//! revoked, or suspended and not lifted, within the horizon is on it, and a suspension lifted is
-//! off it by the next computation. The horizon allows the clock skew the agent session allows,
-//! because a verifier's clock may run that far behind the control plane's.
+//! The revocation list, computed whole from current state: a grant revoked, or suspended and not
+//! lifted, within the horizon is on it, and a suspension lifted is off it by the next computation.
+//! The horizon allows the clock skew the agent session allows, because a verifier's clock may run
+//! that far behind the control plane's.
 
 use crate::App;
 use crate::error::AppError;

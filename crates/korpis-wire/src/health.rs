@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A query probe's provider calls on the wire (§5 of docs/04-runtimes.md):
-//! `korpis.v1.HealthStep`, the rounds a node ran, and `korpis.v1.HealthNext`, what the provider
-//! answers. A `HealthNext` naming neither a round nor a verdict, or a round without its wait, is no
-//! answer at all.
+//! A query probe's provider calls on the wire: `korpis.v1.HealthStep`, the rounds a node ran, and
+//! `korpis.v1.HealthNext`, what the provider answers. A `HealthNext` naming neither a round nor a
+//! verdict, or a round without its wait, is no answer at all.
 
 use crate::{IdKind, duration, wire_id};
 use korpis_core::extension::health::{HealthNext, HealthStep, Round, Transport};

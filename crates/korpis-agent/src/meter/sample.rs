@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Reading every source every ten seconds, and journaling a sample for every workload the node
-//! holds at the end of each metering interval, by the node's clock (§2 of
-//! docs/15-observability.md, "Measuring it, as designed").
+//! holds at the end of each metering interval, by the node's clock ("Measuring it, as designed").
 
 use super::book::{self, Book};
 use super::now::Readings;

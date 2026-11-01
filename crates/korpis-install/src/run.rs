@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Running an install's actions in order (§4 of docs/09-recipes.md), each stating what running it
-//! again does: content and literal text replace their target whole, an archive replaces its target
-//! tree whole, a directory is made or has its mode corrected, a mode or an owner is set, a link
-//! replaces a link and nothing else, a deletion of what is absent does nothing, and a template is
-//! rendered from its source each time. `done` is told after each action, so a resume starts at the
-//! action that failed.
+//! Running an install's actions in order, each stating what running it again does: content and
+//! literal text replace their target whole, an archive replaces its target tree whole, a directory
+//! is made or has its mode corrected, a mode or an owner is set, a link replaces a link and nothing
+//! else, a deletion of what is absent does nothing, and a template is rendered from its source each
+//! time. `done` is told after each action, so a resume starts at the action that failed.
 
 use super::archive::{self, Options};
 use super::beneath::{self, RESOLVE, Volumes};
@@ -141,8 +140,8 @@ fn act(a: &InstallAction, volumes: &Volumes, content: &Content) -> Result<(), St
         }
         InstallStep::Extract { from, to, strip, include } => {
             let src = if let Some(digest) = from.strip_prefix(FETCHED) {
-                // An archive a step provider answered, which the node fetched (§4 of
-                // docs/09-recipes.md): read from what fetches downloaded, as a `fetch` reads.
+                // An archive a step provider answered, which the node fetched: read from what
+                // fetches downloaded, as a `fetch` reads.
                 content.fetched(&digest.replacen('/', ":", 1))?
             } else if from.starts_with('/') {
                 read_in(volumes, from)?

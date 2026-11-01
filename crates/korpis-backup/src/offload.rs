@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Offloaded stream segments (§4 of docs/14-streams.md): a sealed segment, whole, sealed again
-//! under the workload's segment key and kept beneath its stream prefix, named by its first offset
-//! and its digest, so the same segment offloaded twice is one object and a listing reads in
-//! offset order.
+//! Offloaded stream segments: a sealed segment, whole, sealed again under the workload's segment
+//! key and kept beneath its stream prefix, named by its first offset and its digest, so the same
+//! segment offloaded twice is one object and a listing reads in offset order.
 
 use crate::error::{Error, Result};
 use crate::repo::Repo;

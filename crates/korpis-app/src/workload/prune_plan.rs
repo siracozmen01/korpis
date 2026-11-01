@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Proposing a prune (§5.3 of docs/06-storage.md): the repository's retention policy judges the
-//! workload's backups there now, and the plan's one step names the backups it forgets and why
-//! each other one is kept. It is irreversible, so it is never approved by default; the workload
-//! may be retired, since its backups outlive it.
+//! Proposing a prune: the repository's retention policy judges the workload's backups there now,
+//! and the plan's one step names the backups it forgets and why each other one is kept. It is
+//! irreversible, so it is never approved by default; the workload may be retired, since its backups
+//! outlive it.
 
 use super::propose::{self, Proposal, approve_if_auto};
 use crate::App;

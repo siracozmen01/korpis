@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a workload's migrations, and a person ending one (§8.1 of docs/05-scheduling.md).
-//! Before its placement moved a migration is abandoned: the source runs on as it was, and the
-//! destination's placement is freed with what it held. After, and until its hold ends, it is
-//! rolled back, the workload returned to the source; once the destination reported the workload
-//! started, its hold may be ended at once, so the source deletes its copies. A plan a person
-//! ended is cancelled.
+//! Reading a workload's migrations, and a person ending one. Before its placement moved a migration
+//! is abandoned: the source runs on as it was, and the destination's placement is freed with what
+//! it held. After, and until its hold ends, it is rolled back, the workload returned to the source;
+//! once the destination reported the workload started, its hold may be ended at once, so the source
+//! deletes its copies. A plan a person ended is cancelled.
 
 use crate::App;
 use crate::caller::Caller;

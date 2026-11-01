@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A portal as a browser at it reaches the control plane (§3.6 of docs/07-networking.md): over a
-//! connection naming the portal in SNI, verified for its provided certificate, calling the API in
-//! Connect's unary protocol at the portal's own name.
+//! A portal as a browser at it reaches the control plane: over a connection naming the portal in
+//! SNI, verified for its provided certificate, calling the API in Connect's unary protocol at the
+//! portal's own name.
 
 use crate::certificates::upload;
 use crate::panel::{PANEL, refresh_cookie};

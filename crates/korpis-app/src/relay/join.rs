@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A relay joining (§3.1 of docs/02-architecture.md): it presents its enrollment token once with
-//! the public half of its identity key, which it signs its requests to the control plane with,
-//! and the public half of its TLS key, for which the installation's authority issues it a
-//! certificate naming its URL's host. Agents and the CLI trust that authority already, so a
-//! relay is trusted exactly as the control plane is. Asking again with the same token and
-//! identity key returns the same relay with a fresh certificate.
+//! A relay joining: it presents its enrollment token once with the public half of its identity key,
+//! which it signs its requests to the control plane with, and the public half of its TLS key, for
+//! which the installation's authority issues it a certificate naming its URL's host. Agents and the
+//! CLI trust that authority already, so a relay is trusted exactly as the control plane is. Asking
+//! again with the same token and identity key returns the same relay with a fresh certificate.
 
 use crate::App;
 use crate::caller::Caller;
@@ -24,9 +23,8 @@ use std::net::IpAddr;
 use std::time::Duration;
 use uuid::Uuid;
 
-/// How long a relay's certificate is valid at most. Each relay's is shortened by up to nine
-/// days, fixed by its identifier, so relays that joined together do not expire together (§7 of
-/// docs/18-operations.md).
+/// How long a relay's certificate is valid at most. Each relay's is shortened by up to nine days,
+/// fixed by its identifier, so relays that joined together do not expire together.
 pub const RELAY_CERTIFICATE_LIFETIME: Duration = Duration::from_secs(90 * 24 * 60 * 60);
 
 /// A relay's join.

@@ -2,8 +2,8 @@
 
 //! What became of a stream's segments, as its writer records it for the agent: one JSON line per
 //! seal or prune, appended to `changes` in the stream's directory and made durable before the
-//! writer goes on. The agent reads it from the byte it last journaled (§4 of docs/14-streams.md),
-//! so a seal the agent was not running to see is journaled when it starts again.
+//! writer goes on. The agent reads it from the byte it last journaled, so a seal the agent was not
+//! running to see is journaled when it starts again.
 
 use crate::segment::Sealed;
 use std::fs::OpenOptions;

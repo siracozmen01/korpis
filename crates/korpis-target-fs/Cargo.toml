@@ -11,8 +11,8 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# A first-party extension is built as a third party's would be (§1 of docs/22-first-party.md): the
-# SDK and the wire contract, and nothing else of ours. scripts/check-layers.sh holds it to that.
+# A first-party extension is built as a third party's would be: the SDK and the wire contract, and
+# nothing else of ours. scripts/check-layers.sh holds it to that.
 [dependencies]
 buffa-types = { version = "=0.9.2" }
 bytes = "1"
@@ -22,8 +22,7 @@ hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 korpis-extension = { path = "../korpis-extension" }
 korpis-proto = { workspace = true }
-# The store's own certificate, made when it starts and pinned by every reader (§5.6 of
-# docs/06-storage.md).
+# The store's own certificate, made when it starts and pinned by every reader.
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 thiserror = { workspace = true }

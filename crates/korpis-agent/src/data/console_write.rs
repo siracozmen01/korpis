@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Writing to a console over the data path: the handler of `workload.console.write` (§6 of
-//! docs/14-streams.md). Each frame the client sends is a `ConsoleInput`: bytes for the workload,
-//! or a new terminal size. Input is an effect before it is anything else: the node journals that
-//! the session's subject sent so many bytes on this session, under the grant its token was minted
-//! from, and only then hands the bytes to the driver, which records them in the stream with who
-//! sent them and feeds the workload. So an input the workload received is never one the journal
-//! does not hold, and "who stopped the server" is a row.
+//! Writing to a console over the data path: the handler of `workload.console.write`. Each frame the
+//! client sends is a `ConsoleInput`: bytes for the workload, or a new terminal size. Input is an
+//! effect before it is anything else: the node journals that the session's subject sent so many
+//! bytes on this session, under the grant its token was minted from, and only then hands the bytes
+//! to the driver, which records them in the stream with who sent them and feeds the workload. So an
+//! input the workload received is never one the journal does not hold, and "who stopped the server"
+//! is a row.
 //!
 //! The control plane believes the effect only as far as the grant named permitted its subject
 //! the input when it happened (`korpis-app`'s attestation), so a node can attribute input only to

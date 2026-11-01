@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where streams are offloaded (§4 and question 1 of docs/14-streams.md): the first repository
-//! of an organization or project takes its streams unless told not to, and no second one may;
-//! the project's is taken before the organization's; and a node that ran the workload is given
-//! its data key and write access to its stream prefix alone, beside its backups, while a node
-//! that never did, or a workload no repository takes the streams of, is given nothing.
+//! Where streams are offloaded: the first repository of an organization or project takes its
+//! streams unless told not to, and no second one may; the project's is taken before the
+//! organization's; and a node that ran the workload is given its data key and write access to its
+//! stream prefix alone, beside its backups, while a node that never did, or a workload no
+//! repository takes the streams of, is given nothing.
 
 use crate::agent::Stream;
 use crate::backup_target::{Bucket, serving};

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backup target calls in the stored queue (§5.6 of docs/06-storage.md). Access carries a
-//! secret, which the record keeps only until its caller has read it (§5.6): a redacted access
-//! reads back with its secret and session token empty.
+//! Backup target calls in the stored queue. Access carries a secret, which the record keeps only
+//! until its caller has read it: a redacted access reads back with its secret and session token
+//! empty.
 
 use korpis_core::extension::{
     AccessMode, CallOutcome, CallRequest, ObjectAccess, S3Access, StoredObject,

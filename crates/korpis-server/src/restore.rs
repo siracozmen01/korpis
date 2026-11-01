@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The machine's side of restoring the control plane (§8 of docs/03-state.md, §6 of
-//! docs/18-operations.md), run while it is stopped and before it serves: the backup's keys put
-//! back into the data directory, the epochs fenced with the settling window left for the next
-//! start to open, the token key rotated, the relays held, and the gap recorded. The database is
-//! restored first, by PostgreSQL's own means; step 3, recovering what the agents present, happens
-//! once the control plane starts, inside the window.
+//! The machine's side of restoring the control plane, run while it is stopped and before it serves:
+//! the backup's keys put back into the data directory, the epochs fenced with the settling window
+//! left for the next start to open, the token key rotated, the relays held, and the gap recorded.
+//! The database is restored first, by PostgreSQL's own means; step 3, recovering what the agents
+//! present, happens once the control plane starts, inside the window.
 
 mod files;
 

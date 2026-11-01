@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Managed files (§5.2 of docs/09-recipes.md): files Korpis renders for the software outside every
-//! volume the tenant can write, so an `operator` or `secret` field delivered through one is not
-//! undone by a file edit. A recipe declares each by a plain name; the node renders it from a
-//! template in the recipe, with the same sandboxed engine as every template (§6), at
-//! [`MANAGED_DIR`]`/<name>`, in the workload's read-only directory of things the node gives it.
+//! Managed files: files Korpis renders for the software outside every volume the tenant can write,
+//! so an `operator` or `secret` field delivered through one is not undone by a file edit. A recipe
+//! declares each by a plain name; the node renders it from a template in the recipe, with the same
+//! sandboxed engine as every template, at [`MANAGED_DIR`]`/<name>`, in the workload's read-only
+//! directory of things the node gives it.
 
 use super::RecipeError;
 use super::config::{ConfigDelivery, ConfigSchema};
@@ -26,7 +26,7 @@ pub struct ManagedFile {
     pub from: String,
     /// How values are encoded.
     pub format: TemplateFormat,
-    /// The `managed_file` fields it may render; nothing else is in scope (Rule K-2).
+    /// The `managed_file` fields it may render; nothing else is in scope.
     pub vars: Vec<String>,
 }
 

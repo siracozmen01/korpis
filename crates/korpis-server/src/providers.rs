@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The provider streams this replica holds (§3.3 of docs/16-extensions.md), by registration,
-//! with the calls sent down each and not yet answered. A registration withdrawn elsewhere (by an
-//! uninstall, or by expiry) has its stream closed here when the replica next confirms what it
-//! holds.
+//! The provider streams this replica holds, by registration, with the calls sent down each and not
+//! yet answered. A registration withdrawn elsewhere (by an uninstall, or by expiry) has its stream
+//! closed here when the replica next confirms what it holds.
 
 use korpis_core::extension::Registration;
 use korpis_proto::korpis::v1::ProviderControl;

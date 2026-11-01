@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's stable addresses and ports, given where it is placed (§3.1 of
-//! docs/07-networking.md): under the placement lock, in the transaction that binds it, from the
-//! pools of the group serving it, which is the group of what it holds already where that still
-//! serves, and otherwise the nearest organization's group with room. They are kept for as long
-//! as the workload declares the endpoint, across every move and stop, and given back when it is
-//! retired or stops declaring it.
+//! A workload's stable addresses and ports, given where it is placed: under the placement lock, in
+//! the transaction that binds it, from the pools of the group serving it, which is the group of
+//! what it holds already where that still serves, and otherwise the nearest organization's group
+//! with room. They are kept for as long as the workload declares the endpoint, across every move
+//! and stop, and given back when it is retired or stops declaring it.
 
 use crate::App;
 use crate::error::AppError;
@@ -46,16 +45,15 @@ struct Allot<'a> {
     now: SystemTime,
 }
 
-/// What a placement gives a workload of the operator's addresses: the nodes it may hold a
-/// dedicated address on (§3.7 of docs/07-networking.md), and the groups serving its `stable` and
-/// its `ingress` endpoints (§3.1 there).
+/// What a placement gives a workload of the operator's addresses: the nodes it may hold a dedicated
+/// address on, and the groups serving its `stable` and its `ingress` endpoints.
 pub(crate) struct Addressing {
     /// The nodes it may hold a dedicated address on.
     pub(crate) dedicated: std::collections::BTreeSet<Uuid>,
     /// The group serving its `stable` endpoints, and what they are to hold.
     pub(crate) edge: Option<Serving>,
-    /// Whether, no group serving them, its `stable` endpoints are reached at a `cluster`
-    /// pool's address it holds, which its router moves (§3.1 of docs/07-networking.md).
+    /// Whether, no group serving them, its `stable` endpoints are reached at a `cluster` pool's
+    /// address it holds, which its router moves.
     pub(crate) routed: bool,
     /// The group serving its `ingress` endpoints, and that group's ingress addresses.
     pub(crate) ingress: Option<super::ingress::IngressServing>,
@@ -137,10 +135,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The endpoints of `workload`, declared as `body` says, that hold no port of its node for
-    /// being `stable`: those an edge serves now, holding an address and port of a pool whose
-    /// group has two members or more; and, where it serves none, every `stable` one where the
-    /// workload holds a `cluster` pool's address, at which they are routed (§3.1 of
-    /// docs/07-networking.md).
+    /// being `stable`: those an edge serves now, holding an address and port of a pool whose group
+    /// has two members or more; and, where it serves none, every `stable` one where the workload
+    /// holds a `cluster` pool's address, at which they are routed.
     pub(crate) async fn stable_served(
         &self,
         workload: Uuid,

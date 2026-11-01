@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's dedicated address (§3.7 of docs/07-networking.md). Every new connection to it is
-//! translated to the workload's own IPv4 address, all ports alike, in chains ahead of every other
-//! translation on the node, so no port the node publishes for anyone else is reached at it; and
-//! what the workload sends beyond the node, by any interface but another workload's link and the
-//! mesh's, leaves translated to it, ahead of the masquerade. A map from the address to the
-//! workload's chain holds the first, and a map from the workload's link to the address the
-//! second, so taking a workload out needs only its link. An address of a pool on the node's link
-//! is added to the pool's interface as a host address, and the workload's chain says so in its
-//! rule's comment, so only an address the helper added is ever removed.
+//! A workload's dedicated address. Every new connection to it is translated to the workload's own
+//! IPv4 address, all ports alike, in chains ahead of every other translation on the node, so no
+//! port the node publishes for anyone else is reached at it; and what the workload sends beyond the
+//! node, by any interface but another workload's link and the mesh's, leaves translated to it,
+//! ahead of the masquerade. A map from the address to the workload's chain holds the first, and a
+//! map from the workload's link to the address the second, so taking a workload out needs only its
+//! link. An address of a pool on the node's link is added to the pool's interface as a host
+//! address, and the workload's chain says so in its rule's comment, so only an address the helper
+//! added is ever removed.
 
 use super::nft::{TABLE, chain};
 use super::rtnl::Rtnl;

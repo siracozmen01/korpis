@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Organizations' layouts (question 2 of §10 of docs/11-surface-web.md): the landing screen an
-//! organization composes for those it serves, its own, or its nearest ancestor's, or the panel's
-//! own. A layout is shown to everyone the organization serves and places only components that
-//! render under the viewer's own authority, so whoever may read an object may read the layout
-//! that applies to it, as for a theme; reading it spends no use of a use-limited grant.
+//! Organizations' layouts: the landing screen an organization composes for those it serves, its
+//! own, or its nearest ancestor's, or the panel's own. A layout is shown to everyone the
+//! organization serves and places only components that render under the viewer's own authority, so
+//! whoever may read an object may read the layout that applies to it, as for a theme; reading it
+//! spends no use of a use-limited grant.
 
 use crate::App;
 use crate::caller::Caller;
@@ -90,10 +90,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The layout `caller`'s landing shows, reached at `portal` or at the installation's own
-    /// address: that of the organization they land at, whoever provides their access, though
-    /// they may read none of its organizations (Finding 134 of docs/23-walkthroughs.md). Answered
-    /// to any caller signed in, whatever they hold, since what it places renders under their own
-    /// authority; a share link's holder is answered as anyone not signed in is.
+    /// address: that of the organization they land at, whoever provides their access, though they
+    /// may read none of its organizations. Answered to any caller signed in, whatever they hold,
+    /// since what it places renders under their own authority; a share link's holder is answered as
+    /// anyone not signed in is.
     pub async fn landing_layout(
         &self,
         caller: &Caller,

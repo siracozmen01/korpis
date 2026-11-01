@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The revocation list this replica publishes to the sessions it holds (§6.3 of
-//! docs/08-identity.md). Every replica computes it from the same rows, so no replica has to tell
-//! another: each recomputes it every [`EVERY`] and publishes it when its grants changed, and every
-//! session sends the current one when it opens and each new one after. A revocation therefore
-//! reaches a connected verifier within about [`EVERY`] of its commit.
+//! The revocation list this replica publishes to the sessions it holds. Every replica computes it
+//! from the same rows, so no replica has to tell another: each recomputes it every [`EVERY`] and
+//! publishes it when its grants changed, and every session sends the current one when it opens and
+//! each new one after. A revocation therefore reaches a connected verifier within about [`EVERY`]
+//! of its commit.
 
 use crate::api::Api;
 use korpis_proto::korpis::agent::v1 as agent;

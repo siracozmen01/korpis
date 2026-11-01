@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The provider call queue (§3.3 of docs/16-extensions.md): calls are queued by whichever replica
-//! wants a provider called, claimed by the replica holding a stream that serves it, and finished
-//! by the provider's result, by the stream ending, or by the deadline.
+//! The provider call queue: calls are queued by whichever replica wants a provider called, claimed
+//! by the replica holding a stream that serves it, and finished by the provider's result, by the
+//! stream ending, or by the deadline.
 
 use super::StoreResult;
 use korpis_core::extension::{CallOutcome, ProviderCall, ProviderType, Registration};
@@ -82,9 +82,9 @@ pub trait ProviderCallWrite {
     /// Removes the secrets from `id`'s answer, if it was access: its caller has read it.
     fn redact_call(&mut self, id: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Removes the secrets from `id`'s request, if it was a sign-in's (§9.7 of
-    /// docs/08-identity.md): an `Authorize`'s state and nonce, an `Assert`'s code and headers.
-    /// Its caller has its answer, and nothing reads them again.
+    /// Removes the secrets from `id`'s request, if it was a sign-in's: an `Authorize`'s state and
+    /// nonce, an `Assert`'s code and headers. Its caller has its answer, and nothing reads them
+    /// again.
     fn redact_sign_in_call(&mut self, id: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Removes the secrets from every access answer, every sign-in's request, and every block

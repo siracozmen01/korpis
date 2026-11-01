@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A guest's volume as a block device (§3.1 of docs/06-storage.md): the drive is its guest's
-//! filesystem, which the guest's own kernel grows to fill the drive when the drive has been made
-//! larger between runs, as the helper makes it when a workload is given more; nothing on the host
-//! touches the filesystem. Needs what the runtime tests need.
+//! A guest's volume as a block device: the drive is its guest's filesystem, which the guest's own
+//! kernel grows to fill the drive when the drive has been made larger between runs, as the helper
+//! makes it when a workload is given more; nothing on the host touches the filesystem. Needs what
+//! the runtime tests need.
 
 #![allow(
     clippy::unwrap_used,

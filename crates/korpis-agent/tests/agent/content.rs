@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's content store against the development registry (§6 of docs/04-runtimes.md): an
-//! image fetched by digest through its index, this machine's manifest chosen, every blob kept by
-//! digest and checked; content named by a tag alone is refused.
+//! The node's content store against the development registry: an image fetched by digest through
+//! its index, this machine's manifest chosen, every blob kept by digest and checked; content named
+//! by a tag alone is refused.
 
 use korpis_agent::content::{ContentStore, FetchError, Reach};
 use korpis_core::content::{OCI_INDEX, OCI_MANIFEST, digest_of, this_machine};

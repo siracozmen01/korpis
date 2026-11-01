@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading the effect log (§4 of docs/03-state.md, §4 of docs/15-observability.md): through
-//! what it concerns, a workload, a node, a plan, a project, or an organization's subtree, each
-//! effect answered only to a caller who may read what it is about, and without the nodes they
-//! may not read.
+//! Reading the effect log: through what it concerns, a workload, a node, a plan, a project, or an
+//! organization's subtree, each effect answered only to a caller who may read what it is about, and
+//! without the nodes they may not read.
 
 use crate::App;
 use crate::caller::Caller;
@@ -82,8 +81,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(filter)
     }
 
-    /// The effects `of` concerns that the caller may read, in log order: a page read past what
-    /// they may not see, as every list filtered by read authority is (§8 of docs/10-api.md).
+    /// The effects `of` concerns that the caller may read, in log order: a page read past what they
+    /// may not see, as every list filtered by read authority is.
     pub async fn list_effects(
         &self,
         caller: &Caller,

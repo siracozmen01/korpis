@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Edge groups and the stable addresses and ports of `stable` endpoints (§3.1 of
-//! docs/07-networking.md).
+//! Edge groups and the stable addresses and ports of `stable` endpoints.
 
 use super::StoreResult;
 use crate::page::Page;

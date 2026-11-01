@@ -31,12 +31,12 @@ enum Command {
     /// that account's invitation once, to redeem by registering a passkey within the hour, and
     /// the first node's join command.
     Install(Box<installing::InstallArgs>),
-    /// Move the schema (§4 of docs/18-operations.md): apply the migrations this build carries,
-    /// or, with --to, undo those after a version, so the binary that ran before can run again.
+    /// Move the schema: apply the migrations this build carries, or, with --to, undo those after a
+    /// version, so the binary that ran before can run again.
     Migrate(Box<migrating::MigrateArgs>),
     /// Back up what the control plane holds outside its database, every key and the epoch
     /// watermark, to the target installation declared, sealed with the key it printed; and say
-    /// whether PostgreSQL archives the database (§6 of docs/18-operations.md).
+    /// whether PostgreSQL archives the database.
     Backup {
         /// The installation's data directory.
         #[arg(long, env = "KORPIS_DATA_DIR", default_value = "/var/lib/korpis-server")]
@@ -48,10 +48,10 @@ enum Command {
         #[arg(long, default_value_t = 30)]
         keep: usize,
     },
-    /// Restore the control plane from its backup (§6 of docs/18-operations.md), while it is
-    /// stopped and after PostgreSQL has restored the database: put the backup's keys back, fence
-    /// the epochs, rotate the token key, hold the relays, and record the gap; the next start
-    /// opens the window in which the agents present what they hold.
+    /// Restore the control plane from its backup, while it is stopped and after PostgreSQL has
+    /// restored the database: put the backup's keys back, fence the epochs, rotate the token key,
+    /// hold the relays, and record the gap; the next start opens the window in which the agents
+    /// present what they hold.
     Restore(Box<restoring::RestoreArgs>),
     /// Administration done at the machine, by its root user.
     Admin {
@@ -60,7 +60,7 @@ enum Command {
     },
     /// Serve the API.
     Serve(Box<ServeArgs>),
-    /// A relay of the data path running as its own process (§3.1 of docs/02-architecture.md).
+    /// A relay of the data path running as its own process.
     Relay {
         #[command(subcommand)]
         command: RelayCommand,
@@ -70,9 +70,9 @@ enum Command {
 /// What `serve` is told.
 #[derive(Debug, Subcommand)]
 enum AdminCommand {
-    /// Issue a new root grant to a new account and print its invitation, to redeem by
-    /// registering a passkey within the hour, when every holder of root is locked out (§9.2 of
-    /// docs/08-identity.md). Recorded as the bootstrap actor and the user who ran it.
+    /// Issue a new root grant to a new account and print its invitation, to redeem by registering a
+    /// passkey within the hour, when every holder of root is locked out. Recorded as the bootstrap
+    /// actor and the user who ran it.
     RecoverRoot {
         /// The installation's data directory.
         #[arg(long, env = "KORPIS_DATA_DIR")]

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Certificates: `korpis.v1.Certificate` (§3.2 of docs/07-networking.md), never with a key.
+//! Certificates: `korpis.v1.Certificate`, never with a key.
 
 use crate::{timestamp, wire_id};
 use korpis_core::dns::certificate::{Certificate, Source, State};

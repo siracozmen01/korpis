@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node journal (§4.10 of docs/02-architecture.md): every record the node originates,
-//! numbered by a sequence that is never reused and survives a restart, written durably to an
-//! append-only log of segment files before the append returns. Nothing is discarded before the
-//! control plane acknowledges it, and acknowledged records are kept for a retention window, so
-//! a control plane restored from an older backup can ingest them again. The journal is bounded
-//! and the bound is declared: repeats are coalesced first, acknowledged records past their
-//! window and then within it are discarded next, and only then are records lost, each run of
-//! them recorded by a gap record naming its numbers. A workload is never stopped to keep the
-//! journal.
+//! The node journal: every record the node originates, numbered by a sequence that is never reused
+//! and survives a restart, written durably to an append-only log of segment files before the append
+//! returns. Nothing is discarded before the control plane acknowledges it, and acknowledged records
+//! are kept for a retention window, so a control plane restored from an older backup can ingest
+//! them again. The journal is bounded and the bound is declared: repeats are coalesced first,
+//! acknowledged records past their window and then within it are discarded next, and only then are
+//! records lost, each run of them recorded by a gap record naming its numbers. A workload is never
+//! stopped to keep the journal.
 
 mod coalesce;
 mod handle;
@@ -30,7 +29,7 @@ use segment::{Active, Ending, HEADER};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// The cause a gap names when the journal reached its bound (§2 of docs/15-observability.md).
+/// The cause a gap names when the journal reached its bound.
 pub const EXHAUSTED: &str = "journal exhausted";
 /// What is kept free for the gap record that reports a loss.
 const GAP_RESERVE: u64 = 4096;

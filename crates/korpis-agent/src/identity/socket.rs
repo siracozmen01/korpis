@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! One socket per workload, in a directory of its own the driver mounts read-only at
-//! [`MOUNT_POINT`] inside that workload and nowhere else (§6 of docs/02-architecture.md). The
-//! socket is the workload's identity: a request on it is forwarded naming the workload it was
-//! made for, whoever connected. It speaks Connect over HTTP/1.1 and HTTP/2, so a workload can
-//! ask with any HTTP client, `curl --unix-socket` included. A heartbeat on it is kept here, when
-//! it was last heard, for the workload's heartbeat probe (§5 of docs/04-runtimes.md).
+//! [`MOUNT_POINT`] inside that workload and nowhere else. The socket is the workload's identity: a
+//! request on it is forwarded naming the workload it was made for, whoever connected. It speaks
+//! Connect over HTTP/1.1 and HTTP/2, so a workload can ask with any HTTP client, `curl
+//! --unix-socket` included. A heartbeat on it is kept here, when it was last heard, for the
+//! workload's heartbeat probe.
 
 use super::{Credentials, NoCredential};
 use connectrpc::{ConnectError, ConnectRpcService, RequestContext, Response, Router};
@@ -35,8 +35,7 @@ pub struct IdentitySockets {
     credentials: Arc<Credentials>,
     control_plane: Arc<ControlPlane>,
     served: Mutex<HashMap<String, JoinHandle<()>>>,
-    /// The relays of the API served to the workloads marked as reaching it (§9.5 of
-    /// docs/08-identity.md).
+    /// The relays of the API served to the workloads marked as reaching it.
     relays: Mutex<HashMap<String, JoinHandle<()>>>,
     beats: Arc<Beats>,
 }

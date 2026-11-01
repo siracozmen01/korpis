@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The profile service (§9.6 of docs/08-identity.md): a user signed in to a session reads and
-//! changes their own factors, re-authenticating with a passkey, and an API token has none to
-//! change.
+//! The profile service: a user signed in to a session reads and changes their own factors,
+//! re-authenticating with a passkey, and an API token has none to change.
 
 use crate::panel::{access, accounts, browser, invite, redeem_keeping_cookie};
 use crate::support::Harness;

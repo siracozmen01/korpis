@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an agent reports about its node (§4.2 of docs/02-architecture.md): capacity, drivers
-//! with their declared capabilities, and storage classes. Read strictly: an unknown enum value
-//! is refused rather than read as some default a scheduler would then trust.
+//! What an agent reports about its node: capacity, drivers with their declared capabilities, and
+//! storage classes. Read strictly: an unknown enum value is refused rather than read as some
+//! default a scheduler would then trust.
 
 use super::{
     device_from_pb, file_access_from_pb, mode_from_pb, network_from_pb, rootfs_from_pb,

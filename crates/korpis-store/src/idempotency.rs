@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Idempotency keys (§6 of docs/10-api.md).
+//! Idempotency keys.
 
 use crate::errors::from_sqlx;
 use crate::{PgStore, PgTx};

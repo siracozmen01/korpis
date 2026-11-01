@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a console through the relay (§2 and §8 of docs/14-streams.md): the node serves
-//! `workload.console.read` from the stream files it holds, from an offset, searched, limited,
-//! and followed as records are written.
+//! Reading a console through the relay: the node serves `workload.console.read` from the stream
+//! files it holds, from an offset, searched, limited, and followed as records are written.
 
 use crate::data::{Client, end_code, frame, node_with, open, opened};
 use crate::support::ControlPlane;

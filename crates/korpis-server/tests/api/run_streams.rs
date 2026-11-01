@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A run's console is a stream of its own (§4 of docs/14-streams.md): the segments a node
-//! reports for a run it started are indexed under it, with its own offsets from zero, and read by
-//! naming the run; a task has no console of no run, and a run is read only through its own
-//! workload.
+//! A run's console is a stream of its own: the segments a node reports for a run it started are
+//! indexed under it, with its own offsets from zero, and read by naming the run; a task has no
+//! console of no run, and a run is read only through its own workload.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, send, until};

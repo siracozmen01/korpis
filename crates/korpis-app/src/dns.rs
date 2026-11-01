@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Publishing DNS records through a DNS provider (§3.5 of docs/07-networking.md). The records
-//! are checked here, so a provider is only ever asked to publish what is well formed, and the
-//! call is an ordinary provider call: queued, deadline-bound, and judged by the breaker.
+//! Publishing DNS records through a DNS provider. The records are checked here, so a provider is
+//! only ever asked to publish what is well formed, and the call is an ordinary provider call:
+//! queued, deadline-bound, and judged by the breaker.
 
 mod records;
 

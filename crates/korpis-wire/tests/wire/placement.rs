@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A placement policy from the wire (§2.2 of docs/05-scheduling.md), as an organization sets one
-//! and the installation's flag gives one: its spread constraints and affinity rules are bounded,
-//! since placement evaluates every one of them while it holds the installation's one lock
-//! (Finding 143 of docs/23-walkthroughs.md).
+//! A placement policy from the wire, as an organization sets one and the installation's flag gives
+//! one: its spread constraints and affinity rules are bounded, since placement evaluates every one
+//! of them while it holds the installation's one lock.
 
 use korpis_proto::korpis::v1 as pb;
 use korpis_wire::placement::policy_from_pb;

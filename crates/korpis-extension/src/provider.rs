@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Serving as a provider (§3.3 and §5 of docs/16-extensions.md). The extension dials out, opens
-//! a stream, registers one of the `provides` entries its installation recorded, and is called
-//! down that stream. The SDK answers the liveness check every provider answers, runs each other
-//! call through the handler at most `concurrency` at a time, drops a call the control plane
-//! cancels at its deadline, and reconnects with backoff whenever the stream ends, so a replica of
-//! the control plane going away costs the provider a reconnection and nothing else.
+//! Serving as a provider. The extension dials out, opens a stream, registers one of the `provides`
+//! entries its installation recorded, and is called down that stream. The SDK answers the liveness
+//! check every provider answers, runs each other call through the handler at most `concurrency` at
+//! a time, drops a call the control plane cancels at its deadline, and reconnects with backoff
+//! whenever the stream ends, so a replica of the control plane going away costs the provider a
+//! reconnection and nothing else.
 
 use crate::error::Error;
 use crate::identity::{Connection, CredentialSource};
@@ -39,13 +39,12 @@ pub struct Registration {
     pub version: String,
     /// How many calls it takes at once, 1 to 1024.
     pub concurrency: u32,
-    /// For an identity provider: it signs people in, answering `Authorize` (§9.7 of
-    /// docs/08-identity.md). Every other kind leaves it false.
+    /// For an identity provider: it signs people in, answering `Authorize`. Every other kind leaves
+    /// it false.
     pub sign_in: bool,
-    /// For a block storage provider: whether its attach refuses every other node in the
-    /// storage itself (`FENCING_STORAGE_ENFORCED`) or cannot (`FENCING_LEASE_ONLY`), which the
-    /// control plane takes as its class's (§2.1 of docs/06-storage.md). Every other kind leaves
-    /// it unspecified.
+    /// For a block storage provider: whether its attach refuses every other node in the storage
+    /// itself (`FENCING_STORAGE_ENFORCED`) or cannot (`FENCING_LEASE_ONLY`), which the control
+    /// plane takes as its class's. Every other kind leaves it unspecified.
     pub fencing: pb::Fencing,
 }
 

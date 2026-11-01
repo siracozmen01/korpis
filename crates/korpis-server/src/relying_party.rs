@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The `WebAuthn` relying party (§9.6 of docs/08-identity.md): the site passkeys are bound to,
-//! and the origins a ceremony may come from. The installation is reached at `--public-url`; its
-//! host is the relying party's identifier unless `--rp-id` names a registrable suffix of it, so a
-//! panel at a sibling name of the same site (§1 of docs/11-surface-web.md) can share it; and the
-//! origins are the public URL's and those `--web-origin` lists, each of which must be inside the
-//! identifier, since a browser refuses a ceremony for a site its page is not part of.
+//! The `WebAuthn` relying party: the site passkeys are bound to, and the origins a ceremony may
+//! come from. The installation is reached at `--public-url`; its host is the relying party's
+//! identifier unless `--rp-id` names a registrable suffix of it, so a panel at a sibling name of
+//! the same site can share it; and the origins are the public URL's and those `--web-origin` lists,
+//! each of which must be inside the identifier, since a browser refuses a ceremony for a site its
+//! page is not part of.
 
 use http::Uri;
 use korpis_core::webauthn::RelyingParty;

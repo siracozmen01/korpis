@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// What the panel's service worker does with each request (question 3 of §10 of
-// docs/11-surface-web.md): the bundle may be cached, what it shows may not. A file of the bundle,
-// named by its content's hash, is answered from the cache; a page is asked of the network first,
-// so a reachable server always gives the current bundle, and answered with the cached panel only
-// when the network cannot answer; everything else, every call of the API, a relay, the source
-// notice, is left to the network and never kept.
+// What the panel's service worker does with each request: the bundle may be cached, what it shows
+// may not. A file of the bundle, named by its content's hash, is answered from the cache; a page is
+// asked of the network first, so a reachable server always gives the current bundle, and answered
+// with the cached panel only when the network cannot answer; everything else, every call of the
+// API, a relay, the source notice, is left to the network and never kept.
 
 /** What the worker does with a request. */
 export type Route = "shell" | "page" | "network";

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's resolver (§5.1 of docs/07-networking.md): an address of its namespace's
-//! loopback, named alone in the `resolv.conf` its container is given, and the sockets on that
-//! address's port 53, opened inside the namespace for the supervisor to answer on. A query never
-//! leaves the namespace, so no firewall of the host's, Korpis's or another's, stands between a
-//! workload and its resolver, and the supervisor knows which workload asked by the socket it
-//! arrived on.
+//! A workload's resolver: an address of its namespace's loopback, named alone in the `resolv.conf`
+//! its container is given, and the sockets on that address's port 53, opened inside the namespace
+//! for the supervisor to answer on. A query never leaves the namespace, so no firewall of the
+//! host's, Korpis's or another's, stands between a workload and its resolver, and the supervisor
+//! knows which workload asked by the socket it arrived on.
 
 use korpis_core::workload::network::RESOLVER_V4;
 use rustix::fd::OwnedFd;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Metering's records (§2 of docs/15-observability.md, "Measuring it, as designed").
+//! Metering's records ("Measuring it, as designed").
 
 use super::StoreResult;
 use korpis_core::metering::{Reading, Record};

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What each node is told of replicas (§2.2 of docs/06-storage.md): a volume's node, each
-//! transfer under way from it, with the snapshots it keeps for them; a replica's node, the
-//! snapshot it keeps and the one being sent to it, or the one a volume is being made from.
-//! Everything else of a volume's replication a
-//! node holds it releases. A node told nothing of a volume releases all of it, so what it is told
-//! is the whole of what it keeps, and is computed again from the replicas as they are now.
+//! What each node is told of replicas: a volume's node, each transfer under way from it, with the
+//! snapshots it keeps for them; a replica's node, the snapshot it keeps and the one being sent to
+//! it, or the one a volume is being made from. Everything else of a volume's replication a node
+//! holds it releases. A node told nothing of a volume releases all of it, so what it is told is the
+//! whole of what it keeps, and is computed again from the replicas as they are now.
 
 use super::replica::{Replica, TRANSFER_WINDOW};
 use std::collections::BTreeMap;

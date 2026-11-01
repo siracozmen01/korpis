@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis certificate …` (§3.2 of docs/07-networking.md): the certificates an organization
-//! uploads for its endpoints to serve with, named in an endpoint's `tls.secret`.
+//! `korpis certificate …`: the certificates an organization uploads for its endpoints to serve
+//! with, named in an endpoint's `tls.secret`.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

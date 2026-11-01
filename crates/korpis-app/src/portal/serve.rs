@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a replica's listener serves the portals with (§3.6 of docs/07-networking.md): each
-//! portal whose certificate is issued and valid now, its chain and its key opened from the seal
-//! the control plane's TLS key put on it, and, while an order runs, the TLS-ALPN-01 digest the
-//! directory's connection for a portal's name is answered with.
+//! What a replica's listener serves the portals with: each portal whose certificate is issued and
+//! valid now, its chain and its key opened from the seal the control plane's TLS key put on it,
+//! and, while an order runs, the TLS-ALPN-01 digest the directory's connection for a portal's name
+//! is answered with.
 
 use crate::App;
 use crate::error::AppError;
@@ -32,7 +32,7 @@ impl std::fmt::Debug for Served {
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Every portal whose certificate can be served now, with its chain and key. One whose
     /// certificate is not issued, or not valid now, is left out, and its name gets no handshake;
-    /// its own record says why (§3.6 of docs/07-networking.md).
+    /// its own record says why.
     pub async fn portals_served(&self) -> Result<Vec<Served>, AppError> {
         let now = self.clock.now();
         let tls = self.tls()?;

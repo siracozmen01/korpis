@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The Korpis domain: the nouns of docs/01-model.md and the rules between them.
+//! The Korpis domain: the nouns of the glossary and the rules between them.
 //!
-//! Pure by rule (§1 of ARCHITECTURE.md): no I/O, no async runtime, no database, no wire types.
-//! The same code runs in the control plane, the agent, and the relay.
+//! Pure by rule: no I/O, no async runtime, no database, no wire types. The same code runs in the
+//! control plane, the agent, and the relay.
 
 #![warn(missing_docs)]
 

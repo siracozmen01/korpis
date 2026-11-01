@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The panel's lint rules: typescript-eslint's strictest type-checked sets, the rules of hooks,
-// and FormatJS's, so every string the panel shows comes from its catalogue (question 4 of §10 of
-// docs/11-surface-web.md): no literal text in the markup a person reads, and every message with
-// a stable identifier and its English text. Generated code is left as generated; tests may
-// write the text they look for.
+// The panel's lint rules: typescript-eslint's strictest type-checked sets, the rules of hooks, and
+// FormatJS's, so every string the panel shows comes from its catalogue: no literal text in the
+// markup a person reads, and every message with a stable identifier and its English text. Generated
+// code is left as generated; tests may write the text they look for.
 
 import js from "@eslint/js";
 import formatjs from "eslint-plugin-formatjs";

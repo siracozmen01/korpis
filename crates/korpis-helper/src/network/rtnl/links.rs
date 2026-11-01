@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the mesh's interface needs of route netlink (§9.1 of docs/07-networking.md): a WireGuard
-//! link, its MTU, and the routes out of it, read and removed as well as added.
+//! What the mesh's interface needs of route netlink: a WireGuard link, its MTU, and the routes out
+//! of it, read and removed as well as added.
 
 use super::{Answer, MAIN_TABLE, Rtnl, ip_family, route_address};
 use netlink_packet_core::{NLM_F_DUMP, NLM_F_REQUEST, NetlinkPayload};

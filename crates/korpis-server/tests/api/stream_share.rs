@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A range of a stream shared as a link (§8 of docs/14-streams.md), read back from its offloaded
-//! segments through the control plane (MinIO; skipped without it): only the records written
-//! within the range are sent, a segment wholly before it is not fetched, and the reading ends at
-//! the first record past it. A ranged grant reads the stream and does nothing else.
+//! A range of a stream shared as a link, read back from its offloaded segments through the control
+//! plane (MinIO; skipped without it): only the records written within the range are sent, a segment
+//! wholly before it is not fetched, and the reading ends at the first record past it. A ranged
+//! grant reads the stream and does nothing else.
 
 use crate::offloads::{create, journaled, made, offload};
 use crate::snapshots::running;

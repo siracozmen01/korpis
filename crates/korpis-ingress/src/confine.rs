@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The proxy's confinement (§3.2 of docs/07-networking.md): it parses requests from anyone on
-//! the internet, so before it reads one it gives up what it does not need. It sets
-//! `no_new_privs`, drops every capability it holds, and confines itself with Landlock to no
-//! filesystem access at all and no binding of a port; its sockets were handed to it already.
-//! Each is per thread, so it is done while the proxy is still one thread, and every thread it
-//! starts afterwards inherits them. What the kernel cannot apply is reported, never assumed.
+//! The proxy's confinement: it parses requests from anyone on the internet, so before it reads one
+//! it gives up what it does not need. It sets `no_new_privs`, drops every capability it holds, and
+//! confines itself with Landlock to no filesystem access at all and no binding of a port; its
+//! sockets were handed to it already. Each is per thread, so it is done while the proxy is still
+//! one thread, and every thread it starts afterwards inherits them. What the kernel cannot apply is
+//! reported, never assumed.
 //!
 //! What it does not confine: which addresses it connects to. Landlock names ports, not
 //! addresses, and a workload's port is any port; the node's own rules on what may leave the

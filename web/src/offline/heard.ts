@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// When this browser last heard from the control plane: a time, and nothing the control plane
-// said, kept so a panel loaded while it cannot be reached can say how long that has been (question
-// 3 of §10 of docs/11-surface-web.md). Storage the browser refuses leaves it unknown.
+// When this browser last heard from the control plane: a time, and nothing the control plane said,
+// kept so a panel loaded while it cannot be reached can say how long that has been. Storage the
+// browser refuses leaves it unknown.
 
 const KEY = "korpis.heard";
 

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The navigation (§5 of docs/11-surface-web.md): the places the caller's own grants open, then
-// within an organization its organizations and projects, and within a project its workloads,
-// each list holding only what the caller may read. Nothing is shown as locked; what the caller
-// may not read is simply not there.
+// The navigation: the places the caller's own grants open, then within an organization its
+// organizations and projects, and within a project its workloads, each list holding only what the
+// caller may read. Nothing is shown as locked; what the caller may not read is simply not there.
 
 import { useCallback } from "react";
 import { Link } from "react-aria-components";

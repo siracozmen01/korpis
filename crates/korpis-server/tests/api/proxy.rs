@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A relay behind a load balancer (§3.1 of docs/02-architecture.md): connections from the
-//! balancer's address open with a PROXY header, and the client it names is the one `source_cidr`
-//! is judged by; a connection from that address with no header is refused.
+//! A relay behind a load balancer: connections from the balancer's address open with a PROXY
+//! header, and the client it names is the one `source_cidr` is judged by; a connection from that
+//! address with no header is refused.
 
 use crate::agent::TestAgent;
 use crate::lifecycle::workload;

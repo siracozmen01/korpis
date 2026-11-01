@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A bandwidth reservation placed (§5.2 of docs/05-scheduling.md, §7 of docs/07-networking.md):
-//! only on a node that offers bandwidth, which a node with a shaped uplink does, held there as
-//! memory is held, and never beyond what the node offers.
+//! A bandwidth reservation placed: only on a node that offers bandwidth, which a node with a shaped
+//! uplink does, held there as memory is held, and never beyond what the node offers.
 
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::Harness;

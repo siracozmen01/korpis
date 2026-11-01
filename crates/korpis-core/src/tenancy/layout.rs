@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A landing screen an organization composes for those it serves (question 2 of §10 of
-//! docs/11-surface-web.md): data, an ordered arrangement of the panel's own components, each of
-//! which renders under the viewer's own authority. A layout places only what exists, so an
-//! extension's slot is refused until extensions declare slots (§5 of docs/16-extensions.md), and
+//! A landing screen an organization composes for those it serves: data, an ordered arrangement of
+//! the panel's own components, each of which renders under the viewer's own authority. A layout
+//! places only what exists, so an extension's slot is refused until extensions declare slots, and
 //! it always places what the viewer's grants open, so a host cannot hide a customer's access.
 
 /// The longest name, in characters.

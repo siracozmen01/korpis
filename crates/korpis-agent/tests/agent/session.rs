@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The agent's session (§4.2 of docs/02-architecture.md): welcomed, holding a verified set,
-//! keeping it on disk, acknowledged, and told `InSync` when it reconnects holding it.
+//! The agent's session: welcomed, holding a verified set, keeping it on disk, acknowledged, and
+//! told `InSync` when it reconnects holding it.
 
 use crate::support::{ControlPlane, facts};
 use korpis_agent::held::{HeldSet, Refused};

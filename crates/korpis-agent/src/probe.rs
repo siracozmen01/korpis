@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Answering a reachability probe (§9 of docs/07-networking.md). A node cannot know from the
-//! inside whether it can be reached, so when the control plane asks, it listens on the port it
-//! was given, over TCP and over UDP on every address, for a short window, and answers each nonce
-//! sent there with its node key's signature. The prober reaching that port at an advertised
-//! address and getting the node's signature back is the measurement; a machine that answers
-//! without the key is not the node, whatever address it holds.
+//! Answering a reachability probe. A node cannot know from the inside whether it can be reached, so
+//! when the control plane asks, it listens on the port it was given, over TCP and over UDP on every
+//! address, for a short window, and answers each nonce sent there with its node key's signature.
+//! The prober reaching that port at an advertised address and getting the node's signature back is
+//! the measurement; a machine that answers without the key is not the node, whatever address it
+//! holds.
 
 use ed25519_dalek::SigningKey;
 use korpis_core::node::identity::{probe_answer_message, sign};
@@ -91,10 +91,9 @@ fn listening(probe: String, error: String) -> agent::AgentMessage {
     agent::AgentMessage { message: Some(Up::ProbeListening(Box::new(m))), ..Default::default() }
 }
 
-/// Starts answering `probe` as `node` with `key`; what to tell the control plane, which is
-/// whether the node is listening. A port in `forwarded` is refused: the node forwards it to a
-/// workload, so the prober's nonces would reach the workload and not the node (Finding 53 of
-/// docs/23-walkthroughs.md).
+/// Starts answering `probe` as `node` with `key`; what to tell the control plane, which is whether
+/// the node is listening. A port in `forwarded` is refused: the node forwards it to a workload, so
+/// the prober's nonces would reach the workload and not the node.
 pub async fn begin(
     (node, key): (&str, &SigningKey),
     probe: agent::ReachabilityProbe,

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The workload's `/run/korpis` inside its guest (§9.5 of docs/08-identity.md, §6 of
-//! docs/04-runtimes.md): its identity socket, and the API relay beside it where its node relays
-//! the API to it, each a Unix socket the first process listens on in a directory only root
-//! writes. A connection on either is relayed, byte for byte, over the guest's vsock device to the
-//! host's port for it, where the driver relays it on to the workload's own socket on the host:
-//! the guest reads nothing of what crosses, and the host's socket is the workload's identity, as
-//! it is a container's. At most sixteen connections are relayed at once.
+//! The workload's `/run/korpis` inside its guest: its identity socket, and the API relay beside it
+//! where its node relays the API to it, each a Unix socket the first process listens on in a
+//! directory only root writes. A connection on either is relayed, byte for byte, over the guest's
+//! vsock device to the host's port for it, where the driver relays it on to the workload's own
+//! socket on the host: the guest reads nothing of what crosses, and the host's socket is the
+//! workload's identity, as it is a container's. At most sixteen connections are relayed at once.
 
 use korpis_guest::control;
 use rustix::net::{AddressFamily, SocketType};

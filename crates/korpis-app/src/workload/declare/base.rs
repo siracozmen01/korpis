@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a declaration is made against: the workload as it stands or as it will be created, and
-//! the body completed from its recipe. An extension's artifact is installed, never declared
-//! (§4 of docs/16-extensions.md): a plain workload may not run one, and an extension's workload
-//! runs only the digest it was installed from, so what its grants were approved for is what runs.
+//! What a declaration is made against: the workload as it stands or as it will be created, and the
+//! body completed from its recipe. An extension's artifact is installed, never declared: a plain
+//! workload may not run one, and an extension's workload runs only the digest it was installed
+//! from, so what its grants were approved for is what runs.
 
 use super::{Base, NewWorkload, moved};
 use crate::App;
@@ -23,7 +23,7 @@ fn same_kind(base: &Base, reference: &RecipeRef, described: &Described) -> Resul
     let why = match (&base.extension, described.extension.is_some()) {
         (None, false) => return Ok(()),
         (Some(installed), true) if *installed == reference.digest => return Ok(()),
-        (None, true) => "an extension is installed, not declared (§4 of docs/16-extensions.md)",
+        (None, true) => "an extension is installed, not declared",
         (Some(_), false) => "an extension's workload runs only the extension it was installed from",
         (Some(_), true) => "another version of an extension is installed, not declared",
     };

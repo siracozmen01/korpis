@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Transfer tickets (§2.2 of docs/06-storage.md): what lets one node write into another node's
-//! replica of a volume. The control plane puts one in the sending node's assignment and the
-//! receiving node's, and the receiving agent checks it offline with the token keys it holds,
-//! so a transfer under way survives the control plane's absence until the ticket expires.
+//! Transfer tickets: what lets one node write into another node's replica of a volume. The control
+//! plane puts one in the sending node's assignment and the receiving node's, and the receiving
+//! agent checks it offline with the token keys it holds, so a transfer under way survives the
+//! control plane's absence until the ticket expires.
 //!
 //! A ticket names one transfer: the volume, the node sending, the node receiving, the snapshot
 //! the stream carries, the one it is an increment from (none for a whole one), and its expiry. It

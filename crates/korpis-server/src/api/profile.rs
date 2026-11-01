@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ProfileService` (§9.6 of docs/08-identity.md): the signed-in user's own account, its factors
-//! read and changed behind a recent sign-in, and the session re-authenticated to make one.
+//! `ProfileService`: the signed-in user's own account, its factors read and changed behind a recent
+//! sign-in, and the session re-authenticated to make one.
 
 use super::account::{assertion, client, creation, registration};
 use super::{Api, cookie, error};
@@ -64,8 +64,7 @@ fn reauthenticated(at: SystemTime) -> ServiceResult<pb::ReauthenticateResponse> 
 
 impl Api {
     /// `body`, with a fresh device cookie for the caller's browser: a change to the account's
-    /// password or TOTP has just stopped honouring the one it held (§9.6 of
-    /// docs/08-identity.md).
+    /// password or TOTP has just stopped honouring the one it held.
     fn with_device<B>(&self, body: B, caller: &Caller) -> ServiceResult<B> {
         let d = self.app.device_cookie(caller).map_err(error::from_app)?;
         let set = cookie::set_device(d.account, &d.cookie, d.expires_at, SystemTime::now())

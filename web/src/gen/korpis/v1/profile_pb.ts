@@ -300,9 +300,9 @@ export type GetProfileResponse = Message<"korpis.v1.GetProfileResponse"> & {
   authenticatedAt?: Timestamp | undefined;
 
   /**
-   * For a person signed in through an identity provider (§9.7 of docs/08-identity.md): their own
-   * binding, naming the provider and the subject it vouches for. Every field above but
-   * `authenticated_at` is then empty, since such a person holds no account and no factors here.
+   * For a person signed in through an identity provider: their own binding, naming the provider and
+   * the subject it vouches for. Every field above but `authenticated_at` is then empty, since such
+   * a person holds no account and no factors here.
    *
    * @generated from field: korpis.v1.IdentityBinding person = 9;
    */
@@ -613,15 +613,15 @@ export const RenewRecoveryCodesResponseSchema: GenMessage<RenewRecoveryCodesResp
   messageDesc(file_korpis_v1_profile, 27);
 
 /**
- * The signed-in user's own account (§9.6 of docs/08-identity.md): its factors, read and changed.
- * Called with an access token, as any call is, and only by a user signed in to a session; an API
- * token is refused. Every change also needs a recent sign-in, the session's sign-in or its last
- * re-authentication within ten minutes, or is refused CONFLICT with the reason
- * `session.not_recent`, and the client re-authenticates with a factor first. Two rules hold after
- * every change, and a change that would break one is refused CONFLICT `account.last_factor`:
- * something can still sign in, and a password has a passkey or TOTP beside it. Like the
- * ceremonies of AccountService, no change carries an idempotency key (§6 of docs/10-api.md): each
- * spends a single-use proof or leaves the account as it found it when retried.
+ * The signed-in user's own account: its factors, read and changed. Called with an access token, as
+ * any call is, and only by a user signed in to a session; an API token is refused. Every change
+ * also needs a recent sign-in, the session's sign-in or its last re-authentication within ten
+ * minutes, or is refused CONFLICT with the reason `session.not_recent`, and the client
+ * re-authenticates with a factor first. Two rules hold after every change, and a change that would
+ * break one is refused CONFLICT `account.last_factor`: something can still sign in, and a password
+ * has a passkey or TOTP beside it. Like the ceremonies of AccountService, no change carries an
+ * idempotency key: each spends a single-use proof or leaves the account as it found it when
+ * retried.
  *
  * @generated from service korpis.v1.ProfileService
  */
@@ -649,7 +649,7 @@ export const ProfileService: GenService<{
   },
   /**
    * Re-authenticates the session with the caller's password and a TOTP code or a recovery code
-   * beside it; refused and limited as a sign-in is (§10 of docs/10-api.md).
+   * beside it; refused and limited as a sign-in is.
    *
    * @generated from rpc korpis.v1.ProfileService.ReauthenticateWithPassword
    */
@@ -739,8 +739,7 @@ export const ProfileService: GenService<{
     output: typeof RenewRecoveryCodesResponseSchema;
   },
   /**
-   * The caller's SSH keys, for SFTP (§9.9 of docs/08-identity.md); a confined session sees those
-   * registered confined as it is.
+   * The caller's SSH keys, for SFTP; a confined session sees those registered confined as it is.
    *
    * @generated from rpc korpis.v1.ProfileService.ListSshKeys
    */

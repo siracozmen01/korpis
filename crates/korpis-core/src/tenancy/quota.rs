@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota (§5.1 of docs/05-scheduling.md): selector-scoped entries, each with reservations and
-//! limits, held at admission in the transaction that would exceed them.
+//! Quota: selector-scoped entries, each with reservations and limits, held at admission in the
+//! transaction that would exceed them.
 //!
-//! What a workload holds is computed from its intents, never kept as a running counter that
-//! could drift from them. It is the larger, per dimension, of what its head declares (which may
-//! be approved at any moment) and what its target runs (which the kernel grants now): holding
-//! either one alone would let a workload awaiting approval, or one being shrunk, hold less than
-//! it may use (§5.1, "Quota holds the enforced value, not the declared one"). What they hold
-//! together is kept beside each entry as its totals, so admission reads one row per entry.
+//! What a workload holds is computed from its intents, never kept as a running counter that could
+//! drift from them. It is the larger, per dimension, of what its head declares (which may be
+//! approved at any moment) and what its target runs (which the kernel grants now): holding either
+//! one alone would let a workload awaiting approval, or one being shrunk, hold less than it may use
+//! ("Quota holds the enforced value, not the declared one"). What they hold together is kept beside
+//! each entry as its totals, so admission reads one row per entry.
 
 mod egress;
 mod held;
@@ -29,8 +29,8 @@ use std::collections::BTreeMap;
 use std::fmt;
 use uuid::Uuid;
 
-/// A dimension admission can hold (§3.1 of docs/01-model.md). Egress is metered per period and
-/// shaped, not admitted (§3.1), so it is not one of these.
+/// A dimension admission can hold. Egress is metered per period and shaped, not admitted, so it is
+/// not one of these.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Dimension {
     /// Millicores.
@@ -57,10 +57,10 @@ pub enum Dimension {
     Endpoints,
     /// Endpoints with a dedicated IPv4 address; never overcommitted.
     DedicatedIpv4,
-    /// Ports of a node held by endpoints the node itself exposes, `node_port` and `node_bound`
-    /// (§3 of docs/07-networking.md); never overcommitted, since a port is one endpoint's.
+    /// Ports of a node held by endpoints the node itself exposes, `node_port` and `node_bound`;
+    /// never overcommitted, since a port is one endpoint's.
     NodePorts,
-    /// Devices held, one each, by class (§6.4 of docs/05-scheduling.md); never overcommitted.
+    /// Devices held, one each, by class; never overcommitted.
     Devices(DeviceClass),
 }
 
@@ -152,8 +152,8 @@ pub struct QuotaEntry {
     /// The workloads it counts, by their labels; `None` counts every workload of the owner.
     pub selector: Option<LabelSelector>,
     /// The nodes it counts them on, by their labels: such an entry counts a workload while it is
-    /// placed on one of them, by what its placement runs, and is checked when it is bound (§5.1,
-    /// "Where a workload runs"). `None` counts it wherever it is, from its declaration.
+    /// placed on one of them, by what its placement runs, and is checked when it is bound ("Where a
+    /// workload runs"). `None` counts it wherever it is, from its declaration.
     pub nodes: Option<LabelSelector>,
     /// Guaranteed capacity: what the reservations of the workloads it counts may sum to.
     pub reservations: Bounds,
@@ -189,8 +189,7 @@ impl Side {
 }
 
 /// Why a declaration is not admitted. It names the set's owner and its numbers, so it is for
-/// whoever may read that owner: a caller who may not is told less (Finding 140 of
-/// docs/23-walkthroughs.md).
+/// whoever may read that owner: a caller who may not is told less.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("the quota set of {owner} bounds {} {} at {bound}; this would hold {would}",
         dimension.as_str(), side.as_str())]

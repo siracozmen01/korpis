@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's content store (§6 of docs/04-runtimes.md): the agent, not a driver, fetches images,
-//! once per digest per node, verifies every byte against the digest that names it, and keeps
-//! them as files named by digest. Drivers reference content by digest and import it from here;
-//! they hold no registry credentials and no path to a registry.
+//! The node's content store: the agent, not a driver, fetches images, once per digest per node,
+//! verifies every byte against the digest that names it, and keeps them as files named by digest.
+//! Drivers reference content by digest and import it from here; they hold no registry credentials
+//! and no path to a registry.
 //!
 //! A blob is written to an ingest file that refuses bytes beyond the size its descriptor
 //! declares, hashed as it is written, synced, and only then renamed into place, so a file under
@@ -39,7 +39,7 @@ pub enum FetchError {
     /// The bytes are not the bytes the digest names.
     #[error("{0} does not match its digest")]
     Mismatch(String),
-    /// The URL is at an address a fetch may not reach (§4 of docs/09-recipes.md).
+    /// The URL is at an address a fetch may not reach.
     #[error("refused: {0}")]
     Refused(String),
     /// The store could not be written.
@@ -93,7 +93,7 @@ pub struct ContentStore {
     root: PathBuf,
     client: Client,
     auth: RegistryAuth,
-    /// For an install's `fetch` (§4 of docs/09-recipes.md), and where it may go.
+    /// For an install's `fetch`, and where it may go.
     http: reqwest::Client,
     reach: Reach,
     /// What the registry client connects through, so a registry a recipe names is reached only
@@ -186,9 +186,8 @@ impl ContentStore {
             .is_some_and(|m| m.len() == d.size)
     }
 
-    /// Fetches the artifact `reference` names (`name@sha256:...`), a recipe's (§2 of
-    /// docs/09-recipes.md), with every layer; each titled layer's title and digest, which is how
-    /// an install finds a recipe's files.
+    /// Fetches the artifact `reference` names (`name@sha256:...`), a recipe's, with every layer;
+    /// each titled layer's title and digest, which is how an install finds a recipe's files.
     pub async fn fetch_files(
         &self,
         reference: &str,

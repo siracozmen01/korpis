@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Address pools and the dedicated addresses given from them (§3.7 and §4 of
-//! docs/07-networking.md). A pool belongs to an organization and its addresses are held on that
-//! organization's own nodes alone, since a node holding an address translates every connection to
-//! it: a `node` pool's on its one node, a `cluster` pool's on whichever of them its router moves
-//! one to. A workload with any `dedicated_ip` endpoint holds one IPv4 address, the lowest free one
-//! of a pool reaching its node, and gives it back after the pool's quarantine.
+//! Address pools and the dedicated addresses given from them. A pool belongs to an organization and
+//! its addresses are held on that organization's own nodes alone, since a node holding an address
+//! translates every connection to it: a `node` pool's on its one node, a `cluster` pool's on
+//! whichever of them its router moves one to. A workload with any `dedicated_ip` endpoint holds one
+//! IPv4 address, the lowest free one of a pool reaching its node, and gives it back after the
+//! pool's quarantine.
 
 use ipnet::IpNet;
 use std::collections::BTreeMap;
@@ -21,9 +21,9 @@ pub const DEFAULT_QUARANTINE: Duration = Duration::from_secs(24 * 60 * 60);
 pub enum Scope {
     /// Routed to this one node.
     Node(Uuid),
-    /// Held by a member of this edge group (§3.1 of docs/07-networking.md): on a link the
-    /// members share where no router is named, and otherwise moved to the holding member by the
-    /// `address_router` provider of this name the pool's organization sees.
+    /// Held by a member of this edge group: on a link the members share where no router is named,
+    /// and otherwise moved to the holding member by the `address_router` provider of this name the
+    /// pool's organization sees.
     Edge {
         /// The group.
         group: Uuid,
@@ -181,7 +181,7 @@ impl AddressPool {
     }
 }
 
-/// A dedicated address as its node holds it (§3.7 of docs/07-networking.md).
+/// A dedicated address as its node holds it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dedicated {
     /// The address.
@@ -191,7 +191,7 @@ pub struct Dedicated {
     pub interface: String,
 }
 
-/// What a router is asked to make so of one address (§3.7 of docs/07-networking.md).
+/// What a router is asked to make so of one address.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Route {
     /// The address.

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The connections a member forgets when its part in the groups changes (§3.1 of
-//! docs/07-networking.md): every connection to an address it no longer holds, and every one to a
-//! translated port that went elsewhere than where the port goes now, or that is refused now. A
-//! UDP flow a client keeps alive with every datagram would otherwise stay translated to a node
-//! its workload left. The table is read only when what the member translates or holds changed.
+//! The connections a member forgets when its part in the groups changes: every connection to an
+//! address it no longer holds, and every one to a translated port that went elsewhere than where
+//! the port goes now, or that is refused now. A UDP flow a client keeps alive with every datagram
+//! would otherwise stay translated to a node its workload left. The table is read only when what
+//! the member translates or holds changed.
 
 use super::{HELD, PREROUTING, Table};
 use crate::network::conntrack::{Connection, Conntrack};

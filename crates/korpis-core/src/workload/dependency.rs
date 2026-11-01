@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dependencies resolved (§5 of docs/07-networking.md): the control plane's half, which endpoint
-//! each target means. The node's half, where that endpoint's workload is, is the node's, since
-//! its agent alone allocated the workload's address; for a target on another node of the mesh
-//! the control plane carries the address that node observed (§9.1 there).
+//! Dependencies resolved: the control plane's half, which endpoint each target means. The node's
+//! half, where that endpoint's workload is, is the node's, since its agent alone allocated the
+//! workload's address; for a target on another node of the mesh the control plane carries the
+//! address that node observed.
 
 use super::endpoint::Endpoint;
 use super::spec::IntentBody;
@@ -24,17 +24,17 @@ pub struct TargetEndpoint {
     pub container_port: u16,
     /// What it speaks.
     pub protocol: Protocol,
-    /// Where its workload is on another node of the mesh, as that node observed it: its
-    /// address there, which the dependent's node holds no other way (§9.1 of
-    /// docs/07-networking.md); none where it is on the dependent's node, or not observed yet.
+    /// Where its workload is on another node of the mesh, as that node observed it: its address
+    /// there, which the dependent's node holds no other way; none where it is on the dependent's
+    /// node, or not observed yet.
     pub address: Option<Ipv4Addr>,
     /// Whether it is ready, as that other node observed it; the dependent's node judges a
     /// target on itself by itself.
     pub ready: bool,
 }
 
-/// A dependent on another node of the mesh, which the node of the workload it depends on
-/// admits from the mesh to that one endpoint (§9.1 of docs/07-networking.md).
+/// A dependent on another node of the mesh, which the node of the workload it depends on admits
+/// from the mesh to that one endpoint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OverlayDependent {
     /// The dependent.
@@ -61,13 +61,12 @@ pub struct ResolvedDependency {
     /// What it reaches now, in the order of the targets' workload names.
     pub targets: Vec<TargetEndpoint>,
     /// The workloads it names that it does not reach, and why: a selector's match, or a named
-    /// workload whose endpoints changed since it was declared (§5 of docs/07-networking.md).
-    /// The node is not told them; the dependent's status shows them.
+    /// workload whose endpoints changed since it was declared. The node is not told them; the
+    /// dependent's status shows them.
     pub left_out: Vec<(Uuid, NotATarget)>,
 }
 
-/// How a dependent reaches one of its targets, as its status shows it (§5 and §9.1 of
-/// docs/07-networking.md).
+/// How a dependent reaches one of its targets, as its status shows it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reach {
     /// Both run on one node.

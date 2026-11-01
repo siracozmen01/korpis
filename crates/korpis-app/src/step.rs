@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Resolving a recipe step through its step provider (§4 of docs/09-recipes.md). The answer is
-//! a set of content-addressed artifacts the node fetches and the workload's worker writes; an
-//! answer that names a path outside the volume or content without its hash is the provider's
-//! malfunction, recorded as such, and never reaches a node.
+//! Resolving a recipe step through its step provider. The answer is a set of content-addressed
+//! artifacts the node fetches and the workload's worker writes; an answer that names a path outside
+//! the volume or content without its hash is the provider's malfunction, recorded as such, and
+//! never reaches a node.
 
 pub mod install;
 

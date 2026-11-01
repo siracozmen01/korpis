@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The driver protocol (`korpis.driver.v1.DriverService`) answered over containerd: each verb
-//! of §4.2 of docs/04-runtimes.md mapped onto [`Containerd`], every spec validated again at
+//! of the driver lifecycle mapped onto [`Containerd`], every spec validated again at
 //! `Create` whatever `Prepare` said, and every failure given the code the agent branches on.
 
 use crate::containerd::{Containerd, Sender, signal_number};
@@ -34,8 +34,8 @@ pub struct Driver {
     events: broadcast::Sender<driver::EventsResponse>,
 }
 
-/// A driver failure as the protocol's error. A refusal is a security event (§6.1 of
-/// docs/02-architecture.md), so it is logged where it happens as well as answered.
+/// A driver failure as the protocol's error. A refusal is a security event, so it is logged where
+/// it happens as well as answered.
 fn status(e: DriverError) -> ConnectError {
     let (code, message) = match e {
         DriverError::Refused(v) => {

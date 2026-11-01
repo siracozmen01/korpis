@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Public halves of the control plane's signing keys. The private halves never enter the
-//! database (§6 of docs/18-operations.md).
+//! Public halves of the control plane's signing keys. The private halves never enter the database.
 
 use crate::PgStore;
 use crate::errors::from_sqlx;

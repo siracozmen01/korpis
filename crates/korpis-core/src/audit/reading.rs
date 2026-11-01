@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Who reads an effect, and what of it (§4 of docs/15-observability.md): the read an effect is
-//! shown under, and the nodes it names, which a reader sees only where they may read each of
-//! them (§8 of docs/08-identity.md).
+//! Who reads an effect, and what of it: the read an effect is shown under, and the nodes it names,
+//! which a reader sees only where they may read each of them.
 
 use super::Effect;
 use crate::id::{Id, IdKind};
@@ -12,7 +11,7 @@ use std::collections::BTreeSet;
 use uuid::Uuid;
 
 /// The families of action that read their effects under a read of their own, beside the read of
-/// what the effect is about (§4 of docs/15-observability.md).
+/// what the effect is about.
 const FAMILY_READS: [(&str, &str); 5] = [
     ("grant", "grant.read"),
     ("plan", "plan.read"),
@@ -21,9 +20,8 @@ const FAMILY_READS: [(&str, &str); 5] = [
     ("event", "event.read"),
 ];
 
-/// What a caller must hold over `object` to read an effect of `action` about it: the read of
-/// the action's family where the family has one, and otherwise the read of the object's kind
-/// (§4 of docs/15-observability.md).
+/// What a caller must hold over `object` to read an effect of `action` about it: the read of the
+/// action's family where the family has one, and otherwise the read of the object's kind.
 #[must_use]
 pub fn reader(action: &str, object: ObjectRef) -> &'static str {
     let family = action.split('.').next().unwrap_or_default();
@@ -98,9 +96,9 @@ pub fn node_reads(e: &Effect, root: ObjectRef) -> Vec<ObjectRef> {
     reads
 }
 
-/// `e` without anything that says something of a node, for a reader who may not read every
-/// node it names (§8 of docs/08-identity.md): its node, its journal position, its object where
-/// that is a node, and every detail under a node key.
+/// `e` without anything that says something of a node, for a reader who may not read every node it
+/// names: its node, its journal position, its object where that is a node, and every detail under a
+/// node key.
 pub fn without_nodes(e: &mut Effect) {
     e.node = None;
     e.origin = None;

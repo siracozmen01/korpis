@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Idempotent mutations (§6 of docs/10-api.md).
+//! Idempotent mutations.
 //!
 //! The guarantee is the transport's (a retry returns the original response, byte for byte) but
 //! its atomicity is the use case's: the response must be recorded in the transaction of the

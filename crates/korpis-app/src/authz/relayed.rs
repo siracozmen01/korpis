@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Acting for an asserted person (§5.2 of docs/08-identity.md): a client that relayed what a
-//! person presented makes the call with its own credential and the ticket it was handed, and
-//! the gateway acts as that person, and as a member of the sets the assertion named, for the
-//! one action on the one object the ticket names. The ticket is spent as the call is
-//! authenticated, whatever the call then does.
+//! Acting for an asserted person: a client that relayed what a person presented makes the call with
+//! its own credential and the ticket it was handed, and the gateway acts as that person, and as a
+//! member of the sets the assertion named, for the one action on the one object the ticket names.
+//! The ticket is spent as the call is authenticated, whatever the call then does.
 
 use crate::App;
 use crate::caller::{Caller, Relayed};

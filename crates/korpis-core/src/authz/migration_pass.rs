@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Migration pass tickets (§8.1 of docs/05-scheduling.md): what lets a migration's source write
-//! one pass of a volume into the destination's staging of it. The control plane puts one in both
-//! nodes' roles for each pass, and the destination's agent checks it offline with the token keys
-//! it holds, so a pass under way survives the control plane's absence until the ticket expires.
+//! Migration pass tickets: what lets a migration's source write one pass of a volume into the
+//! destination's staging of it. The control plane puts one in both nodes' roles for each pass, and
+//! the destination's agent checks it offline with the token keys it holds, so a pass under way
+//! survives the control plane's absence until the ticket expires.
 //!
 //! A ticket names one pass: the migration, the volume, the node sending, the node receiving, the
 //! pass, the pass it is an increment from (none for a whole one, or for a tree, which sends what

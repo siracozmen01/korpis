@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis login` (§7 of docs/13-surface-cli.md): the binary prints a user code, a user signed in
-//! to the panel approves it, and the session is kept, in a file readable by its user alone where
-//! no keyring is reachable, for every later command to exchange; `korpis logout` ends it; and
-//! `--no-store` keeps nothing, running one command with the session in memory.
+//! `korpis login`: the binary prints a user code, a user signed in to the panel approves it, and
+//! the session is kept, in a file readable by its user alone where no keyring is reachable, for
+//! every later command to exchange; `korpis logout` ends it; and `--no-store` keeps nothing,
+//! running one command with the session in memory.
 
 use crate::support::{ControlPlane, PANEL};
 use korpis_cli::connect::{Connection, Endpoint};

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node resolves an install's provider step through the control plane (§4 of
-//! docs/09-recipes.md): only where the workload is placed, only through the installation its
-//! intent pinned, and a step that resolves to whatever a channel held marks the workload
-//! unreproducible, once.
+//! A node resolves an install's provider step through the control plane: only where the workload is
+//! placed, only through the installation its intent pinned, and a step that resolves to whatever a
+//! channel held marks the workload unreproducible, once.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{assignment, until};

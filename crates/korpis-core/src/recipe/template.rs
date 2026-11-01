@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Templates (§6 of docs/09-recipes.md): a flat, pre-resolved context of allow-listed variables,
-//! substituted and encoded for the declared format so no value can break out of its place.
+//! Templates: a flat, pre-resolved context of allow-listed variables, substituted and encoded for
+//! the declared format so no value can break out of its place.
 
 /// The formats a template can declare. Every value is encoded for one of them; there is no
 /// plain-text format, because text has no structure to encode for.
@@ -32,7 +32,7 @@ pub struct TemplateSpec {
     pub path: String,
     /// How values are encoded.
     pub format: TemplateFormat,
-    /// The allow-listed variables; nothing else is in scope (Rule K-2).
+    /// The allow-listed variables; nothing else is in scope.
     pub vars: Vec<String>,
 }
 
@@ -43,13 +43,13 @@ pub use parse::MAX_SOURCE;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// One value in a template's context, as the control plane resolved it from declared values: no
-/// object to traverse, only what it is written as (§6 of docs/09-recipes.md).
+/// object to traverse, only what it is written as.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Var {
     /// Text: a string or an enum.
     Text(String),
     /// A number in its canonical decimal: an integer, a number, a quantity in its base unit, a
-    /// duration in seconds (§5 of docs/09-recipes.md).
+    /// duration in seconds.
     Number(String),
     /// A boolean.
     Bool(bool),
@@ -69,7 +69,7 @@ impl Var {
     }
 }
 
-/// A template's context: its allow-listed variables and nothing else (Rule K-2).
+/// A template's context: its allow-listed variables and nothing else.
 pub type Context = BTreeMap<String, Var>;
 
 /// Why a template did not parse or render.

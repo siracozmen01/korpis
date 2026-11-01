@@ -1,25 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A migration's tree passes (§8.1 of docs/05-scheduling.md), for a volume in a class that sends
-//! no increments: rsync, sending what differs between the source's volume and what the
-//! destination holds, keeping owners by number, hardlinks, ACLs, extended attributes, and holes,
-//! and deleting what the source no longer has.
+//! A migration's tree passes, for a volume in a class that sends no increments: rsync, sending what
+//! differs between the source's volume and what the destination holds, keeping owners by number,
+//! hardlinks, ACLs, extended attributes, and holes, and deleting what the source no longer has.
 //!
 //! Each side speaks on one end of a socket pair whose other end the agent joins to the transfer
-//! connection, so neither rsync opens a connection of its own. The sending side is rsync's
-//! daemon, run over its standard input and output as a remote shell would run it, with a
-//! configuration of the helper's own that names one module, the volume, read only, and confines
-//! the daemon to it by its own `chroot`: the volume belongs to a workload that runs on during
-//! `replicate`, and can swap a directory for a link to anywhere between two of rsync's reads, so
-//! what root reads there must resolve inside the volume and nowhere else (Finding 217 of
-//! docs/23-walkthroughs.md). The receiving side is rsync's client, pulling into the
-//! destination's copy, which nothing runs on until `cutover`; its remote shell is the helper's
-//! own `splice` subcommand, joining the remote shell's standard input and output to the socket:
-//! the one descriptor the helper hands a child without its close-on-exec flag, which it closes
-//! itself as soon as the child holds it. The helper starts no thread, so no other child is
-//! spawned while the flag is clear. The client trusts the stream as far as rsync's receiver
-//! does: a node that sends one is a node of the same organization, and what it could do through
-//! a flaw of rsync's receiver is stated in §8.1 of docs/05-scheduling.md.
+//! connection, so neither rsync opens a connection of its own. The sending side is rsync's daemon,
+//! run over its standard input and output as a remote shell would run it, with a configuration of
+//! the helper's own that names one module, the volume, read only, and confines the daemon to it by
+//! its own `chroot`: the volume belongs to a workload that runs on during `replicate`, and can swap
+//! a directory for a link to anywhere between two of rsync's reads, so what root reads there must
+//! resolve inside the volume and nowhere else. The receiving side is rsync's client, pulling into
+//! the destination's copy, which nothing runs on until `cutover`; its remote shell is the helper's
+//! own `splice` subcommand, joining the remote shell's standard input and output to the socket: the
+//! one descriptor the helper hands a child without its close-on-exec flag, which it closes itself
+//! as soon as the child holds it. The helper starts no thread, so no other child is spawned while
+//! the flag is clear. The client trusts the stream as far as rsync's receiver does: a node that
+//! sends one is a node of the same organization, and what it could do through a flaw of rsync's
+//! receiver is stated in the migration design.
 
 use crate::error::{HelperError, HelperResult, identifier};
 use crate::storage::Class;
@@ -30,8 +28,8 @@ use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
-/// rsync: a requirement of a node offering a class that sends no increments for migration (§2
-/// of docs/18-operations.md). Where it is missing the helper declares no `tree_sync`.
+/// rsync: a requirement of a node offering a class that sends no increments for migration. Where it
+/// is missing the helper declares no `tree_sync`.
 pub const RSYNC: &str = "/usr/bin/rsync";
 
 /// Where a class keeps the receiving daemon's configurations.

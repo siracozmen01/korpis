@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A path of a block device's backup restored into the live volume, inside a guest (§5.4 of
-//! docs/06-storage.md): the backup's image is mounted read-only beside the volume, and the entry
-//! at a path in it is copied under its own name into a new directory at the volume's root, as a
-//! restore of a volume of files lays it out. Every name is opened beneath the directory holding
-//! it and never through a link, so a link the backup holds is copied as a link and never
-//! followed. A file, a directory, and a link are copied with their mode, owner, and times, a file
-//! with its holes; anything else (a device, a fifo, a socket) is refused by name, and a file
-//! linked twice is copied twice.
+//! A path of a block device's backup restored into the live volume, inside a guest: the backup's
+//! image is mounted read-only beside the volume, and the entry at a path in it is copied under its
+//! own name into a new directory at the volume's root, as a restore of a volume of files lays it
+//! out. Every name is opened beneath the directory holding it and never through a link, so a link
+//! the backup holds is copied as a link and never followed. A file, a directory, and a link are
+//! copied with their mode, owner, and times, a file with its holes; anything else (a device, a
+//! fifo, a socket) is refused by name, and a file linked twice is copied twice.
 //!
 //! The copy is made in a fresh directory beside the target, named for the job, and renamed into
 //! place last, so a copy that fails leaves no partial target, and running the job again starts it

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the runtime sets for a resolved configuration (§5.2 of docs/09-recipes.md).
+//! What the runtime sets for a resolved configuration.
 
 use crate::support::{field, fields, resources, schema};
 use korpis_core::recipe::deliver::text;

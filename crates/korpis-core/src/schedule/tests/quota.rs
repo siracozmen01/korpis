@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota that counts where workloads run (§5.1 of docs/05-scheduling.md, "Where a workload
-//! runs"): a node is refused while what the workload would run there exceeds an entry counting
-//! that node, the nodes it does not count are not, and a workload it already counts is refused
-//! only for growth.
+//! Quota that counts where workloads run ("Where a workload runs"): a node is refused while what
+//! the workload would run there exceeds an entry counting that node, the nodes it does not count
+//! are not, and a workload it already counts is refused only for growth.
 
 use super::{GIB, ORG, body, checks, node, req};
 use crate::labels::LabelSelector;

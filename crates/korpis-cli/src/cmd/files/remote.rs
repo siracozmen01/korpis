@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A file session as the CLI holds one (§3.2 of docs/06-storage.md): a token minted for
-//! `workload.file.read` or `workload.file.write` on one workload, a session opened at a relay,
-//! each request one `FileRequest` data frame and each answer the `FileResponse` frame of the same
-//! number, in order. Requests may be sent ahead of their answers; the token is renewed on the
-//! session while an answer is awaited, so a long transfer outlives it.
+//! A file session as the CLI holds one: a token minted for `workload.file.read` or
+//! `workload.file.write` on one workload, a session opened at a relay, each request one
+//! `FileRequest` data frame and each answer the `FileResponse` frame of the same number, in order.
+//! Requests may be sent ahead of their answers; the token is renewed on the session while an answer
+//! is awaited, so a long transfer outlives it.
 
 use crate::cmd::session::{Minted, Session, frame, mint, open, relay, renew};
 use crate::connect::Connection;
@@ -91,9 +91,8 @@ impl Remote {
         Self::opened(c, workload, (if write { WRITE } else { READ }, Vec::new()), at).await
     }
 
-    /// A session of `action` on `workload` that carries file requests, opened with `params`, at
-    /// the relay `at` or the first the control plane names: a backup's, read inside its image
-    /// (§5.4 of docs/06-storage.md), is one.
+    /// A session of `action` on `workload` that carries file requests, opened with `params`, at the
+    /// relay `at` or the first the control plane names: a backup's, read inside its image, is one.
     ///
     /// # Errors
     /// The token could not be minted, or the session opened.

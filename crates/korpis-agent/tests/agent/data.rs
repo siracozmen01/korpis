@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The data path end to end (§3.1 of docs/02-architecture.md): the agent attaches its data
-//! connection to each relay it is named, the control plane's own role or a relay running as its
-//! own process, a client opens a session there with a token, and the node judges it again and
-//! serves it with the handler for its action.
+//! The data path end to end: the agent attaches its data connection to each relay it is named, the
+//! control plane's own role or a relay running as its own process, a client opens a session there
+//! with a token, and the node judges it again and serves it with the handler for its action.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};

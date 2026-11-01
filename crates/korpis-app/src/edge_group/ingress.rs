@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ingress` through an edge group (§3.1 of docs/07-networking.md), decided where a workload is
-//! placed: the group serving its `stable` endpoints where that one can, otherwise the group
-//! serving its `ingress` already where that still can, otherwise the nearest organization's
-//! group that can. A group can where two of its members or more serve the ingress, running the
-//! proxy on ports 80 and 443 of their own, and it has an IPv4 ingress address or a pool with room
-//! for one: an address whose ports 80 and 443, over TCP and UDP, no `stable` endpoint holds,
-//! chosen at the first placement that needs it and kept with its pool, so the names that resolve
-//! to it do not move. An IPv6 one is chosen beside it where an IPv6 pool of the group has room.
-//! The address is held as any of the group's, under a lease, by a member serving the ingress.
+//! `ingress` through an edge group, decided where a workload is placed: the group serving its
+//! `stable` endpoints where that one can, otherwise the group serving its `ingress` already where
+//! that still can, otherwise the nearest organization's group that can. A group can where two of
+//! its members or more serve the ingress, running the proxy on ports 80 and 443 of their own, and
+//! it has an IPv4 ingress address or a pool with room for one: an address whose ports 80 and 443,
+//! over TCP and UDP, no `stable` endpoint holds, chosen at the first placement that needs it and
+//! kept with its pool, so the names that resolve to it do not move. An IPv6 one is chosen beside it
+//! where an IPv6 pool of the group has room. The address is held as any of the group's, under a
+//! lease, by a member serving the ingress.
 
 use super::placed::Serving;
 use crate::App;
@@ -156,8 +156,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Records what `node`'s proxy holds of the challenges of its groups' names, which the
-    /// issuer waits on before a directory is told to look (§3.1 of docs/07-networking.md).
+    /// Records what `node`'s proxy holds of the challenges of its groups' names, which the issuer
+    /// waits on before a directory is told to look.
     ///
     /// # Errors
     /// The store refused it.

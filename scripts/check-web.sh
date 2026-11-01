@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# The web client's checks (§9 of docs/21-stack.md): installed from the lockfile with every install
-# script refused, its generated API client current with the schema, type-checked, linted, tested,
-# built, its message catalogues current with the source, and its licences within deny.toml's
-# list. Node and pnpm are required, as cargo is.
+# The web client's checks: installed from the lockfile with every install script refused, its
+# generated API client current with the schema, type-checked, linted, tested, built, its message
+# catalogues current with the source, and its licences within deny.toml's list. Node and pnpm are
+# required, as cargo is.
 set -euo pipefail
 cd "$(dirname "$0")/../web"
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0

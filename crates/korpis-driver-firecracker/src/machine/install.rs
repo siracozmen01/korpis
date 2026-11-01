@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Installs into a workload's block devices (§4.4 of docs/04-runtimes.md, §4 of
-//! docs/09-recipes.md): run in a service guest by the install job its boot drive carries, as the
-//! node's helper runs one beside a container, and asked after as the helper's jobs are. The
-//! driver writes the job's spec, naming the guest's own paths, and what it reads from the node's
-//! content store onto a content drive the guest mounts read-only in the image's place; the guest
-//! runs the job once its root is ready and says how it goes when asked. The driver asks until the
-//! job has ended, keeps what it wrote, and stops the guest, its volumes synced, unless a file
-//! session still holds it. What it keeps is in memory: a driver that restarts knows no install,
-//! and the node asks again from where the last progress it kept says, as for a lost worker.
+//! Installs into a workload's block devices: run in a service guest by the install job its boot
+//! drive carries, as the node's helper runs one beside a container, and asked after as the helper's
+//! jobs are. The driver writes the job's spec, naming the guest's own paths, and what it reads from
+//! the node's content store onto a content drive the guest mounts read-only in the image's place;
+//! the guest runs the job once its root is ready and says how it goes when asked. The driver asks
+//! until the job has ended, keeps what it wrote, and stops the guest, its volumes synced, unless a
+//! file session still holds it. What it keeps is in memory: a driver that restarts knows no
+//! install, and the node asks again from where the last progress it kept says, as for a lost
+//! worker.
 
 use super::service::{Wanted, content_of, service_id};
 use super::{Machine, MachineError, MachineResult, failed};
@@ -55,9 +55,9 @@ pub struct Install {
     pub restore: Option<Restore>,
 }
 
-/// A path of a block device's backup restored into its live volume (§5.4 of
-/// docs/06-storage.md): the image the node staged is the guest's content, mounted read-only, and
-/// the install job copies the path from it into a new directory of the volume.
+/// A path of a block device's backup restored into its live volume: the image the node staged is
+/// the guest's content, mounted read-only, and the install job copies the path from it into a new
+/// directory of the volume.
 #[derive(Debug, Clone)]
 pub struct Restore {
     /// The backup's image, as the node staged it.

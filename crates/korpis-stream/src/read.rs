@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a stream from an offset (§2 of docs/14-streams.md): whatever segments hold it, sealed
-//! or still written, in offset order. Offsets a reader asks for that are no longer on disk,
-//! pruned to the retention or never held here, are reported as such rather than skipped in
-//! silence, so the reader can show them as the gap they are.
+//! Reading a stream from an offset: whatever segments hold it, sealed or still written, in offset
+//! order. Offsets a reader asks for that are no longer on disk, pruned to the retention or never
+//! held here, are reported as such rather than skipped in silence, so the reader can show them as
+//! the gap they are.
 
 use crate::dir::StreamDir;
 use crate::record::Record;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Extension installations (§4 of docs/16-extensions.md).
+//! Extension installations.
 
 use super::StoreResult;
 use crate::Page;
@@ -30,7 +30,7 @@ pub trait ExtensionRead {
     ) -> impl Future<Output = StoreResult<Option<Installation>>> + Send;
 
     /// The installation in `organization` itself that provides `kind` named `name`, if one is
-    /// installed: at most one does (§4.1 of docs/16-extensions.md).
+    /// installed: at most one does.
     fn providing_installation(
         &self,
         organization: Uuid,
@@ -48,7 +48,7 @@ pub trait ExtensionRead {
 
 /// Writing installations.
 pub trait ExtensionWrite {
-    /// One installation, read within the transaction (Finding 71 of docs/23-walkthroughs.md).
+    /// One installation, read within the transaction.
     fn extension_within(
         &mut self,
         id: Uuid,

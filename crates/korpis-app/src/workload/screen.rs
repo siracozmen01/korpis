@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The shortlist query (§2.1 of docs/05-scheduling.md), asked before a workload's target is bound
-//! and outside the placement lock: the best scored nodes, as the store holds them now, are asked
-//! at once whether their driver's `Prepare` accepts the target. What a node refuses is kept for
-//! the target; what it does not answer passes it over for this bind alone. The bind, under the
-//! lock, filters and scores again with both, so a node that changed meanwhile is judged as it is
-//! then, and a node the shortlist did not reach is checked by `Prepare` after the bind.
+//! The shortlist query, asked before a workload's target is bound and outside the placement lock:
+//! the best scored nodes, as the store holds them now, are asked at once whether their driver's
+//! `Prepare` accepts the target. What a node refuses is kept for the target; what it does not
+//! answer passes it over for this bind alone. The bind, under the lock, filters and scores again
+//! with both, so a node that changed meanwhile is judged as it is then, and a node the shortlist
+//! did not reach is checked by `Prepare` after the bind.
 
 use crate::App;
 use crate::error::AppError;

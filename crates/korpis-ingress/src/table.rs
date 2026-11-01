@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the proxy serves (§3.2 of docs/07-networking.md): the routes by name, the certificates
-//! they are served with, the answers to ACME's HTTP challenges, and the bounds on what it accepts.
-//! A configuration is taken whole or refused whole, so the proxy never serves half of one.
+//! What the proxy serves: the routes by name, the certificates they are served with, the answers to
+//! ACME's HTTP challenges, and the bounds on what it accepts. A configuration is taken whole or
+//! refused whole, so the proxy never serves half of one.
 
 use korpis_proto::korpis::ingress::v1 as pb;
 use rustls::pki_types::pem::PemObject as _;

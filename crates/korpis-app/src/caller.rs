@@ -16,28 +16,27 @@ pub struct Caller {
     pub principal: Principal,
     /// Who, as authorization compares it.
     pub subject: Subject,
-    /// The sets an identity provider has just asserted they are in, for a person acting through
-    /// a relay; the grants those sets hold are theirs for the call (§5.2 of docs/08-identity.md).
+    /// The sets an identity provider has just asserted they are in, for a person acting through a
+    /// relay; the grants those sets hold are theirs for the call.
     pub memberships: Vec<Subject>,
     /// Where the request came from, for network conditions.
     pub source_ip: Option<IpAddr>,
     /// Whether the credential carried a second factor. API tokens never do; a signed-in user's
-    /// access token always does, since no sign-in is one factor (§9.6 of docs/08-identity.md).
+    /// access token always does, since no sign-in is one factor.
     pub mfa: bool,
     /// The session a signed-in user's access token was exchanged under.
     pub session: Option<uuid::Uuid>,
-    /// Who holds that session: an account, or a person signed in through an identity provider
-    /// (§9.7 of docs/08-identity.md).
+    /// Who holds that session: an account, or a person signed in through an identity provider.
     pub holder: Option<korpis_core::principal::Holder>,
     /// For a person acting through a relay: the ticket they act under.
     pub relayed: Option<Relayed>,
-    /// For a session begun at a portal, the portal's organization: nothing outside it is
-    /// authorized for the call, whatever its grants reach (§9.8 of docs/08-identity.md).
+    /// For a session begun at a portal, the portal's organization: nothing outside it is authorized
+    /// for the call, whatever its grants reach.
     pub within: Option<uuid::Uuid>,
 }
 
 /// A person acting through a client that relayed what they presented, under the ticket it was
-/// handed (§5.2 of docs/08-identity.md).
+/// handed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Relayed {
     /// The client, whose own credential the call carried.
@@ -80,7 +79,7 @@ impl Caller {
     }
 
     /// The subjects whose grants the caller holds: itself, and each set that vouches for it now,
-    /// whose grants are as much its own while it does (Finding 142 of docs/23-walkthroughs.md).
+    /// whose grants are as much its own while it does.
     #[must_use]
     pub fn holding(&self) -> Vec<String> {
         let sets = self.memberships.iter().map(|s| s.key.clone());
@@ -88,7 +87,7 @@ impl Caller {
     }
 
     /// An effect by this caller, naming the client that relayed them if one did, so the effect
-    /// names everyone who took part (§5.2 of docs/08-identity.md).
+    /// names everyone who took part.
     #[must_use]
     pub fn effect(&self, action: impl Into<String>, outcome: Outcome) -> Effect {
         let relay = self.relayed.as_ref().map(|r| r.relay.clone());
@@ -118,9 +117,8 @@ impl Caller {
                 .is_none_or(|r| &r.action == action && r.object == TicketObject::Object(object))
     }
 
-    /// Whether `resource` lies where the caller may act at all: anywhere, but for a session
-    /// begun at a portal only at or beneath the portal's organization (§9.8 of
-    /// docs/08-identity.md).
+    /// Whether `resource` lies where the caller may act at all: anywhere, but for a session begun
+    /// at a portal only at or beneath the portal's organization.
     #[must_use]
     pub fn reaches(&self, resource: &Resource) -> bool {
         self.within.is_none_or(|org| {
@@ -161,9 +159,8 @@ impl Caller {
         }
     }
 
-    /// This caller with its ticket's grant standing for `anchor`, the object `grant.revoke`
-    /// over the grant's scope is authorized on (§3.5 of docs/08-identity.md), once
-    /// [`Self::may_revoke`] has passed.
+    /// This caller with its ticket's grant standing for `anchor`, the object `grant.revoke` over
+    /// the grant's scope is authorized on, once [`Self::may_revoke`] has passed.
     #[must_use]
     pub fn revoking_at(&self, anchor: ObjectRef) -> Self {
         let mut narrowed = self.clone();

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the control plane keeps of an account and its factors (§9.6 of docs/08-identity.md).
+//! What the control plane keeps of an account and its factors.
 
 use crate::webauthn::{Algorithm, NewPasskey};
 use std::time::{Duration, SystemTime};
@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 /// How long an invitation lasts unless its issuer says less.
 pub const INVITATION_LIFETIME: Duration = Duration::from_secs(7 * 24 * 3600);
-/// How long the bootstrap invitation of an installation lasts (§9.1 of docs/08-identity.md).
+/// How long the bootstrap invitation of an installation lasts.
 pub const BOOTSTRAP_LIFETIME: Duration = Duration::from_secs(3600);
 /// How long a `WebAuthn` ceremony may take, from its challenge to its answer.
 pub const CHALLENGE_LIFETIME: Duration = Duration::from_secs(300);
@@ -85,7 +85,7 @@ pub struct Invitation {
     /// When it stops working.
     pub expires_at: SystemTime,
     /// Whether only registering a passkey redeems it, as the bootstrap invitation and
-    /// `recover-root`'s are (§9.1 and §9.2 of docs/08-identity.md).
+    /// `recover-root`'s are.
     pub passkey_only: bool,
     /// When it was redeemed, if it was.
     pub redeemed_at: Option<SystemTime>,
@@ -122,9 +122,8 @@ pub struct Passkey {
     pub created_at: SystemTime,
     /// When it last signed in.
     pub last_used_at: Option<SystemTime>,
-    /// The portal it was registered at, whose name is its relying party's identifier, and the
-    /// only address it signs in at; none for the installation's own (§9.8 of
-    /// docs/08-identity.md).
+    /// The portal it was registered at, whose name is its relying party's identifier, and the only
+    /// address it signs in at; none for the installation's own.
     pub portal: Option<Uuid>,
 }
 
@@ -206,8 +205,8 @@ pub struct Challenge {
     pub account: Option<Uuid>,
     /// The invitation a registration redeems.
     pub invitation: Option<Uuid>,
-    /// The portal it was issued at, whose relying party its answer is verified for; none for
-    /// the installation's own address (§9.8 of docs/08-identity.md).
+    /// The portal it was issued at, whose relying party its answer is verified for; none for the
+    /// installation's own address.
     pub portal: Option<Uuid>,
     /// When it stops being answerable.
     pub expires_at: SystemTime,

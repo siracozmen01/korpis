@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// An organization's theme, edited (§7 of docs/11-surface-web.md): its name, logo, colours,
-// sign-in text, and stylesheet, saved against the version it was read at, so two editors never
-// silently overwrite each other; previewed on the page before it is saved; and removed, so the
-// nearest ancestor's applies again. Who may change it is the control plane's to say: the form is
-// offered to whoever opens the organization, and a refusal says why.
+// An organization's theme, edited: its name, logo, colours, sign-in text, and stylesheet, saved
+// against the version it was read at, so two editors never silently overwrite each other; previewed
+// on the page before it is saved; and removed, so the nearest ancestor's applies again. Who may
+// change it is the control plane's to say: the form is offered to whoever opens the organization,
+// and a refusal says why.
 
 import { create } from "@bufbuild/protobuf";
 import { useEffect, useState } from "react";

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an organization's entry has promised below it (§5.1 of docs/05-scheduling.md, Finding
-//! 139 of docs/23-walkthroughs.md). A child organization given a set is guaranteed its
-//! reservations: whatever its parent runs itself, the child's workloads may reserve up to them.
-//! So the parent's entry counts each child's entry of its shape as the larger of what the child
-//! was given and what it holds, beside what the parent's own workloads hold, and a workload
-//! within its child's guarantee is never refused by the parent's entry. Limits are sold, not
-//! guaranteed, and are counted as they are held.
+//! What an organization's entry has promised below it. A child organization given a set is
+//! guaranteed its reservations: whatever its parent runs itself, the child's workloads may reserve
+//! up to them. So the parent's entry counts each child's entry of its shape as the larger of what
+//! the child was given and what it holds, beside what the parent's own workloads hold, and a
+//! workload within its child's guarantee is never refused by the parent's entry. Limits are sold,
+//! not guaranteed, and are counted as they are held.
 
 use super::{
     Bounds, Dimension, Exceeded, Held, QuotaEntry, QuotaSet, SetError, Side, Totals, shape,

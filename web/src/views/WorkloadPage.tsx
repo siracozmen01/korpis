@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A workload's screen (§2 and §3 of docs/11-surface-web.md), live over its watch: what it is
-// converging to and how far it has come, the stage it is at when it has not converged, and what
-// its node observed, each value known, stale, or unknown; and its console and files (§8), which
-// a share link's screen opens only when asked, since each is a use of the link. A task or
-// scheduled workload shows its runs in place of a console, each run's opened from the list.
+// A workload's screen, live over its watch: what it is converging to and how far it has come, the
+// stage it is at when it has not converged, and what its node observed, each value known, stale, or
+// unknown; and its console and files, which a share link's screen opens only when asked, since each
+// is a use of the link. A task or scheduled workload shows its runs in place of a console, each
+// run's opened from the list.
 
 import { type ReactNode, useState } from "react";
 import { Button } from "react-aria-components";
@@ -52,8 +52,7 @@ export function WorkloadPage({ id }: { readonly id: string }) {
     );
   }
   const said = diagnosis(status, now);
-  // A task or scheduled workload's runs each write their own console, and it has none of its
-  // own (§4 of docs/14-streams.md).
+  // A task or scheduled workload's runs each write their own console, and it has none of its own.
   const lifecycle = (status.target ?? status.head)?.body?.lifecycle;
   const runs = lifecycle === Lifecycle.TASK || lifecycle === Lifecycle.SCHEDULED;
   const newest = `${status.newestRun?.id ?? ""} ${String(status.newestRun?.status ?? 0)}`;
@@ -127,7 +126,7 @@ export function WorkloadPage({ id }: { readonly id: string }) {
 
 /** What opens a session of its own, at once on a signed-in screen and only when asked on a share
  * link's, where each opening spends a use: the screen's own opening is the one use the link's
- * holder was told it costs (§6 of docs/11-surface-web.md). */
+ * holder was told it costs. */
 function Asked(props: {
   readonly metered: boolean;
   readonly what: string;

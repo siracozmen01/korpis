@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Pruning through the control plane (§5.3 and §5.5 of docs/06-storage.md), against a real
-//! object store: nothing is proposed while every backup is kept or being read; the plan names
-//! what it forgets and waits for a person; applied by the control plane, it forgets that and
-//! marks what only it held; the sweep waits out the grace and every writer's access, holds the
-//! prefix against new backups while it runs, and deletes the marked objects; and the backup kept
-//! still restores whole. It needs MinIO (`scripts/test-tools.sh`), and is skipped without it.
+//! Pruning through the control plane, against a real object store: nothing is proposed while every
+//! backup is kept or being read; the plan names what it forgets and waits for a person; applied by
+//! the control plane, it forgets that and marks what only it held; the sweep waits out the grace
+//! and every writer's access, holds the prefix against new backups while it runs, and deletes the
+//! marked objects; and the backup kept still restores whole. It needs MinIO
+//! (`scripts/test-tools.sh`), and is skipped without it.
 
 use crate::backup_target::serving_with;
 use crate::backups::{access, bare, create, ended, get, repository};

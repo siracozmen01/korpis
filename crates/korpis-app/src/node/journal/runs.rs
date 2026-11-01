@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node reports of the runs it executes (§4.2 of docs/05-scheduling.md): that one started,
-//! and that one ended, with its exit status and why. Each is believed only from a node the
-//! workload is placed on, and only for a run of that workload that no other node started. How it
-//! ended is the control plane's to judge, by the exit probe of the intent the run was made under,
-//! never the node's to declare. The times are the node's clock, which is informational: each is
-//! held between when the run could have happened and when the report arrived.
+//! What a node reports of the runs it executes: that one started, and that one ended, with its exit
+//! status and why. Each is believed only from a node the workload is placed on, and only for a run
+//! of that workload that no other node started. How it ended is the control plane's to judge, by
+//! the exit probe of the intent the run was made under, never the node's to declare. The times are
+//! the node's clock, which is informational: each is held between when the run could have happened
+//! and when the report arrived.
 
 use crate::App;
 use crate::error::AppError;

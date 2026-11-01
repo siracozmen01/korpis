@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Who the probe runs as, and what it says of the commands run beside it: so a command a driver
-//! runs inside an object (`Exec`, §4.2 of docs/04-runtimes.md) is compared with the object's own
-//! process, and its timeout and its output limit are seen from inside.
+//! runs inside an object (`Exec`) is compared with the object's own process, and its timeout and
+//! its output limit are seen from inside.
 
 use super::say;
 use std::io::Write as _;
@@ -14,9 +14,10 @@ const STATUS: [&str; 8] =
 /// The namespaces a process is in, as `/proc/self/ns` names them.
 const NAMESPACES: [&str; 8] = ["cgroup", "ipc", "mnt", "net", "pid", "time", "user", "uts"];
 
-/// Who this process is, one line each: its ids, capabilities, and confinement; the namespaces it
-/// is in; its security module's label; its cgroup; its limits; its working directory and its environment, sorted. A line it
-/// cannot read says so, which compares equal only with another that cannot.
+/// Who this process is, one line each: its ids, capabilities, and confinement; the namespaces it is
+/// in; its security module's label; its cgroup; its limits; its working directory and its
+/// environment, sorted. A line it cannot read says so, which compares equal only with another that
+/// cannot.
 pub fn identity() -> String {
     let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
     let mut lines: Vec<String> = STATUS

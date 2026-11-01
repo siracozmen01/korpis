@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The identity bindings declared at an organization (§5 and §5.1 of docs/08-identity.md, §5 of
-// docs/11-surface-web.md): each person or set an identity provider installed there vouches for,
-// with its state, when its provider last confirmed it, and its interval and grace together. A
-// signed-in caller holding `identity.binding.write` there binds a person or a set, edits a
-// binding's interval and grace against the version shown, asks its provider now, and retires it.
-// Nothing here is offered through a share link.
+// The identity bindings declared at an organization: each person or set an identity provider
+// installed there vouches for, with its state, when its provider last confirmed it, and its
+// interval and grace together. A signed-in caller holding `identity.binding.write` there binds a
+// person or a set, edits a binding's interval and grace against the version shown, asks its
+// provider now, and retires it. Nothing here is offered through a share link.
 
 import { useCallback, useState } from "react";
 import { Button } from "react-aria-components";

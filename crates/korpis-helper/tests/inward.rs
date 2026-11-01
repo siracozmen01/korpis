@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What reaches a workload from outside its node (§4 of docs/07-networking.md, Finding 180 of
-//! docs/23-walkthroughs.md). The node is a network namespace of the test's own, the helper making
-//! the workload's network from a thread inside it, and outside it is another, joined to it by a
-//! veth and routing the workload's pool through it, as a network that routes a node's prefix to
-//! it does; so nothing is made in this machine's own namespace. From outside, a port whose
-//! exposure is reached at the workload's own address is reached, one reached by other workloads
-//! alone is not, and is counted under `exposure`, and what the node translated from a port of its
-//! own is let in. Needs root and nftables; skipped without them.
+//! What reaches a workload from outside its node. The node is a network namespace of the test's
+//! own, the helper making the workload's network from a thread inside it, and outside it is
+//! another, joined to it by a veth and routing the workload's pool through it, as a network that
+//! routes a node's prefix to it does; so nothing is made in this machine's own namespace. From
+//! outside, a port whose exposure is reached at the workload's own address is reached, one reached
+//! by other workloads alone is not, and is counted under `exposure`, and what the node translated
+//! from a port of its own is let in. Needs root and nftables; skipped without them.
 
 #![allow(
     clippy::unwrap_used,

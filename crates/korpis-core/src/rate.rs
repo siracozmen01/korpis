@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Rate limits (§10 of docs/10-api.md): buckets of a generic cell rate, each a steady rate and a
-//! burst. A bucket is one instant, the moment it would be full again; a request is admitted when
-//! admitting it leaves that instant no further ahead than the burst allows, and moves it on by one
-//! request's interval.
+//! Rate limits: buckets of a generic cell rate, each a steady rate and a burst. A bucket is one
+//! instant, the moment it would be full again; a request is admitted when admitting it leaves that
+//! instant no further ahead than the burst allows, and moves it on by one request's interval.
 
 use std::time::Duration;
 
@@ -92,12 +91,11 @@ impl Rate {
     }
 }
 
-/// The guesses at one sign-in name's password and code: ten, then one every ninety seconds
-/// (§9.6 of docs/08-identity.md).
+/// The guesses at one sign-in name's password and code: ten, then one every ninety seconds.
 pub const GUESSES: Rate = Rate { interval: Duration::from_secs(90), burst: 10 };
 
-/// The guesses from one browser holding a device cookie for the account: five, then one every
-/// three minutes (§9.6 of docs/08-identity.md).
+/// The guesses from one browser holding a device cookie for the account: five, then one every three
+/// minutes.
 pub const DEVICE_GUESSES: Rate = Rate { interval: Duration::from_secs(180), burst: 5 };
 
 /// The rates an installation charges requests to.

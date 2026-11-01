@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in through an identity provider, completed (§9.7 of docs/08-identity.md), against a
-//! real control plane and a provider written with the SDK. A person returns with the state and a
-//! code; the state is spent once, the verifier must be the challenge's, the provider asserts the
-//! code beside the sign-in's own nonce, and the presentation is accepted once. The person's
-//! session is theirs, their records as members follow what each sign-in named, and signing in
-//! again from their own session re-authenticates it rather than beginning another.
+//! Signing in through an identity provider, completed, against a real control plane and a provider
+//! written with the SDK. A person returns with the state and a code; the state is spent once, the
+//! verifier must be the challenge's, the provider asserts the code beside the sign-in's own nonce,
+//! and the presentation is accepted once. The person's session is theirs, their records as members
+//! follow what each sign-in named, and signing in again from their own session re-authenticates it
+//! rather than beginning another.
 
 use crate::bindings::{bind, set};
 use crate::external_sign_in::{CHALLENGE, anonymous, begin, issuing, query};

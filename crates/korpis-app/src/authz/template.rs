@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grant templates (§4 of docs/08-identity.md): made, edited, and retired under
-//! `template.write` on the organization that owns them, and read wherever they are offered, at
-//! the owner and beneath it. A template carries no authority, so managing one is the owner's own
-//! business rather than an authority from above; applying one is attenuating a grant the issuer
-//! holds, which issuing decides.
+//! Grant templates: made, edited, and retired under `template.write` on the organization that owns
+//! them, and read wherever they are offered, at the owner and beneath it. A template carries no
+//! authority, so managing one is the owner's own business rather than an authority from above;
+//! applying one is attenuating a grant the issuer holds, which issuing decides.
 
 use crate::App;
 use crate::authz::gateway::read_namespace;

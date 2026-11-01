@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Operator fields (§5 of docs/09-recipes.md): a tenant who may change its workload may not set
-//! a field the recipe reserves for whoever is above its organization.
+//! Operator fields: a tenant who may change its workload may not set a field the recipe reserves
+//! for whoever is above its organization.
 
 use crate::recipes::{body, create, project, push_paper, text};
 use crate::support::{Harness, detail, mutation, org_scope, reason};

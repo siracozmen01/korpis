@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's recipe content, which its backups record by reference rather than store (§5.2 of
-//! docs/06-storage.md): the files of its recipe and what its install's `fetch`es downloaded, each
-//! by its sha256 and size, as the node's content store holds them. Recipe content is public by
-//! definition (§6 of docs/06-storage.md), so a file byte-identical to it costs a backup nothing.
+//! A workload's recipe content, which its backups record by reference rather than store: the files
+//! of its recipe and what its install's `fetch`es downloaded, each by its sha256 and size, as the
+//! node's content store holds them. Recipe content is public by definition, so a file
+//! byte-identical to it costs a backup nothing.
 //!
 //! It only makes backups smaller: content the node cannot name, because the registry is down or
 //! the store no longer holds it, is left out and backed up as any other file would be.

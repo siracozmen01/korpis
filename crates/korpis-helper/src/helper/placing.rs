@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where a job works (§5 of docs/06-storage.md): a backup in its volume or a snapshot of it, a
-//! replacing restore in a staging place, a reading one in a place of its own, any other restore
-//! in its volume or a new directory of it, and an install in the volumes its spec names, each
-//! found from the identifiers the request names and nothing it says of paths.
+//! Where a job works: a backup in its volume or a snapshot of it, a replacing restore in a staging
+//! place, a reading one in a place of its own, any other restore in its volume or a new directory
+//! of it, and an install in the volumes its spec names, each found from the identifiers the request
+//! names and nothing it says of paths.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};
@@ -24,7 +24,7 @@ impl Helper {
             .holding(&b.volume)?
             .backup_source((&b.volume, &b.snapshot), (job, b.take_snapshot))?;
         let kept = taken.map(|(volume, name)| Kept::Snapshot { volume, name });
-        // A block device's backup says what its image holds (§5.4 of docs/06-storage.md).
+        // A block device's backup says what its image holds.
         let block = crate::block::is_block(&self.holding(&b.volume)?.path_of(&b.volume));
         let work = pb::BackupWork {
             backup: b.backup.clone(),

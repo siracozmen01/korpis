@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the node keeps of edges (§3.1 of docs/07-networking.md): the table the control plane
-//! last told it, kept on disk beside the mesh's members so forwarding runs with the control plane
-//! gone, and asked of the helper with the mesh. As a member: every address and port of its
-//! groups' tables translated, each into the GRE link of its workload's node, and the probe port
-//! of its own address into the link of the node the probe is answered by, and ports 80 and 443
-//! of each group's ingress address to its own proxy. As a node behind edges: a link to each that
-//! forwards here, and what each may reach here through it or, from its proxy, through the mesh.
+//! What the node keeps of edges: the table the control plane last told it, kept on disk beside the
+//! mesh's members so forwarding runs with the control plane gone, and asked of the helper with the
+//! mesh. As a member: every address and port of its groups' tables translated, each into the GRE
+//! link of its workload's node, and the probe port of its own address into the link of the node the
+//! probe is answered by, and ports 80 and 443 of each group's ingress address to its own proxy. As
+//! a node behind edges: a link to each that forwards here, and what each may reach here through it
+//! or, from its proxy, through the mesh.
 
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::helper::v1 as helper;

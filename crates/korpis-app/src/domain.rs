@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Domains organizations hold (§3.2 of docs/07-networking.md). One is asked for under
-//! `domain.write` on its organization and verified one of three ways: by DNS, the control plane
-//! finding its token in a TXT record; by delegation, beneath a verified domain of an ancestor
-//! organization, under `domain.write` on that ancestor too; or by attestation, under
-//! `domain.attest` on the installation's root organization. A delegated or attested domain is
-//! verified as it is made. Verification takes the domains lock and refuses a name overlapping
-//! another organization's verified domain, save the domains it was delegated beneath.
+//! Domains organizations hold. One is asked for under `domain.write` on its organization and
+//! verified one of three ways: by DNS, the control plane finding its token in a TXT record; by
+//! delegation, beneath a verified domain of an ancestor organization, under `domain.write` on that
+//! ancestor too; or by attestation, under `domain.attest` on the installation's root organization.
+//! A delegated or attested domain is verified as it is made. Verification takes the domains lock
+//! and refuses a name overlapping another organization's verified domain, save the domains it was
+//! delegated beneath.
 
 mod verify;
 
@@ -63,8 +63,8 @@ pub(crate) fn routed(name: &DomainName) -> AppError {
     )
 }
 
-/// The conflict of a change to domains that would leave `name`, a portal's, without the
-/// portal's organization as its holder (§3.6 of docs/07-networking.md).
+/// The conflict of a change to domains that would leave `name`, a portal's, without the portal's
+/// organization as its holder.
 pub(crate) fn portaled(name: &DomainName) -> AppError {
     AppError::conflict(
         "domain.portal",
@@ -131,7 +131,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// How `cmd` is to be verified, and the grant that allows it: `domain.write` on the holder,
     /// held beside `domain.write` on the parent's holder for a delegation; `domain.attest` on the
     /// root organization alone for an attestation, which is created for any organization in its
-    /// subtree (§5 of docs/10-api.md).
+    /// subtree.
     async fn verification_of(
         &self,
         caller: &Caller,
@@ -191,9 +191,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             if blocked_by(&created, &others, &chain).is_some() {
                 return Err(held());
             }
-            // A delegation makes its holder the holder of every name beneath it, so it may not
-            // take one that another organization's endpoint routes (§3.2 of
-            // docs/07-networking.md).
+            // A delegation makes its holder the holder of every name beneath it, so it may not take
+            // one that another organization's endpoint routes.
             let beneath = tx.routes_beneath(&created.name).await?;
             if let Some(r) = beneath.iter().find(|r| r.organization != created.organization) {
                 return Err(routed(&r.name));

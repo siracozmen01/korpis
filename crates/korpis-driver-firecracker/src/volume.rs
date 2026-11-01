@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A guest's volumes as its driver takes them (§3.1 of docs/06-storage.md). Each is the image of a
-//! block device the helper made, or on a block class the node of the device it attached (§2.1
-//! there): named exactly `<volume root>/<volume>/block.ext4`, with no link on
-//! the way, in a directory the helper marked as a block device's, so the driver, which is root,
-//! acts on nothing else under the volume root. Each is attached to one workload's guests at a time,
-//! since two kernels mounting one filesystem corrupt it. It is given to the workload's first id,
-//! and later bound into the guest's chroot, through a descriptor of the file checked, so the file
-//! given and bound is the one that was checked.
+//! A guest's volumes as its driver takes them. Each is the image of a block device the helper made,
+//! or on a block class the node of the device it attached: named exactly `<volume
+//! root>/<volume>/block.ext4`, with no link on the way, in a directory the helper marked as a block
+//! device's, so the driver, which is root, acts on nothing else under the volume root. Each is
+//! attached to one workload's guests at a time, since two kernels mounting one filesystem corrupt
+//! it. It is given to the workload's first id, and later bound into the guest's chroot, through a
+//! descriptor of the file checked, so the file given and bound is the one that was checked.
 
 use korpis_core::workload::volume::{BLOCK_IMAGE, BLOCK_MARK};
 use rustix::fs::{FileType, Mode, OFlags};
@@ -34,7 +33,7 @@ pub fn checked(root: &Path, source: &str) -> Result<PathBuf, String> {
 }
 
 /// The image at `path`, a regular file or, on a block class, the node of the device the helper
-/// attached (§2.1 of docs/06-storage.md), opened as itself with `flags`, never through a link.
+/// attached, opened as itself with `flags`, never through a link.
 fn opened(path: &Path, flags: OFlags) -> io::Result<OwnedFd> {
     let fd = rustix::fs::open(path, flags | OFlags::NOFOLLOW | OFlags::CLOEXEC, Mode::empty())?;
     let kind = FileType::from_raw_mode(rustix::fs::fstat(&fd)?.st_mode);

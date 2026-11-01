@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's ingress (§3.2 of docs/07-networking.md): the helper opens ports 80 and 443 for the
-//! proxy, which needs a privilege neither the supervisor nor the proxy has, and starts the proxy
-//! as the supervisor's own user, in a cgroup of its own. Its new connections may then leave only
-//! through a workload's link, which the host table enforces by the cgroup, since Landlock, the
-//! proxy's own confinement, names ports and not addresses. The helper does not read a byte the
-//! proxy serves.
+//! The node's ingress: the helper opens ports 80 and 443 for the proxy, which needs a privilege
+//! neither the supervisor nor the proxy has, and starts the proxy as the supervisor's own user, in
+//! a cgroup of its own. Its new connections may then leave only through a workload's link, which
+//! the host table enforces by the cgroup, since Landlock, the proxy's own confinement, names ports
+//! and not addresses. The helper does not read a byte the proxy serves.
 
 use crate::error::{HelperError, HelperResult};
 use crate::network::nft::TABLE;
@@ -88,8 +87,8 @@ fn bound_udp(at: SocketAddr) -> std::io::Result<OwnedFd> {
     Ok(fd)
 }
 
-/// Ports 80 and 443 of each of `asked`: every port 80, then every 443 over TCP, then every 443
-/// over UDP, for HTTP/3 (§3.2 of docs/07-networking.md).
+/// Ports 80 and 443 of each of `asked`: every port 80, then every 443 over TCP, then every 443 over
+/// UDP, for HTTP/3.
 pub fn open(asked: &[String]) -> HelperResult<Vec<OwnedFd>> {
     let ips = addresses(asked)?;
     let failed =
@@ -111,9 +110,9 @@ pub fn open(asked: &[String]) -> HelperResult<Vec<OwnedFd>> {
 /// The rules that let the proxy in `cgroup`, `level` components below the root, open new
 /// connections only through a workload's link, or over TCP through the mesh to a workload of
 /// another node, which that node admits from this one for an `ingress` endpoint an edge group
-/// serves (§3.1 of docs/07-networking.md); in `nft`'s own syntax: its JSON input does not take a
-/// cgroup match in the versions nodes run (nftables 1.0.9 refuses the key it prints). `None`
-/// when the path holds a character that has no place in a cgroup the helper names.
+/// serves; in `nft`'s own syntax: its JSON input does not take a cgroup match in the versions nodes
+/// run (nftables 1.0.9 refuses the key it prints). `None` when the path holds a character that has
+/// no place in a cgroup the helper names.
 fn confining(cgroup: &str, level: usize) -> Option<String> {
     let plain = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/');
     if cgroup.is_empty() || !cgroup.chars().all(plain) {

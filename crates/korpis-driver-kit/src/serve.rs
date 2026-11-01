@@ -2,11 +2,10 @@
 
 //! A driver's socket. What a driver can do is close to root, containerd's for the `oci` driver and
 //! KVM and the jailer's for the `firecracker` one, so who may ask it is decided by the kernel
-//! rather than by anything a client says: the socket is a Unix socket only
-//! its owner and group may open, and each connection's peer credentials, as the kernel recorded
-//! them at `connect`, must name an allowed user, or the connection is closed before a byte of it
-//! is read (§6.1 of docs/02-architecture.md). The protocol is gRPC over HTTP/2, the transport
-//! the agent's client speaks.
+//! rather than by anything a client says: the socket is a Unix socket only its owner and group may
+//! open, and each connection's peer credentials, as the kernel recorded them at `connect`, must
+//! name an allowed user, or the connection is closed before a byte of it is read. The protocol is
+//! gRPC over HTTP/2, the transport the agent's client speaks.
 
 use connectrpc::{ConnectRpcService, Router};
 use hyper_util::rt::{TokioExecutor, TokioIo};

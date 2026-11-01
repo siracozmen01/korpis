@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! cosign signatures beside a recipe: read before anything of the recipe is fetched (§7 of
-//! docs/09-recipes.md), and written the way `cosign sign --key` writes them, for the signing
-//! tooling of Phase 4 and for tests.
+//! cosign signatures beside a recipe: read before anything of the recipe is fetched, and written
+//! the way `cosign sign --key` writes them, for the signing tooling of Phase 4 and for tests.
 
 use super::{Registry, RegistryError, classify, reference};
 use crate::artifact::EMPTY_CONFIG_MEDIA_TYPE;

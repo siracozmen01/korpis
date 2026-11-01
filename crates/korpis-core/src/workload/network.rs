@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What every workload's network on a node has in common (§4.1 and §5.1 of
-//! docs/07-networking.md), which the helper that makes it, the supervisor that serves it, and the
-//! meter that reads its counters (§2 of docs/15-observability.md) must agree on.
+//! What every workload's network on a node has in common, which the helper that makes it, the
+//! supervisor that serves it, and the meter that reads its counters must agree on.
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 

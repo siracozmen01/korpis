@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The `extension` block of an extension's document (§3.1 of docs/16-extensions.md), as written
-//! and as the domain holds it. The block is checked by the domain's own rules once converted.
+//! The `extension` block of an extension's document, as written and as the domain holds it. The
+//! block is checked by the domain's own rules once converted.
 
 use korpis_core::authz::action::Action;
 use korpis_core::event::{EventFilter, Severity};

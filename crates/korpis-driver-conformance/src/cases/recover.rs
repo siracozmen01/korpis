@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! `Recover`, which §4.2 of docs/04-runtimes.md says is not optional: a driver killed with its
+//! `Recover`, which the driver lifecycle makes not optional: a driver killed with its
 //! objects in every state finds each of them again once it is started, with its labels and as it
-//! was, and goes on driving them (§4.4 of docs/02-architecture.md); an object whose kernel ended
-//! it for its memory says so, and is found again stopped, never running; and after the host has
-//! restarted, none of them runs, each is still held, and each starts again. A driver that adopts
-//! after a clean restart and not after a crash fails only in the situation that matters (§8).
+//! was, and goes on driving them; an object whose kernel ended it for its memory says so, and is
+//! found again stopped, never running; and after the host has restarted, none of them runs, each is
+//! still held, and each starts again. A driver that adopts after a clean restart and not after a
+//! crash fails only in the situation that matters.
 
 use super::Stopped;
 use crate::case::Verdict;

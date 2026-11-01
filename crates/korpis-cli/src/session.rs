@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The CLI's session (§9.4 of docs/08-identity.md, §7 of docs/13-surface-cli.md): signing in by
-//! the device authorization grant, and the refresh credential exchanged for the access tokens a
-//! command presents, rotated on every exchange and written back where it is kept.
+//! The CLI's session: signing in by the device authorization grant, and the refresh credential
+//! exchanged for the access tokens a command presents, rotated on every exchange and written back
+//! where it is kept.
 
 use crate::connect::{Connection, Endpoint};
 use crate::error::CliError;
@@ -190,9 +190,8 @@ pub async fn sign_out(c: &Connection, held: &Held) -> Result<(), CliError> {
 
 /// Signs the terminal in again by the device flow, through `c`, anonymous, telling `out` where to
 /// approve it, and replaces the session `held` holds with the one the approval begins, ending the
-/// old: what a change refused as not recent asks of a terminal, which cannot re-authenticate,
-/// since the approval re-authenticates in the browser and begins a session signed in now
-/// (Finding 135 of docs/23-walkthroughs.md).
+/// old: what a change refused as not recent asks of a terminal, which cannot re-authenticate, since
+/// the approval re-authenticates in the browser and begins a session signed in now.
 pub async fn signed_in_again(
     c: &Connection,
     held: &Held,

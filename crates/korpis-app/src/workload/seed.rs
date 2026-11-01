@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes created from a backup (§5.4 of docs/06-storage.md): a declared volume may name a
-//! backup it is created holding, which its plan restores into it before anything runs on it.
-//! That puts the backup's contents in the hands of the declaring workload's holders, so declaring
-//! it takes `backup.read` on the backup's workload, and only a whole backup is named. It is
-//! checked for the volumes the declaration creates, the ones its approved body does not already
-//! have: a volume made long ago from a backup since pruned is not declared again.
+//! Volumes created from a backup: a declared volume may name a backup it is created holding, which
+//! its plan restores into it before anything runs on it. That puts the backup's contents in the
+//! hands of the declaring workload's holders, so declaring it takes `backup.read` on the backup's
+//! workload, and only a whole backup is named. It is checked for the volumes the declaration
+//! creates, the ones its approved body does not already have: a volume made long ago from a backup
+//! since pruned is not declared again.
 
 use crate::App;
 use crate::caller::Caller;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dependencies, the control plane's half (§5 of docs/07-networking.md): a target is checked
-//! when declared, resolved to the endpoint it reaches into the dependent's assignment, and a
-//! dependent is placed on its target's node where no mesh joins two; a required dependency with
-//! nothing to reach leaves it unplaced, saying so; and the dependent's status says what each
-//! dependency reaches and how, and what it names and leaves out, with why.
+//! Dependencies, the control plane's half: a target is checked when declared, resolved to the
+//! endpoint it reaches into the dependent's assignment, and a dependent is placed on its target's
+//! node where no mesh joins two; a required dependency with nothing to reach leaves it unplaced,
+//! saying so; and the dependent's status says what each dependency reaches and how, and what it
+//! names and leaves out, with why.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::egress::assigned;

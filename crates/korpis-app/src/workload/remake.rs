@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Making a workload again on the node it was placed on again (§2.4 of docs/05-scheduling.md,
-//! Finding 204 of docs/23-walkthroughs.md). What a node runs it from, its recipe's content and
-//! its volumes there, was put on the node by the steps of the plan that made it, and those ran on
-//! the node it left. So a workload made on one node and placed on another while nothing of it is
-//! under way, by failover or away from a node removed as compromised, is placed only where every
-//! volume it holds is reached, and the control plane approves a remake plan for it there: its
-//! recipe pulled, each volume attached where it is, its runtime created and, if it is to run,
-//! started. The plan carries out the decision that approved its target, under that grant.
+//! Making a workload again on the node it was placed on again. What a node runs it from, its
+//! recipe's content and its volumes there, was put on the node by the steps of the plan that made
+//! it, and those ran on the node it left. So a workload made on one node and placed on another
+//! while nothing of it is under way, by failover or away from a node removed as compromised, is
+//! placed only where every volume it holds is reached, and the control plane approves a remake plan
+//! for it there: its recipe pulled, each volume attached where it is, its runtime created and, if
+//! it is to run, started. The plan carries out the decision that approved its target, under that
+//! grant.
 
 use super::propose;
 use crate::App;
@@ -38,7 +38,7 @@ pub(super) struct Held {
     pub(super) promote: Option<Promoted>,
 }
 
-/// A volume made from its freshest replica, its own node gone (§2.2 of docs/06-storage.md).
+/// A volume made from its freshest replica, its own node gone.
 #[derive(Debug, Clone)]
 pub(super) struct Promoted {
     /// The replica's last snapshot, and the class it is kept in.
@@ -71,12 +71,11 @@ fn replica_node(v: &Volume, p: &Promoted) -> Option<Uuid> {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Each volume `body` declares for `w` that `w` holds, made with it or attached, with where
-    /// it is. A volume made with it that has no record was never reported made, and is made
-    /// again where it lands: its node reports a volume it makes before the step that made it
-    /// completes, so a plan that applied left a record of each. One on `gone`, the node a
-    /// failover leaves, is reached at its freshest replica where the declaration accepts that
-    /// replica's loss (§2.2 of docs/06-storage.md).
+    /// Each volume `body` declares for `w` that `w` holds, made with it or attached, with where it
+    /// is. A volume made with it that has no record was never reported made, and is made again
+    /// where it lands: its node reports a volume it makes before the step that made it completes,
+    /// so a plan that applied left a record of each. One on `gone`, the node a failover leaves, is
+    /// reached at its freshest replica where the declaration accepts that replica's loss.
     pub(super) async fn held_volumes(
         &self,
         w: &Workload,

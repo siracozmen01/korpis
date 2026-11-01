@@ -6,10 +6,10 @@
 //! signature covers, so no other thing the key signs can be presented as one of them.
 //!
 //! The form: the prefix, then the payload and its Ed25519 signature, each base64url without
-//! padding, joined by a dot. The payload is a version byte, the key id, the two ids, and the
-//! expiry in seconds since the epoch, big-endian. Version 2, added 2026-10-22, carries a third id
-//! after the two, the organization an access token of a session begun at a portal is confined
-//! beneath (§9.8 of docs/08-identity.md); what carries none is still version 1.
+//! padding, joined by a dot. The payload is a version byte, the key id, the two ids, and the expiry
+//! in seconds since the epoch, big-endian. Version 2, added 2026-10-22, carries a third id after
+//! the two, the organization an access token of a session begun at a portal is confined beneath;
+//! what carries none is still version 1.
 
 use super::token::{KeyRing, SigningKey};
 use base64::Engine as _;

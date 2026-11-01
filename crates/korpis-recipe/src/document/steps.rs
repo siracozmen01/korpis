@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The `install` block (§4 of docs/09-recipes.md). Each step is a map with one key, the verb.
+//! The `install` block. Each step is a map with one key, the verb.
 
 use super::args::Args;
 use super::scalars::{self, value};
@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 
 fn fetch(a: &Args<'_>) -> Result<InstallStep, RecipeError> {
     a.only(&["url", "sha256", "sha512", "to"])?;
-    // §4: a fetch without a hash is a parse error, not a warning.
+    // A fetch without a hash is a parse error, not a warning.
     let hash = match (a.opt_str("sha256")?, a.opt_str("sha512")?) {
         (Some(h), None) => Hash::parse(&format!("sha256:{h}")),
         (None, Some(h)) => Hash::parse(&format!("sha512:{h}")),
@@ -27,7 +27,7 @@ fn uid(a: &Args<'_>, key: &str) -> Result<u32, RecipeError> {
 }
 
 /// A provider step: `to`, the workload path its artifacts are written beneath, and the provider's
-/// own arguments, which never include `to` (§4 of docs/09-recipes.md).
+/// own arguments, which never include `to`.
 fn provider(at: &str, name: &str, v: &Value) -> Result<InstallStep, RecipeError> {
     let Value::Object(m) = v else {
         return Err(RecipeError::new(at, "a provider step is a map holding `to`"));
@@ -121,7 +121,7 @@ fn step(i: usize, entry: &BTreeMap<String, Value>) -> Result<InstallStep, Recipe
         "fetch" => fetch(&a),
         "copy" | "extract" | "template" | "symlink" => moving(verb, &a),
         "mkdir" | "write" | "chmod" | "chown" | "delete" => in_place(verb, &a),
-        // §4: there is no step that runs code, and naming one is an error, not an omission.
+        // There is no step that runs code, and naming one is an error, not an omission.
         other => Err(RecipeError::new(&at, format!("{other:?} is not an install verb"))),
     }
 }

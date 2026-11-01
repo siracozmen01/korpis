@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recipe steps' provider calls on the wire (§4 of docs/09-recipes.md): `korpis.v1.RunStep` and
-//! `korpis.v1.StepResult`.
+//! Recipe steps' provider calls on the wire: `korpis.v1.RunStep` and `korpis.v1.StepResult`.
 
 use crate::value::{from_pb, map_to_pb};
 use crate::{IdKind, wire_id};

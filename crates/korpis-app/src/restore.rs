@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Restoring the control plane from its backup (§8 of docs/03-state.md, §6 of
-//! docs/18-operations.md). Its first step fences lease epochs: a restored store remembers the
-//! epochs of the backup, and nodes hold newer ones, so the floor is raised past every epoch the
-//! issue rate allowed since the backup, and a settling window opens in which nothing is issued
-//! and each reconnecting node presents the assignments it holds, whose signed epochs raise the
-//! floor further. A presented epoch is believed only when its signature verifies against the
-//! assignment keyring, since an epoch is authority.
+//! Restoring the control plane from its backup. Its first step fences lease epochs: a restored
+//! store remembers the epochs of the backup, and nodes hold newer ones, so the floor is raised past
+//! every epoch the issue rate allowed since the backup, and a settling window opens in which
+//! nothing is issued and each reconnecting node presents the assignments it holds, whose signed
+//! epochs raise the floor further. A presented epoch is believed only when its signature verifies
+//! against the assignment keyring, since an epoch is authority.
 
 mod held;
 mod recover;
@@ -28,8 +27,7 @@ use korpis_core::workload::lease::fence_floor;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-/// What the backup said of epochs, as the control-plane backup keeps it (§6 of
-/// docs/18-operations.md).
+/// What the backup said of epochs, as the control-plane backup keeps it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BackupEpochs {
     /// The highest epoch issued when the backup was taken.
@@ -179,10 +177,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// What `node` presented: every assignment it holds, as signed. While a restore settles, the
     /// highest lease epoch of those that verify and were issued to it raises the epoch floor;
-    /// outside a window nothing presented is believed, since nothing asked for it. The keyring
-    /// is every assignment key that ever signed, by design (§6 of docs/18-operations.md): a key's
-    /// end bounds what it signs from then on, not what it signed before, so it is not checked
-    /// against the time of presentation.
+    /// outside a window nothing presented is believed, since nothing asked for it. The keyring is
+    /// every assignment key that ever signed, by design: a key's end bounds what it signs from then
+    /// on, not what it signed before, so it is not checked against the time of presentation.
     pub async fn present(&self, node: Uuid, held: &[Sealed]) -> Result<Presentation, AppError> {
         let sealer = self
             .assignment_sealer
@@ -220,8 +217,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(presentation)
     }
 
-    /// Holds every workload the store places on `node` that it did not present (Finding 97 of
-    /// docs/23-walkthroughs.md): one retired after the backup would otherwise be run again.
+    /// Holds every workload the store places on `node` that it did not present: one retired after
+    /// the backup would otherwise be run again.
     async fn hold_unpresented(&self, node: Uuid, presented: &[Uuid]) -> Result<usize, AppError> {
         let mut tx = self.store.begin().await?;
         let held = tx.hold_unpresented(node, presented, self.clock.now()).await?;
@@ -258,10 +255,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Some(highest))
     }
 
-    /// A restore's second step (§8 of docs/03-state.md): `token`, the new token key, recorded,
-    /// and every other token key retired, so that every token signed before, the backup's and
-    /// any issued after it alike, stops verifying; and every session ended, so that whoever
-    /// signed in signs in again. Recorded as asked at the machine by `operator`.
+    /// A restore's second step: `token`, the new token key, recorded, and every other token key
+    /// retired, so that every token signed before, the backup's and any issued after it alike,
+    /// stops verifying; and every session ended, so that whoever signed in signs in again. Recorded
+    /// as asked at the machine by `operator`.
     pub async fn rotate_token_key(
         &self,
         token: &PublicKey,
@@ -298,12 +295,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Rotated { retired, sessions_ended })
     }
 
-    /// The rest of a restore's second step (§8 of docs/03-state.md): every relay the backup
-    /// records as joined, held, since what it was fed since the backup, and whether its identity
-    /// is still the one that joined, are not known here. A held relay's feed is answered as
-    /// unavailable and it is named to no node, until an operator readmits it or removes it; a
-    /// relay that joined after the backup is not in it, is refused as unknown, and joins again.
-    /// Recorded as asked at the machine by `operator`; how many it held.
+    /// The rest of a restore's second step: every relay the backup records as joined, held, since
+    /// what it was fed since the backup, and whether its identity is still the one that joined, are
+    /// not known here. A held relay's feed is answered as unavailable and it is named to no node,
+    /// until an operator readmits it or removes it; a relay that joined after the backup is not in
+    /// it, is refused as unknown, and joins again. Recorded as asked at the machine by `operator`;
+    /// how many it held.
     pub async fn hold_relays(&self, operator: &str) -> Result<u64, AppError> {
         let mut tx = self.store.begin().await?;
         let held = tx.hold_relays(self.clock.now()).await?;
@@ -318,9 +315,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(held)
     }
 
-    /// The gap record of a restore (§8 of docs/03-state.md): control-plane effects with no node
-    /// counterpart between the backup, taken at `taken_at`, and now are lost, and the log says
-    /// what it does not know rather than nothing. Recorded as asked at the machine by `operator`.
+    /// The gap record of a restore: control-plane effects with no node counterpart between the
+    /// backup, taken at `taken_at`, and now are lost, and the log says what it does not know rather
+    /// than nothing. Recorded as asked at the machine by `operator`.
     pub async fn record_restore_gap(
         &self,
         taken_at: SystemTime,

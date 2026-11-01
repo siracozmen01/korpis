@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Key management calls in the stored queue (§5.5 of docs/06-storage.md). Nothing here is a key
-//! in the clear: a request names the tenant's key, the context, a one-time recipient's public key,
-//! and for unwrapping the stored wrapped key; an answer is the key wrapped by the tenant's key and
-//! sealed to that recipient, which only the recipient's secret, never stored, opens.
+//! Key management calls in the stored queue. Nothing here is a key in the clear: a request names
+//! the tenant's key, the context, a one-time recipient's public key, and for unwrapping the stored
+//! wrapped key; an answer is the key wrapped by the tenant's key and sealed to that recipient,
+//! which only the recipient's secret, never stored, opens.
 
 use korpis_core::extension::{CallOutcome, CallRequest};
 use serde_json::{Value, json};

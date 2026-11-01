@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The panel's files (§1 of docs/11-surface-web.md): the static bundle in `--web-root`, served on
-//! the API's address to every path that is not a procedure of the API. A path names a file
-//! beneath the root or nothing: one that climbs out, or reaches a hidden file, is not found. A
-//! path with no file and no extension is a route of the panel's own, answered with its
-//! `index.html`; the hashed assets are kept by a browser for a year, everything else asked again.
+//! The panel's files: the static bundle in `--web-root`, served on the API's address to every path
+//! that is not a procedure of the API. A path names a file beneath the root or nothing: one that
+//! climbs out, or reaches a hidden file, is not found. A path with no file and no extension is a
+//! route of the panel's own, answered with its `index.html`; the hashed assets are kept by a
+//! browser for a year, everything else asked again.
 
 use bytes::Bytes;
 use http::{HeaderValue, Method, Response, StatusCode, header};

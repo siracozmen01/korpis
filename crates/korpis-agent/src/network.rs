@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Workloads' addresses on this node, and whether the node gives workloads a network at all
-//! (§4.1 of docs/07-networking.md). The agent allocates each workload the lowest free address of
-//! each pool when it first runs here, keeps it on disk across restarts, and frees it when the
-//! workload's network is released; the helper makes the network from what is allocated.
+//! Workloads' addresses on this node, and whether the node gives workloads a network at all. The
+//! agent allocates each workload the lowest free address of each pool when it first runs here,
+//! keeps it on disk across restarts, and frees it when the workload's network is released; the
+//! helper makes the network from what is allocated.
 
 use crate::durable;
 use crate::host::Host;
@@ -18,9 +18,9 @@ use std::path::{Path, PathBuf};
 /// The IPv4 pool a node's workloads are given addresses from unless its operator names another.
 pub const DEFAULT_IPV4: &str = "10.47.0.0/16";
 
-/// The IPv4 pool this node's workloads take addresses from: the one its operator `named`, else
-/// the one the control plane gave it when it enrolled (`enrolled`, CIDR text, empty for a node
-/// enrolled before pools were given), else [`DEFAULT_IPV4`] (§9.1 of docs/07-networking.md).
+/// The IPv4 pool this node's workloads take addresses from: the one its operator `named`, else the
+/// one the control plane gave it when it enrolled (`enrolled`, CIDR text, empty for a node enrolled
+/// before pools were given), else [`DEFAULT_IPV4`].
 #[must_use]
 pub fn ipv4_pool(named: Option<Ipv4Net>, enrolled: &str) -> Ipv4Net {
     let default = || DEFAULT_IPV4.parse().unwrap_or_default();
@@ -184,11 +184,11 @@ pub struct Networking {
     pub pools: Pools,
     /// What is allocated.
     pub addresses: Addresses,
-    /// The resolver this agent serves for each workload, on sockets of its namespace (§5.1
-    /// there); dropping one closes them.
+    /// The resolver this agent serves for each workload, on sockets of its namespace; dropping one
+    /// closes them.
     pub resolvers: std::collections::BTreeMap<String, tokio::task::JoinHandle<()>>,
-    /// What the helper was last asked to make each workload's network, so a running one's is
-    /// made again when what it would be asked changes (§5, §6 there).
+    /// What the helper was last asked to make each workload's network, so a running one's is made
+    /// again when what it would be asked changes.
     pub asked: std::collections::BTreeMap<String, helper::EnsureNetworkRequest>,
 }
 
@@ -231,8 +231,8 @@ fn warn_closed(closed: &[String]) {
     }
 }
 
-/// Whether a driver of `caps` puts its workloads on the links the helper makes: a container on
-/// its veth's end, or a microVM's guest on the tap beside it (§4.1 of docs/07-networking.md).
+/// Whether a driver of `caps` puts its workloads on the links the helper makes: a container on its
+/// veth's end, or a microVM's guest on the tap beside it.
 #[must_use]
 pub fn joins_links(caps: &pb::Capabilities) -> bool {
     caps.network_modes.iter().any(|m| {

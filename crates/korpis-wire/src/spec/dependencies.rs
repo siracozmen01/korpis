@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dependencies: `korpis.v1.Dependency` (§5 of docs/07-networking.md).
+//! Dependencies: `korpis.v1.Dependency`.
 
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::{Result, id, invalid, wire_id};
@@ -114,8 +114,8 @@ pub fn status_to_pb(d: &DependencyStatus) -> pb::DependencyStatus {
     }
 }
 
-/// The wire form of a rule naming workloads as its workload's status shows it (§6 of
-/// docs/07-networking.md): what it matched, and what it names at no address, with why.
+/// The wire form of a rule naming workloads as its workload's status shows it: what it matched, and
+/// what it names at no address, with why.
 #[must_use]
 pub fn named_rule_to_pb(r: &korpis_core::workload::peers::Resolved) -> pb::NamedRuleStatus {
     pb::NamedRuleStatus {

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis edge-group …` (§3.1 of docs/07-networking.md): the nodes of an organization that hold
-//! the stable addresses of its `stable` endpoints, and forward them to wherever each workload
-//! runs.
+//! `korpis edge-group …`: the nodes of an organization that hold the stable addresses of its
+//! `stable` endpoints, and forward them to wherever each workload runs.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

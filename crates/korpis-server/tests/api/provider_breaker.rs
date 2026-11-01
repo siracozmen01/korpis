@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A provider's circuit breaker (§5 of docs/16-extensions.md, finding 23 of
-//! docs/23-walkthroughs.md): it trips on sustained failure and on sustained latency, refuses
+//! A provider's circuit breaker: it trips on sustained failure and on sustained latency, refuses
 //! calls at once while open, probes after its backoff, and each change is an event.
 
 use crate::provider_calls::{call, next, ping, pong, reason, registered};

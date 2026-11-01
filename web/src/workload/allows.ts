@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// What each action a share link may hold lets its holder do, in the words both the share screen
-// and the link's own screen use (§6 of docs/11-surface-web.md), so the two never say it apart.
+// What each action a share link may hold lets its holder do, in the words both the share screen and
+// the link's own screen use, so the two never say it apart.
 
 import { t } from "../i18n/intl";
 

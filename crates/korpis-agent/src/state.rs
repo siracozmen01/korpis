@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the agent keeps on its machine (§7 of docs/02-architecture.md): its identity key, which
-//! never leaves the node, the node it is, the control plane it dials, the certificate authority
-//! it pinned at enrollment, and the keys that sign what it is told.
+//! What the agent keeps on its machine: its identity key, which never leaves the node, the node it
+//! is, the control plane it dials, the certificate authority it pinned at enrollment, and the keys
+//! that sign what it is told.
 
 use buffa::Message as _;
 use ed25519_dalek::SigningKey;
@@ -97,9 +97,9 @@ impl StateDir {
         }
     }
 
-    /// The node identity key: the one already generated, or a new one, kept before it is ever
-    /// sent, so an enrollment whose answer was lost is retried with the same key and the
-    /// control plane answers with the same node (§3 of docs/18-operations.md).
+    /// The node identity key: the one already generated, or a new one, kept before it is ever sent,
+    /// so an enrollment whose answer was lost is retried with the same key and the control plane
+    /// answers with the same node.
     pub fn key_or_create(&self) -> Result<SigningKey, StateError> {
         let path = self.file("node.key");
         match std::fs::read(&path) {

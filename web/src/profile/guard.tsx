@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A change that needs a recent sign-in (§9.4 of docs/08-identity.md): tried as it is, and when the
-// control plane answers `session.not_recent`, the screen asks the user to confirm it is them and
-// then tries the same change again, so a change is never lost to the ten-minute rule.
+// A change that needs a recent sign-in: tried as it is, and when the control plane answers
+// `session.not_recent`, the screen asks the user to confirm it is them and then tries the same
+// change again, so a change is never lost to the ten-minute rule.
 
 import { type ReactNode, useState } from "react";
 import { Reauthenticate } from "../views/Reauthenticate";

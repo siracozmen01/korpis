@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Authority: authenticating callers, the one authorization path every use case goes through
-//! (P6), and the grant use cases of docs/08-identity.md.
+//! Authority: authenticating callers, the one authorization path every use case goes through, and
+//! the grant use cases.
 
 mod apply;
 mod approve;

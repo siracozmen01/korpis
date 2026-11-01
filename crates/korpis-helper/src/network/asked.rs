@@ -20,8 +20,8 @@ pub(super) fn prefix(what: &str, text: &str) -> HelperResult<Prefix> {
     parsed(what, text, 1)
 }
 
-/// As [`prefix`], a length of zero allowed: every address of its family, which a rule may name
-/// (§6 of docs/07-networking.md) and a pool may not be.
+/// As [`prefix`], a length of zero allowed: every address of its family, which a rule may name and
+/// a pool may not be.
 pub(super) fn range(what: &str, text: &str) -> HelperResult<Prefix> {
     parsed(what, text, 0)
 }

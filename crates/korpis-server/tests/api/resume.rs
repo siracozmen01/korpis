@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A failed plan's unfinished steps are planned again (§3.3 of docs/01-model.md, Finding 51 of
-//! docs/23-walkthroughs.md): the next plan is computed from the last intent the workload reached,
-//! not from the target a failed plan never reached, so re-declaring after a failed install plans
-//! the install and everything after it again, and the node resumes the install where it failed.
+//! A failed plan's unfinished steps are planned again: the next plan is computed from the last
+//! intent the workload reached, not from the target a failed plan never reached, so re-declaring
+//! after a failed install plans the install and everything after it again, and the node resumes the
+//! install where it failed.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, plan_status, send, step_done, until};

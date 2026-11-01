@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reachability measured (§9 of docs/07-networking.md): a node advertising an address the
-//! control plane can reach it at, and answering there with its key, is measured public; one
-//! advertising an address nobody answers at is measured, and stays edge-only; and a port of its
-//! range something else on its machine holds is replaced by another at once.
+//! Reachability measured: a node advertising an address the control plane can reach it at, and
+//! answering there with its key, is measured public; one advertising an address nobody answers at
+//! is measured, and stays edge-only; and a port of its range something else on its machine holds is
+//! replaced by another at once.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};

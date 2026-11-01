@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Leases on a group's addresses (§3.1 of docs/07-networking.md), fenced as a workload's are
-//! (§4.5 of docs/02-architecture.md): the member asks and renews, its lease runs from its request
-//! and the grantor's from its receipt, and an address is issued to another member only once its
-//! holder has released it or the grantor's end of its term has passed. Which member should hold
-//! an address is decided here too, from what the control plane knows of each member's health:
-//! the holder keeps it while it is ready, and otherwise it goes to a ready member, each address
-//! to its own so a group's addresses spread over its members.
+//! Leases on a group's addresses, fenced as a workload's are: the member asks and renews, its lease
+//! runs from its request and the grantor's from its receipt, and an address is issued to another
+//! member only once its holder has released it or the grantor's end of its term has passed. Which
+//! member should hold an address is decided here too, from what the control plane knows of each
+//! member's health: the holder keeps it while it is ready, and otherwise it goes to a ready member,
+//! each address to its own so a group's addresses spread over its members.
 
 use super::EdgeGroup;
 use super::probe::AddressStatus;
@@ -172,11 +171,11 @@ pub fn assigned(
     out
 }
 
-/// Why a `stable` endpoint at `address` of a group whose members are `states`, whose addresses
-/// are `addresses`, is not known to be reached at `now`: none where a member holds the address,
-/// its pool's router where it has one has said it routes the address to that member, and a member
-/// passes the control plane's probe (Finding 190 of docs/23-walkthroughs.md). The workload keeps
-/// its state and placement either way, since moving it mends nothing.
+/// Why a `stable` endpoint at `address` of a group whose members are `states`, whose addresses are
+/// `addresses`, is not known to be reached at `now`: none where a member holds the address, its
+/// pool's router where it has one has said it routes the address to that member, and a member
+/// passes the control plane's probe. The workload keeps its state and placement either way, since
+/// moving it mends nothing.
 #[must_use]
 pub fn unreached(
     (states, addresses): (&[MemberState], &[AddressStatus]),

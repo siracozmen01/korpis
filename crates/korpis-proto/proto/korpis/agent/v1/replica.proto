@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Replicas between nodes (§2.2 of docs/06-storage.md): what the control plane tells a node of the
-// replicas of its volumes and of those it keeps, and what a node reports of a receive. Added
-// 2026-10-27.
+// Replicas between nodes: what the control plane tells a node of the replicas of its volumes and of
+// those it keeps, and what a node reports of a receive.
 
 syntax = "proto3";
 

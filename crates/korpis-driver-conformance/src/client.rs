@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! The driver, reached as the node reaches it: `korpis.driver.v1`, gRPC on HTTP/2 over its Unix
-//! socket (§3 of docs/04-runtimes.md). Every call has a deadline, so a driver that hangs fails
-//! the case it hangs in rather than the run. The driver's events are followed for the whole run
-//! and kept, so a case can ask whether one was sent for its object.
+//! socket. Every call has a deadline, so a driver that hangs fails the case it hangs in rather than
+//! the run. The driver's events are followed for the whole run and kept, so a case can ask whether
+//! one was sent for its object.
 
 use connectrpc::client::{CallOptions, ClientConfig, Http2Connection, SharedHttp2Connection};
 use connectrpc::{ConnectError, ErrorCode, Protocol};

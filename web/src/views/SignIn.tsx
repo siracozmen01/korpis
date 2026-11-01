@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Signing in (§9.6 of docs/08-identity.md): a passkey, which the browser offers for this site
-// without a name being typed; or a sign-in name and password with a code from an authenticator
-// app or a recovery code beside it. Every refusal reads the same, whichever part was wrong.
-// Beside them, the identity providers a person may sign in through instead (§9.7). A sign-in
-// whose answer never arrived may have begun a session all the same, so it says so and offers to
-// go on rather than ask for the factor again, whose proof was spent.
+// Signing in: a passkey, which the browser offers for this site without a name being typed; or a
+// sign-in name and password with a code from an authenticator app or a recovery code beside it.
+// Every refusal reads the same, whichever part was wrong. Beside them, the identity providers a
+// person may sign in through instead. A sign-in whose answer never arrived may have begun a session
+// all the same, so it says so and offers to go on rather than ask for the factor again, whose proof
+// was spent.
 
 import type { Client } from "@connectrpc/connect";
 import { type ReactNode, useState } from "react";

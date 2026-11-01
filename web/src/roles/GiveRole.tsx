@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Giving someone a role here (§4 of docs/08-identity.md, §5 of docs/11-surface-web.md): issuing a
-// grant from a template at this place, to someone invited now or to an account that exists. The
-// template says what the grant allows and passes on; the version given is the one shown, so a
-// role edited meanwhile is refused rather than silently substituted. Issuing is attenuating the
-// giver's own grant, so the control plane refuses a role the giver cannot pass on, and says why.
-// An invitation is shown once and stored nowhere by the panel.
+// Giving someone a role here: issuing a grant from a template at this place, to someone invited now
+// or to an account that exists. The template says what the grant allows and passes on; the version
+// given is the one shown, so a role edited meanwhile is refused rather than silently substituted.
+// Issuing is attenuating the giver's own grant, so the control plane refuses a role the giver
+// cannot pass on, and says why. An invitation is shown once and stored nowhere by the panel.
 
 import { useState } from "react";
 import {

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An ID token's claims, validated as OIDC Core §3.1.3.7 says once its signature is: issued by
-//! the configured issuer, for this client alone, not expired, issued within the skew of now,
-//! and, for a sign-in, carrying the nonce the control plane made. `sub` is the person, the one
-//! identifier OIDC says a client may rely on beside `iss` (§5.7).
+//! An ID token's claims, validated as OIDC Core §3.1.3.7 says once its signature is: issued by the
+//! configured issuer, for this client alone, not expired, issued within the skew of now, and, for a
+//! sign-in, carrying the nonce the control plane made. `sub` is the person, the one identifier OIDC
+//! says a client may rely on beside `iss`.
 
 use serde_json::Value;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// How far `iat` may be from now: the skew assertion allows (§5.2 of docs/08-identity.md).
+/// How far `iat` may be from now: the skew assertion allows.
 pub const SKEW: Duration = Duration::from_secs(5 * 60);
 /// How far past `exp` a token is still taken, for clocks that differ by a little.
 pub const LEEWAY: Duration = Duration::from_secs(60);

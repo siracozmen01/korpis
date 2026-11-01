@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Identity bindings and the delegation ceiling as the panel shows and edits them (§5 and §5.1
-// of docs/08-identity.md). A binding is shown with its interval and grace together, since the
-// longest an unreachable provider extends it is their sum; a binding is drafted as text that
-// becomes the request the control plane checks. Pure, so what the screen shows and sends is
-// tested apart from the screen.
+// Identity bindings and the delegation ceiling as the panel shows and edits them. A binding is
+// shown with its interval and grace together, since the longest an unreachable provider extends it
+// is their sum; a binding is drafted as text that becomes the request the control plane checks.
+// Pure, so what the screen shows and sends is tested apart from the screen.
 
 import { create } from "@bufbuild/protobuf";
 import { type Duration, DurationSchema } from "@bufbuild/protobuf/wkt";

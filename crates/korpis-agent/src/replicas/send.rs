@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Sending (§2.2 of docs/06-storage.md): each transfer the node is told of, from its own mesh
-//! address to the receiving node's, the ticket first, a two-byte big-endian length and then its
-//! text, and then the helper's stream to its end. A transfer is sent once; one that failed is
-//! sent again [`RETRY`] later while its ticket lasts, and the receiving node journals how it
-//! ended. A transfer the node is no longer told of is forgotten.
+//! Sending: each transfer the node is told of, from its own mesh address to the receiving node's,
+//! the ticket first, a two-byte big-endian length and then its text, and then the helper's stream
+//! to its end. A transfer is sent once; one that failed is sent again [`RETRY`] later while its
+//! ticket lasts, and the receiving node journals how it ended. A transfer the node is no longer
+//! told of is forgotten.
 
 use super::{RETRY, Replication, SendKey, Sending, TRANSFER_PORT, mesh_of};
 use crate::host::Replicating;

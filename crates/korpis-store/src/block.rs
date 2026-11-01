@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's devices (migration 0143, §2.1 of docs/06-storage.md). A device is due a call
-//! when it is not made yet; when its workload holds its lease on the node it is placed on for
-//! another node or epoch than the device was attached for, or holds none for the one it was
-//! attached for; or when it is gone; and only when its backoff has passed and no control plane
-//! holds it (`queries/block_device_due.sql`). One is taken at a time, skipping those another
-//! transaction has locked, and held for a while, so that one control plane asks.
+//! A block class's devices (migration 0143). A device is due a call when it is not made yet; when
+//! its workload holds its lease on the node it is placed on for another node or epoch than the
+//! device was attached for, or holds none for the one it was attached for; or when it is gone; and
+//! only when its backoff has passed and no control plane holds it (`queries/block_device_due.sql`).
+//! One is taken at a time, skipping those another transaction has locked, and held for a while, so
+//! that one control plane asks.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_time};

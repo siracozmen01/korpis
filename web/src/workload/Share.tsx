@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Sharing a workload as a link (§6 of docs/11-surface-web.md, §6.1 of docs/08-identity.md): what
-// the holder may do, for how long, and how many uses, with what a use is and that using it needs
-// the control plane said before the link exists. The link is a link-form grant, answered once as
-// `/g/#korpislk_…`: shown here once, never stored by the panel, and revoked like any grant. A
-// link is never offered to a share link's holder, since a link can never make further links.
+// Sharing a workload as a link: what the holder may do, for how long, and how many uses, with what
+// a use is and that using it needs the control plane said before the link exists. The link is a
+// link-form grant, answered once as `/g/#korpislk_…`: shown here once, never stored by the panel,
+// and revoked like any grant. A link is never offered to a share link's holder, since a link can
+// never make further links.
 
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { useState } from "react";

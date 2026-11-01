@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The verbs of a file session (§3.2 of docs/06-storage.md), served beneath one root directory:
-//! every path is resolved from the root's descriptor with `openat2`, never stepping above it and
-//! following no link of any kind, so a symbolic link a tenant planted, or `..`, reaches nothing
-//! outside. The worker's root is the workload's volumes and nothing else, so this is the second
-//! of two walls, the first being that nothing else is mounted there at all.
+//! The verbs of a file session, served beneath one root directory: every path is resolved from the
+//! root's descriptor with `openat2`, never stepping above it and following no link of any kind, so
+//! a symbolic link a tenant planted, or `..`, reaches nothing outside. The worker's root is the
+//! workload's volumes and nothing else, so this is the second of two walls, the first being that
+//! nothing else is mounted there at all.
 
 use rustix::fs::{AtFlags, Dir, FileType, Mode, OFlags, ResolveFlags, openat2, statat};
 use rustix::io::Errno;

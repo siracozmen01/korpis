@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes (§7 of docs/06-storage.md), kept from what nodes journal.
+//! Volumes, kept from what nodes journal.
 
 use crate::errors::from_sqlx;
 use crate::replica::with_replicas;
@@ -291,10 +291,9 @@ async fn ensured(
 /// the helper's identifier there, whichever node reports it, and kept by the node that last did.
 /// One already there is the reporting workload's only if it is attached to it, which an adopting
 /// workload's is from its approval; any other is left as it is, and the report refused, since a
-/// node's word names the store (Finding 201 of docs/23-walkthroughs.md). A volume of a block
-/// class takes the identifier of the device made for it, for the reporting workload alone, and
-/// one no device of that workload is kept for is refused (§2.1 of docs/06-storage.md, Finding
-/// 208). Whether it was kept.
+/// node's word names the store. A volume of a block class takes the identifier of the device made
+/// for it, for the reporting workload alone, and one no device of that workload is kept for is
+/// refused. Whether it was kept.
 async fn shared_ensured(
     tx: &mut PgTx,
     (node, store): (Uuid, &str),

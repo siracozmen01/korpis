@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Observations: `korpis.v1.Observation` (§4.3 of docs/02-architecture.md).
+//! Observations: `korpis.v1.Observation`.
 
 use crate::{Result, id, invalid, time, timestamp, wire_id};
 use korpis_core::id::IdKind;
@@ -87,8 +87,8 @@ fn volume_from_pb(v: &pb::VolumeStatus) -> VolumeSeen {
     }
 }
 
-/// The wire form of an observation. One that is not current says `UNKNOWN` as its state, so
-/// a remembered value is never shown as current (P4); its node is named only if `show_node`.
+/// The wire form of an observation. One that is not current says `UNKNOWN` as its state, so a
+/// remembered value is never shown as current; its node is named only if `show_node`.
 #[must_use]
 pub fn observation_to_pb(o: &Observation, current: bool, show_node: bool) -> pb::Observation {
     let state =

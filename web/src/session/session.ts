@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The browser's session (§9.4 of docs/08-identity.md): an access token exchanged for the refresh
-// cookie, which the browser holds and no script can read. Each exchange rotates the cookie, and a
-// cookie presented twice ends the session, so one tab exchanges at a time, under a lock of the
-// browser's, and shares the token it gets with the other tabs, which then need not exchange at
-// all. A token is renewed half a minute before it expires.
+// The browser's session: an access token exchanged for the refresh cookie, which the browser holds
+// and no script can read. Each exchange rotates the cookie, and a cookie presented twice ends the
+// session, so one tab exchanges at a time, under a lock of the browser's, and shares the token it
+// gets with the other tabs, which then need not exchange at all. A token is renewed half a minute
+// before it expires.
 
 import { heard } from "../offline/heard";
 

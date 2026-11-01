@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// What the caller's own grants hold (§5 of docs/11-surface-web.md): every one of them, read to
-// the last page, and whether one in force holds an action over an organization. The panel offers
-// an action only where one does, as a courtesy; the control plane decides.
+// What the caller's own grants hold: every one of them, read to the last page, and whether one in
+// force holds an action over an organization. The panel offers an action only where one does, as a
+// courtesy; the control plane decides.
 
 import type { Clients } from "../clients";
 import { type Grant, GrantState } from "../gen/korpis/v1/authority_pb";

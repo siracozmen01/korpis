@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A query probe through the control plane (§5 of docs/04-runtimes.md, §5 of
-//! docs/16-extensions.md): a declaration whose probe names a query protocol pins the health
-//! provider that answers it, and is refused where none does; and the node running the workload
-//! asks, round by round, what to send and then the verdict, which the provider decides from the
-//! rounds alone. Only the node the workload is placed on is answered, only for a query probe, and
-//! only through the installation the intent pinned.
+//! A query probe through the control plane: a declaration whose probe names a query protocol pins
+//! the health provider that answers it, and is refused where none does; and the node running the
+//! workload asks, round by round, what to send and then the verdict, which the provider decides
+//! from the rounds alone. Only the node the workload is placed on is answered, only for a query
+//! probe, and only through the installation the intent pinned.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::extensions::{DNS, push_document};

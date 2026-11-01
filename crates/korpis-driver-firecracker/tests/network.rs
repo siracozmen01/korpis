@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A guest's network (§4.1 of docs/07-networking.md): the helper makes the workload's namespace
-//! with a tap beside its link, the jailed Firecracker joins it, and the guest's own kernel holds
-//! the workload's address. The guest reaches its resolver's address in the namespace, and the
-//! host reaches the port its endpoint declares at the workload's address, as it reaches a
-//! container's. Needs what the runtime tests need, and nftables.
+//! A guest's network: the helper makes the workload's namespace with a tap beside its link, the
+//! jailed Firecracker joins it, and the guest's own kernel holds the workload's address. The guest
+//! reaches its resolver's address in the namespace, and the host reaches the port its endpoint
+//! declares at the workload's address, as it reaches a container's. Needs what the runtime tests
+//! need, and nftables.
 
 #![allow(
     clippy::unwrap_used,

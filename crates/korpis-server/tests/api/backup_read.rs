@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Browsing and reading a backup through the control plane (§5.4 of docs/06-storage.md), against
-//! a real object store: a backup the job wrote with the key and access the control plane granted
-//! it is browsed directory by directory and one file read byte for byte; `backup.browse` and
-//! `backup.read` each allow their own read and not the other's; each read is recorded. It needs
-//! MinIO (`scripts/test-tools.sh`), and is skipped without it.
+//! Browsing and reading a backup through the control plane, against a real object store: a backup
+//! the job wrote with the key and access the control plane granted it is browsed directory by
+//! directory and one file read byte for byte; `backup.browse` and `backup.read` each allow their
+//! own read and not the other's; each read is recorded. It needs MinIO (`scripts/test-tools.sh`),
+//! and is skipped without it.
 
 use crate::backup_target::serving_with;
 use crate::backups::{access, bare, create, ended, repository};

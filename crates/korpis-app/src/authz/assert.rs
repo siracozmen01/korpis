@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Asserting an external identity (§5.2 of docs/08-identity.md). A client holding
-//! `identity.relay` over a provider's organization passes on what a person presented; the
-//! control plane has that provider, its own and no ancestor's, say who presented it, accepts the
-//! presentation once, makes the person's binding at their first use, and hands the client a
-//! ticket for the one action on the one object it named. The client holds nothing of the
-//! person's beyond that ticket, and the ticket works only beside the client's own credential.
+//! Asserting an external identity. A client holding `identity.relay` over a provider's organization
+//! passes on what a person presented; the control plane has that provider, its own and no
+//! ancestor's, say who presented it, accepts the presentation once, makes the person's binding at
+//! their first use, and hands the client a ticket for the one action on the one object it named.
+//! The client holds nothing of the person's beyond that ticket, and the ticket works only beside
+//! the client's own credential.
 
 use crate::App;
 use crate::caller::Caller;
@@ -72,9 +72,9 @@ fn believed(outcome: CallOutcome, now: SystemTime) -> Result<Assertion, AppError
     }
 }
 
-/// The binding a person gets at their first authenticated use (§5): it decides nothing, and is
-/// verified, since the provider has just vouched for them. Made once: a binding an operator
-/// retired stays retired.
+/// The binding a person gets at their first authenticated use: it decides nothing, and is verified,
+/// since the provider has just vouched for them. Made once: a binding an operator retired stays
+/// retired.
 pub(crate) fn first_use(
     provider: &ProviderRef,
     subject: &Principal,
@@ -142,8 +142,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Forgets the presentations accepted, and the tickets expired, more than a presentation is
-    /// kept ago: by then each is refused as stale whatever is remembered of it. Forgets as well
-    /// the sign-ins begun that expired unspent (§9.7 of docs/08-identity.md). How many.
+    /// kept ago: by then each is refused as stale whatever is remembered of it. Forgets as well the
+    /// sign-ins begun that expired unspent. How many.
     pub async fn forget_assertions(&self) -> Result<u64, AppError> {
         let now = self.clock.now();
         let before = now.checked_sub(PRESENTATION_KEPT).unwrap_or(UNIX_EPOCH);

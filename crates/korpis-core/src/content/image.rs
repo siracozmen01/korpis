@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an image's configuration says about running it: its default command, environment,
-//! working directory, and user, and the uncompressed digests of its layers. An image is
-//! untrusted input, so what it says is bounded and checked like anything else from outside.
-//! Every driver that runs an image reads it here, so a `container` and a `microvm` run one image
-//! the same way (§6 of docs/04-runtimes.md).
+//! What an image's configuration says about running it: its default command, environment, working
+//! directory, and user, and the uncompressed digests of its layers. An image is untrusted input, so
+//! what it says is bounded and checked like anything else from outside. Every driver that runs an
+//! image reads it here, so a `container` and a `microvm` run one image the same way.
 
 use serde::Deserialize;
 

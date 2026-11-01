@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placement by hand (§2.3 of docs/05-scheduling.md): an operator's choice overrides the cordon
-//! and the taints on the node they chose, records their reason, and overrides nothing else.
+//! Placement by hand: an operator's choice overrides the cordon and the taints on the node they
+//! chose, records their reason, and overrides nothing else.
 
 use crate::lifecycle::workload;
 use crate::support::{Harness, detail, mutation, reason};

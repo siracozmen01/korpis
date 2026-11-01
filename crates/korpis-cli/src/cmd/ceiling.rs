@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis organization ceiling` (§5.1 of docs/08-identity.md): the longest a grant beneath a
-//! set subject lasts at an organization, its own beside the one in force.
+//! `korpis organization ceiling`: the longest a grant beneath a set subject lasts at an
+//! organization, its own beside the one in force.
 
 use super::{Answer, json, mutation, seconds};
 use crate::connect::Connection;

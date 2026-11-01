@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class on real nodes (§2.1 of docs/06-storage.md, trace 81 of
-//! docs/23-walkthroughs.md). Two nodes offer the class `fast`, whose devices are files in one
+//! A block class on real nodes. Two nodes offer the class `fast`, whose devices are files in one
 //! directory both reach, as two machines reach one storage, attached through loop devices; its
 //! provider is the test's own, served from the extension's workload on the second node, and keeps
 //! the files, refusing an attach for an epoch older than the one it holds. A workload whose volume
-//! is in the class runs on the first node and writes to it, through the device the helper
-//! formatted and mounted; when that node loses its power, the workload runs on the second once its
-//! lease has ended, its device attached there for the new lease's epoch and holding what the first
-//! wrote. Retired, its device is let go of on the node. Needs root, containerd, and a loop device.
+//! is in the class runs on the first node and writes to it, through the device the helper formatted
+//! and mounted; when that node loses its power, the workload runs on the second once its lease has
+//! ended, its device attached there for the new lease's epoch and holding what the first wrote.
+//! Retired, its device is let go of on the node. Needs root, containerd, and a loop device.
 
 use crate::helper::{Storage, block_root};
 use crate::mesh::cordon;

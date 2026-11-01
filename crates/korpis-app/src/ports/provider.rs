@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Providers (§3.3 of docs/16-extensions.md): what installations may serve, and the streams
-//! serving it.
+//! Providers: what installations may serve, and the streams serving it.
 
 use super::StoreResult;
 use korpis_core::extension::{ProvidedInterface, Registration};

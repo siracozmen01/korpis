@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A migration's tree passes between two classes on plain directories, standing for two nodes
-//! (§8.1 of docs/05-scheduling.md): rsync's daemon side sends the source's volume, read only and
-//! confined to it, to the client pulling into the destination's copy, over the two sockets as the
-//! agents would join them, keeping a symlink, a hardlink, an extended attribute, an ACL, a sparse
-//! file's holes, and an owner by number; a second pass sends what changed and deletes what the
-//! source no longer has, and the receiving side says what crossed. It needs root and rsync, and is
-//! skipped without them.
+//! A migration's tree passes between two classes on plain directories, standing for two nodes:
+//! rsync's daemon side sends the source's volume, read only and confined to it, to the client
+//! pulling into the destination's copy, over the two sockets as the agents would join them, keeping
+//! a symlink, a hardlink, an extended attribute, an ACL, a sparse file's holes, and an owner by
+//! number; a second pass sends what changed and deletes what the source no longer has, and the
+//! receiving side says what crossed. It needs root and rsync, and is skipped without them.
 
 #![allow(
     clippy::unwrap_used,

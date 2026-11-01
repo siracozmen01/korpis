@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The agent with both of Korpis's drivers (§3 of docs/04-runtimes.md): the `oci` and the
-//! `firecracker` driver each served as its process serves it, on a socket of its own, and the
-//! agent's runtime over both as it runs on a node. Each is described; a `Prepare` reaches the
-//! driver its intent names and a driver the node lacks is refused by name; and a guest is created,
-//! started, watched, killed, recovered, and destroyed through the agent, every verb reaching the
-//! driver that made it. Needs what the runtime tests need and the machine's containerd.
+//! The agent with both of Korpis's drivers: the `oci` and the `firecracker` driver each served as
+//! its process serves it, on a socket of its own, and the agent's runtime over both as it runs on a
+//! node. Each is described; a `Prepare` reaches the driver its intent names and a driver the node
+//! lacks is refused by name; and a guest is created, started, watched, killed, recovered, and
+//! destroyed through the agent, every verb reaching the driver that made it. Needs what the runtime
+//! tests need and the machine's containerd.
 
 #![allow(
     clippy::unwrap_used,

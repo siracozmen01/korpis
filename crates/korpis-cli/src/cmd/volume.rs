@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis volume …` (§4 and §7 of docs/06-storage.md): what is done to a volume apart from its
-//! workload. Deleting a retained volume, rolling one back, and deleting a snapshot each propose a
-//! plan of one irreversible step that always waits for a person; taking a snapshot applies at
-//! once where nothing in it needs one. A volume a workload holds is deleted with that workload
-//! (`korpis workload delete --delete-volumes`).
+//! `korpis volume …`: what is done to a volume apart from its workload. Deleting a retained volume,
+//! rolling one back, and deleting a snapshot each propose a plan of one irreversible step that
+//! always waits for a person; taking a snapshot applies at once where nothing in it needs one. A
+//! volume a workload holds is deleted with that workload (`korpis workload delete
+//! --delete-volumes`).
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

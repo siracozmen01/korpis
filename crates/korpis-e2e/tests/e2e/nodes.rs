@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Two nodes on this one machine, joined to one control plane (§2 of docs/05-scheduling.md): each
-//! has its own pool, ports, network namespaces, volumes, and cgroups, so neither collides with the
-//! other, and the scheduler places across them. Two workloads that each must avoid a host the
-//! other is on run one on each node, both converge, and a third that must avoid both finds no
-//! node, the explanation naming the rule each node failed.
+//! Two nodes on this one machine, joined to one control plane: each has its own pool, ports,
+//! network namespaces, volumes, and cgroups, so neither collides with the other, and the scheduler
+//! places across them. Two workloads that each must avoid a host the other is on run one on each
+//! node, both converge, and a third that must avoid both finds no node, the explanation naming the
+//! rule each node failed.
 
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, push_sleeper};

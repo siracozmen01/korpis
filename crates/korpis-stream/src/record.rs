@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A record (§2 of docs/14-streams.md): an offset, the node clock at write, where it came from,
-//! what kind it is, and its bytes. Offsets are the identity; times are informational.
+//! A record: an offset, the node clock at write, where it came from, what kind it is, and its
+//! bytes. Offsets are the identity; times are informational.
 
 /// Where a record came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,7 +25,7 @@ pub enum Kind {
     Text,
     /// One JSON value the workload wrote whole.
     Structured,
-    /// Records or bytes lost, how many, over how long, and why (§3).
+    /// Records or bytes lost, how many, over how long, and why.
     Gap,
     /// A terminal event: resize, signal, end of input.
     Control,
@@ -70,7 +70,7 @@ impl Source {
         })
     }
 
-    /// Its name, as §2 writes it: `stdout`, `stderr`, `file:<path>`, `korpis`, `input`.
+    /// Its name: `stdout`, `stderr`, `file:<path>`, `korpis`, `input`.
     #[must_use]
     pub fn name(&self) -> String {
         match self {
@@ -117,8 +117,7 @@ impl Kind {
     }
 }
 
-/// What a gap record says: how much was lost, over how long, and why (§3 of
-/// docs/14-streams.md). Its body is this, as JSON.
+/// What a gap record says: how much was lost, over how long, and why. Its body is this, as JSON.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Gap {
     /// Records lost whole.

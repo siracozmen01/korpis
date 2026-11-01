@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What Korpis asks an identity provider, and what it accepts as an answer (§5 of
-//! docs/08-identity.md). A provider re-verifies what it vouched for, and says who presented a
-//! piece of evidence; both answers come up its own authenticated stream (§3.3 of
-//! docs/16-extensions.md), so nothing it says needs a signature of its own.
+//! What Korpis asks an identity provider, and what it accepts as an answer. A provider re-verifies
+//! what it vouched for, and says who presented a piece of evidence; both answers come up its own
+//! authenticated stream, so nothing it says needs a signature of its own.
 
 use crate::principal::SetName;
 use std::collections::BTreeMap;
@@ -18,7 +17,7 @@ pub const MAX_EVIDENCE: usize = 64 << 10;
 /// The most headers that evidence carries.
 pub const MAX_HEADERS: usize = 32;
 
-/// A re-verification (§5.1 of docs/08-identity.md).
+/// A re-verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MembersAsked {
     /// The set; `None` asks only whether the people are still known.
@@ -36,13 +35,12 @@ pub struct Members {
     pub set_exists: bool,
     /// The people confirmed.
     pub present: Vec<String>,
-    /// The people the provider holds no current evidence of: each keeps their last
-    /// confirmation, to lapse on its own (§5.1). Every one asked about and named in neither
-    /// list is gone.
+    /// The people the provider holds no current evidence of: each keeps their last confirmation, to
+    /// lapse on its own. Every one asked about and named in neither list is gone.
     pub unknown: Vec<String>,
 }
 
-/// Evidence a person presented to a provider's surface, passed on as received (§5.2).
+/// Evidence a person presented to a provider's surface, passed on as received.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Evidence {
     /// Its body, opaque to Korpis.
@@ -88,8 +86,8 @@ impl MembersAsked {
     }
 }
 
-/// A sign-in the control plane began (§9.7 of docs/08-identity.md), which a provider that signs
-/// people in answers with where to send the person.
+/// A sign-in the control plane began, which a provider that signs people in answers with where to
+/// send the person.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignIn {
     /// Opaque; returned with the person.

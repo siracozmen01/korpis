@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The tenant-visible audit (§4 of docs/15-observability.md): an organization reads its own
-//! subtree's effects, each only if the caller may read what it is about, never a sibling's; a
-//! reseller reads its customers'; and its pages are sealed as every filtered list's are.
+//! The tenant-visible audit: an organization reads its own subtree's effects, each only if the
+//! caller may read what it is about, never a sibling's; a reseller reads its customers'; and its
+//! pages are sealed as every filtered list's are.
 
 use crate::support::{Harness, mutation, org_scope};
 use connectrpc::ErrorCode;

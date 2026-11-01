@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A session with a workload through a relay, as a browser holds one ("From a browser" in §3.1 of
-// docs/02-architecture.md): a capability token minted for the action, `Watch` to open it and
-// read what the node sends, and `Send` for what the client sends, numbered so a retried call
-// never repeats a frame. The token is renewed through the session before it expires; a renewal
-// spends no use of a share link's grant, since the session's opening spent the one it costs.
+// A session with a workload through a relay, as a browser holds one: a capability token minted for
+// the action, `Watch` to open it and read what the node sends, and `Send` for what the client
+// sends, numbered so a retried call never repeats a frame. The token is renewed through the session
+// before it expires; a renewal spends no use of a share link's grant, since the session's opening
+// spent the one it costs.
 
 import { create, fromBinary, toBinary, type MessageInitShape } from "@bufbuild/protobuf";
 import { timestampMs } from "@bufbuild/protobuf/wkt";

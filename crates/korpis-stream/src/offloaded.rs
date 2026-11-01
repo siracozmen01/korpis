@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a sealed segment held in memory, as one comes back from the repository it was
-//! offloaded to (§4 of docs/14-streams.md). Nothing in it is believed before its footer's digest
-//! is checked against both its bytes and the digest the index holds for it, so a segment changed
-//! in the store, or put in another's place, is refused rather than read; and every length in it
-//! is checked against what is there before anything is allocated for it.
+//! Reading a sealed segment held in memory, as one comes back from the repository it was offloaded
+//! to. Nothing in it is believed before its footer's digest is checked against both its bytes and
+//! the digest the index holds for it, so a segment changed in the store, or put in another's place,
+//! is refused rather than read; and every length in it is checked against what is there before
+//! anything is allocated for it.
 
 use crate::record::Record;
 use crate::segment::{CRC, END, FOOTER, HEADER, MAGIC, VERSION, hex, parse};

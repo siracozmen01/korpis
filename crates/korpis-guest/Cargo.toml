@@ -11,9 +11,9 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# Built static, for the musl target, and placed on each microVM's boot drive by its driver
-# (§4.4 and §6 of docs/04-runtimes.md). No async runtime and nothing of ours: it runs inside a
-# tenant's guest, and scripts/check-layers.sh holds it to that.
+# Built static, for the musl target, and placed on each microVM's boot drive by its driver. No async
+# runtime and nothing of ours: it runs inside a tenant's guest, and scripts/check-layers.sh holds it
+# to that.
 [[bin]]
 name = "korpis-guest"
 path = "src/bin/korpis-guest/main.rs"

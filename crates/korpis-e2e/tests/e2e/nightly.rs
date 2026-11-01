@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The nightly backup of trace §20 of docs/23-walkthroughs.md, step 2 as built: a `scheduled`
-//! workload whose run calls `korpis backup create` with the workload's own credential, under
-//! the grants issued to it and nothing else (`backup.create` on the world, `repository.read` on
-//! the repository), with `concurrency: forbid` (§4 of docs/05-scheduling.md). The command is the
-//! static `korpis` binary alone in its image; it finds the identity socket its node mounts into
-//! the run's container and reaches the control plane through the relay the node serves it,
-//! because the workload holds a grant (§9.5 of docs/08-identity.md). The schedule is every
-//! minute rather than 03:00, so the test waits one. It needs root, containerd, and `mkfs.btrfs`.
+//! The nightly backup: a `scheduled`
+//! workload whose run calls `korpis backup create` with the workload's own credential, under the
+//! grants issued to it and nothing else (`backup.create` on the world, `repository.read` on the
+//! repository), with `concurrency: forbid`. The command is the static `korpis` binary alone in its
+//! image; it finds the identity socket its node mounts into the run's container and reaches the
+//! control plane through the relay the node serves it, because the workload holds a grant. The
+//! schedule is every minute rather than 03:00, so the test waits one. It needs root, containerd,
+//! and `mkfs.btrfs`.
 
 use crate::backups::nightly;
 use crate::fs_target::{installed, registered};
@@ -117,8 +117,8 @@ async fn a_scheduled_run_takes_a_backup_with_its_own_credential_under_its_own_gr
     lines(&node.volumes.join(format!("{world}.data")).join("starts"), 1).await;
     let data = cp.volume_named(&project, "data").await;
 
-    // Each kept run's console counts against the disk quota at its stream's bound (K-3), so a
-    // nightly job keeps few runs and a small console, as the test node's small disk needs.
+    // Each kept run's console counts against the disk quota at its stream's bound, so a nightly job
+    // keeps few runs and a small console, as the test node's small disk needs.
     let policy = pb::RunPolicy {
         concurrency: pb::Concurrency::CONCURRENCY_FORBID.into(),
         keep_successful: Some(1),

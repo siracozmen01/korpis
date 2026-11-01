@@ -250,10 +250,9 @@ fn run(a: Args) -> Result<(), String> {
     serve(&listener, &allowed, &mut helper, a.idle).map_err(|e| e.to_string())
 }
 
-/// `korpis-helper release-networks`: releases every workload network bound under the netns root
-/// and exits, for a machine whose node did not destroy its workloads itself (§3 of
-/// docs/18-operations.md). Each network released is printed; one that could not be is said, and
-/// the command fails.
+/// `korpis-helper release-networks`: releases every workload network bound under the netns root and
+/// exits, for a machine whose node did not destroy its workloads itself. Each network released is
+/// printed; one that could not be is said, and the command fails.
 #[expect(
     clippy::print_stdout,
     clippy::print_stderr,

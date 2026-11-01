@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The members of bound sets who delegated (§5.1 of docs/08-identity.md).
+//! The members of bound sets who delegated.
 
 use super::StoreResult;
 use korpis_core::authz::binding::ProviderRef;
@@ -23,8 +23,7 @@ pub trait MemberRead {
     ) -> impl Future<Output = StoreResult<Option<MemberRecord>>> + Send;
 
     /// The members of `binding`'s set who hold, through it, a grant not revoked, or who hold a
-    /// session signed in through its provider (§9.7 of docs/08-identity.md): the ones its
-    /// re-verification asks about.
+    /// session signed in through its provider: the ones its re-verification asks about.
     fn members_who_delegated(
         &self,
         binding: Uuid,
@@ -34,12 +33,12 @@ pub trait MemberRead {
 /// Writing members. A member is recorded by the store as a grant naming them in its `via` is
 /// inserted, unverified, and their set's binding is made due, so no way of issuing one forgets.
 pub trait MemberWrite {
-    /// Records what the set's re-verification said of its members at `at`, each with the count
-    /// of answers their record had when it was asked. The first of `members` are in the set,
-    /// recorded only where nothing wrote their record meanwhile, since an older answer that a
-    /// member is still there never replaces a newer one; the second are not, recorded whatever
-    /// came between, as an ending is (§5.1 of docs/08-identity.md). How many of the second had
-    /// been written meanwhile, whose answer may then be the older, so the set is asked again.
+    /// Records what the set's re-verification said of its members at `at`, each with the count of
+    /// answers their record had when it was asked. The first of `members` are in the set, recorded
+    /// only where nothing wrote their record meanwhile, since an older answer that a member is
+    /// still there never replaces a newer one; the second are not, recorded whatever came between,
+    /// as an ending is. How many of the second had been written meanwhile, whose answer may then be
+    /// the older, so the set is asked again.
     fn record_members(
         &mut self,
         binding: Uuid,
@@ -48,8 +47,8 @@ pub trait MemberWrite {
     ) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Records what a sign-in through `provider` at `at` said of `member`, a person's principal
-    /// key (§9.7 of docs/08-identity.md): they are in the sets `confirmed` binds, recorded so if
-    /// they were not yet, and in no other set of the provider they have a record in.
+    /// key: they are in the sets `confirmed` binds, recorded so if they were not yet, and in no
+    /// other set of the provider they have a record in.
     fn record_sign_in(
         &mut self,
         member: &str,

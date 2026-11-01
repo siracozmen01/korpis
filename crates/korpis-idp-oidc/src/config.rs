@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The provider's configuration, from its workload's environment (§5.3 of docs/08-identity.md):
-//! the issuer, the client registered there and its secret, which lives in the extension's
-//! configuration and nowhere else, the claim naming groups, and whether to ask for offline
-//! access, which needs somewhere of the provider's own to keep refresh tokens.
+//! The provider's configuration, from its workload's environment: the issuer, the client registered
+//! there and its secret, which lives in the extension's configuration and nowhere else, the claim
+//! naming groups, and whether to ask for offline access, which needs somewhere of the provider's
+//! own to keep refresh tokens.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;

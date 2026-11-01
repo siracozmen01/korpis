@@ -244,8 +244,8 @@ pub fn node_to_pb(n: &Node, allocated: &Bounds, overlay: &Standing) -> pb::Node 
     node
 }
 
-/// What a node says it advertises (§9 of docs/07-networking.md), from the field `field`. A port
-/// range of zeros is a node that does not say, and so is no value.
+/// What a node says it advertises, from the field `field`. A port range of zeros is a node that
+/// does not say, and so is no value.
 pub fn advertised_from_pb(field: &str, a: &agent::Advertised) -> Result<Option<Advertised>> {
     if a.first_port == 0 && a.last_port == 0 {
         return Ok(None);

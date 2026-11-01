@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The schema enforces what docs/03-state.md says the database enforces, as the role the
+//! The schema enforces what the state design says the database enforces, as the role the
 //! control plane actually runs as. Needs the development database (`scripts/dev-pg.sh up`).
 
 #![allow(

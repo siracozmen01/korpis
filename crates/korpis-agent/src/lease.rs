@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Leases on the agent (§4.5 of docs/02-architecture.md): no lease, no execution. The keeper
-//! asks for a lease for every workload in the held set, renews each a third of the way through
-//! its term, and counts every lease on this machine's own clock from the moment its request was
-//! sent. The reconciler asks it what it may do for a workload: act, wait, keep running without
-//! mutating anything (fail-static), or stop because another node holds the workload. A lease is
-//! released only once the workload has stopped acting under it, and the release is a journal
-//! record, so it reaches the control plane even across a partition (§4.10).
+//! Leases on the agent: no lease, no execution. The keeper asks for a lease for every workload in
+//! the held set, renews each a third of the way through its term, and counts every lease on this
+//! machine's own clock from the moment its request was sent. The reconciler asks it what it may do
+//! for a workload: act, wait, keep running without mutating anything (fail-static), or stop because
+//! another node holds the workload. A lease is released only once the workload has stopped acting
+//! under it, and the release is a journal record, so it reaches the control plane even across a
+//! partition.
 
 mod book;
 

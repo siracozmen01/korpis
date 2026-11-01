@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Verifying a restore (§5.4 of docs/06-storage.md, with the contract of §8 of
-//! docs/05-scheduling.md): what was restored is walked as a backup would walk it, sending
-//! nothing, and compared with the backup entry by entry: kind, mode, owner, modification time,
-//! size, content by digest, link target, device number, extended attributes and with them ACLs,
-//! and which names are links of one file. A restore that does not compare equal is not a restore.
-//! Nothing is fetched but the backup's trees.
+//! Verifying a restore: what was restored is
+//! walked as a backup would walk it, sending nothing, and compared with the backup entry by entry:
+//! kind, mode, owner, modification time, size, content by digest, link target, device number,
+//! extended attributes and with them ACLs, and which names are links of one file. A restore that
+//! does not compare equal is not a restore. Nothing is fetched but the backup's trees.
 
 use crate::error::{Error, Result, sys};
 use crate::file::Content;

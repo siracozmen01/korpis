@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// An organization's landing screen, composed (question 2 of §10 of docs/11-surface-web.md): a
-// heading and the panel's own components in order, saved against the version it was read at, so
-// two editors never silently overwrite each other, and removed, so the nearest ancestor's applies
-// again. What the viewer's grants open is always placed and is moved but never removed. As for a
-// theme, who may change it is the control plane's to say: the form is offered to whoever opens
-// the organization, and a refusal says why.
+// An organization's landing screen, composed: a heading and the panel's own components in order,
+// saved against the version it was read at, so two editors never silently overwrite each other, and
+// removed, so the nearest ancestor's applies again. What the viewer's grants open is always placed
+// and is moved but never removed. As for a theme, who may change it is the control plane's to say:
+// the form is offered to whoever opens the organization, and a refusal says why.
 
 import { create } from "@bufbuild/protobuf";
 import { useEffect, useState } from "react";

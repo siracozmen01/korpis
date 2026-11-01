@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The replica verbs (§2.2 of docs/06-storage.md): a send's stream and a receive's are pipes
-//! whose ends the helper's answer carries.
+//! The replica verbs: a send's stream and a receive's are pipes whose ends the helper's answer
+//! carries.
 
 use super::{HelperClient, failed};
 use crate::host::HostError;

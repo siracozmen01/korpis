@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Organizations' layouts (question 2 of §10 of docs/11-surface-web.md).
+//! Organizations' layouts.
 
 use super::StoreResult;
 use korpis_core::principal::Principal;

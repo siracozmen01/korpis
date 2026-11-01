@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A container's cumulative counters, read from its cgroup v2 files as the kernel keeps them
-//! (§2 of docs/15-observability.md, "Measuring it, as designed"): CPU time and time throttled
-//! from `cpu.stat`, bytes read and written from `io.stat` summed over devices, and memory in use
-//! and its high-water mark. Each is absent where its file or its line is, since a controller not
-//! enabled is a quantity not measured, never a zero.
+//! ("Measuring it, as designed"): CPU time and time throttled from `cpu.stat`, bytes read and
+//! written from `io.stat` summed over devices, and memory in use and its high-water mark. Each is
+//! absent where its file or its line is, since a controller not enabled is a quantity not measured,
+//! never a zero.
 
 use korpis_proto::korpis::driver::v1 as driver;
 

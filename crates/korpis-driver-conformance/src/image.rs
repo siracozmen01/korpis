@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The probe's image, laid into the node's content store as the agent lays an image it fetched
-//! (§6 of docs/04-runtimes.md): each blob at `blobs/sha256/<hex>`, written whole under another
-//! name, synced, and renamed, so the store never holds part of a blob. The image is an OCI image
-//! of one uncompressed layer holding the probe, at `/probe`, and the directories a root
-//! filesystem is expected to have; its reference names it by its manifest's digest, as a recipe's
-//! does.
+//! The probe's image, laid into the node's content store as the agent lays an image it fetched:
+//! each blob at `blobs/sha256/<hex>`, written whole under another name, synced, and renamed, so the
+//! store never holds part of a blob. The image is an OCI image of one uncompressed layer holding
+//! the probe, at `/probe`, and the directories a root filesystem is expected to have; its reference
+//! names it by its manifest's digest, as a recipe's does.
 
 use sha2::{Digest as _, Sha256};
 use std::fmt::Write as _;

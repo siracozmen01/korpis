@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An edge address's lease asked for and released up a member's session (§3.1 of
-//! docs/07-networking.md), answered on the same stream with the request's nonce, as a workload's
-//! lease is; and what the member's proxy holds of the challenges of its groups' names.
+//! An edge address's lease asked for and released up a member's session, answered on the same
+//! stream with the request's nonce, as a workload's lease is; and what the member's proxy holds of
+//! the challenges of its groups' names.
 
 use super::uplink::{Uplink, refusal};
 use korpis_app::edge_group::EdgeLeaseAnswer;

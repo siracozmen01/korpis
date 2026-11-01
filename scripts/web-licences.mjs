@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The supply-chain policy of deny.toml, held for the web client too (§9 of docs/21-stack.md):
-// every package the panel or its build depends on carries a licence from the list deny.toml
-// allows, read from there so there is one list, or is named in web/licence-exceptions.json with
-// the reason. Reads `pnpm licenses list --json` on standard input; exits non-zero on any other.
+// The supply-chain policy of deny.toml, held for the web client too: every package the panel or its
+// build depends on carries a licence from the list deny.toml allows, read from there so there is
+// one list, or is named in web/licence-exceptions.json with the reason. Reads `pnpm licenses list
+// --json` on standard input; exits non-zero on any other.
 
 import { readFileSync } from "node:fs";
 

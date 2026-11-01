@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Replicated volumes as they are declared (§2.2 of docs/06-storage.md): a volume asking for
-//! replicas is accepted only in a class able to send increments, since a copy sent whole every
-//! interval is not one that can be kept current (Rule K-3). The class is the one the volume
-//! names, or each node's default; it is refused at declaration when no node serving the
-//! workload's organization offers such a class, and placement keeps it off a node whose class
-//! does not (§2.1 of docs/05-scheduling.md).
+//! Replicated volumes as they are declared: a volume asking for replicas is accepted only in a
+//! class able to send increments, since a copy sent whole every interval is not one that can be
+//! kept current. The class is the one the volume names, or each node's default; it is refused at
+//! declaration when no node serving the workload's organization offers such a class, and placement
+//! keeps it off a node whose class does not.
 
 use crate::App;
 use crate::error::AppError;

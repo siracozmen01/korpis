@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What each workload holds against quota, kept beside every entry as its totals (question 7 of
-//! §10 of docs/05-scheduling.md). A workload's holding is recounted in the transaction of every
-//! change to it (a declaration, its target moving, its retirement): what it was counted as
-//! holding is taken back out of the entries that counted it and what it holds now is added to
-//! the entries counting it now, so the totals move by exactly what they held of it. An entry is
-//! reckoned from its workloads' holdings the first time it is used. A reconciliation recounts
-//! every workload from its intents and checks every entry's totals against its workloads, and
-//! records each difference it corrects rather than trusting the totals.
+//! What each workload holds against quota, kept beside every entry as its totals. A workload's
+//! holding is recounted in the transaction of every change to it (a declaration, its target moving,
+//! its retirement): what it was counted as holding is taken back out of the entries that counted it
+//! and what it holds now is added to the entries counting it now, so the totals move by exactly
+//! what they held of it. An entry is reckoned from its workloads' holdings the first time it is
+//! used. A reconciliation recounts every workload from its intents and checks every entry's totals
+//! against its workloads, and records each difference it corrects rather than trusting the totals.
 
 use crate::App;
 use crate::error::AppError;

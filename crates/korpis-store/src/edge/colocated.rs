@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The nodes each control plane replica shares its network with (migration 0135, §3.1 of
-//! docs/07-networking.md), recorded with an end so that a replica that stops leaves none standing.
+//! The nodes each control plane replica shares its network with (migration 0135), recorded with an
+//! end so that a replica that stops leaves none standing.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

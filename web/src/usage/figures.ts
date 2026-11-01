@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Metering's figures as the panel shows them (§2 of docs/15-observability.md, §8 of
-// docs/11-surface-web.md): each in its unit, and what a window's records come to with what they
-// leave out, since a sum over a window that was not heard throughout is a sum of part of it. A
-// quantity nothing measured stays absent; it is never shown as a zero.
+// Metering's figures as the panel shows them: each in its unit, and what a window's records come to
+// with what they leave out, since a sum over a window that was not heard throughout is a sum of
+// part of it. A quantity nothing measured stays absent; it is never shown as a zero.
 
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { DeviceClass } from "../gen/korpis/v1/common_pb";

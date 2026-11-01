@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The nodes this control plane replica shares its network with (§3.1 of docs/07-networking.md):
-//! every [`EVERY`] it tries to bind to each mesh member's own addresses in the mesh, which
-//! succeeds only where the address is its own, and records the nodes it could, for [`HOLD`]. An
-//! edge group's probe answers through another node than those where it can, since such a node's
-//! answer to this replica is delivered locally and never crosses the edge's link back.
+//! The nodes this control plane replica shares its network with: every [`EVERY`] it tries to bind
+//! to each mesh member's own addresses in the mesh, which succeeds only where the address is its
+//! own, and records the nodes it could, for [`HOLD`]. An edge group's probe answers through another
+//! node than those where it can, since such a node's answer to this replica is delivered locally
+//! and never crosses the edge's link back.
 
 use crate::api::Api;
 use std::net::{IpAddr, UdpSocket};

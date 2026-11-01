@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recipe trust policies (§7 of docs/09-recipes.md): decided on the digest at declaration,
-//! recorded in the intent, inherited from the nearest organization that set one.
+//! Recipe trust policies: decided on the digest at declaration, recorded in the intent, inherited
+//! from the nearest organization that set one.
 
 use crate::recipes::{body, change, create, project, push_paper_signed_by, push_unsigned_paper};
 use crate::support::{

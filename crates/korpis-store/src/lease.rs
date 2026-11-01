@@ -38,9 +38,8 @@ impl LeaseWrite for PgTx {
     }
 
     async fn next_epoch(&mut self, now: SystemTime) -> StoreResult<EpochIssue> {
-        // The singleton row is created with the schema; the update locks it, so two issuers
-        // cannot take the same epoch. The bucket refills at the rate and holds at most a second's
-        // worth (§8 of docs/03-state.md).
+        // The singleton row is created with the schema; the update locks it, so two issuers cannot
+        // take the same epoch. The bucket refills at the rate and holds at most a second's worth.
         let issued = sqlx::query_scalar!(
             "UPDATE epoch_state SET
                  bucket_tokens = LEAST(issue_rate_per_sec::double precision, bucket_tokens

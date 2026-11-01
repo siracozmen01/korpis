@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `AccountService` (§9.6 of docs/08-identity.md): redeeming an invitation and signing in. No
-//! procedure here takes a credential in its headers; what each checks is in its request, and each
-//! refused is a failed attempt charged to its source (§10 of docs/10-api.md), so a source that
-//! keeps guessing is answered `RATE_LIMITED` instead.
+//! `AccountService`: redeeming an invitation and signing in. No procedure here takes a credential
+//! in its headers; what each checks is in its request, and each refused is a failed attempt charged
+//! to its source, so a source that keeps guessing is answered `RATE_LIMITED` instead.
 
 use super::{Api, cookie, error};
 use crate::portals::PortalAt;
@@ -108,9 +107,8 @@ fn ip(ctx: &RequestContext) -> Option<IpAddr> {
     ctx.peer_addr().map(|a| a.ip())
 }
 
-/// The portal the request reached the control plane at, which its connection's certificate
-/// named, never anything the page says (§9.8 of docs/08-identity.md); none at the
-/// installation's own address.
+/// The portal the request reached the control plane at, which its connection's certificate named,
+/// never anything the page says; none at the installation's own address.
 pub(super) fn at(ctx: &RequestContext) -> Option<AtPortal> {
     let at = ctx.extensions().get::<PortalAt>()?;
     Some(AtPortal { portal: at.id, organization: at.organization })
@@ -262,7 +260,7 @@ impl pb::AccountService for Api {
             None => return Err(error::invalid("second", "a TOTP code or a recovery code")),
         };
         // The use case charges and records its own failures: a password can be guessed, so its
-        // buckets are charged before it is checked (§10 of docs/10-api.md).
+        // buckets are charged before it is checked.
         let done =
             self.app.sign_in_with_password(&req.name, &req.password, second, &client(&ctx)).await;
         signed_in(&done.map_err(super::rate::refused)?)

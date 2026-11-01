@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Issuing to an external identity (§5 of docs/08-identity.md): a grant names one only through a
-//! live identity binding, whose provider vouches only at and beneath the organization it is
-//! installed into. A set's grants come from the template its binding names, and without one may
-//! not delegate (§3.4); whether they may carry irreversible actions is the binding's to say
-//! (§5.2), never the request's.
+//! Issuing to an external identity: a grant names one only through a live identity binding, whose
+//! provider vouches only at and beneath the organization it is installed into. A set's grants come
+//! from the template its binding names, and without one may not delegate; whether they may carry
+//! irreversible actions is the binding's to say, never the request's.
 
 use crate::App;
 use crate::authz::snapshot::Snapshot;

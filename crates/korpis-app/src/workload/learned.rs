@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the scheduler learns of nodes over time (§2.2 of docs/05-scheduling.md), read for one
-//! placement: which nodes reported holding the target's recipe, and what each node's recent loss
-//! events weigh now.
+//! What the scheduler learns of nodes over time, read for one placement: which nodes reported
+//! holding the target's recipe, and what each node's recent loss events weigh now.
 
 use crate::App;
 use crate::error::AppError;

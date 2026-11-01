@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Device cookies (§9.6 of docs/08-identity.md), after OWASP's: which bucket a guess at a
-//! password is charged to. A browser that has signed in to the account it names is charged to
-//! its own bucket, and to one the account's devices share, which no browser without a cookie can
-//! reach; any other is charged to the sign-in name's. A stranger spending the name's guesses
-//! therefore keeps its holder out of new browsers only, and once a device has spent its own it
-//! is no longer honoured and is charged as a browser without one.
+//! Device cookies, after OWASP's: which bucket a guess at a password is charged to. A browser that
+//! has signed in to the account it names is charged to its own bucket, and to one the account's
+//! devices share, which no browser without a cookie can reach; any other is charged to the sign-in
+//! name's. A stranger spending the name's guesses therefore keeps its holder out of new browsers
+//! only, and once a device has spent its own it is no longer honoured and is charged as a browser
+//! without one.
 
 use super::own_account;
 use super::sign_in::refused;
@@ -99,12 +99,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         ]
     }
 
-    /// The device cookie among `presented` that names the account `name` names, if one does
-    /// and was issued no earlier than the second its password or TOTP last changed: a browser
-    /// that signed in with a secret since replaced is a browser without a cookie (Finding 73 of
-    /// docs/23-walkthroughs.md).
-    /// Only a cookie this control plane signed is looked at further, and only then is the name
-    /// looked up, so a browser without one learns nothing from how long this takes.
+    /// The device cookie among `presented` that names the account `name` names, if one does and was
+    /// issued no earlier than the second its password or TOTP last changed: a browser that signed
+    /// in with a secret since replaced is a browser without a cookie. Only a cookie this control
+    /// plane signed is looked at further, and only then is the name looked up, so a browser without
+    /// one learns nothing from how long this takes.
     async fn trusted(
         &self,
         name: &str,

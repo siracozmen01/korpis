@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Snapshots (§4 of docs/06-storage.md), in a class whose backend can take them: on btrfs, a
-//! read-only snapshot subvolume kept under the class root's `.snapshots/<volume>/`, a directory no
-//! volume identifier can name, because none starts with a dot. A class that cannot snapshot says
-//! so and does nothing.
+//! Snapshots, in a class whose backend can take them: on btrfs, a read-only snapshot subvolume kept
+//! under the class root's `.snapshots/<volume>/`, a directory no volume identifier can name,
+//! because none starts with a dot. A class that cannot snapshot says so and does nothing.
 //!
 //! Rolling back makes a volume what a snapshot holds, crash-safely: a writable copy of the
 //! snapshot is made beside the volume, the two are exchanged in one rename, and the copy, now

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a file session changed, counted from each request and the answer to it, for the effect
-//! the session's end records (§3.2 of docs/06-storage.md): how many files and bytes were written,
-//! how many directories made, and every path removed or renamed, up to [`LISTED`], then only
-//! their count. Reads change nothing and are not counted.
+//! What a file session changed, counted from each request and the answer to it, for the effect the
+//! session's end records: how many files and bytes were written, how many directories made, and
+//! every path removed or renamed, up to [`LISTED`], then only their count. Reads change nothing and
+//! are not counted.
 
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::file_request::Request;

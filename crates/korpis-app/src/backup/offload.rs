@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node offloading a workload's console stream is given (§4 and question 1 of
-//! docs/14-streams.md): the workload's data key in the repository that takes its streams, and an
-//! hour of write access to the workload's stream prefix there, beside its backups and never
-//! beneath them. Asked by a node that held the workload's lease, retired or not, since a stream's
-//! last segment seals as its container goes. Where no repository takes the workload's streams,
-//! nothing is given, and the stream says how much of it is only on its node.
+//! What a node offloading a workload's console stream is given: the workload's data key in the
+//! repository that takes its streams, and an hour of write access to the workload's stream prefix
+//! there, beside its backups and never beneath them. Asked by a node that held the workload's
+//! lease, retired or not, since a stream's last segment seals as its container goes. Where no
+//! repository takes the workload's streams, nothing is given, and the stream says how much of it is
+//! only on its node.
 //!
 //! And what the control plane reads offloaded segments back with, for a caller who may read the
 //! console, once their node is gone or the workload retired: the workload's key and minutes of
@@ -42,8 +42,8 @@ pub struct Offloaded {
     pub segments: Vec<(Segment, Uuid)>,
     /// The key and read access for each repository holding one.
     pub grants: BTreeMap<Uuid, JobGrant>,
-    /// The only records the caller may read, when its grant is limited to a range of the stream
-    /// (§8 of docs/14-streams.md): whatever sends the records sends those alone.
+    /// The only records the caller may read, when its grant is limited to a range of the stream:
+    /// whatever sends the records sends those alone.
     pub stream_range: Option<StreamRange>,
 }
 

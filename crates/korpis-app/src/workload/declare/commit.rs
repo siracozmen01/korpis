@@ -19,8 +19,8 @@ use korpis_core::tenancy::quota::Held;
 use korpis_core::workload::{Plan, Workload};
 use serde_json::Value;
 
-/// The conflict a declaration against a head that has moved receives (§3.2 of
-/// docs/03-state.md): the caller recomputes against the intent that won.
+/// The conflict a declaration against a head that has moved receives: the caller recomputes against
+/// the intent that won.
 pub(super) fn moved(w: &Workload) -> AppError {
     AppError::conflict(
         "workload.intent_moved",
@@ -55,8 +55,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 .await?
                 .filter(|w| w.deleted_at.is_none())
                 .ok_or(AppError::NotFound { kind: "workload" })?;
-            // The plan was computed from the target; if it moved, the plan is for a state that
-            // no longer exists (§3.3 of docs/01-model.md).
+            // The plan was computed from the target; if it moved, the plan is for a state that no
+            // longer exists.
             let stale = now.target != base.workload.target
                 || now.intent_version != base.workload.intent_version
                 || now.set != base.workload.set;
@@ -73,7 +73,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 return Err(moved(&now));
             }
         }
-        // What it holds is recounted with its head moved (§5.1 of docs/05-scheduling.md).
+        // What it holds is recounted with its head moved.
         self.rehold(tx, d.workload.id).await?;
         tx.insert_plan(&d.plan).await?;
         Ok(())
@@ -109,9 +109,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 }
 
 /// The effects of the declaration itself: what was declared and, when nothing the organization
-/// accepts signed the recipe, that it was used anyway (§7 of docs/09-recipes.md). Configuration
-/// is named by key only: a secret's value never reaches the log (§5 of docs/09-recipes.md), and
-/// the intent holds the values.
+/// accepts signed the recipe, that it was used anyway. Configuration is named by key only: a
+/// secret's value never reaches the log, and the intent holds the values.
 pub(super) fn declaration_effects(
     caller: &Caller,
     base: &Base,

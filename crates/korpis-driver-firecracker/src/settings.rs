@@ -16,15 +16,14 @@ pub struct Settings {
     pub firecracker: PathBuf,
     /// Firecracker's jailer.
     pub jailer: PathBuf,
-    /// The guest kernel every guest boots (§6 of docs/04-runtimes.md).
+    /// The guest kernel every guest boots.
     pub kernel: PathBuf,
     /// `korpis-guest`, static, for the boot drive.
     pub guest: PathBuf,
-    /// `korpis-fsworker`, built static, which the boot drive carries for file sessions in a guest
-    /// (§4.4 of docs/04-runtimes.md).
+    /// `korpis-fsworker`, built static, which the boot drive carries for file sessions in a guest.
     pub fsworker: PathBuf,
-    /// `korpis-install-job`, built static, which the boot drive carries for an install in a
-    /// service guest (§4.4 of docs/04-runtimes.md).
+    /// `korpis-install-job`, built static, which the boot drive carries for an install in a service
+    /// guest.
     pub install_job: PathBuf,
     /// `korpis-image-build`, which makes an image's drive.
     pub image_build: PathBuf,
@@ -36,24 +35,24 @@ pub struct Settings {
     /// the shared roots, and nowhere else.
     pub volume_root: PathBuf,
     /// The roots of the node's shared storage classes, each a network filesystem the operator
-    /// mounted (§2.1 of docs/06-storage.md).
+    /// mounted.
     pub shared_roots: Vec<PathBuf>,
-    /// The directory the helper keeps block classes' volumes under, where a guest's disk on one
-    /// is a device node (§2.1 of docs/06-storage.md); absent on a node offering none.
+    /// The directory the helper keeps block classes' volumes under, where a guest's disk on one is
+    /// a device node; absent on a node offering none.
     pub block_root: PathBuf,
-    /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
-    /// docs/07-networking.md): the only namespaces a guest's Firecracker joins.
+    /// The directory the helper binds workloads' network namespaces under, one each: the only
+    /// namespaces a guest's Firecracker joins.
     pub netns_root: PathBuf,
-    /// The directory the agent makes workloads' identity directories under (§9.5 of
-    /// docs/08-identity.md), whose sockets a guest's are relayed to.
+    /// The directory the agent makes workloads' identity directories under, whose sockets a guest's
+    /// are relayed to.
     pub identity_root: PathBuf,
     /// The driver's own directory.
     pub state: PathBuf,
     /// The cgroup, from the unified hierarchy's root, beneath which each guest's is made: under
     /// its `dedicated` cgroup for one holding cores, its `shared` one otherwise.
     pub cgroup: String,
-    /// Whether a guest holding dedicated cores is a cpuset partition of its own, keeping the
-    /// host off them too, or shares them with the host (§5.2 of docs/05-scheduling.md).
+    /// Whether a guest holding dedicated cores is a cpuset partition of its own, keeping the host
+    /// off them too, or shares them with the host.
     pub cores_host: korpis_driver_kit::cores::Host,
 }
 
@@ -76,7 +75,7 @@ impl Settings {
         self.state.join("drives")
     }
 
-    /// The service guests' directories (§4.4 of docs/04-runtimes.md), each named by its jail.
+    /// The service guests' directories, each named by its jail.
     #[must_use]
     pub fn services(&self) -> PathBuf {
         self.state.join("services")

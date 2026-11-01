@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node reports of the state it keeps beside its workloads: stream segments (§4 of
-//! docs/14-streams.md), volumes, snapshots, and backups (§4, §5, and §7 of docs/06-storage.md). Each is believed
-//! from a node that once held the workload's lease, released or not: a segment is pruned, a
-//! volume deleted, and a snapshot taken of a retained volume long after the workload left the
-//! node, and the node that keeps them is the one that ran it.
+//! What a node reports of the state it keeps beside its workloads: stream segments, volumes,
+//! snapshots, and backups. Each is believed from a node that once held the workload's lease,
+//! released or not: a segment is pruned, a volume deleted, and a snapshot taken of a retained
+//! volume long after the workload left the node, and the node that keeps them is the one that ran
+//! it.
 
 use super::{rejected, system};
 use crate::App;
@@ -20,7 +20,7 @@ use korpis_core::workload::volume::{ReportedSnapshot, ReportedVolume, VolumeEven
 use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// A segment of a stream sealed, offloaded, or pruned on the node (§4 of docs/14-streams.md).
+    /// A segment of a stream sealed, offloaded, or pruned on the node.
     pub(super) async fn segment(
         &self,
         tx: &mut S::Tx,
@@ -35,9 +35,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !self.store.ever_leased(workload, node).await? {
             return Ok(rejected("the node never held the workload's lease", event.action()));
         }
-        // A run's segment is believed only for a run of the workload that this node started,
-        // as a report of the run itself is (§4.2 of docs/05-scheduling.md).
-        // Read within the transaction: a batch reports a run's start before its segments.
+        // A run's segment is believed only for a run of the workload that this node started, as a
+        // report of the run itself is. Read within the transaction: a batch reports a run's start
+        // before its segments.
         if let Some(run) = key.run
             && tx
                 .run_within(run)
@@ -97,8 +97,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(self.store.streams_granted((repository, workload), node).await?)
     }
 
-    /// A volume the node ensured or deleted (§7 of docs/06-storage.md). Deletion comes long
-    /// after the workload went, so here too the test is that the node once ran it.
+    /// A volume the node ensured or deleted. Deletion comes long after the workload went, so here
+    /// too the test is that the node once ran it.
     pub(super) async fn volume(
         &self,
         tx: &mut S::Tx,
@@ -112,8 +112,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !self.store.ever_leased(v.workload, node).await? {
             return Ok(rejected("the node never held the workload's lease", action));
         }
-        // A shared class's volume is its store's, whichever node reports it (§2.1 of
-        // docs/06-storage.md); the class is the one the node declared under that name.
+        // A shared class's volume is its store's, whichever node reports it; the class is the one
+        // the node declared under that name.
         let classes = self.store.node(node).await?.map(|n| n.storage_classes).unwrap_or_default();
         let class =
             classes.iter().find(|c| v.storage_class.is_empty() || c.name == v.storage_class);
@@ -132,7 +132,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(e)
     }
 
-    /// A snapshot taken, rolled back to, or deleted on the node (§4 of docs/06-storage.md).
+    /// A snapshot taken, rolled back to, or deleted on the node.
     pub(super) async fn snapshot(
         &self,
         tx: &mut S::Tx,
@@ -155,8 +155,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(e)
     }
 
-    /// A backup job that ended on the node (§5 of docs/06-storage.md): believed only from the
-    /// node holding the backup's volume, which once ran the workload, and only once.
+    /// A backup job that ended on the node: believed only from the node holding the backup's
+    /// volume, which once ran the workload, and only once.
     pub(super) async fn backup(
         &self,
         tx: &mut S::Tx,

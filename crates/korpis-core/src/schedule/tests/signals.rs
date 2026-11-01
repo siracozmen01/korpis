@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Scoring signals (§2.2 of docs/05-scheduling.md): the strategy decides between a full node and
-//! an empty one, and content locality decides between nodes whose utilization is close and never
-//! overrides it.
+//! Scoring signals: the strategy decides between a full node and an empty one, and content locality
+//! decides between nodes whose utilization is close and never overrides it.
 
 use super::{Case, GIB, node};
 use crate::schedule::{Signal, Strategy};

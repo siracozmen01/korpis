@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Attaching an existing volume (§7 of docs/06-storage.md): refused while another workload
-//! holds it, for a console stream's volume, and for no such volume; claimed when the declaring
-//! target is approved, so a third declaration is refused; and the node is told the helper's
-//! identifier for it as its node reported it.
+//! Attaching an existing volume: refused while another workload holds it, for a console stream's
+//! volume, and for no such volume; claimed when the declaring target is approved, so a third
+//! declaration is refused; and the node is told the helper's identifier for it as its node reported
+//! it.
 
 use crate::journal::{ack, assignment, complete, send, until};
 use crate::lifecycle::approve;

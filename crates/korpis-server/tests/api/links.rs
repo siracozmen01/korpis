@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Share links (§6.1 and §6.2 of docs/08-identity.md): a link-form grant is answered once as a
-//! link, which the gateway accepts as a credential on its own and nothing else accepts; each call
-//! it authorizes spends a use, and nothing it is used for goes uncounted; it must expire, limit
-//! its uses, name one object, and delegate nothing; a session opened through it spends one use and
-//! its renewals none; and revoking it ends it at the next call.
+//! Share links: a link-form grant is answered once as a link, which the gateway accepts as a
+//! credential on its own and nothing else accepts; each call it authorizes spends a use, and
+//! nothing it is used for goes uncounted; it must expire, limit its uses, name one object, and
+//! delegate nothing; a session opened through it spends one use and its renewals none; and revoking
+//! it ends it at the next call.
 
 use crate::support::{Harness, detail, mutation, org_scope, reason};
 use connectrpc::ErrorCode;

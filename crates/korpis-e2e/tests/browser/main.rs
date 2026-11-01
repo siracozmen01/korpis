@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The panel in a browser (§9 of docs/21-stack.md): a control plane serving the built panel, the
-//! state each step begins from made through the API, and Playwright driving Chromium through
-//! `web/e2e`, as §38 of docs/23-walkthroughs.md traces people's use of it. Where a node can run
+//! The panel in a browser: a control plane serving the built panel, the state each step begins from
+//! made through the API, and Playwright driving Chromium through `web/e2e`. Where a node can run
 //! here (as root, beside containerd), a workload runs on one for the flows that use it; elsewhere
 //! those flows say why they were skipped. It needs the panel built (`web/dist`, which
-//! scripts/check-web.sh builds) and the browser installed (`scripts/test-tools.sh`); without
-//! either it says so and does not run.
+//! scripts/check-web.sh builds) and the browser installed (`scripts/test-tools.sh`); without either
+//! it says so and does not run.
 //!
 //! It is a test binary of its own, which cargo runs alone: the node tests beside it in `e2e` add
-//! and remove network interfaces, and Chromium abandons every request in flight when the
-//! machine's addresses change (Finding 88 of docs/23-walkthroughs.md), faster than a person's
-//! network ever changes. The modules it shares with `e2e` are that binary's own files.
+//! and remove network interfaces, and Chromium abandons every request in flight when the machine's
+//! addresses change, faster than a person's network ever changes. The modules it shares with `e2e`
+//! are that binary's own files.
 
 #![allow(
     clippy::unwrap_used,
@@ -54,14 +53,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-/// The talker's Turkish catalogue (§5.3 of docs/09-recipes.md).
+/// The talker's Turkish catalogue.
 const TR: &str = r#"{"config.fields.greeting.label": "Selamlama",
                      "metadata.description": "Cevap veren konsol"}"#;
 
-/// A recipe whose console greets with its configured greeting and answers every line typed into
-/// it, in English and, through its catalogue, Turkish. It ends when asked to, as a program
-/// running as a container's first process must say for itself, and says that restarting it
-/// costs something (§5.1 of docs/09-recipes.md), as a server with people on it does.
+/// A recipe whose console greets with its configured greeting and answers every line typed into it,
+/// in English and, through its catalogue, Turkish. It ends when asked to, as a program running as a
+/// container's first process must say for itself, and says that restarting it costs something, as a
+/// server with people on it does.
 fn talker() -> String {
     let busybox = busybox();
     format!(
@@ -115,10 +114,10 @@ async fn talking(cp: &ControlPlane, project: &str) -> Option<(Node, Agent, Strin
 }
 
 /// The tasks of the runs flow, in `project`: the waiter, whose run waits to be cancelled, and,
-/// where `node` runs them, the printer, whose run ends by itself having written its console.
-/// Where they run, they are waited for, the waiter running and the printer's run ended: each
-/// workload's network is made as its first run starts, and Chromium abandons every request in
-/// flight while the machine's interfaces change (Finding 88 of docs/23-walkthroughs.md).
+/// where `node` runs them, the printer, whose run ends by itself having written its console. Where
+/// they run, they are waited for, the waiter running and the printer's run ended: each workload's
+/// network is made as its first run starts, and Chromium abandons every request in flight while the
+/// machine's interfaces change.
 async fn tasks(cp: &ControlPlane, project: &str, node: Option<&Node>) -> (String, Option<String>) {
     let waiter = cp.declare(project, "waiter", &push_waiter().await).await;
     let Some(node) = node else { return (waiter, None) };
@@ -139,9 +138,9 @@ async fn tasks(cp: &ControlPlane, project: &str, node: Option<&Node>) -> (String
 
 /// Waits until the machine's interfaces and addresses have stayed as they are for three seconds,
 /// for at most a minute. A run that has ended is torn down after its end is recorded, and its
-/// teardown changed the interfaces while the browser was redeeming an invitation, so the answer
-/// was lost mid-response (Finding 88 of docs/23-walkthroughs.md): a ceremony whose proof was
-/// spent cannot be sent again, so the browser steps begin only once the network is still.
+/// teardown changed the interfaces while the browser was redeeming an invitation, so the answer was
+/// lost mid-response: a ceremony whose proof was spent cannot be sent again, so the browser steps
+/// begin only once the network is still.
 async fn quiet_network() {
     let read = || async {
         let mut seen = Vec::new();
@@ -269,8 +268,8 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
         );
         return;
     }
-    // Built before any node runs: a build starves the machine, and a node starved past its
-    // lease's term loses its runs, as it should (§4.2 of docs/05-scheduling.md).
+    // Built before any node runs: a build starves the machine, and a node starved past its lease's
+    // term loses its runs, as it should.
     let cli = tokio::task::spawn_blocking(korpis).await.unwrap();
     let cp = Arc::new(ControlPlane::start_panel(dist).await);
     let invited = Invited::of(&cp).await;
@@ -349,10 +348,10 @@ const AGE_A_PERSON: &str = "UPDATE user_session \
     SET authenticated_at = authenticated_at - interval '11 minutes' \
     WHERE kind = 'web' AND binding_id IS NOT NULL";
 
-/// Ages the keeper's sessions, or those of people signed in through a provider, by eleven
-/// minutes whenever a browser test asks, by writing `age` or `age-person` in `dir`, and says it
-/// is done by removing it: a session is recent for ten (§9.4 of docs/08-identity.md), and a test
-/// that waited that long for it would be a slow test.
+/// Ages the keeper's sessions, or those of people signed in through a provider, by eleven minutes
+/// whenever a browser test asks, by writing `age` or `age-person` in `dir`, and says it is done by
+/// removing it: a session is recent for ten, and a test that waited that long for it would be a
+/// slow test.
 async fn ager(cp: Arc<ControlPlane>, dir: PathBuf) {
     let asked = [(dir.join("age"), AGE_THE_KEEPER), (dir.join("age-person"), AGE_A_PERSON)];
     loop {

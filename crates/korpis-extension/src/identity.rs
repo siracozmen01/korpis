@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Who the extension is, and how it reaches the control plane (§9.5 of docs/08-identity.md). A
-//! credential lasts fifteen minutes and renewing it is asking the socket again, which is a fresh
-//! proof that the node still runs the workload; a [`Connection`] renews it before it expires.
+//! Who the extension is, and how it reaches the control plane. A credential lasts fifteen minutes
+//! and renewing it is asking the socket again, which is a fresh proof that the node still runs the
+//! workload; a [`Connection`] renews it before it expires.
 
 use crate::error::Error;
 use crate::transport::{Transport, transport};
@@ -16,8 +16,8 @@ use tokio::sync::Mutex;
 /// Where a workload's identity socket is, inside the workload.
 pub const SOCKET: &str = "/run/korpis/identity.sock";
 
-/// The relay to the control plane, beside the socket, for a workload its node relays the API to:
-/// an installed extension's, or one holding a grant (§9.5 of docs/08-identity.md).
+/// The relay to the control plane, beside the socket, for a workload its node relays the API to: an
+/// installed extension's, or one holding a grant.
 pub const RELAY: &str = "api.sock";
 
 /// How long before its expiry a credential is renewed.
@@ -88,9 +88,9 @@ impl IdentitySocket {
         agent::WorkloadIdentityServiceClient::new(conn, ClientConfig::new(authority))
     }
 
-    /// Says that the workload is alive, for its `heartbeat` probe (§5 of docs/04-runtimes.md):
-    /// a workload whose probe allows `max_interval` of silence calls this more often than that.
-    /// The node keeps when it last heard, and the beat goes no further.
+    /// Says that the workload is alive, for its `heartbeat` probe: a workload whose probe allows
+    /// `max_interval` of silence calls this more often than that. The node keeps when it last
+    /// heard, and the beat goes no further.
     ///
     /// # Errors
     /// The socket cannot be reached: the workload runs where its node serves it none.

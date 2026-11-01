@@ -15,7 +15,7 @@ fn a_provider_that_answers_at_nine_tenths_of_every_deadline_trips_on_latency() {
     let slow = vec![sample(false, 4500); 12];
     let m = measure(&slow);
     assert_eq!((m.calls, m.failed, m.median_share), (12, 0, 900));
-    assert_eq!(judge(&m), Some(Trip::Latency), "finding 23: success can be the failure");
+    assert_eq!(judge(&m), Some(Trip::Latency), "success can be the failure");
     let brisk = vec![sample(false, 500); 12];
     assert_eq!(judge(&measure(&brisk)), None);
 }

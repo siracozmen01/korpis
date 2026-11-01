@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's meter, wired as `korpis-agent run` wires it (§2 of docs/15-observability.md): at
-//! the end of every metering interval the control plane declares, the node journals a sample for
-//! each workload it holds, and the control plane records what each interval used as the
-//! difference from the sample before, across an agent restart, and writes no effect for it.
+//! The node's meter, wired as `korpis-agent run` wires it: at the end of every metering interval
+//! the control plane declares, the node journals a sample for each workload it holds, and the
+//! control plane records what each interval used as the difference from the sample before, across
+//! an agent restart, and writes no effect for it.
 
 use crate::console_write::running;
 use crate::session::until;

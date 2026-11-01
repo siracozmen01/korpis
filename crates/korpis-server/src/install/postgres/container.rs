@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The official PostgreSQL image, run on this machine by podman or docker, for evaluation: §2 of
-//! docs/18-operations.md says why a database in a container is not a production configuration,
-//! and installation says so when it makes one. The image is pinned by digest, its data is in a
-//! named volume, and it is published on loopback alone. Docker restarts it itself, with
-//! `--restart unless-stopped`, since its daemon starts at boot; podman has no daemon, so a
-//! systemd unit runs it, and without units (`--no-system`) nothing restarts it. Its superuser's
-//! password is made, used once to make the owner, and not kept: `exec` into the container reaches
-//! the superuser over the local socket, which is what anyone who may run the engine can do anyway.
+//! The official PostgreSQL image, run on this machine by podman or docker, for evaluation: the
+//! install guide says why a database in a container is not a production configuration, and
+//! installation says so when it makes one. The image is pinned by digest, its data is in a named
+//! volume, and it is published on loopback alone. Docker restarts it itself, with `--restart
+//! unless-stopped`, since its daemon starts at boot; podman has no daemon, so a systemd unit runs
+//! it, and without units (`--no-system`) nothing restarts it. Its superuser's password is made,
+//! used once to make the owner, and not kept: `exec` into the container reaches the superuser over
+//! the local socket, which is what anyone who may run the engine can do anyway.
 
 use super::{OWNER_SQL, owner_url, password, run};
 

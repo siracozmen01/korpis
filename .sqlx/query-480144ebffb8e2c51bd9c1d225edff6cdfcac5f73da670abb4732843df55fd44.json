@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The devices held on each of nodes $1 by placements of workloads other than $2: what the\n-- scheduler gives none of again (§6.3 of docs/05-scheduling.md). Both of a migration's placements\n-- hold theirs.\nSELECT node_id, devices FROM placement\n WHERE node_id = ANY($1) AND workload_id <> $2 AND devices <> '[]'::jsonb\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The cores held on each of nodes $1 by placements of workloads other than $2: what the scheduler\n-- gives none of again. Both of a migration's placements hold theirs.\nSELECT node_id, cores FROM placement\n WHERE node_id = ANY($1) AND workload_id <> $2 AND cardinality(cores) > 0\n",
   "describe": {
     "columns": [
       {
@@ -16,12 +16,12 @@
       },
       {
         "ordinal": 1,
-        "name": "devices",
-        "type_info": "Jsonb",
+        "name": "cores",
+        "type_info": "Int4Array",
         "origin": {
           "Table": {
             "table": "placement",
-            "name": "devices"
+            "name": "cores"
           }
         }
       }
@@ -37,5 +37,5 @@
       false
     ]
   },
-  "hash": "3030744f41a9c06331a5fdbd2c4f0204a89e41151c2782351eb68ddcf6d03c4e"
+  "hash": "480144ebffb8e2c51bd9c1d225edff6cdfcac5f73da670abb4732843df55fd44"
 }

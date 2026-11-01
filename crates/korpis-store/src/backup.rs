@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Repositories, their sealed keys, and backups (§5 of docs/06-storage.md).
+//! Repositories, their sealed keys, and backups.
 
 mod rows;
 

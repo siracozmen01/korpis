@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the agent asks of the helper for block classes' devices (§2.1 of docs/06-storage.md):
-//! every device attached here, with the workload it was attached for, and letting go of one.
+//! What the agent asks of the helper for block classes' devices: every device attached here, with
+//! the workload it was attached for, and letting go of one.
 
 use super::HostError;
 use super::node::NodeHost;

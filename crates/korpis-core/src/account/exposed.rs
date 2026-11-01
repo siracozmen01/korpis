@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where an account's shared secrets were set (§9.8 of docs/08-identity.md, Finding 133 of
-//! docs/23-walkthroughs.md). A password, a TOTP secret, and recovery codes serve every address,
-//! and one set through a session confined beneath an organization was set where whoever serves
-//! that organization's portal can see it; so each records that organization, and a sign-in with
-//! two secrets one holder may know both of reaches no further than that holder answers for.
+//! Where an account's shared secrets were set. A password, a TOTP secret, and recovery codes serve
+//! every address, and one set through a session confined beneath an organization was set where
+//! whoever serves that organization's portal can see it; so each records that organization, and a
+//! sign-in with two secrets one holder may know both of reaches no further than that holder answers
+//! for.
 
 use uuid::Uuid;
 

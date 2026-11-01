@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Plans on a volume, apart from any change to a workload (§4 and §7 of docs/06-storage.md):
-//! deleting a retained volume, and taking, rolling back to, and deleting its snapshots. Each is a
-//! plan of the workload holding the volume, or of the one that created it when none holds it,
-//! whose identifier is kept forever, retired or not; the volume's node executes it, through that
-//! workload's assignment when it runs there and through a residual one otherwise (§4.8 of
-//! docs/02-architecture.md). One plan at a time operates on a volume.
+//! Plans on a volume, apart from any change to a workload: deleting a retained volume, and taking,
+//! rolling back to, and deleting its snapshots. Each is a plan of the workload holding the volume,
+//! or of the one that created it when none holds it, whose identifier is kept forever, retired or
+//! not; the volume's node executes it, through that workload's assignment when it runs there and
+//! through a residual one otherwise. One plan at a time operates on a volume.
 
 use super::propose::{self, Proposal, approve_if_auto};
 use crate::App;

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An organization's suspension, derived at use (§2.1 and §3.5 of docs/08-identity.md): a grant
-//! scoped in a suspended organization's subtree stops authorizing everything but the reads a
-//! suspended tenant keeps, every grant beneath it with it, while a grant scoped above the
-//! suspended organization still acts on it; resuming restores them all unchanged, since nothing
-//! was written onto any of them.
+//! An organization's suspension, derived at use: a grant scoped in a suspended organization's
+//! subtree stops authorizing everything but the reads a suspended tenant keeps, every grant beneath
+//! it with it, while a grant scoped above the suspended organization still acts on it; resuming
+//! restores them all unchanged, since nothing was written onto any of them.
 
 use korpis_core::authz::evaluate::ChainError;
 use korpis_core::authz::token::LONGEST_TOKEN_LIFETIME;
@@ -71,15 +70,15 @@ fn a_suspended_customer_leaves_its_reseller_untouched() {
     assert!(matches!(decision, Decision::Permit(_)), "suspension is effective from above");
 }
 
-/// A derived suspension is not on the revocation list and reaches an offline verifier at renewal
-/// (§6.3 and question 7 of §10 of docs/08-identity.md), so the longest token bounds how long it
-/// takes. A longer-lived token has to bring derived suspension onto the list in the same change,
-/// and this fails until whoever raises the bound has done so.
+/// A derived suspension is not on the revocation list and reaches an offline verifier at renewal,
+/// so the longest token bounds how long it takes. A longer-lived token has to bring derived
+/// suspension onto the list in the same change, and this fails until whoever raises the bound has
+/// done so.
 #[test]
 fn derived_suspension_reaches_offline_verifiers_within_the_longest_token() {
     assert_eq!(
         LONGEST_TOKEN_LIFETIME,
         Duration::from_secs(120),
-        "a token lives longer: list derived suspensions (§6.3 of docs/08-identity.md), then this"
+        "a token lives longer: list derived suspensions, then this"
     );
 }

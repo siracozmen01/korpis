@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Three levels of delegation (§2 and §3.2 of docs/08-identity.md; the done-when of Phase 2 in §4
-//! of docs/20-roadmap.md): the host delegates to a reseller's organization, the reseller makes a
-//! sub-tenant and delegates to it, and the sub-tenant makes its customer and gives the customer
-//! authority over one project. No level below the host holds the root grant, every hop is an
-//! attenuation of the one above, and every widening is refused at the hop that tries it.
+//! Three levels of delegation (what Phase 2 had to show): the host
+//! delegates to a reseller's organization, the reseller makes a sub-tenant and delegates to it, and
+//! the sub-tenant makes its customer and gives the customer authority over one project. No level
+//! below the host holds the root grant, every hop is an attenuation of the one above, and every
+//! widening is refused at the hop that tries it.
 
 use crate::support::{Harness, mutation, org_scope};
 use connectrpc::ErrorCode;

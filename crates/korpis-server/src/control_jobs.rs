@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's own work (§6 of docs/03-state.md, §4.9 of docs/02-architecture.md): the
-//! plan steps it executes, queued when their turn comes, and the sweeps prunes leave behind,
-//! claimed by one replica at a time. Whatever references a backup repository holds is read here,
-//! with the engine, through access the application layer granted; what to do with the answer is
-//! the application's.
+//! The control plane's own work: the plan steps it executes, queued when their turn comes, and the
+//! sweeps prunes leave behind, claimed by one replica at a time. Whatever references a backup
+//! repository holds is read here, with the engine, through access the application layer granted;
+//! what to do with the answer is the application's.
 
 use crate::api::Api;
 use crate::repos::repo_of;

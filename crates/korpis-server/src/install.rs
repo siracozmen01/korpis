@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server install`: everything installation needs outside the store (the data
-//! directory, the signing keys, the installation's CA) and then the install use case, which
-//! creates the root organization and the first grant (§9.1 of docs/08-identity.md); and
-//! `korpis-server admin recover-root`, which issues another at the machine (§9.2). Before any
-//! of it, the command runs the preflight of §2 of docs/18-operations.md; after it, the control
-//! plane is given a login of its own, its backup target is declared, and the systemd units are
-//! written.
+//! `korpis-server install`: everything installation needs outside the store (the data directory,
+//! the signing keys, the installation's CA) and then the install use case, which creates the root
+//! organization and the first grant; and `korpis-server admin recover-root`, which issues another
+//! at the machine. Before any of it, the command runs the preflight of the install guide;
+//! after it, the control plane is given a login of its own, its backup target is declared, and the
+//! systemd units are written.
 
 pub mod postgres;
 pub mod preflight;
@@ -144,8 +143,8 @@ pub struct RecoverConfig {
     pub database_url: String,
 }
 
-/// Issues a new root grant to a new account, invited for an hour, at the machine (§9.2 of
-/// docs/08-identity.md), recorded as asked by `operator`, the operating-system user who ran it.
+/// Issues a new root grant to a new account, invited for an hour, at the machine, recorded as asked
+/// by `operator`, the operating-system user who ran it.
 pub async fn recover_root(
     config: &RecoverConfig,
     operator: &str,
@@ -177,7 +176,7 @@ pub fn installed_report(config: &InstallConfig, done: &Installed, server: &str) 
             out.push_str(
                 "It holds the root grant, and every other grant descends from it. It is a\n",
             );
-            out.push_str("bearer secret with no second factor (§9.1 of docs/08-identity.md).\n");
+            out.push_str("bearer secret with no second factor.\n");
         }
     }
     if let Some(key) = &done.backup_key {

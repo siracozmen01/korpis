@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis portal …` (§3.6 of docs/07-networking.md): the names the control plane answers under
-//! for an organization, with its theme and its sign-in.
+//! `korpis portal …`: the names the control plane answers under for an organization, with its theme
+//! and its sign-in.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

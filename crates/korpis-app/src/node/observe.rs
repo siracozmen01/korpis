@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recording what a node observes (§4.3 of docs/02-architecture.md). An observation is believed
-//! only for a workload the node holds an assignment or placement for: a node cannot report on a
-//! workload it was never told about. A change of the application's health from the last
-//! observation is an event, written with the observation (§5 of docs/15-observability.md).
+//! Recording what a node observes. An observation is believed only for a workload the node holds an
+//! assignment or placement for: a node cannot report on a workload it was never told about. A
+//! change of the application's health from the last observation is an event, written with the
+//! observation.
 
 use crate::App;
 use crate::error::AppError;

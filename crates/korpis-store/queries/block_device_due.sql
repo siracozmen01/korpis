@@ -1,10 +1,9 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
--- The first device due a call at $1, held until $2 (§2.1 of docs/06-storage.md): one not made
--- yet; one whose workload holds its lease, on the node it is placed on, for another node or
--- epoch than the device was attached for; one attached for a lease no longer held, released or
--- past its grantor's end; and one gone, its volume deleted, or its workload deleted with no
--- volume made of it. With the lease held, its node's way of attaching the device's class, and
--- whether it is gone.
+-- The first device due a call at $1, held until $2: one not made yet; one whose workload holds its
+-- lease, on the node it is placed on, for another node or epoch than the device was attached for;
+-- one attached for a lease no longer held, released or past its grantor's end; and one gone, its
+-- volume deleted, or its workload deleted with no volume made of it. With the lease held, its
+-- node's way of attaching the device's class, and whether it is gone.
 WITH due AS (
     SELECT b.id, h.node_id AS lease_node, h.epoch AS lease_epoch, n.storage_classes AS classes,
            (EXISTS (SELECT 1 FROM volume v WHERE v.id = b.id AND v.deleted_at IS NOT NULL)

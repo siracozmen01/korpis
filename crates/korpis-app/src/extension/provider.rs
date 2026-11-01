@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Provider registrations (§3.3 of docs/16-extensions.md). An installed extension opens a
-//! stream, authenticated as itself, and registers one of the `provides` entries its installation
-//! recorded; the replica holding the stream keeps the registration seen while it is open, and a
-//! registration nobody has seen for a while belongs to a replica that is gone and is withdrawn.
+//! Provider registrations. An installed extension opens a stream, authenticated as itself, and
+//! registers one of the `provides` entries its installation recorded; the replica holding the
+//! stream keeps the registration seen while it is open, and a registration nobody has seen for a
+//! while belongs to a replica that is gone and is withdrawn.
 
 use crate::App;
 use crate::caller::Caller;
@@ -32,10 +32,10 @@ pub struct Register {
     pub version: String,
     /// How many calls it accepts at once.
     pub concurrency: u32,
-    /// An identity provider's: it signs people in (§9.7 of docs/08-identity.md).
+    /// An identity provider's: it signs people in.
     pub sign_in: bool,
     /// A block storage provider's: whether its attach refuses every other node in the storage
-    /// itself (§2.1 of docs/06-storage.md).
+    /// itself.
     pub fencing: Fencing,
 }
 
@@ -86,9 +86,8 @@ fn effect(actor: Principal, action: &str, r: &Registration, workload: Option<Uui
     e
 }
 
-/// Fails, in the transaction that withdrew their registrations, the calls sent to streams that
-/// are gone: they fail as retryable rather than waiting out their deadline (§3.3 of
-/// docs/16-extensions.md).
+/// Fails, in the transaction that withdrew their registrations, the calls sent to streams that are
+/// gone: they fail as retryable rather than waiting out their deadline.
 pub(super) async fn fail_in_flight(tx: &mut impl Tx, now: SystemTime) -> Result<(), AppError> {
     let ended = CallOutcome::Failed(CallFailure::stream_ended());
     tx.fail_calls_without_registration(&ended, now).await?;

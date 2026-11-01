@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The file session verb (§3.2 of docs/06-storage.md): the worker's spec placed from what the
-//! request names, as an install's is, the worker started, and its socket attached to the answer.
+//! The file session verb: the worker's spec placed from what the request names, as an install's is,
+//! the worker started, and its socket attached to the answer.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};

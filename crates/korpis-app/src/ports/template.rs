@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grant templates (§4 of docs/08-identity.md): a head naming the current version, and every
-//! version kept whole beside it.
+//! Grant templates: a head naming the current version, and every version kept whole beside it.
 
 use super::StoreResult;
 use crate::page::Page;

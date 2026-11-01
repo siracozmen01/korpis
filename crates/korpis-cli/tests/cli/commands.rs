@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The imperative commands and the listings (§2 of docs/13-surface-cli.md): names resolve
-//! through what the caller can read, each command is the API's call, and `--json` prints the
-//! API's own objects.
+//! The imperative commands and the listings: names resolve through what the caller can read, each
+//! command is the API's call, and `--json` prints the API's own objects.
 
 use crate::support::{ControlPlane, push_recipe};
 use serde_json::Value;

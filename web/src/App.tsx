@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The panel's shell (§1 of docs/11-surface-web.md): a client of the published API and nothing
-// more, routed by the address bar's path. Until the session is known it says so rather than
-// showing a screen it may not be allowed; signed out, every route but the public ones leads to
-// signing in, and back to where it was going once signed in.
+// The panel's shell: a client of the published API and nothing more, routed by the address bar's
+// path. Until the session is known it says so rather than showing a screen it may not be allowed;
+// signed out, every route but the public ones leads to signing in, and back to where it was going
+// once signed in.
 
 import { Button, Link, RouterProvider } from "react-aria-components";
 import {

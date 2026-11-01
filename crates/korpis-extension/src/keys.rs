@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Writing a key management provider (§5.5 of docs/06-storage.md): the tenant's own key
-//! management service holding a repository's key-encryption key. It makes a workload's data key
-//! and wraps it, and opens a wrapped one, for one context, `<repository>/<workload>`, which it
-//! should bind into the wrapping and its service's policy, so a credential taken from it opens
-//! nothing else. It answers with the data key sealed to the call's one-time recipient
-//! ([`crate::keyseal`]), which this module does: an implementation returns the key, and it never
-//! leaves the process in the clear. Requires the `provider.key_management` capability.
+//! Writing a key management provider: the tenant's own key management service holding a
+//! repository's key-encryption key. It makes a workload's data key and wraps it, and opens a
+//! wrapped one, for one context, `<repository>/<workload>`, which it should bind into the wrapping
+//! and its service's policy, so a credential taken from it opens nothing else. It answers with the
+//! data key sealed to the call's one-time recipient ([`crate::keyseal`]), which this module does:
+//! an implementation returns the key, and it never leaves the process in the clear. Requires the
+//! `provider.key_management` capability.
 
 use crate::keyseal::{self, KEY_LEN};
 pub use crate::provider::Failure;

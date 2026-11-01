@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Runs of identical denials being coalesced (§10 of docs/10-api.md): working state beside the
-//! effect log, never part of it.
+//! Runs of identical denials being coalesced: working state beside the effect log, never part of
+//! it.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_time, principal, to_count, to_time};

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota that counts where workloads run (§5.1 of docs/05-scheduling.md, "Where a workload
-//! runs"): an entry naming the nodes it counts holds what each workload it selects runs on those
-//! nodes, as its placement's target declares it. It is checked when a workload is bound, by the
-//! placement filter, and its totals move at the end of every change to a placement, all under
-//! the placement lock, which every one of those changes holds: what the placement was counted as
-//! holding comes out of the entries that counted it, exactly, and what it runs now goes into
-//! the entries counting the node it is on now.
+//! Quota that counts where workloads run ("Where a workload runs"): an entry naming the nodes it
+//! counts holds what each workload it selects runs on those nodes, as its placement's target
+//! declares it. It is checked when a workload is bound, by the placement filter, and its totals
+//! move at the end of every change to a placement, all under the placement lock, which every one of
+//! those changes holds: what the placement was counted as holding comes out of the entries that
+//! counted it, exactly, and what it runs now goes into the entries counting the node it is on now.
 
 use super::hold::drift;
 use crate::App;
@@ -78,7 +77,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// What each of `entries`, counting where `w` runs, promised the organizations beneath its
-    /// owner (Finding 139), less what each of those counts of `w` as `placed`.
+    /// owner, less what each of those counts of `w` as `placed`.
     pub(crate) async fn placed_promises(
         &self,
         tx: &mut S::Tx,

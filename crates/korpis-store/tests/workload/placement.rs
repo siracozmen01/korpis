@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placements and the record of failed attempts: stored whole, summed per node, logged once
-//! per target (§2.3 of docs/05-scheduling.md).
+//! Placements and the record of failed attempts: stored whole, summed per node, logged once per
+//! target.
 
 use crate::support::{create, fixture, now};
 use korpis_app::Page;

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A relay running as its own process (§3.1 of docs/02-architecture.md), joined to the control
-//! plane and serving in this test's process, holding nothing of the control plane's but what
-//! its feed sends.
+//! A relay running as its own process, joined to the control plane and serving in this test's
+//! process, holding nothing of the control plane's but what its feed sends.
 
 use super::{ControlPlane, mutation};
 use connectrpc::client::{ClientConfig, HttpClient};

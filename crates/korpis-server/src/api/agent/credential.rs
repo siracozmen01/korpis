@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's request for a workload's credential, and its answer on the same stream (§9.5 of
-//! docs/08-identity.md). The answer always comes, echoing the request, so an agent never waits
-//! on a request the control plane dropped.
+//! A node's request for a workload's credential, and its answer on the same stream. The answer
+//! always comes, echoing the request, so an agent never waits on a request the control plane
+//! dropped.
 
 use crate::api::wire::{id, timestamp};
 use korpis_app::AppError;

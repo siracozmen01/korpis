@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the agent asks of the helper for replicas (§2.2 of docs/06-storage.md): sending a
-//! volume's snapshot, receiving one into a replica, reading how a receive ended, releasing what
-//! replication no longer needs, and making a volume of a replica.
+//! What the agent asks of the helper for replicas: sending a volume's snapshot, receiving one into
+//! a replica, reading how a receive ended, releasing what replication no longer needs, and making a
+//! volume of a replica.
 
 use super::HostError;
 use super::node::NodeHost;

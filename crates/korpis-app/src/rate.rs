@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Charging a request to its buckets (§10 of docs/10-api.md): the subject's own, and each
-//! organization it holds a grant in, the organization of the grant's scope, which attenuation
-//! never leaves; an expensive request to a second pair beside them. The organizations a subject
-//! holds grants in are read once a minute, not on every request.
+//! Charging a request to its buckets: the subject's own, and each organization it holds a grant in,
+//! the organization of the grant's scope, which attenuation never leaves; an expensive request to a
+//! second pair beside them. The organizations a subject holds grants in are read once a minute, not
+//! on every request.
 
 use crate::App;
 use crate::caller::Caller;
@@ -61,8 +61,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Charges a request that presents no credential, from `ip`, to its source's bucket at the
-    /// individual rate (§10 of docs/10-api.md): the sign-in and redemption ceremonies, which
-    /// anyone may begin, each writing a challenge.
+    /// individual rate: the sign-in and redemption ceremonies, which anyone may begin, each writing
+    /// a challenge.
     pub async fn charge_source(
         &self,
         ip: Option<std::net::IpAddr>,

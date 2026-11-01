@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `/about/source` (§7 of docs/11-surface-web.md, §2 of docs/19-governance.md): where the source
-//! of what this address conveys is published, and at which revision. AGPL-3.0 attaches its
-//! source obligation to the control plane's binary and to the panel's JavaScript a browser
-//! downloads, so the page names both: this build's revision, and the panel's, which its own
-//! build writes beside it in `about/source.json`. It is served by the control plane, unstyled,
-//! so no theme can remove or restyle it.
+//! `/about/source`: where the source of what this address conveys is published, and at which
+//! revision. AGPL-3.0 attaches its source obligation to the control plane's binary and to the
+//! panel's JavaScript a browser downloads, so the page names both: this build's revision, and the
+//! panel's, which its own build writes beside it in `about/source.json`. It is served by the
+//! control plane, unstyled, so no theme can remove or restyle it.
 
 use bytes::Bytes;
 use http::{HeaderValue, Response, header};

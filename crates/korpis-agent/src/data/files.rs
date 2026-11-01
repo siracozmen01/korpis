@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A workload's files over the data path: the handler of `workload.file.read` and
-//! `workload.file.write`, which implies it (§3.2 of docs/06-storage.md). The node names the
-//! workload's volumes from the assignment it holds, each at the path the workload mounts it at and
-//! read-only where the workload mounts it so, has the helper start a worker confined to them, or,
-//! where the workload's driver serves file sessions inside its object, as a microVM's does (§4.4 of
-//! docs/04-runtimes.md), opens the session through the driver, and carries the session's frames to
-//! the worker and back unchanged: every frame up is one
+//! `workload.file.write`, which implies it. The node names the workload's volumes from the
+//! assignment it holds, each at the path the workload mounts it at and read-only where the workload
+//! mounts it so, has the helper start a worker confined to them, or, where the workload's driver
+//! serves file sessions inside its object, as a microVM's does, opens the session through the
+//! driver, and carries the session's frames to the worker and back unchanged: every frame up is one
 //! `FileRequest`, every frame down the `FileResponse` answering it, in order. A client may send
 //! requests ahead of the answers; the node holds at most [`AHEAD`] unanswered.
 //!

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Endpoints as placed (§3.6 of docs/01-model.md, §3 of docs/07-networking.md): what each
-//! endpoint a placed workload's target declares became on its node, with the exposure it
-//! resolved to and, for one the node itself exposes, the port of the node it holds.
+//! Endpoints as placed: what each endpoint a placed workload's target declares became on its node,
+//! with the exposure it resolved to and, for one the node itself exposes, the port of the node it
+//! holds.
 
 use super::spec::endpoints::{EndpointSpec, Exposure, Protocol, TlsSpec};
 use uuid::Uuid;
@@ -29,14 +29,14 @@ impl Protocol {
 
 impl Exposure {
     /// Whether an endpoint of this resolved exposure holds a port of its node: `node_port` and
-    /// `node_bound`, which the node itself is reached on (§3 of docs/07-networking.md).
+    /// `node_bound`, which the node itself is reached on.
     #[must_use]
     pub const fn holds_node_port(self) -> bool {
         matches!(self, Self::NodePort | Self::NodeBound)
     }
 }
 
-/// What an endpoint's address survives (§3 of docs/07-networking.md).
+/// What an endpoint's address survives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Survival {
     /// No move: `node_port`, the node's address and a port that a move gives up.
@@ -63,9 +63,8 @@ impl Exposure {
     }
 }
 
-/// What a plan does to one endpoint's exposure: the mode declared, the one it resolves to here,
-/// and what that survives, which the plan that creates or changes it shows (§3 of
-/// docs/07-networking.md).
+/// What a plan does to one endpoint's exposure: the mode declared, the one it resolves to here, and
+/// what that survives, which the plan that creates or changes it shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExposureImpact {
     /// The endpoint's name.
@@ -76,9 +75,9 @@ pub struct ExposureImpact {
     pub resolved: Exposure,
     /// What the resolved one survives.
     pub survives: Survival,
-    /// Whether it is reached on a node whose reachability the control plane measured itself,
-    /// which may be inside the node's network: a firewall in front of the node, such as a cloud
-    /// provider's, is then the operator's to open (§9 of docs/07-networking.md).
+    /// Whether it is reached on a node whose reachability the control plane measured itself, which
+    /// may be inside the node's network: a firewall in front of the node, such as a cloud
+    /// provider's, is then the operator's to open.
     pub measured_inside: bool,
 }
 
@@ -135,7 +134,7 @@ pub struct Endpoint {
     pub node: Uuid,
     /// The port of the node it holds, for an exposure that holds one.
     pub port: Option<u16>,
-    /// For `ingress`: the names it routes (§3.2 of docs/07-networking.md).
+    /// For `ingress`: the names it routes.
     pub domains: Vec<String>,
     /// For `ingress`: where its certificate comes from, `acme` when the declaration left it to
     /// the default; or that TLS is passed through to the workload.

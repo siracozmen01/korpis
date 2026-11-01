@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Keeping the relay's certificate current (§7 of docs/18-operations.md). With about a third of
-//! its life left, shifted by up to a day fixed by the relay's identifier so relays do not all
-//! ask at once, the relay makes a fresh TLS key, asks the control plane to renew, writes the new
-//! generation in full, points its directory at it, and serves it from the next handshake. A
-//! renewal that fails is asked again, backing off to an hour; the control plane reports the
-//! approaching expiry as events meanwhile.
+//! Keeping the relay's certificate current. With about a third of its life left, shifted by up to a
+//! day fixed by the relay's identifier so relays do not all ask at once, the relay makes a fresh
+//! TLS key, asks the control plane to renew, writes the new generation in full, points its
+//! directory at it, and serves it from the next handshake. A renewal that fails is asked again,
+//! backing off to an hour; the control plane reports the approaching expiry as events meanwhile.
 
 use super::RelayDir;
 use super::feed::signed_renewal;

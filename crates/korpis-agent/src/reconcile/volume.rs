@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes through the privileged helper, each one reported (§7 of docs/06-storage.md): the node
-//! journals every volume it ensures or deletes, and the control plane keeps the volume object
-//! from those records. The record follows the helper's answer, so a volume the journal names was
-//! there; one ensured whose record did not reach the journal fails the step or the build that
-//! asked for it, and the retry, ensuring it again, reports it.
+//! Volumes through the privileged helper, each one reported: the node journals every volume it
+//! ensures or deletes, and the control plane keeps the volume object from those records. The record
+//! follows the helper's answer, so a volume the journal names was there; one ensured whose record
+//! did not reach the journal fails the step or the build that asked for it, and the retry, ensuring
+//! it again, reports it.
 
 use super::act::{Failure, volume_id};
 use super::step::{After, detail, flag, number};
@@ -156,11 +156,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(Some(after))
     }
 
-    /// Makes the volume `name` of `a`'s workload here from the snapshot of its replica here
-    /// that step `s` names, under the identifier the step gives it, and reports it ensured with
-    /// its limits set, as a volume attached is (§2.2 of docs/06-storage.md); that identifier.
-    /// Asked again, the helper answers the copy it already made, so a step retried after its
-    /// report failed reports it then.
+    /// Makes the volume `name` of `a`'s workload here from the snapshot of its replica here that
+    /// step `s` names, under the identifier the step gives it, and reports it ensured with its
+    /// limits set, as a volume attached is; that identifier. Asked again, the helper answers the
+    /// copy it already made, so a step retried after its report failed reports it then.
     async fn promote(
         &self,
         a: &agent::Assignment,

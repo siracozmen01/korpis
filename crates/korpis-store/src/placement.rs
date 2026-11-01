@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placements (§3.4 of docs/01-model.md, §2.3 of docs/05-scheduling.md).
+//! Placements.
 
 use crate::errors::from_sqlx;
 use crate::node::NodeRow;

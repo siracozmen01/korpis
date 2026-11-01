@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // The clients a screen reads and acts through, and the path its links are written under. A
-// signed-in user's calls carry the session's access token; a share link's carry the link itself
-// and nothing else (§6 of docs/11-surface-web.md), so the same screens serve both, each showing
-// only what its own credential reaches.
+// signed-in user's calls carry the session's access token; a share link's carry the link itself and
+// nothing else, so the same screens serve both, each showing only what its own credential reaches.
 
 import { createClient, type Client, type Interceptor, type Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
@@ -86,9 +85,9 @@ export interface Reach {
    * again without being asked. */
   readonly metered: boolean;
   /** The actions the credential holds, where the panel knows them (a share link's); otherwise
-   * every action is offered and the control plane decides (§5 of docs/11-surface-web.md). */
+   * every action is offered and the control plane decides. */
   readonly allowed?: ReadonlySet<string>;
-  /** The relay sessions with a workload are opened at (§3.1 of docs/02-architecture.md). */
+  /** The relay sessions with a workload are opened at. */
   readonly relay: () => Promise<Relay>;
 }
 

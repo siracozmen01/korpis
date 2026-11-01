@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Endpoints as placed (§3 of docs/07-networking.md, migration 0053).
+//! Endpoints as placed (migration 0053).
 
 use crate::errors::from_sqlx;
 use crate::stored::from_time;

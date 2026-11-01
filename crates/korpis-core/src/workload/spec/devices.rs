@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What devices a workload holds while it is placed (§6.3 of docs/05-scheduling.md): each request
-//! a class, a count, a selector over the devices' attributes, and a mode.
+//! What devices a workload holds while it is placed: each request a class, a count, a selector over
+//! the devices' attributes, and a mode.
 
 use super::SpecError;
 use crate::labels::LabelSelector;

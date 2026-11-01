@@ -6,13 +6,12 @@ package korpis.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// Accounts (§9.6 of docs/08-identity.md): redeeming an invitation by registering a first factor,
-// and signing in. Every procedure here is called without a credential: what it checks is in the
-// request, an invitation's secret, a password, a code, or a passkey's answer to a challenge, and
-// each one refused is a failed attempt (§10 of docs/10-api.md), answered UNAUTHENTICATED whichever
-// part of it failed, or RATE_LIMITED once its source has failed too often. A ceremony carries no
-// idempotency key (§6 of docs/10-api.md): each spends a single-use proof, so a retry is refused
-// rather than applied twice, and a client that lost an answer begins the ceremony again.
+// Accounts: redeeming an invitation by registering a first factor, and signing in. Every procedure
+// here is called without a credential: what it checks is in the request, an invitation's secret, a
+// password, a code, or a passkey's answer to a challenge, and each one refused is a failed attempt,
+// answered UNAUTHENTICATED whichever part of it failed, or RATE_LIMITED once its source has failed
+// too often. A ceremony carries no idempotency key: each spends a single-use proof, so a retry is
+// refused rather than applied twice, and a client that lost an answer begins the ceremony again.
 service AccountService {
   // What an open invitation is for, before it is redeemed.
   rpc GetInvitation(GetInvitationRequest) returns (GetInvitationResponse) {
@@ -45,7 +44,7 @@ message GetInvitationResponse {
   // The account's display name, as its issuer gave it.
   string display_name = 1;
   google.protobuf.Timestamp expires_at = 2;
-  // Only registering a passkey redeems it (§9.1 and §9.2 of docs/08-identity.md).
+  // Only registering a passkey redeems it.
   bool passkey_only = 3;
 }
 
@@ -92,8 +91,7 @@ message RedeemWithPasskeyRequest {
 message RedeemResponse {
   // The account, as `usr_…`.
   string account = 1;
-  // Ten codes, each a second factor once; shown once and stored only as digests (§9.3 of
-  // docs/08-identity.md).
+  // Ten codes, each a second factor once; shown once and stored only as digests.
   repeated string recovery_codes = 2;
   // The session the redemption began, as `ses_…`; its refresh credential is set as the cookie
   // of the session service (session.proto).

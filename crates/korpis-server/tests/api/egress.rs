@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's API reached through the node (§9.5 of docs/08-identity.md): the control
-//! plane marks the assignment of an installed extension's workload, and of a workload holding a
-//! grant in force, and no other, as reaching its API, which the node relays to it. And what a
-//! declaration may ask of the network: what no node enforces is refused (Rule K-3).
+//! The control plane's API reached through the node: the control plane marks the assignment of an
+//! installed extension's workload, and of a workload holding a grant in force, and no other, as
+//! reaching its API, which the node relays to it. And what a declaration may ask of the network:
+//! what no node enforces is refused.
 
 use crate::providers::installed;
 use crate::recipes::{body, create, project, push_paper};
@@ -100,10 +100,9 @@ async fn a_workload_holding_a_grant_in_force_reaches_the_api_until_it_is_revoked
     turns(&h, &nightly, false).await;
 }
 
-/// Its organization suspended, a workload's grant scoped there suspends with it, and the node
-/// stops relaying the API to it until the organization is resumed (§2.1 of
-/// docs/08-identity.md). The grant is issued from the host's root, so the chain's root lies
-/// outside the suspended organization and only its leaf within it.
+/// Its organization suspended, a workload's grant scoped there suspends with it, and the node stops
+/// relaying the API to it until the organization is resumed. The grant is issued from the host's
+/// root, so the chain's root lies outside the suspended organization and only its leaf within it.
 #[tokio::test]
 async fn a_workload_of_a_suspended_organization_loses_the_api_until_it_is_resumed() {
     let h = Harness::new().await;
@@ -167,8 +166,8 @@ async fn a_declaration_asking_what_no_node_enforces_is_refused_saying_why() {
         async move { workloads.declare_intent(declare).await.unwrap_err() }
     };
 
-    // A dedicated address is built (§3.7 of docs/07-networking.md): declared, it waits for a
-    // pool to reach a node with one free, which address_pools.rs tests.
+    // A dedicated address is built: declared, it waits for a pool to reach a node with one free,
+    // which address_pools.rs tests.
     let mut dedicated = body(&repo, &[]);
     dedicated.endpoints = vec![endpoint(pb::Exposure::EXPOSURE_DEDICATED_IP)];
     let declared = create("dedicated", &project, "dedicated", dedicated);

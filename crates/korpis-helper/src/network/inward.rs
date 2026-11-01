@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What reaches a workload from outside the node (§4 of docs/07-networking.md): a new connection
-//! forwarded to a workload's link from neither another workload's link nor the mesh is let in
-//! only where the node translated it, which is a published port of the node's, or to a port of
-//! an endpoint whose exposure is reached at the workload's own address. Everything else from
-//! outside is dropped and counted under `exposure`, so an `overlay_only` endpoint, or an
-//! `ingress` one, is not reached past its node by whoever can route to the workload's address,
-//! which a routed IPv6 prefix makes the whole internet. Each workload has a chain of its own,
-//! reached through a map keyed by its link, holding its ports reached from outside. What a
-//! workload's link sends, and what arrives through the mesh, is judged elsewhere (§6, §9.1).
+//! What reaches a workload from outside the node: a new connection forwarded to a workload's link
+//! from neither another workload's link nor the mesh is let in only where the node translated it,
+//! which is a published port of the node's, or to a port of an endpoint whose exposure is reached
+//! at the workload's own address. Everything else from outside is dropped and counted under
+//! `exposure`, so an `overlay_only` endpoint, or an `ingress` one, is not reached past its node by
+//! whoever can route to the workload's address, which a routed IPv6 prefix makes the whole
+//! internet. Each workload has a chain of its own, reached through a map keyed by its link, holding
+//! its ports reached from outside. What a workload's link sends, and what arrives through the mesh,
+//! is judged elsewhere.
 
 use super::nft::TABLE;
 use super::policy::Inbound;
@@ -31,9 +31,8 @@ fn when(op: &str, key: &str, right: &str) -> Value {
     json!({"match": {"op": op, "left": {"meta": {"key": key}}, "right": right}})
 }
 
-/// A new connection to a workload's link from outside the node: from neither a workload's link,
-/// nor the mesh, nor an edge's GRE link, which the mesh's and the edges' own chains judge (§9.1,
-/// §3.1 of docs/07-networking.md).
+/// A new connection to a workload's link from outside the node: from neither a workload's link, nor
+/// the mesh, nor an edge's GRE link, which the mesh's and the edges' own chains judge.
 fn from_outside() -> Vec<Value> {
     vec![
         when("==", "oifname", LINKS),

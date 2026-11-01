@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The runs a restore recovers from what nodes present (§8 of docs/03-state.md): each run an
-//! assignment names that the store lacks is recorded as its signed reference made it, running on
-//! the node that presented it, and one the store holds as pending is started there; what the
-//! store keeps of the workload's schedule and power cycles is moved past them, so no second run
-//! is made for what is already running. A run is recovered only where its workload is placed, as
-//! of another workload never, and as one the store already went past (from an assignment older
-//! than what it holds) never. A run the store holds as active that no node presents is
-//! left to the run maker, which settles it as it settles any other once the window ends.
+//! The runs a restore recovers from what nodes present: each run an assignment names that the store
+//! lacks is recorded as its signed reference made it, running on the node that presented it, and
+//! one the store holds as pending is started there; what the store keeps of the workload's schedule
+//! and power cycles is moved past them, so no second run is made for what is already running. A run
+//! is recovered only where its workload is placed, as of another workload never, and as one the
+//! store already went past (from an assignment older than what it holds) never. A run the store
+//! holds as active that no node presents is left to the run maker, which settles it as it settles
+//! any other once the window ends.
 
 use super::recover::{effect, with};
 use crate::App;

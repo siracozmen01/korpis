@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A heartbeat probe on a microVM on a real node (§5 and §6 of docs/04-runtimes.md): the guest
-//! runs `korpis heartbeat --every 1s`, which says on `/run/korpis/identity.sock` inside the guest
-//! that it is alive, relayed over vsock to the workload's socket its node serves on the host, and
-//! its liveness probe allows three seconds of silence after ten for its boot. Healthy while it
-//! beats; once its Firecracker is stopped from the host, as a hung guest is, silent, so unhealthy
-//! and restarted, though neither its agent nor Ctrl+Alt+Del can reach it; and healthy again in its
-//! new boot. Needs what the microVM test needs, and is skipped without
-//! it.
+//! A heartbeat probe on a microVM on a real node: the guest runs `korpis heartbeat --every 1s`,
+//! which says on `/run/korpis/identity.sock` inside the guest that it is alive, relayed over vsock
+//! to the workload's socket its node serves on the host, and its liveness probe allows three
+//! seconds of silence after ten for its boot. Healthy while it beats; once its Firecracker is
+//! stopped from the host, as a hung guest is, silent, so unhealthy and restarted, though neither
+//! its agent nor Ctrl+Alt+Del can reach it; and healthy again in its new boot. Needs what the
+//! microVM test needs, and is skipped without it.
 
 use crate::image::{KORPIS, push_image};
 use crate::node::{Node, live};

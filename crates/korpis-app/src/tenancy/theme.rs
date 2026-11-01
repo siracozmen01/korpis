@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Organizations' themes (§7 of docs/11-surface-web.md): an organization sets its own, or wears
-//! its nearest ancestor's, or the panel's own. A theme is what an organization shows everyone it
-//! serves, so whoever may read an object may read the theme it is shown in; reading it spends no
-//! use of a use-limited grant, since the page it styles spent the one it costs.
+//! Organizations' themes: an organization sets its own, or wears its nearest ancestor's, or the
+//! panel's own. A theme is what an organization shows everyone it serves, so whoever may read an
+//! object may read the theme it is shown in; reading it spends no use of a use-limited grant, since
+//! the page it styles spent the one it costs.
 
 use crate::App;
 use crate::caller::Caller;
@@ -94,8 +94,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The theme the sign-in page wears before anyone has signed in, answered to anyone: at a
-    /// portal its organization's, and elsewhere the installation's root organization's (§7 of
-    /// docs/11-surface-web.md).
+    /// portal its organization's, and elsewhere the installation's root organization's.
     pub async fn sign_in_theme(&self, portal: Option<Uuid>) -> Result<GoverningTheme, AppError> {
         let wearer = match portal {
             Some(p) => self.portal_organization(p).await?,
@@ -109,9 +108,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The theme a signed-in `caller` wears, reached at `portal` or at the installation's own
-    /// address: that of the organization they land at, whoever provides their access, though
-    /// they may read none of its organizations (Finding 134 of docs/23-walkthroughs.md). Answered
-    /// to any caller signed in; a share link's holder wears the theme of the place it opens.
+    /// address: that of the organization they land at, whoever provides their access, though they
+    /// may read none of its organizations. Answered to any caller signed in; a share link's holder
+    /// wears the theme of the place it opens.
     pub async fn landing_theme(
         &self,
         caller: &Caller,

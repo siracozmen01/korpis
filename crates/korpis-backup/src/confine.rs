@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A job's confinement (§6 of docs/02-architecture.md, §5.5 of docs/06-storage.md). The helper
-//! starts a job as root, because reading every tenant file or restoring every owner needs some of
-//! root; the job's first act, before it reads a byte of the volume and while it is still one
-//! thread, is to give up all of root it does not need: it joins the cgroup the helper made for it,
-//! confines its filesystem access with Landlock to the directory it works in (and to reading the
-//! certificate and resolver files a connection needs), confines its connections to the store's
-//! port, and drops every capability but its work's from every set, the bounding set included.
-//! Each is per thread, and every thread the job starts afterwards inherits them. What the kernel
-//! cannot apply is reported as absent, never assumed.
+//! A job's confinement. The helper starts a job as root, because reading every tenant file or
+//! restoring every owner needs some of root; the job's first act, before it reads a byte of the
+//! volume and while it is still one thread, is to give up all of root it does not need: it joins
+//! the cgroup the helper made for it, confines its filesystem access with Landlock to the directory
+//! it works in (and to reading the certificate and resolver files a connection needs), confines its
+//! connections to the store's port, and drops every capability but its work's from every set, the
+//! bounding set included. Each is per thread, and every thread the job starts afterwards inherits
+//! them. What the kernel cannot apply is reported as absent, never assumed.
 
 use korpis_confine::Capability;
 use korpis_proto::korpis::backup::v1 as pb;

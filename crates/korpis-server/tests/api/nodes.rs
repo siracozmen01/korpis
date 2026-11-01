@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Nodes (§3.4 of docs/01-model.md): owned by the organization they were enrolled into, read
-//! through it, and cordoned by the operator without touching what runs there.
+//! Nodes: owned by the organization they were enrolled into, read through it, and cordoned by the
+//! operator without touching what runs there.
 
 use crate::support::{Harness, mutation, org_scope, reason};
 use korpis_core::id::{Id, IdKind};

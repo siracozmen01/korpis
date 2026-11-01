@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The replicas of volume $1, by node (§2.2 of docs/06-storage.md).\nSELECT volume_id, node_id, chosen_at, snapshot, received_at, sending, sending_since, stale_at\n  FROM volume_replica\n WHERE volume_id = $1\n ORDER BY node_id\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The replicas of volume $1, by node.\nSELECT volume_id, node_id, chosen_at, snapshot, received_at, sending, sending_since, stale_at\n  FROM volume_replica\n WHERE volume_id = $1\n ORDER BY node_id\n",
   "describe": {
     "columns": [
       {
@@ -108,5 +108,5 @@
       true
     ]
   },
-  "hash": "3af68bdc6268f5848af26638c670b07d1966628cf2b3e23b343aba2728ce5915"
+  "hash": "5ed464635d7f37e25b580297529217faa6ee87aba0c920d4020ccfd7d4020a73"
 }

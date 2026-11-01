@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! ACME's TLS-ALPN-01 challenge at the proxy (RFC 8737, §3.2 of docs/07-networking.md): a client
-//! offering only `acme-tls/1` for a name the proxy holds a digest for is answered with a
-//! certificate made for that name carrying the digest, in `acme-tls/1`, and nothing else; the same
-//! name asked for as a browser asks is served as its route serves it; and a validation of a name
-//! the proxy holds no digest for reaches the workload behind it, so a `passthrough` workload
-//! answers its own.
+//! ACME's TLS-ALPN-01 challenge at the proxy (RFC 8737): a client offering only `acme-tls/1` for a
+//! name the proxy holds a digest for is answered with a certificate made for that name carrying the
+//! digest, in `acme-tls/1`, and nothing else; the same name asked for as a browser asks is served
+//! as its route serves it; and a validation of a name the proxy holds no digest for reaches the
+//! workload behind it, so a `passthrough` workload answers its own.
 
 use crate::support::{Pki, Proxy, get, https, route, server_tls, workload};
 use http::StatusCode;

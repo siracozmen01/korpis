@@ -89,7 +89,7 @@ test("a plan that interrupts service is previewed in place, and cancelling withd
   fireEvent.click(screen.getByRole("button", { name: "Restart" }));
   expect(await screen.findByText("Restart will do this:")).toBeTruthy();
   expect(screen.getByText(/interrupts service/)).toBeTruthy();
-  // The longest its stop can take: the recipe's hook, then the grace (§3 of docs/09-recipes.md).
+  // The longest its stop can take: the recipe's hook, then the grace.
   expect(screen.getByText("stops within 150 seconds at most")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   // The action is back at once and stays disabled until the plan is withdrawn.

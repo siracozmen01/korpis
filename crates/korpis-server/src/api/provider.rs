@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ProviderService` (§3.3 of docs/16-extensions.md): an installed extension dials out, registers
-//! what it serves, and is called down the stream it opened. The registration lasts as long as the
-//! stream; when either side ends it, the registration is withdrawn. Operators list what is
-//! registered and ping it.
+//! `ProviderService`: an installed extension dials out, registers what it serves, and is called
+//! down the stream it opened. The registration lasts as long as the stream; when either side ends
+//! it, the registration is withdrawn. Operators list what is registered and ping it.
 
 use super::wire::extension::provider_type_from_pb;
 use super::wire::provider::{failure_to_pb, health_to_pb, outcome_from_pb, registration_to_pb};

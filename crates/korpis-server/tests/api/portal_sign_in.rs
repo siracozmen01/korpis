@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the sign-in page at a portal sees (§9.8 of docs/08-identity.md, §7 of
-//! docs/11-surface-web.md): `GetServerInfo` names the portal and its organization,
+//! What the sign-in page at a portal sees: `GetServerInfo` names the portal and its organization,
 //! `GetSignInTheme` answers the theme governing that organization, and `ListSignInProviders` its
-//! providers; a sign-in through one comes back to the portal's own callback and is completed
-//! there alone, into a session begun at the portal; and a provider not at or beneath the portal's
+//! providers; a sign-in through one comes back to the portal's own callback and is completed there
+//! alone, into a session begun at the portal; and a provider not at or beneath the portal's
 //! organization is not reached there.
 
 use crate::domains::child;

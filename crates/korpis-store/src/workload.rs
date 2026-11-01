@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Workloads, intents, power declarations, and plans (§3 and §7 of docs/03-state.md).
+//! Workloads, intents, power declarations, and plans.
 
 mod retire;
 pub(crate) mod rows;

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The suite standing in for the node (§8 of docs/04-runtimes.md): it asks the driver what it
-//! is, lays the probe's image into the content store, and makes each object as the agent would:
-//! an intent of a recipe naming the probe for the driver's tier, prepared by the driver, with what
-//! the agent fills in before `Create` (the labels adoption matches, the workload's ids, and each
-//! volume's source, made as the helper makes it). Everything it made is destroyed and removed at
-//! the end of the run, whatever the cases found.
+//! The suite standing in for the node: it asks the driver what it is, lays the probe's image into
+//! the content store, and makes each object as the agent would: an intent of a recipe naming the
+//! probe for the driver's tier, prepared by the driver, with what the agent fills in before
+//! `Create` (the labels adoption matches, the workload's ids, and each volume's source, made as the
+//! helper makes it). Everything it made is destroyed and removed at the end of the run, whatever
+//! the cases found.
 
 use crate::client::Driver;
 use crate::fixture::Fixture;

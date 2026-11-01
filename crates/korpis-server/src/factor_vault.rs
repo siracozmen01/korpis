@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's factor key (§9.6 of docs/08-identity.md), in its data directory beside its
-//! backup and TLS keys. It seals every account's TOTP secret with XChaCha20-Poly1305 bound to the
-//! account's identifier, as the backup key seals repository keys, so a sealed secret copied to
-//! another account does not open.
+//! The control plane's factor key, in its data directory beside its backup and TLS keys. It seals
+//! every account's TOTP secret with XChaCha20-Poly1305 bound to the account's identifier, as the
+//! backup key seals repository keys, so a sealed secret copied to another account does not open.
 
 use crate::data::DataDir;
 use crate::keys::{KeyError, load_or_create};

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Installing an extension (§4 of docs/16-extensions.md). Its artifact is resolved under the
-//! organization's trust policy; the installer must hold `extension.install` where it is installed,
-//! and over the organization when it provides anything (§4.1); the needs approved must be exactly
-//! the document's; and its workload, its grants, its record, and their effects are written in one
-//! transaction, so an installation either exists whole or not at all.
+//! Installing an extension. Its artifact is resolved under the organization's trust policy; the
+//! installer must hold `extension.install` where it is installed, and over the organization when it
+//! provides anything; the needs approved must be exactly the document's; and its workload, its
+//! grants, its record, and their effects are written in one transaction, so an installation either
+//! exists whole or not at all.
 
 use super::grants::{NeedGrant, Place};
 use crate::App;
@@ -150,7 +150,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(Target, Resolved), AppError> {
         let target = self.install_target(caller, cmd).await?;
         let resolved = self.extension_artifact(cmd).await?;
-        // At install, a dry run's included, and never at first use (§6 of docs/16-extensions.md).
+        // At install, a dry run's included, and never at first use.
         resolved.manifest.compatible().map_err(|e| AppError::Unsatisfiable {
             reason: "extension.incompatible",
             message: e.to_string(),
@@ -221,9 +221,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Resolved { artifact, manifest, name, version: metadata.version })
     }
 
-    /// A provider is infrastructure for the whole organization (§4.1 of
-    /// docs/16-extensions.md): installing one needs `extension.install` over the organization,
-    /// and an identity provider is installed into the organization it authenticates into.
+    /// A provider is infrastructure for the whole organization: installing one needs
+    /// `extension.install` over the organization, and an identity provider is installed into the
+    /// organization it authenticates into.
     pub(super) async fn provider_authority(
         &self,
         caller: &Caller,
@@ -296,9 +296,8 @@ async fn write_installation<X: Tx>(
     Ok(())
 }
 
-/// The subscriptions its document declares, held by the installation and starting at the end of
-/// the log; installed into a project, each is narrowed to that project (§4 of
-/// docs/16-extensions.md).
+/// The subscriptions its document declares, held by the installation and starting at the end of the
+/// log; installed into a project, each is narrowed to that project.
 pub(super) fn subscriptions(
     i: &Installation,
     manifest: &ExtensionManifest,

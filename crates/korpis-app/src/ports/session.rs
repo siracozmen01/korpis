@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Agent sessions (§4.2 and §7 of docs/02-architecture.md): what a node reports about itself,
-//! the nonces that keep a Hello from being replayed, and whether a node is heard.
+//! Agent sessions: what a node reports about itself, the nonces that keep a Hello from being
+//! replayed, and whether a node is heard.
 
 use super::StoreResult;
 use korpis_core::node::device::{Device, UnofferedDevice};
@@ -20,11 +20,11 @@ pub struct NodeFacts {
     pub allocatable: Bounds,
     /// The runtime drivers, with their declared capabilities.
     pub drivers: Vec<DriverInfo>,
-    /// The devices its agent found described, in full (§6.1 of docs/05-scheduling.md).
+    /// The devices its agent found described, in full.
     pub devices: Vec<Device>,
     /// The devices described that it does not offer, and why.
     pub unoffered_devices: Vec<UnofferedDevice>,
-    /// The physical cores it offers for dedication, in full (§5.2 of docs/05-scheduling.md).
+    /// The physical cores it offers for dedication, in full.
     pub cores: Vec<korpis_core::node::cores::Core>,
     /// The storage classes; `None` leaves them as they were, since a heartbeat does not carry
     /// them.
@@ -35,8 +35,8 @@ pub struct NodeFacts {
     /// What it advertises for inbound traffic; `None` leaves it as it was, for an agent that
     /// does not say.
     pub advertised: Option<korpis_core::node::advertised::Advertised>,
-    /// Its side of the mesh, in full every time; `None` for a node whose helper makes no
-    /// workload networks (§9.1 of docs/07-networking.md).
+    /// Its side of the mesh, in full every time; `None` for a node whose helper makes no workload
+    /// networks.
     pub overlay: Option<korpis_core::node::mesh::OverlayFacts>,
 }
 
@@ -61,10 +61,10 @@ pub trait SessionWrite {
         forget_before: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Binds the shared store `store` to the organization of the node `node_of` names, at
-    /// `at`, where no organization holds it: none declared it before, or the one that did has
-    /// no live volume in it and no node offering it now (§2.1 of docs/06-storage.md). The
-    /// organization that held it before, if any, and the one holding it now.
+    /// Binds the shared store `store` to the organization of the node `node_of` names, at `at`,
+    /// where no organization holds it: none declared it before, or the one that did has no live
+    /// volume in it and no node offering it now. The organization that held it before, if any, and
+    /// the one holding it now.
     fn bind_store(
         &mut self,
         store: &str,
@@ -81,9 +81,9 @@ pub trait SessionWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Records that `node`'s reachability, measured against `measured`, was `reachability` at
-    /// `at`; false if the node no longer advertises `measured`, whose measurement then says
-    /// nothing about it (§9 of docs/07-networking.md).
+    /// Records that `node`'s reachability, measured against `measured`, was `reachability` at `at`;
+    /// false if the node no longer advertises `measured`, whose measurement then says nothing about
+    /// it.
     fn record_reachability(
         &mut self,
         node: Uuid,
@@ -93,7 +93,7 @@ pub trait SessionWrite {
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Records that `node` holds the content of the recipes with digests `present`, and nothing
-    /// else, as reported at `at` (§2.2 of docs/05-scheduling.md).
+    /// else, as reported at `at`.
     fn record_content(
         &mut self,
         node: Uuid,
@@ -101,8 +101,8 @@ pub trait SessionWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Marks unreachable every connected node last heard before `before`, recording a loss at
-    /// `at` for each that held a placement (§2.2 of docs/05-scheduling.md); how many it marked.
+    /// Marks unreachable every connected node last heard before `before`, recording a loss at `at`
+    /// for each that held a placement; how many it marked.
     fn mark_silent_nodes(
         &mut self,
         before: SystemTime,

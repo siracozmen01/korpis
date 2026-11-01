@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The example recipe of §3 of docs/09-recipes.md, pushed to a repository of each test's own.
+//! The documentation's example recipe, pushed to a repository of each test's own.
 
 use korpis_recipe::artifact::{Artifact, File};
 use korpis_recipe::registry::Registry;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Metering samples, as the control plane ingests them (§2 of docs/15-observability.md): the
-//! interval it tells every node, a sample measured from the one before it on that node, samples
-//! lost leaving one record spanning them, a sample not believed kept as a rejection, gaps where
-//! nothing was heard and their supersession, and a closed day's adjustments.
+//! Metering samples, as the control plane ingests them: the interval it tells every node, a sample
+//! measured from the one before it on that node, samples lost leaving one record spanning them, a
+//! sample not believed kept as a rejection, gaps where nothing was heard and their supersession,
+//! and a closed day's adjustments.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, send, until};

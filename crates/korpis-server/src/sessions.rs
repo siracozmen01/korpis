@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The agent sessions this process holds: one per node, so what the control plane decides for a
-//! node can be pushed down the stream that node opened (§4.2 of docs/02-architecture.md). A new
-//! session for a node replaces the old one, whose outbound stream then ends: an agent that
-//! reconnected after a network change must not leave a half-open twin receiving its
-//! assignments. A session replaced or forgotten is told so at once, and every task serving it
-//! stops, so its stream ends then rather than at the next message one of them happens to handle.
+//! node can be pushed down the stream that node opened. A new session for a node replaces the old
+//! one, whose outbound stream then ends: an agent that reconnected after a network change must not
+//! leave a half-open twin receiving its assignments. A session replaced or forgotten is told so at
+//! once, and every task serving it stops, so its stream ends then rather than at the next message
+//! one of them happens to handle.
 
 use korpis_app::ports::Feasible;
 use korpis_proto::korpis::agent::v1::{ControlMessage, FeasibilityResult};
@@ -35,7 +35,7 @@ pub struct Sessions {
     /// which is empty when it is listening and says why not when it is not.
     probes: Mutex<HashMap<String, oneshot::Sender<String>>>,
     /// Feasibility queries sent and not yet answered, by query: the node asked, which alone may
-    /// answer, and where its driver's answer goes (§2.1 of docs/05-scheduling.md).
+    /// answer, and where its driver's answer goes.
     queries: Mutex<HashMap<String, (Uuid, oneshot::Sender<Feasible>)>>,
 }
 

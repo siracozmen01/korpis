@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Re-verifying an identity binding (§5.1 of docs/08-identity.md): its own provider is asked,
-//! over its own stream, whether the set is still what it was or the person still known, and the
-//! answer moves the binding by the table of §5.1. A provider that cannot be asked fails closed,
-//! after the binding's grace. Evaluation reads the binding at every use, so recording the answer
-//! is all that suspending or restoring what is rooted in it takes.
+//! Re-verifying an identity binding: its own provider is asked, over its own stream, whether the
+//! set is still what it was or the person still known, and the answer moves the binding by the
+//! re-verification table. A provider that cannot be asked fails closed, after the binding's grace.
+//! Evaluation reads the binding at every use, so recording the answer is all that suspending or
+//! restoring what is rooted in it takes.
 
 use crate::App;
 use crate::caller::Caller;
@@ -69,10 +69,10 @@ fn user_of(member: &Principal) -> Option<String> {
     }
 }
 
-/// Of the members asked about, the keys of those an answer says are in the set and of those it
-/// says are not, each with the count of answers their record had then; nothing when it did not
-/// answer. A member it says it cannot tell about is in
-/// neither, and keeps their last confirmation (§5.1); a set that no longer exists holds no one.
+/// Of the members asked about, the keys of those an answer says are in the set and of those it says
+/// are not, each with the count of answers their record had then; nothing when it did not answer. A
+/// member it says it cannot tell about is in neither, and keeps their last confirmation; a set that
+/// no longer exists holds no one.
 fn members_found(outcome: &CallOutcome, delegated: &[MemberRecord]) -> (Vec<Asked>, Vec<Asked>) {
     let CallOutcome::Members(m) = outcome else { return (Vec::new(), Vec::new()) };
     let (mut present, mut absent) = (Vec::new(), Vec::new());
@@ -94,7 +94,7 @@ fn found(outcome: CallOutcome, person: Option<&str>) -> (Verification, Option<St
         (CallOutcome::Members(m), Some(p)) if m.present.iter().any(|q| q == p) => {
             (Verification::Confirmed, None)
         }
-        // It holds no current evidence of the person: as if it could not be asked (§5.1).
+        // It holds no current evidence of the person: as if it could not be asked.
         (CallOutcome::Members(m), Some(p)) if m.unknown.iter().any(|q| q == p) => {
             (Verification::Unanswered, Some("identity.unknown".into()))
         }
@@ -244,10 +244,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Some(binding))
     }
 
-    /// Re-verifies every binding due now, at most a batch of them at once, each claimed so no
-    /// other control plane asks the same question meanwhile (§5.1 of docs/08-identity.md); how
-    /// many it asked about, and the first failure to record an answer, if any did fail. One
-    /// that failed is due again once its claim lapses.
+    /// Re-verifies every binding due now, at most a batch of them at once, each claimed so no other
+    /// control plane asks the same question meanwhile; how many it asked about, and the first
+    /// failure to record an answer, if any did fail. One that failed is due again once its claim
+    /// lapses.
     pub async fn reverify_due(&self) -> Result<(u64, Option<AppError>), AppError> {
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;

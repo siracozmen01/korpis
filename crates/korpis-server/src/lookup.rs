@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! TXT lookups for verifying domains (§3.2 of docs/07-networking.md), through the system's
-//! resolvers or one the operator names. Nothing is cached, so a holder who publishes the record
-//! and asks again is answered from DNS as it is now, not as it was.
+//! TXT lookups for verifying domains, through the system's resolvers or one the operator names.
+//! Nothing is cached, so a holder who publishes the record and asks again is answered from DNS as
+//! it is now, not as it was.
 
 use hickory_resolver::TokioResolver;
 use hickory_resolver::config::{ConnectionConfig, NameServerConfig, ResolverConfig};

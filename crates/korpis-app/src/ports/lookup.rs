@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Looking up DNS records, as the control plane verifies a domain (§3.2 of
-//! docs/07-networking.md): through public DNS, never through anything a tenant controls.
+//! Looking up DNS records, as the control plane verifies a domain: through public DNS, never
+//! through anything a tenant controls.
 
 use std::future::Future;
 use std::pin::Pin;

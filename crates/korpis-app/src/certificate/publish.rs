@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Publishing an order's challenges (§3.2 of docs/07-networking.md), each name its own way. A name
-//! is proven by DNS where a DNS provider its organization sees serves its zone: the providers are
-//! asked in turn, the organization's own before its ancestors', until one publishes the TXT
-//! record, a provider that manages no zone holding the name answering `dns.zone_not_found`. The
-//! record is applied for an owner of its own, the certificate and the name's place among its
-//! names, so it never disturbs an endpoint's records, and it is recorded before the provider is
-//! asked, so it is withdrawn even if this issuer stops mid-order. A name no provider publishes is
-//! proven through the nodes its endpoint is placed on, over HTTP-01 or by TLS-ALPN-01, whichever
-//! way the order is to try (`NodeProof::for_attempt`), or the other where the directory does not
-//! offer that one.
+//! Publishing an order's challenges, each name its own way. A name is proven by DNS where a DNS
+//! provider its organization sees serves its zone: the providers are asked in turn, the
+//! organization's own before its ancestors', until one publishes the TXT record, a provider that
+//! manages no zone holding the name answering `dns.zone_not_found`. The record is applied for an
+//! owner of its own, the certificate and the name's place among its names, so it never disturbs an
+//! endpoint's records, and it is recorded before the provider is asked, so it is withdrawn even if
+//! this issuer stops mid-order. A name no provider publishes is proven through the nodes its
+//! endpoint is placed on, over HTTP-01 or by TLS-ALPN-01, whichever way the order is to try
+//! (`NodeProof::for_attempt`), or the other where the directory does not offer that one.
 //!
 //! The directory is told to look at a DNS record once the control plane's own resolver finds it,
 //! or after two minutes if it never does: a provider answers once its zone is changed, which its
@@ -77,7 +76,7 @@ fn at_node(way: NodeProof, c: &Challenge) -> Option<NodeProof> {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The DNS providers `organization` sees, by name, its own first: one of an ancestor of the
-    /// same name is shadowed, as calls are routed (§3.3 of docs/16-extensions.md).
+    /// same name is shadowed, as calls are routed.
     pub(crate) async fn dns_providers(&self, organization: Uuid) -> Result<Vec<String>, AppError> {
         let mut names: Vec<String> = Vec::new();
         for org in self.organization_chain(organization).await? {

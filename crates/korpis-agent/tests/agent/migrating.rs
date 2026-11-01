@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Two nodes' part in a migration's copies (§8.1 of docs/05-scheduling.md), each with its own
-//! mesh address on the loopback: the source's role names a pass of a volume crossing by its tree,
-//! with its ticket, and the source sends it from its mesh address to the destination's transfer
-//! port and journals it; the destination's role names the same pass from that source, so it
-//! admits the stream, receives it into its copy, and journals that it holds the pass under the
-//! copy's identifier, with the bytes that crossed. A pass under a ticket the token keys do not
-//! open is refused, and nothing of it is journaled.
+//! Two nodes' part in a migration's copies, each with its own mesh address on the loopback: the
+//! source's role names a pass of a volume crossing by its tree, with its ticket, and the source
+//! sends it from its mesh address to the destination's transfer port and journals it; the
+//! destination's role names the same pass from that source, so it admits the stream, receives it
+//! into its copy, and journals that it holds the pass under the copy's identifier, with the bytes
+//! that crossed. A pass under a ticket the token keys do not open is refused, and nothing of it is
+//! journaled.
 
 use korpis_agent::held::HeldSet;
 use korpis_agent::host::InMemoryHost;

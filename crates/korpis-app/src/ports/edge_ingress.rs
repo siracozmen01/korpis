@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ingress` through edge groups (§3.1 of docs/07-networking.md): each group's ingress addresses,
-//! the workloads whose `ingress` endpoints a group serves, and the challenges each node's proxy
-//! says it holds of the names its groups serve.
+//! `ingress` through edge groups: each group's ingress addresses, the workloads whose `ingress`
+//! endpoints a group serves, and the challenges each node's proxy says it holds of the names its
+//! groups serve.
 
 use super::StoreResult;
 use korpis_core::edge::IngressAddress;

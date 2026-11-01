@@ -2,9 +2,8 @@
 
 //! A test extension written with the SDK (`korpis-extension`), against a real control plane: it
 //! registers as the DNS provider its installation provides and is pinged through the API, and it
-//! consumes the events its installation subscribes to, acknowledging each once handled. It does
-//! so over the network and through a relay socket, as its node serves one in a container (§9.5
-//! of docs/08-identity.md).
+//! consumes the events its installation subscribes to, acknowledging each once handled. It does so
+//! over the network and through a relay socket, as its node serves one in a container.
 
 use crate::extensions::{DNS, push_document};
 use crate::providers::installed_from;

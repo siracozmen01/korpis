@@ -1,4 +1,4 @@
-# The wire schema's lint and breaking-change rules (§4 of docs/10-api.md).
+# The wire schema's lint and breaking-change rules.
 version: v2
 modules:
   - path: proto

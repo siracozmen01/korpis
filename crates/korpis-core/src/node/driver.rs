@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node's drivers and storage declare they can do (§4.1 of docs/04-runtimes.md). Declared,
-//! never inferred: the scheduler asks these and never assumes from a version (Rule K-9).
+//! What a node's drivers and storage declare they can do. Declared, never inferred: the scheduler
+//! asks these and never assumes from a version.
 
 use crate::workload::plan::StepAction;
 use crate::workload::spec::{ConsoleMode, IsolationTier};
@@ -72,7 +72,7 @@ pub enum NetworkMode {
     None,
 }
 
-/// What a volume is to the workload (§3 of docs/06-storage.md).
+/// What a volume is to the workload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VolumeSemantics {
     /// A directory on a filesystem the host controls.
@@ -81,7 +81,7 @@ pub enum VolumeSemantics {
     BlockDevice,
 }
 
-/// How a workload's files are reached (§4.4 of docs/04-runtimes.md).
+/// How a workload's files are reached.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileAccess {
     /// A worker on the host.
@@ -95,7 +95,7 @@ pub enum FileAccess {
 /// Whether, and how, a driver holds one kind of limit.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Enforcement {
-    /// The kernel holds it; when false, the limit is neither accepted nor displayed (Rule K-3).
+    /// The kernel holds it; when false, the limit is neither accepted nor displayed.
     pub enforced: bool,
     /// For example `cgroup v2 memory.max`.
     pub mechanism: String,
@@ -116,7 +116,7 @@ pub struct SnapshotCaps {
     pub kernel_max: String,
 }
 
-/// How workload uids reach the disk (§4.5 of docs/04-runtimes.md).
+/// How workload uids reach the disk.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct IdMapCaps {
     /// Id-mapped mounts.
@@ -129,7 +129,7 @@ pub struct IdMapCaps {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "each is a capability the driver declares on its own (§4.1 of docs/04-runtimes.md)"
+    reason = "each is a capability the driver declares on its own"
 )]
 pub struct Capabilities {
     /// The isolation tiers it implements.
@@ -148,8 +148,7 @@ pub struct Capabilities {
     pub runtime_snapshot: Option<SnapshotCaps>,
     /// Whether it migrates a running workload.
     pub live_migrate: bool,
-    /// The modes it gives devices of the classes in `devices` in; none gives none (§6.2 of
-    /// docs/05-scheduling.md).
+    /// The modes it gives devices of the classes in `devices` in; none gives none.
     pub device_modes: Vec<DeviceMode>,
     /// The device classes it attaches.
     pub devices: Vec<DeviceClass>,
@@ -169,13 +168,12 @@ pub struct Capabilities {
     /// Its configuration's JSON Schema document.
     pub config_schema: String,
     /// Per tier, the step actions it makes disruptive there: the driver's layer of the
-    /// classification chain (§3.3 of docs/01-model.md), which only ever adds to the floor.
+    /// classification chain, which only ever adds to the floor.
     pub disruptive: Vec<(IsolationTier, Vec<StepAction>)>,
     /// Whether it gives each workload the directory its node serves it, at `/run/korpis`: the
-    /// identity socket, the API relay, and the managed and dependency files (§6 of
-    /// docs/02-architecture.md).
+    /// identity socket, the API relay, and the managed and dependency files.
     pub identity_dir: bool,
-    /// Whether it can ask a guest's own agent whether it answers (§5 of docs/04-runtimes.md).
+    /// Whether it can ask a guest's own agent whether it answers.
     pub guest_agent: bool,
 }
 
@@ -208,7 +206,7 @@ pub struct DriverInfo {
     pub healthy: bool,
 }
 
-/// A storage class as a node offers it (§2 of docs/06-storage.md).
+/// A storage class as a node offers it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StorageClass {
     /// Its name.
@@ -222,11 +220,10 @@ pub struct StorageClass {
     /// Free bytes, as last reported.
     pub free_bytes: u64,
     /// For a shared class, the storage it is, as the helper read it at the class's root, which
-    /// every node reaching the same storage reads alike (§2.1 of docs/06-storage.md); `None` for
-    /// a class on the node's own disk.
+    /// every node reaching the same storage reads alike; `None` for a class on the node's own disk.
     pub store: Option<String>,
-    /// For a block class, how the node's helper attaches its devices (§2.1 of
-    /// docs/06-storage.md); its store is then the control plane's to say, not the node's.
+    /// For a block class, how the node's helper attaches its devices; its store is then the control
+    /// plane's to say, not the node's.
     pub block: Option<crate::extension::block::BlockProtocol>,
 }
 
@@ -249,7 +246,7 @@ pub enum StorageBackend {
     Directory,
 }
 
-/// One thing a storage class can do (§2 of docs/06-storage.md).
+/// One thing a storage class can do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StorageFeature {
     /// Point-in-time snapshots.
@@ -280,12 +277,12 @@ pub enum StorageFeature {
     SharedAccess,
     /// More than one node may attach it.
     MultiNodeAttach,
-    /// The helper sends and receives a volume's tree by rsync, which a migration of a class
-    /// that sends no increments needs (§8.1 of docs/05-scheduling.md).
+    /// The helper sends and receives a volume's tree by rsync, which a migration of a class that
+    /// sends no increments needs.
     TreeSync,
 }
 
-/// How a storage class stops a writer that has lost its lease (§2 of docs/06-storage.md).
+/// How a storage class stops a writer that has lost its lease.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Fencing {
     /// It does not.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `PortalService` (§3.6 of docs/07-networking.md).
+//! `PortalService`.
 
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, respond};

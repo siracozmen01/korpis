@@ -16,31 +16,31 @@ default = []
 # The authorization path: grant algebra, evaluation, and capability tokens. Off by default so
 # that the privileged helper, which needs none of it, links none of it.
 authz = ["dep:base64", "dep:biscuit-auth", "dep:chacha20poly1305", "dep:ed25519-dalek", "dep:getrandom", "dep:hkdf", "dep:sha2"]
-# Recipe trust: verifying cosign signatures against an organization's policy (§7 of
-# docs/09-recipes.md). The control plane's; nodes run only what it already decided.
+# Recipe trust: verifying cosign signatures against an organization's policy. The control plane's;
+# nodes run only what it already decided.
 trust = ["dep:base64", "dep:p256", "dep:sha2"]
-# Node identity: the Ed25519 key a node proves itself with (§7 of docs/02-architecture.md),
-# shared by the agent that signs and the control plane that verifies.
+# Node identity: the Ed25519 key a node proves itself with, shared by the agent that signs and the
+# control plane that verifies.
 identity = ["dep:ed25519-dalek", "dep:sha2"]
-# Accounts: signing in (§9.6 of docs/08-identity.md), the control plane's.
+# Accounts: signing in, the control plane's.
 accounts = ["dep:argon2", "dep:base64", "dep:ciborium", "dep:coset", "dep:getrandom", "dep:ring", "dep:serde", "dep:sha2"]
 # A software WebAuthn authenticator, for the tests of what uses the relying party. Never on in a
 # release build.
 testing = ["accounts"]
-# Content: OCI images as a node holds them, by digest (§6 of docs/04-runtimes.md), shared by the
-# agent that fetches them and the driver that imports them.
+# Content: OCI images as a node holds them, by digest, shared by the agent that fetches them and the
+# driver that imports them.
 content = ["dep:serde", "dep:sha2"]
-# The mesh between nodes: each node's unique local IPv6 prefix, derived from its identity (§4.1
-# and §9.1 of docs/07-networking.md), which the agent uses and the control plane checks.
+# The mesh between nodes: each node's unique local IPv6 prefix, derived from its identity, which the
+# agent uses and the control plane checks.
 mesh = ["dep:sha2"]
 
 [dependencies]
 biscuit-auth = { version = "=6.0.0", default-features = false, features = ["datalog-macro"], optional = true }
 base64 = { version = "0.22", optional = true }
-# Accounts: passwords are Argon2id at OWASP's parameters (§9.6 of docs/08-identity.md).
+# Accounts: passwords are Argon2id at OWASP's parameters.
 argon2 = { version = "0.5", optional = true }
-# Accounts: the WebAuthn relying party (§9.6 of docs/08-identity.md) decodes CBOR and COSE and
-# verifies signatures with ring, which the TLS stack already brings.
+# Accounts: the WebAuthn relying party decodes CBOR and COSE and verifies signatures with ring,
+# which the TLS stack already brings.
 ciborium = { version = "0.2", optional = true }
 coset = { version = "0.4", optional = true }
 ring = { version = "0.17", optional = true }
@@ -50,8 +50,8 @@ ed25519-dalek = { version = "2.2", optional = true }
 getrandom = { version = "0.4", optional = true }
 hkdf = { version = "0.12", optional = true }
 ipnet = "2"
-# Schedules are read in a time zone (§4.1 of docs/05-scheduling.md). No zone database: the
-# application is handed zones by name through its port, so the domain reads no files.
+# Schedules are read in a time zone. No zone database: the application is handed zones by name
+# through its port, so the domain reads no files.
 jiff = { version = "0.2", default-features = false, features = ["std"] }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pem", "pkcs8", "std"], optional = true }
 regex = "1"

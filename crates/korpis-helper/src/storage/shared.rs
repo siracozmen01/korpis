@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A shared storage class (§2.1 of docs/06-storage.md): a directory where the operator mounted a
-//! filesystem reached over the network, which other nodes mount too. The helper mounts nothing.
-//! It refuses the class unless the filesystem is one reached over the network, since a local one
-//! named shared would let a workload placed on another node find none of its data, and unless
-//! root may make a directory there, give it to another owner, and remove it, which every volume
-//! needs and an export squashing root forbids. Which storage it is, it reads from a marker at the
-//! root that the first helper on it linked, so that the control plane can tell which nodes share
-//! one store by what each read at its own mount.
+//! A shared storage class: a directory where the operator mounted a filesystem reached over the
+//! network, which other nodes mount too. The helper mounts nothing. It refuses the class unless the
+//! filesystem is one reached over the network, since a local one named shared would let a workload
+//! placed on another node find none of its data, and unless root may make a directory there, give
+//! it to another owner, and remove it, which every volume needs and an export squashing root
+//! forbids. Which storage it is, it reads from a marker at the root that the first helper on it
+//! linked, so that the control plane can tell which nodes share one store by what each read at its
+//! own mount.
 
 use rustix::fs::{AtFlags, Gid, Mode, OFlags, Uid};
 use std::fmt::Write as _;
@@ -99,8 +99,7 @@ fn fuse_type(path: &Path) -> Option<String> {
 }
 
 /// Opening a name under a held directory as it is, never through a link: another client of the
-/// export may put a link in place of anything this helper made there (Finding 202 of
-/// docs/23-walkthroughs.md).
+/// export may put a link in place of anything this helper made there.
 const NOFOLLOW: OFlags = OFlags::NOFOLLOW.union(OFlags::CLOEXEC);
 
 /// That root may make a directory in `root`, give it away, and remove it.

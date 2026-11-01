@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The Phase 0 sequence on a real node (§4 of docs/20-roadmap.md): a thin recipe is declared,
-//! placed on the node, and converged, running in a hardened container with its configured value
-//! and its volume; the agent restarts and adopts it without the workload starting again; every
-//! step it took is an effect naming its grant; and its retirement removes the container and
-//! keeps the volume. What it prints is its console stream, written beside it on the node, and the
-//! segment sealed when its container goes is in the control plane's index (§4 of
-//! docs/14-streams.md).
+//! The Phase 0 sequence on a real node: a thin recipe is declared, placed on the node, and
+//! converged, running in a hardened container with its configured value and its volume; the agent
+//! restarts and adopts it without the workload starting again; every step it took is an effect
+//! naming its grant; and its retirement removes the container and keeps the volume. What it prints
+//! is its console stream, written beside it on the node, and the segment sealed when its container
+//! goes is in the control plane's index.
 
 use crate::node::{Node, live};
 use crate::recipes::push_sleeper;

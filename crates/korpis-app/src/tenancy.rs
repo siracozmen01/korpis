@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Tenancy: organizations and projects (§3.1 of docs/01-model.md), and each organization's
-//! recipe trust policy (§7 of docs/09-recipes.md), theme (§7 of docs/11-surface-web.md), and
-//! layout (question 2 of §10 of docs/11-surface-web.md).
+//! Tenancy: organizations and projects, and each organization's recipe trust policy, theme, and
+//! layout.
 
 mod ceiling;
 mod landing;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `DataService` (§3.1 of docs/02-architecture.md): a node attaches its data connection, proving
-//! its key over a `DataHello`, and carries each session the relay asks it to on a stream of its
-//! own. The stream a session is carried on is found by the session's identifier, which only the
-//! attached node was told and which is good for one carry.
+//! `DataService`: a node attaches its data connection, proving its key over a `DataHello`, and
+//! carries each session the relay asks it to on a stream of its own. The stream a session is
+//! carried on is found by the session's identifier, which only the attached node was told and which
+//! is good for one carry.
 
 use super::agent::proof_from_pb;
 use super::error;

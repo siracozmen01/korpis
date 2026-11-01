@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The mesh on real nodes (§9.1 of docs/07-networking.md, trace 74 of docs/23-walkthroughs.md):
-//! two nodes, each with its data plane (its helper, its workloads' networks, its mesh
-//! interface) in a network namespace of the test's own, the two joined by a veth as two machines
-//! by a network, so nothing is made in this machine's own namespace and no port is opened on its
-//! addresses. A web application on one reaches its database on the other through the mesh, at
-//! the address the database's node gave it and on the port its endpoint declares alone; and the
-//! database's node drops, and counts, what the mesh carries that it did not admit, even from an
-//! address of the other node's own pool. Needs root, containerd, and the kernel's WireGuard;
-//! skipped without them.
+//! The mesh on real nodes: two nodes, each with its data plane (its helper, its workloads'
+//! networks, its mesh interface) in a network namespace of the test's own, the two joined by a veth
+//! as two machines by a network, so nothing is made in this machine's own namespace and no port is
+//! opened on its addresses. A web application on one reaches its database on the other through the
+//! mesh, at the address the database's node gave it and on the port its endpoint declares alone;
+//! and the database's node drops, and counts, what the mesh carries that it did not admit, even
+//! from an address of the other node's own pool. Needs root, containerd, and the kernel's
+//! WireGuard; skipped without them.
 
 use crate::dependencies::{address_of, running};
 use crate::node::{Node, live};
@@ -244,9 +243,9 @@ async fn a_web_application_reaches_its_database_on_another_node_through_the_mesh
     until_available(&cp, &named(&b)).await;
 
     let repo = push_server().await;
-    // A node in a namespace of the test's own has no public address (§2.1 of
-    // docs/05-scheduling.md): the database is reached through the mesh alone, as its exposure
-    // says, and nothing reaches the web application in this test.
+    // A node in a namespace of the test's own has no public address: the database is reached
+    // through the mesh alone, as its exposure says, and nothing reaches the web application in this
+    // test.
     let db =
         cp.declare_body(&project, "db", &repo, exposed(pb::Exposure::EXPOSURE_OVERLAY_ONLY)).await;
     a.guard(&db);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Provider circuit breakers (§5 of docs/16-extensions.md, migration 0028).
+//! Provider circuit breakers (migration 0028).
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

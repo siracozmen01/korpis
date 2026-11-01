@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The object store a job reaches with the access a backup target granted it (§5.6 of
-//! docs/06-storage.md): an S3 bucket, beneath the place in it the granted prefix has. Each
-//! request is presigned for a few minutes with the job's temporary credential and sent over
-//! HTTPS; one that fails for a reason that passes (the network, the store being busy or briefly
-//! down) is tried again, a little later each time, and one the store refuses is not.
+//! The object store a job reaches with the access a backup target granted it: an S3 bucket, beneath
+//! the place in it the granted prefix has. Each request is presigned for a few minutes with the
+//! job's temporary credential and sent over HTTPS; one that fails for a reason that passes (the
+//! network, the store being busy or briefly down) is tried again, a little later each time, and one
+//! the store refuses is not.
 
 use crate::store::{ObjectStore, StoreError};
 use rusty_s3::actions::{ListObjectsV2, S3Action as _};
@@ -35,8 +35,8 @@ pub struct S3Config {
     pub session_token: String,
     /// Whether the bucket is addressed in the path rather than the host name.
     pub path_style: bool,
-    /// The one certificate, DER, a store its provider serves presents; empty to verify the
-    /// store against the system roots (§5.6 of docs/06-storage.md).
+    /// The one certificate, DER, a store its provider serves presents; empty to verify the store
+    /// against the system roots.
     pub certificate: Vec<u8>,
 }
 

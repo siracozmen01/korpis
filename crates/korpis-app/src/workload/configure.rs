@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Configuration at declaration (Rule K-17, §5 of docs/09-recipes.md): resolved against the
-//! recipe's schema and written into the intent, with the caller's authority checked for every
-//! field it changes.
+//! Configuration at declaration: resolved against the recipe's schema and written into the intent,
+//! with the caller's authority checked for every field it changes.
 
 use crate::App;
 use crate::authz::gateway::core_action;
@@ -22,10 +21,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// from `previous` (the head intent's configuration; the schema's own values for a new
     /// workload).
     ///
-    /// A tenant field needs only the authority that already permitted the declaration. A
-    /// system field is derived or fixed, so its changes are Korpis's, not the caller's. An
-    /// operator field needs `workload.write` over the parent of the owning organization, or over
-    /// the organization itself when it is a root (§5 of docs/09-recipes.md).
+    /// A tenant field needs only the authority that already permitted the declaration. A system
+    /// field is derived or fixed, so its changes are Korpis's, not the caller's. An operator field
+    /// needs `workload.write` over the parent of the owning organization, or over the organization
+    /// itself when it is a root.
     pub(super) async fn configure(
         &self,
         caller: &Caller,

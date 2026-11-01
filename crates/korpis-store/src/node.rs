@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Nodes (§3.4 of docs/01-model.md).
+//! Nodes.
 
 mod mesh;
 mod pool;
@@ -124,8 +124,8 @@ impl NodeRow {
         let (devices, unoffered_devices) = devices(self.devices, self.unoffered_devices)?;
         let mut capacity = bounds("node capacity", self.capacity)?;
         let mut allocatable = bounds("node allocatable", self.allocatable)?;
-        // A node's ports are what its range holds, as it advertises it (§3 of
-        // docs/07-networking.md), not a figure it reports beside the range.
+        // A node's ports are what its range holds, as it advertises it, not a figure it reports
+        // beside the range.
         if let Some(ports) = advertised.as_ref().map(|a| a.ports) {
             capacity.insert(Dimension::NodePorts, ports.len());
             allocatable.insert(Dimension::NodePorts, ports.allocatable());

@@ -175,9 +175,9 @@ pub fn spawn(command_line: &[String], config: &Config, output: Output) -> Result
     Ok(Pid::from_raw(pid))
 }
 
-/// Runs the entry until it ends. The first stop that arrives on `signals` sends the entry's
-/// group `SIGTERM`; the next ends every process. The grace between them is the host's, which
-/// sends the second when its own runs out (§6 of docs/04-runtimes.md), so the guest keeps none.
+/// Runs the entry until it ends. The first stop that arrives on `signals` sends the entry's group
+/// `SIGTERM`; the next ends every process. The grace between them is the host's, which sends the
+/// second when its own runs out, so the guest keeps none.
 pub fn run(config: &Config, signals: &mut SignalFd) -> Result<Ended, String> {
     let output = if config.interactive { Output::Terminal } else { Output::Console };
     let kills = oom_kills();
@@ -206,9 +206,9 @@ pub fn run(config: &Config, signals: &mut SignalFd) -> Result<Ended, String> {
     }
 }
 
-/// Runs no entry, as a service guest (§4.4 of docs/04-runtimes.md): reaps whatever ends, a file
-/// session's worker or a command, until the first stop arrives on `signals`, which ends the run
-/// as an entry's clean exit would; the workers then end with every other process.
+/// Runs no entry, as a service guest: reaps whatever ends, a file session's worker or a command,
+/// until the first stop arrives on `signals`, which ends the run as an entry's clean exit would;
+/// the workers then end with every other process.
 pub fn idle(signals: &mut SignalFd) -> Result<Ended, String> {
     ENTRY.store(NONE, Ordering::Release);
     // No process has the id zero, so every one that ends is reaped as a stranger's.

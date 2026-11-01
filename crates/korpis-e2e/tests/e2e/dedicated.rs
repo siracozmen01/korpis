@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A dedicated address on a real node (§3.7 of docs/07-networking.md, trace 77 of
-//! docs/23-walkthroughs.md). The node's data plane is in a network namespace of the test's own,
-//! linked to another standing in for its network, as the mesh's test has it. A pool of the
-//! node's organization has addresses on that link; a game server with a `dedicated_ip` endpoint
-//! is given its lowest, which the node answers for on the link and translates to the server,
-//! its declared port reached there and no other, and what the server sends out leaves from it.
-//! Retiring the server takes the address off the link and gives it back to the pool, which can
-//! then be deleted. Needs root and containerd; skipped without them.
+//! A dedicated address on a real node. The node's data plane is in a network namespace of the
+//! test's own, linked to another standing in for its network, as the mesh's test has it. A pool of
+//! the node's organization has addresses on that link; a game server with a `dedicated_ip` endpoint
+//! is given its lowest, which the node answers for on the link and translates to the server, its
+//! declared port reached there and no other, and what the server sends out leaves from it. Retiring
+//! the server takes the address off the link and gives it back to the pool, which can then be
+//! deleted. Needs root and containerd; skipped without them.
 
 use crate::dependencies::running;
 use crate::mesh::{Netns, fetched, net_of, node_in, served};

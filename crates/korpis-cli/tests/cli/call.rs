@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Every API operation has a command; the answer is the API's own JSON; the exit code is the
-//! error's code (§1 and §2 of docs/13-surface-cli.md).
+//! error's code.
 
 use crate::support::ControlPlane;
 use serde_json::Value;

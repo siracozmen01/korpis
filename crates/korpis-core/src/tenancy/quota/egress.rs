@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The egress budget (§5.1 of docs/05-scheduling.md, "The egress budget"): a bound on the bytes
-//! the workloads an entry counts send beyond their links over a calendar month of UTC days,
-//! enforced after use by shaping, since it is known only once it is metered. What a spent budget
-//! does is the entry's own: a floor rate, or a cut-off.
+//! The egress budget ("The egress budget"): a bound on the bytes the workloads an entry counts send
+//! beyond their links over a calendar month of UTC days, enforced after use by shaping, since it is
+//! known only once it is metered. What a spent budget does is the entry's own: a floor rate, or a
+//! cut-off.
 
 use std::time::SystemTime;
 
@@ -17,8 +17,8 @@ pub enum Exhaustion {
 }
 
 impl Exhaustion {
-    /// The stricter of the two: a cut-off before any floor, the lower floor before a higher, as
-    /// a workload counted by several spent entries is held (§5.1).
+    /// The stricter of the two: a cut-off before any floor, the lower floor before a higher, as a
+    /// workload counted by several spent entries is held.
     #[must_use]
     pub fn strictest(self, other: Self) -> Self {
         match (self, other) {
@@ -55,8 +55,7 @@ pub struct Spent {
 /// Why a budget as asked cannot be held.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum BudgetError {
-    /// A budget that changes nothing when it is spent is a number displayed and not enforced
-    /// (Rule K-3).
+    /// A budget that changes nothing when it is spent is a number displayed and not enforced.
     #[error("an egress budget names what is done when it is spent: a floor or a cut-off")]
     NothingWhenSpent,
     /// What is done when a budget is spent, with no budget to spend.

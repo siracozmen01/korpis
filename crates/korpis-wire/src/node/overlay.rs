@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's side of the mesh (§9.1 of docs/07-networking.md), as its agent reports it, and the
-//! peers each node is told of. Read strictly and bounded: a node's pools become routes on every
-//! other node, and its key what they accept from.
+//! A node's side of the mesh, as its agent reports it, and the peers each node is told of. Read
+//! strictly and bounded: a node's pools become routes on every other node, and its key what they
+//! accept from.
 
 use crate::{IdKind, Result, invalid, wire_id};
 use ipnet::IpNet;
@@ -95,9 +95,9 @@ pub fn peers_to_pb(mesh: &Mesh, node: Uuid) -> Option<agent::Peers> {
     Some(agent::Peers { peers: peers.collect(), ..Default::default() })
 }
 
-/// Sets `node`'s place in the mesh, as the control plane judged it from what every node reports
-/// (§9.1 of docs/07-networking.md): available when it is a member reaching every other one, its
-/// side as its agent reported it, and each pair with it.
+/// Sets `node`'s place in the mesh, as the control plane judged it from what every node reports:
+/// available when it is a member reaching every other one, its side as its agent reported it, and
+/// each pair with it.
 pub(super) fn standing_into(node: &mut korpis_proto::korpis::v1::Node, s: &Standing) {
     use korpis_proto::korpis::v1 as pb;
     node.overlay =

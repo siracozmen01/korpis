@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Extensions (§3.7 of docs/01-model.md, docs/16-extensions.md): what an extension's document
-// declares, what an installation is, and the service that installs one. An extension is a
-// recipe with one more section (§3.1 of docs/16-extensions.md), run as a workload, acting as
+// Extensions: what an extension's document declares, what an installation is, and the service that
+// installs one. An extension is a recipe with one more section, run as a workload, acting as
 // extension:<id> under grants attenuated from its installer's.
 
 syntax = "proto3";
@@ -19,7 +18,7 @@ import "korpis/v1/workload.proto";
 
 // The `extension` block of an extension's document.
 message ExtensionManifest {
-  // The contract it speaks, e.g. korpis.extension.v1 (§6 of docs/16-extensions.md).
+  // The contract it speaks, e.g. korpis.extension.v1.
   string api_version = 1;
   // Contract capabilities it cannot work without; missing ones refuse the install.
   repeated string requires = 2;
@@ -56,7 +55,7 @@ message ProvidedInterface {
   ProviderType type = 1;
   // Unique per type within the organization it serves; step kinds are <publisher>/<step>.
   string name = 2;
-  // A step's arguments, scalar types only (§4 of docs/09-recipes.md).
+  // A step's arguments, scalar types only.
   repeated ActionArgument arguments = 3;
 }
 
@@ -71,14 +70,14 @@ message ActionArgument {
   string name = 1;
   // A value type (string, int, bool) or a resource reference (workload, project).
   string type = 2;
-  // A resource argument is authorized for the invoker (§5 of docs/16-extensions.md).
+  // A resource argument is authorized for the invoker.
   bool resource = 3;
   bool required = 4;
 }
 
 message SlotDecl {
   string slot = 1;
-  // A declarative descriptor, or the URL of an isolated frame (§5 of docs/16-extensions.md).
+  // A declarative descriptor, or the URL of an isolated frame.
   string descriptor = 2;
 }
 
@@ -121,9 +120,8 @@ enum ExtensionStatus {
 
 service ExtensionService {
   // Installs an extension: extension.install on the target, and on the organization when it
-  // provides anything (§4.1 of docs/16-extensions.md). The approved needs must be exactly the
-  // document's, so nothing is granted that the installer did not read; a dry run returns the
-  // document's manifest to read.
+  // provides anything. The approved needs must be exactly the document's, so nothing is granted
+  // that the installer did not read; a dry run returns the document's manifest to read.
   rpc InstallExtension(InstallExtensionRequest) returns (InstallExtensionResponse);
   rpc GetExtension(GetExtensionRequest) returns (GetExtensionResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -135,7 +133,7 @@ service ExtensionService {
   // of its workload.
   rpc UninstallExtension(UninstallExtensionRequest) returns (UninstallExtensionResponse);
   // Upgrades an installation in place to another version of the artifact it was installed from
-  // (§9 question 6 of docs/16-extensions.md): extension.install as installing needs, the new
+  // (extension.install as installing needs, the new
   // document's needs approved exactly, grants kept, issued, or revoked to match them, and the new
   // digest declared on the same workload. A dry run returns what would change.
   rpc UpgradeExtension(UpgradeExtensionRequest) returns (UpgradeExtensionResponse);

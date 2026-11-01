@@ -28,8 +28,7 @@ pub fn power_to_pb(p: &PowerRecord) -> pb::Power {
     }
 }
 
-/// A power declaration from the field `field`, as a node presents the one it was assigned (§8 of
-/// docs/03-state.md).
+/// A power declaration from the field `field`, as a node presents the one it was assigned.
 pub fn power_from_pb(field: &str, p: &pb::Power) -> Result<PowerRecord> {
     let f = |name: &str| format!("{field}.{name}");
     let set_by = p.set_by.as_option().ok_or_else(|| invalid(&f("set_by"), "required"))?;
@@ -137,8 +136,8 @@ pub fn intent_to_pb(i: &Intent) -> pb::Intent {
     }
 }
 
-/// An intent from the field `field`, as a node presents the target it was assigned (§8 of
-/// docs/03-state.md): the inverse of [`intent_to_pb`].
+/// An intent from the field `field`, as a node presents the target it was assigned: the inverse of
+/// [`intent_to_pb`].
 pub fn intent_from_pb(field: &str, i: &pb::Intent) -> Result<Intent> {
     let f = |name: &str| format!("{field}.{name}");
     let by = i.declared_by.as_option().ok_or_else(|| invalid(&f("declared_by"), "required"))?;

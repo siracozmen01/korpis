@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Approval that needs someone else's authority (§3.6 of docs/08-identity.md).
+//! Approval that needs someone else's authority.
 
 use crate::lifecycle::{approve, pointers};
 use crate::recipes::{body, create, project, push_paper};

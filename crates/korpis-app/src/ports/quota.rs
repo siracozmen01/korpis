@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota held at admission (§5.1 of docs/05-scheduling.md), and the totals kept beside each entry
-//! (question 7 of §10 there).
+//! Quota held at admission, and the totals kept beside each entry.
 
 use super::StoreResult;
 use korpis_core::tenancy::quota::{
@@ -45,8 +44,7 @@ pub trait QuotaRead {
     fn quota_set(&self, owner: QuotaOwner) -> impl Future<Output = StoreResult<QuotaSet>> + Send;
 }
 
-/// Setting quota sets (§5.1 of docs/05-scheduling.md). Every method runs in the transaction of
-/// the change.
+/// Setting quota sets. Every method runs in the transaction of the change.
 pub trait QuotaSetWrite {
     /// Locks the rows of `organizations`, ancestors before descendants, until the transaction
     /// ends: every change to a set below one of them takes the same lock first, so the sets read
@@ -114,14 +112,13 @@ pub trait QuotaWrite {
         organizations: &[Uuid],
     ) -> impl Future<Output = StoreResult<Vec<QuotaEntry>>> + Send;
 
-    /// Bumps the version of every entry in `entries`: the record, in the admitting
-    /// transaction, that they were consumed against (§5.1).
+    /// Bumps the version of every entry in `entries`: the record, in the admitting transaction,
+    /// that they were consumed against.
     fn consume_quota(&mut self, entries: &[Uuid]) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// The entries of the organizations directly beneath `organizations`, each with the one it
-    /// is beneath: what those promised them (§5.1, Finding 139). Not locked: every change to
-    /// what one counts or was given takes its parent's entry of its shape first, which the
-    /// caller holds.
+    /// The entries of the organizations directly beneath `organizations`, each with the one it is
+    /// beneath: what those promised them. Not locked: every change to what one counts or was given
+    /// takes its parent's entry of its shape first, which the caller holds.
     fn promised_entries(
         &mut self,
         organizations: &[Uuid],
@@ -174,7 +171,7 @@ pub trait QuotaWrite {
 }
 
 /// Where a workload's placement was counted, and as holding what, by the entries that name the
-/// nodes they count (§5.1 of docs/05-scheduling.md, "Where a workload runs").
+/// nodes they count ("Where a workload runs").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Placed {
     /// The node it is placed on.

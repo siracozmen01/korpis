@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A WebSocket opened on HTTP/2 by extended CONNECT (RFC 8441, §3.2 of docs/07-networking.md):
-//! the proxy announces it, forwards the stream to the workload as the HTTP/1.1 upgrade the
-//! workload understands, answers the client 200 once the workload switches protocols, and joins
-//! the two byte for byte; a request on the same connection still reaches the workload as any does.
-//! Each such WebSocket holds a connection to its workload, so it counts against the proxy's bound
-//! on connections while it is open (Finding 138 of docs/23-walkthroughs.md).
+//! A WebSocket opened on HTTP/2 by extended CONNECT (RFC 8441): the proxy announces it, forwards
+//! the stream to the workload as the HTTP/1.1 upgrade the workload understands, answers the client
+//! 200 once the workload switches protocols, and joins the two byte for byte; a request on the same
+//! connection still reaches the workload as any does. Each such WebSocket holds a connection to its
+//! workload, so it counts against the proxy's bound on connections while it is open.
 
 use crate::support::{Pki, Proxy, connect, get, route, workload};
 use bytes::Bytes;

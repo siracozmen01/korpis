@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Enforcement and capability honesty (§4.1 and §8 of docs/04-runtimes.md): every limit a driver
-//! declares enforced is met inside one of its objects and found held where the kernel or the
-//! hypervisor holds it, since a limit declared and not enforced is a lie in a text field (Rule
-//! K-3); and a capability declared is one the protocol can exercise. The probe meets memory,
-//! processes, and disk from inside, through `Exec`, saying how far it got; processor time is read
-//! from the driver's own counters, since a guest's clock does not see the time it is not given.
+//! Enforcement and capability honesty: every limit a driver declares enforced is met inside one of
+//! its objects and found held where the kernel or the hypervisor holds it, since a limit declared
+//! and not enforced is a lie in a text field; and a capability declared is one the protocol can
+//! exercise. The probe meets memory, processes, and disk from inside, through `Exec`, saying how
+//! far it got; processor time is read from the driver's own counters, since a guest's clock does
+//! not see the time it is not given.
 
 use super::Stopped;
 use crate::case::Verdict;

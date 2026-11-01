@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The node's data connection (§3.1 of docs/02-architecture.md): dialled out to a relay, as the
-// control stream is dialled out to the control plane, and carrying no decisions. The agent
-// attaches, proving the node's identity as a Hello does; the relay asks it to open each session a
-// client opened; the agent verifies the client's token again and carries the session on a stream
-// of its own, so one slow session never holds up another.
+// The node's data connection: dialled out to a relay, as the control stream is dialled out to the
+// control plane, and carrying no decisions. The agent attaches, proving the node's identity as a
+// Hello does; the relay asks it to open each session a client opened; the agent verifies the
+// client's token again and carries the session on a stream of its own, so one slow session never
+// holds up another.
 
 syntax = "proto3";
 
@@ -36,9 +36,9 @@ message AttachDown {
   }
 }
 
-// The node's identity, proved as in Hello: NodeAuth over the node identifier, under its own
-// purpose and followed by the relay dialled:
-// "korpis.agent.v1.DataHello|<node>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<relay>".
+// The node's identity, proved as in Hello: NodeAuth over the node identifier, under its own purpose
+// and followed by the relay dialled: "korpis.agent.v1.DataHello|<node>|<seconds>.<nanos, nine
+// digits>|<nonce in lowercase hex>|<relay>".
 message DataHello {
   string node = 1;
   NodeAuth auth = 2;

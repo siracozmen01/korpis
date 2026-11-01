@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block device's backup read through the relay against a real control plane (§5.4 of
-//! docs/06-storage.md), with the in-memory runtime as a driver whose volumes are block devices and
-//! the in-memory helper: the backup says it holds an `ext4` image; a `backup.browse` session has
-//! the node ask the control plane for the job's access, which verifies the token and records the
-//! read, restore the image for reading beside the volume, and open the driver on it, its files at
-//! `/backup`, and ends at its first read of a file's bytes; a `backup.read` session open at the
-//! same time reads them from the same copy; the copy's job is forgotten when the last session
-//! ends; and a backup the token's workload does not have is refused before anything is staged.
+//! A block device's backup read through the relay against a real control plane, with the in-memory
+//! runtime as a driver whose volumes are block devices and the in-memory helper: the backup says it
+//! holds an `ext4` image; a `backup.browse` session has the node ask the control plane for the
+//! job's access, which verifies the token and records the read, restore the image for reading
+//! beside the volume, and open the driver on it, its files at `/backup`, and ends at its first read
+//! of a file's bytes; a `backup.read` session open at the same time reads them from the same copy;
+//! the copy's job is forgotten when the last session ends; and a backup the token's workload does
+//! not have is refused before anything is staged.
 
 use crate::backup::{backed_up, serve_target, settled, start};
 use crate::data::{data, end_code, frame, open, opened};

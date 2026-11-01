@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's ingress (§3.2 of docs/07-networking.md): the routes its assignments carry, made
-//! into what the proxy serves, and the proxy itself, which the agent has the helper start and
-//! then feeds and watches.
+//! The node's ingress: the routes its assignments carry, made into what the proxy serves, and the
+//! proxy itself, which the agent has the helper start and then feeds and watches.
 
 mod certificates;
 mod edges;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The mesh's candidates (§9.1 of docs/07-networking.md): every node not decommissioned that
-//! reports a mesh interface, with when it enrolled, the addresses it advertises, the pool it was
-//! given, and its organization and each one above it, in one statement so they agree.
+//! The mesh's candidates: every node not decommissioned that reports a mesh interface, with when it
+//! enrolled, the addresses it advertises, the pool it was given, and its organization and each one
+//! above it, in one statement so they agree.
 
 use crate::PgStore;
 use crate::errors::from_sqlx;

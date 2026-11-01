@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Grant templates as the panel shows and edits them (§4 of docs/08-identity.md): the roles of
-// the interface. A role is offered where its pattern's kind is the kind of the place, and is
-// edited as a draft of text that becomes the body the control plane checks. Pure, so what the
-// screen shows and sends is tested apart from the screen.
+// Grant templates as the panel shows and edits them: the roles of the interface. A role is offered
+// where its pattern's kind is the kind of the place, and is edited as a draft of text that becomes
+// the body the control plane checks. Pure, so what the screen shows and sends is tested apart from
+// the screen.
 
 import { create } from "@bufbuild/protobuf";
 import { DurationSchema } from "@bufbuild/protobuf/wkt";

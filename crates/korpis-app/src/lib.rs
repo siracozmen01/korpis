@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The Korpis application layer: one use case per thing a client or node can ask for, and the
-//! ports they need (§1 of ARCHITECTURE.md).
+//! The Korpis application layer: one use case per thing a client or node can ask for, and the ports
+//! they need.
 //!
 //! A use case receives an authenticated [`Caller`] and domain values, authorizes through the one
-//! authorization path (P6), performs the change, and records the effect in the same transaction.
-//! It never names a database, a transport, or a wire type.
+//! authorization path, performs the change, and records the effect in the same transaction. It
+//! never names a database, a transport, or a wire type.
 
 #![warn(missing_docs)]
 
@@ -117,23 +117,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// Gives enrolling nodes their workload pools from `range` (§9.1 of docs/07-networking.md)
-    /// instead of [`korpis_core::node::pool::DEFAULT_RANGE`].
+    /// Gives enrolling nodes their workload pools from `range` instead of
+    /// [`korpis_core::node::pool::DEFAULT_RANGE`].
     #[must_use]
     pub fn with_overlay_range(mut self, range: ipnet::Ipv4Net) -> Self {
         self.overlay_range = range;
         self
     }
 
-    /// Charges requests at `rates` (§10 of docs/10-api.md) instead of the defaults.
+    /// Charges requests at `rates` instead of the defaults.
     #[must_use]
     pub fn with_rates(mut self, rates: korpis_core::rate::Rates) -> Self {
         self.limiter = rate::Limiter::new(rates);
         self
     }
 
-    /// Places workloads by `policy`, the installation's (§2.2 of docs/05-scheduling.md),
-    /// instead of the default.
+    /// Places workloads by `policy`, the installation's, instead of the default.
     #[must_use]
     pub fn with_placement_policy(mut self, policy: PlacementPolicy) -> Self {
         self.policy = policy;
@@ -154,16 +153,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self
     }
 
-    /// Reads certificates and seals their keys with `tls` (§3.2 of docs/07-networking.md):
-    /// without it, no certificate can be uploaded or issued.
+    /// Reads certificates and seals their keys with `tls`: without it, no certificate can be
+    /// uploaded or issued.
     #[must_use]
     pub fn with_tls(mut self, tls: Arc<dyn ports::TlsVault>) -> Self {
         self.tls = Some(tls);
         self
     }
 
-    /// Orders `acme` certificates from the directory `acme` reaches (§3.2 of
-    /// docs/07-networking.md): without it, none is issued.
+    /// Orders `acme` certificates from the directory `acme` reaches: without it, none is issued.
     #[must_use]
     pub fn with_acme(mut self, acme: Arc<dyn ports::Acme>) -> Self {
         self.acme = Some(acme);
@@ -178,8 +176,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self
     }
 
-    /// Verifies domains through `lookup` (§3.2 of docs/07-networking.md): without it, a domain is
-    /// verified only by delegation or attestation.
+    /// Verifies domains through `lookup`: without it, a domain is verified only by delegation or
+    /// attestation.
     #[must_use]
     pub fn with_lookup(mut self, lookup: Arc<dyn ports::TxtLookup>) -> Self {
         self.lookup = Some(lookup);
@@ -194,8 +192,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self
     }
 
-    /// Asks the shortlist's nodes through `feasibility` before binding (§2.1 of
-    /// docs/05-scheduling.md): without it, the bound node's `Prepare` alone refuses.
+    /// Asks the shortlist's nodes through `feasibility` before binding: without it, the bound
+    /// node's `Prepare` alone refuses.
     #[must_use]
     pub fn with_feasibility(mut self, feasibility: Arc<dyn ports::Feasibility>) -> Self {
         self.feasibility = Some(feasibility);
@@ -209,8 +207,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self
     }
 
-    /// Coalesces repeated identical denials over `window` instead of the default (§10 of
-    /// docs/10-api.md).
+    /// Coalesces repeated identical denials over `window` instead of the default.
     #[must_use]
     pub fn with_denial_window(mut self, window: std::time::Duration) -> Self {
         self.denial_window = window;
@@ -218,24 +215,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Keeps offloaded stream segments at least `floor`, whatever a workload declares: the
-    /// operator's retention floor, disclosed to every tenant with the stream (§8 of
-    /// docs/17-security.md). None by default.
+    /// operator's retention floor, disclosed to every tenant with the stream. None by default.
     #[must_use]
     pub const fn with_stream_floor(mut self, floor: std::time::Duration) -> Self {
         self.stream_floor = floor;
         self
     }
 
-    /// Closes a day of metering `lateness` after it ends (§2 of docs/15-observability.md); a
-    /// day by default.
+    /// Closes a day of metering `lateness` after it ends; a day by default.
     #[must_use]
     pub const fn with_metering_lateness(mut self, lateness: std::time::Duration) -> Self {
         self.metering_lateness = lateness;
         self
     }
 
-    /// Registers and verifies passkeys as `rp` (§9.6 of docs/08-identity.md): without it, no
-    /// passkey can be registered or signed in with.
+    /// Registers and verifies passkeys as `rp`: without it, no passkey can be registered or signed
+    /// in with.
     #[must_use]
     pub fn with_relying_party(mut self, rp: korpis_core::webauthn::RelyingParty) -> Self {
         self.relying_party = Some(rp);
@@ -249,16 +244,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self
     }
 
-    /// Seals block devices' credentials with `vault` (§2.1 of docs/06-storage.md): without one,
-    /// no device is attached.
+    /// Seals block devices' credentials with `vault`: without one, no device is attached.
     #[must_use]
     pub fn with_device_vault(mut self, vault: Arc<dyn ports::DeviceVault>) -> Self {
         self.device_vault = Some(vault);
         self
     }
 
-    /// Reads schedules in the zones `zones` knows instead of UTC alone (§4.1 of
-    /// docs/05-scheduling.md).
+    /// Reads schedules in the zones `zones` knows instead of UTC alone.
     #[must_use]
     pub fn with_zones(mut self, zones: Arc<dyn ports::Zones>) -> Self {
         self.zones = zones;
@@ -272,7 +265,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self
     }
 
-    /// Ends user sessions by `limits` instead of the defaults (§9.4 of docs/08-identity.md).
+    /// Ends user sessions by `limits` instead of the defaults.
     #[must_use]
     pub const fn with_session_limits(
         mut self,

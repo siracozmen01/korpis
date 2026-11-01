@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a member delegated, on a real control plane (§5.1 of docs/08-identity.md): a grant a
-//! member of a bound set issued through it waits for the set's re-verification to confirm the
-//! member, works while it does, and is refused once the provider says the member left, without
-//! anyone revoking it. The grant is written here as the issue path writes one, so the member
-//! need not sign in; a member signed in through their provider issuing it is `member_issue.rs`.
+//! What a member delegated, on a real control plane: a grant a member of a bound set issued through
+//! it waits for the set's re-verification to confirm the member, works while it does, and is
+//! refused once the provider says the member left, without anyone revoking it. The grant is written
+//! here as the issue path writes one, so the member need not sign in; a member signed in through
+//! their provider issuing it is `member_issue.rs`.
 
 use crate::bindings::{bind, from_template, set};
 use crate::idp::{LEFT, serving};

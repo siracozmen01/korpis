@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A shared storage class on real nodes (§2.1 of docs/06-storage.md, trace 80 of
-//! docs/23-walkthroughs.md). Two nodes offer a class of one store: a directory both mount, as two
-//! machines mount one network filesystem, which the helper takes as shared only in tests. The
-//! first node's helper names the store and the second reads it. A workload whose volume is in
-//! the class runs on the first node and writes to it; once it is retired and the first node
-//! cordoned, a workload attaching that volume runs on the second, which finds what the first
-//! wrote, in the store and not on either node's disk. And when the node a workload holding such
-//! a volume runs on loses its power, the workload runs on the other once its lease has ended,
-//! placed there by failover, its data where it was (§2.4 of docs/05-scheduling.md). Needs root
-//! and containerd.
+//! A shared storage class on real nodes. Two nodes offer a class of one store: a directory both
+//! mount, as two machines mount one network filesystem, which the helper takes as shared only in
+//! tests. The first node's helper names the store and the second reads it. A workload whose volume
+//! is in the class runs on the first node and writes to it; once it is retired and the first node
+//! cordoned, a workload attaching that volume runs on the second, which finds what the first wrote,
+//! in the store and not on either node's disk. And when the node a workload holding such a volume
+//! runs on loses its power, the workload runs on the other once its lease has ended, placed there
+//! by failover, its data where it was. Needs root and containerd.
 
 use crate::mesh::cordon;
 use crate::node::{Node, live};

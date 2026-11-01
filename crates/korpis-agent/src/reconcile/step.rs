@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Executing a plan's node steps (§4.8 and §4.9 of docs/02-architecture.md): in order, the next
-//! one not yet executed, never past `through`, and none once the plan is cancelled, which is read
-//! again before every step. Each completion is journalled, keyed by plan and
-//! step, before it is kept as done, and a failure is journalled and stops the plan here: the
-//! control plane fails it, and the next assignment no longer carries it. A failure because the
-//! driver refused, before anything of the workload was made here, is journalled as
-//! `step.refused`, which lets the control plane place the workload elsewhere instead.
+//! Executing a plan's node steps: in order, the next one not yet executed, never past `through`,
+//! and none once the plan is cancelled, which is read again before every step. Each completion is
+//! journalled, keyed by plan and step, before it is kept as done, and a failure is journalled and
+//! stops the plan here: the control plane fails it, and the next assignment no longer carries it. A
+//! failure because the driver refused, before anything of the workload was made here, is journalled
+//! as `step.refused`, which lets the control plane place the workload elsewhere instead.
 
 use super::act::Failure;
 use super::progress::Step;
@@ -40,8 +39,8 @@ pub(super) fn number(s: &pb::Step, key: &str) -> u64 {
 }
 
 /// A step's failure for `why`: `step.refused` when the driver refused before anything of the
-/// workload was made here, which lets the control plane place it elsewhere (§2.1 of
-/// docs/05-scheduling.md), and `step.failed` otherwise.
+/// workload was made here, which lets the control plane place it elsewhere, and `step.failed`
+/// otherwise.
 fn failure(why: String, refused_before_anything: bool) -> pb::Error {
     let reason = if refused_before_anything { "step.refused" } else { "step.failed" };
     pb::Error { reason: reason.into(), message: why, ..Default::default() }
@@ -70,8 +69,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .collect();
         for s in outstanding {
             if !self.still_assigned(&a.workload, &plan.plan, s.index) {
-                // Cancelled since this pass began: the step before finished, and this one is
-                // not begun (§7 of docs/03-state.md). The next pass acts on the new assignment.
+                // Cancelled since this pass began: the step before finished, and this one is not
+                // begun. The next pass acts on the new assignment.
                 return false;
             }
             let result = match self.execute(a, &plan.plan, s, t).await {
@@ -154,22 +153,21 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 after.extend(done);
             }
             // A workload that has runs is never started itself: each run is, as its assignment
-            // names it, and a restart's run is made by the control plane (§4.2 of
-            // docs/05-scheduling.md). Its target is still prepared, so a target no driver can
-            // run fails here and not at its first run.
+            // names it, and a restart's run is made by the control plane. Its target is still
+            // prepared, so a target no driver can run fails here and not at its first run.
             "create" | "start" | "restart" if super::runs::has_runs(a) => {
                 self.prepare(a, t).await?;
                 after.insert("runs".into(), text("each run is started as it is named"));
             }
-            // A stop still under way leaves the step for a later pass to finish (§6 of
-            // docs/02-architecture.md), so no step holds up the node's other workloads.
+            // A stop still under way leaves the step for a later pass to finish, so no step holds
+            // up the node's other workloads.
             "stop" if super::runs::has_runs(a) => {
                 if !self.stop_runs(&a.workload, t).await? {
                     return Ok(None);
                 }
             }
-            // Its object is not made while a required dependency is not running here and ready
-            // (§5 of docs/07-networking.md): the step waits, and the status says for what.
+            // Its object is not made while a required dependency is not running here and ready: the
+            // step waits, and the status says for what.
             "create" | "start" if t.runtime.is_none() && self.held_back(a, t) => return Ok(None),
             "create" => {
                 let Some(id) = self.current(a, t).await? else { return Ok(None) };

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a joined relay is fed (§3.1 of docs/02-architecture.md). A relay opens its feed with a
-//! request signed by its identity key, fresh by the auth skew window and never replayed, and is
-//! then sent what it verifies by: the token keys, the revocation list, and the nodes' identity
-//! keys. None of it is secret from the relay: the relay is operator infrastructure (§8 of
-//! docs/17-security.md); the signature is what keeps anyone else from reading the installation's
-//! node list.
+//! What a joined relay is fed. A relay opens its feed with a request signed by its identity key,
+//! fresh by the auth skew window and never replayed, and is then sent what it verifies by: the
+//! token keys, the revocation list, and the nodes' identity keys. None of it is secret from the
+//! relay: the relay is operator infrastructure; the signature is what keeps anyone else from
+//! reading the installation's node list.
 
 use crate::App;
 use crate::error::AppError;
@@ -25,8 +24,8 @@ pub struct RelayFeed {
     pub token_keys: Vec<VerifyKey>,
     /// The identity key of every node not decommissioned.
     pub node_keys: Vec<(Uuid, Vec<u8>)>,
-    /// The route key of the token key in use, which every replica holds alike: what a relay
-    /// opens the routes this control plane seals with (§3.1 of docs/02-architecture.md).
+    /// The route key of the token key in use, which every replica holds alike: what a relay opens
+    /// the routes this control plane seals with.
     pub route_keys: Vec<RouteKey>,
 }
 
@@ -51,10 +50,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The relay `proof` was signed for, if it is that relay's fresh signature over `message`'s
-    /// form, with a nonce never seen from it, and the relay is not removed. A relay a restore
-    /// holds is refused as unavailable once it has proved itself, so that it asks again, backing
-    /// off, until an operator readmits it (§8 of docs/03-state.md); an unknown or removed relay
-    /// is refused as unauthenticated and stops asking.
+    /// form, with a nonce never seen from it, and the relay is not removed. A relay a restore holds
+    /// is refused as unavailable once it has proved itself, so that it asks again, backing off,
+    /// until an operator readmits it; an unknown or removed relay is refused as unauthenticated and
+    /// stops asking.
     pub(super) async fn check_relay(
         &self,
         relay: Uuid,

@@ -127,7 +127,7 @@ fn external(s: &Subject) -> Option<pb::ExternalIdentity> {
     }
 }
 
-/// The set and the member a grant was issued through (§5.1 of docs/08-identity.md).
+/// The set and the member a grant was issued through.
 fn via_to_pb(v: &Via) -> Option<pb::SetMemberIssue> {
     Some(pb::SetMemberIssue {
         set: external(&v.set)?.into(),

@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Computing a node's assignment set (§4.8 of docs/02-architecture.md). One assignment per
-//! workload placed on the node: its approved intent and power, the steps of its applying plan
-//! the node executes, whether it is being retired, and the recipe document it runs. An
-//! assignment whose content has not changed keeps its generation and signature; one that has is
-//! sealed again one generation higher; one that left the set is kept, inactive, so its
-//! generation never goes back.
+//! Computing a node's assignment set. One assignment per workload placed on the node: its approved
+//! intent and power, the steps of its applying plan the node executes, whether it is being retired,
+//! and the recipe document it runs. An assignment whose content has not changed keeps its
+//! generation and signature; one that has is sealed again one generation higher; one that left the
+//! set is kept, inactive, so its generation never goes back.
 //!
 //! A workload that no longer runs on the node may still have a plan there: deleting a volume it
-//! left behind (§7 of docs/06-storage.md). It is sent a residual assignment, which carries that
-//! plan and nothing the node acts on besides; it leaves the set once the plan is done.
+//! left behind. It is sent a residual assignment, which carries that plan and nothing the node acts
+//! on besides; it leaves the set once the plan is done.
 
 use super::endpoints;
 use crate::App;
@@ -33,7 +32,7 @@ use uuid::Uuid;
 pub struct AssignmentSet {
     /// Each assignment, sorted by workload.
     pub assignments: Vec<StoredAssignment>,
-    /// Over the set (§9 of docs/10-api.md).
+    /// Over the set.
     pub digest: String,
 }
 
@@ -43,8 +42,8 @@ fn seal_error(SealError(why): SealError) -> AppError {
 
 /// The digest of what `assignment` has its node run: all of it but its plan, which is measured by
 /// its own progress, its ACME challenges, which the proxy answers for a minute and which change
-/// nothing the workload runs (§4.3 of docs/02-architecture.md), and its labels, which the node
-/// does not use. Its name is kept, since a name always has a value; nothing renames a workload.
+/// nothing the workload runs, and its labels, which the node does not use. Its name is kept, since
+/// a name always has a value; nothing renames a workload.
 fn runs_digest(
     sealer: &dyn crate::ports::AssignmentSealer,
     assignment: &Assignment,
@@ -125,11 +124,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Whether `workload`'s node relays the control plane's API to it (§9.5 of
-    /// docs/08-identity.md): it runs a live installation, or holds a grant in force, whose
-    /// authority it has no other way to use. Read from the store at every computation, so an
-    /// installation removed, or a grant revoked, expired, or suspended, or the organization it is
-    /// scoped in suspended, closes the relay with the next assignment.
+    /// Whether `workload`'s node relays the control plane's API to it: it runs a live installation,
+    /// or holds a grant in force, whose authority it has no other way to use. Read from the store
+    /// at every computation, so an installation removed, or a grant revoked, expired, or suspended,
+    /// or the organization it is scoped in suspended, closes the relay with the next assignment.
     async fn reaches_api(&self, workload: Uuid) -> Result<bool, AppError> {
         let installation = self.store.extension_of_workload(workload).await?;
         if installation.is_some_and(|i| i.uninstalled_at.is_none()) {
@@ -145,10 +143,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(false)
     }
 
-    /// Whether any grant of `chain` is scoped in a suspended organization's subtree, which
-    /// suspends the chain (§2.1 of docs/08-identity.md). Every link is asked rather than one, so
-    /// the answer does not depend on the order the chain is given in: a leaf lies within each of
-    /// its ancestors' scopes, so a suspension above any of them reaches it.
+    /// Whether any grant of `chain` is scoped in a suspended organization's subtree, which suspends
+    /// the chain. Every link is asked rather than one, so the answer does not depend on the order
+    /// the chain is given in: a leaf lies within each of its ancestors' scopes, so a suspension
+    /// above any of them reaches it.
     async fn under_suspension(&self, chain: &[GrantRecord]) -> Result<bool, AppError> {
         for link in chain {
             let ancestry = self.store.ancestry(link.grant.scope.anchor()).await?;
@@ -247,9 +245,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub async fn nodes_concerned(&self, workload: Uuid) -> Result<Vec<Uuid>, AppError> {
         let mut nodes = self.store.nodes_of(workload).await?;
         let Some(w) = self.store.workload(workload).await? else { return Ok(nodes) };
-        // Its labels, placement, and addresses reach the rules naming workloads of the others
-        // of its project (§6 of docs/07-networking.md); across nodes, its address and readiness
-        // reach its dependents' nodes, and its placement its targets' (§9.1 there).
+        // Its labels, placement, and addresses reach the rules naming workloads of the others of
+        // its project; across nodes, its address and readiness reach its dependents' nodes, and its
+        // placement its targets'.
         let mut others = self.naming_in_project(&w).await?;
         if self.members().await?.len() > 1 {
             others.extend(self.related(&w).await?);
@@ -292,10 +290,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// What `node` is to be told about `workload`, with the plan that becomes applying by being
-    /// told; `None` if nothing approved reaches a node yet. While a suspension holds it, it is
-    /// told stopped, and a plan waiting to apply waits on, unless it retires the workload; one
-    /// already applying is let finish, since a node left half way through its steps would hold
-    /// what no plan made (§2.1 of docs/08-identity.md).
+    /// told; `None` if nothing approved reaches a node yet. While a suspension holds it, it is told
+    /// stopped, and a plan waiting to apply waits on, unless it retires the workload; one already
+    /// applying is let finish, since a node left half way through its steps would hold what no plan
+    /// made.
     async fn desired(
         &self,
         (node, members): (Uuid, &crate::workload::Members),

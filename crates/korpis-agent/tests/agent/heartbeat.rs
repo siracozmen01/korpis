@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A heartbeat probe run by the agent (§5 of docs/04-runtimes.md): the workload says on its
-//! identity socket that it is alive, as the SDK and `korpis heartbeat` do, and the agent judges
-//! its silence. Healthy while it beats; once it has been silent longer than its probe allows,
-//! unhealthy and restarted for it, recorded with its cause; and healthy again once it beats in
-//! its new life.
+//! A heartbeat probe run by the agent: the workload says on its identity socket that it is alive,
+//! as the SDK and `korpis heartbeat` do, and the agent judges its silence. Healthy while it beats;
+//! once it has been silent longer than its probe allows, unhealthy and restarted for it, recorded
+//! with its cause; and healthy again once it beats in its new life.
 
 use crate::health::{declare, health, observed};
 use crate::session::until;

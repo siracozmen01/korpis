@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placing a workload's endpoints on its node as its assignment is computed (§3 of
-//! docs/07-networking.md). The control plane holds every placement on the node and the range
-//! of ports it advertises, so it alone can keep two endpoints from one port: each endpoint the
-//! node itself exposes keeps the port it holds there, whatever the node's range has become
-//! since, and one that holds none is given the lowest free port of the range as it is now.
+//! Placing a workload's endpoints on its node as its assignment is computed. The control plane
+//! holds every placement on the node and the range of ports it advertises, so it alone can keep two
+//! endpoints from one port: each endpoint the node itself exposes keeps the port it holds there,
+//! whatever the node's range has become since, and one that holds none is given the lowest free
+//! port of the range as it is now.
 
 use crate::error::AppError;
 use crate::ports::Tx;
@@ -16,10 +16,10 @@ use std::time::SystemTime;
 use uuid::Uuid;
 
 /// `body`'s endpoints placed on `node` for `workload`, sorted by name, the node advertising the
-/// ports in `range`, an edge serving those named in `edged` (§3.1 of docs/07-networking.md),
-/// which hold no port of the node. An endpoint that needs a port when none is free is placed without one,
-/// and its status says it is not reached; placement keeps this from happening by reserving
-/// the node's ports (§2.1 of docs/05-scheduling.md), so only a range narrowed under it does.
+/// ports in `range`, an edge serving those named in `edged`, which hold no port of the node. An
+/// endpoint that needs a port when none is free is placed without one, and its status says it is
+/// not reached; placement keeps this from happening by reserving the node's ports, so only a range
+/// narrowed under it does.
 pub(super) async fn placed<T: Tx>(
     tx: &mut T,
     (node, workload): (Uuid, Uuid),

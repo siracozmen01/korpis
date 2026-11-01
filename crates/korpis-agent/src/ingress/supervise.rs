@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The proxy's supervision (§3.2 of docs/07-networking.md, §6 of docs/02-architecture.md). The
-//! agent holds the listening sockets the helper opened, listens on a socket of its own for the
-//! proxy, and has the helper start the proxy, which connects. The agent sends it the sockets and
-//! then every configuration as it changes; when the proxy goes away, the agent has it started
-//! again, waiting longer each time it fails quickly. The node says it serves the ingress while
-//! the agent holds the sockets, which is what placement relies on.
+//! The proxy's supervision. The agent holds the listening sockets the helper opened, listens on a
+//! socket of its own for the proxy, and has the helper start the proxy, which connects. The agent
+//! sends it the sockets and then every configuration as it changes; when the proxy goes away, the
+//! agent has it started again, waiting longer each time it fails quickly. The node says it serves
+//! the ingress while the agent holds the sockets, which is what placement relies on.
 
 use crate::held::HeldSet;
 use crate::host::Host;

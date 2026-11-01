@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The relay's signed requests (§3.1 of docs/02-architecture.md): its feed, its certificate's
-//! renewal, and a file token for an SFTP client it serves (§9.9 of docs/08-identity.md), each
-//! signed by its identity key, fresh now and with a nonce never sent before.
+//! The relay's signed requests: its feed, its certificate's renewal, and a file token for an SFTP
+//! client it serves, each signed by its identity key, fresh now and with a nonce never sent before.
 
 use korpis_core::node::identity::{
     files_request_digest, relay_feed_message, relay_files_message, relay_renew_message, sign,

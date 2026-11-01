@@ -55,9 +55,8 @@ pub(crate) fn servable(
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The certificate `id` and its key, for `node` to serve: answered only if an endpoint served
     /// with it is placed on that node, or is an `ingress` endpoint an edge group the node is a
-    /// member of serves (§3.1 there), and only once it holds a key (§3.2 of
-    /// docs/07-networking.md). That the node was given it is recorded first, so removing the
-    /// node as compromised knows what to revoke (§9 of docs/17-security.md).
+    /// member of serves, and only once it holds a key. That the node was given it is recorded
+    /// first, so removing the node as compromised knows what to revoke.
     pub async fn certificate_for_node(
         &self,
         node: Uuid,

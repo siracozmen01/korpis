@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The `WebAuthn` relying party (§9.6 of docs/08-identity.md, W3C `WebAuthn` Level 3 §7): verifying
-//! that a browser registered a passkey for this site, and that a later assertion was signed by
-//! it. Attestation is not used, so its statement is never read: the installation has no list of
-//! authenticator models to trust, and asking for one would only identify the user's device. User
-//! verification is required, which is what makes a passkey a complete sign-in.
+//! The `WebAuthn` relying party (W3C `WebAuthn` Level 3 §7): verifying that a browser registered a
+//! passkey for this site, and that a later assertion was signed by it. Attestation is not used, so
+//! its statement is never read: the installation has no list of authenticator models to trust, and
+//! asking for one would only identify the user's device. User verification is required, which is
+//! what makes a passkey a complete sign-in.
 //!
 //! Pure functions over the bytes the browser returned: the caller holds the challenge it issued
 //! and the passkey it stored, and decides what a verified ceremony means.

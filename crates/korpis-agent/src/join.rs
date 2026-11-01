@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Joining a control plane (§3 of docs/18-operations.md): the agent generates its identity key,
-//! sends the public half with the one-time token over a connection verified against the pinned
-//! CA, and keeps what it is told.
+//! Joining a control plane: the agent generates its identity key, sends the public half with the
+//! one-time token over a connection verified against the pinned CA, and keeps what it is told.
 
 use crate::state::{Identity, StateDir, StateError};
 use crate::tls::{self, TlsError};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's side of the mesh, as stored in the `node` table (§9.1 of docs/07-networking.md):
-//! keys as hexadecimal, pools as CIDR text, and each handshake as seconds since the epoch.
+//! A node's side of the mesh, as stored in the `node` table: keys as hexadecimal, pools as CIDR
+//! text, and each handshake as seconds since the epoch.
 
 use super::{from_json, to_json};
 use korpis_app::ports::{StoreError, StoreResult};

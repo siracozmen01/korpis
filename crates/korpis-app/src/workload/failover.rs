@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Failover (§2.4 of docs/05-scheduling.md): a workload placed on a node the silence sweep marked
-//! unreachable is placed again, by the filter and the score as any placement is, once the
-//! grantor's end of its lease has passed, when it stops where its lease ends and another node
-//! reaches all of its data. Nothing observes the old node: the lease is what says it stopped
-//! there, since its holder stops a `stop` workload by its own clock before that end (§4.5 of
-//! docs/02-architecture.md). One that no node can take keeps its placement, and the attempt is
-//! recorded for its status and tried again at the next pass; it is forgotten once the node is
+//! Failover: a workload placed on a node the silence sweep marked unreachable is placed again, by
+//! the filter and the score as any placement is, once the grantor's end of its lease has passed,
+//! when it stops where its lease ends and another node reaches all of its data. Nothing observes
+//! the old node: the lease is what says it stopped there, since its holder stops a `stop` workload
+//! by its own clock before that end. One that no node can take keeps its placement, and the attempt
+//! is recorded for its status and tried again at the next pass; it is forgotten once the node is
 //! heard again. Where it lands it is made by a remake plan (`super::remake`).
 
 use super::remake::Held;

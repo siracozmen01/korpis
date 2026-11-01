@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Resolving a recipe step through a step provider (§4 of docs/09-recipes.md): a provider written
-//! with the SDK answers with content-addressed artifacts, says whether they were pinned, and an
-//! answer the node could not safely act on is recorded as the provider's malfunction.
+//! Resolving a recipe step through a step provider: a provider written with the SDK answers with
+//! content-addressed artifacts, says whether they were pinned, and an answer the node could not
+//! safely act on is recorded as the provider's malfunction.
 
 use crate::extensions::{DNS, push_document};
 use crate::providers::installed_from;

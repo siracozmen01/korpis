@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An agent as a test plays one: it enrolls with a token and its own key, then opens the
-//! control stream with a signed Hello (§7 of docs/02-architecture.md).
+//! An agent as a test plays one: it enrolls with a token and its own key, then opens the control
+//! stream with a signed Hello.
 
 use crate::support::{Harness, mutation};
 use buffa_types::google::protobuf::Timestamp;
@@ -71,11 +71,11 @@ impl TestAgent {
             .await
             .unwrap()
             .into_owned();
-        // An enrolled node is edge-only until the prober measures it (§9 of
-        // docs/07-networking.md), and this hand-played node advertises nothing of its own. The
-        // recipes these tests place have a `stable` endpoint, which without an edge tier needs a
-        // public node with a free port in its range, so this stands in for both: an address in
-        // TEST-NET-3 with the default range, measured now so the prober leaves it be.
+        // An enrolled node is edge-only until the prober measures it, and this hand-played node
+        // advertises nothing of its own. The recipes these tests place have a `stable` endpoint,
+        // which without an edge tier needs a public node with a free port in its range, so this
+        // stands in for both: an address in TEST-NET-3 with the default range, measured now so the
+        // prober leaves it be.
         let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Node, &enrolled.node).unwrap();
         let store = h.db.store().await.unwrap();
         sqlx::query(
@@ -205,10 +205,9 @@ pub fn welcome(m: &agent::ControlMessage) -> agent::Welcome {
 }
 
 /// The next message on a session, within five seconds, passing over revocation lists, the relays
-/// named, the mesh's peers, the edges' tables, and what it keeps of replicas, which arrive on
-/// their own schedule (§6.3 of docs/08-identity.md, §3.1 of docs/02-architecture.md, §9.1 and
-/// §3.1 of docs/07-networking.md, §2.2 of docs/06-storage.md); [`next_list`], [`next_relays`],
-/// [`next_peers`], and [`next_edges`] read those, and [`any`] reads every message.
+/// named, the mesh's peers, the edges' tables, and what it keeps of replicas, which arrive on their
+/// own schedule; [`next_list`], [`next_relays`], [`next_peers`], and [`next_edges`] read those, and
+/// [`any`] reads every message.
 pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
     loop {
         let m = any(stream).await;

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Sending the journal on a session (§4.10 of docs/02-architecture.md). The control plane opens
-//! every session with its cursor; the shipper sends everything after it, and from then on what
-//! is appended, a bounded number of records ahead of what has been acknowledged, so a backlog
-//! is paced by the control plane's ingestion rather than pushed down the stream at once. If the
-//! acknowledgements stop while records are outstanding, it sends again from the cursor: the
-//! control plane drops what it already has.
+//! Sending the journal on a session. The control plane opens every session with its cursor; the
+//! shipper sends everything after it, and from then on what is appended, a bounded number of
+//! records ahead of what has been acknowledged, so a backlog is paced by the control plane's
+//! ingestion rather than pushed down the stream at once. If the acknowledgements stop while records
+//! are outstanding, it sends again from the cursor: the control plane drops what it already has.
 
 use super::JournalHandle;
 use korpis_proto::korpis::agent::v1 as agent;

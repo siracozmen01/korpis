@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Acting as a member of a set (§5.2 of docs/08-identity.md): a person acting through a relay
-//! holds what the sets the assertion names hold, and through a set whose binding requires its
-//! members to be in another, only while the assertion names that one too.
+//! Acting as a member of a set: a person acting through a relay holds what the sets the assertion
+//! names hold, and through a set whose binding requires its members to be in another, only while
+//! the assertion names that one too.
 
 use crate::support::{Tree, child, request, root};
 use korpis_core::authz::binding::ProviderRef;

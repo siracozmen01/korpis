@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placement (§2 of docs/05-scheduling.md): filter the nodes that can run a workload, score the
-//! survivors, choose, and record why. Pure: the caller supplies the nodes, what is already
-//! allocated on them, and the workload's placed peers, all read in one transaction under the
-//! placement lock, so the answer is consistent with what the bind will write.
+//! Placement: filter the nodes that can run a workload, score the survivors, choose, and record
+//! why. Pure: the caller supplies the nodes, what is already allocated on them, and the workload's
+//! placed peers, all read in one transaction under the placement lock, so the answer is consistent
+//! with what the bind will write.
 
 mod check;
 pub mod churn;
@@ -28,7 +28,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
 /// The dimensions placement guarantees: a reservation in one of these is capacity a node sets
-/// aside. The others are quota's (§5 of docs/05-scheduling.md) or limits only.
+/// aside. The others are quota's or limits only.
 pub const RESERVED: [Dimension; 5] = [
     Dimension::Cpu,
     Dimension::Memory,
@@ -37,9 +37,8 @@ pub const RESERVED: [Dimension; 5] = [
     Dimension::NodePorts,
 ];
 
-/// What a placement of `body` reserves on its node, where an edge group does or does not serve
-/// it: a `stable` endpoint an edge serves holds no port of its node (§3.1 of
-/// docs/07-networking.md).
+/// What a placement of `body` reserves on its node, where an edge group does or does not serve it:
+/// a `stable` endpoint an edge serves holds no port of its node.
 #[must_use]
 pub fn reservation(body: &IntentBody, edge_tier: bool) -> Bounds {
     let held = Held::of(body);
@@ -69,9 +68,8 @@ pub struct Request<'a> {
     pub project: Uuid,
     /// Its labels, which spread constraints and other workloads' affinity rules select on.
     pub labels: &'a BTreeMap<String, String>,
-    /// The organizations whose nodes may serve it: its own and every ancestor, nearest first
-    /// (§3.4 of docs/01-model.md), which is the order their nodes are preferred in (§2.2 of
-    /// docs/05-scheduling.md).
+    /// The organizations whose nodes may serve it: its own and every ancestor, nearest first, which
+    /// is the order their nodes are preferred in.
     pub owners: &'a [Uuid],
     /// The approved intent being placed.
     pub body: &'a IntentBody,
@@ -79,50 +77,45 @@ pub struct Request<'a> {
     /// new target.
     pub current: Option<Current<'a>>,
     /// Whether a declared `stable` endpoint of it resolves to `stable`: an edge group serves it
-    /// with an address and port for each, or, none doing, it is `routed`. That decides what such
-    /// an endpoint needs of a node (§3 and §3.1 of docs/07-networking.md).
+    /// with an address and port for each, or, none doing, it is `routed`. That decides what such an
+    /// endpoint needs of a node.
     pub edge_tier: bool,
     /// Whether its `stable` endpoints are reached, no edge group serving it, at a `cluster`
     /// pool's address it holds, which its router moves; a node must then be one it may hold
     /// that address on, as for a `dedicated_ip` endpoint.
     pub routed: bool,
     /// Whether its `ingress` endpoints are served by an edge group's members' proxies at the
-    /// group's ingress address, rather than by its node's own (§3.1 of docs/07-networking.md);
-    /// a node then need not serve the ingress.
+    /// group's ingress address, rather than by its node's own; a node then need not serve the
+    /// ingress.
     pub ingress_edge: bool,
     /// That group's members, which a node it is placed on reaches through the mesh; empty where
     /// no group serves it.
     pub edge_members: &'a [Uuid],
-    /// Each existing volume the intent attaches, with where it is: a node-local volume is
-    /// reachable from its node alone (§7 of docs/06-storage.md), and a shared one from every
-    /// node offering its store (§2.1 there).
+    /// Each existing volume the intent attaches, with where it is: a node-local volume is reachable
+    /// from its node alone, and a shared one from every node offering its store.
     pub volumes: &'a [(Uuid, Home)],
-    /// The nodes whose driver refused this intent, each with its reason: asked on the
-    /// shortlist, or after a bind (§2.1 of docs/05-scheduling.md).
+    /// The nodes whose driver refused this intent, each with its reason: asked on the shortlist, or
+    /// after a bind.
     pub refused: &'a BTreeMap<Uuid, String>,
-    /// Each node that reported its content, with whether it holds this intent's recipe (§2.2
-    /// of docs/05-scheduling.md); content locality is scored for those alone.
+    /// Each node that reported its content, with whether it holds this intent's recipe; content
+    /// locality is scored for those alone.
     pub content: &'a BTreeMap<Uuid, bool>,
     /// Each node with recent loss events, with what they weigh now ([`churn::loss_weight`]); a
     /// node absent lost nothing it remembers.
     pub churn: &'a BTreeMap<Uuid, f64>,
-    /// What its dependencies reach, resolved (§5 of docs/07-networking.md).
+    /// What its dependencies reach, resolved.
     pub dependencies: &'a [Needed],
     /// The pairs of nodes that reach each other through the mesh, through which a dependency
-    /// reaches a target on another node (§9.1 of docs/07-networking.md).
+    /// reaches a target on another node.
     pub mesh: &'a crate::node::mesh::Pairs,
-    /// The quota entries counting it that count where it runs (§5.1 of
-    /// docs/05-scheduling.md).
+    /// The quota entries counting it that count where it runs.
     pub quota: &'a [Counting<'a>],
-    /// By node, the devices its other placements hold (§6.3 of docs/05-scheduling.md); a node
-    /// absent holds none.
+    /// By node, the devices its other placements hold; a node absent holds none.
     pub devices: &'a BTreeMap<Uuid, Vec<crate::node::device::DeviceHold>>,
-    /// By node, the cores its other placements hold (§5.2 of docs/05-scheduling.md); a node
-    /// absent holds none.
+    /// By node, the cores its other placements hold; a node absent holds none.
     pub cores: &'a BTreeMap<Uuid, Vec<u32>>,
-    /// The nodes it may hold a dedicated address on: those the address it holds reaches, or a
-    /// pool serving it reaches with one free (§3.7 of docs/07-networking.md). Asked only where
-    /// an endpoint of it is `dedicated_ip`.
+    /// The nodes it may hold a dedicated address on: those the address it holds reaches, or a pool
+    /// serving it reaches with one free. Asked only where an endpoint of it is `dedicated_ip`.
     pub dedicated: &'a BTreeSet<Uuid>,
 }
 
@@ -136,8 +129,8 @@ pub struct Counting<'a> {
     pub rest: Totals,
     /// What it counts of this workload now, placed on a node it counts.
     pub counted: Option<&'a Held>,
-    /// What it promised the organizations beneath its owner, by their entries of its shape
-    /// (Finding 139 of docs/23-walkthroughs.md); none for a project's entry.
+    /// What it promised the organizations beneath its owner, by their entries of its shape; none
+    /// for a project's entry.
     pub promises: Vec<crate::tenancy::quota::Promise>,
 }
 
@@ -212,8 +205,7 @@ pub struct Score {
     pub weight: f64,
 }
 
-/// The full derivation of one placement decision (§2.3 of docs/05-scheduling.md), stored
-/// complete and rendered per viewer (§8 of docs/08-identity.md).
+/// The full derivation of one placement decision, stored complete and rendered per viewer.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Explanation {
     /// Nodes considered.
@@ -232,10 +224,9 @@ pub struct Explanation {
     pub owners: BTreeMap<Uuid, PlacementPolicy>,
 }
 
-/// The refusals of `c` that stand when an operator chooses it by hand (§2.3 of
-/// docs/05-scheduling.md). A cordon and a taint record the operator's own decisions about the
-/// node, so choosing it overrides them; every other check is a fact about whether the workload
-/// can run there, or its tenant's own declaration, and holds.
+/// The refusals of `c` that stand when an operator chooses it by hand. A cordon and a taint record
+/// the operator's own decisions about the node, so choosing it overrides them; every other check is
+/// a fact about whether the workload can run there, or its tenant's own declaration, and holds.
 #[must_use]
 pub fn operator_refusals(
     req: &Request<'_>,
@@ -270,7 +261,7 @@ pub fn place(
 }
 
 /// As [`place`], with every node that survived the filter, best first: the shortlist a
-/// `FeasibilityQuery` asks is its head (§2.1 of docs/05-scheduling.md).
+/// `FeasibilityQuery` asks is its head.
 #[must_use]
 pub fn ranked(
     req: &Request<'_>,

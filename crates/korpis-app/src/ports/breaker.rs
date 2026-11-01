@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Provider circuit breakers (§5 of docs/16-extensions.md): the decision, shared by every
-//! replica, and the evidence it is judged from, the calls the provider last finished.
+//! Provider circuit breakers: the decision, shared by every replica, and the evidence it is judged
+//! from, the calls the provider last finished.
 
 use super::StoreResult;
 use korpis_core::extension::{Breaker, ProviderCondition, ProviderType, Sample};

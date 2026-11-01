@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's device key (§2.1 of docs/06-storage.md), in its data directory beside
-//! its other keys. It seals the credential a block storage provider answers for a device with
-//! XChaCha20-Poly1305 bound to the device's identifier, as the factor key seals a TOTP secret to
-//! its account, so a sealed credential copied to another device does not open.
+//! The control plane's device key, in its data directory beside its other keys. It seals the
+//! credential a block storage provider answers for a device with XChaCha20-Poly1305 bound to the
+//! device's identifier, as the factor key seals a TOTP secret to its account, so a sealed
+//! credential copied to another device does not open.
 
 use crate::data::DataDir;
 use crate::keys::{KeyError, load_or_create};

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Runs and their workloads' run state (§4 of docs/05-scheduling.md). A run is made once per
-//! occurrence and per power cycle, which the schema's unique indexes hold, and changes only while
-//! it is active.
+//! Runs and their workloads' run state. A run is made once per occurrence and per power cycle,
+//! which the schema's unique indexes hold, and changes only while it is active.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_time, to_count, to_time};

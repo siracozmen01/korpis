@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How a node's proxy proves an `acme` endpoint's name that no DNS provider proves (§3.2 of
-//! docs/07-networking.md): over HTTP-01 on port 80, or by TLS-ALPN-01 on port 443. The issuer
-//! cannot tell which port of a node a directory reaches, so it tries the way that last proved the
-//! certificate first, HTTP-01 for one never issued, and the other after each failed attempt.
+//! How a node's proxy proves an `acme` endpoint's name that no DNS provider proves: over HTTP-01 on
+//! port 80, or by TLS-ALPN-01 on port 443. The issuer cannot tell which port of a node a directory
+//! reaches, so it tries the way that last proved the certificate first, HTTP-01 for one never
+//! issued, and the other after each failed attempt.
 
 /// A way a node's proxy proves a name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

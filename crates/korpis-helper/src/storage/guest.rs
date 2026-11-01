@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's device given to a guest as its disk (§2.1 and §3.1 of docs/06-storage.md).
-//! What a guest writes on it is parsed by the guest's kernel alone, so the host never mounts,
-//! probes, or reads it: the helper formats it ext4 only while no volume was made of it, which
-//! writes and reads nothing a guest wrote, and gives the driver a device node of it where a block
-//! device's image would be, in a volume directory marked as a block device's. A device made for a
-//! guest is never mounted for a volume of files, nor one made for files given to a guest.
+//! A block class's device given to a guest as its disk. What a guest writes on it is parsed by the
+//! guest's kernel alone, so the host never mounts, probes, or reads it: the helper formats it ext4
+//! only while no volume was made of it, which writes and reads nothing a guest wrote, and gives the
+//! driver a device node of it where a block device's image would be, in a volume directory marked
+//! as a block device's. A device made for a guest is never mounted for a volume of files, nor one
+//! made for files given to a guest.
 
 use super::Class;
 use super::device::Devices;

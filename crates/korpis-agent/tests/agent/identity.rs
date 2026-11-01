@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's identity socket against a real control plane (§9.5 of docs/08-identity.md):
-//! the agent serves one per workload it runs, a request on it comes back with a credential
-//! that authenticates as that workload, over HTTP/2 and plain HTTP/1.1 alike, and the socket
-//! goes when the workload does. A workload holding a grant is relayed the API beside it, a
-//! task's while its run's object is its only one, until the grant is revoked.
+//! A workload's identity socket against a real control plane: the agent serves one per workload it
+//! runs, a request on it comes back with a credential that authenticates as that workload, over
+//! HTTP/2 and plain HTTP/1.1 alike, and the socket goes when the workload does. A workload holding
+//! a grant is relayed the API beside it, a task's while its run's object is its only one, until the
+//! grant is revoked.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation};

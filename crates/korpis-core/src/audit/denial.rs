@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Coalescing repeated identical denials (§10 of docs/10-api.md, §4 of
-//! docs/15-observability.md). Every denial is recorded, but a client refused the same action on
-//! the same object over and over must not turn the effect log into an unbounded write path. The
-//! first denial of a run is written at once, so an auditor sees it as it happens; the repeats
-//! within the window that follows are counted, and written as one effect with the count and the
-//! window's bounds when the window closes. The run is keyed by subject, action, and object, so a
-//! different refusal is never folded into another.
+//! Coalescing repeated identical denials. Every denial is recorded, but a client refused the same
+//! action on the same object over and over must not turn the effect log into an unbounded write
+//! path. The first denial of a run is written at once, so an auditor sees it as it happens; the
+//! repeats within the window that follows are counted, and written as one effect with the count and
+//! the window's bounds when the window closes. The run is keyed by subject, action, and object, so
+//! a different refusal is never folded into another.
 
 use std::time::{Duration, SystemTime};
 

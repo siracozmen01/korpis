@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What each node is told of edges (§3.1 of docs/07-networking.md), as this replica tells the
-//! nodes it holds sessions with. Each replica recomputes every node's table every [`EVERY`] from
-//! what the control plane holds, and publishes it when it changed; each session sends its node
-//! its own table when it opens, and again whenever that changes, so a workload behind a group
-//! that starts, stops, or moves reaches every member within about [`EVERY`].
+//! What each node is told of edges, as this replica tells the nodes it holds sessions with. Each
+//! replica recomputes every node's table every [`EVERY`] from what the control plane holds, and
+//! publishes it when it changed; each session sends its node its own table when it opens, and again
+//! whenever that changes, so a workload behind a group that starts, stops, or moves reaches every
+//! member within about [`EVERY`].
 
 use crate::api::Api;
 use crate::sessions::Sessions;

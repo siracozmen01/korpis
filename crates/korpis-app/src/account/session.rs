@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! User sessions (§9.4 of docs/08-identity.md): begun by a sign-in, kept alive by exchanging the
-//! refresh credential for access tokens, rotated on every exchange, and ended by idleness, by
-//! age, by its user, or by a rotated credential presented again, which only a copy can do.
+//! User sessions: begun by a sign-in, kept alive by exchanging the refresh credential for access
+//! tokens, rotated on every exchange, and ended by idleness, by age, by its user, or by a rotated
+//! credential presented again, which only a copy can do.
 
 use super::reach::sees_session;
 use super::{Device, own_holder, record_held};
@@ -29,11 +29,10 @@ pub struct Client {
     pub user_agent: String,
     /// The address it came from.
     pub ip: Option<IpAddr>,
-    /// The device cookies it presented (§9.6 of docs/08-identity.md), which only a password
-    /// sign-in asks about.
+    /// The device cookies it presented, which only a password sign-in asks about.
     pub devices: Vec<String>,
-    /// The portal it reached the control plane at, whose connection named it (§9.8 of
-    /// docs/08-identity.md); none at the installation's own address.
+    /// The portal it reached the control plane at, whose connection named it; none at the
+    /// installation's own address.
     pub portal: Option<AtPortal>,
 }
 
@@ -54,8 +53,8 @@ pub struct Begun {
     pub refresh: Secret,
     /// When it ends whatever is done with it.
     pub expires_at: SystemTime,
-    /// The device cookie a browser is given for the account (§9.6 of docs/08-identity.md);
-    /// none for the CLI, which has no browser to keep one.
+    /// The device cookie a browser is given for the account; none for the CLI, which has no browser
+    /// to keep one.
     pub device: Option<Device>,
 }
 
@@ -103,11 +102,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.begin_held(tx, held, (Vec::new(), seen), client).await
     }
 
-    /// Begins a session `holder` holds, acting as `actor`, with `sets` for a person, for
-    /// `client` in `tx`: what vouched for the holder having just been checked, its secrets seen
-    /// beneath `seen` if any were. The session reaches beneath the narrower of that and the
-    /// organization of the portal it is begun at (§9.8 of docs/08-identity.md). The actor is
-    /// given rather than read, since a person's binding may be made in `tx` itself.
+    /// Begins a session `holder` holds, acting as `actor`, with `sets` for a person, for `client`
+    /// in `tx`: what vouched for the holder having just been checked, its secrets seen beneath
+    /// `seen` if any were. The session reaches beneath the narrower of that and the organization of
+    /// the portal it is begun at. The actor is given rather than read, since a person's binding may
+    /// be made in `tx` itself.
     pub(crate) async fn begin_held(
         &self,
         tx: &mut S::Tx,
@@ -139,8 +138,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ("source", session.source.clone().into()),
         ];
         record_held(tx, &actor, "session.begun", holder, more).await?;
-        // A device cookie spares an account's browsers its password guesses (§9.6); a person
-        // signed in through a provider has no password here to guess.
+        // A device cookie spares an account's browsers its password guesses; a person signed in
+        // through a provider has no password here to guess.
         let device = holder
             .account()
             .filter(|_| client.kind == SessionKind::Web)
@@ -252,7 +251,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub async fn end_other_sessions(&self, caller: &Caller) -> Result<u64, AppError> {
         let holder = own_holder(caller)?;
         let own = self.confining(caller).await?;
-        // Those a confined session sees, read before the transaction begins (Finding 71).
+        // Those a confined session sees, read before the transaction begins.
         let seen = match &own {
             None => None,
             Some(own) => Some(

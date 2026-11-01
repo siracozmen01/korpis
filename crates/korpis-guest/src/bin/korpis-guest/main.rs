@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-guest`, the first process of every microVM (§4.4 and §6 of docs/04-runtimes.md). The
-//! kernel mounts the boot drive as its root and starts it. It reads its config drive, assembles
-//! the workload's root (the image beneath a small writable layer, made read-only once its mount
-//! points exist, as a container's root is), mounts the volumes, sets `eth0`, and runs the entry
-//! as its user, reaping whatever the entry's own children leave behind. A stop arrives as
-//! Ctrl+Alt+Del and reaches the entry as `SIGTERM`; a second ends every process. When the entry
-//! has ended, it ends every other process, writes how the run ended on the config drive, and
-//! restarts the guest, which ends the microVM: Firecracker exits when its guest reboots. The first
-//! process must never return, so every failure ends the same way, with the reason on the console.
-//! While the entry runs, it answers the driver on the control port over vsock. A service guest
-//! mounts its volumes in a root of nothing else and serves file sessions, running no entry.
+//! `korpis-guest`, the first process of every microVM. The kernel mounts the boot drive as its root
+//! and starts it. It reads its config drive, assembles the workload's root (the image beneath a
+//! small writable layer, made read-only once its mount points exist, as a container's root is),
+//! mounts the volumes, sets `eth0`, and runs the entry as its user, reaping whatever the entry's
+//! own children leave behind. A stop arrives as Ctrl+Alt+Del and reaches the entry as `SIGTERM`; a
+//! second ends every process. When the entry has ended, it ends every other process, writes how the
+//! run ended on the config drive, and restarts the guest, which ends the microVM: Firecracker exits
+//! when its guest reboots. The first process must never return, so every failure ends the same way,
+//! with the reason on the console. While the entry runs, it answers the driver on the control port
+//! over vsock. A service guest mounts its volumes in a root of nothing else and serves file
+//! sessions, running no entry.
 //!
 //! It holds two `unsafe` blocks. In `run`, the entry's child clears the signal mask it inherits
 //! before exec, and an interactive entry takes its terminal as its controlling one, which only
@@ -40,7 +40,7 @@ use std::time::Duration;
 
 /// Where the workload's root is assembled, on the boot drive.
 const ROOT: &str = "/newroot";
-/// The file worker on the boot drive (§4.4 of docs/04-runtimes.md).
+/// The file worker on the boot drive.
 const FILE_WORKER: &str = "/korpis-fsworker";
 /// The install job on the boot drive, which a service guest runs for an install.
 const INSTALL_JOB: &str = "/korpis-install-job";
@@ -134,9 +134,9 @@ fn boot(drive: &mut File) -> Result<Ended, String> {
     run::run(&config, &mut signals)
 }
 
-/// A service guest's run (§4.4 of docs/04-runtimes.md): its volumes in a root of nothing else,
-/// file sessions served on the files port, an install run if it was booted for one, and no
-/// entry, until it is stopped. Without its worker it has nothing to do, so it ends at once.
+/// A service guest's run: its volumes in a root of nothing else, file sessions served on the files
+/// port, an install run if it was booted for one, and no entry, until it is stopped. Without its
+/// worker it has nothing to do, so it ends at once.
 fn service(
     config: &Config,
     install_job: Result<File, String>,
@@ -157,10 +157,9 @@ fn service(
     run::idle(signals)
 }
 
-/// Makes `root` the root of the guest's mount namespace, as a container runtime does, and
-/// detaches the boot drive beneath it: every process from here on, the entry's and a file
-/// session's worker, is in that root and in no chroot, which the kernel would refuse a worker's
-/// user namespace in (§4.4 of docs/04-runtimes.md).
+/// Makes `root` the root of the guest's mount namespace, as a container runtime does, and detaches
+/// the boot drive beneath it: every process from here on, the entry's and a file session's worker,
+/// is in that root and in no chroot, which the kernel would refuse a worker's user namespace in.
 fn enter(root: &str) -> nix::Result<()> {
     use nix::mount::{MntFlags, MsFlags};
     let private = MsFlags::MS_REC | MsFlags::MS_PRIVATE;

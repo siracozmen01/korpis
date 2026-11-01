@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! When a container's task started and ended, as `Inspect` says it (§4.2 of
-//! docs/04-runtimes.md): what a run's timeout is counted from, which an agent adopting the run
-//! after a restart can only learn from the driver. containerd keeps when a task exited but not
-//! when it started, so the driver records the start in the container's label `korpis.started_at`
-//! as its task is about to start, as seconds and nanoseconds since the epoch, and reads both back.
-//! The label is written first, so it never names an earlier start than the task's; a start that
-//! then fails leaves a label no running task is inspected with, and the next one rewrites it.
+//! When a container's task started and ended, as `Inspect` says it: what a run's timeout is counted
+//! from, which an agent adopting the run after a restart can only learn from the driver. containerd
+//! keeps when a task exited but not when it started, so the driver records the start in the
+//! container's label `korpis.started_at` as its task is about to start, as seconds and nanoseconds
+//! since the epoch, and reads both back. The label is written first, so it never names an earlier
+//! start than the task's; a start that then fails leaves a label no running task is inspected with,
+//! and the next one rewrites it.
 
 use super::Containerd;
 use crate::error::DriverResult;

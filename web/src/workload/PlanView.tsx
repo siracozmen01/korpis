@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A plan as the control plane computed it (§4 of docs/11-surface-web.md): every step, each with
-// the object it acts on, how it was classified, and the longest a stop in it can take, and the
-// impact: the downtime it estimates, the data at risk, and why it does or does not apply without
-// a person. Nothing is summarized away: the affected objects are enumerated.
+// A plan as the control plane computed it: every step, each with the object it acts on, how it was
+// classified, and the longest a stop in it can take, and the impact: the downtime it estimates, the
+// data at risk, and why it does or does not apply without a person. Nothing is summarized away: the
+// affected objects are enumerated.
 
 import { durationMs } from "@bufbuild/protobuf/wkt";
 import { ObjectKind } from "../gen/korpis/v1/common_pb";

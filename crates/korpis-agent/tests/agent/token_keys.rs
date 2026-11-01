@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The token keys a running node verifies with (§8 of docs/03-state.md): sent as every session
-//! opens, kept, and replaced, not added to, when a restore has retired the ones it held.
+//! The token keys a running node verifies with: sent as every session opens, kept, and replaced,
+//! not added to, when a restore has retired the ones it held.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};

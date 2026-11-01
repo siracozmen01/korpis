@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The provider's three answers (§5.3 and §9.7 of docs/08-identity.md): where to send a person
-//! to sign in, who returned with a code and which groups they are in, and which of some people
-//! are still in a group, asked of the issuer with each one's refresh token. It answers that it
-//! cannot tell of anyone it holds no current evidence of, and never that they left.
+//! The provider's three answers: where to send a person to sign in, who returned with a code and
+//! which groups they are in, and which of some people are still in a group, asked of the issuer
+//! with each one's refresh token. It answers that it cannot tell of anyone it holds no current
+//! evidence of, and never that they left.
 
 use crate::claims::{self, Expected, Person};
 use crate::config::Settings;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Forwarding a request to its workload over HTTP/1.1 (§3.2 of docs/07-networking.md), within
-//! TLS for a workload that serves its own certificate. Connections to workloads are pooled. A
-//! WebSocket upgrade gets a connection of its own, and once the workload agrees the two
-//! connections are joined byte for byte; one opened on HTTP/2 by extended CONNECT (RFC 8441) is
-//! forwarded as the same HTTP/1.1 upgrade, and its stream joined to the workload's connection.
+//! Forwarding a request to its workload over HTTP/1.1, within TLS for a workload that serves its
+//! own certificate. Connections to workloads are pooled. A WebSocket upgrade gets a connection of
+//! its own, and once the workload agrees the two connections are joined byte for byte; one opened
+//! on HTTP/2 by extended CONNECT (RFC 8441) is forwarded as the same HTTP/1.1 upgrade, and its
+//! stream joined to the workload's connection.
 
 use crate::headers::{set_client_cert, set_forwarded, strip_hop_by_hop};
 use crate::table::{Mode, Route};

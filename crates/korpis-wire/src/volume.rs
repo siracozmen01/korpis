@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes on the wire (§3.6 of docs/01-model.md): the object a client reads, and what a node
-//! reports of one. A size is on the wire only where the write path enforces it (Rule K-3).
+//! Volumes on the wire: the object a client reads, and what a node reports of one. A size is on the
+//! wire only where the write path enforces it.
 
 use crate::{Result, id, invalid, timestamp, wire_id};
 use korpis_core::id::IdKind;

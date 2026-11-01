@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Issuing a grant (§3.2 of docs/08-identity.md): attenuating one the issuer holds, themself or,
-//! through a set the assertion they act under names, as its member, which the child records as
-//! `via` so its validity needs the member verified too (§5.1).
+//! Issuing a grant: attenuating one the issuer holds, themself or, through a set the assertion they
+//! act under names, as its member, which the child records as `via` so its validity needs the
+//! member verified too.
 
 use super::evaluate::{ChainError, verify_chain};
 use super::grant::{At, Grant, Subject, Via, check_attenuation};
@@ -35,14 +35,14 @@ pub enum IssueError {
 }
 
 /// Issues `child` from the first grant of `parent_chain` on behalf of `issuer`. Issuing a grant to
-/// someone *is* attenuating a grant one holds (§3.2 of docs/08-identity.md), so the issuer must be
-/// the parent's subject, or a member of it among `memberships` with the child's `via` naming them
-/// (§5.1), the parent's whole chain must be valid now, and the child must be a valid
-/// attenuation of it, use limits included. The gateway runs this before inserting the child, in
-/// the transaction that takes the parent's remaining uses (§6.2).
+/// someone *is* attenuating a grant one holds, so the issuer must be the parent's subject, or a
+/// member of it among `memberships` with the child's `via` naming them, the parent's whole chain
+/// must be valid now, and the child must be a valid attenuation of it, use limits included. The
+/// gateway runs this before inserting the child, in the transaction that takes the parent's
+/// remaining uses.
 ///
 /// `binding_allows_irreversible` is what the subject's identity binding says, read by the caller
-/// from the binding an operator declared (§5.2), never from the request: a child carrying
+/// from the binding an operator declared, never from the request: a child carrying
 /// `irreversible_override` is refused unless it is a set subject whose binding allows it.
 pub fn issue(
     (issuer, memberships): (&Subject, &[Subject]),

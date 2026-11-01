@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recipe trust policies (§7 of docs/09-recipes.md).
+//! Recipe trust policies.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_json, from_time, principal, to_count, to_json, to_time};

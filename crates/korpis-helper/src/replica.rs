@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Replicas (§2.2 of docs/06-storage.md), in a class that can send increments, which is btrfs.
-//! A volume's node keeps the read-only snapshots it sent under the class root's
-//! `.replicas/<volume>/`, a directory no volume identifier can name, and a replica's node keeps
-//! there the ones it received, each a subvolume made from the stream. An increment is the
-//! difference from a snapshot both sides hold.
+//! Replicas, in a class that can send increments, which is btrfs. A volume's node keeps the
+//! read-only snapshots it sent under the class root's `.replicas/<volume>/`, a directory no volume
+//! identifier can name, and a replica's node keeps there the ones it received, each a subvolume
+//! made from the stream. An increment is the difference from a snapshot both sides hold.
 //!
 //! Sending is the kernel's own `BTRFS_IOC_SEND`, writing into a pipe whose read end the agent is
 //! given, on a thread of its own while the agent reads. Receiving is btrfs-progs' `btrfs
@@ -28,8 +27,7 @@ use std::process::{Child, Command, Stdio};
 /// Where a class keeps what its volumes' replication holds.
 const REPLICAS: &str = ".replicas";
 
-/// btrfs-progs, whose `receive` applies a stream: a requirement of a node holding replicas (§3
-/// of docs/18-operations.md).
+/// btrfs-progs, whose `receive` applies a stream: a requirement of a node holding replicas.
 pub const BTRFS: &str = "/usr/bin/btrfs";
 
 /// What a receive came to.

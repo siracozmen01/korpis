@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The SSH keys people register for SFTP (§9.9 of docs/08-identity.md).
+//! The SSH keys people register for SFTP.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};

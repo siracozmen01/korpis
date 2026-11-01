@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis template create|list|show|edit|retire|holders` (§4 of docs/08-identity.md): grant
-//! templates, the roles of the interface. A template is written as a file holding what
-//! `template show --json` prints, so a template is read, edited, and written back; an edit is
-//! made against the version the file says it was read at, and a template edited since is a
-//! conflict. `holders` finds the grants issued from a template and marks those behind it.
+//! `korpis template create|list|show|edit|retire|holders`: grant templates, the roles of the
+//! interface. A template is written as a file holding what `template show --json` prints, so a
+//! template is read, edited, and written back; an edit is made against the version the file says it
+//! was read at, and a template edited since is a conflict. `holders` finds the grants issued from a
+//! template and marks those behind it.
 
 use super::grant::{self, who};
 use super::{Answer, json, mutation};

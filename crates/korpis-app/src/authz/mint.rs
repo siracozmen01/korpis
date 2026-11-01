@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Minting a capability token: a grant's authority in a form verifiers check offline (§6 of
-//! docs/08-identity.md). Minting from a use-limited grant spends one use, whatever the token
-//! carries, because opening a session is the redemption; minting a session token's successor
-//! while it lives, which is how a session is renewed, spends none (§6.1).
+//! Minting a capability token: a grant's authority in a form verifiers check offline. Minting from
+//! a use-limited grant spends one use, whatever the token carries, because opening a session is the
+//! redemption; minting a session token's successor while it lives, which is how a session is
+//! renewed, spends none.
 
 use crate::App;
 use crate::caller::Caller;
@@ -39,8 +39,8 @@ pub struct Minted {
     pub token: String,
     /// When it stops working.
     pub expires_at: SystemTime,
-    /// For a token on a workload that is placed, the node a relay carries its sessions to,
-    /// sealed so the holder cannot read it (§3.1 of docs/02-architecture.md).
+    /// For a token on a workload that is placed, the node a relay carries its sessions to, sealed
+    /// so the holder cannot read it.
     pub route: Option<String>,
 }
 

@@ -34,7 +34,7 @@ pub fn span(s: &str) -> Result<Duration, String> {
 }
 
 /// A metering interval: a span of whole minutes from one to sixty that divides an hour, so every
-/// interval of a day begins on the same minutes of every hour (§2 of docs/15-observability.md).
+/// interval of a day begins on the same minutes of every hour.
 pub fn metering_interval(s: &str) -> Result<Duration, String> {
     let d = span(s)?;
     let seconds = d.as_secs();
@@ -42,7 +42,7 @@ pub fn metering_interval(s: &str) -> Result<Duration, String> {
     fits.then_some(d).ok_or_else(|| format!("{s:?}: a metering interval divides an hour"))
 }
 
-/// A metering lateness window: a span of whole hours (§2 of docs/15-observability.md).
+/// A metering lateness window: a span of whole hours.
 pub fn metering_lateness(s: &str) -> Result<Duration, String> {
     let d = span(s)?;
     (d.as_secs() % 3600 == 0)

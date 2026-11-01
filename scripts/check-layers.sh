@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# The dependency rule of ARCHITECTURE.md §3: dependencies point inward only. The compiler already
-# makes an inward dependency impossible to forget; this makes an outward one impossible to add
-# quietly. Reads the normal (non-dev) dependency graph of each layer and fails on a forbidden
-# crate anywhere in it.
+# The dependency rule of docs/internals/architecture.md: dependencies point inward only. The
+# compiler already makes an inward dependency impossible to forget; this makes an outward one
+# impossible to add quietly. Reads the normal (non-dev) dependency graph of each layer and fails on
+# a forbidden crate anywhere in it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -17,12 +17,11 @@ rules=(
     "korpis-recipe||sqlx connectrpc korpis-proto"
     "korpis-wire||korpis-app sqlx korpis-store"
     "korpis-helper||tokio hyper connectrpc sqlx biscuit-auth korpis-app korpis-store"
-    # The SDK is Apache-2.0 (§2 of docs/19-governance.md): it may link the wire contract and
-    # nothing of ours that is AGPL, or every extension would inherit the AGPL.
+    # The SDK is Apache-2.0: it may link the wire contract and nothing of ours that is AGPL, or
+    # every extension would inherit the AGPL.
     "korpis-extension||korpis-core korpis-app korpis-wire korpis-store korpis-recipe korpis-server korpis-agent sqlx"
-    # The driver conformance suite and its probe are Apache-2.0 too (§2 of docs/19-governance.md),
-    # and test a driver through the protocol alone (§8 of docs/04-runtimes.md): the wire contract,
-    # and nothing of ours that is AGPL, least of all a driver.
+    # The driver conformance suite and its probe are Apache-2.0 too, and test a driver through the
+    # protocol alone: the wire contract, and nothing of ours that is AGPL, least of all a driver.
     "korpis-driver-conformance||korpis-core korpis-app korpis-wire korpis-store korpis-recipe korpis-server korpis-agent korpis-driver-kit korpis-driver-oci korpis-driver-firecracker korpis-image korpis-guest sqlx"
     "korpis-conformance-probe||korpis-core korpis-proto connectrpc hyper sqlx"
     # Trust bootstrap is TLS alone: nothing of ours, no RPC stack, no runtime.
@@ -53,9 +52,9 @@ rules=(
     # An image build reads a publisher's layers: the content format and nothing else of ours, no
     # RPC stack, runtime, network client, or store.
     "korpis-image||korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-proto connectrpc tokio sqlx hyper reqwest"
-    # The runtime drivers are separate processes (§3 of docs/04-runtimes.md): each speaks the
-    # driver protocol, and none holds the agent, the helper, the control plane, a store, or
-    # another driver; what they share is the kit, which holds nothing of any one driver.
+    # The runtime drivers are separate processes: each speaks the driver protocol, and none holds
+    # the agent, the helper, the control plane, a store, or another driver; what they share is the
+    # kit, which holds nothing of any one driver.
     "korpis-driver-kit||korpis-app korpis-store korpis-server korpis-agent korpis-helper korpis-driver-oci korpis-driver-firecracker korpis-containerd sqlx"
     # The spec files' reader is linked by the agent and a driver alike: the domain's CDI name and
     # nothing else of ours, no RPC stack, runtime, or wire contract.
@@ -63,8 +62,8 @@ rules=(
     "korpis-topology||korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-proto connectrpc tokio sqlx hyper reqwest"
     "korpis-driver-oci||korpis-app korpis-store korpis-server korpis-agent korpis-helper korpis-driver-firecracker sqlx"
     "korpis-driver-firecracker||korpis-app korpis-store korpis-server korpis-agent korpis-helper korpis-driver-oci korpis-containerd sqlx reqwest"
-    # A first-party extension is built as a third party's would be (§1 of docs/22-first-party.md):
-    # the SDK and the wire contract, and nothing else of ours.
+    # A first-party extension is built as a third party's would be: the SDK and the wire contract,
+    # and nothing else of ours.
     "korpis-target-s3||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-backup korpis-recipe sqlx"
     "korpis-target-fs||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-backup korpis-recipe sqlx"
     "korpis-kms-openbao||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-backup korpis-recipe sqlx"

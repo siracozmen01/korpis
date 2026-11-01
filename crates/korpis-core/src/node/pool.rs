@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Each node's workload pool (§9.1 of docs/07-networking.md). The mesh routes workloads'
-//! addresses between nodes rather than translating them, so no two nodes may share a pool, and
-//! only the control plane sees every node: it gives each node a /22 of the installation's range
-//! when it enrolls, the lowest one no node holds.
+//! Each node's workload pool. The mesh routes workloads' addresses between nodes rather than
+//! translating them, so no two nodes may share a pool, and only the control plane sees every node:
+//! it gives each node a /22 of the installation's range when it enrolls, the lowest one no node
+//! holds.
 
 use ipnet::Ipv4Net;
 
-/// A unique local /64 for the node `node` names, as the control plane names it: `fd`, then 40
-/// bits of a hash of its identifier as RFC 4193's global identifier, then subnet zero. Derived
-/// rather than random so that it survives the agent's state, different for each node so two
-/// nodes' workloads never share one, and derivable by the control plane, which so knows it
-/// without being told (§4.1 and §9.1 of docs/07-networking.md).
+/// A unique local /64 for the node `node` names, as the control plane names it: `fd`, then 40 bits
+/// of a hash of its identifier as RFC 4193's global identifier, then subnet zero. Derived rather
+/// than random so that it survives the agent's state, different for each node so two nodes'
+/// workloads never share one, and derivable by the control plane, which so knows it without being
+/// told.
 #[cfg(feature = "mesh")]
 #[must_use]
 pub fn unique_local(node: &str) -> ipnet::Ipv6Net {

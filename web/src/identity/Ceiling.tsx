@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The delegation ceiling at an organization (§5.1 of docs/08-identity.md, §5 of
-// docs/11-surface-web.md): the longest a grant beneath a set subject lasts there, the one in
-// force beside the organization's own. A signed-in caller holding `org.write` there sets or
-// removes its own; below the root the control plane refuses one above what is in force above,
-// in its words.
+// The delegation ceiling at an organization: the longest a grant beneath a set subject lasts there,
+// the one in force beside the organization's own. A signed-in caller holding `org.write` there sets
+// or removes its own; below the root the control plane refuses one above what is in force above, in
+// its words.
 
 import { useCallback, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";

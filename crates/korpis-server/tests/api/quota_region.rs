@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota that counts where workloads run (§5.1 of docs/05-scheduling.md, "Where a workload
-//! runs"), on a real control plane with a node in the EU and one in the US: an entry for the EU
-//! holds what runs on the EU's nodes and nothing else, a workload it has no room for is placed in
-//! the US or, if it must be in the EU, waits saying why, and a workload that leaves the EU gives
-//! its room back.
+//! Quota that counts where workloads run ("Where a workload runs"), on a real control plane with a
+//! node in the EU and one in the US: an entry for the EU holds what runs on the EU's nodes and
+//! nothing else, a workload it has no room for is placed in the US or, if it must be in the EU,
+//! waits saying why, and a workload that leaves the EU gives its room back.
 
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::{Harness, mutation};

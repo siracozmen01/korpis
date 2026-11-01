@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A provider call (§3.3 and §5 of docs/16-extensions.md): a request queued for one provider,
-//! claimed by whichever control-plane replica holds a stream that serves it, sent down that
-//! stream with a deadline, and finished by the provider's result or by the deadline.
+//! A provider call: a request queued for one provider, claimed by whichever control-plane replica
+//! holds a stream that serves it, sent down that stream with a deadline, and finished by the
+//! provider's result or by the deadline.
 
 use super::ProviderType;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-/// The longest a provider is waited on: no call is unbounded (§5 of docs/16-extensions.md).
+/// The longest a provider is waited on: no call is unbounded.
 pub const MAX_CALL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// What a call asks. Each provider type adds its own requests; a liveness check is common to all.
@@ -19,14 +19,14 @@ pub enum CallRequest {
         /// Echoed back, so an answer is matched to its question.
         nonce: String,
     },
-    /// `dns`: make an owner's records exactly these (§3.5 of docs/07-networking.md).
+    /// `dns`: make an owner's records exactly these.
     ApplyRecords {
         /// Who the records belong to.
         owner: String,
         /// Every record it should have.
         records: Vec<crate::dns::DnsRecord>,
     },
-    /// `backup_target`: access to `prefix` for one job (§5.6 of docs/06-storage.md).
+    /// `backup_target`: access to `prefix` for one job.
     GrantAccess {
         /// The repository prefix.
         prefix: String,
@@ -49,8 +49,8 @@ pub enum CallRequest {
         /// The keys.
         keys: Vec<String>,
     },
-    /// `key_management`: a new data key, wrapped by the tenant's `key` and sealed to
-    /// `recipient`, for `context` (§5.5 of docs/06-storage.md).
+    /// `key_management`: a new data key, wrapped by the tenant's `key` and sealed to `recipient`,
+    /// for `context`.
     GenerateKey {
         /// The tenant's key, as the repository names it.
         key: String,
@@ -71,20 +71,17 @@ pub enum CallRequest {
         /// As [`CallRequest::GenerateKey`] was answered.
         wrapped: Vec<u8>,
     },
-    /// `identity`: whether a set still is what it was, and which of these people are still in
-    /// it (§5.1 of docs/08-identity.md).
+    /// `identity`: whether a set still is what it was, and which of these people are still in it.
     VerifyMembers(super::identity::MembersAsked),
-    /// `identity`: who presented this evidence (§5.2 of docs/08-identity.md).
+    /// `identity`: who presented this evidence.
     Assert(super::identity::Evidence),
-    /// `identity`, for a provider that signs people in: where to send a person (§9.7 of
-    /// docs/08-identity.md).
+    /// `identity`, for a provider that signs people in: where to send a person.
     Authorize(super::identity::SignIn),
-    /// `health`: a query probe's next round, or its verdict (§5 of docs/04-runtimes.md).
+    /// `health`: a query probe's next round, or its verdict.
     HealthStep(super::health::HealthStep),
-    /// `address_router`: make the network route an address to a node, or to none (§3.7 of
-    /// docs/07-networking.md).
+    /// `address_router`: make the network route an address to a node, or to none.
     RouteAddress(crate::address::Route),
-    /// `block_storage`: a device for a volume (§2.1 of docs/06-storage.md).
+    /// `block_storage`: a device for a volume.
     CreateBlockVolume(super::block::BlockCreate),
     /// `block_storage`: a device attached to one node for one lease epoch.
     AttachBlockVolume(super::block::BlockAttach),
@@ -105,7 +102,7 @@ pub enum CallRequest {
         /// The provider's name for it.
         device: String,
     },
-    /// `step`: resolve an install step (§4 of docs/09-recipes.md).
+    /// `step`: resolve an install step.
     RunStep {
         /// The step kind, `<publisher>/<step>`.
         step: String,
@@ -118,8 +115,7 @@ pub enum CallRequest {
     },
 }
 
-/// A data key sealed to a recipient: the encapsulated X25519 key, then the 32-byte key and its
-/// tag (§5.5 of docs/06-storage.md).
+/// A data key sealed to a recipient: the encapsulated X25519 key, then the 32-byte key and its tag.
 pub const SEALED_LEN: usize = 32 + 32 + 16;
 
 /// The most a wrapped data key may hold: a key management service's ciphertext and its own

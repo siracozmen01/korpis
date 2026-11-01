@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Journal records: `korpis.agent.v1.JournalRecord` (§4.10 of docs/02-architecture.md). What a
-//! node reports is translated strictly; whether to believe it is the ingesting use case's. A
-//! record that does not translate is still a record: it keeps its sequence number and becomes a
-//! malformed one, so the cursor passes it and one bad record cannot block a journal.
+//! Journal records: `korpis.agent.v1.JournalRecord`. What a node reports is translated strictly;
+//! whether to believe it is the ingesting use case's. A record that does not translate is still a
+//! record: it keeps its sequence number and becomes a malformed one, so the cursor passes it and
+//! one bad record cannot block a journal.
 
 use crate::{Result, id, invalid, time};
 use korpis_core::audit::Outcome;

@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The block storage contract (§2.1 of docs/06-storage.md, §5 of docs/16-extensions.md): an
-//! extension requiring `provider.block_storage` installs, and a provider written with the SDK
-//! registers saying its attach fences, which the registration shows; and a workload placed on a
-//! node offering its class has a device made for its volume and attached to that node for the
-//! epoch of the lease it holds there, which its assignment then carries; and a volume a node
-//! reports takes only its own workload's device (Finding 208). The storage here is the
-//! tests' own: devices kept in memory, each attached to one node for one epoch, a lower epoch
-//! refused.
+//! The block storage contract: an extension requiring `provider.block_storage` installs, and a
+//! provider written with the SDK registers saying its attach fences, which the registration shows;
+//! and a workload placed on a node offering its class has a device made for its volume and attached
+//! to that node for the epoch of the lease it holds there, which its assignment then carries; and a
+//! volume a node reports takes only its own workload's device. The storage here is the tests' own:
+//! devices kept in memory, each attached to one node for one epoch, a lower epoch refused.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::block_failover::attached_for;

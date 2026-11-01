@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Names to identifiers, through what the caller may read. A name is looked up by listing what
-//! the API shows the caller, so a name the caller cannot read resolves to nothing, exactly as the
-//! API answers `NOT_FOUND` for it (§8 of docs/10-api.md); the CLI never learns more by resolving
-//! than by asking.
+//! Names to identifiers, through what the caller may read. A name is looked up by listing what the
+//! API shows the caller, so a name the caller cannot read resolves to nothing, exactly as the API
+//! answers `NOT_FOUND` for it; the CLI never learns more by resolving than by asking.
 //!
-//! Reading starts from two places: every organization the caller may read, and the objects its
-//! own grants are anchored at. The second is what lets a token scoped to one project name that
-//! project, though it can read no organization to list it from (§2 of docs/13-surface-cli.md).
+//! Reading starts from two places: every organization the caller may read, and the objects its own
+//! grants are anchored at. The second is what lets a token scoped to one project name that project,
+//! though it can read no organization to list it from.
 
 use crate::connect::Connection;
 use crate::error::CliError;

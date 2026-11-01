@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where a workload may connect out, beyond the egress default (§6 of docs/07-networking.md).
+//! Where a workload may connect out, beyond the egress default.
 //!
 //! It is the workload's and not an endpoint's: a connection a workload opens leaves from no
 //! endpoint, so a node judging the packet has no endpoint to read a rule from. An endpoint's own

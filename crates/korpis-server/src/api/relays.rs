@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Relays, as operators manage them through `NodeService` (§3.1 of docs/02-architecture.md):
-//! enrollment tokens, the list, readmission after a restore, and removal. All of it is over the root organization.
+//! Relays, as operators manage them through `NodeService`: enrollment tokens, the list, readmission
+//! after a restore, and removal. All of it is over the root organization.
 
 use super::wire::relay::relay_to_pb;
 use super::wire::{self, Refuse};
@@ -32,8 +32,7 @@ pub(super) async fn create_token(
             .transpose()
             .refuse()?,
     };
-    // As for a node's token, the record kept for a replay leaves the secret out (§6 of
-    // docs/10-api.md).
+    // As for a node's token, the record kept for a replay leaves the secret out.
     let fingerprint = api.ca_fingerprint.clone();
     let response =
         |t: &RelayEnrollmentToken, secret: bool| pb::CreateRelayEnrollmentTokenResponse {

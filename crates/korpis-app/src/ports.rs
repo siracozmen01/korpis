@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Ports: what the use cases need from the world outside, as traits (§1 of ARCHITECTURE.md).
+//! Ports: what the use cases need from the world outside, as traits.
 //!
-//! A [`Store`] answers reads and opens transactions; a [`Tx`] carries every write, so a change
-//! and the effect recording it commit together or not at all (§4 of docs/03-state.md). Methods
-//! return `impl Future + Send` so a use case can run on any multi-threaded executor.
+//! A [`Store`] answers reads and opens transactions; a [`Tx`] carries every write, so a change and
+//! the effect recording it commit together or not at all. Methods return `impl Future + Send` so a
+//! use case can run on any multi-threaded executor.
 
 mod account;
 mod acme;
@@ -324,7 +324,7 @@ pub trait Store:
     fn endpoint_changes(&self) -> Self::Wakeups;
 
     /// Wakes, from now on, whenever a portal is made, changed, or deleted, or the certificate one
-    /// is served with changes, and every minute besides (§3.6 of docs/07-networking.md).
+    /// is served with changes, and every minute besides.
     fn portal_changes(&self) -> Self::Wakeups;
 }
 

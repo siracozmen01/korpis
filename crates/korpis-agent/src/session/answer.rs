@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The session answering the control plane's feasibility queries (§2.1 of
-//! docs/05-scheduling.md), each in a task of its own, at most [`QUERIES`] at once.
+//! The session answering the control plane's feasibility queries, each in a task of its own, at
+//! most [`QUERIES`] at once.
 
 use super::Session;
 use crate::feasibility::Answerer;

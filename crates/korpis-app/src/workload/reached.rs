@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a workload's plans have made of it (§3.3 of docs/01-model.md). Approval moves the target
-//! before anything runs, so the target is what a workload is to become, not what it is. An intent
-//! whose plan failed was never reached, and the one that plan started from is looked at instead,
-//! until one that was, or none: declarations compute their plans from that (Finding 51 of
-//! docs/23-walkthroughs.md). A node is told less (§4.8 of docs/02-architecture.md, Finding 52
-//! there): an intent or power whose plan has not begun, waiting for its window or behind another
-//! plan, is not on the node either, so it is passed over too.
+//! What a workload's plans have made of it. Approval moves the target before anything runs, so the
+//! target is what a workload is to become, not what it is. An intent whose plan failed was never
+//! reached, and the one that plan started from is looked at instead, until one that was, or none:
+//! declarations compute their plans from that. A node is told less: an intent or
+//! power whose plan has not begun, waiting for its window or behind another plan, is not on the
+//! node either, so it is passed over too.
 
 use crate::App;
 use crate::error::AppError;

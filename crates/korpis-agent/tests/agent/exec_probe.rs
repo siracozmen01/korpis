@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The probes the agent makes through a workload's driver (§5 of docs/04-runtimes.md), with the
-//! in-memory runtime standing in for a driver that runs commands and reaches its guests' agents:
-//! an `exec` probe, healthy while its command succeeds, unhealthy and restarted once it fails,
-//! recorded with its cause, and healthy again once it succeeds; and a `guest_agent` probe, the
-//! same while the guest's agent answers and once it falls silent.
+//! The probes the agent makes through a workload's driver, with the in-memory runtime standing in
+//! for a driver that runs commands and reaches its guests' agents: an `exec` probe, healthy while
+//! its command succeeds, unhealthy and restarted once it fails, recorded with its cause, and
+//! healthy again once it succeeds; and a `guest_agent` probe, the same while the guest's agent
+//! answers and once it falls silent.
 
 use crate::health::{declare, health, observed};
 use crate::session::until;

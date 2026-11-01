@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Rate limit buckets (§10 of docs/10-api.md): a peek charges nothing, a refund gives a request
-//! back and never more than the bucket holds, and a bucket full again is forgotten, which changes
-//! nothing a charge answers.
+//! Rate limit buckets: a peek charges nothing, a refund gives a request back and never more than
+//! the bucket holds, and a bucket full again is forgotten, which changes nothing a charge answers.
 
 use crate::support::{fixture, now};
 use korpis_app::ports::RateBuckets as _;

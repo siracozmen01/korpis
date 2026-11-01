@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Console input (§6 of docs/14-streams.md). For an interactive workload the driver hands the
-//! writer two FIFOs: one it sends input on, framed, and the task's own stdin. The writer records
-//! each input in the stream, redacted, naming who typed it and in which session, and then hands
-//! the bytes to the workload. Being the shim's child it holds the task's stdin open for the
-//! task's whole life, so a restart of the agent or the driver never ends the workload's input.
+//! Console input. For an interactive workload the driver hands the writer two FIFOs: one it sends
+//! input on, framed, and the task's own stdin. The writer records each input in the stream,
+//! redacted, naming who typed it and in which session, and then hands the bytes to the workload.
+//! Being the shim's child it holds the task's stdin open for the task's whole life, so a restart of
+//! the agent or the driver never ends the workload's input.
 //!
 //! Input never blocks the writer: it is handed to a thread of its own through a short queue, and
 //! input that finds the queue full, because the workload is not reading its stdin, is dropped and

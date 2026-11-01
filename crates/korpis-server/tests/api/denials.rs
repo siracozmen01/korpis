@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Refusals are recorded and coalesced (§10 of docs/10-api.md, §4 of
-//! docs/15-observability.md): the first of a run at once, its repeats as one effect with a count
-//! and the window's bounds once the window closes. The window is five seconds here, so the run's
-//! refusals fall inside it however loaded the machine is.
+//! Refusals are recorded and coalesced: the first of a run at once, its repeats as one effect with
+//! a count and the window's bounds once the window closes. The window is five seconds here, so the
+//! run's refusals fall inside it however loaded the machine is.
 
 use crate::lifecycle::power;
 use crate::recipes::{body, create, project, push_paper};

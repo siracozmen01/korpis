@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Delivering a subscription (§5 of docs/15-observability.md): the events after its
-//! acknowledged position, in position order, that pass its filter and that its subject may
-//! read, judged by the subject's grants as they are when each batch is sent; then each new one
-//! as it is positioned. Delivery reads the log at the subscriber's pace, so a slow subscriber
-//! falls behind in the log rather than in a buffer, and the bound is the log's retention: a
-//! position that fell out of it is answered with a gap marker naming where delivery resumes.
+//! Delivering a subscription: the events after its acknowledged position, in position order, that
+//! pass its filter and that its subject may read, judged by the subject's grants as they are when
+//! each batch is sent; then each new one as it is positioned. Delivery reads the log at the
+//! subscriber's pace, so a slow subscriber falls behind in the log rather than in a buffer, and the
+//! bound is the log's retention: a position that fell out of it is answered with a gap marker
+//! naming where delivery resumes.
 
 use crate::App;
 use crate::caller::Caller;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A query probe's questions to the control plane, and their answers (§5 of
-//! docs/16-extensions.md): asked up the session, naming the workload, the intent its object was
-//! built from, the probe, and the rounds run so far, and answered down it with the health
-//! provider's next round, its verdict, or why the probe is not judged this time. An answer that
-//! does not come in time is no answer, and the attempt is unjudged.
+//! A query probe's questions to the control plane, and their answers: asked up the session, naming
+//! the workload, the intent its object was built from, the probe, and the rounds run so far, and
+//! answered down it with the health provider's next round, its verdict, or why the probe is not
+//! judged this time. An answer that does not come in time is no answer, and the attempt is
+//! unjudged.
 
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;

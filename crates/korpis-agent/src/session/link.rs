@@ -25,15 +25,15 @@ pub struct Facts {
     pub capacity: pb::Resources,
     /// What placements may reserve.
     pub allocatable: pb::Resources,
-    /// What it advertises for inbound traffic (§9 of docs/07-networking.md).
+    /// What it advertises for inbound traffic.
     pub advertised: agent::Advertised,
-    /// Its devices, as its spec files describe them (§6.1 of docs/05-scheduling.md).
+    /// Its devices, as its spec files describe them.
     pub devices: Vec<pb::Device>,
     /// What its spec files describe that it does not offer, and why.
     pub unoffered_devices: Vec<pb::UnofferedDevice>,
-    /// The physical cores it offers for dedication (§5.2 of docs/05-scheduling.md).
+    /// The physical cores it offers for dedication.
     pub cores: Vec<pb::Core>,
-    /// Its side of the mesh, as last kept (§9.1 of docs/07-networking.md); none until it is.
+    /// Its side of the mesh, as last kept; none until it is.
     pub overlay: Option<agent::OverlayFacts>,
 }
 
@@ -61,16 +61,15 @@ pub enum Event {
         /// How many grants it lists.
         entries: usize,
     },
-    /// The mesh's other members, as the control plane named them (§9.1 of
-    /// docs/07-networking.md).
+    /// The mesh's other members, as the control plane named them.
     Peers(agent::Peers),
-    /// What the node is told of edges (§3.1 of docs/07-networking.md).
+    /// What the node is told of edges.
     Edges(agent::Edges),
     /// A lease on an edge address this member asked for, granted.
     EdgeLeaseGrant(agent::EdgeLeaseGrant),
     /// A lease on an edge address this member asked for, refused.
     EdgeLeaseRefusal(agent::EdgeLeaseRefusal),
-    /// What the node is told of replicas (§2.2 of docs/06-storage.md), kept on disk first.
+    /// What the node is told of replicas, kept on disk first.
     Replicas(agent::Replicas),
     /// The stream ended, and why.
     Disconnected(String),
@@ -81,11 +80,10 @@ pub enum Event {
 pub struct Link {
     /// The set held, as it changes.
     pub held: watch::Receiver<HeldSet>,
-    /// The token keys in force, as the control plane last sent them: what capability tokens
-    /// and revocation lists are verified with (§8 of docs/03-state.md).
+    /// The token keys in force, as the control plane last sent them: what capability tokens and
+    /// revocation lists are verified with.
     pub token_ring: watch::Receiver<Arc<korpis_core::authz::token::KeyRing>>,
-    /// The revocation list held, as it changes: what token verification refuses (§6.3 of
-    /// docs/08-identity.md).
+    /// The revocation list held, as it changes: what token verification refuses.
     pub revoked: watch::Receiver<Arc<RevocationList>>,
     /// The relays the last `Relays` named, the control plane's address among them when it serves
     /// the relay role; none before the first.
@@ -97,25 +95,22 @@ pub struct Link {
     pub outbound: mpsc::Sender<agent::AgentMessage>,
     /// What happens, for watching.
     pub events: broadcast::Sender<Event>,
-    /// Workload credential requests, sent up this session and answered down it (§9.5 of
-    /// docs/08-identity.md).
+    /// Workload credential requests, sent up this session and answered down it.
     pub credentials: Arc<Credentials>,
-    /// Backup and restore jobs' access requests, sent up this session and answered down it
-    /// (§5.5 of docs/06-storage.md).
+    /// Backup and restore jobs' access requests, sent up this session and answered down it.
     pub jobs: Arc<JobAccesses>,
-    /// Installs' provider-step questions, sent up this session and answered down it (§4 of
-    /// docs/09-recipes.md).
+    /// Installs' provider-step questions, sent up this session and answered down it.
     pub steps: Arc<crate::steps::StepAnswers>,
-    /// Query probes' questions to their health providers, sent up this session and answered
-    /// down it (§5 of docs/16-extensions.md).
+    /// Query probes' questions to their health providers, sent up this session and answered down
+    /// it.
     pub queries: Arc<crate::health::Queries>,
     /// Told when what the node offers changes, such as its ingress being served; the session
     /// reports it at once rather than at the next heartbeat, so placement learns of it.
     pub offered: Arc<tokio::sync::Notify>,
-    /// The certificates the node's proxy serves with, asked for up this session and answered
-    /// down it (§3.2 of docs/07-networking.md).
+    /// The certificates the node's proxy serves with, asked for up this session and answered down
+    /// it.
     pub certificates: Arc<crate::ingress::Certificates>,
     /// The metering interval the control plane declared in its last Welcome; none before one
-    /// declared it (§2 of docs/15-observability.md).
+    /// declared it.
     pub metering: watch::Receiver<Option<Duration>>,
 }

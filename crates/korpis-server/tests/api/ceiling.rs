@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The delegation ceiling an organization sets (§5.1 of docs/08-identity.md): seven days where
-//! none says, lowered by any organization for its subtree, raised only by the root, at most
-//! ninety days and at least an hour, and every change an effect.
+//! The delegation ceiling an organization sets: seven days where none says, lowered by any
+//! organization for its subtree, raised only by the root, at most ninety days and at least an hour,
+//! and every change an effect.
 
 use crate::domains::child;
 use crate::support::{Harness, mutation};

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis version`: the client's version and source revision, and the control plane's, each
-//! with where its source is published (§8 of docs/13-surface-cli.md), which is how a conveyed
-//! copy meets the AGPL without anyone doing anything (§2 of docs/19-governance.md).
+//! `korpis version`: the client's version and source revision, and the control plane's, each with
+//! where its source is published, which is how a conveyed copy meets the AGPL without anyone doing
+//! anything.
 
 use crate::call::call;
 use crate::connect::Connection;

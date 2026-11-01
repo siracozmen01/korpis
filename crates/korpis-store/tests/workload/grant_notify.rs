@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A grant issued to a workload, or revoked or suspended above one a workload holds, announces
-//! the workload (§9.5 of docs/08-identity.md), so its node's assignment, which says whether the
-//! API is relayed to it, follows at once. A grant to anyone else, and a use, announce nothing.
+//! A grant issued to a workload, or revoked or suspended above one a workload holds, announces the
+//! workload, so its node's assignment, which says whether the API is relayed to it, follows at
+//! once. A grant to anyone else, and a use, announce nothing.
 
 use crate::support::{Fixture, fixture};
 use sqlx::postgres::PgListener;

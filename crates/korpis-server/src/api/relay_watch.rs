@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A session for a client that cannot stream both ways ("From a browser" in §3.1 of
-//! docs/02-architecture.md): `Watch` opens it as `Open` does and streams the node's frames back,
-//! and `Send` delivers the client's frames, numbered, in order and once. The session lives as
-//! long as its `Watch` stream: when the client stops reading, or the node ends it, it is
-//! forgotten, and what was sending into it is dropped, which ends the node's side too.
+//! A session for a client that cannot stream both ways: `Watch` opens it as `Open` does and streams
+//! the node's frames back, and `Send` delivers the client's frames, numbered, in order and once.
+//! The session lives as long as its `Watch` stream: when the client stops reading, or the node ends
+//! it, it is forgotten, and what was sending into it is dropped, which ends the node's side too.
 //!
 //! `Send` is authorized by the key the `opened` answer gave only the watcher. The session
 //! identifier is for logs and is no secret; the key is never logged, and a key that does not

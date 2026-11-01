@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server install` as a command (§2 of docs/18-operations.md): preflight first, and
-//! nothing changed when it refuses; then the users the units run as, the installation in the
-//! database, the environment file and the units; and last, what the operator runs next. Where
-//! the PostgreSQL server comes from is decided first, in [`provision`].
+//! `korpis-server install` as a command: preflight first, and nothing changed when it refuses; then
+//! the users the units run as, the installation in the database, the environment file and the
+//! units; and last, what the operator runs next. Where the PostgreSQL server comes from is decided
+//! first, in [`provision`].
 
 mod provision;
 
@@ -42,12 +42,12 @@ pub struct InstallArgs {
     /// Names and addresses the server certificate is valid for.
     #[arg(long = "tls-name", default_values = ["localhost", "127.0.0.1"])]
     tls_names: Vec<String>,
-    /// Issue the root grant to an API token instead, printed once: a bearer secret with no
-    /// second factor, for an unattended install or a test (§9.1 of docs/08-identity.md).
+    /// Issue the root grant to an API token instead, printed once: a bearer secret with no second
+    /// factor, for an unattended install or a test.
     #[arg(long)]
     root_token: bool,
-    /// Where the control plane's own backup goes: a directory on another disk or a network
-    /// mount (§6 of docs/18-operations.md). Installation refuses without one.
+    /// Where the control plane's own backup goes: a directory on another disk or a network mount.
+    /// Installation refuses without one.
     #[arg(long)]
     backup_target: Option<BackupTarget>,
     /// The first node's name, whose one-time enrollment is printed; by default this machine's
@@ -191,8 +191,8 @@ fn layout(args: &InstallArgs, bin: PathBuf, uid: u32) -> Layout {
 const MICROVM_FILES: [&str; 6] =
     ["firecracker", "jailer", "vmlinux", "korpis-guest", "korpis-fsworker", "korpis-install-job"];
 
-/// `dir`, where this machine can run guests (§6 of docs/04-runtimes.md): KVM opens, and the
-/// files the `firecracker` driver runs are all in `dir`; otherwise why not.
+/// `dir`, where this machine can run guests: KVM opens, and the files the `firecracker` driver runs
+/// are all in `dir`; otherwise why not.
 fn microvm_tier(dir: &Path) -> Result<PathBuf, String> {
     let kvm = std::fs::OpenOptions::new().read(true).write(true).open("/dev/kvm");
     kvm.map_err(|e| format!("/dev/kvm does not open: {e}"))?;

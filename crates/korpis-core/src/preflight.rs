@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a preflight reports (§2 of docs/18-operations.md), the node's and the control plane's
-//! alike: each requirement, what was found of it, and whether it is met, not needed, lacking
-//! with the command that fixes it, or unchecked with what would let it be checked. A report is
-//! a failure only when something essential lacks: a machine that lacks the rest offers less.
+//! What a preflight reports, the node's and the control plane's alike: each requirement, what was
+//! found of it, and whether it is met, not needed, lacking with the command that fixes it, or
+//! unchecked with what would let it be checked. A report is a failure only when something essential
+//! lacks: a machine that lacks the rest offers less.
 
 use std::fmt::Write as _;
 

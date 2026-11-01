@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Failed attempts to authenticate (§10 of docs/10-api.md): each is charged to its source and
-//! answered `RATE_LIMITED` once the source's bucket refuses, while a credential that opens is
-//! admitted from the same source all the same; and each is recorded as a denial is, by no one,
-//! the first at once and its repeats within the window as one effect with their count.
+//! Failed attempts to authenticate: each is charged to its source and answered `RATE_LIMITED` once
+//! the source's bucket refuses, while a credential that opens is admitted from the same source all
+//! the same; and each is recorded as a denial is, by no one, the first at once and its repeats
+//! within the window as one effect with their count.
 
 use crate::agent::{TestAgent, agents};
 use crate::support::{Harness, reason};

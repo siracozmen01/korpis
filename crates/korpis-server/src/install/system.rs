@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What installation writes to the machine besides the data directory (§2 of
-//! docs/18-operations.md): the users the units run as, made by `systemd-sysusers` from a file of
-//! its own; the units; and the environment file the control plane reads its database URL from,
-//! readable by root alone, since systemd reads it before the service drops to its user.
+//! What installation writes to the machine besides the data directory: the users the units run as,
+//! made by `systemd-sysusers` from a file of its own; the units; and the environment file the
+//! control plane reads its database URL from, readable by root alone, since systemd reads it before
+//! the service drops to its user.
 
 use std::fs;
 use std::io::Write as _;

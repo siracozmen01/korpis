@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's convergence as a condition event (§5 of docs/15-observability.md). Convergence is
-//! derived when it is read, from the target, the plans, the observation, and the clock, so no
-//! single transaction changes it; an observation going stale changes it without any write at
-//! all. So the control plane decides it here, on every announced change and on every resync,
-//! records what it decided, and writes `convergence.changed` when that differs from the last
-//! decision. Several processes may decide at once; the record is swapped by compare-and-swap, so
-//! a change is written once.
+//! A workload's convergence as a condition event. Convergence is derived when it is read, from the
+//! target, the plans, the observation, and the clock, so no single transaction changes it; an
+//! observation going stale changes it without any write at all. So the control plane decides it
+//! here, on every announced change and on every resync, records what it decided, and writes
+//! `convergence.changed` when that differs from the last decision. Several processes may decide at
+//! once; the record is swapped by compare-and-swap, so a change is written once.
 
 use crate::App;
 use crate::error::AppError;

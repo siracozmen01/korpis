@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grant templates (§4 of docs/08-identity.md): what a template may ask for, and where it is
-//! offered. A template says whether its grants delegate, never more than it permits and never
-//! without a depth; a selector needs an organization or a project to look below; and a template
-//! is offered to its owner's subtree while it is not retired.
+//! Grant templates: what a template may ask for, and where it is offered. A template says whether
+//! its grants delegate, never more than it permits and never without a depth; a selector needs an
+//! organization or a project to look below; and a template is offered to its owner's subtree while
+//! it is not retired.
 
 use korpis_core::authz::template::{
     GrantTemplate, ScopePattern, TemplateBody, TemplateConditions, TemplateError, TemplateVersion,
@@ -19,7 +19,7 @@ fn actions(names: &[&str]) -> BTreeSet<Action> {
     names.iter().map(|n| Action::parse(n).unwrap()).collect()
 }
 
-/// The moderator of §3.2: restart, and pass restart on one level.
+/// The moderator: restart, and pass restart on one level.
 fn moderator() -> TemplateBody {
     TemplateBody {
         actions: actions(&["workload.restart", "workload.console.read"]),

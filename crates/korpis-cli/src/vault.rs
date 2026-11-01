@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where `korpis login` keeps a session's refresh credential (§7 of docs/13-surface-cli.md): the
-//! operating system's keyring, one entry per control plane; where none is reachable, a file only
-//! its user can read, said so when it is written; and beside either, a lock every command holds
-//! while it exchanges the credential, since each exchange rotates it and two commands presenting
-//! the same one at once would end the session (§9.4 of docs/08-identity.md). Beside the refresh
-//! credential it keeps the last access token, until shortly before it expires, so commands run
-//! one after another, a shell's completions among them, do not each rotate the credential.
+//! Where `korpis login` keeps a session's refresh credential: the operating system's keyring, one
+//! entry per control plane; where none is reachable, a file only its user can read, said so when it
+//! is written; and beside either, a lock every command holds while it exchanges the credential,
+//! since each exchange rotates it and two commands presenting the same one at once would end the
+//! session. Beside the refresh credential it keeps the last access token, until shortly before it
+//! expires, so commands run one after another, a shell's completions among them, do not each rotate
+//! the credential.
 
 use crate::error::CliError;
 use std::fs::{File, OpenOptions};

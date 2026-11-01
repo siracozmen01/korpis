@@ -8,11 +8,11 @@
 // group, or from the issuer, by writing it.
 //
 //   PORT       the loopback port to listen on
-//   PEOPLE     a JSON file: { "next": "<sub>", "people": { "<sub>": ["<group>", ...] } }
+//   PEOPLE     a JSON file: { "next": "<sub>", "people": { "<sub>": ["<group>",...] } }
 //   CLIENT_ID, CLIENT_SECRET, REDIRECT_URI   the one client
 //   ALG        the ID token's algorithm: RS256, ES256, or EdDSA
 //   TLS_CERT, TLS_KEY   if set, PEM files it serves HTTPS with, as an issuer a browser is sent
-//              to must (§6 of docs/16-extensions.md); plain HTTP otherwise
+//              to must; plain HTTP otherwise
 
 import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";

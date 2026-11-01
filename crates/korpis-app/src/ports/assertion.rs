@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Acting as an external identity (§5.2 of docs/08-identity.md): each presentation accepted
-//! once, and the tickets handed to the clients that relayed them.
+//! Acting as an external identity: each presentation accepted once, and the tickets handed to the
+//! clients that relayed them.
 
 use super::StoreResult;
 use korpis_core::authz::binding::{IdentityBinding, ProviderRef};
