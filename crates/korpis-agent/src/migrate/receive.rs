@@ -23,6 +23,7 @@ use korpis_wire::wire_id;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::TcpStream;
 
 /// How long a receive may take to end once its stream has.
@@ -42,7 +43,9 @@ pub(super) async fn handle<H: Replicating + Trees>(
             let mut part = reported(&v, &pass);
             let got = receive(&m, stream, (&a, &v, &pass)).await;
             let failed = match got {
-                Ok((helper_id, crossed)) => {
+                // One of the volume's own snapshots, which the pass that follows reports.
+                Ok(None) => return,
+                Ok(Some((helper_id, crossed))) => {
                     (part.held, part.helper_id, part.sent_bytes) = (true, helper_id, crossed);
                     None
                 }
@@ -99,30 +102,31 @@ fn class_of(a: &agent::Assignment, name: &str) -> String {
     v.map(|v| v.storage_class.clone()).unwrap_or_default()
 }
 
-/// Receives the pass `pass` of `v` that `stream` carries; the identifier its copy has here, and,
-/// for a tree, the bytes that crossed, which its sender, rsync's daemon, does not count.
+/// Receives what `stream` carries of the pass `pass` of `v`: the pass, or one of the volume's
+/// own snapshots sent before it, which is `None`. For the pass, the identifier its copy has here,
+/// and, for a tree, the bytes that crossed, which its sender, rsync's daemon, does not count.
 async fn receive<H: Replicating + Trees>(
     m: &Migrating<H>,
     mut stream: TcpStream,
     (a, v, pass): (&agent::Assignment, &agent::MigrationVolumeRole, &str),
-) -> Result<(String, u64), String> {
+) -> Result<Option<(String, u64)>, String> {
     let (here, class) = (volume_id(a, &v.name), class_of(a, &v.name));
     let increments =
         v.crossing.as_known() == Some(pb::MigrationCrossing::MIGRATION_CROSSING_INCREMENTS);
     if increments {
+        let own = named(&mut stream).await?;
         let request = helper::ReceiveReplicaRequest {
-            volume: v.source_helper_id.clone(),
+            volume: if own.is_empty() {
+                v.source_helper_id.clone()
+            } else {
+                super::own_snapshots_of(&v.source_helper_id)
+            },
             storage_class: class,
-            snapshot: pass.to_owned(),
+            snapshot: if own.is_empty() { pass.to_owned() } else { own.clone() },
             ..Default::default()
         };
-        if let Some(write) = m.host.receive_replica(&request).await.map_err(|e| e.to_string())? {
-            let mut pipe = tokio::fs::File::from_std(std::fs::File::from(write));
-            tokio::io::copy(&mut stream, &mut pipe).await.map_err(|e| e.to_string())?;
-            drop(pipe);
-            crate::replicas::receive_settled(&m.host, &request).await?;
-        }
-        return Ok((here, 0));
+        receive_snapshot(m, stream, &request).await?;
+        return Ok(own.is_empty().then_some((here, 0)));
     }
     let request = helper::ReceiveTreeRequest {
         storage_class: class,
@@ -139,5 +143,31 @@ async fn receive<H: Replicating + Trees>(
         ..Default::default()
     };
     let crossed = super::settled(m, &asked, SETTLE).await?;
-    Ok((here, crossed))
+    Ok(Some((here, crossed)))
+}
+
+/// The name a snapshot's stream begins with, after its ticket: empty for the pass itself.
+async fn named(stream: &mut TcpStream) -> Result<String, String> {
+    let io = |e: std::io::Error| e.to_string();
+    let len = stream.read_u16().await.map_err(io)?;
+    let mut name = vec![0u8; usize::from(len)];
+    stream.read_exact(&mut name).await.map_err(io)?;
+    String::from_utf8(name).map_err(|_| "a snapshot name not UTF-8".to_owned())
+}
+
+/// Receives the snapshot `request` names from `stream`, or answers that it is held already.
+async fn receive_snapshot<H: Replicating>(
+    m: &Migrating<H>,
+    mut stream: TcpStream,
+    request: &helper::ReceiveReplicaRequest,
+) -> Result<(), String> {
+    let io = |e: std::io::Error| e.to_string();
+    let Some(write) = m.host.receive_replica(request).await.map_err(|e| e.to_string())? else {
+        return stream.write_u8(super::HELD).await.map_err(io);
+    };
+    stream.write_u8(super::RECEIVING).await.map_err(io)?;
+    let mut pipe = tokio::fs::File::from_std(std::fs::File::from(write));
+    tokio::io::copy(&mut stream, &mut pipe).await.map_err(io)?;
+    drop(pipe);
+    crate::replicas::receive_settled(&m.host, request).await
 }

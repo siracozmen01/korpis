@@ -74,12 +74,13 @@ impl Class {
 
     /// Takes snapshot `snapshot` of `volume` for sending, read-only, unless it was taken, and
     /// starts sending it into a pipe: whole, or what differs from `parent`, a snapshot of it sent
-    /// before. The pipe's read end, at whose end the stream is whole or sending failed.
+    /// before. With `own`, the snapshot and its parent are the volume's own snapshots, sent as
+    /// they are. The pipe's read end, at whose end the stream is whole or sending failed.
     pub fn send_replica(
         &mut self,
         volume: &str,
-        snapshot: &str,
-        parent: &str,
+        (snapshot, parent): (&str, &str),
+        own: bool,
     ) -> HelperResult<OwnedFd> {
         identifier("volume", volume)?;
         identifier("snapshot", snapshot)?;
@@ -88,9 +89,13 @@ impl Class {
         if !is_subvolume(&source)? {
             return Err(HelperError::NotFound(format!("volume {volume}")));
         }
-        let dir = self.replica_dir_made(volume)?;
-        let taken = self.replica_dir(volume).join(snapshot);
-        if !is_subvolume(&taken)? {
+        let kept = if own { self.snapshot_dir(volume) } else { self.replica_dir(volume) };
+        let taken = kept.join(snapshot);
+        if own && !held_at(&taken)? {
+            return Err(HelperError::NotFound(format!("snapshot {snapshot} of volume {volume}")));
+        }
+        if !own && !is_subvolume(&taken)? {
+            let dir = self.replica_dir_made(volume)?;
             btrfs::snapshot(&File::open(&source)?, &dir, snapshot, true)?;
             dir.sync_all()?;
         }
@@ -98,7 +103,7 @@ impl Class {
             None
         } else {
             identifier("parent", parent)?;
-            let path = self.replica_dir(volume).join(parent);
+            let path = kept.join(parent);
             if !held_at(&path)? {
                 return Err(HelperError::NotFound(format!("snapshot {parent} of volume {volume}")));
             }
@@ -260,5 +265,31 @@ impl Class {
         self.handle.sync_all()?;
         tracing::info!(%volume, %snapshot, %into, "replica promoted to the volume");
         Ok(target)
+    }
+
+    /// Makes each snapshot the replica volume `own_from` holds whole one of `into`'s own, by the
+    /// same name, and releases the received copy; one `into` has already stays as it is.
+    pub fn adopt_snapshots(&mut self, own_from: &str, into: &str) -> HelperResult<()> {
+        identifier("own_from", own_from)?;
+        identifier("into", into)?;
+        let held = self.replica_snapshots(own_from)?;
+        if held.is_empty() {
+            return Ok(());
+        }
+        let dir = self.snapshot_dir(into);
+        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&dir)?;
+        let parent = File::open(&dir)?;
+        for name in held {
+            // A read-only subvolume cannot be renamed into another directory, which would change
+            // its `..`, so it is snapshotted there read-only and the received copy released.
+            if !is_subvolume(&dir.join(&name))? {
+                let received = File::open(self.replica_dir(own_from).join(&name))?;
+                btrfs::snapshot(&received, &parent, &name, true)?;
+                parent.sync_all()?;
+                tracing::info!(volume = %into, snapshot = %name, "snapshot adopted");
+            }
+            self.release_replica(own_from, &name)?;
+        }
+        Ok(())
     }
 }

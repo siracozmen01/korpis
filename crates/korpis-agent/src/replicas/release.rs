@@ -26,9 +26,24 @@ pub(super) fn kept(told: &agent::Replicas, held: &helper::ReplicaHeld) -> BTreeS
         .collect()
 }
 
-/// Releases every snapshot the helper lists that what the node was told does not keep.
+/// The helper's names of the volumes the held assignments' migrations copy: on either side, the
+/// passes, and on the destination, the volume's own snapshots sent before them. A migration's
+/// copies are its own to keep until it ends; then they are released like any other.
+fn migrating(held: &crate::held::HeldSet) -> BTreeSet<String> {
+    let roles = held.assignments.values().filter_map(|a| a.migration.as_option());
+    roles
+        .flat_map(|r| r.volumes.iter())
+        .flat_map(|v| {
+            [v.source_helper_id.clone(), crate::migrate::own_snapshots_of(&v.source_helper_id)]
+        })
+        .collect()
+}
+
+/// Releases every snapshot the helper lists that what the node was told does not keep, and that
+/// no migration under way copies.
 pub(super) async fn release<H: Replicating>(r: &Replication<H>) {
     let Some(told) = r.shared().told.clone() else { return };
+    let migrating = migrating(&r.held.borrow());
     let held = match r.host.replica_volumes().await {
         Ok(held) => held,
         Err(e) => {
@@ -36,7 +51,7 @@ pub(super) async fn release<H: Replicating>(r: &Replication<H>) {
             return;
         }
     };
-    for h in &held {
+    for h in held.iter().filter(|h| !migrating.contains(&h.volume)) {
         let keep = kept(&told, h);
         for snapshot in h.snapshots.iter().filter(|s| !keep.contains(*s)) {
             let request = helper::ReleaseReplicaRequest {

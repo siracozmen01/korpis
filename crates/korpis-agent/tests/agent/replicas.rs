@@ -37,7 +37,8 @@ fn node(id: Uuid, mesh: Ipv4Addr, keys: &KeyRing) -> Node {
     let host = InMemoryHost::new();
     let (_, ring) = watch::channel(Arc::new(keys.clone()));
     let told = (journal.clone(), None);
-    let r = Replication::new(host.clone(), (dir.path(), id, Some(mesh)), ring, told);
+    let (_, held) = watch::channel(korpis_agent::held::HeldSet::default());
+    let r = Replication::new(host.clone(), (dir.path(), id, Some(mesh)), (ring, held), told);
     let (events, _) = broadcast::channel(16);
     tokio::spawn(r.run(events.subscribe()));
     Node { id, host, journal, events, _dir: dir }

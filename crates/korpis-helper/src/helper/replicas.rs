@@ -46,8 +46,8 @@ impl Helper {
     pub(super) fn replica_verb(&mut self, verb: Verb) -> HelperResult<Answer> {
         Ok(match verb {
             Verb::SendReplica(r) => {
-                let read =
-                    self.holding(&r.volume)?.send_replica(&r.volume, &r.snapshot, &r.parent)?;
+                let named = (r.snapshot.as_str(), r.parent.as_str());
+                let read = self.holding(&r.volume)?.send_replica(&r.volume, named, r.own)?;
                 self.attached = vec![read];
                 Answer::SendReplica(Box::new(helper::SendReplicaResponse {
                     attached: 1,
@@ -78,15 +78,9 @@ impl Helper {
                     ..Default::default()
                 }))
             }
-            Verb::PromoteReplica(r) => {
-                let class = self.class(&r.storage_class)?;
-                let path = class.promote_replica(&r.volume, &r.snapshot, &r.into)?;
-                Answer::PromoteReplica(Box::new(helper::PromoteReplicaResponse {
-                    host_path: path.to_string_lossy().into_owned(),
-                    ..Default::default()
-                }))
-            }
+            Verb::PromoteReplica(r) => self.promote(&r)?,
             Verb::ReplicaVolumes(_) => self.replica_volumes()?,
+            Verb::OwnSnapshots(r) => self.own_snapshots(&r.volume)?,
             Verb::OpenTransfer(r) => {
                 self.attached = vec![transfer_socket(&r)?];
                 let opened = helper::OpenTransferResponse { attached: 1, ..Default::default() };
@@ -94,6 +88,33 @@ impl Helper {
             }
             _ => return Err(HelperError::Refused("not a replica verb".into())),
         })
+    }
+
+    /// Makes a volume of a replica, adopting the volume's own snapshots received beside it.
+    fn promote(&mut self, r: &helper::PromoteReplicaRequest) -> HelperResult<Answer> {
+        let class = self.class(&r.storage_class)?;
+        let path = class.promote_replica(&r.volume, &r.snapshot, &r.into)?;
+        if !r.own_from.is_empty() {
+            class.adopt_snapshots(&r.own_from, &r.into)?;
+        }
+        Ok(Answer::PromoteReplica(Box::new(helper::PromoteReplicaResponse {
+            host_path: path.to_string_lossy().into_owned(),
+            ..Default::default()
+        })))
+    }
+
+    /// A volume's own snapshots, oldest first, each with the one before it.
+    fn own_snapshots(&mut self, volume: &str) -> HelperResult<Answer> {
+        let snapshots = self
+            .holding(volume)?
+            .own_snapshots(volume)?
+            .into_iter()
+            .map(|(name, parent)| helper::OwnSnapshot { name, parent, ..Default::default() })
+            .collect();
+        Ok(Answer::OwnSnapshots(Box::new(helper::OwnSnapshotsResponse {
+            snapshots,
+            ..Default::default()
+        })))
     }
 
     /// Every volume whose replication keeps a snapshot here, in each class.

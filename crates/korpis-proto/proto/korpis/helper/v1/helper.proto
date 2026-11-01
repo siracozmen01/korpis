@@ -88,6 +88,9 @@ service HelperService {
   rpc PromoteReplica(PromoteReplicaRequest) returns (PromoteReplicaResponse);
   rpc ReplicaVolumes(ReplicaVolumesRequest) returns (ReplicaVolumesResponse);
   rpc OpenTransfer(OpenTransferRequest) returns (OpenTransferResponse);
+  // A volume's own snapshots, oldest first, each with the one taken before it, which is what a
+  // migration sends them as increments from, so the volume keeps them on its new node.
+  rpc OwnSnapshots(OwnSnapshotsRequest) returns (OwnSnapshotsResponse);
   // Unmounts the volume of a block class and lets go of its device, which the storage keeps.
   rpc ReleaseDevice(ReleaseDeviceRequest) returns (ReleaseDeviceResponse);
   // Every device a block class has attached on this node, with the workload it was attached
@@ -145,6 +148,7 @@ message HelperRequest {
     SendTreeRequest send_tree = 38;
     ReceiveTreeRequest receive_tree = 39;
     TreeStatusRequest tree_status = 40;
+    OwnSnapshotsRequest own_snapshots = 41;
   }
 }
 
@@ -192,6 +196,7 @@ message HelperResponse {
     SendTreeResponse send_tree = 39;
     ReceiveTreeResponse receive_tree = 40;
     TreeStatusResponse tree_status = 41;
+    OwnSnapshotsResponse own_snapshots = 42;
   }
 }
 
@@ -660,6 +665,9 @@ message SendReplicaRequest {
   // A snapshot sent before, which the receiver holds: only what differs from it is sent. Empty
   // to send the whole volume.
   string parent = 3;
+  // The snapshot, and the parent, are the volume's own, taken by SnapshotVolume and listed by
+  // OwnSnapshots, and are sent as they are rather than taken for this send.
+  bool own = 4;
 }
 
 message SendReplicaResponse {
@@ -739,6 +747,25 @@ message PromoteReplicaRequest {
   // it had on its own node, which a copy left here by an earlier failover may still hold. The
   // replica's snapshot stays, and is released as any other once nothing keeps it.
   string into = 4;
+  // A replica volume holding the volume's own snapshots, sent with SendReplica's `own`: each
+  // snapshot it holds whole becomes one of the volume's own, by the same name. Empty for none.
+  string own_from = 5;
+}
+
+message OwnSnapshotsRequest {
+  // The volume, in the class holding it.
+  string volume = 1;
+}
+
+message OwnSnapshotsResponse {
+  // Oldest first.
+  repeated OwnSnapshot snapshots = 1;
+}
+
+message OwnSnapshot {
+  string name = 1;
+  // The snapshot taken before it, which it is sent as an increment from; empty for the first.
+  string parent = 2;
 }
 
 message ReplicaVolumesRequest {}

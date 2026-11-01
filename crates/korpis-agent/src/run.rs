@@ -219,8 +219,8 @@ fn replication<H: Replicating + Trees + Clone>(
     let at = (state.root(), node, Some(mesh));
     let (passes, incoming) = tokio::sync::mpsc::channel(16);
     let told = (journal.clone(), Some(passes));
-    let r = Replication::new(host.clone(), at, link.token_ring.clone(), told);
     let watched = (link.token_ring.clone(), link.held.clone());
+    let r = Replication::new(host.clone(), at, watched.clone(), told);
     let m = Migrating::new(host.clone(), at, watched, journal.clone());
     vec![
         tokio::spawn(r.run(link.events.subscribe())),

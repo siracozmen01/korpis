@@ -102,6 +102,32 @@ impl Class {
         Ok(true)
     }
 
+    /// The snapshots of `volume`, oldest first, each with the one taken before it, from which
+    /// it is sent as an increment; the first with none.
+    pub fn own_snapshots(&self, volume: &str) -> HelperResult<Vec<(String, String)>> {
+        identifier("volume", volume)?;
+        let entries = match std::fs::read_dir(self.snapshot_dir(volume)) {
+            Ok(e) => e,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(e) => return Err(e.into()),
+        };
+        let mut taken = Vec::new();
+        for entry in entries {
+            let entry = entry?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if identifier("snapshot", &name).is_ok() && is_subvolume(&entry.path())? {
+                taken.push((btrfs::created(&File::open(entry.path())?)?, name));
+            }
+        }
+        taken.sort();
+        let mut parent = String::new();
+        let mut out = Vec::with_capacity(taken.len());
+        for (_, name) in taken {
+            out.push((name.clone(), std::mem::replace(&mut parent, name)));
+        }
+        Ok(out)
+    }
+
     /// Removes every snapshot of `volume`, as the volume itself is deleted.
     pub(crate) fn drop_snapshots(&mut self, volume: &str) -> HelperResult<()> {
         let dir = self.snapshot_dir(volume);

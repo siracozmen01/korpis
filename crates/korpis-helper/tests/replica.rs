@@ -28,7 +28,7 @@ const VOLUME: &str = "wl_r.data";
 /// Sends snapshot `snapshot` of the volume from `from` to `to`, from `parent`, through the two
 /// pipes as the agents would carry it; what the receive came to.
 fn carry(from: &mut Class, to: &mut Class, snapshot: &str, parent: &str) -> Received {
-    let read = from.send_replica(VOLUME, snapshot, parent).unwrap();
+    let read = from.send_replica(VOLUME, (snapshot, parent), false).unwrap();
     let (write, mut child) = to.receive_replica(VOLUME, snapshot).unwrap().expect("not yet held");
     let (mut r, mut w) = (std::fs::File::from(read), std::fs::File::from(write));
     std::io::copy(&mut r, &mut w).unwrap();
