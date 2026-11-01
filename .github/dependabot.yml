@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# The workflows' actions are pinned by commit; Dependabot proposes each new release as a pull
+# request, reviewed like any other change. Crates and packages move only by a reviewed commit.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    cooldown:
+      default-days: 14
