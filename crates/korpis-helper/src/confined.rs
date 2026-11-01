@@ -11,11 +11,11 @@
 //! A receiver taken over by a hostile stream runs whatever code the stream gives it. As root with
 //! every capability it would leave a mount namespace easily, mounting `proc` and walking
 //! `/proc/1/root` to the host's root, and as root at all it could signal every root process of
-//! the host. So the receiver is not root: it runs as a user of its own that no workload or host
-//! user is, keeping only the capabilities writing owners, modes, devices and extended attributes
-//! needs ([`KEPT`], which rsync uses under `--super`), none of them regainable, with
-//! `no_new_privs`, and with a network, IPC and host name of its own: it talks to the source only
-//! through the descriptor its remote shell inherited.
+//! the host. So the receiver is not root: it runs as a user no other process is, from a range no
+//! workload or host user takes, keeping only the capabilities writing owners, modes, devices and
+//! extended attributes needs ([`KEPT`], which rsync uses under `--super`), none of them
+//! regainable, with `no_new_privs`, and with a network, IPC and host name of its own: it talks to
+//! the source only through the descriptor its remote shell inherited.
 //!
 //! This is one of the crate's unsafe modules, listed in the crate's header: the view is made in
 //! the child between fork and exec, which only `pre_exec` reaches, and there only calls that
@@ -23,16 +23,16 @@
 
 #![expect(unsafe_code, reason = "the view is made between fork and exec, by pre_exec")]
 
-use korpis_core::workload::assignment::{FIRST_WORKLOAD_ID, IDS_PER_WORKLOAD, IdRange};
 use rustix::fs::{Mode, OFlags};
 use rustix::mount::{MountFlags, MountPropagationFlags, UnmountFlags};
-use rustix::process::{Gid, Uid};
-use rustix::thread::{CapabilitySet, CapabilitySets, UnshareFlags};
+use rustix::thread::{CapabilitySet, UnshareFlags};
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+mod user;
 
 /// Where the view's root is made; a directory on the host, which the child's own `tmpfs` hides.
 const ROOT: &str = "/run/korpis-helper/confined";
@@ -64,6 +64,8 @@ struct Plan {
     links: Vec<(CString, CString)>,
     /// Bindings: the host's path, the view's, and whether it is writable.
     binds: Vec<(CString, CString, bool)>,
+    /// The user the receiver becomes, which no other process is ([`user::free_id`]).
+    user: u32,
 }
 
 fn c(path: &Path) -> std::io::Result<CString> {
@@ -87,7 +89,8 @@ impl Plan {
     /// The plan for a view holding `copy`, writable, and `relay`, read only.
     fn new(copy: &Path, relay: &Path) -> std::io::Result<Self> {
         let root = PathBuf::from(ROOT);
-        let mut plan = Self { root: c(&root)?, old: c(&root.join(".old"))?, ..Self::default() };
+        let (root_c, old) = (c(&root)?, c(&root.join(".old"))?);
+        let mut plan = Self { root: root_c, old, user: user::free_id()?, ..Self::default() };
         plan.dirs.push(plan.old.clone());
         for name in SYSTEM {
             let host = Path::new("/").join(name);
@@ -149,65 +152,8 @@ impl Plan {
         rustix::process::pivot_root(self.root.as_c_str(), self.old.as_c_str())?;
         rustix::process::chdir(c"/")?;
         unmount(c"/.old", UnmountFlags::DETACH)?;
-        become_receiver(KEPT)
+        user::become_receiver(self.user, KEPT)
     }
-}
-
-/// The first of the ids a receiver runs as: the last range of [`IDS_PER_WORKLOAD`] ids above
-/// [`FIRST_WORKLOAD_ID`], which reaches `u32::MAX` and so is never a workload's, and which no
-/// host user takes. A receiver is one of the 65,534 below `u32::MAX - 1`, by its process id, so
-/// two running at once are almost never the same user and cannot signal each other.
-fn receiver_ids() -> (u32, u32) {
-    let first = FIRST_WORKLOAD_ID + IdRange::slots() * IDS_PER_WORKLOAD;
-    (first, u32::MAX - 1 - first)
-}
-
-/// Gives up root: the child becomes a user of its own ([`receiver_ids`]) with no groups that
-/// keeps `kept`, as ambient capabilities, through its exec, and nothing else, with root's
-/// special treatment locked off and `no_new_privs` set. A user that is not root signals no
-/// process of the host's, and none of the host's users are it. Allocates nothing, so it may run
-/// between fork and exec.
-fn become_receiver(kept: CapabilitySet) -> rustix::io::Result<()> {
-    use rustix::thread::CapabilitiesSecureBits as Bits;
-    let (first, count) = receiver_ids();
-    let id = first + rustix::process::getpid().as_raw_nonzero().get().unsigned_abs() % count;
-    rustix::thread::set_capabilities_secure_bits(
-        Bits::NO_ROOT
-            | Bits::NO_ROOT_LOCKED
-            | Bits::NO_SETUID_FIXUP
-            | Bits::NO_SETUID_FIXUP_LOCKED
-            | Bits::KEEP_CAPS_LOCKED,
-    )?;
-    drop_bounding(kept)?;
-    rustix::thread::set_thread_groups(&[])?;
-    let (uid, gid) = (Uid::from_raw_unchecked(id), Gid::from_raw_unchecked(id));
-    rustix::thread::set_thread_res_gid(gid, gid, gid)?;
-    rustix::thread::set_thread_res_uid(uid, uid, uid)?;
-    let sets = CapabilitySets { effective: kept, permitted: kept, inheritable: kept };
-    rustix::thread::set_capabilities(None, sets)?;
-    for bit in 0..64u32 {
-        let cap = CapabilitySet::from_bits_retain(1u64 << bit);
-        if kept.contains(cap) {
-            rustix::thread::configure_capability_in_ambient_set(cap, true)?;
-        }
-    }
-    rustix::thread::set_no_new_privs(true)
-}
-
-/// Drops every capability but `kept` from the bounding set, so nothing executed regains one.
-fn drop_bounding(kept: CapabilitySet) -> rustix::io::Result<()> {
-    for bit in 0..64u32 {
-        let cap = CapabilitySet::from_bits_retain(1u64 << bit);
-        if kept.contains(cap) {
-            continue;
-        }
-        match rustix::thread::remove_capability_from_bounding_set(cap) {
-            // A number the kernel has no capability for.
-            Ok(()) | Err(rustix::io::Errno::INVAL) => {}
-            Err(e) => return Err(e),
-        }
-    }
-    Ok(())
 }
 
 /// Makes `command` run in a view holding only the host's programs and libraries, `relay`, and

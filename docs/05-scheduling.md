@@ -1955,8 +1955,8 @@ unsafe module, `confined`, which makes it between fork and exec). No version is 
 distributions carry those fixes without changing its number, so a gate on the number would refuse
 patched builds and admit nothing safer. Root with every capability would leave the view by
 mounting `proc` and walking `/proc/1/root`, and root at all could signal every root process of the
-host, so the client is not root: it runs as a user of its own from the last range of host ids,
-which no workload is ever given and no host user takes, keeping as ambient capabilities only those
+host, so the client is not root: it runs as a user no other running process is, from the last
+range of host ids, which no workload is ever given and no host user takes, keeping as ambient capabilities only those
 writing what it receives needs (owners, modes, device files, file capabilities, which rsync uses
 under `--super`), none regainable, with root's special treatment locked off, `no_new_privs`, and a
 network, IPC and host name of its own.
