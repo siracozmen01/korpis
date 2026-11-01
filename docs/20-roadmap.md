@@ -632,7 +632,7 @@ typed into; a write past its volume's 64 MiB refused by the kernel, and its cgro
 the limit its status shows (K-3); its volume backed up, a file read back out of the backup, and the
 backup restored into a clone whose volume holds it; and then all of it deleted, and the node
 checked to have removed what it made. `scripts/e2e-phase0.sh` still holds beside it. The panel is
-checked in a browser against a real control plane by the end-to-end suite `scripts/check.sh` runs.
+checked in a browser against a real control plane by the end-to-end suite `scripts/check.sh full` runs.
 Building Phase 1 found the specification wrong or silent in more places, as building Phase 0 did,
 and each is corrected in place where it was found; the twenty-three traces written while it was
 built (§19 to §41 of `23-walkthroughs.md`) record what each found.

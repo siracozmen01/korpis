@@ -35,7 +35,9 @@ scripts/dev-registry.sh up           # OCI registry for tests, 127.0.0.1:55000
 cargo test -p korpis-core --features authz --test authz a_chain_is_in_force_only_while_every_grant_in_it_is
 cargo clippy -p <crate> --all-targets -- -D warnings                         # one crate
 scripts/check-web.sh                 # the panel: lint, types, unit tests, build
-/home/rawframe-project/tools/heavy.sh scripts/check.sh   # every check; always through heavy.sh
+scripts/check.sh                     # before a push: the crates and panel the branch touches
+/home/rawframe-project/tools/heavy.sh scripts/check.sh pr     # before a pull request: all but e2e
+/home/rawframe-project/tools/heavy.sh scripts/check.sh full   # everything, end to end included
 scripts/sqlx-prepare.sh              # after changing a migration or a query
 scripts/gen-proto.sh && (cd web && pnpm generate)        # after changing any .proto, comments too
 ```

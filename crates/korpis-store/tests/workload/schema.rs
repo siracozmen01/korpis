@@ -63,15 +63,22 @@ async fn each_inverse_leaves_exactly_the_schema_the_migrations_before_it_made() 
         .filter(|m| m.migration_type.is_down_migration())
         .map(|m| m.version)
         .collect();
-    for v in reversible {
-        let fresh = TestDb::empty().await.unwrap();
-        let mut c = PgConnection::connect(&fresh.owner_url).await.unwrap();
+    // The schema before each reversible migration, read once on the way up...
+    let up = TestDb::empty().await.unwrap();
+    let mut c = PgConnection::connect(&up.owner_url).await.unwrap();
+    let mut before = Vec::new();
+    for &v in &reversible {
         MIGRATOR.run_to(v - 1, &mut c).await.unwrap();
-        c.close().await.unwrap();
-        let undone = TestDb::new().await.unwrap();
-        let change = schema::migrate_to(&undone.owner_url, Some(v - 1)).await.unwrap();
-        assert!(change.apply.is_empty() && change.undo.iter().any(|(u, _)| *u == v));
-        assert_eq!(shape(&fresh.owner_url).await, shape(&undone.owner_url).await, "undoing {v}");
+        before.push((v, shape(&up.owner_url).await));
+    }
+    c.close().await.unwrap();
+    // ...is what undoing each leaves, walking down from the newest as a rollback does.
+    let down = TestDb::new().await.unwrap();
+    for (v, shaped) in before.into_iter().rev() {
+        let change = schema::migrate_to(&down.owner_url, Some(v - 1)).await.unwrap();
+        assert!(change.apply.is_empty(), "undoing {v} applies nothing");
+        assert_eq!(change.undo.iter().map(|(u, _)| *u).collect::<Vec<_>>(), [v], "undoing {v}");
+        assert_eq!(shape(&down.owner_url).await, shaped, "undoing {v}");
     }
 }
 
