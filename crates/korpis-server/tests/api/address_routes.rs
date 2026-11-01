@@ -12,23 +12,44 @@ use crate::extensions::{DNS, push_document};
 use crate::providers::{Installed, installed_from};
 use crate::recipes::{body, project, push_paper};
 use crate::support::{Harness, mutation, reason};
+use crate::watching::status_until;
 use korpis_app::ports::{AddressWrite as _, Store as _, Tx as _};
 use korpis_extension::address::{AddressRouter, Failure, Router};
 use korpis_extension::provider::{Provider, Registration};
 use korpis_extension::{Connection, Credential, Fixed};
 use korpis_proto::korpis::v1 as pb;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use tokio::sync::watch;
 
 /// The network, as the router sees it: every route it was asked for, and whether it fails.
-#[derive(Default, Clone)]
-pub(crate) struct Fabric(Arc<Mutex<Vec<pb::RouteAddress>>>, pub(crate) Arc<AtomicBool>);
+/// The routes asked for, announced to whoever waits on them, and whether the router is down.
+#[derive(Clone)]
+pub(crate) struct Fabric(Arc<watch::Sender<Vec<pb::RouteAddress>>>, pub(crate) Arc<AtomicBool>);
+
+impl Default for Fabric {
+    fn default() -> Self {
+        Self(Arc::new(watch::Sender::new(Vec::new())), Arc::default())
+    }
+}
+
+/// Each route as an address and the node it goes to.
+fn pairs(asked: &[pb::RouteAddress]) -> Vec<(String, String)> {
+    asked.iter().map(|r| (r.address.clone(), r.node.clone())).collect()
+}
 
 impl Fabric {
     pub(crate) fn routes(&self) -> Vec<(String, String)> {
-        let asked = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        asked.iter().map(|r| (r.address.clone(), r.node.clone())).collect()
+        pairs(&self.0.borrow())
+    }
+
+    /// Waits until a route asked for is `route`.
+    pub(crate) async fn asked_for(&self, route: &(String, String)) {
+        let mut asked = self.0.subscribe();
+        let came = asked.wait_for(|a| pairs(a).contains(route));
+        let came = tokio::time::timeout(Duration::from_secs(60), came).await;
+        assert!(came.is_ok_and(|c| c.is_ok()), "never asked for {route:?}: {:?}", self.routes());
     }
 }
 
@@ -36,7 +57,7 @@ impl AddressRouter for Fabric {
     fn route(&self, r: pb::RouteAddress) -> impl Future<Output = Result<(), Failure>> + Send {
         let down = self.1.load(Ordering::SeqCst);
         if !down {
-            self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(r);
+            self.0.send_modify(|asked| asked.push(r));
         }
         let failure =
             Failure { reason: "bgp.session_down".into(), message: String::new(), retryable: true };
@@ -109,17 +130,9 @@ pub(crate) async fn shown(
     workload: &str,
     until: impl Fn(&pb::DedicatedAddressStatus) -> bool,
 ) -> pb::DedicatedAddressStatus {
-    let mut last = pb::DedicatedAddressStatus::default();
-    for _ in 0..200 {
-        let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };
-        let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
-        last = got.status.into_option().unwrap().dedicated.into_option().unwrap_or_default();
-        if until(&last) {
-            return last;
-        }
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
-    panic!("its address never showed as asked: {last:?}");
+    let address = |s: &pb::WorkloadStatus| s.dedicated.clone().into_option().unwrap_or_default();
+    let status = status_until(h, workload, |s| until(&address(s))).await;
+    address(&status)
 }
 
 #[tokio::test]
@@ -162,12 +175,5 @@ async fn withdrawn(h: &Harness, fabric: &Fabric, workload: &str) {
     let mut tx = store.begin().await.unwrap();
     assert!(tx.release_address(id.uuid(), SystemTime::now()).await.unwrap());
     tx.commit().await.unwrap();
-    let nowhere = ("203.0.113.2".to_owned(), String::new());
-    for _ in 0..200 {
-        if fabric.routes().contains(&nowhere) {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
-    panic!("a released address is routed nowhere: {:?}", fabric.routes());
+    fabric.asked_for(&("203.0.113.2".to_owned(), String::new())).await;
 }
