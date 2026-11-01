@@ -7,7 +7,6 @@
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::Harness;
 use korpis_proto::korpis::v1 as pb;
-use std::time::Duration;
 
 /// Declares workload `name`; the placement it was given.
 async fn placed(h: &Harness, project: &str, repo: &str, name: &str) -> pb::Placement {
@@ -28,14 +27,12 @@ async fn scalar(h: &Harness, sql: &'static str) -> i64 {
 
 #[tokio::test]
 async fn a_node_lost_while_holding_a_workload_scores_lower_for_a_day() {
-    // Nodes no agent heartbeats are swept as silent within a second.
-    let h = Harness::with_heartbeat(Duration::from_millis(300)).await;
+    let h = Harness::new().await;
     let repo = push_paper().await;
     let project = project(&h, &h.root_org(), "games").await;
     let nodes = [h.node(None, "fra-1", &[]).await, h.node(None, "fra-2", &[]).await];
-    // Both are kept heard until the workload is placed, then fall silent together, so the sweep
-    // cannot mark one before the placement binds to it, which a loaded machine would otherwise
-    // allow, and which would lose nothing.
+    // Both are kept heard until the workload is placed, then fall silent together, so no sweep
+    // marks one before the placement binds to it.
     let store = h.db.store().await.unwrap();
     let heard = "UPDATE node SET connectivity = 'connected', last_seen = now() + interval '1 hour'";
     sqlx::query(heard).execute(store.pool()).await.unwrap();
@@ -46,17 +43,14 @@ async fn a_node_lost_while_holding_a_workload_scores_lower_for_a_day() {
     let silent = "UPDATE node SET last_seen = now() - interval '1 hour'";
     sqlx::query(silent).execute(store.pool()).await.unwrap();
 
+    // Swept now rather than waited for: the sweep the control plane runs on its heartbeat. One
+    // running meanwhile holds the rows it marks, so this one returns once that one committed.
+    h.api.app().sweep_silent_nodes().await.unwrap();
     let losses = "SELECT count(*) FROM node_loss l JOIN node n ON n.id = l.node_id
                    WHERE n.name = $1 AND l.workloads = 1";
-    let mut held: i64 = 0;
-    for _ in 0..150 {
-        held = sqlx::query_scalar(losses).bind(holder).fetch_one(store.pool()).await.unwrap();
-        let unreachable = "SELECT count(*) FROM node WHERE connectivity = 'unreachable'";
-        if held == 1 && scalar(&h, unreachable).await == 2 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
+    let held: i64 = sqlx::query_scalar(losses).bind(holder).fetch_one(store.pool()).await.unwrap();
+    let unreachable = "SELECT count(*) FROM node WHERE connectivity = 'unreachable'";
+    assert_eq!(scalar(&h, unreachable).await, 2);
     assert_eq!(held, 1, "one loss, for the node that held the workload");
     assert_eq!(scalar(&h, "SELECT count(*) FROM node_loss").await, 1, "none for the empty node");
 
