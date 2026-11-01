@@ -1953,10 +1953,14 @@ is a fresh `tmpfs` holding, read only, the host's programs and libraries and the
 the helper's binary, and, writable, the destination's copy at its own path (the crate's eighth
 unsafe module, `confined`, which makes it between fork and exec). No version is required of rsync:
 distributions carry those fixes without changing its number, so a gate on the number would refuse
-patched builds and admit nothing safer. **What it does not stop:** the client still runs as root
-inside that view, so a flaw of rsync's receiver can still write anywhere in the copy it pulls into,
-which nothing runs on until `cutover` and `verify` compares after it (P3.9d), or reach the kernel
-through any call a root process may make; the view hides the host's files, not its kernel. A
+patched builds and admit nothing safer. Root with every capability would leave the view by
+mounting `proc` and walking `/proc/1/root`, so the client keeps only the capabilities writing what
+it receives needs (owners, modes, device files, file capabilities), drops the rest from its
+bounding set, runs with `no_new_privs`, and has a network, IPC and host name of its own.
+**What it does not stop:** a flaw of rsync's receiver can still write anywhere in the copy it pulls
+into, which nothing runs on until `cutover` and `verify` compares after it (P3.9d), and the kernel
+is still reached through every call those capabilities allow; the view hides the host's files and
+its mounts, not its kernel. A
 node's rsync is kept current as its other packages are (§2 of `18-operations.md`). Tested as
 root between two classes: a symlink, a hardlink, an extended attribute, an access ACL, a sparse
 file's holes, and an owner by number kept; a second pass sending only what changed and deleting

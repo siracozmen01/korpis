@@ -8,6 +8,13 @@
 //! the host is in it: no `/etc` beyond the loader's cache, no `/proc`, no other volume, so a
 //! stream that misleads rsync's receiver can write only into the copy it was pulling into.
 //!
+//! A receiver taken over by a hostile stream runs code as root, and root with every capability
+//! leaves a mount namespace easily: it mounts `proc` and walks `/proc/1/root` to the host's root.
+//! So the view also keeps only the capabilities a receiver keeping owners, modes, devices and
+//! extended attributes needs ([`KEPT`]), drops the rest from the bounding set so no program it
+//! runs regains them, sets `no_new_privs`, and has a network, IPC and host name of its own: it
+//! talks to the source only through the descriptor its remote shell inherited.
+//!
 //! This is one of the crate's unsafe modules, listed in the crate's header: the view is made in
 //! the child between fork and exec, which only `pre_exec` reaches, and there only calls that
 //! neither allocate nor lock may run. Everything it needs is computed before, in the helper.
@@ -16,6 +23,7 @@
 
 use rustix::fs::{Mode, OFlags};
 use rustix::mount::{MountFlags, MountPropagationFlags, UnmountFlags};
+use rustix::thread::{CapabilitySet, CapabilitySets, UnshareFlags};
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::process::CommandExt as _;
@@ -28,6 +36,16 @@ const ROOT: &str = "/run/korpis-helper/confined";
 const SYSTEM: [&str; 5] = ["usr", "bin", "lib", "lib64", "sbin"];
 /// The loader's cache: without it the libraries in multiarch directories are not found.
 const LOADER_CACHE: &str = "etc/ld.so.cache";
+/// What `rsync -aHAXS --numeric-ids` needs as root to write what it receives: owners by number,
+/// set-user-ID bits, device files (which the copy's `nodev` mount leaves unopenable), and file
+/// capabilities among the extended attributes. Not `CAP_SYS_ADMIN`, without which nothing in the
+/// view mounts, unshares or pivots again.
+const KEPT: CapabilitySet = CapabilitySet::CHOWN
+    .union(CapabilitySet::DAC_OVERRIDE)
+    .union(CapabilitySet::FOWNER)
+    .union(CapabilitySet::FSETID)
+    .union(CapabilitySet::MKNOD)
+    .union(CapabilitySet::SETFCAP);
 
 /// What the child does, in order, every path already a C string.
 #[derive(Debug, Default)]
@@ -99,9 +117,10 @@ impl Plan {
     /// Makes the view and enters it; runs in the child, between fork and exec.
     fn enter(&self) -> rustix::io::Result<()> {
         use rustix::mount::{mount, mount_bind, mount_change, mount_remount, unmount};
+        let own = UnshareFlags::NEWNS | UnshareFlags::NEWNET | UnshareFlags::NEWIPC;
         // SAFETY: called from `pre_exec` alone, in the single-threaded child, where this call
         // allocates nothing and changes only the child's own namespaces.
-        unsafe { rustix::thread::unshare_unsafe(rustix::thread::UnshareFlags::NEWNS)? };
+        unsafe { rustix::thread::unshare_unsafe(own | UnshareFlags::NEWUTS)? };
         mount_change(c"/", MountPropagationFlags::REC | MountPropagationFlags::PRIVATE)?;
         let hardened = MountFlags::NOSUID | MountFlags::NODEV;
         mount(c"tmpfs", self.root.as_c_str(), c"tmpfs", hardened, c"mode=0755")?;
@@ -125,8 +144,29 @@ impl Plan {
         }
         rustix::process::pivot_root(self.root.as_c_str(), self.old.as_c_str())?;
         rustix::process::chdir(c"/")?;
-        unmount(c"/.old", UnmountFlags::DETACH)
+        unmount(c"/.old", UnmountFlags::DETACH)?;
+        keep_only(KEPT)
     }
+}
+
+/// Keeps `kept` in every set and drops every other capability from the bounding set too, then
+/// sets `no_new_privs`; allocates nothing, so it may run between fork and exec.
+fn keep_only(kept: CapabilitySet) -> rustix::io::Result<()> {
+    for bit in 0..64u32 {
+        let cap = CapabilitySet::from_bits_retain(1u64 << bit);
+        if kept.contains(cap) {
+            continue;
+        }
+        match rustix::thread::remove_capability_from_bounding_set(cap) {
+            // A number the kernel has no capability for.
+            Ok(()) | Err(rustix::io::Errno::INVAL) => {}
+            Err(e) => return Err(e),
+        }
+    }
+    let sets =
+        CapabilitySets { effective: kept, permitted: kept, inheritable: CapabilitySet::empty() };
+    rustix::thread::set_capabilities(None, sets)?;
+    rustix::thread::set_no_new_privs(true)
 }
 
 /// Makes `command` run in a view holding only the host's programs and libraries, `relay`, and
