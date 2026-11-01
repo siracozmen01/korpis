@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# What a pull request must pass before it reaches main: its title, the workflows' own hygiene, and
+# scripts/check.sh at the pr tier, or the rules alone when only prose changed. `required` is the one
+# status the ruleset on main asks for, so jobs can change without touching the ruleset.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: conventional commit title with a scope AGENTS.md names
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|perf|refactor|docs|test|build|ci|chore'
+          scopes='model|state|runtime|scheduling|migration|storage|backup|network|identity|recipe'
+          scopes="$scopes|api|web|cli|chat|streams|observability|extensions|security|operations"
+          scopes="$scopes|agent|helper|store|deps"
+          if [ "${#TITLE}" -ge 72 ]; then
+            echo "the title is ${#TITLE} characters; it must be under 72"; exit 1
+          fi
+          if ! grep -qE "^($types)(\(($scopes)\))?: [a-z0-9\`]" <<<"$TITLE"; then
+            echo "the title must be 'type(scope): summary' in lower case (AGENTS.md)"; exit 1
+          fi
+
+  workflows:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: zizmor
+        run: pipx run zizmor==1.31.1 --offline .github/workflows
+
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: what changed
+        id: changed
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git cat-file -e "$BASE^{commit}" 2>/dev/null \
+              && ! git diff --name-only "$BASE" HEAD | grep -qvE '\.md$|^LICENSE'; then
+            echo "tier=rules" >> "$GITHUB_OUTPUT"
+          else
+            echo "tier=pr" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: the rules alone
+        if: steps.changed.outputs.tier == 'rules'
+        run: scripts/check.sh changed
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        if: steps.changed.outputs.tier == 'pr'
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.changed.outputs.tier == 'pr'
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ hashFiles('scripts/tools.sh', 'rust-toolchain.toml') }}
+      - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
+        if: steps.changed.outputs.tier == 'pr'
+        with:
+          tool: cargo-deny@0.20.2
+      - name: the pr tier
+        if: steps.changed.outputs.tier == 'pr'
+        run: |
+          corepack enable
+          scripts/tools.sh
+          scripts/check.sh pr
+
+  required:
+    if: always()
+    needs: [title, workflows, check]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: every job passed or was not needed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) echo "a job ended $r"; exit 1 ;; esac
+          done

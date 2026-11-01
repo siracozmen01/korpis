@@ -14,9 +14,17 @@ use std::path::Path;
 
 const SOCKET: &str = "/run/containerd/containerd.sock";
 
+/// Whether the test runs as root, which containerd's socket admits alone.
+fn root() -> bool {
+    let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
+    let uid = status.lines().find_map(|l| l.strip_prefix("Uid:"));
+    uid.and_then(|ids| ids.split_whitespace().nth(1)) == Some("0")
+}
+
 #[tokio::test]
 async fn the_client_speaks_grpc_to_containerd_over_its_socket() {
-    if !Path::new(SOCKET).exists() {
+    // Needs root and a running containerd.
+    if !root() || !Path::new(SOCKET).exists() {
         return;
     }
     let authority: http::Uri = "http://localhost".parse().unwrap();
