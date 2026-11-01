@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Explanations and placement policies, as stored in the `placement` and `placement_failure`
-//! tables: complete, whoever later reads them (§8 of docs/08-identity.md).
+//! tables: complete, whoever later reads them.
 
 use super::SelectorDoc;
 use korpis_app::ports::StoreError;

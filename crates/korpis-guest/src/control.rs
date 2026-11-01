@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The control port: what the driver asks a running guest's `korpis-guest`, over the microVM's
-//! vsock device (§6 of docs/04-runtimes.md). Every message is a frame: a kind, a length, and that
-//! many bytes, the length bounded before anything is read. The host is root and the guest is the
-//! tenant's kernel, so what a guest answers is read the way the run's record is: numbers of fixed
-//! layout, and bytes the host passes on without interpreting, never a structure it parses. A
-//! guest whose agent does not answer is one the host cannot reach, which is all the `guest_agent`
-//! probe asks; nothing the agent says is trusted beyond that, since a workload that is root of
-//! its own guest can stop the agent or answer in its place.
+//! vsock device. Every message is a frame: a kind, a length, and that many bytes, the length
+//! bounded before anything is read. The host is root and the guest is the tenant's kernel, so what
+//! a guest answers is read the way the run's record is: numbers of fixed layout, and bytes the host
+//! passes on without interpreting, never a structure it parses. A guest whose agent does not answer
+//! is one the host cannot reach, which is all the `guest_agent` probe asks; nothing the agent says
+//! is trusted beyond that, since a workload that is root of its own guest can stop the agent or
+//! answer in its place.
 
 mod answers;
 mod files;
@@ -24,15 +24,14 @@ pub const PORT: u32 = 1024;
 pub const GUEST_CID: u32 = 3;
 /// The host's address on a guest's vsock device.
 pub const HOST_CID: u32 = 2;
-/// The host port a guest's connections to its identity socket are relayed to (§9.5 of
-/// docs/08-identity.md): the guest opens them, and the driver relays each to the workload's own
-/// socket on the host.
+/// The host port a guest's connections to its identity socket are relayed to: the guest opens them,
+/// and the driver relays each to the workload's own socket on the host.
 pub const IDENTITY_PORT: u32 = 1025;
 /// The host port a guest's connections to the API relay are relayed to, where its node relays
 /// the API to the workload.
 pub const API_PORT: u32 = 1026;
-/// The vsock port the guest serves file sessions on (§4.4 of docs/04-runtimes.md): the host's
-/// first frame is the worker's spec, then each frame of the session goes to the worker and back.
+/// The vsock port the guest serves file sessions on: the host's first frame is the worker's spec,
+/// then each frame of the session goes to the worker and back.
 pub const FILES_PORT: u32 = 1027;
 /// The longest spec the host sends a file session's worker.
 pub const MOST_SPEC: usize = 64 * 1024;
@@ -79,8 +78,7 @@ pub enum Kind {
     Keep,
     /// The agent answers what a directory keeps: one byte, 0 done and 1 refused.
     Kept,
-    /// The host asks a service guest how its install goes (§4.4 of docs/04-runtimes.md); no
-    /// payload.
+    /// The host asks a service guest how its install goes; no payload.
     InstallStatus,
     /// The agent answers: an [`Installing`].
     Installing,

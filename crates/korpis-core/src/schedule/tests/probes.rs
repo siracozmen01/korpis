@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A probe the node cannot run (§5 of docs/04-runtimes.md): an exec probe needs a driver that
-//! runs a command inside the workload, and a heartbeat probe one that gives the workload its
-//! identity socket; a node whose driver declares neither is refused for it, said so, rather than
-//! placed with a probe nothing would ever run, or one nothing could ever answer.
+//! A probe the node cannot run: an exec probe needs a driver that runs a command inside the
+//! workload, and a heartbeat probe one that gives the workload its identity socket; a node whose
+//! driver declares neither is refused for it, said so, rather than placed with a probe nothing
+//! would ever run, or one nothing could ever answer.
 
 use super::{Case, checks, node};
 use crate::schedule::Check;

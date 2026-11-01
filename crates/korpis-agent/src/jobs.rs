@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a backup or restore job is given (§5.5 of docs/06-storage.md): asked of the control plane
-//! up the session when the step begins, naming the plan and the step, or the session reading a
-//! block device's backup, and handed to the helper, which hands it to the job. The agent keeps
-//! none of it once the job has it.
+//! What a backup or restore job is given: asked of the control plane up the session when the step
+//! begins, naming the plan and the step, or the session reading a block device's backup, and handed
+//! to the helper, which hands it to the job. The agent keeps none of it once the job has it.
 //!
 //! Each question names a one-time recipient whose secret stays in this process: under tenant
 //! custody the data key comes sealed to it, and is opened here, as the answer arrives, for the
-//! context `<repository>/<workload>` (§5.5), so no one else, the control plane included, holds it.
+//! context `<repository>/<workload>`, so no one else, the control plane included, holds it.
 //!
 //! Asking never holds the reconciler's loop, which serves every workload on the node while the
 //! control plane waits on a backup target: a step asks and moves on, and a later pass finds the
@@ -69,8 +68,7 @@ impl JobAccesses {
         self.ask((plan.to_owned(), step), up)
     }
 
-    /// As [`poll`](Self::poll), for offloading `workload`'s console stream (§4 of
-    /// docs/14-streams.md).
+    /// As [`poll`](Self::poll), for offloading `workload`'s console stream.
     ///
     /// # Errors
     /// As [`poll`](Self::poll).
@@ -79,8 +77,7 @@ impl JobAccesses {
         self.ask((format!("offload/{workload}"), u32::MAX), up)
     }
 
-    /// As [`poll`](Self::poll), for session `session` reading a block device's backup (§5.4 of
-    /// docs/06-storage.md).
+    /// As [`poll`](Self::poll), for session `session` reading a block device's backup.
     ///
     /// # Errors
     /// As [`poll`](Self::poll).

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A control plane restored to an older backup while its agent runs, end to end (§8 of
-//! docs/03-state.md, §6 of docs/18-operations.md): backed up, changed, stopped, restored from the
-//! older database and the backup file by `restore`, and started again. Before it serves anyone,
-//! the agent presents what it holds: the workload the backup never knew is recovered where it
-//! runs, and the intent it never held is recovered with the plan applying it; once the window
-//! ends the control plane serves what the node runs.
+//! A control plane restored to an older backup while its agent runs, end to end: backed up,
+//! changed, stopped, restored from the older database and the backup file by `restore`, and started
+//! again. Before it serves anyone, the agent presents what it holds: the workload the backup never
+//! knew is recovered where it runs, and the intent it never held is recovered with the plan
+//! applying it; once the window ends the control plane serves what the node runs.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation, push_paper};

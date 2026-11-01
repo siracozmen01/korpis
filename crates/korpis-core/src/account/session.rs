@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! User sessions (§9.4 of docs/08-identity.md): what a sign-in begins, and what a refresh
-//! credential exchanges for access tokens until it ends, by idleness, by age, or by its user. A
-//! session is held by an account, or by a person who signed in through an identity provider
-//! (§9.7), with the sets the provider named then.
+//! User sessions: what a sign-in begins, and what a refresh credential exchanges for access tokens
+//! until it ends, by idleness, by age, or by its user. A session is held by an account, or by a
+//! person who signed in through an identity provider, with the sets the provider named then.
 
 pub use crate::principal::Holder;
 use crate::principal::SetName;
@@ -15,7 +14,7 @@ pub const SESSION_IDLE: Duration = Duration::from_secs(12 * 3600);
 /// How long any session lasts, unless the operator says otherwise.
 pub const SESSION_MAX: Duration = Duration::from_secs(7 * 24 * 3600);
 /// How recently a session must have signed in, or re-authenticated, to change its account's
-/// factors (§9.6 of docs/08-identity.md).
+/// factors.
 pub const REAUTHENTICATE_WITHIN: Duration = Duration::from_secs(10 * 60);
 /// The longest user agent kept with a session, in characters.
 pub const MAX_USER_AGENT: usize = 256;
@@ -69,7 +68,7 @@ pub struct UserSession {
     /// Who signed in.
     pub holder: Holder,
     /// For a person, the sets their provider named at the sign-in, which count only while their
-    /// record as a member of each vouches (§9.7); none for an account.
+    /// record as a member of each vouches; none for an account.
     pub sets: Vec<SetName>,
     /// Where its refresh credential is held.
     pub kind: SessionKind,
@@ -85,12 +84,12 @@ pub struct UserSession {
     pub user_agent: String,
     /// The address it began from, as its source is charged (an address, or an IPv6 /64).
     pub source: String,
-    /// The portal it was begun at, beneath whose organization it acts (§9.8 of
-    /// docs/08-identity.md); none for one begun at the installation's own address.
+    /// The portal it was begun at, beneath whose organization it acts; none for one begun at the
+    /// installation's own address.
     pub portal: Option<AtPortal>,
     /// The organization beneath which it acts, wherever it is used: its portal's, or the one its
-    /// password and second factor were both set beneath, the narrower where both (§9.8 of
-    /// docs/08-identity.md); none for one that reaches whatever its holder's grants do.
+    /// password and second factor were both set beneath, the narrower where both; none for one that
+    /// reaches whatever its holder's grants do.
     pub within: Option<Uuid>,
 }
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Builds the kernel every microVM on a node boots (§6 of docs/04-runtimes.md): kernel.org's
-# longterm release below, pinned by its SHA-256, configured with guest/kernel/ (whose README
-# records where each file came from), into .tools/guest/ unless a directory is named. The build
-# is stamped with fixed values rather than this machine's clock, user, and name, so the same
-# compiler rebuilds the same bytes. Versions move only in a reviewed commit. Needs a C compiler,
-# make, flex, bison, bc, and libelf's and OpenSSL's headers.
+# Builds the kernel every microVM on a node boots: kernel.org's longterm release below, pinned by
+# its SHA-256, configured with guest/kernel/ (whose README records where each file came from),
+# into.tools/guest/ unless a directory is named. The build is stamped with fixed values rather than
+# this machine's clock, user, and name, so the same compiler rebuilds the same bytes. Versions move
+# only in a reviewed commit. Needs a C compiler, make, flex, bison, bc, and libelf's and OpenSSL's
+# headers.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO=$PWD

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An ingress endpoint's names in DNS (§3.5 of docs/07-networking.md): each name of an endpoint
-//! the ingress serves resolves to the addresses its node advertises, `A` and `AAAA`, published
-//! through a DNS provider of the endpoint's organization that serves the name's zone, for an owner
-//! of its own. What was asked, what the provider last made it, and through which provider, are
-//! kept, so a move re-publishes it through the same provider and a name no longer routed is
-//! withdrawn from it.
+//! An ingress endpoint's names in DNS: each name of an endpoint the ingress serves resolves to the
+//! addresses its node advertises, `A` and `AAAA`, published through a DNS provider of the
+//! endpoint's organization that serves the name's zone, for an owner of its own. What was asked,
+//! what the provider last made it, and through which provider, are kept, so a move re-publishes it
+//! through the same provider and a name no longer routed is withdrawn from it.
 
 use super::{DnsRecord, RecordType};
 use std::net::IpAddr;

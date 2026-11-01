@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a member delegates (§5.1 of docs/08-identity.md): a member issues through their set
-//! only when the child records the set and the member as `via`, and the child stands only while
-//! the set's re-verification still confirms that member, so a member who left suspends what they
-//! delegated without anyone revoking it.
+//! What a member delegates: a member issues through their set only when the child records the set
+//! and the member as `via`, and the child stands only while the set's re-verification still
+//! confirms that member, so a member who left suspends what they delegated without anyone revoking
+//! it.
 
 use crate::support::{Tree, actions, child, root};
 use korpis_core::authz::binding::ProviderRef;

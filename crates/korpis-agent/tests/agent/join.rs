@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Joining (§3 of docs/18-operations.md): over a connection verified against the pinned CA,
-//! with a key the node generated, recorded once.
+//! Joining: over a connection verified against the pinned CA, with a key the node generated,
+//! recorded once.
 
 use crate::support::ControlPlane;
 use korpis_agent::join::{Join, JoinError, join};

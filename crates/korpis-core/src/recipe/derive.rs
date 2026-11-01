@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Derived configuration fields (§5.3 of docs/09-recipes.md): a small arithmetic language over
-//! the intent's resources and its other configuration, e.g. `resources.memory * 0.8`.
+//! Derived configuration fields: a small arithmetic language over the intent's resources and its
+//! other configuration, e.g. `resources.memory * 0.8`.
 //!
 //! The control plane evaluates it at declaration, with the intent body it is validating, and
 //! writes the result into the intent like any other value, so a node never evaluates anything and

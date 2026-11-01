@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! One attempt of a health probe (§5 of docs/04-runtimes.md): a `tcp` probe passes when a
-//! connection to the endpoint's port is made, and an `http` probe when a `GET` of its path is
-//! answered with the status it expects, or any 2xx where it expects none; a `query` probe is an
-//! exchange its health provider directs, round by round, through the control plane (§5 of
-//! docs/16-extensions.md). Each is made from a socket the helper opened inside the workload's
-//! network namespace, so it reaches the endpoint whatever the endpoint's own rules turn away, and
-//! what the workload is given, connecting included, is held to the probe's timeout. Whether the
-//! attempts add up to a verdict is decided elsewhere (`korpis_core::workload::health`).
+//! One attempt of a health probe: a `tcp` probe passes when a connection to the endpoint's port is
+//! made, and an `http` probe when a `GET` of its path is answered with the status it expects, or
+//! any 2xx where it expects none; a `query` probe is an exchange its health provider directs, round
+//! by round, through the control plane. Each is made from a socket the helper opened inside the
+//! workload's network namespace, so it reaches the endpoint whatever the endpoint's own rules turn
+//! away, and what the workload is given, connecting included, is held to the probe's timeout.
+//! Whether the attempts add up to a verdict is decided elsewhere (`korpis_core::workload::health`).
 
 mod queries;
 mod query;
@@ -84,8 +83,7 @@ pub enum Tried {
     Passed,
     /// It failed, or the workload did not answer in time.
     Failed,
-    /// It could not be judged: a query probe's health provider, or the control plane, did not
-    /// say (§5 of docs/16-extensions.md).
+    /// It could not be judged: a query probe's health provider, or the control plane, did not say.
     Unjudged,
 }
 

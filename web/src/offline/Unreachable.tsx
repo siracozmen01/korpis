@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The panel while the control plane cannot be reached (§2 and question 3 of §10 of
-// docs/11-surface-web.md): it may have loaded from the browser's copy of the bundle, but nothing
-// the control plane holds was kept, so every value is unknown and the page says so, with how long
-// this browser has not heard from it. It asks again on its own, and when told to.
+// The panel while the control plane cannot be reached: it may have loaded from the browser's copy
+// of the bundle, but nothing the control plane holds was kept, so every value is unknown and the
+// page says so, with how long this browser has not heard from it. It asks again on its own, and
+// when told to.
 
 import { useEffect } from "react";
 import { Button } from "react-aria-components";

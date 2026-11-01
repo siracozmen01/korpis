@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Accounts, their invitations and factors, and the `WebAuthn` challenges their ceremonies answer
-//! (§9.6 of docs/08-identity.md); and the vault that seals TOTP secrets.
+//! Accounts, their invitations and factors, and the `WebAuthn` challenges their ceremonies answer;
+//! and the vault that seals TOTP secrets.
 
 use super::{SealedKey, StoreResult, VaultError};
 use korpis_core::account::exposed::{SetWithin, Shared};
@@ -66,7 +66,7 @@ pub trait AccountRead {
         account: Uuid,
     ) -> impl Future<Output = StoreResult<Option<SystemTime>>> + Send;
 
-    /// Where each shared secret of `account` was set (§9.8 of docs/08-identity.md).
+    /// Where each shared secret of `account` was set.
     fn secrets_set_within(
         &self,
         account: Uuid,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How a recipe is laid out as an OCI artifact (§2 of docs/09-recipes.md): an image manifest
-//! with an artifact type of its own, an empty config, the recipe document as one layer, and every
-//! file the recipe refers to as a further layer titled with its path inside the recipe. An
-//! extension is laid out the same way under types of its own (§3.1 of docs/16-extensions.md).
+//! How a recipe is laid out as an OCI artifact: an image manifest with an artifact type of its own,
+//! an empty config, the recipe document as one layer, and every file the recipe refers to as a
+//! further layer titled with its path inside the recipe. An extension is laid out the same way
+//! under types of its own.
 
 use korpis_core::recipe::{Recipe, artifact_path};
 use std::collections::BTreeSet;

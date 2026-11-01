@@ -1,4 +1,4 @@
-# The example of §3 of docs/09-recipes.md, completed so that it loads.
+# The documentation's example recipe, completed so that it loads.
 apiVersion: korpis.dev/v1
 kind: Recipe
 

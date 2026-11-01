@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! DNS-01 through the holder's DNS providers (§3.2 of docs/07-networking.md), validated for real:
-//! Pebble resolves `_acme-challenge` records through a DNS server of the test's, the zone a DNS
-//! provider of the organization publishes into. Of two providers, the first manages no zone
-//! holding the name and says so; the second publishes the record, and the certificate is issued
-//! with no node ever acknowledging a challenge; the record is withdrawn once it is.
+//! DNS-01 through the holder's DNS providers, validated for real: Pebble resolves `_acme-challenge`
+//! records through a DNS server of the test's, the zone a DNS provider of the organization
+//! publishes into. Of two providers, the first manages no zone holding the name and says so; the
+//! second publishes the record, and the certificate is issued with no node ever acknowledging a
+//! challenge; the record is withdrawn once it is.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::extensions::{DNS, push_document};
@@ -156,7 +156,7 @@ async fn a_name_a_dns_provider_serves_is_proven_by_dns_and_its_record_withdrawn(
         .await
         .unwrap();
     assert_eq!(standing, 0, "the record is withdrawn and forgotten");
-    // The endpoint's own records stand beside it, under an owner of their own (§3.5).
+    // The endpoint's own records stand beside it, under an owner of their own.
     let owned = publishing.owned.lock().unwrap().clone();
     let challenge = owned.values().flatten().any(|n| n.starts_with("_acme-challenge."));
     assert!(!challenge, "no challenge record left: {owned:?}");

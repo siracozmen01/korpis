@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Capability tokens, verified offline (§6 of docs/08-identity.md).
+//! Capability tokens, verified offline.
 
 use korpis_core::authz::token::{self, Claims, Client, KeyRing, SigningKey, TokenError};
 use korpis_core::authz::{Hierarchy, Resource};
@@ -93,7 +93,7 @@ fn a_token_permits_exactly_what_it_states() {
             (f.now, Client::Unseen)
         ),
         Err(TokenError::Revoked(parent)),
-        "revoking any link of the chain refuses the token offline (§6.3)"
+        "revoking any link of the chain refuses the token offline"
     );
 }
 

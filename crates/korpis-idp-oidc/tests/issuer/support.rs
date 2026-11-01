@@ -155,7 +155,7 @@ pub async fn sign_in(oidc: &Oidc) -> Returned {
     panic!("the issuer never sent the person back");
 }
 
-/// The headers the control plane asserts a returned code with (§9.7 of docs/08-identity.md).
+/// The headers the control plane asserts a returned code with.
 pub fn headers(r: &Returned) -> BTreeMap<String, String> {
     BTreeMap::from([
         ("code_verifier".to_owned(), r.verifier.clone()),

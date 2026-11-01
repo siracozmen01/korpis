@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Installs a driver runs in a service guest (§4.4 of docs/04-runtimes.md): started, asked after,
-//! and forgotten, as the helper's jobs are.
+//! Installs a driver runs in a service guest: started, asked after, and forgotten, as the helper's
+//! jobs are.
 
 use super::{CREATE, DriverRuntime, QUICK, error, within};
 use crate::runtime::RuntimeResult;

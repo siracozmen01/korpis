@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The device verbs of block classes (§2.1 of docs/06-storage.md).
+//! The device verbs of block classes.
 
 use super::{HelperClient, failed};
 use crate::host::HostError;

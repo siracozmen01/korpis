@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a connection is read through: [`Replay`] gives back the bytes read before the proxy
-//! decided what to do with it, and [`Idle`] ends a connection that passes no byte either way for
-//! as long as the bound allows (§3.2 of docs/07-networking.md).
+//! What a connection is read through: [`Replay`] gives back the bytes read before the proxy decided
+//! what to do with it, and [`Idle`] ends a connection that passes no byte either way for as long as
+//! the bound allows.
 
 use std::io;
 use std::pin::Pin;

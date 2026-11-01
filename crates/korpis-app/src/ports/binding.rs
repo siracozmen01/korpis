@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity bindings (§5 of docs/08-identity.md): one live binding per subject, kept when
-//! retired.
+//! Identity bindings: one live binding per subject, kept when retired.
 
 use super::StoreResult;
 use crate::page::Page;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Tenancy: organizations and the projects inside them (§3.1 of docs/01-model.md).
+//! Tenancy: organizations and the projects inside them.
 
 pub mod layout;
 pub mod quota;
@@ -11,7 +11,7 @@ use crate::principal::Principal;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-/// A name for humans: changeable, never a reference (§5 of docs/01-model.md).
+/// A name for humans: changeable, never a reference.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Name(String);
 
@@ -46,8 +46,8 @@ impl Name {
 pub enum OrganizationStatus {
     /// In good standing.
     Active,
-    /// Suspended from above (§2.1 of docs/08-identity.md): every grant scoped in its subtree
-    /// stops authorizing all but the reads a suspended tenant keeps, until it is resumed.
+    /// Suspended from above: every grant scoped in its subtree stops authorizing all but the reads
+    /// a suspended tenant keeps, until it is resumed.
     Suspended(Suspension),
 }
 
@@ -80,7 +80,7 @@ pub struct Organization {
     pub id: Uuid,
     /// For humans.
     pub name: Name,
-    /// `None` only for the root, which installation creates (Rule K-14).
+    /// `None` only for the root, which installation creates.
     pub parent: Option<Uuid>,
     /// Whether it may act.
     pub status: OrganizationStatus,

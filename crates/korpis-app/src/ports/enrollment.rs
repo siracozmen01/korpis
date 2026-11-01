@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Enrollment (§3 of docs/18-operations.md): what a token binds, and the node identity keys it
-//! leads to (§7 of docs/02-architecture.md).
+//! Enrollment: what a token binds, and the node identity keys it leads to.
 
 use super::StoreResult;
 use korpis_core::labels::Labels;
@@ -62,8 +61,8 @@ pub trait EnrollmentRead {
     fn node_keys(&self) -> impl Future<Output = StoreResult<Vec<(Uuid, Vec<u8>)>>> + Send;
 
     /// The public keys of `purpose` (`assignment` or `token`), current and historical, so a
-    /// verifier holds every key that ever signed what it may be shown (§8 of docs/03-state.md);
-    /// never a retired one, whose signatures a restore voided.
+    /// verifier holds every key that ever signed what it may be shown; never a retired one, whose
+    /// signatures a restore voided.
     fn verify_keys(
         &self,
         purpose: &str,

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Beginning an approved migration (§8.1 of docs/05-scheduling.md). Approving the plan makes the
-//! migration record, in `prepare`, and binds the destination, under the placement lock, as a
-//! second placement of the workload that is not authoritative, so its capacity, cores, and devices
-//! are held from then on. The destination is checked again as it was chosen, since the node may
-//! have filled, been cordoned, or been tainted meanwhile: the scheduler's choice against every
-//! filter of the scheduler, a node an operator named as a placement by hand is; one that no longer
-//! fits refuses the approval, and nothing was done. The plan applies from then until the migration
-//! ends.
+//! Beginning an approved migration. Approving the plan makes the migration record, in `prepare`,
+//! and binds the destination, under the placement lock, as a second placement of the workload that
+//! is not authoritative, so its capacity, cores, and devices are held from then on. The destination
+//! is checked again as it was chosen, since the node may have filled, been cordoned, or been
+//! tainted meanwhile: the scheduler's choice against every filter of the scheduler, a node an
+//! operator named as a placement by hand is; one that no longer fits refuses the approval, and
+//! nothing was done. The plan applies from then until the migration ends.
 
 use crate::App;
 use crate::error::AppError;

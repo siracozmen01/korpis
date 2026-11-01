@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a session begun at a portal may change of its account, and what the secrets it set
-//! reach afterwards (§9.8 of docs/08-identity.md, Findings 131 and 133 of
-//! docs/23-walkthroughs.md): a confined session changes the password while every grant the
-//! account holds lies beneath the portal's organization, and not once one lies elsewhere; a
-//! password and TOTP set at the portal sign in anywhere reaching beneath its organization alone,
-//! a grant issued later elsewhere included; and a session they began registers no passkey at the
-//! installation's own address.
+//! What a session begun at a portal may change of its account, and what the secrets it set reach
+//! afterwards: a confined session changes the password while every grant the account holds lies
+//! beneath the portal's organization, and not once one lies elsewhere; a password and TOTP set at
+//! the portal sign in anywhere reaching beneath its organization alone, a grant issued later
+//! elsewhere included; and a session they began registers no passkey at the installation's own
+//! address.
 
 use crate::domains::child;
 use crate::panel::{access, accounts, refresh_cookie};

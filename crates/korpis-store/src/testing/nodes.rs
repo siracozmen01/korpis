@@ -88,8 +88,7 @@ pub fn ready_node(
     labels: &[(&str, &str)],
 ) -> Result<Node, FixtureError> {
     let labels = labels.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned()));
-    // The node's ports are what its range holds, as a node reads back (§3 of
-    // docs/07-networking.md).
+    // The node's ports are what its range holds, as a node reads back.
     let ports = PortRange::DEFAULT;
     let mut allocatable = capacity();
     allocatable.insert(Dimension::NodePorts, ports.allocatable());

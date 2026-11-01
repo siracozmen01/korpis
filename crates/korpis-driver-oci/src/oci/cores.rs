@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A container's dedicated cores in its runtime specification (§4.2 of docs/04-runtimes.md):
-//! `linux.resources.cpu.cpus` and `mems`, which runc writes as its cgroup's `cpuset`. The cores
-//! are its CPU's bound, so it is given no quota and no weight: a quota of the millicores declared
-//! would throttle it below the threads it holds, and a weight divides only CPUs it shares.
+//! A container's dedicated cores in its runtime specification: `linux.resources.cpu.cpus` and
+//! `mems`, which runc writes as its cgroup's `cpuset`. The cores are its CPU's bound, so it is
+//! given no quota and no weight: a quota of the millicores declared would throttle it below the
+//! threads it holds, and a weight divides only CPUs it shares.
 
 use super::RuntimeSpec;
 

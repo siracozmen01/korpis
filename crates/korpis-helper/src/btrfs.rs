@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! btrfs (§2 of docs/06-storage.md): a volume is a subvolume, and its size is a qgroup limit on
-//! what the subvolume references, which the kernel checks in the write path, where exceeding it
-//! is `EDQUOT`. Usage is read from the qgroup accounting in the quota tree, never computed.
-//! btrfs has no inode quota, so a class on it limits bytes alone, and says so.
+//! btrfs: a volume is a subvolume, and its size is a qgroup limit on what the subvolume references,
+//! which the kernel checks in the write path, where exceeding it is `EDQUOT`. Usage is read from
+//! the qgroup accounting in the quota tree, never computed. btrfs has no inode quota, so a class on
+//! it limits bytes alone, and says so.
 //!
-//! Qgroup accounting can become inconsistent, and while it is, limits are not enforced: the
-//! kernel counts nothing. A class reads the quota tree's status when it opens and enforces only
-//! if quotas are on and consistent; a usage read says it is not accounted while they are not. The
-//! helper never destroys a qgroup: on Linux 6.8, destroying a deleted subvolume's stale qgroup
-//! marked the accounting inconsistent at the next commit, which lifted every limit on the
-//! filesystem until a rescan (research/evidence.md). A deleted volume's empty qgroup is left for
-//! an operator's `btrfs qgroup clear-stale`.
+//! Qgroup accounting can become inconsistent, and while it is, limits are not enforced: the kernel
+//! counts nothing. A class reads the quota tree's status when it opens and enforces only if quotas
+//! are on and consistent; a usage read says it is not accounted while they are not. The helper
+//! never destroys a qgroup: on Linux 6.8, destroying a deleted subvolume's stale qgroup marked the
+//! accounting inconsistent at the next commit, which lifted every limit on the filesystem until a
+//! rescan. A deleted volume's empty qgroup is left for an operator's `btrfs qgroup clear-stale`.
 //!
 //! This is one of the crate's unsafe modules, listed in the crate's header: the btrfs ioctls have
 //! no safe wrapper in the libraries the helper may link. Each call passes a descriptor borrowed

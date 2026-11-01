@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The tenancy tree through the binary (§2 of docs/08-identity.md): the host makes a reseller's
-//! organization and gives the reseller authority over it, and the reseller, holding nothing
-//! above its own organization, makes its customer beneath it and a project in the customer. The
-//! host suspends the reseller from above and resumes it, and the reseller, suspended, is shown why
-//! and what it still reads.
+//! The tenancy tree through the binary: the host makes a reseller's organization and gives the
+//! reseller authority over it, and the reseller, holding nothing above its own organization, makes
+//! its customer beneath it and a project in the customer. The host suspends the reseller from above
+//! and resumes it, and the reseller, suspended, is shown why and what it still reads.
 
 use crate::support::ControlPlane;
 use serde_json::Value;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Bandwidth, held by the node's network (§7 of docs/07-networking.md): a workload that sets an
-//! endpoint's own shaping or accounting, or a reservation of the node's uplinks, is placed only
-//! on a node whose link-joining driver declares it enforces each, and its reservation only
-//! within the bandwidth that node offers.
+//! Bandwidth, held by the node's network: a workload that sets an endpoint's own shaping or
+//! accounting, or a reservation of the node's uplinks, is placed only on a node whose link-joining
+//! driver declares it enforces each, and its reservation only within the bandwidth that node
+//! offers.
 
 use super::{Case, checks, driver, node};
 use crate::schedule::Check;

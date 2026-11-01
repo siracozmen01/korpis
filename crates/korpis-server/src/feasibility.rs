@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The shortlist query over this process's agent sessions (§2.1 of docs/05-scheduling.md): each
-//! node whose agent said it answers is sent a `FeasibilityQuery` under a random identifier only it
-//! is told, and its answer is taken from it alone. Every node is asked before any answer is awaited, so the wait is that of
-//! the slowest node, bounded by the caller's limit.
+//! The shortlist query over this process's agent sessions: each node whose agent said it answers is
+//! sent a `FeasibilityQuery` under a random identifier only it is told, and its answer is taken
+//! from it alone. Every node is asked before any answer is awaited, so the wait is that of the
+//! slowest node, bounded by the caller's limit.
 
 use crate::reachability::{hex, random};
 use crate::sessions::Sessions;

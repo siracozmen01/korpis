@@ -6,7 +6,7 @@
 //! the day of the month and the day of the week are restricted (neither begins with `*`), a day
 //! matching either is due.
 //!
-//! A schedule is read in a time zone (§4.1 of docs/05-scheduling.md): see [`Schedule::next_after`].
+//! A schedule is read in a time zone: see [`Schedule::next_after`].
 
 mod next;
 

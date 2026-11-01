@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Repositories, their retention policies, and backups (§5 of docs/06-storage.md).
+//! Repositories, their retention policies, and backups.
 
 use crate::{Result, duration, duration_from, id, invalid, timestamp, wire_id};
 use korpis_core::backup::{
@@ -19,7 +19,7 @@ pub fn custody_to_pb(c: KeyCustody) -> pb::KeyCustody {
     }
 }
 
-/// A custody from the field `field`; unset is the operator's, the default of §5.5.
+/// A custody from the field `field`; unset is the operator's, the default.
 pub fn custody_from_pb(field: &str, c: buffa::EnumValue<pb::KeyCustody>) -> Result<KeyCustody> {
     match c.as_known() {
         Some(pb::KeyCustody::KEY_CUSTODY_UNSPECIFIED | pb::KeyCustody::KEY_CUSTODY_OPERATOR) => {

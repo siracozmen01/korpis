@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The second phase of a prune (§5.5 of docs/06-storage.md): what a prune marked, deleted with
-//! the target's own credential once its grace has passed. The sweep holds the workload's prefix,
-//! so no backup into it is proposed meanwhile, and begins only when no backup into it is open and
-//! no write access to it that the control plane granted can still be used: a job whose plan ended
-//! while it ran is a writer too. So every backup that could have taken a marked object as
-//! already there has finished and has a record, and what is deleted is what was marked and is
-//! still referenced by no backup kept now, the references read again; a name referenced again
-//! is unmarked and kept.
+//! The second phase of a prune: what a prune marked, deleted with the target's own credential once
+//! its grace has passed. The sweep holds the workload's prefix, so no backup into it is proposed
+//! meanwhile, and begins only when no backup into it is open and no write access to it that the
+//! control plane granted can still be used: a job whose plan ended while it ran is a writer too. So
+//! every backup that could have taken a marked object as already there has finished and has a
+//! record, and what is deleted is what was marked and is still referenced by no backup kept now,
+//! the references read again; a name referenced again is unmarked and kept.
 
 use super::prune::{GRACE, PruneRead};
 use crate::App;

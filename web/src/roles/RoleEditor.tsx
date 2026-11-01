@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Making, editing, and retiring an organization's roles (§4 of docs/08-identity.md), offered to a
-// signed-in caller holding `template.write` there. An edit is made against the version shown, so
-// a role edited meanwhile is a conflict, said in the control plane's words; a field the panel
-// cannot read is named before anything is sent. Editing a role widens nothing already given: the
-// grants issued from it keep what they hold.
+// Making, editing, and retiring an organization's roles, offered to a signed-in caller holding
+// `template.write` there. An edit is made against the version shown, so a role edited meanwhile is
+// a conflict, said in the control plane's words; a field the panel cannot read is named before
+// anything is sent. Editing a role widens nothing already given: the grants issued from it keep
+// what they hold.
 
 import { useState } from "react";
 import {

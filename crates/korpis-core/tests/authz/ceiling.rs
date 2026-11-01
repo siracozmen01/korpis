@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The delegation ceiling (§5.1 of docs/08-identity.md): a grant beneath a set subject stands
-//! for at most the ceiling from its issue, whatever its own expiry, at every use; an
-//! organization's lowered ceiling reaches grants already issued in its subtree, and the root's
-//! raised one lets them stand longer. The set's own grant is not beneath a set and is not held to
-//! it.
+//! The delegation ceiling: a grant beneath a set subject stands for at most the ceiling from its
+//! issue, whatever its own expiry, at every use; an organization's lowered ceiling reaches grants
+//! already issued in its subtree, and the root's raised one lets them stand longer. The set's own
+//! grant is not beneath a set and is not held to it.
 
 use crate::support::{Tree, actions, child, days, root};
 use korpis_core::authz::binding::ProviderRef;

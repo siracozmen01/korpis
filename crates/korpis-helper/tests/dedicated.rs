@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's dedicated address (§3.7 of docs/07-networking.md, trace 77 of
-//! docs/23-walkthroughs.md), as the helper holds it on a node whose network puts the pool's
+//! A workload's dedicated address, as the helper holds it on a node whose network puts the pool's
 //! addresses on the node's link. The node is a network namespace of the test's own, the helper
-//! making the workload's network from a thread inside it, and the network is another, joined to
-//! it by a veth on one subnet; so nothing is made in this machine's own namespace. The address is
+//! making the workload's network from a thread inside it, and the network is another, joined to it
+//! by a veth on one subnet; so nothing is made in this machine's own namespace. The address is
 //! added to the node's interface and translated to the workload, its declared port reached there
 //! and no other; moved to an address the operator had put on the interface already, the first is
 //! taken off and the operator's left when the workload goes. Needs root and nftables; skipped

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Certificates organizations hold for the ingress (§3.2 of docs/07-networking.md). A provided
-//! certificate is uploaded under `certificate.write` on its organization, chain and key: the
-//! control plane's TLS key reads the chain, shows the key to be its leaf's, and seals the key,
-//! which is stored no other way. It may be replaced in place, keeping its identifier, by a chain
-//! that still covers every name served with it, and deleted once no endpoint serves with it;
-//! which endpoints do is recorded on their routes, so the check holds however a deletion and a
-//! claim interleave.
+//! Certificates organizations hold for the ingress. A provided certificate is uploaded under
+//! `certificate.write` on its organization, chain and key: the control plane's TLS key reads the
+//! chain, shows the key to be its leaf's, and seals the key, which is stored no other way. It may
+//! be replaced in place, keeping its identifier, by a chain that still covers every name served
+//! with it, and deleted once no endpoint serves with it; which endpoints do is recorded on their
+//! routes, so the check holds however a deletion and a claim interleave.
 
 mod expiry;
 mod issue;

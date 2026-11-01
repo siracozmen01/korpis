@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What one workload holds against quota (§5.1 of docs/05-scheduling.md), from its declaration.
+//! What one workload holds against quota, from its declaration.
 
 use super::Dimension;
 use crate::workload::spec::endpoints::Exposure;
@@ -41,32 +41,30 @@ impl Held {
         let r = &body.resources;
         let created: Vec<_> = body.volumes.iter().filter(|v| v.existing.is_none()).collect();
         let volume_bytes = created.iter().fold(0u64, |a, v| a.saturating_add(v.size_bytes));
-        // A console stream holds disk like a volume it creates (§4 of docs/14-streams.md), and
-        // a workload whose runs write their own holds one for each run its node keeps at once:
-        // those retention keeps and those active, which its policy bounds.
+        // A console stream holds disk like a volume it creates, and a workload whose runs write
+        // their own holds one for each run its node keeps at once: those retention keeps and those
+        // active, which its policy bounds.
         let streams = match (body.console, body.lifecycle.has_runs()) {
             (ConsoleMode::None, _) => 0,
             (_, false) => 1,
             (_, true) => u64::from(body.run_policy().streams_held()),
         };
         let stream_bytes = body.streams.disk_bound().saturating_mul(streams);
-        // Its volumes' replicas hold as much again on other nodes, each (§2.2 of
-        // docs/06-storage.md): counted here, against quota, and not in what its own node
-        // reserves (`schedule::reservation`).
+        // Its volumes' replicas hold as much again on other nodes, each: counted here, against
+        // quota, and not in what its own node reserves (`schedule::reservation`).
         let created_bytes =
             volume_bytes.saturating_add(stream_bytes).saturating_add(replica_bytes(body));
-        // A workload's `dedicated_ip` endpoints share its one address (§3.7 of
-        // docs/07-networking.md, Finding 185 of docs/23-walkthroughs.md).
+        // A workload's `dedicated_ip` endpoints share its one address.
         let dedicated = body.endpoints.iter().any(|e| e.exposure == Exposure::DedicatedIp);
         let counts = [
             (D::Workloads, 1),
             (D::Volumes, count(created.len())),
             (D::Endpoints, count(body.endpoints.len())),
             (D::DedicatedIpv4, u64::from(dedicated)),
-            // Counted as declared, a `stable` endpoint as a port of its node whatever serves
-            // it: admission comes before the placement that resolves it, and a quota's totals do
-            // not move when an edge group is made or loses a member. What its node reserves
-            // knows the edge (`schedule::reservation`, §3.1 of docs/07-networking.md).
+            // Counted as declared, a `stable` endpoint as a port of its node whatever serves it:
+            // admission comes before the placement that resolves it, and a quota's totals do not
+            // move when an edge group is made or loses a member. What its node reserves knows the
+            // edge (`schedule::reservation`).
             (D::NodePorts, crate::workload::endpoint::node_ports(&body.endpoints, false)),
         ];
         let devices = body.devices.iter().map(|d| (D::Devices(d.class), u64::from(d.count)));

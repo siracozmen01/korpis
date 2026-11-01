@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A path of a block device's backup restored into a new directory of its volume, against a real
-//! control plane (§5.4 of docs/06-storage.md), with the in-memory runtime as a driver whose
-//! volumes are block devices and the in-memory helper: the plan stages the backup's image while
-//! the workload runs, stops it, has its driver copy the path from the image into the volume, and
-//! starts it again; the staging is the helper's reading restore and the copy the driver's restore,
-//! naming the image, the path, and the new directory; and a block device's whole backup is never
-//! restored into a directory.
+//! control plane, with the in-memory runtime as a driver whose volumes are block devices and the
+//! in-memory helper: the plan stages the backup's image while the workload runs, stops it, has its
+//! driver copy the path from the image into the volume, and starts it again; the staging is the
+//! helper's reading restore and the copy the driver's restore, naming the image, the path, and the
+//! new directory; and a block device's whole backup is never restored into a directory.
 
 use crate::backup::{applied, backed_up, serve_target, settled, start};
 use crate::backup_read::blocks;

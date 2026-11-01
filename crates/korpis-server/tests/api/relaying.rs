@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Acting for an asserted person (§5.2 of docs/08-identity.md), against a real control plane: a
-//! relay that was handed a ticket makes the ordinary call with its own credential and the
-//! ticket, and the gateway acts as the person, through the sets the assertion names, for the
-//! one action on the one object the ticket names, once. The effect names the person and the
-//! relay; anything else asked with the ticket is refused, and no ticket issues a grant.
+//! Acting for an asserted person, against a real control plane: a relay that was handed a ticket
+//! makes the ordinary call with its own credential and the ticket, and the gateway acts as the
+//! person, through the sets the assertion names, for the one action on the one object the ticket
+//! names, once. The effect names the person and the relay; anything else asked with the ticket is
+//! refused, and no ticket issues a grant.
 
 use crate::bindings::{bind, issue, set};
 use crate::idp::serving;

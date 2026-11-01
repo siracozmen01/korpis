@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Calling a backup target provider (§5.6 of docs/06-storage.md): access scoped to a prefix
-//! whose secret the record of the call keeps only until it is read, and the listing and deletion
-//! a prune runs with, each answer judged before anything acts on it.
+//! Calling a backup target provider: access scoped to a prefix whose secret the record of the call
+//! keeps only until it is read, and the listing and deletion a prune runs with, each answer judged
+//! before anything acts on it.
 
 use crate::extensions::{DNS, push_document};
 use crate::providers::installed_from;

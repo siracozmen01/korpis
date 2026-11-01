@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a restore recovers from the assignments nodes present (§8 of docs/03-state.md), written
-//! as recovered: `recovered_from` on the intent and the power declaration names the node, the key,
-//! and the signature.
+//! What a restore recovers from the assignments nodes present, written as recovered:
+//! `recovered_from` on the intent and the power declaration names the node, the key, and the
+//! signature.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

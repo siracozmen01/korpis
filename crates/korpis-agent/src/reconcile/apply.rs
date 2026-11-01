@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A path of a block device's backup restored into its volume (§5.4 of docs/06-storage.md): the
-//! plan's restore step staged the backup's image beside the volume while the workload ran, and
-//! this step, once the workload is stopped, has the workload's driver copy the path from that
-//! image into a new directory of the volume, in a service guest holding both, as it runs an
-//! install. Each pass asks the driver where the copy is, starts it when the driver knows none,
-//! and waits while it runs; a copy the driver lost is started again, which finds its own finished
-//! work and is done. The staged image is the restore step's job's, which the node forgets once
-//! the plan has left the set.
+//! A path of a block device's backup restored into its volume: the plan's restore step staged the
+//! backup's image beside the volume while the workload ran, and this step, once the workload is
+//! stopped, has the workload's driver copy the path from that image into a new directory of the
+//! volume, in a service guest holding both, as it runs an install. Each pass asks the driver where
+//! the copy is, starts it when the driver knows none, and waits while it runs; a copy the driver
+//! lost is started again, which finds its own finished work and is done. The staged image is the
+//! restore step's job's, which the node forgets once the plan has left the set.
 
 use super::act::Failure;
 use super::jobs::job_of;

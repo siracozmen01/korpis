@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Assignments (§4.8 of docs/02-architecture.md): the set a node holds, signed by the control
-//! plane's assignment key, sent when it changes, and not sent again to a node that holds it.
+//! Assignments: the set a node holds, signed by the control plane's assignment key, sent when it
+//! changes, and not sent again to a node that holds it.
 
 use crate::agent::{Stream, TestAgent, next, welcome};
 use crate::journal::complete;
@@ -106,8 +106,8 @@ async fn a_node_is_sent_its_signed_set_when_it_changes_and_not_when_it_holds_it(
     if stop_plan.status.as_known() == Some(pb::PlanStatus::PLAN_STATUS_PROPOSED) {
         h.plans(h.root()).approve_plan(approve("a", &stop_plan.id)).await.unwrap();
     }
-    // Queued behind the create, which is still applying, the stop changes nothing on the node
-    // until the create is done (§4.8 of docs/02-architecture.md, Finding 52).
+    // Queued behind the create, which is still applying, the stop changes nothing on the node until
+    // the create is done.
     complete(&mut stream, &workload, plan, 1).await;
     let (second, changed) = stopped_set(&a, &mut stream).await;
     assert!(changed.generation > 1, "a change is a new generation");

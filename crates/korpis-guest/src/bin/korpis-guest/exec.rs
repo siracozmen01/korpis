@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A command the host asks for on the control port (§4.2 of docs/04-runtimes.md), run as the
-//! entry runs: its user and group, its environment, its working directory, in the workload's
-//! root, in a process group of its own. Its stdout and stderr are one pipe this thread reads and
-//! sends on, at most the limit asked, what is past it read and dropped; past its timeout its group
-//! is killed. The first process reaps every child, so a command's status is kept for it here by
-//! the reaper and waited for, and its process id is registered before the reaper could see it.
+//! A command the host asks for on the control port, run as the entry runs: its user and group, its
+//! environment, its working directory, in the workload's root, in a process group of its own. Its
+//! stdout and stderr are one pipe this thread reads and sends on, at most the limit asked, what is
+//! past it read and dropped; past its timeout its group is killed. The first process reaps every
+//! child, so a command's status is kept for it here by the reaper and waited for, and its process
+//! id is registered before the reaper could see it.
 
 use crate::run::{Output, spawn};
 use korpis_guest::config::Config;

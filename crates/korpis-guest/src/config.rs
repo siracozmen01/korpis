@@ -45,14 +45,13 @@ pub struct Config {
     /// empty and its output reaches the console as it wrote it.
     #[serde(default)]
     pub interactive: bool,
-    /// The workload has an identity directory (§9.5 of docs/08-identity.md): the first process
-    /// serves `/run/korpis/identity.sock` before the entry starts, each connection relayed to
-    /// the workload's own socket on the host.
+    /// The workload has an identity directory: the first process serves `/run/korpis/identity.sock`
+    /// before the entry starts, each connection relayed to the workload's own socket on the host.
     #[serde(default)]
     pub identity: bool,
-    /// An install job's spec given here rather than on the content drive, for a guest whose
-    /// content drive holds something else: a restore's (§5.4 of docs/06-storage.md), whose
-    /// content drive is the backup's image. The bytes are the job's to decode.
+    /// An install job's spec given here rather than on the content drive, for a guest whose content
+    /// drive holds something else: a restore's, whose content drive is the backup's image. The
+    /// bytes are the job's to decode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub job_spec: Option<Vec<u8>>,
     /// What the guest is for: the workload's own run, or a service guest of Korpis's own.
@@ -67,15 +66,14 @@ pub enum Role {
     /// The workload's own run: its image, its entry.
     #[default]
     Workload,
-    /// A service guest (§4.4 of docs/04-runtimes.md): it mounts no image and runs no entry,
-    /// holds the volumes at their paths in a root of nothing else, and serves file sessions on
-    /// its files port until it is stopped.
+    /// A service guest: it mounts no image and runs no entry, holds the volumes at their paths in a
+    /// root of nothing else, and serves file sessions on its files port until it is stopped.
     Files,
-    /// A service guest that also runs an install (§4 of docs/09-recipes.md): its image's drive is
-    /// the install's content drive (`korpis_image::content`), holding the install's spec and what
-    /// it reads, which it mounts read-only and runs `korpis-install-job` from once its root is
-    /// ready. A restore into a block device runs the same job, its content drive the backup's
-    /// image and its spec the config's `job_spec`.
+    /// A service guest that also runs an install: its image's drive is the install's content drive
+    /// (`korpis_image::content`), holding the install's spec and what it reads, which it mounts
+    /// read-only and runs `korpis-install-job` from once its root is ready. A restore into a block
+    /// device runs the same job, its content drive the backup's image and its spec the config's
+    /// `job_spec`.
     Install,
 }
 

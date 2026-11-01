@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Domains: `korpis.v1.Domain` (§3.2 of docs/07-networking.md).
+//! Domains: `korpis.v1.Domain`.
 
 use crate::{timestamp, wire_id};
 use korpis_core::dns::domain::{Domain, Verification};

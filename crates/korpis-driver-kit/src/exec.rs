@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A command run inside a running object (§4.2 of docs/04-runtimes.md), as every driver bounds
-//! it: its arguments, how long it may run, and how much of its output is sent; and how its run is
-//! reported, its output as it comes and then how it ended.
+//! A command run inside a running object, as every driver bounds it: its arguments, how long it may
+//! run, and how much of its output is sent; and how its run is reported, its output as it comes and
+//! then how it ended.
 
 use korpis_proto::korpis::driver::v1 as driver;
 use std::time::Duration;

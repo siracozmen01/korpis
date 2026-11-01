@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Rules naming workloads (§6 of docs/07-networking.md): the addresses a rule naming workloads by
-//! a selector names on the node of the workload whose rule it is. A packet filter judges
-//! addresses, so the control plane resolves each such rule to the addresses of the workloads of
-//! the project it matches, as their nodes observed them, and names an address only where the
-//! rule's node routes a packet for it to the matched workload: one on the rule's own node, at its
-//! addresses there, and one on another member of the mesh, at its addresses in that member's
-//! routed pools, which no other member's overlap, where the rule's node is a member too. Any
-//! other private address may be one the rule's node gave a workload of its own, so naming it
-//! would judge another workload. A deny names, besides, every global IPv6 address a matched
-//! workload is observed at, which reaches an endpoint exposed at a global address from anywhere:
-//! naming it drops more, and never lets more in.
+//! Rules naming workloads: the addresses a rule naming workloads by a selector names on the node of
+//! the workload whose rule it is. A packet filter judges addresses, so the control plane resolves
+//! each such rule to the addresses of the workloads of the project it matches, as their nodes
+//! observed them, and names an address only where the rule's node routes a packet for it to the
+//! matched workload: one on the rule's own node, at its addresses there, and one on another member
+//! of the mesh, at its addresses in that member's routed pools, which no other member's overlap,
+//! where the rule's node is a member too. Any other private address may be one the rule's node gave
+//! a workload of its own, so naming it would judge another workload. A deny names, besides, every
+//! global IPv6 address a matched workload is observed at, which reaches an endpoint exposed at a
+//! global address from anywhere: naming it drops more, and never lets more in.
 
 use super::spec::IntentBody;
 use super::spec::endpoints::{NetworkAction, NetworkRule, Peer};

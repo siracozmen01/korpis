@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Metering's periods (§2 of docs/15-observability.md): one UTC day each, open while it runs,
-//! closing until its lateness window passes, and closed when the control plane closed it.
+//! Metering's periods: one UTC day each, open while it runs, closing until its lateness window
+//! passes, and closed when the control plane closed it.
 
 use super::DAY;
 use std::time::{Duration, SystemTime};

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Scopes and containment (§3.3 and §3.4 of docs/08-identity.md).
+//! Scopes and containment.
 //!
 //! ```text
 //! volume | endpoint | stream ⊑ their workload ⊑ its project ⊑ its organization
@@ -47,10 +47,10 @@ pub struct Node {
     pub object: ObjectRef,
     /// Its labels.
     pub labels: BTreeMap<String, String>,
-    /// Whether it is an organization that is suspended (§2.1 of docs/08-identity.md).
+    /// Whether it is an organization that is suspended.
     pub suspended: bool,
     /// For an organization: the delegation ceiling it sets for its subtree, the longest a grant
-    /// beneath a set subject lasts there (§5.1 of docs/08-identity.md), if it sets one.
+    /// beneath a set subject lasts there, if it sets one.
     pub ceiling: Option<std::time::Duration>,
 }
 
@@ -84,9 +84,9 @@ impl Resource {
         self.chain.iter().find(|n| n.object.kind == Kind::Organization).map(|n| n.object.id)
     }
 
-    /// Whether the object lies in a suspended organization's subtree: it is one, or one is
-    /// above it (§2.1 of docs/08-identity.md). A resource known [`alone`](Self::alone) says
-    /// nothing of what is above it, so it never says so.
+    /// Whether the object lies in a suspended organization's subtree: it is one, or one is above
+    /// it. A resource known [`alone`](Self::alone) says nothing of what is above it, so it never
+    /// says so.
     #[must_use]
     pub fn suspended(&self) -> bool {
         self.chain.iter().any(|n| n.suspended)
@@ -109,18 +109,17 @@ impl Resource {
     }
 }
 
-/// What the live identity binding of an external subject says now (§5 of
-/// docs/08-identity.md).
+/// What the live identity binding of an external subject says now.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Vouched {
-    /// Until when its provider's last confirmation holds: the confirmation, its interval, and
-    /// its grace (§5.1). `None` when it is unverified, or was never confirmed. A binding nothing
-    /// re-verifies therefore stops vouching on its own.
+    /// Until when its provider's last confirmation holds: the confirmation, its interval, and its
+    /// grace. `None` when it is unverified, or was never confirmed. A binding nothing re-verifies
+    /// therefore stops vouching on its own.
     pub verified_until: Option<std::time::SystemTime>,
     /// Its operator lets grants to the set carry irreversible actions.
     pub allows_irreversible: bool,
     /// For a set: the keys of the other sets its members must also be in, so a member acting
-    /// through a grant to it is held to them by what the assertion names (§5.2).
+    /// through a grant to it is held to them by what the assertion names.
     pub requires: Vec<String>,
 }
 
@@ -136,8 +135,8 @@ pub trait Hierarchy {
     fn vouched(&self, subject: &str) -> Option<Vouched>;
 
     /// Until when the membership of `member` in the set `set` was last confirmed to hold: its
-    /// confirmation plus the set binding's interval and grace (§5.1 of docs/08-identity.md),
-    /// `None` when it was never confirmed, was found ended, or the set is not bound.
+    /// confirmation plus the set binding's interval and grace, `None` when it was never confirmed,
+    /// was found ended, or the set is not bound.
     fn member_vouched(&self, set: &str, member: &str) -> Option<std::time::SystemTime>;
 }
 

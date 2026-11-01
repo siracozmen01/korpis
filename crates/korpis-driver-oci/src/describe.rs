@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `Describe` (§4.1 of docs/04-runtimes.md): what this driver can do, declared from what its code
-//! does rather than from what containers in general can do. Every entry here is a promise the
-//! scheduler places against, so each one names the mechanism that keeps it, and what is not kept
-//! is declared as not enforced, which is what keeps it from being displayed (Rule K-3).
+//! `Describe`: what this driver can do, declared from what its code does rather than from what
+//! containers in general can do. Every entry here is a promise the scheduler places against, so
+//! each one names the mechanism that keeps it, and what is not kept is declared as not enforced,
+//! which is what keeps it from being displayed.
 
 use crate::prepare::NAME;
 use korpis_proto::korpis::v1 as pb;
@@ -56,7 +56,7 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
 }
 
 /// What the driver declares; `healthy` is whether containerd answered, and `cores` where its
-/// cgroups are and how it holds dedicated cores there (§5.2 of docs/05-scheduling.md).
+/// cgroups are and how it holds dedicated cores there.
 #[must_use]
 pub fn info(healthy: bool, cores: &korpis_driver_kit::cores::Cores) -> pb::DriverInfo {
     let mut held = pb::Capabilities::default().enforcement;

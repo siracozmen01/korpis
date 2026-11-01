@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Deleting a workload: a retire plan (§3.3 of docs/01-model.md, §4.8 of
-//! docs/02-architecture.md). The workload stops, its volumes are detached and retained, and its
-//! runtime is removed from its node. A volume is deleted only when the deletion names it, each
-//! by its own irreversible step under `volume.delete` (§7 of docs/06-storage.md).
+//! Deleting a workload: a retire plan. The workload stops, its volumes are detached and retained,
+//! and its runtime is removed from its node. A volume is deleted only when the deletion names it,
+//! each by its own irreversible step under `volume.delete`.
 //!
 //! A retire plan moves no pointer. Approving it means the workload is being retired: nothing else
 //! may be declared or approved for it, and every other proposal is superseded. Its identity is
@@ -41,8 +40,7 @@ const OPERATION: &str = "workload.delete_workload";
 pub struct DeleteWorkload {
     /// The workload.
     pub workload: Uuid,
-    /// The head intent version the deletion was asked against, if the client states one (§6 of
-    /// docs/10-api.md).
+    /// The head intent version the deletion was asked against, if the client states one.
     pub expected_version: Option<u64>,
     /// The names of its volumes to delete with it, each named explicitly; the rest are kept.
     pub delete_volumes: Vec<String>,
@@ -54,9 +52,8 @@ pub(super) fn retiring() -> AppError {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Proposes retiring a workload. A retire plan always waits for a human: removing a runtime
-    /// is disruptive by the vocabulary's floor, and `workload.delete` is irreversible (§5 of
-    /// docs/10-api.md).
+    /// Proposes retiring a workload. A retire plan always waits for a human: removing a runtime is
+    /// disruptive by the vocabulary's floor, and `workload.delete` is irreversible.
     pub async fn delete_workload(
         &self,
         caller: &Caller,

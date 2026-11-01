@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recent sign-in (§9.6 of docs/08-identity.md): what changing an account's factors needs
-//! besides the session that asks. A session's sign-in, or its last re-authentication, must be
-//! within ten minutes, so a session left open on a borrowed machine, or an access token copied
-//! from one, cannot replace the factors and keep the account after the session ends. A session
-//! re-authenticates with a factor of its own account: a passkey, or a password with a code
-//! beside it, charged and limited as a sign-in is.
+//! A recent sign-in: what changing an account's factors needs besides the session that asks. A
+//! session's sign-in, or its last re-authentication, must be within ten minutes, so a session left
+//! open on a borrowed machine, or an access token copied from one, cannot replace the factors and
+//! keep the account after the session ends. A session re-authenticates with a factor of its own
+//! account: a passkey, or a password with a code beside it, charged and limited as a sign-in is.
 
 use super::sign_in::{Assertion, SecondFactor};
 use super::{AccountView, Client, own_account, own_holder, record};
@@ -25,8 +24,8 @@ use uuid::Uuid;
 pub enum Profiled {
     /// An account, with its factors and passkeys.
     Account(AccountView),
-    /// A person signed in through an identity provider, by their own binding: they have no
-    /// factors here (§9.7 of docs/08-identity.md).
+    /// A person signed in through an identity provider, by their own binding: they have no factors
+    /// here.
     Person(Box<IdentityBinding>),
 }
 
@@ -60,8 +59,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The caller's account, as [`Self::recently_signed_in`] answers it, and its session: the
-    /// portal it began at, the one address its passkeys are registered at, and the organization
-    /// it reaches beneath, which bounds what it may change (§9.8 of docs/08-identity.md).
+    /// portal it began at, the one address its passkeys are registered at, and the organization it
+    /// reaches beneath, which bounds what it may change.
     pub(super) async fn recently_signed_in_session(
         &self,
         caller: &Caller,
@@ -75,8 +74,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Who holds the caller's session, an account or a person signed in through an identity
-    /// provider, if it signed in or re-authenticated recently (§9.6 and §9.7 of
-    /// docs/08-identity.md); a caller without a session never has.
+    /// provider, if it signed in or re-authenticated recently; a caller without a session never
+    /// has.
     pub(super) async fn recently_signed_in_as(&self, caller: &Caller) -> Result<Holder, AppError> {
         Ok(self.recent_session(caller).await?.holder)
     }

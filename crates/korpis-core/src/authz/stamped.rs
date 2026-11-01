@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A ticket of identifiers: a fixed number of them and an expiry, signed by the control plane's
-//! token key over a purpose label of the ticket's kind, so nothing else the key signs is taken
-//! for one, and one kind is never taken for another. A transfer's ticket (§2.2 of
-//! docs/06-storage.md) and a migration pass's (§8.1 of docs/05-scheduling.md) are both this.
+//! token key over a purpose label of the ticket's kind, so nothing else the key signs is taken for
+//! one, and one kind is never taken for another. A transfer's ticket and a migration pass's are
+//! both this.
 //!
 //! The form: a prefix of the kind's own, then the payload and its Ed25519 signature, each
 //! base64url without padding, joined by a dot. The payload is a version byte, the key id, the

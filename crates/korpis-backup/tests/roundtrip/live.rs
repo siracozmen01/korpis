@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What kept backups reference (§5.5 of docs/06-storage.md): everything a restore of them needs,
-//! so deleting the rest leaves each one whole; and what only a forgotten backup held is not named.
+//! What kept backups reference: everything a restore of them needs, so deleting the rest leaves
+//! each one whole; and what only a forgotten backup held is not named.
 
 use super::{into, options, repo, scratch, tree};
 use korpis_backup::seal::Kind;

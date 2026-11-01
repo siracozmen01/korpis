@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! An edge group's probe on a control plane sharing its network with the node it would answer
-//! through (§3.1 of docs/07-networking.md, "What it does not do"): that node's answer would be
-//! delivered to the control plane locally and never cross the edge's link back, so once a replica
-//! has recorded that it shares the node's network, every member is told to forward the probe to
-//! another node; and once the record lapses, to the first again.
+//! through ("What it does not do"): that node's answer would be delivered to the control plane
+//! locally and never cross the edge's link back, so once a replica has recorded that it shares the
+//! node's network, every member is told to forward the probe to another node; and once the record
+//! lapses, to the first again.
 
 use crate::across::running_at;
 use crate::agent::TestAgent;

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a guest is kept told of its workload's directory on the host (§6 of docs/04-runtimes.md):
-//! whether the node serves the API relay, and the managed files in `config/` and the
-//! dependencies' files in `deps/`, which a container reads through its mount and a guest is sent
-//! a copy of as they change. The directory is looked at every two seconds, and more often until
-//! the guest has taken what it holds, since its entry waits for the first sync. A file is read
-//! through no link and only if it is a regular one; a directory holds at most
-//! [`MOST_FILES`](control::MOST_FILES) and a file is at most a mebibyte, the guest's copies at
-//! most eight in all, and what is past those is left out and said.
+//! What a guest is kept told of its workload's directory on the host: whether the node serves the
+//! API relay, and the managed files in `config/` and the dependencies' files in `deps/`, which a
+//! container reads through its mount and a guest is sent a copy of as they change. The directory is
+//! looked at every two seconds, and more often until the guest has taken what it holds, since its
+//! entry waits for the first sync. A file is read through no link and only if it is a regular one;
+//! a directory holds at most [`MOST_FILES`](control::MOST_FILES) and a file is at most a mebibyte,
+//! the guest's copies at most eight in all, and what is past those is left out and said.
 
 use crate::agent;
 use korpis_guest::control::{self, Place};

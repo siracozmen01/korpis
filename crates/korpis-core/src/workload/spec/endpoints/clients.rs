@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The client certificates an endpoint whose TLS the proxy terminates asks for (§3.2 of
-//! docs/07-networking.md): whether a client must present one, and the authorities whose
-//! certificates it accepts. The authorities are public, so they travel in the declaration, as
-//! DER here; reading them from PEM, and that each is a certificate, is the wire's, which reads
-//! them as the proxy does.
+//! The client certificates an endpoint whose TLS the proxy terminates asks for: whether a client
+//! must present one, and the authorities whose certificates it accepts. The authorities are public,
+//! so they travel in the declaration, as DER here; reading them from PEM, and that each is a
+//! certificate, is the wire's, which reads them as the proxy does.
 
 use super::super::SpecError;
 

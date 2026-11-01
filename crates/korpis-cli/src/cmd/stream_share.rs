@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis stream share` (§8 of docs/14-streams.md): a share link to read one range of a
-//! workload's console, by the node's clock, and nothing else. It is a link-form grant of
-//! `workload.console.read` carrying the range (§6.1 of docs/08-identity.md), so the node reading
-//! the stream, and the control plane reading its offloaded segments, send only what was written
-//! within it.
+//! `korpis stream share`: a share link to read one range of a workload's console, by the node's
+//! clock, and nothing else. It is a link-form grant of `workload.console.read` carrying the range,
+//! so the node reading the stream, and the control plane reading its offloaded segments, send only
+//! what was written within it.
 
 use super::share::url;
 use super::{Answer, json, mutation, seconds, stream};

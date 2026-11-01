@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The mesh between nodes (§9.1 of docs/07-networking.md) as this replica tells it to the nodes
-//! it holds sessions with. Each replica recomputes it every [`EVERY`] from what every node last
-//! reported, and publishes it when it changed; each session sends its node the other members
-//! when it opens, and again whenever what that node is told changes, so a node enrolled, removed,
-//! or reporting a new key reaches every connected member within about [`EVERY`]. A node that
-//! reports no mesh interface is told nothing.
+//! The mesh between nodes as this replica tells it to the nodes it holds sessions with. Each
+//! replica recomputes it every [`EVERY`] from what every node last reported, and publishes it when
+//! it changed; each session sends its node the other members when it opens, and again whenever what
+//! that node is told changes, so a node enrolled, removed, or reporting a new key reaches every
+//! connected member within about [`EVERY`]. A node that reports no mesh interface is told nothing.
 
 use crate::api::Api;
 use crate::sessions::Sessions;

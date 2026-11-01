@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Leases (§4.5 of docs/02-architecture.md): the placed node is granted an epoch and renews it,
-//! another node is told who holds it, a release ends it, and the epoch reaches the assignment.
+//! Leases: the placed node is granted an epoch and renews it, another node is told who holds it, a
+//! release ends it, and the epoch reaches the assignment.
 
 use crate::agent::{Stream, TestAgent, next, welcome};
 use crate::recipes::{body, create, project, push_paper};

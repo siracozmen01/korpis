@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Plans, their steps, and their impact. Plans are computed by the control plane and leave it;
-//! the one way back in is a restore recovering a plan a node presents (§8 of docs/03-state.md),
-//! which [`read`] serves.
+//! Plans, their steps, and their impact. Plans are computed by the control plane and leave it; the
+//! one way back in is a restore recovering a plan a node presents, which [`read`] serves.
 
 mod read;
 

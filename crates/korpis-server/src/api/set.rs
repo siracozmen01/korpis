@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `DeclaredSetService` (§3.3 of docs/01-model.md, §5 and §6 of docs/13-surface-cli.md).
+//! `DeclaredSetService`.
 
 use super::wire::workload::{declared_set_to_pb, drift_mode_from_pb};
 use super::wire::{self, Refuse};

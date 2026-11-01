@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declaring an intent: a new workload, or a new intent for an existing one (§3.3 of
-//! docs/01-model.md). Declaring moves the head; only approving moves the target, and the plan is
-//! approved in the same call only when nothing in it needs a human (§3.2 of docs/03-state.md).
+//! Declaring an intent: a new workload, or a new intent for an existing one. Declaring moves the
+//! head; only approving moves the target, and the plan is approved in the same call only when
+//! nothing in it needs a human.
 
 mod base;
 mod commit;
@@ -58,7 +58,7 @@ pub enum DeclareTarget {
     Existing {
         /// The workload.
         workload: Uuid,
-        /// The head's version the declaration was made against (§6 of docs/10-api.md).
+        /// The head's version the declaration was made against.
         expected_version: u64,
     },
 }
@@ -72,17 +72,17 @@ pub struct DeclareIntent {
     pub recipe_name: String,
     /// A tag, or a digest.
     pub recipe_version: String,
-    /// What is declared; the recipe completes the rest (§3.1 of docs/09-recipes.md).
+    /// What is declared; the recipe completes the rest.
     pub declaration: Declaration,
     /// Compute and return everything, persist nothing.
     pub dry_run: bool,
-    /// Persist everything and approve nothing: the plan waits for its proposer to confirm it
-    /// even when default policy would approve it (§3.3 of docs/01-model.md).
+    /// Persist everything and approve nothing: the plan waits for its proposer to confirm it even
+    /// when default policy would approve it.
     pub propose: bool,
-    /// Through a declared set (§3.3 of docs/01-model.md).
+    /// Through a declared set.
     pub set: Option<SetDeclaration>,
-    /// Configuration keys whose values are kept from the head as they are: how a caller that
-    /// may not read a secret declares everything else (§5.2 of docs/09-recipes.md).
+    /// Configuration keys whose values are kept from the head as they are: how a caller that may
+    /// not read a secret declares everything else.
     pub keep: Vec<String>,
 }
 
@@ -108,8 +108,8 @@ pub struct Declared {
     pub power: PowerRecord,
     /// The plan toward the intent.
     pub plan: Plan,
-    /// The configuration keys whose values were left out of `intent` as the caller is shown
-    /// it: secrets it may not read (§5.2 of docs/09-recipes.md).
+    /// The configuration keys whose values were left out of `intent` as the caller is shown it:
+    /// secrets it may not read.
     pub withheld: Vec<String>,
 }
 
@@ -120,7 +120,7 @@ struct Base {
     head: Option<Intent>,
     target: Option<Intent>,
     /// The last intent the workload's plans reached, which a new plan's steps are computed from:
-    /// the target, unless the plan approved to reach it failed (§3.3 of docs/01-model.md).
+    /// the target, unless the plan approved to reach it failed.
     applied: Option<Intent>,
     permit: Permit,
     proposing: Proposing,
@@ -128,7 +128,7 @@ struct Base {
     /// The digest of the extension the workload was installed from, when it is an extension's.
     extension: Option<String>,
     /// Whether an edge group serves its organization, which its plans say a declared `stable`
-    /// endpoint resolves by (§3.1 of docs/07-networking.md).
+    /// endpoint resolves by.
     edge: bool,
 }
 
@@ -233,7 +233,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Computes a declaration and checks it against the state it reads. `installing` names the
-    /// digest of the extension a new workload is installed from (§4 of docs/16-extensions.md).
+    /// digest of the extension a new workload is installed from.
     pub(crate) async fn prepare_declaration(
         &self,
         caller: &Caller,
@@ -330,7 +330,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The plan of `to`; with `propose`, one that waits for confirmation whatever default policy
-    /// would do with it (§3.3 of docs/01-model.md).
+    /// would do with it.
     fn intent_plan(
         &self,
         caller: &Caller,

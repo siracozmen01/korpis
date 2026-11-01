@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The flags that turn SFTP on, on `serve` for the control plane's own relay role and on `relay
-//! run` for a relay of its own (§3 of docs/18-operations.md). Off unless an address is given.
+//! run` for a relay of its own. Off unless an address is given.
 
 use korpis_core::relay::RelayUrl;
 use korpis_core::relay::sftp::SftpAddress;
@@ -13,9 +13,8 @@ use tokio::task::JoinHandle;
 
 #[derive(Debug, clap::Args)]
 pub struct SftpArgs {
-    /// Serve SFTP on this address as well, for the people whose SSH keys are registered (§3.1
-    /// of docs/02-architecture.md). Off unless given; it extends this relay the trust §9.9 of
-    /// docs/08-identity.md states.
+    /// Serve SFTP on this address as well, for the people whose SSH keys are registered. Off unless
+    /// given; it extends this relay the trust the authentication design states.
     #[arg(
         id = "sftp-listen",
         long = "sftp-listen",

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Redeeming an invitation (§9.6 of docs/08-identity.md): the account it was issued for gains its
-//! sign-in name and first factor, a passkey or a password with TOTP beside it, and the invitation
-//! is spent, in one transaction. A refused secret is [`AppError::Unauthenticated`], so nothing
-//! answers whether an invitation exists.
+//! Redeeming an invitation: the account it was issued for gains its sign-in name and first factor,
+//! a passkey or a password with TOTP beside it, and the invitation is spent, in one transaction. A
+//! refused secret is [`AppError::Unauthenticated`], so nothing answers whether an invitation
+//! exists.
 
 use super::{Begun, Client, NewRegistration, Registration, fresh_codes, record};
 use crate::App;
@@ -98,8 +98,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// Begins redeeming the invitation `secret` by registering a passkey, as `name`, at the
-    /// address `portal` names, whose passkey it will be (§9.8 of docs/08-identity.md).
+    /// Begins redeeming the invitation `secret` by registering a passkey, as `name`, at the address
+    /// `portal` names, whose passkey it will be.
     pub async fn begin_redemption(
         &self,
         secret: &str,

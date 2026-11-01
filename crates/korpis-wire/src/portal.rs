@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Portals: `korpis.v1.Portal` (§3.6 of docs/07-networking.md), with what its certificate says of
-//! itself, so whoever reads a portal learns whether it can be served and why not.
+//! Portals: `korpis.v1.Portal`, with what its certificate says of itself, so whoever reads a portal
+//! learns whether it can be served and why not.
 
 use crate::certificate::{source_to_pb, state_to_pb};
 use crate::{timestamp, wire_id};

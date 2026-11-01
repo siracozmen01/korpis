@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What answers on the control plane's address (§1 of docs/11-surface-web.md): a procedure of
-//! the API goes to the API, with the cross-origin headers a panel served from a listed origin
-//! needs; `/about/source` says where this build's source is (§7 of docs/11-surface-web.md); and
-//! every other path is a file of the panel in `--web-root`, if one is served.
+//! What answers on the control plane's address: a procedure of the API goes to the API, with the
+//! cross-origin headers a panel served from a listed origin needs; `/about/source` says where this
+//! build's source is; and every other path is a file of the panel in `--web-root`, if one is
+//! served.
 //!
-//! At a portal (§3.6 of docs/07-networking.md) the same is answered, for the portal: a request
-//! whose host is not the portal's is refused 421, since the connection proved the portal's name
-//! and no other, and a cross-origin call is answered for the portal's own origin alone. A
-//! relay's session (`korpis.v1.RelayService`) is also answered for every portal's origin, since
-//! a portal's panel opens its consoles at the relays the installation names.
+//! At a portal the same is answered, for the portal: a request whose host is not the portal's is
+//! refused 421, since the connection proved the portal's name and no other, and a cross-origin call
+//! is answered for the portal's own origin alone. A relay's session (`korpis.v1.RelayService`) is
+//! also answered for every portal's origin, since a portal's panel opens its consoles at the relays
+//! the installation names.
 
 use crate::portals::PortalAt;
 use crate::{about, web};
@@ -75,15 +75,15 @@ impl Front {
     }
 
     /// The same, answering a relay's session for each of `origins` too, the portals' as they
-    /// change (§3.6 of docs/07-networking.md).
+    /// change.
     #[must_use]
     pub fn with_portal_origins(mut self, origins: watch::Receiver<Arc<[String]>>) -> Self {
         self.portal_origins = Some(origins);
         self
     }
 
-    /// The same, writing the relays `relays` names into the panel's policy as it serves the
-    /// page, so the panel may open sessions at them (§3.1 of docs/02-architecture.md).
+    /// The same, writing the relays `relays` names into the panel's policy as it serves the page,
+    /// so the panel may open sessions at them.
     #[must_use]
     pub fn with_relays(mut self, relays: Relays) -> Self {
         self.relays = Some(relays);

@@ -29,8 +29,7 @@ pub enum Kind {
     Tree,
     /// One backup's record.
     Backup,
-    /// One sealed segment of a workload's console stream, offloaded beneath its stream prefix
-    /// (§4 of docs/14-streams.md).
+    /// One sealed segment of a workload's console stream, offloaded beneath its stream prefix.
     Segment,
 }
 

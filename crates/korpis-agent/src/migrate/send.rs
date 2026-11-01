@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Sending (§8.1 of docs/05-scheduling.md). For each volume of a migration whose source this node
-//! is, in `replicate` or `final_sync`, the pass its role names is sent once: from this node's mesh
-//! address to the destination's transfer port, the ticket first, then the pass, by increments
-//! where the volume crosses so and by its tree otherwise; then journaled, with the bytes it sent
-//! for increments; a tree's are counted by the destination, whose rsync pulls it.
-//! One that failed is sent again after [`RETRY`]; a pass the control plane started anew, its
-//! ticket having run out, is another pass.
+//! Sending. For each volume of a migration whose source this node is, in `replicate` or
+//! `final_sync`, the pass its role names is sent once: from this node's mesh address to the
+//! destination's transfer port, the ticket first, then the pass, by increments where the volume
+//! crosses so and by its tree otherwise; then journaled, with the bytes it sent for increments; a
+//! tree's are counted by the destination, whose rsync pulls it. One that failed is sent again after
+//! [`RETRY`]; a pass the control plane started anew, its ticket having run out, is another pass.
 
 use super::{Migrating, RETRY, Sending, reported};
 use crate::host::{Replicating, Trees};

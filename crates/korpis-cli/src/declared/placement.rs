@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A declared file's `placement` (§3 of docs/13-surface-cli.md): the nodes a workload may run on
-//! and how it stands towards other workloads, as the intent body's placement (§2 of
-//! docs/05-scheduling.md) says them, its keys the API's in snake case and its operators without
-//! their prefix.
+//! A declared file's `placement`: the nodes a workload may run on and how it stands towards other
+//! workloads, as the intent body's placement says them, its keys the API's in snake case and its
+//! operators without their prefix.
 
 use super::named;
 use serde::Deserialize;

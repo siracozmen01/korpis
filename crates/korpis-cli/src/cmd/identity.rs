@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis identity bind|list|show|edit|retire|verify` (§5 and §5.1 of docs/08-identity.md):
-//! identity bindings, through which a grant names a person or a set at an identity provider.
-//! A binding is shown with its state, when its provider last confirmed it, and its interval and
-//! grace together, since the longest an unreachable provider extends it is their sum.
+//! `korpis identity bind|list|show|edit|retire|verify`: identity bindings, through which a grant
+//! names a person or a set at an identity provider. A binding is shown with its state, when its
+//! provider last confirmed it, and its interval and grace together, since the longest an
+//! unreachable provider extends it is their sum.
 
 use super::{Answer, json, mutation, seconds};
 use crate::connect::Connection;
@@ -40,7 +40,7 @@ pub enum IdentityAction {
         /// How long an unreachable provider extends it past its interval; 15m by default.
         #[arg(long)]
         grace: Option<String>,
-        /// For a set: let its grants carry irreversible actions, deliberately (§5.2).
+        /// For a set: let its grants carry irreversible actions, deliberately.
         #[arg(long)]
         irreversible: bool,
         /// For a set: another set, `<realm>/<name>`, its members must also be in.
@@ -60,8 +60,8 @@ pub enum IdentityAction {
         /// The binding, `idb_…`.
         binding: String,
     },
-    /// Edits a binding's terms against the version it has now. An edit narrows at once and
-    /// widens only for grants issued after it (§5).
+    /// Edits a binding's terms against the version it has now. An edit narrows at once and widens
+    /// only for grants issued after it.
     Edit {
         /// The binding, `idb_…`.
         binding: String,

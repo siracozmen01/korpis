@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's issuer of `acme` certificates (§3.2 of docs/07-networking.md): whenever a
-//! certificate is made, and every ten seconds besides, it issues each certificate due, a few at
-//! once, revokes the chains given to a node removed as compromised, withdraws the DNS challenge
-//! records an issuer that stopped mid-order left standing, and removes the certificates nothing
-//! names. At start it makes every certificate not issued due at once, so a setting the operator
-//! changed, the directory's terms agreed for one, is tried without waiting out a backoff. Each
-//! certificate is taken under a lease, so replicas share the work rather than repeat it.
+//! The control plane's issuer of `acme` certificates: whenever a certificate is made, and every ten
+//! seconds besides, it issues each certificate due, a few at once, revokes the chains given to a
+//! node removed as compromised, withdraws the DNS challenge records an issuer that stopped
+//! mid-order left standing, and removes the certificates nothing names. At start it makes every
+//! certificate not issued due at once, so a setting the operator changed, the directory's terms
+//! agreed for one, is tried without waiting out a backoff. Each certificate is taken under a lease,
+//! so replicas share the work rather than repeat it.
 
 use crate::api::Api;
 use korpis_app::ports::{Store as _, Timer, Wakeups as _};

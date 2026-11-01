@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes (§7 of docs/06-storage.md): kept from what nodes report, detached and kept when their
-//! workload retires, marked when deleted and never removed, and found under their project.
+//! Volumes: kept from what nodes report, detached and kept when their workload retires, marked when
+//! deleted and never removed, and found under their project.
 
 use crate::support::{create, fixture, now};
 use korpis_app::Page;

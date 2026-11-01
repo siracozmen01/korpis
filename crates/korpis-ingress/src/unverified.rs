@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! TLS to a workload that serves its own certificate (`https`, §3.2 of docs/07-networking.md).
-//! The certificate is not verified: the workload made it, usually for itself alone, and no
-//! authority the proxy could hold vouches for it. What is checked is that the workload holds the
-//! key of the certificate it presents, which the handshake's signature proves. What this costs
-//! is stated where it is decided: the hop never leaves the node, and TLS on it protects against
-//! nothing the node itself could not already see.
+//! TLS to a workload that serves its own certificate (`https`). The certificate is not verified:
+//! the workload made it, usually for itself alone, and no authority the proxy could hold vouches
+//! for it. What is checked is that the workload holds the key of the certificate it presents, which
+//! the handshake's signature proves. What this costs is stated where it is decided: the hop never
+//! leaves the node, and TLS on it protects against nothing the node itself could not already see.
 
 use rustls::DigitallySignedStruct;
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The reconciler of block classes' devices (§2.1 of docs/06-storage.md): every few seconds it
-//! wants a device for each volume of a block class that a placed workload declares, then asks
-//! each device's provider for what it is due, made or attached at its workload's lease, a few at
-//! once. Each device is taken under a hold, so replicas share the work rather than repeat it.
+//! The reconciler of block classes' devices: every few seconds it wants a device for each volume of
+//! a block class that a placed workload declares, then asks each device's provider for what it is
+//! due, made or attached at its workload's lease, a few at once. Each device is taken under a hold,
+//! so replicas share the work rather than repeat it.
 
 use crate::api::Api;
 use std::sync::Arc;

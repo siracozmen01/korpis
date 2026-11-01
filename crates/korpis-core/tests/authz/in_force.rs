@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Whether a chain is in force (§3.5 of docs/08-identity.md): what decides that a workload holds
-//! authority, and with it whether its node relays the API to it (§9.5 there).
+//! Whether a chain is in force: what decides that a workload holds authority, and with it whether
+//! its node relays the API to it.
 
 use crate::support::{Tree, child, days, root};
 use korpis_core::authz::Scope;

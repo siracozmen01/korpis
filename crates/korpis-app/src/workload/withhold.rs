@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A secret field's value, read back only with `workload.secret.read` (§5.2 of
-//! docs/09-recipes.md). Every intent a read returns has the values of its recipe's secret fields
-//! withheld from a caller who may not read them, and names the keys it withheld, so a client
-//! knows a value is set without learning it. What is secret is the recipe's to say, and the
-//! recipe is the one the intent pins by digest, so the answer never changes for an intent; a
-//! recipe that cannot be read withholds every value, since what it marks secret is then unknown.
+//! A secret field's value, read back only with `workload.secret.read`. Every intent a read returns
+//! has the values of its recipe's secret fields withheld from a caller who may not read them, and
+//! names the keys it withheld, so a client knows a value is set without learning it. What is secret
+//! is the recipe's to say, and the recipe is the one the intent pins by digest, so the answer never
+//! changes for an intent; a recipe that cannot be read withholds every value, since what it marks
+//! secret is then unknown.
 
 use super::read::WorkloadView;
 use crate::App;

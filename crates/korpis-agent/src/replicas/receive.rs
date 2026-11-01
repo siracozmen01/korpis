@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Receiving (§2.2 of docs/06-storage.md). The node listens on its own mesh address, which its
-//! table admits from the mesh only for the nodes it was told send it replicas or a migration's
-//! passes; a stream's ticket is read first, at most a short one in a few seconds, and one of a
-//! migration's pass is handed to the node's part in migrations (`migrate`). A stream is
-//! admitted only under a ticket the token keys open, naming this node, a replica it was told it
-//! receives, the snapshot it was told comes, and the node it was told sends it, from that node's
-//! mesh address, which WireGuard admits from that node's key alone. **What evaluates "this
-//! stream may be written into this replica, from there":** this agent, from the ticket, the keys
-//! it holds, and what it was told, and its kernel, from the mesh's keys; nothing asks the control
-//! plane. The helper receives what was admitted, and the agent journals how it ended.
+//! Receiving. The node listens on its own mesh address, which its table admits from the mesh only
+//! for the nodes it was told send it replicas or a migration's passes; a stream's ticket is read
+//! first, at most a short one in a few seconds, and one of a migration's pass is handed to the
+//! node's part in migrations (`migrate`). A stream is admitted only under a ticket the token keys
+//! open, naming this node, a replica it was told it receives, the snapshot it was told comes, and
+//! the node it was told sends it, from that node's mesh address, which WireGuard admits from that
+//! node's key alone. **What evaluates "this stream may be written into this replica, from there":**
+//! this agent, from the ticket, the keys it holds, and what it was told, and its kernel, from the
+//! mesh's keys; nothing asks the control plane. The helper receives what was admitted, and the
+//! agent journals how it ended.
 
 use super::{RETRY, Replication, mesh_of};
 use crate::host::Replicating;

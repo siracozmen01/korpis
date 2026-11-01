@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An organization's brand (§7 of docs/11-surface-web.md): data the panel applies, never a
-//! patched file. Every field is optional, an unset one keeping the panel's own, and every field
-//! is bounded and checked here, so what the panel is given is a name, an image, a fixed set of
-//! colours, some text, and a stylesheet that imports nothing.
+//! An organization's brand: data the panel applies, never a patched file. Every field is optional,
+//! an unset one keeping the panel's own, and every field is bounded and checked here, so what the
+//! panel is given is a name, an image, a fixed set of colours, some text, and a stylesheet that
+//! imports nothing.
 
 use std::collections::BTreeMap;
 

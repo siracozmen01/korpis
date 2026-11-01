@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the agent asks of the helper for a migration's tree passes (§8.1 of
-//! docs/05-scheduling.md): sending a pass of a volume's tree, receiving one into the
-//! destination's copy, and reading how either ended. Each side speaks on a socket the agent
-//! joins to the transfer connection.
+//! What the agent asks of the helper for a migration's tree passes: sending a pass of a volume's
+//! tree, receiving one into the destination's copy, and reading how either ended. Each side speaks
+//! on a socket the agent joins to the transfer connection.
 
 use super::HostError;
 use super::node::NodeHost;

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The systemd units installation writes (§2 of docs/18-operations.md), one machine's worth: the
-//! control plane, and the node beside it as §6 of docs/02-architecture.md divides it, the
-//! supervisor as an unprivileged user, the privileged helper as root and socket-activated, and
-//! the `oci` driver, which needs containerd's socket and nothing else, and, where the machine
-//! can run guests, the `firecracker` driver. Every unit is written from a [`Layout`] alone, so
-//! what is written is what a test reads.
+//! The systemd units installation writes, one machine's worth: the control plane, and the node
+//! beside it as the node agent's design divides it, the supervisor as an unprivileged user,
+//! the privileged helper as root and socket-activated, and the `oci` driver, which needs
+//! containerd's socket and nothing else, and, where the machine can run guests, the `firecracker`
+//! driver. Every unit is written from a [`Layout`] alone, so what is written is what a test reads.
 
 use std::path::PathBuf;
 
@@ -37,7 +36,7 @@ pub const NODE_STATE: &str = "/var/lib/korpis";
 
 /// The users the units run as, for `systemd-sysusers`.
 pub const SYSUSERS: &str = "\
-# Korpis (§2 of docs/18-operations.md): the control plane, and the node agent's supervisor.
+# Korpis: the control plane, and the node agent's supervisor.
 u korpis - \"Korpis control plane\" /var/lib/korpis-server
 u korpis-agent - \"Korpis node agent\" /var/lib/korpis-agent
 ";
@@ -148,7 +147,7 @@ StandardError=journal
 fn driver(l: &Layout) -> String {
     // containerd's socket admits root alone unless containerd is given a group, and anyone who
     // can open it can run anything; so the driver is root, with every capability dropped, which
-    // is all the socket needs (§6 of docs/02-architecture.md says what this does not stop). Its
+    // is all the socket needs (the node agent's design says what this does not stop). Its
     // group is the agent's, so the socket it makes, owner and group only, opens to the agent.
     format!(
         "[Unit]
@@ -254,9 +253,9 @@ WantedBy=multi-user.target
 }
 
 fn relay(l: &Layout) -> String {
-    // For a machine that is a relay and nothing else (§3.1 of docs/02-architecture.md), joined
-    // first with `korpis-server relay join`; on this machine the control plane is the relay, and
-    // the unit is written so the same binary carries it, never enabled here.
+    // For a machine that is a relay and nothing else, joined first with `korpis-server relay join`;
+    // on this machine the control plane is the relay, and the unit is written so the same binary
+    // carries it, never enabled here.
     format!(
         "[Unit]
 Description=Korpis relay, its own process
@@ -287,7 +286,7 @@ fn backup(l: &Layout) -> String {
     // archived, after writing the keys, so the failure is in the journal and the unit's state.
     format!(
         "[Unit]
-Description=Korpis control-plane backup (§6 of docs/18-operations.md)
+Description=Korpis control-plane backup
 After=korpis-server.service
 
 [Service]

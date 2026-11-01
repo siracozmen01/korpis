@@ -54,8 +54,7 @@ pub async fn probe(a: &Asking) -> Probes {
     }
 }
 
-/// The tiers the drivers at `sockets` declare (§4.1 of docs/04-runtimes.md), each asked, or why
-/// one could not be.
+/// The tiers the drivers at `sockets` declare, each asked, or why one could not be.
 async fn tiers(sockets: &[PathBuf]) -> Result<Vec<pb::IsolationTier>, String> {
     let mut all = Vec::new();
     for socket in sockets {

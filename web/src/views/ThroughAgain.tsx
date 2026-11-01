@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Re-authenticating a person signed in through an identity provider (§9.7 of
-// docs/08-identity.md): they hold no factors here, so they confirm it is them by signing in
-// through their provider again. The callback completes with the session's access token, so the
-// session is confirmed rather than another begun, and returns to the page that asked.
+// Re-authenticating a person signed in through an identity provider: they hold no factors here, so
+// they confirm it is them by signing in through their provider again. The callback completes with
+// the session's access token, so the session is confirmed rather than another begun, and returns to
+// the page that asked.
 
 import type { Client } from "@connectrpc/connect";
 import { useState } from "react";

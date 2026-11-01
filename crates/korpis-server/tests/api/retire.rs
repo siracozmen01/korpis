@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Deleting a workload is a retire plan (§3.3 of docs/01-model.md, §4.8 of
-//! docs/02-architecture.md): confirmed by a human, retaining its volumes, and retiring the
-//! identity only when nothing runs any more.
+//! Deleting a workload is a retire plan: confirmed by a human, retaining its volumes, and retiring
+//! the identity only when nothing runs any more.
 
 use crate::lifecycle::{approve, power, workload};
 use crate::recipes::{body, change, create, project, push_paper};

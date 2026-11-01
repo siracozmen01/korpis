@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Block storage calls on the wire (§2.1 of docs/06-storage.md, §5 of docs/16-extensions.md).
+//! Block storage calls on the wire.
 
 use crate::{IdKind, wire_id};
 use korpis_core::extension::block::{Attachment, BlockDescription, BlockProtocol};

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dedicated cores on a real node (§5.2 of docs/05-scheduling.md, §4.2 of docs/04-runtimes.md),
-//! end to end: declared, placed, held, and freed. The agent offers the machine's last core, the
-//! helper keeps the cpusets beneath the node's own cgroup parent, and its `oci` driver shares the
-//! core with the host (`--dedicated-cores-host shared`), as this machine's other services need
-//! every CPU, so no partition is made here. The workload asking for a core runs on its CPUs
-//! alone, its node's `shared` cgroup leaves them while it is held, a second asking for one is not
-//! placed while the first holds it and is once the first is retired, and the `shared` cgroup is
-//! on every CPU again once none is held.
+//! Dedicated cores on a real node, end to end: declared, placed, held, and freed. The agent offers
+//! the machine's last core, the helper keeps the cpusets beneath the node's own cgroup parent, and
+//! its `oci` driver shares the core with the host (`--dedicated-cores-host shared`), as this
+//! machine's other services need every CPU, so no partition is made here. The workload asking for a
+//! core runs on its CPUs alone, its node's `shared` cgroup leaves them while it is held, a second
+//! asking for one is not placed while the first holds it and is once the first is retired, and the
+//! `shared` cgroup is on every CPU again once none is held.
 
 use crate::devices::{printed, unplaced};
 use crate::node::{Node, live};

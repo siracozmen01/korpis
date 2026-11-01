@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Which of a node's devices a workload is given (§6.3 of docs/05-scheduling.md): those free in
-//! the mode it asks, those sharing the least hardware first, a device held by another placement
-//! or the same hardware as one never given in `passthrough`, and a shared one never past its
-//! shares.
+//! Which of a node's devices a workload is given: those free in the mode it asks, those sharing the
+//! least hardware first, a device held by another placement or the same hardware as one never given
+//! in `passthrough`, and a shared one never past its shares.
 
 use super::Request;
 use crate::node::Node;
@@ -11,8 +10,8 @@ use crate::node::device::{Device, DeviceHold, DeviceMode};
 use crate::workload::spec::devices::DeviceRequest;
 use std::collections::BTreeSet;
 
-/// Whether `a` and `b` are the same hardware: one's own host nodes contain the other's (§6.1 of
-/// docs/05-scheduling.md), as a GPU and a partition of it, and never two partitions.
+/// Whether `a` and `b` are the same hardware: one's own host nodes contain the other's, as a GPU
+/// and a partition of it, and never two partitions.
 #[must_use]
 pub fn same_hardware(a: &Device, b: &Device) -> bool {
     let (x, y): (BTreeSet<&str>, BTreeSet<&str>) = (
@@ -36,8 +35,8 @@ fn free(d: &Device, mode: DeviceMode, held: &[(&Device, DeviceMode)]) -> bool {
     match mode {
         DeviceMode::Passthrough => true,
         DeviceMode::Timeslice => shared < d.shares,
-        // A partition a hypervisor makes is a `vm` driver's, and no node of this release has
-        // one to give (§6.2 of docs/05-scheduling.md).
+        // A partition a hypervisor makes is a `vm` driver's, and no node of this release has one to
+        // give.
         DeviceMode::Mediated => false,
     }
 }

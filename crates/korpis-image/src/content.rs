@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The content drive of an install in a service guest (§4.4 of docs/04-runtimes.md, §4 of
-//! docs/09-recipes.md): what the install reads from the node's content store, the recipe's files
-//! in `blobs/` and what its fetches downloaded in `fetched/`, each by its digest as the store
-//! holds it, and the install's spec as `spec`, made an ext4 filesystem the guest mounts
-//! read-only. It holds only what the install names, never the rest of the store, which holds other
-//! workloads' images and files. The host writes it from its own store and parses nothing a guest
-//! wrote.
+//! The content drive of an install in a service guest: what the install reads from the node's
+//! content store, the recipe's files in `blobs/` and what its fetches downloaded in `fetched/`,
+//! each by its digest as the store holds it, and the install's spec as `spec`, made an ext4
+//! filesystem the guest mounts read-only. It holds only what the install names, never the rest of
+//! the store, which holds other workloads' images and files. The host writes it from its own store
+//! and parses nothing a guest wrote.
 
 use std::io;
 use std::os::unix::fs::PermissionsExt as _;

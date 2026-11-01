@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Edge groups (§3.1 of docs/07-networking.md, §3.6 of docs/01-model.md). A group is two or more
-//! of an organization's own nodes holding the stable addresses of its `stable` endpoints, and
-//! those of the organizations below it, each address on one member at a time. A `stable`
-//! endpoint is given an address of one of the group's pools and a port of it, which it keeps for
-//! as long as its workload declares it, whatever node the workload runs on.
+//! Edge groups. A group is two or more of an organization's own nodes holding the stable addresses
+//! of its `stable` endpoints, and those of the organizations below it, each address on one member
+//! at a time. A `stable` endpoint is given an address of one of the group's pools and a port of it,
+//! which it keeps for as long as its workload declares it, whatever node the workload runs on.
 
 use crate::address::{AddressPool, Taken};
 use crate::workload::endpoint::Transport;
@@ -29,8 +28,8 @@ pub const DEFAULT_PROBE_INTERVAL: Duration = Duration::from_secs(1);
 pub const DEFAULT_PROBE_MISSES: u32 = 3;
 /// A member's lease on an address, unless the group says otherwise.
 pub const DEFAULT_TERM: Duration = Duration::from_secs(10);
-/// The shortest lease a group may give: a third of it is when its holder renews, and a renewal
-/// is asked again after five seconds at most (§4.5 of docs/02-architecture.md).
+/// The shortest lease a group may give: a third of it is when its holder renews, and a renewal is
+/// asked again after five seconds at most.
 pub const MIN_TERM: Duration = Duration::from_secs(3);
 
 /// An edge group.
@@ -122,8 +121,8 @@ impl EdgeGroup {
         }
     }
 
-    /// Whether it serves anything: an address one machine holds is `node_bound`, whatever it
-    /// is called (§3.1 of docs/07-networking.md).
+    /// Whether it serves anything: an address one machine holds is `node_bound`, whatever it is
+    /// called.
     #[must_use]
     pub fn serves(&self) -> bool {
         self.members.len() >= 2
@@ -184,11 +183,10 @@ pub struct Given {
 }
 
 /// The address and ports of `pool` that `wanted`, each endpoint's declared container port and
-/// transport, is given at `now` within `range`: on the lowest address on which every endpoint has its declared
-/// port, and failing that the lowest on which each has its declared port or else the lowest
-/// free port of the range; on `prefer`, the address the workload holds already, wherever it has
-/// room for them.
-/// None where no address has room for all of them.
+/// transport, is given at `now` within `range`: on the lowest address on which every endpoint has
+/// its declared port, and failing that the lowest on which each has its declared port or else the
+/// lowest free port of the range; on `prefer`, the address the workload holds already, wherever it
+/// has room for them. None where no address has room for all of them.
 #[must_use]
 pub fn allocate(
     (pool, taken): (&AddressPool, &TakenPorts),
@@ -245,8 +243,8 @@ pub fn alongside(
 /// The ports of a group's ingress address its members' proxies serve: plain HTTP and TLS.
 pub const INGRESS_PORTS: [u16; 2] = [80, 443];
 
-/// A group's ingress address of one family (§3.1 of docs/07-networking.md): an address of one
-/// of its pools whose ports [`INGRESS_PORTS`] go, over TCP and UDP, to its holder's own proxy.
+/// A group's ingress address of one family: an address of one of its pools whose ports
+/// [`INGRESS_PORTS`] go, over TCP and UDP, to its holder's own proxy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IngressAddress {
     /// The address.
@@ -271,8 +269,8 @@ pub fn ingress_room((pool, taken): (&AddressPool, &TakenPorts), now: SystemTime)
     alongside((pool, taken), &ingress_ports(), None, now)
 }
 
-/// A node's own address in the mesh: the last of its IPv4 pool, which no workload is ever given
-/// (§4.1 of docs/07-networking.md), from which its GRE links to and from edges are made.
+/// A node's own address in the mesh: the last of its IPv4 pool, which no workload is ever given,
+/// from which its GRE links to and from edges are made.
 #[must_use]
 pub fn mesh_address(pools: &[ipnet::IpNet]) -> Option<Ipv4Addr> {
     pools.iter().find_map(|p| match p {

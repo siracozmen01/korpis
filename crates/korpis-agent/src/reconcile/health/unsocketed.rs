@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The probes a node makes from no socket of its own (§5 of docs/04-runtimes.md): an `exec`
-//! probe, whose command its driver runs inside the workload; a `guest_agent` probe, which its
-//! driver asks of the agent inside the workload's guest; and a `heartbeat` probe, checked against
-//! when the workload last said on its identity socket that it is alive.
+//! The probes a node makes from no socket of its own: an `exec` probe, whose command its driver
+//! runs inside the workload; a `guest_agent` probe, which its driver asks of the agent inside the
+//! workload's guest; and a `heartbeat` probe, checked against when the workload last said on its
+//! identity socket that it is alive.
 
 use super::{Outcome, Which};
 use crate::health::Tried;

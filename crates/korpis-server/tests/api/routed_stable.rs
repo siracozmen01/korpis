@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A `stable` endpoint no edge group serves, routed at a `cluster` pool's address (§3.1 of
-//! docs/07-networking.md, "Where a workload may run"): its workload holds the pool's address as
-//! a `dedicated_ip` workload does, wherever it is placed, the pool's router is asked to route it
-//! to the node, and the endpoint is reached there on its own port, holding no port of its node;
-//! a plan says the endpoint resolves to `stable`.
+//! A `stable` endpoint no edge group serves, routed at a `cluster` pool's address ("Where a
+//! workload may run"): its workload holds the pool's address as a `dedicated_ip` workload does,
+//! wherever it is placed, the pool's router is asked to route it to the node, and the endpoint is
+//! reached there on its own port, holding no port of its node; a plan says the endpoint resolves to
+//! `stable`.
 
 use crate::address_routes::{Fabric, cluster, serving, shown};
 use crate::dependencies::{declare, placement};

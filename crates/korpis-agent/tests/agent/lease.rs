@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The agent's leases against a real control plane (§4.5 of docs/02-architecture.md): asked for
-//! as soon as a workload is held, renewed under the same epoch, and released through the
-//! journal once the workload has stopped acting under it.
+//! The agent's leases against a real control plane: asked for as soon as a workload is held,
+//! renewed under the same epoch, and released through the journal once the workload has stopped
+//! acting under it.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};

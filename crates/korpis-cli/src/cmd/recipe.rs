@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis workload recipe`: the recipe a workload runs, as the panel shows it (§5 and §5.3 of
-//! docs/09-recipes.md), in the caller's language where the recipe speaks it.
+//! `korpis workload recipe`: the recipe a workload runs, as the panel shows it, in the caller's
+//! language where the recipe speaks it.
 
 use super::{Answer, json};
 use crate::connect::Connection;

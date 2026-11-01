@@ -143,7 +143,7 @@ export const HEALTH: Record<HealthState, string> = {
   }),
 };
 
-/** Why a node cannot run it (§7 of docs/05-scheduling.md). */
+/** Why a node cannot run it. */
 export const UNSATISFIABLE: Record<UnsatisfiableReason, string> = {
   [UnsatisfiableReason.UNSPECIFIED]: t({
     defaultMessage: "for a reason it did not give",

@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Installs the pinned tools into ./.tools: the code generators; oras, which publishes the recipes
-# the end-to-end scripts run (scripts/e2e-phase0.sh); and Firecracker and its jailer, which the
-# microVM tier's tests boot guests with (§3 of docs/04-runtimes.md). Generated code is committed,
-# so building Korpis needs none of these; only changing a .proto does. Versions move only in a
-# reviewed commit.
+# Installs the pinned tools into./.tools: the code generators; oras, which publishes the recipes the
+# end-to-end scripts run (scripts/e2e-phase0.sh); and Firecracker and its jailer, which the microVM
+# tier's tests boot guests with. Generated code is committed, so building Korpis needs none of
+# these; only changing a.proto does. Versions move only in a reviewed commit.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 TOOLS="$PWD/.tools"

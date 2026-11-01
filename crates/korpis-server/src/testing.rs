@@ -8,8 +8,8 @@ mod pebble;
 
 pub use pebble::{ChallengeDns, Pebble, PebbleOptions, TestingError};
 
-/// How long after a reachability probe that measured nothing the node is probed again, which a
-/// test waiting for a measurement must wait past (§9 of docs/07-networking.md).
+/// How long after a reachability probe that measured nothing the node is probed again, which a test
+/// waiting for a measurement must wait past.
 pub const PROBE_RETRY: std::time::Duration = crate::reachability::RETRY;
 
 use crate::data::DataDir;

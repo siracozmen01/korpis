@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A backup step (§5 of docs/06-storage.md), which outlasts many passes of the loop: each pass
-//! asks the helper where the step's job is. A job it does not know is started, with the key and
-//! access the control plane grants this node for this step; a running one is waited for, without
-//! holding up any other workload; a finished one is reported in the journal. The job is named
-//! after the backup, so a pass after a restart of the agent finds the one already running, and it
-//! is forgotten, releasing the snapshot the helper took for it, once its plan has left the set
-//! (`jobs`).
+//! A backup step, which outlasts many passes of the loop: each pass asks the helper where the
+//! step's job is. A job it does not know is started, with the key and access the control plane
+//! grants this node for this step; a running one is waited for, without holding up any other
+//! workload; a finished one is reported in the journal. The job is named after the backup, so a
+//! pass after a restart of the agent finds the one already running, and it is forgotten, releasing
+//! the snapshot the helper took for it, once its plan has left the set (`jobs`).
 
 use super::act::Failure;
 use super::step::{After, detail, flag};

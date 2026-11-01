@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Labels: the key-value pairs selectors match (§3 of docs/01-model.md).
+//! Labels: the key-value pairs selectors match.
 //!
 //! The syntax is Kubernetes', deliberately: operators already know it, and a selector written for
 //! one system reads the same in the other. A key is an optional DNS-subdomain prefix and a `/`,

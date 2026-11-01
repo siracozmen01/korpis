@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! TOTP (RFC 6238 over RFC 4226): HMAC-SHA-1, six digits, thirty-second steps, one step of skew
-//! either way, and each step accepted once, so a code read over someone's shoulder is spent by
-//! the time it could be typed again (§9.6 of docs/08-identity.md).
+//! either way, and each step accepted once, so a code read over someone's shoulder is spent by the
+//! time it could be typed again.
 
 use super::{EntropyError, base32, random};
 use ring::hmac;

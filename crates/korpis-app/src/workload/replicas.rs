@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Tending replicas (§2.2 of docs/06-storage.md): a pass over every volume on one node's disk
-//! that a workload holds or that keeps replicas, choosing as many other nodes to keep one as the
-//! workload's declaration of it asks for, as a placement chooses a node, and keeping them from
-//! one pass to the next. A replica whose node no longer serves the volume's organization, or no
-//! longer offers its class able to send increments, is dropped and another chosen; one that went
-//! ten intervals without receiving is marked stale; a volume no declaration asks replicas of
-//! keeps none. Each change is an effect, and each volume is tended in a transaction of its own,
-//! under the lock every choice of replicas is made under. A transfer is due to each replica
-//! reached that holds nothing yet, or what is an interval old, with none under way; those due in
-//! one pass are sent one snapshot (`super::transfers`).
+//! Tending replicas: a pass over every volume on one node's disk that a workload holds or that
+//! keeps replicas, choosing as many other nodes to keep one as the workload's declaration of it
+//! asks for, as a placement chooses a node, and keeping them from one pass to the next. A replica
+//! whose node no longer serves the volume's organization, or no longer offers its class able to
+//! send increments, is dropped and another chosen; one that went ten intervals without receiving is
+//! marked stale; a volume no declaration asks replicas of keeps none. Each change is an effect, and
+//! each volume is tended in a transaction of its own, under the lock every choice of replicas is
+//! made under. A transfer is due to each replica reached that holds nothing yet, or what is an
+//! interval old, with none under way; those due in one pass are sent one snapshot
+//! (`super::transfers`).
 
 use crate::App;
 use crate::error::AppError;

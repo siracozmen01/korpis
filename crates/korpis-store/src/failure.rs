@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Runs of identical failed attempts to authenticate being coalesced (§10 of docs/10-api.md):
-//! working state beside the effect log, as the runs of denials are.
+//! Runs of identical failed attempts to authenticate being coalesced: working state beside the
+//! effect log, as the runs of denials are.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_time, to_count, to_time};

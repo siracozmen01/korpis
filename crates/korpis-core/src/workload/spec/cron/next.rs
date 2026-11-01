@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! When a schedule is next due, read in a time zone (§4.1 of docs/05-scheduling.md). The local
-//! times the schedule names are walked in order and each is made an instant in the zone: a local
-//! time a daylight-saving change skips becomes the first instant after the gap, and one it
-//! repeats becomes its first occurrence alone, so each is due once and in order.
+//! When a schedule is next due, read in a time zone. The local times the schedule names are walked
+//! in order and each is made an instant in the zone: a local time a daylight-saving change skips
+//! becomes the first instant after the gap, and one it repeats becomes its first occurrence alone,
+//! so each is due once and in order.
 
 use super::Schedule;
 use jiff::Timestamp;

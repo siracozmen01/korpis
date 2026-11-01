@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Observations and convergence (§4.3 of docs/02-architecture.md): measured field by field
-//! against the assignment, and `unknown` once the node is not heard, never a remembered value.
-//! Each change of convergence or health is an event (§5 of docs/15-observability.md), the
-//! silence included, which no write announces.
+//! Observations and convergence: measured field by field against the assignment, and `unknown` once
+//! the node is not heard, never a remembered value. Each change of convergence or health is an
+//! event, the silence included, which no write announces.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{ack, assignment, complete, until};
@@ -128,8 +127,8 @@ async fn convergence_follows_what_the_node_reports_and_is_unknown_when_it_is_not
     complete(&mut s, &w, &plan, 1).await;
     let applied = until(&mut s, assignment(|a| !a.plan.is_set())).await;
     assert_eq!(applied.generation, 2);
-    // Generation 2 only drops the finished plan, so a node that ran generation 1 to the target
-    // has converged; it does not read applying again until the node takes it (§4.3).
+    // Generation 2 only drops the finished plan, so a node that ran generation 1 to the target has
+    // converged; it does not read applying again until the node takes it.
     report(&mut s, &seen(1, pb::ObservedState::OBSERVED_STATE_RUNNING)).await;
     status(&h, &w, pb::Convergence::CONVERGENCE_CONVERGED).await;
 

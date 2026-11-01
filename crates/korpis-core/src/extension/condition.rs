@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A provider's condition as events (§5 of docs/15-observability.md): `provider.degraded` when
-//! its breaker trips, carrying what was measured and what is queued behind it, and
-//! `provider.recovered` when a probe closes the breaker again.
+//! A provider's condition as events: `provider.degraded` when its breaker trips, carrying what was
+//! measured and what is queued behind it, and `provider.recovered` when a probe closes the breaker
+//! again.
 
 use super::ProviderType;
 use super::breaker::{FailurePolicy, Measured, Trip};

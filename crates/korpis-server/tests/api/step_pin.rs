@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recipe's step providers are pinned when it is declared (§4.1 of docs/16-extensions.md): each
-//! step kind to the installation that answers it and that installation's artifact digest, each
-//! step's arguments checked against the schema it declares, and a kind nothing provides refused.
+//! A recipe's step providers are pinned when it is declared: each step kind to the installation
+//! that answers it and that installation's artifact digest, each step's arguments checked against
+//! the schema it declares, and a kind nothing provides refused.
 
 use crate::recipes::{PAPER, body, create, project, push_paper_like};
 use crate::step::serving;

@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A session reading a block device's backup, as its node asks for the job it needs (§5.4 of
-//! docs/06-storage.md). The node accepted a `backup.browse` or `backup.read` session on the
-//! workload and stages the backup's image for a guest of its own to read; it holds neither the
-//! repository's credentials nor what says which workload a backup is of. The control plane
-//! verifies the session's token again, with its own keys and through the grant the token was
-//! minted from as that grant stands now, so revocation, expiry, suspension, and its conditions
-//! all still decide; checks that the backup is the workload's, whole, a block device's image, and
-//! of a volume the node holds; records the read as the session's subject's act under that grant,
-//! as the API's browse and read are recorded (§4 of docs/15-observability.md); and grants the job
-//! read access to the workload's prefix, with the volume's identifier on the node.
+//! A session reading a block device's backup, as its node asks for the job it needs. The node
+//! accepted a `backup.browse` or `backup.read` session on the workload and stages the backup's
+//! image for a guest of its own to read; it holds neither the repository's credentials nor what
+//! says which workload a backup is of. The control plane verifies the session's token again, with
+//! its own keys and through the grant the token was minted from as that grant stands now, so
+//! revocation, expiry, suspension, and its conditions all still decide; checks that the backup is
+//! the workload's, whole, a block device's image, and of a volume the node holds; records the read
+//! as the session's subject's act under that grant, as the API's browse and read are recorded; and
+//! grants the job read access to the workload's prefix, with the volume's identifier on the node.
 
 use super::job::{JobGrant, JobRefusal, JobTarget, Judged};
 use super::read::ReadFor;

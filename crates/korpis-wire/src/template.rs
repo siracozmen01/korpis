@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grant templates (§4 of docs/08-identity.md).
+//! Grant templates.
 
 use crate::authz::{actions, delegation_to_pb};
 use crate::scope::{object_kind_from_pb, object_kind_to_pb, selector_from_pb, selector_to_pb};

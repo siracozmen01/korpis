@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The signed-in user's own screen: who they are, how they sign in, and where they are signed in.
-// A person signed in through an identity provider has no factors here (§9.7 of
-// docs/08-identity.md), so theirs says who their provider vouches they are, and their sessions.
+// The signed-in user's own screen: who they are, how they sign in, and where they are signed in. A
+// person signed in through an identity provider has no factors here, so theirs says who their
+// provider vouches they are, and their sessions.
 
 import { useCallback, useState } from "react";
 import { useLoad } from "../views/load";

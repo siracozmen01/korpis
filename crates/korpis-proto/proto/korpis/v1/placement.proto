@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Nodes, driver capabilities, placement, and explanations (§3.4 of docs/01-model.md, §4.1 of
-// docs/04-runtimes.md, §2 of docs/05-scheduling.md).
+// Nodes, driver capabilities, placement, and explanations.
 
 syntax = "proto3";
 
@@ -20,57 +19,53 @@ message Node {
   Resources capacity = 5;
   // Capacity minus system reserve.
   Resources allocatable = 6;
-  // Sum of placed reservations, and the size of each volume it keeps a replica of (§2.2 of
-  // docs/06-storage.md).
+  // Sum of placed reservations, and the size of each volume it keeps a replica of.
   Resources allocated = 7;
   repeated DriverInfo drivers = 8;
   NodeStatus status = 9;
   string agent_version = 10;
   google.protobuf.Timestamp last_seen = 11;
   repeated StorageClassInfo storage_classes = 12;
-  // Whether the node can be reached for inbound traffic (§9 of docs/07-networking.md).
+  // Whether the node can be reached for inbound traffic.
   Reachability reachability = 13;
   // The organization it was enrolled into. It serves that organization and every organization
   // below it, and a grant over the organization covers it.
   string organization = 14;
-  // What the operator decided. `status` is derived from this and `connectivity`, a
-  // connectivity problem outranking the decision (§3.4 of docs/01-model.md).
+  // What the operator decided. `status` is derived from this and `connectivity`, a connectivity
+  // problem outranking the decision.
   NodeAdmin admin = 15;
   NodeConnectivity connectivity = 16;
-  // Whether the node is in the WireGuard mesh other nodes reach it through, as measured (§9 of
-  // docs/07-networking.md). A workload with a dependency or dependent on another node is placed
-  // only where it is available.
+  // Whether the node is in the WireGuard mesh other nodes reach it through, as measured. A workload
+  // with a dependency or dependent on another node is placed only where it is available.
   Overlay overlay = 17;
   // The addresses the node advertises for inbound traffic, and the inclusive range its endpoints'
-  // ports are allocated from (§9 of docs/07-networking.md).
+  // ports are allocated from.
   repeated string addresses = 18;
   uint32 first_port = 19;
   uint32 last_port = 20;
   // When its reachability was last measured; absent if never since its addresses last changed.
   google.protobuf.Timestamp probed_at = 21;
-  // Whether it serves the ingress, holding ports 80 and 443 of its addresses (§3.2 of
-  // docs/07-networking.md); a workload with an ingress endpoint is placed only where it does.
+  // Whether it serves the ingress, holding ports 80 and 443 of its addresses; a workload with an
+  // ingress endpoint is placed only where it does.
   bool ingress = 22;
-  // The devices its agent found described, and those it does not offer (§6.1 of
-  // docs/05-scheduling.md). Added 2026-10-25.
+  // The devices its agent found described, and those it does not offer.
   repeated Device devices = 23;
   repeated UnofferedDevice unoffered_devices = 24;
-  // The physical cores it offers for dedication (§5.2 of docs/05-scheduling.md). Added
-  // 2026-10-25.
+  // The physical cores it offers for dedication.
   repeated Core cores = 25;
-  // The node's side of the mesh as its agent last reported it (§9.1 of docs/07-networking.md):
-  // its interface's WireGuard public key, the UDP port it listens on, and its workloads' pools;
-  // empty for a node reporting none. The private key never leaves the node. Added 2026-10-25.
+  // The node's side of the mesh as its agent last reported it: its interface's WireGuard public
+  // key, the UDP port it listens on, and its workloads' pools; empty for a node reporting none. The
+  // private key never leaves the node.
   bytes overlay_key = 26;
   uint32 overlay_port = 27;
   repeated string pools = 28;
   // Each member of the mesh it is paired with, one whose organization is its own or above it or
-  // beneath it, and whether the pair reaches each other now: both nodes report a handshake with
-  // the other younger than 180 seconds; only members the caller may read are listed. What the
-  // scheduler asks of a dependency across nodes. Added 2026-10-25.
+  // beneath it, and whether the pair reaches each other now: both nodes report a handshake with the
+  // other younger than 180 seconds; only members the caller may read are listed. What the scheduler
+  // asks of a dependency across nodes.
   repeated PeerReach peers = 29;
   // Why it is outside the mesh, for a node that reports a side and is: a pool it reports that it
-  // was not given, or one that overlaps an earlier member's. Added 2026-10-26.
+  // was not given, or one that overlaps an earlier member's.
   string overlay_outside = 30;
 }
 
@@ -116,10 +111,10 @@ enum NodeStatus {
 enum Overlay {
   OVERLAY_UNSPECIFIED = 0;
   OVERLAY_AVAILABLE = 1;
-  // Not in the mesh, or not reaching every member it is paired with: it reports no mesh
-  // interface, a pool it was not given, or one overlapping an earlier member's (its
-  // overlay_outside says which), or it or a member it is paired with has no handshake with the
-  // other younger than 180 seconds (§9.1 of docs/07-networking.md).
+  // Not in the mesh, or not reaching every member it is paired with: it reports no mesh interface,
+  // a pool it was not given, or one overlapping an earlier member's (its overlay_outside says
+  // which), or it or a member it is paired with has no handshake with the other younger than 180
+  // seconds.
   OVERLAY_UNAVAILABLE = 2;
 }
 
@@ -141,7 +136,7 @@ message DriverInfo {
   bool healthy = 5;
 }
 
-// Declared, never inferred (§4.1 of docs/04-runtimes.md).
+// Declared, never inferred.
 message Capabilities {
   repeated IsolationTier tiers = 1;
   repeated ConsoleMode console = 2;
@@ -152,8 +147,8 @@ message Capabilities {
   // Absent if execution-state snapshots are not supported.
   SnapshotCaps runtime_snapshot = 7;
   bool live_migrate = 8;
-  // The modes it gives devices of the classes in `devices` in; none gives none (§6.2 of
-  // docs/05-scheduling.md). Was `gpu`, for GPUs alone: corrected 2026-10-25.
+  // The modes it gives devices of the classes in `devices` in; none gives none. Was `gpu`, for GPUs
+  // alone: corrected 2026-10-25.
   repeated DeviceMode device_modes = 9;
   repeated DeviceClass devices = 10;
   repeated RootfsSource rootfs_sources = 11;
@@ -166,23 +161,20 @@ message Capabilities {
   // A JSON Schema document, driver-specific configuration.
   string config_schema = 17;
   // Per tier, the plan step actions it makes disruptive there: the driver's layer of the
-  // classification chain (§3.3 of docs/01-model.md), which may only add to the vocabulary's floor.
+  // classification chain, which may only add to the vocabulary's floor.
   repeated TierDisruption disruption = 18;
-  // Whether it gives each workload the directory its node serves it, at /run/korpis: the
-  // identity socket, the API relay, and the managed and dependency files (§6 of
-  // docs/02-architecture.md). A heartbeat probe needs it (§5 of docs/04-runtimes.md).
+  // Whether it gives each workload the directory its node serves it, at /run/korpis: the identity
+  // socket, the API relay, and the managed and dependency files. A heartbeat probe needs it.
   bool identity_dir = 19;
-  // Whether it can ask a guest's own agent whether it answers, which a `guest_agent` probe
-  // needs (§5 of docs/04-runtimes.md).
+  // Whether it can ask a guest's own agent whether it answers, which a `guest_agent` probe needs.
   bool guest_agent = 20;
   // For a driver whose volumes are block devices: the filesystems its guests mount a volume as,
-  // which are those a block device's backup can be browsed and restored by path from, in a
-  // service guest (§4.4 of docs/04-runtimes.md, §5.4 of docs/06-storage.md). Any other offers
-  // whole-image restore only.
+  // which are those a block device's backup can be browsed and restored by path from, in a service
+  // guest. Any other offers whole-image restore only.
   repeated string guest_filesystems = 21;
-  // The cgroup its objects live under, as an absolute path below the cgroup root, whose
-  // `shared` and `dedicated` cgroups the helper keeps the cpusets of for dedicated cores (§5.2 of
-  // docs/05-scheduling.md); empty for a driver that holds none. Added 2026-10-25.
+  // The cgroup its objects live under, as an absolute path below the cgroup root, whose `shared`
+  // and `dedicated` cgroups the helper keeps the cpusets of for dedicated cores; empty for a driver
+  // that holds none.
   string cgroup_parent = 22;
 }
 
@@ -201,8 +193,7 @@ message SnapshotCaps {
 }
 
 
-// A device of a node, as the Container Device Interface's files on it describe it (§6.1 of
-// docs/05-scheduling.md).
+// A device of a node, as the Container Device Interface's files on it describe it.
 message Device {
   // Its CDI name, vendor.com/kind=name; unique on its node.
   string id = 1;
@@ -277,26 +268,26 @@ enum FileAccess {
   FILE_ACCESS_NONE = 3;
 }
 
-// How workload uids reach the disk (§4.5 of docs/04-runtimes.md).
+// How workload uids reach the disk.
 message IdMapCaps {
   bool idmapped_mounts = 1;
   bool user_namespaces = 2;
 }
 
-// A storage class as offered on a node (§2 of docs/06-storage.md).
+// A storage class as offered on a node.
 message StorageClassInfo {
   string name = 1;
   StorageBackend backend = 2;
   StorageCapabilities capabilities = 3;
   uint64 capacity_bytes = 4;
   uint64 free_bytes = 5;
-  // For a shared class, the storage it is: the identifier the first helper linked at the root
-  // of the filesystem the operator mounted, which every node reaching that storage reads alike
-  // (§2.1 of docs/06-storage.md). Empty for a class on the node's own disk.
+  // For a shared class, the storage it is: the identifier the first helper linked at the root of
+  // the filesystem the operator mounted, which every node reaching that storage reads alike. Empty
+  // for a class on the node's own disk.
   string store = 6;
-  // For a block class, how the node's helper attaches its devices, as its operator named it
-  // (§2.1 of docs/06-storage.md); its store is then the control plane's, for the node's
-  // organization and the class's name, and not the node's to say.
+  // For a block class, how the node's helper attaches its devices, as its operator named it; its
+  // store is then the control plane's, for the node's organization and the class's name, and not
+  // the node's to say.
   BlockProtocol block_protocol = 7;
 }
 
@@ -309,7 +300,7 @@ enum StorageBackend {
   STORAGE_BACKEND_EXT4_PROJECT = 5;
   STORAGE_BACKEND_NETWORK = 6;
   // A directory on a filesystem with no project quota: nothing is enforced, and every capability
-  // says so (§2 of docs/06-storage.md).
+  // says so.
   STORAGE_BACKEND_DIRECTORY = 7;
 }
 
@@ -330,8 +321,8 @@ message StorageCapabilities {
   bool shared_access = 13;
   bool multi_node_attach = 14;
   Fencing fencing = 15;
-  // The helper sends and receives a volume's tree by rsync, which a migration of a class that
-  // sends no increments needs (§8.1 of docs/05-scheduling.md).
+  // The helper sends and receives a volume's tree by rsync, which a migration of a class that sends
+  // no increments needs.
   bool tree_sync = 16;
 }
 
@@ -342,8 +333,7 @@ enum Fencing {
   FENCING_STORAGE_ENFORCED = 3;
 }
 
-// The binding of a workload to a node, and why, as the caller may see it (§8 of
-// docs/08-identity.md).
+// The binding of a workload to a node, and why, as the caller may see it.
 message Placement {
   string workload = 1;
   // Empty when the caller may not read the node.
@@ -359,16 +349,16 @@ message Placement {
   IsolationTier tier = 9;
   // The approved intent the placement was bound for.
   string intent = 10;
-  // What it holds on the node: that intent's reservations (§5.2 of docs/05-scheduling.md). A
-  // node's allocated is the sum of these over its placements, authoritative or not, and of the
-  // size of each volume it keeps a replica of.
+  // What it holds on the node: that intent's reservations. A node's allocated is the sum of these
+  // over its placements, authoritative or not, and of the size of each volume it keeps a replica
+  // of.
   Resources reserved = 11;
-  // When a restore held it: its node presented its assignments without it, so nothing is sent
-  // for it until an operator confirms it or it is retired (§8 of docs/03-state.md).
+  // When a restore held it: its node presented its assignments without it, so nothing is sent for
+  // it until an operator confirms it or it is retired.
   google.protobuf.Timestamp held_at = 12;
-  // The node's devices it holds, chosen when it was bound (§6.3 of docs/05-scheduling.md).
+  // The node's devices it holds, chosen when it was bound.
   repeated DeviceHold devices = 13;
-  // The node's cores it holds, by id, for dedicated cores (§5.2 of docs/05-scheduling.md).
+  // The node's cores it holds, by id, for dedicated cores.
   repeated uint32 cores = 14;
 }
 
@@ -386,15 +376,14 @@ enum BoundBy {
   BOUND_BY_SCHEDULER = 1;
   BOUND_BY_OPERATOR = 2;
   BOUND_BY_MIGRATION = 3;
-  // A restore, to the node that presented the workload's assignment (§8 of docs/03-state.md).
+  // A restore, to the node that presented the workload's assignment.
   BOUND_BY_RECOVERY = 4;
-  // Placed again once its node went silent and its lease ended (§2.4 of docs/05-scheduling.md).
+  // Placed again once its node went silent and its lease ended.
   BOUND_BY_FAILOVER = 5;
 }
 
-// Every rejection with its reason, every score with its weight (§2.3 of
-// docs/05-scheduling.md). Filtered per viewer (§8 of docs/08-identity.md): rejections, scores,
-// and the chosen node only for nodes the caller may read; counts only for the tenant; the
+// Every rejection with its reason, every score with its weight. Filtered per viewer: rejections,
+// scores, and the chosen node only for nodes the caller may read; counts only for the tenant; the
 // policy only for a caller who may read every node it names.
 message Explanation {
   optional uint32 candidates = 1;
@@ -405,9 +394,9 @@ message Explanation {
   PlacementPolicy policy = 6;
   // Per failing check, how many nodes failed it.
   repeated CheckCount rejected = 7;
-  // The policy each candidate's owner scored its nodes by: its strategy and weights (§2.2 of
-  // docs/05-scheduling.md). `policy` is the workload's, its spread and affinity. Both are shown
-  // only to a viewer who may read every node the explanation names.
+  // The policy each candidate's owner scored its nodes by: its strategy and weights. `policy` is
+  // the workload's, its spread and affinity. Both are shown only to a viewer who may read every
+  // node the explanation names.
   repeated OwnerPolicy owner_policies = 8;
 }
 
@@ -458,8 +447,7 @@ message SpreadConstraint {
   SpreadScope scope = 4;
 }
 
-// Which workloads a spread constraint counts, always within the placed workload's own
-// organization (§2.2 of docs/05-scheduling.md).
+// Which workloads a spread constraint counts, always within the placed workload's own organization.
 enum SpreadScope {
   SPREAD_SCOPE_UNSPECIFIED = 0;
   SPREAD_SCOPE_PROJECT = 1;

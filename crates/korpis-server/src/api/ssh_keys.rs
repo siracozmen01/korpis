@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ProfileService.ListSshKeys`, `AddSshKey`, and `RemoveSshKey` (§9.9 of docs/08-identity.md):
-//! the SSH keys a signed-in person reaches their files with over SFTP.
+//! `ProfileService.ListSshKeys`, `AddSshKey`, and `RemoveSshKey`: the SSH keys a signed-in person
+//! reaches their files with over SFTP.
 
 use super::wire::{self, Refuse as _};
 use super::{Api, error};

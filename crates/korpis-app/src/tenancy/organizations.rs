@@ -20,8 +20,7 @@ const OPERATION: &str = "tenancy.create_organization";
 pub struct CreateOrganization {
     /// Its name, unique among its siblings.
     pub name: Name,
-    /// The organization it is delegated from. Required: only installation creates a root
-    /// (Rule K-14).
+    /// The organization it is delegated from. Required: only installation creates a root.
     pub parent: Uuid,
 }
 
@@ -80,8 +79,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The organizations under `parent`, which the caller must be able to read; without a parent,
-    /// the roots the caller may read. Existence is gated by read authority (§8 of
-    /// docs/10-api.md), so a root the caller may not read is not listed.
+    /// the roots the caller may read. Existence is gated by read authority, so a root the caller
+    /// may not read is not listed.
     pub async fn list_organizations(
         &self,
         caller: &Caller,

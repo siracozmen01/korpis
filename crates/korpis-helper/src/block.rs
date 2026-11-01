@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block-device volume (§3.1 of docs/06-storage.md): a volume directory, made and limited as
-//! any other, holding one image the guest owns as its disk. The helper makes the image sparse at
-//! the volume's size and formats it empty as ext4 with `mke2fs`, which reads nothing a tenant
-//! wrote, and never mounts it: what the guest later writes in it is parsed by the guest's kernel
-//! alone (§4.4 of docs/04-runtimes.md). A larger size grows the image, and the guest's kernel
-//! grows its filesystem to fill it when it next mounts it; a smaller one is refused, since only
-//! the guest could shrink what it holds. The directory says what it is in an extended attribute
-//! in the `trusted` namespace, which no workload can set, so a volume of one kind is never taken
-//! for the other.
+//! A block-device volume: a volume directory, made and limited as any other, holding one image the
+//! guest owns as its disk. The helper makes the image sparse at the volume's size and formats it
+//! empty as ext4 with `mke2fs`, which reads nothing a tenant wrote, and never mounts it: what the
+//! guest later writes in it is parsed by the guest's kernel alone. A larger size grows the image,
+//! and the guest's kernel grows its filesystem to fill it when it next mounts it; a smaller one is
+//! refused, since only the guest could shrink what it holds. The directory says what it is in an
+//! extended attribute in the `trusted` namespace, which no workload can set, so a volume of one
+//! kind is never taken for the other.
 
 use crate::error::{HelperError, HelperResult};
 use std::io;
@@ -16,7 +15,7 @@ use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Path, PathBuf};
 
 /// The filesystem the helper formats an image with, and the only one a guest mounts a volume as:
-/// what a block device's backup says its image holds (§5.4 of docs/06-storage.md).
+/// what a block device's backup says its image holds.
 pub const FILESYSTEM: &str = "ext4";
 
 /// The image, in its volume's directory.
@@ -34,9 +33,9 @@ pub fn quota_for(size: u64) -> u64 {
 }
 
 /// `dir`, the volume `volume`'s directory, unless it holds a block device, whose files only a
-/// guest's kernel may parse (§4.4 of docs/04-runtimes.md): a file session reaches them through
-/// the driver's worker in a guest, its own or a service guest, and one that reaches the helper
-/// instead, as an install still does, is refused rather than shown the image.
+/// guest's kernel may parse: a file session reaches them through the driver's worker in a guest,
+/// its own or a service guest, and one that reaches the helper instead, as an install still does,
+/// is refused rather than shown the image.
 pub fn files_of(volume: &str, dir: PathBuf) -> HelperResult<PathBuf> {
     if is_block(&dir) {
         let why = format!("volume {volume} is a block device: its files are reached in its guest");
@@ -49,8 +48,8 @@ pub fn files_of(volume: &str, dir: PathBuf) -> HelperResult<PathBuf> {
 /// volume `volume` at `dir`, is one the helper can make: anything into a volume of files, and into
 /// a block device only the whole backup, its image, over the volume a declaration has just made
 /// (`from_backup`), since anything else would put files beside the image, where its guest never
-/// sees them (Finding 158 of docs/23-walkthroughs.md). A block device's live image is replaced
-/// staged and exchanged while its guest is stopped, as any replacing restore is.
+/// sees them. A block device's live image is replaced staged and exchanged while its guest is
+/// stopped, as any replacing restore is.
 pub fn restorable(volume: &str, dir: &Path, (path, into): (&str, &str)) -> HelperResult<()> {
     if is_block(dir) && !(path.is_empty() && into.is_empty()) {
         let why = format!(

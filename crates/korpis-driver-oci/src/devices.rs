@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The devices a container is given (§4.2 of docs/04-runtimes.md). The agent names each by id,
-//! class, and mode, and the driver reads the node's Container Device Interface files itself, as
-//! the agent does, and gives a device only with the edits they give it: a supervisor that is
-//! compromised can name a device the host described, and never a mount or a hook of its own
-//! (Finding 169 of docs/23-walkthroughs.md).
+//! The devices a container is given. The agent names each by id, class, and mode, and the driver
+//! reads the node's Container Device Interface files itself, as the agent does, and gives a device
+//! only with the edits they give it: a supervisor that is compromised can name a device the host
+//! described, and never a mount or a hook of its own.
 //!
 //! A device node is bound from the host node its edit names, since the container is in a user
 //! namespace and cannot make one, with a cgroup rule allowing its type and numbers as the host's

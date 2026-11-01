@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The tree verbs (§8.1 of docs/05-scheduling.md): each side's socket is the one descriptor the
-//! helper's answer carries.
+//! The tree verbs: each side's socket is the one descriptor the helper's answer carries.
 
 use super::{HelperClient, failed};
 use crate::host::HostError;

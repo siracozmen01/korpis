@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota sets as their owners' parents set them (§5.1 of docs/05-scheduling.md): the entries,
-//! each replaced, kept, or removed by shape, and the overcommit an owner permits its children.
+//! Quota sets as their owners' parents set them: the entries, each replaced, kept, or removed by
+//! shape, and the overcommit an owner permits its children.
 
 use super::EntryRow;
 use crate::errors::from_sqlx;

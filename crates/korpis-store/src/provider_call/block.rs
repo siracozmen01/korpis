@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Block storage calls in the stored queue (§2.1 of docs/06-storage.md). An attachment's
-//! credential is held here only until the call's caller has read it, as a backup target's
-//! scoped secret is: the redaction that strips those strips it too.
+//! Block storage calls in the stored queue. An attachment's credential is held here only until the
+//! call's caller has read it, as a backup target's scoped secret is: the redaction that strips
+//! those strips it too.
 
 use korpis_core::extension::block::{
     Attachment, BlockAttach, BlockCreate, BlockDescription, BlockProtocol,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's TLS key (§3.2 of docs/07-networking.md), in its data directory beside its
-//! backup key and kept with it on restore. It reads the chains organizations upload, shows each
-//! key to be its leaf's by comparing their public keys, and seals every certificate's key with
-//! XChaCha20-Poly1305 bound to the certificate's identifier, as the backup key seals repository
-//! keys, so a sealed key copied to another certificate does not open.
+//! The control plane's TLS key, in its data directory beside its backup key and kept with it on
+//! restore. It reads the chains organizations upload, shows each key to be its leaf's by comparing
+//! their public keys, and seals every certificate's key with XChaCha20-Poly1305 bound to the
+//! certificate's identifier, as the backup key seals repository keys, so a sealed key copied to
+//! another certificate does not open.
 
 use crate::data::DataDir;
 use crate::keys::{KeyError, load_or_create};

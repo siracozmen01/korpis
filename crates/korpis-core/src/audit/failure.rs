@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Failed attempts to authenticate (§10 of docs/10-api.md): a credential presented that opened
-//! nothing. A failure is charged to its source, the address it came from, or the /64 of an IPv6
-//! address, since one host holds a whole /64; and it is recorded as a denial is, coalesced by
-//! source, kind, and target, the actor [`Principal::Anonymous`](crate::principal::Principal).
+//! Failed attempts to authenticate: a credential presented that opened nothing. A failure is
+//! charged to its source, the address it came from, or the /64 of an IPv6 address, since one host
+//! holds a whole /64; and it is recorded as a denial is, coalesced by source, kind, and target, the
+//! actor [`Principal::Anonymous`](crate::principal::Principal).
 
 use std::net::IpAddr;
 
@@ -18,15 +18,14 @@ pub enum Attempt {
     Join,
     /// An enrollment token, joined by a relay.
     RelayJoin,
-    /// An invitation, read or redeemed (§9.6 of docs/08-identity.md).
+    /// An invitation, read or redeemed.
     Invitation,
     /// A sign-in: a password, the code beside it, or a passkey's answer.
     SignIn,
     /// A session's refresh credential, exchanged or signed out with.
     Refresh,
-    /// A sign-in through an identity provider completed: a state unknown or spent, a verifier
-    /// that is not the challenge's, or a code the provider would not assert (§9.7 of
-    /// docs/08-identity.md).
+    /// A sign-in through an identity provider completed: a state unknown or spent, a verifier that
+    /// is not the challenge's, or a code the provider would not assert.
     External,
 }
 

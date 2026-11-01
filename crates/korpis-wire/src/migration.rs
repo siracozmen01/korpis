@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's migrations as the API shows them (§8.1 of docs/05-scheduling.md): the phase, the
-//! hold, how it ended, and each volume with how it crosses, how far it has, and whether the two
-//! sides' manifests agree.
+//! A workload's migrations as the API shows them: the phase, the hold, how it ended, and each
+//! volume with how it crosses, how far it has, and whether the two sides' manifests agree.
 
 use crate::{Result, duration, id, invalid, timestamp, wire_id};
 use korpis_core::id::IdKind;

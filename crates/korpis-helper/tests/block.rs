@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block-device volume (§3.1 of docs/06-storage.md), on a real ext4 with project quota from a
-//! loop device: it is made as a sparse image of its size, formatted empty as ext4 owned by the
-//! workload's root, and never mounted; asked again it is found, grown when asked for more and
-//! refused when asked for less; a volume of files is never made a block device or the reverse;
-//! no file session or install opens it, and nothing is restored beside its image; its quota leaves
-//! its image room; and it is deleted with its directory. It needs root and the e2fsprogs, and is
-//! skipped without them.
+//! A block-device volume, on a real ext4 with project quota from a loop device: it is made as a
+//! sparse image of its size, formatted empty as ext4 owned by the workload's root, and never
+//! mounted; asked again it is found, grown when asked for more and refused when asked for less; a
+//! volume of files is never made a block device or the reverse; no file session or install opens
+//! it, and nothing is restored beside its image; its quota leaves its image room; and it is deleted
+//! with its directory. It needs root and the e2fsprogs, and is skipped without them.
 
 #![allow(
     clippy::unwrap_used,

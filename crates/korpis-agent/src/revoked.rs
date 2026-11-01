@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The revocation list the node holds (§6.3 of docs/08-identity.md): believed only once its
-//! signature verifies against the token keys enrollment returned, kept on disk with that
-//! signature so a restarted agent verifies offline against the last list it received, and handed
-//! to everything on the node that verifies a capability token.
+//! The revocation list the node holds: believed only once its signature verifies against the token
+//! keys enrollment returned, kept on disk with that signature so a restarted agent verifies offline
+//! against the last list it received, and handed to everything on the node that verifies a
+//! capability token.
 //!
 //! Each list replaces the one before it whole. A list from the session is taken even if its
 //! version is lower than the one held: replicas compute it independently from the same rows, so

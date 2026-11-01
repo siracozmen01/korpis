@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The store's own certificate, made when the provider starts and never written anywhere: every
-//! grant carries it, and a reader trusts it and no other (§5.6 of docs/06-storage.md). A provider
-//! that restarts makes another, and the grants it made before are gone with their tokens.
+//! grant carries it, and a reader trusts it and no other. A provider that restarts makes another,
+//! and the grants it made before are gone with their tokens.
 
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use std::sync::Arc;

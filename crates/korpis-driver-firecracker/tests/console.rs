@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A guest's console (§6 of docs/04-runtimes.md; §4 and §6 of docs/14-streams.md): what a guest
-//! of logs prints reaches its stream as it printed it, with no carriage return a terminal would
-//! add, and takes no input; what is typed into an interactive console reaches its entry through
-//! its terminal, recorded with who typed it; and the writer ends with its guest. Needs what the
-//! runtime tests need.
+//! A guest's console: what a guest of logs prints reaches its stream as it printed it, with no
+//! carriage return a terminal would add, and takes no input; what is typed into an interactive
+//! console reaches its entry through its terminal, recorded with who typed it; and the writer ends
+//! with its guest. Needs what the runtime tests need.
 
 #![allow(
     clippy::unwrap_used,

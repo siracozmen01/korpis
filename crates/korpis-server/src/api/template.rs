@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The grant template calls of `GrantService` (§4 of docs/08-identity.md).
+//! The grant template calls of `GrantService`.
 
 use super::wire::Refuse;
 use super::wire::scope::object_ref_from_pb;

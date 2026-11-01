@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placement policies per organization (§2.2 of docs/05-scheduling.md, question 8 of §10 there):
-//! an organization sets one for its subtree under `org.write`, read under `org.read` with the one
-//! in force and where it was set; a customer's workload lands on the node its own organization
-//! owns before the host's, each scored by its owner's policy, which the explanation records.
+//! Placement policies per organization: an organization sets one for its
+//! subtree under `org.write`, read under `org.read` with the one in force and where it was set; a
+//! customer's workload lands on the node its own organization owns before the host's, each scored
+//! by its owner's policy, which the explanation records.
 
 use crate::delegation::{Holder, delegate, delegation, organization};
 use crate::recipes::{body, create, project, push_paper};

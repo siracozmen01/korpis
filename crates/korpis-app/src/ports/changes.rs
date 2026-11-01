@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Hearing that a workload changed (§4.3 of docs/02-architecture.md), so a watcher re-reads it
-//! when it changes instead of polling it.
+//! Hearing that a workload changed, so a watcher re-reads it when it changes instead of polling it.
 
 use std::future::Future;
 use std::time::SystemTime;

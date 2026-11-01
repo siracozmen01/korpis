@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What happens when a provider fails, and when it is merely slow (§5 of docs/16-extensions.md,
-//! finding 23 of docs/23-walkthroughs.md). Each provider type declares how its dependents treat
-//! its failure; each provider, by organization, type, and name, has one circuit breaker, which
-//! trips on sustained failure and on sustained latency, judged from the calls it last finished.
+//! What happens when a provider fails, and when it is merely slow. Each provider type declares how
+//! its dependents treat its failure; each provider, by organization, type, and name, has one
+//! circuit breaker, which trips on sustained failure and on sustained latency, judged from the
+//! calls it last finished.
 
 use super::ProviderType;
 use std::time::{Duration, SystemTime};
@@ -56,11 +56,10 @@ impl ProviderType {
         match self {
             Self::Dns | Self::BackupTarget | Self::EdgeRouter => FailurePolicy::Unsatisfiable,
             // A key it cannot open is a backup no one reads and one no one writes: there is no
-            // other key to fall back to, and there must not be.
-            // And no node holds an address its router has not said it routes there, so a move
-            // waits and what is routed stays (§3.7 of docs/07-networking.md). And no node attaches
-            // a device its storage has not refused every other node, so an attach waits and what
-            // is attached stays (§2.1 of docs/06-storage.md).
+            // other key to fall back to, and there must not be. And no node holds an address its
+            // router has not said it routes there, so a move waits and what is routed stays. And no
+            // node attaches a device its storage has not refused every other node, so an attach
+            // waits and what is attached stays.
             Self::Identity | Self::KeyManagement | Self::AddressRouter | Self::BlockStorage => {
                 FailurePolicy::FailClosed
             }

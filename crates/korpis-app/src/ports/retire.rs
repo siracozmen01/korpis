@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Retiring workloads (§3.3 of docs/01-model.md, §4.8 of docs/02-architecture.md).
+//! Retiring workloads.
 
 use super::StoreResult;
 use korpis_core::workload::Plan;
@@ -22,9 +22,8 @@ pub trait RetirementWrite {
     ) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Retires the workload's identity at `at`: it is deleted, its name is free, its quota is
-    /// released, every volume attached to it is detached, kept with its data (§7 of
-    /// docs/06-storage.md), and every name it routes is free (§3.2 of docs/07-networking.md).
-    /// False if it was already retired. Its identifier is kept forever.
+    /// released, every volume attached to it is detached, kept with its data, and every name it
+    /// routes is free. False if it was already retired. Its identifier is kept forever.
     fn retire_workload(
         &mut self,
         workload: Uuid,

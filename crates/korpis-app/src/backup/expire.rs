@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Deleting offloaded stream segments past their retention (§4 of docs/14-streams.md): how long
-//! the workload's stream declares, from when the control plane heard each was offloaded, or the
-//! operator's disclosed floor where that is longer (§8 of docs/17-security.md). Each segment's
-//! object is deleted with the target's own credential, beneath the workload's stream prefix and
-//! nowhere else, and only then forgotten by the index, so a failure leaves it to the next pass
-//! rather than leaving an object nothing names. A segment its node still holds stays readable
-//! there; one it does not is then held nowhere, which is what its retention asked for.
+//! Deleting offloaded stream segments past their retention: how long the workload's stream
+//! declares, from when the control plane heard each was offloaded, or the operator's disclosed
+//! floor where that is longer. Each segment's object is deleted with the target's own credential,
+//! beneath the workload's stream prefix and nowhere else, and only then forgotten by the index, so
+//! a failure leaves it to the next pass rather than leaving an object nothing names. A segment its
+//! node still holds stays readable there; one it does not is then held nowhere, which is what its
+//! retention asked for.
 
 use crate::App;
 use crate::error::AppError;

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `Prepare` for the container tier (§4.2 of docs/04-runtimes.md): the shared preparing of
-//! `korpis_driver_kit::prepare`, as the `oci` driver serves it, with the default process limit
-//! its cgroup holds.
+//! `Prepare` for the container tier: the shared preparing of `korpis_driver_kit::prepare`, as the
+//! `oci` driver serves it, with the default process limit its cgroup holds.
 
 use crate::validate::DEFAULT_PIDS;
 use korpis_core::workload::spec::IsolationTier;

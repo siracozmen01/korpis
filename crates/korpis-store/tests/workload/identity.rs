@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity bindings and their provider's calls in the store (§5 and §5.1 of
-//! docs/08-identity.md): a due binding is claimed by one control plane at a time, an answer is
-//! recorded only against the count it was asked at, and a finished call keeps none of the
-//! evidence a person presented.
+//! Identity bindings and their provider's calls in the store: a due binding is claimed by one
+//! control plane at a time, an answer is recorded only against the count it was asked at, and a
+//! finished call keeps none of the evidence a person presented.
 
 use crate::support::{Fixture, alice, fixture, now};
 use korpis_app::ports::{BindingRead, BindingWrite, Store, Tx};

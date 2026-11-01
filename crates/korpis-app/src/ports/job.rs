@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The job queue (§6 of docs/03-state.md): work the control plane does itself, claimed by one
-//! replica at a time. A job is queued in the transaction that decides it is due, ended in the
-//! transaction that records what it did, and claimed alone, under a lease.
+//! The job queue: work the control plane does itself, claimed by one replica at a time. A job is
+//! queued in the transaction that decides it is due, ended in the transaction that records what it
+//! did, and claimed alone, under a lease.
 
 use super::StoreResult;
 use korpis_core::workload::Plan;
@@ -84,7 +84,7 @@ pub trait JobWrite {
 /// Claiming jobs, and finding the plan steps that become them.
 pub trait JobRead {
     /// Plans that may have a control-plane step due: approved or applying, with one not yet
-    /// completed (§4.9 of docs/02-architecture.md).
+    /// completed.
     fn control_plane_plans(&self) -> impl Future<Output = StoreResult<Vec<Plan>>> + Send;
 
     /// Claims, for `worker` and `lease`, one job of `kinds` that is due: queued and past its time,

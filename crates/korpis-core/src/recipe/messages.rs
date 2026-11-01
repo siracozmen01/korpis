@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The strings a recipe shows (§5.3 of docs/09-recipes.md): a field's label and the recipe's
-//! description are messages in the recipe's default locale, and a catalogue translates them into
-//! another, keyed by where the message is in the document. A message is ICU `MessageFormat` with
-//! no argument: the panel formats these with no values, so a placeholder would show as a failure
-//! rather than as anything the recipe meant, and is refused where the recipe loads instead. What
-//! is left of the syntax is its quoting, which is what the panel's formatter reads it by: `''` is
-//! one apostrophe, an apostrophe before `{` or `}` quotes up to the next lone apostrophe, and an
-//! unquoted brace is a placeholder.
+//! The strings a recipe shows: a field's label and the recipe's description are messages in the
+//! recipe's default locale, and a catalogue translates them into another, keyed by where the
+//! message is in the document. A message is ICU `MessageFormat` with no argument: the panel formats
+//! these with no values, so a placeholder would show as a failure rather than as anything the
+//! recipe meant, and is refused where the recipe loads instead. What is left of the syntax is its
+//! quoting, which is what the panel's formatter reads it by: `''` is one apostrophe, an apostrophe
+//! before `{` or `}` quotes up to the next lone apostrophe, and an unquoted brace is a placeholder.
 
 use super::{Recipe, RecipeError};
 use std::collections::BTreeMap;

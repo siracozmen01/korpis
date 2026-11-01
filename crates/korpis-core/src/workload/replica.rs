@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A volume's replicas (§2.2 of docs/06-storage.md): the nodes the control plane chose to keep a
-//! copy, what each last received, and the choice of them. A replica is chosen as a placement is,
-//! by what the node offers and has room for, and kept from one interval to the next: moving one
-//! means sending the volume whole again.
+//! A volume's replicas: the nodes the control plane chose to keep a copy, what each last received,
+//! and the choice of them. A replica is chosen as a placement is, by what the node offers and has
+//! room for, and kept from one interval to the next: moving one means sending the volume whole
+//! again.
 
 use crate::node::driver::{StorageFeature, class_named};
 use crate::node::{Connectivity, Node};
@@ -36,10 +36,10 @@ pub struct Replica {
     pub stale_at: Option<SystemTime>,
 }
 
-/// A copy of a volume left on the node it was on when its workload failed over onto a replica
-/// (§2.2 of docs/06-storage.md): what was written there after the replica last received is
-/// in it alone. It is a volume of its own, retained and held by no workload, never collected,
-/// and deleted as any retained volume is, only by a plan (§7 there).
+/// A copy of a volume left on the node it was on when its workload failed over onto a replica: what
+/// was written there after the replica last received is in it alone. It is a volume of its own,
+/// retained and held by no workload, never collected, and deleted as any retained volume is, only
+/// by a plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Divergent {
     /// The copy, as a volume.

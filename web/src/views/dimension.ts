@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A quota dimension's name, as the panel says it (§5.1 of docs/05-scheduling.md). Read at
-// render, so the name is in the language the panel is shown in.
+// A quota dimension's name, as the panel says it. Read at render, so the name is in the language
+// the panel is shown in.
 
 import { t } from "../i18n/intl";
 import type { Dimension } from "./quota";

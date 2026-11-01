@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A person signed in through an identity provider, calling (§9.7 of docs/08-identity.md): their
-//! access token names their session, which the gateway reads at each call; they hold the sets
-//! of the sign-in only while their record as a member of each vouches, no second factor is
-//! theirs, and a retired binding or an ended session authenticates nobody.
+//! A person signed in through an identity provider, calling: their access token names their
+//! session, which the gateway reads at each call; they hold the sets of the sign-in only while
+//! their record as a member of each vouches, no second factor is theirs, and a retired binding or
+//! an ended session authenticates nobody.
 
 use crate::support::{Fixture, fixture};
 use korpis_app::AppError;

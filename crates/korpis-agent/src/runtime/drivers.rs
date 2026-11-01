@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Several drivers on one node (§3 of docs/04-runtimes.md): each tier a node offers is served by
-//! its own driver process, and the agent speaks to all of them as one runtime. A prepare goes to
-//! the driver the intent names, a create to the driver that prepared the spec, and every other
-//! verb to the driver that made the object. Which driver made it is a table filled by create and
-//! recover, never a mark added to the identifier: each driver issues its own, and the meter keys
-//! its book by them (§2 of docs/15-observability.md), so an object keeps its identifier however
-//! many drivers its node runs. An identifier the table lacks is asked of each driver in turn.
+//! Several drivers on one node: each tier a node offers is served by its own driver process, and
+//! the agent speaks to all of them as one runtime. A prepare goes to the driver the intent names, a
+//! create to the driver that prepared the spec, and every other verb to the driver that made the
+//! object. Which driver made it is a table filled by create and recover, never a mark added to the
+//! identifier: each driver issues its own, and the meter keys its book by them, so an object keeps
+//! its identifier however many drivers its node runs. An identifier the table lacks is asked of
+//! each driver in turn.
 
 use super::{Executed, Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
 use korpis_proto::korpis::driver::v1 as driver;

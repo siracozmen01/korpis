@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a workload's placement held on its node, for the time it held it (§2 of
-//! docs/15-observability.md): each device, by class, for the seconds it was held, whatever ran on
-//! it, integrated by the node from its readings, cumulative in a sample, and the differences in a
-//! record. Dedicated cores are one counter beside the others.
+//! What a workload's placement held on its node, for the time it held it: each device, by class,
+//! for the seconds it was held, whatever ran on it, integrated by the node from its readings,
+//! cumulative in a sample, and the differences in a record. Dedicated cores are one counter beside
+//! the others.
 
 use crate::node::driver::DeviceClass;
 use std::collections::BTreeMap;

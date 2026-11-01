@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Telling a certificate's organization that it nears expiry (§3.2 of docs/07-networking.md):
-//! a `certificate.expiring` event, a warning and then critical (`expiry_alert`), each reported
-//! once for one validity period. A `provided` certificate is renewed only by its organization, so
-//! this is how it learns to; an `acme` one is told only when its renewal is late.
+//! Telling a certificate's organization that it nears expiry: a `certificate.expiring` event, a
+//! warning and then critical (`expiry_alert`), each reported once for one validity period. A
+//! `provided` certificate is renewed only by its organization, so this is how it learns to; an
+//! `acme` one is told only when its renewal is late.
 
 use crate::App;
 use crate::error::AppError;

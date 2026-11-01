@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An identity provider written with the SDK, against a real control plane (§5.1 of
-//! docs/08-identity.md): it registers as the `identity` provider its installation provides, and
-//! a binding it vouches for is re-verified by asking it over its own stream. A set it still has
-//! is verified; one it no longer has is unverified at once; and while it cannot be asked the
-//! binding stays as it was, its grace not yet spent, with the reason said.
+//! An identity provider written with the SDK, against a real control plane: it registers as the
+//! `identity` provider its installation provides, and a binding it vouches for is re-verified by
+//! asking it over its own stream. A set it still has is verified; one it no longer has is
+//! unverified at once; and while it cannot be asked the binding stays as it was, its grace not yet
+//! spent, with the reason said.
 
 use crate::bindings::{bind, identity_document, set};
 use crate::extensions::push_document;

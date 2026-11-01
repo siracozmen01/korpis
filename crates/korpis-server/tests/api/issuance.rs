@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The issuer of `acme` certificates against Pebble (§3.2 of docs/07-networking.md), every
-//! challenge taken as valid: an endpoint left to its default is given a certificate when its
-//! routes are claimed; its order's challenge reaches the node it is placed on in its assignment,
-//! and the directory is told to look only once that node has acknowledged it; what is issued
-//! reaches the node as the endpoint's certificate at a new revision, the challenge gone, and the
-//! node is given it. Without the directory's terms agreed, the certificate fails and says why.
+//! The issuer of `acme` certificates against Pebble, every challenge taken as valid: an endpoint
+//! left to its default is given a certificate when its routes are claimed; its order's challenge
+//! reaches the node it is placed on in its assignment, and the directory is told to look only once
+//! that node has acknowledged it; what is issued reaches the node as the endpoint's certificate at
+//! a new revision, the challenge gone, and the node is given it. Without the directory's terms
+//! agreed, the certificate fails and says why.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{assignment, until};

@@ -91,9 +91,8 @@ impl TestDb {
         Ok(Self { admin_url: self.admin_url.clone(), name, owner_url })
     }
 
-    /// A login of this database's own, as installation makes the control plane's (§2 of
-    /// docs/18-operations.md): a member of the application role that owns nothing. Its URL; it
-    /// is dropped with the database.
+    /// A login of this database's own, as installation makes the control plane's: a member of the
+    /// application role that owns nothing. Its URL; it is dropped with the database.
     pub async fn login(&self) -> Result<String, Error> {
         let password = uuid::Uuid::now_v7().simple().to_string();
         let role = format!("{}_server", self.name);
@@ -161,9 +160,9 @@ async fn drop_database(admin_url: &str, name: &str) {
     let _ = admin.close().await;
 }
 
-/// Intent bodies in their stored form (§3.1 of docs/03-state.md), as the control plane's
-/// composition root configures them. Only tests construct the store here, so only tests carry
-/// this second copy of a three-line adapter.
+/// Intent bodies in their stored form, as the control plane's composition root configures them.
+/// Only tests construct the store here, so only tests carry this second copy of a three-line
+/// adapter.
 #[derive(Debug, Clone, Copy)]
 struct WireBodies;
 

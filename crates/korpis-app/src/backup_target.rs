@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Calling a backup target provider (§5.6 of docs/06-storage.md): access to one workload's
-//! prefix for one job, and the listing and deletion the control plane prunes with. Every request
-//! is checked before a provider sees it; access is read once and its secret then removed from the
-//! record of the call, so the database holds it only for as long as the call took to be read.
+//! Calling a backup target provider: access to one workload's prefix for one job, and the listing
+//! and deletion the control plane prunes with. Every request is checked before a provider sees it;
+//! access is read once and its secret then removed from the record of the call, so the database
+//! holds it only for as long as the call took to be read.
 
 use crate::App;
 use crate::error::AppError;
@@ -69,10 +69,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.located(target, called).await
     }
 
-    /// `called` with the published address of the endpoint a store's provider serves it on put
-    /// in its access, where the provider serves the store itself (§5.6 of docs/06-storage.md):
-    /// every reader, a job on any node or the control plane, reaches it there. Without one it
-    /// fails `backup.unreachable`.
+    /// `called` with the published address of the endpoint a store's provider serves it on put in
+    /// its access, where the provider serves the store itself: every reader, a job on any node or
+    /// the control plane, reaches it there. Without one it fails `backup.unreachable`.
     async fn located(&self, target: &CallTarget, mut called: Called) -> Result<Called, AppError> {
         let CallOutcome::Access(a) = &mut called.outcome else { return Ok(called) };
         if a.s3.served_by.is_empty() {

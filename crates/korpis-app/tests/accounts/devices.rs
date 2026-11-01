@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Device cookies (§9.6 of docs/08-identity.md): a stranger spending a name's guesses keeps its
-//! holder out of new browsers only, a browser that has signed in is charged to its own guesses
-//! and, once it has spent them, as a browser without a cookie, and a cookie for another account
-//! or one this control plane did not sign is not honoured.
+//! Device cookies: a stranger spending a name's guesses keeps its holder out of new browsers only,
+//! a browser that has signed in is charged to its own guesses and, once it has spent them, as a
+//! browser without a cookie, and a cookie for another account or one this control plane did not
+//! sign is not honoured.
 
 use crate::support::{Fixture, client, code, fixture, in_session, invite};
 use korpis_app::AppError;

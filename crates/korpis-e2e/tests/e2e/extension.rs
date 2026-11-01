@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An extension written with the SDK, run in a container on a real node (§3 of
-//! docs/16-extensions.md): installed, it registers its provider and is pinged through the API,
-//! and it follows its installation's subscription, printing what it hears to its console. The
-//! control plane listens on loopback, which no workload's namespace reaches, so everything it
-//! does crosses the relay its node serves it (§9.5 of docs/08-identity.md).
+//! An extension written with the SDK, run in a container on a real node: installed, it registers
+//! its provider and is pinged through the API, and it follows its installation's subscription,
+//! printing what it hears to its console. The control plane listens on loopback, which no
+//! workload's namespace reaches, so everything it does crosses the relay its node serves it.
 
 use crate::image::{TEST_EXTENSION, push_image};
 use crate::node::{Node, live};

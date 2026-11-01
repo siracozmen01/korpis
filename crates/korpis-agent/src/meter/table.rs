@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the host's table counted of a workload's link (§7 of docs/07-networking.md), as the
-//! meter reads it: its egress, and each endpoint whose accounting is on, by the endpoint's name.
-//! The helper names each counter for the link and the port; the endpoint's name is the agent's,
-//! from the assignment, since a record says which of a workload's services carried what (§2 of
-//! docs/15-observability.md).
+//! What the host's table counted of a workload's link, as the meter reads it: its egress, and each
+//! endpoint whose accounting is on, by the endpoint's name. The helper names each counter for the
+//! link and the port; the endpoint's name is the agent's, from the assignment, since a record says
+//! which of a workload's services carried what.
 
 use crate::reconcile::network::transport;
 use korpis_core::workload::network::host_link;

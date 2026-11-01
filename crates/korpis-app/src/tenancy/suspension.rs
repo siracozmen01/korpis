@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Suspending and resuming an organization (§2.1 of docs/08-identity.md): the reversible lever a
-//! host pulls for non-payment. It is one row: every grant scoped in the organization's subtree is
-//! suspended by derivation at use, and, when the suspension stops the workloads, every workload
-//! beneath it is told stopped by the same derivation; resuming restores them unchanged, since
-//! nothing was written onto any of them. Both are effective only from above, so each is
-//! authorized over the organization's parent, which a grant scoped at the organization itself
-//! never covers: a tenant cannot resume itself, and a root organization, which has nothing above
-//! it, is suspended by no one.
+//! Suspending and resuming an organization: the reversible lever a host pulls for non-payment. It
+//! is one row: every grant scoped in the organization's subtree is suspended by derivation at use,
+//! and, when the suspension stops the workloads, every workload beneath it is told stopped by the
+//! same derivation; resuming restores them unchanged, since nothing was written onto any of them.
+//! Both are effective only from above, so each is authorized over the organization's parent, which
+//! a grant scoped at the organization itself never covers: a tenant cannot resume itself, and a
+//! root organization, which has nothing above it, is suspended by no one.
 
 use crate::App;
 use crate::caller::Caller;
@@ -66,9 +65,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// The nearest organization at or above `organization` that is suspended with its workloads
     /// stopped: while there is one, every workload beneath it is told stopped, whatever power it
-    /// declares (§2.1 of docs/08-identity.md). Read at every computation, like the suspension of
-    /// grants, so a suspension and its resumption reach every workload beneath at once, nested
-    /// suspensions included.
+    /// declares. Read at every computation, like the suspension of grants, so a suspension and its
+    /// resumption reach every workload beneath at once, nested suspensions included.
     pub(crate) async fn held_by(&self, organization: Uuid) -> Result<Option<Uuid>, AppError> {
         for node in self.store.ancestry(org(organization)).await? {
             if !node.suspended {

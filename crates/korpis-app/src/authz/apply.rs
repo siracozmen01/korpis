@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Issuing from a template (§4 of docs/08-identity.md): the template fills in the request, and
-//! the issue that follows is the ordinary attenuation of a grant the issuer holds. A template
-//! grants nobody anything; what it names that the issuer may not pass on is refused exactly as a
-//! request written by hand would be.
+//! Issuing from a template: the template fills in the request, and the issue that follows is the
+//! ordinary attenuation of a grant the issuer holds. A template grants nobody anything; what it
+//! names that the issuer may not pass on is refused exactly as a request written by hand would be.
 
 use super::IssueGrant;
 use crate::App;

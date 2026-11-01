@@ -20,7 +20,7 @@ pub struct Metadata {
     pub name: String,
     /// Its version.
     pub version: String,
-    /// For humans: a message in `locale` (§5.3 of docs/09-recipes.md).
+    /// For humans: a message in `locale`.
     pub description: String,
     /// The locale its own messages are written in, a BCP 47 tag; `en` unless it says.
     pub locale: String,
@@ -64,9 +64,9 @@ pub struct Recipe {
     pub install: Vec<InstallStep>,
     /// The configuration files it renders.
     pub templates: Vec<TemplateSpec>,
-    /// The files the node renders outside its volumes (§5.2 of docs/09-recipes.md).
+    /// The files the node renders outside its volumes.
     pub managed_files: Vec<super::managed::ManagedFile>,
-    /// Readiness and liveness (Rule K-16).
+    /// Readiness and liveness.
     pub probes: HealthSpec,
     /// Log lines that mean something.
     pub logs: Vec<LogEventRule>,
@@ -115,8 +115,8 @@ impl Recipe {
         behaviour::validate(&self.logs, &self.lifecycle_hooks)
     }
 
-    /// Template variables reach the tenant's files, so each must be a field delivered that way
-    /// and none may be a secret (§5.2 and §6 of docs/09-recipes.md).
+    /// Template variables reach the tenant's files, so each must be a field delivered that way and
+    /// none may be a secret.
     fn check_vars(&self, at: &str, vars: &[String]) -> Result<(), RecipeError> {
         for v in vars {
             match self.config.field(v) {

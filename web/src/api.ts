@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The panel's way to the API (§1 of docs/11-surface-web.md): the generated clients of the
-// published services over Connect, sent to the control plane the panel was served by, or to the
-// one the build names when the panel is served from elsewhere. Credentials are included, since
-// the session's refresh credential is a cookie (§9.4 of docs/08-identity.md). Two transports: an
-// anonymous one, for the ceremonies and for exchanging the cookie itself, and one whose calls
-// carry the session's access token.
+// The panel's way to the API: the generated clients of the published services over Connect, sent to
+// the control plane the panel was served by, or to the one the build names when the panel is served
+// from elsewhere. Credentials are included, since the session's refresh credential is a cookie. Two
+// transports: an anonymous one, for the ceremonies and for exchanging the cookie itself, and one
+// whose calls carry the session's access token.
 
 import {
   Code,

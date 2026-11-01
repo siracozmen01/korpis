@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `MeteringService`: what workloads used, and the days of metering (§2 of
-//! docs/15-observability.md).
+//! `MeteringService`: what workloads used, and the days of metering.
 
 use super::wire::{self, Refuse, time, timestamp};
 use super::{Api, error};

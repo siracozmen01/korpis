@@ -5,8 +5,7 @@
 //! lower layer made, and `.wh..wh..opq` removes what the lower layers put in its directory. Files,
 //! directories, symlinks, hard links, and FIFOs keep the owner and mode the layer records, which
 //! must be one of the workload's 65,536 ids; a device is skipped and counted, since the guest's
-//! `/dev` is the kernel's own (§6 of docs/04-runtimes.md). Every path is resolved beneath the tree
-//! ([`crate::tree`]).
+//! `/dev` is the kernel's own. Every path is resolved beneath the tree ([`crate::tree`]).
 
 use crate::tree;
 use rustix::fs::{

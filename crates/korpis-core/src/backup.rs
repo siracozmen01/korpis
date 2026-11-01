@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backups (§5 of docs/06-storage.md): the repository a workload's backups are kept in, how long
-//! they are kept, and each backup as the node that ran it reported it.
+//! Backups: the repository a workload's backups are kept in, how long they are kept, and each
+//! backup as the node that ran it reported it.
 
 pub mod calendar;
 pub mod retention;
@@ -9,7 +9,7 @@ pub mod retention;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
-/// Where a repository's key-encryption key is held (§5.5 of docs/06-storage.md).
+/// Where a repository's key-encryption key is held.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyCustody {
     /// By the control plane: the operator can read tenants' backups, through a grant naming
@@ -21,8 +21,7 @@ pub enum KeyCustody {
     Tenant,
 }
 
-/// The tenant's key that holds a repository's data keys under `tenant` custody (§5.5 of
-/// docs/06-storage.md).
+/// The tenant's key that holds a repository's data keys under `tenant` custody.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TenantKey {
     /// The organization's key management provider, by name.
@@ -63,7 +62,7 @@ impl KeyCustody {
     }
 }
 
-/// How long backups are kept (§5.3 of docs/06-storage.md).
+/// How long backups are kept.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Retention {
     /// The most recent backups kept whatever their age.
@@ -123,8 +122,7 @@ pub struct Repository {
     pub kms: Option<TenantKey>,
     /// How long its backups are kept.
     pub retention: Retention,
-    /// Whether the console streams of the workloads it serves are offloaded to it (§4 of
-    /// docs/14-streams.md).
+    /// Whether the console streams of the workloads it serves are offloaded to it.
     pub streams: bool,
     /// When it was made.
     pub created: SystemTime,
@@ -140,8 +138,8 @@ impl Repository {
     }
 
     /// Where the repository's recipe content is kept, once for every workload that backs up into
-    /// it (§5.2 of docs/06-storage.md): beside the workloads' prefixes, beneath none of them, so a
-    /// prune of one workload's backups never reaches it.
+    /// it: beside the workloads' prefixes, beneath none of them, so a prune of one workload's
+    /// backups never reaches it.
     #[must_use]
     pub fn content_prefix(&self) -> String {
         format!("{}content/", self.prefix)
@@ -235,7 +233,7 @@ pub struct Backup {
     /// When it was pruned.
     pub deleted_at: Option<SystemTime>,
     /// For a block device's backup, the filesystem its image holds, whose files only a guest's
-    /// kernel reads (§5.4 of docs/06-storage.md); `None` for a volume of files.
+    /// kernel reads; `None` for a volume of files.
     pub image_filesystem: Option<String>,
 }
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `--set` (§5 and §6 of docs/13-surface-cli.md): the files are declared through a declared set,
-//! members of the set that no file declares any more are proposed for deletion, and drift is
-//! found before anything is declared, so an advisory set's apply fails whole rather than half.
+//! `--set`: the files are declared through a declared set, members of the set that no file declares
+//! any more are proposed for deletion, and drift is found before anything is declared, so an
+//! advisory set's apply fails whole rather than half.
 
 use crate::apply::{Mode, Through, declare, existing};
 use crate::connect::Connection;
@@ -159,7 +159,7 @@ pub async fn orphans(
 }
 
 /// Proposes deleting `w` and the volumes of it named in `volumes`: a retire plan, which always
-/// waits for a person (§3.3 of docs/01-model.md).
+/// waits for a person.
 pub async fn propose_deletion(
     c: &Connection,
     w: &pb::Workload,
@@ -175,7 +175,7 @@ pub async fn propose_deletion(
     Ok(client.delete_workload(request).await?.into_owned().plan.into_option().unwrap_or_default())
 }
 
-/// Confirms plan `id`, which its proposer may (§3.6 of docs/08-identity.md).
+/// Confirms plan `id`, which its proposer may.
 pub async fn confirm(c: &Connection, id: &str) -> Result<pb::Plan, CliError> {
     let request = pb::ApprovePlanRequest {
         mutation: crate::cmd::mutation(None).into(),

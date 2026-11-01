@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The account's sessions (§9.4 of docs/08-identity.md): each browser and command-line client
-// signed in, where and when it began and was last used, and ending one, or every one but this.
-// Ending the sessions a thief holds is how a holder takes an account back.
+// The account's sessions: each browser and command-line client signed in, where and when it began
+// and was last used, and ending one, or every one but this. Ending the sessions a thief holds is
+// how a holder takes an account back.
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useCallback, useState } from "react";

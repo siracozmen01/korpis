@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the overlay asks of the helper, and what it reports of the answer: the peers, what the
-//! mesh admits, the node's part in edge groups, and the nodes admitted to send it replicas (§2.2
-//! of docs/06-storage.md).
+//! What the overlay asks of the helper, and what it reports of the answer: the peers, what the mesh
+//! admits, the node's part in edge groups, and the nodes admitted to send it replicas.
 
 use super::leases::Holding;
 use super::{Overlay, edges};
@@ -43,8 +42,7 @@ pub(super) fn admitted(held: &HeldSet) -> Vec<helper::OverlayAdmitted> {
 }
 
 /// The nodes each migration this node receives is sent from, by what `held` names: the peer of
-/// every role of destination (§8.1 of docs/05-scheduling.md), whose mesh address the transfer
-/// port admits while the role lasts.
+/// every role of destination, whose mesh address the transfer port admits while the role lasts.
 pub(super) fn migrating_from(held: &HeldSet) -> Vec<String> {
     use agent::MigrationSide as S;
     let mut out: Vec<String> = held
@@ -60,8 +58,8 @@ pub(super) fn migrating_from(held: &HeldSet) -> Vec<String> {
 }
 
 /// The request that keeps the interface to `peers` on `port`, admitting `admitted` and what the
-/// edges' proxies may reach here, with the node's part in edge groups as `edges` tells it (§3.1
-/// of docs/07-networking.md), holding the addresses of `holding`, the node advertising `own`.
+/// edges' proxies may reach here, with the node's part in edge groups as `edges` tells it, holding
+/// the addresses of `holding`, the node advertising `own`.
 pub(super) fn request(
     (port, own): (u16, &[String]),
     (peers, edges, holding): (&agent::Peers, &agent::Edges, &Holding),

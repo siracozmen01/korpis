@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Steps 3 to 6 of §44 of docs/23-walkthroughs.md, in a browser: Dana opens the sign-in link her
+// In a browser: Dana opens the sign-in link her
 // company handed its staff, signs in through its identity provider, a real issuer, and reads who
-// the panel says she is (§9.7 of docs/08-identity.md, §1 of docs/11-surface-web.md). Ten minutes
-// on, she approves `korpis login` on a terminal, confirming it is her by signing in through the
-// provider again, since she holds no passkey or password here.
+// the panel says she is. Ten minutes on, she approves `korpis login` on a terminal, confirming it
+// is her by signing in through the provider again, since she holds no passkey or password here.
 
 import { expect, test } from "@playwright/test";
 import { aged, given, visit } from "./support";

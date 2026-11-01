@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Redaction before persistence (§7 of docs/14-streams.md): the values of a workload's secret
-//! configuration fields, matched as literal bytes in each record before it is written, and
-//! replaced by a mark naming the field. Best-effort, and said to be: a value the workload encodes
-//! before printing it, or splits across two records, is not found.
+//! Redaction before persistence: the values of a workload's secret configuration fields, matched as
+//! literal bytes in each record before it is written, and replaced by a mark naming the field.
+//! Best-effort, and said to be: a value the workload encodes before printing it, or splits across
+//! two records, is not found.
 //!
 //! A value shorter than [`MIN_LEN`] bytes is not matched at all, because a two-letter secret
 //! would redact every occurrence of two letters; it is reported back, so the interface can say

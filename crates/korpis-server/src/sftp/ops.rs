@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The requests answered one at a time, each by the verbs §3.2 of docs/06-storage.md maps it to:
+//! The requests answered one at a time, each by the file-session verbs it maps to:
 //! a stat by `stat`, a directory read by pages of `list`, an open by a `stat` or by the empty
 //! write that creates or truncates, a remove by `remove` once a `stat` has said the entry is of
 //! the kind the request removes. What the session cannot do is refused as unsupported.

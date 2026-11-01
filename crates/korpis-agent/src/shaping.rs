@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's bandwidth (§7 of docs/07-networking.md): the uplinks its operator declares, which
-//! the helper shapes; the bandwidth the node then offers placement, the smallest uplink's
-//! capacity less what the node keeps of it; and what its drivers that join its links then
-//! enforce, since the node's network holds it and not the driver.
+//! The node's bandwidth: the uplinks its operator declares, which the helper shapes; the bandwidth
+//! the node then offers placement, the smallest uplink's capacity less what the node keeps of it;
+//! and what its drivers that join its links then enforce, since the node's network holds it and not
+//! the driver.
 
 use crate::host::Host;
 use korpis_core::quantity::parse_rate;
@@ -95,7 +95,7 @@ fn of(described: &helper::DescribeNetworkResponse, shaped: &[helper::Uplink]) ->
 }
 
 /// Declares on `driver`, if it joins the node's links, that it enforces what the node's network
-/// holds for it, `kinds` (§4 of docs/04-runtimes.md).
+/// holds for it, `kinds`.
 pub fn enforced(driver: &mut pb::DriverInfo, kinds: &[(&str, &str)]) {
     let Some(caps) = driver.capabilities.as_option_mut() else { return };
     if !crate::network::joins_links(caps) {

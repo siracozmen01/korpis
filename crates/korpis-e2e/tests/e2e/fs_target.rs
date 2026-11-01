@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backup and restore on a real node through the backup target for a disk (§5.6 of
-//! docs/06-storage.md), the first-party extension run in a container on that node, serving its
-//! own volume. Its node's jobs and the control plane's own reads reach it at its endpoint's
-//! published address, over TLS that trusts its certificate alone: a running workload is backed
-//! up twice, a prune forgets the first backup, a file is read from the second, and the second is
-//! cloned into a new workload that runs on what it held. It needs root, containerd, and
-//! `mkfs.btrfs`, and is skipped without them.
+//! Backup and restore on a real node through the backup target for a disk, the first-party
+//! extension run in a container on that node, serving its own volume. Its node's jobs and the
+//! control plane's own reads reach it at its endpoint's published address, over TLS that trusts its
+//! certificate alone: a running workload is backed up twice, a prune forgets the first backup, a
+//! file is read from the second, and the second is cloned into a new workload that runs on what it
+//! held. It needs root, containerd, and `mkfs.btrfs`, and is skipped without them.
 
 use crate::backups::{nightly, wire};
 use crate::image::{FS_TARGET, push_image};
@@ -70,10 +69,10 @@ pub(crate) async fn installed(cp: &ControlPlane, project: &str) -> String {
     done.extension.into_option().unwrap().workload
 }
 
-/// Waits until the target has registered, and then until it answers a ping. Registration is
-/// read from the list of providers, never by pinging: a ping nothing serves fails at its deadline
-/// and counts against the provider's breaker (§5 of docs/16-extensions.md), so pinging a target
-/// whose image is still being pulled would open the breaker before it ever registered.
+/// Waits until the target has registered, and then until it answers a ping. Registration is read
+/// from the list of providers, never by pinging: a ping nothing serves fails at its deadline and
+/// counts against the provider's breaker, so pinging a target whose image is still being pulled
+/// would open the breaker before it ever registered.
 pub(crate) async fn registered(cp: &ControlPlane) {
     let client = pb::ProviderServiceClient::new(cp.http(), cp.config());
     let asked =

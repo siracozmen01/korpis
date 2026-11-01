@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Who acts: the principals of §3.2 of docs/01-model.md, and the subject key grants are held by.
+//! Who acts: the principals, and the subject key grants are held by.
 //!
 //! A [`Principal`] is the structured form; a [`Subject`] is what authorization compares. Every
 //! principal has exactly one key, and every key names exactly one principal, so the store can
@@ -11,7 +11,7 @@ use std::fmt;
 use uuid::Uuid;
 
 /// Anything that can act, as authorization sees it: a stable key, and whether it is a set whose
-/// members act through it (a chat role, an OIDC group; §5 of docs/08-identity.md).
+/// members act through it (a chat role, an OIDC group).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Subject {
     /// The canonical key, as [`Principal::key`] produces it.
@@ -50,9 +50,9 @@ pub enum SystemActor {
     Scheduler,
     /// Installation, before any grant exists.
     Bootstrap,
-    /// The installation's authority: renewing the certificate of a relay it admitted,
-    /// re-verifying the identity bindings its providers vouch for, and removing the passkeys
-    /// registered at a portal deleted (§9.8 of docs/08-identity.md).
+    /// The installation's authority: renewing the certificate of a relay it admitted, re-verifying
+    /// the identity bindings its providers vouch for, and removing the passkeys registered at a
+    /// portal deleted.
     Authority,
 }
 
@@ -81,17 +81,17 @@ pub enum Principal {
     User(Uuid),
     /// An API token.
     Token(Uuid),
-    /// Whoever holds a share link: the bearer of the link-form grant it names, which is the
-    /// grant's own identifier (§6.1 of docs/08-identity.md).
+    /// Whoever holds a share link: the bearer of the link-form grant it names, which is the grant's
+    /// own identifier.
     Link(Uuid),
     /// A workload acting with its own identity.
     Workload(Uuid),
-    /// An installed extension, by its installation (§3.2 of docs/16-extensions.md).
+    /// An installed extension, by its installation.
     Extension(Uuid),
     /// The control plane itself.
     System(SystemActor),
     /// Whoever presented a credential that opened nothing: the actor of a failed attempt to
-    /// authenticate, known only by where it came from (§10 of docs/10-api.md). It holds nothing.
+    /// authenticate, known only by where it came from. It holds nothing.
     Anonymous,
     /// One person, verified by an identity provider extension.
     ExternalUser {
@@ -111,8 +111,7 @@ pub enum Principal {
     },
 }
 
-/// One set at an identity provider: a role in a guild, a group claim's value (§5 of
-/// docs/08-identity.md).
+/// One set at an identity provider: a role in a guild, a group claim's value.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SetName {
     /// Where it lives at its provider, never containing `:`: a guild, the claim naming groups.
@@ -251,14 +250,13 @@ impl fmt::Display for Principal {
     }
 }
 
-/// Who holds a session (§9.4 and §9.7 of docs/08-identity.md), and so whom its access tokens
-/// name.
+/// Who holds a session, and so whom its access tokens name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Holder {
     /// An account, signed in with its own factors.
     Account(Uuid),
-    /// A person signed in through an identity provider (§9.7 of docs/08-identity.md), named by
-    /// their own binding, the one live binding of their subject.
+    /// A person signed in through an identity provider, named by their own binding, the one live
+    /// binding of their subject.
     Person(Uuid),
 }
 

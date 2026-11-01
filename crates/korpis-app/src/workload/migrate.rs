@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Proposing a migration (§8.1 of docs/05-scheduling.md): moving a placed workload to another
-//! node is a plan of kind `migrate`, whose one step the control plane executes through the
-//! migration's seven phases. The plan names the destination, chosen by the scheduler among every
-//! node but the workload's own or named by an operator who may place there, each volume with
-//! what crosses for it, how long the source keeps its copies, and every address that changes. A
-//! person approves it, never a policy, since it stops the workload and holds a second node.
+//! Proposing a migration: moving a placed workload to another node is a plan of kind `migrate`,
+//! whose one step the control plane executes through the migration's seven phases. The plan names
+//! the destination, chosen by the scheduler among every node but the workload's own or named by an
+//! operator who may place there, each volume with what crosses for it, how long the source keeps
+//! its copies, and every address that changes. A person approves it, never a policy, since it stops
+//! the workload and holds a second node.
 
 use super::propose::{self, Proposal};
 use crate::App;
@@ -121,9 +121,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         finish(tx, caller, idem, OPERATION, plan).await
     }
 
-    /// Whether `w` may be moved at all: it is placed, not migrating already, not being retired,
-    /// and holds no address of a `node` pool, which is routed to its node alone (§3.7 of
-    /// docs/07-networking.md).
+    /// Whether `w` may be moved at all: it is placed, not migrating already, not being retired, and
+    /// holds no address of a `node` pool, which is routed to its node alone.
     async fn migratable(&self, w: &Workload) -> Result<(), AppError> {
         if self.store.placement(w.id).await?.is_none() {
             return Err(AppError::conflict("workload.unplaced", "the workload is on no node"));

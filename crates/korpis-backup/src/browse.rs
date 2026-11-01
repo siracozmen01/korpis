@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a backup without restoring it (§5.4 of docs/06-storage.md): one directory's entries,
-//! which is browsing, and one file's bytes, which is reading. Each fetches the trees on the way
-//! and nothing else; a file's chunks are fetched in order and sent as they arrive, its holes as
-//! zeros, and the whole is checked against the digest the backup recorded, so a reader that got
-//! every piece and no error got the file.
+//! Reading a backup without restoring it: one directory's entries, which is browsing, and one
+//! file's bytes, which is reading. Each fetches the trees on the way and nothing else; a file's
+//! chunks are fetched in order and sent as they arrive, its holes as zeros, and the whole is
+//! checked against the digest the backup recorded, so a reader that got every piece and no error
+//! got the file.
 
 use crate::error::{Error, Result};
 use crate::repo::Repo;

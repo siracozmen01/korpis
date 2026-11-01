@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's network, as the supervisor asks for it (§4.1 of docs/07-networking.md): a
-//! namespace of its own, bound under the helper's network root, joined to the host by a routed
-//! veth pair with no bridge, its addresses and routes on both ends (or, for a microVM, routed on
-//! to the tap its guest holds), and its firewall. The
-//! supervisor chooses the addresses; the helper checks each against the pool it is said to be in,
-//! derives every name from the workload's identifier, and makes the rest so, whatever part of it
-//! a crash or a reboot left behind.
+//! A workload's network, as the supervisor asks for it: a namespace of its own, bound under the
+//! helper's network root, joined to the host by a routed veth pair with no bridge, its addresses
+//! and routes on both ends (or, for a microVM, routed on to the tap its guest holds), and its
+//! firewall. The supervisor chooses the addresses; the helper checks each against the pool it is
+//! said to be in, derives every name from the workload's identifier, and makes the rest so,
+//! whatever part of it a crash or a reboot left behind.
 
 mod account;
 pub(crate) mod announce;
@@ -189,7 +188,7 @@ impl Network {
         })
     }
 
-    /// Makes the node's uplinks those `r` names (§7 of docs/07-networking.md).
+    /// Makes the node's uplinks those `r` names.
     pub fn ensure_uplinks(
         &self,
         r: &helper::EnsureUplinksRequest,
@@ -209,9 +208,9 @@ impl Network {
         self.opened(workload, resolver::sockets)
     }
 
-    /// A socket for probing `workload` (§5 of docs/04-runtimes.md), a datagram socket if
-    /// `datagram` and a stream otherwise, opened inside its network namespace, neither bound nor
-    /// connected. Its network must have been made.
+    /// A socket for probing `workload`, a datagram socket if `datagram` and a stream otherwise,
+    /// opened inside its network namespace, neither bound nor connected. Its network must have been
+    /// made.
     pub fn open_probe(
         &self,
         workload: &str,
@@ -265,9 +264,9 @@ impl Network {
         Ok(link || namespace)
     }
 
-    /// Releases every network bound under the root, as a machine is emptied of what its node
-    /// made when the node did not destroy its workloads itself (§3 of docs/18-operations.md):
-    /// the workloads whose networks were released, and those that could not be, with why.
+    /// Releases every network bound under the root, as a machine is emptied of what its node made
+    /// when the node did not destroy its workloads itself: the workloads whose networks were
+    /// released, and those that could not be, with why.
     #[must_use]
     pub fn release_all(&self) -> (Vec<String>, Vec<(String, HelperError)>) {
         let mut names: Vec<String> = std::fs::read_dir(&self.root)

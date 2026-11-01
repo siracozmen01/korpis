@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Deleting a retained volume whose workload is gone (§7 of docs/06-storage.md): proposed under
-//! `volume.delete`, refused while a workload holds it, approved by a person, and executed by its
-//! node through a residual assignment that carries only the plan and leaves the set once the plan
-//! is done.
+//! Deleting a retained volume whose workload is gone: proposed under `volume.delete`, refused while
+//! a workload holds it, approved by a person, and executed by its node through a residual
+//! assignment that carries only the plan and leaves the set once the plan is done.
 
 use crate::journal::{ack, assignment, complete, send, until};
 use crate::lifecycle::approve;

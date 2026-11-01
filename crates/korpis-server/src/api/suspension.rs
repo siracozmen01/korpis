@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `OrganizationService.SuspendOrganization` and `ResumeOrganization` (§2.1 of
-//! docs/08-identity.md).
+//! `OrganizationService.SuspendOrganization` and `ResumeOrganization`.
 
 use super::wire::tenancy::{on_suspend, organization_to_pb};
 use super::wire::{self, Refuse};

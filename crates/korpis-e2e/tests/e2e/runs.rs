@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A task's run on a real node (§4 of docs/05-scheduling.md, §4 of docs/14-streams.md): its
-//! container starts once, prints, and exits by itself; the control plane judges it succeeded
-//! from the exit status its node reports; and what it printed is a console of its own, read by
-//! naming the run with `korpis run logs`. A run that keeps running is not judged lost while its
-//! node holds the workload's lease (§4.2 there).
+//! A task's run on a real node: its container starts once, prints, and exits by itself; the control
+//! plane judges it succeeded from the exit status its node reports; and what it printed is a
+//! console of its own, read by naming the run with `korpis run logs`. A run that keeps running is
+//! not judged lost while its node holds the workload's lease.
 
 use crate::node::{Node, live};
 use crate::oci::reading;

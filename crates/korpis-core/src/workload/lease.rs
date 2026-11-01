@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Leases (§4.5 of docs/02-architecture.md): every running workload needs one, and at most one
-//! is valid at a time. Exclusivity rests on the clocks, not on delivery: the holder's lease runs
-//! from when it asked and the grantor's from when it heard, so the holder always believes its
-//! lease ends first, and a lease for another node is issued only once the old one is provably
-//! over.
+//! Leases: every running workload needs one, and at most one is valid at a time. Exclusivity rests
+//! on the clocks, not on delivery: the holder's lease runs from when it asked and the grantor's
+//! from when it heard, so the holder always believes its lease ends first, and a lease for another
+//! node is issued only once the old one is provably over.
 
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -43,8 +42,7 @@ impl Lease {
 /// Why a lease is refused; the control plane always knows which case it is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refusal {
-    /// Another node holds it under an epoch issued to it: stop, keep the data, report the
-    /// volume (§4.5).
+    /// Another node holds it under an epoch issued to it: stop, keep the data, report the volume.
     Superseded {
         /// The holder.
         by: Uuid,
@@ -75,7 +73,7 @@ pub enum Decision {
 ///
 /// The asking node's own unreleased lease is renewed under its epoch whatever epoch the node
 /// says it holds: a node whose agent restarted, or whose control plane was restored, is given
-/// back the epoch that is still its own (the fail-static row of §4.5). A released one is not
+/// back the epoch that is still its own (its fail-static rule). A released one is not
 /// renewed: the holder said it stopped, so acting again is a new epoch.
 #[must_use]
 pub fn decide(
@@ -100,10 +98,10 @@ pub fn decide(
     }
 }
 
-/// A restore's first fence (§8 of docs/03-state.md): the highest epoch that can have been issued
-/// since a backup holding `max_issued`, `backup_age` ago, by a control plane issuing at most
-/// `rate_per_sec`. Issuance spends from a bucket holding a second's worth, so in `t` seconds at
-/// most `rate_per_sec × (t + 1)` epochs are issued; the age is rounded up to the second.
+/// A restore's first fence: the highest epoch that can have been issued since a backup holding
+/// `max_issued`, `backup_age` ago, by a control plane issuing at most `rate_per_sec`. Issuance
+/// spends from a bucket holding a second's worth, so in `t` seconds at most `rate_per_sec × (t +
+/// 1)` epochs are issued; the age is rounded up to the second.
 #[must_use]
 pub fn fence_floor(max_issued: u64, rate_per_sec: u64, backup_age: std::time::Duration) -> u64 {
     let seconds = backup_age.as_secs().saturating_add(u64::from(backup_age.subsec_nanos() > 0));

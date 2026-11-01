@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's volume (§2.1 of docs/06-storage.md), its device a file in a directory attached
-//! through a loop device, as a provider of the tests' own answers: attached, formatted ext4 when
-//! it holds nothing, and mounted as the volume; found when asked again; released, the loop device
-//! cleared and the file kept; and attached again holding what was written, as on the node a
-//! workload fails over to. A target naming anything but a file in the directory, and a device
-//! holding anything but ext4, are refused. A device made for a guest is formatted while blank,
-//! never mounted, and given as a device node in a directory marked as a block device's; asked
-//! for a volume of files it is refused. It needs root, a loop device, and the e2fsprogs, and is
-//! skipped without them.
+//! A block class's volume, its device a file in a directory attached through a loop device, as a
+//! provider of the tests' own answers: attached, formatted ext4 when it holds nothing, and mounted
+//! as the volume; found when asked again; released, the loop device cleared and the file kept; and
+//! attached again holding what was written, as on the node a workload fails over to. A target
+//! naming anything but a file in the directory, and a device holding anything but ext4, are
+//! refused. A device made for a guest is formatted while blank, never mounted, and given as a
+//! device node in a directory marked as a block device's; asked for a volume of files it is
+//! refused. It needs root, a loop device, and the e2fsprogs, and is skipped without them.
 
 #![allow(clippy::unwrap_used, clippy::panic, reason = "a failing test should fail loudly")]
 

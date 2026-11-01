@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The effect log, read through what it concerns (§10 of docs/10-api.md): a workload, a plan, or
-//! a node, each gated by reading that.
+//! The effect log, read through what it concerns: a workload, a plan, or a node, each gated by
+//! reading that.
 
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::{Harness, reason};

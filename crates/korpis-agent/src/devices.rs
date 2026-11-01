@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's devices (§6.1 of docs/05-scheduling.md): those the Container Device Interface's
-//! spec files on it describe, read with `korpis_cdi` when the agent starts and again every half
-//! minute, so a file the vendor's toolkit rewrites reaches the node's facts by its next
-//! heartbeat; and the devices a placement holds, given to the driver by id, class, and mode,
-//! whose edits the driver reads itself (§4.2 of docs/04-runtimes.md). The agent never writes
-//! the files.
+//! The node's devices: those the Container Device Interface's spec files on it describe, read with
+//! `korpis_cdi` when the agent starts and again every half minute, so a file the vendor's toolkit
+//! rewrites reaches the node's facts by its next heartbeat; and the devices a placement holds,
+//! given to the driver by id, class, and mode, whose edits the driver reads itself. The agent never
+//! writes the files.
 
 mod classify;
 
@@ -22,8 +21,7 @@ use tokio::task::JoinHandle;
 /// How often the spec directories are read again.
 const EVERY: Duration = Duration::from_secs(30);
 
-/// Where the devices are described, and what the operator says of them (§2 of
-/// docs/18-operations.md).
+/// Where the devices are described, and what the operator says of them.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Config {
     /// The spec directories, a later one's device replacing an earlier one's of the same name.
@@ -133,9 +131,8 @@ async fn blocking(config: Config) -> Catalog {
 
 /// A kind's class, as `--device-class` gives it: `vendor.com/kind=class`.
 ///
-/// # Errors
-/// It is not that form, names no class, or maps a kind whose own name is a class, which the
-/// kind's name settles (§6.1 of docs/05-scheduling.md).
+/// # Errors It is not that form, names no class, or maps a kind whose own name is a class, which
+/// the kind's name settles.
 pub fn parse_class(s: &str) -> Result<(String, DeviceClass), String> {
     let (kind, class) = kind_and(s)?;
     let named = kind.split_once('/').and_then(|(_, n)| DeviceClass::named(n));

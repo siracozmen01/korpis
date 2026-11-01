@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// How much a plan interrupts (§4 of docs/11-surface-web.md). The plan is always computed and
-// kept; what scales with its risk is the interruption. A plan that is reversible, touches one
-// workload, and loses nothing is applied at once and shown after; one that interrupts service or
-// touches several workloads is previewed in place with one confirmation; one that destroys data,
-// or cannot be undone, or whose risk to data is unknown, gets the whole plan on its own screen,
-// every affected object listed, and an explicit confirmation. Each test reads what the control
-// plane classified (the steps' `reversible` and `disruptive`, the impact), never the action's
-// name: a recipe may reclassify a step (§3.3 of docs/01-model.md).
+// How much a plan interrupts. The plan is always computed and kept; what scales with its risk is
+// the interruption. A plan that is reversible, touches one workload, and loses nothing is applied
+// at once and shown after; one that interrupts service or touches several workloads is previewed in
+// place with one confirmation; one that destroys data, or cannot be undone, or whose risk to data
+// is unknown, gets the whole plan on its own screen, every affected object listed, and an explicit
+// confirmation. Each test reads what the control plane classified (the steps' `reversible` and
+// `disruptive`, the impact), never the action's name: a recipe may reclassify a step.
 
 import { ObjectKind } from "../gen/korpis/v1/common_pb";
 import type { Plan } from "../gen/korpis/v1/workload_pb";

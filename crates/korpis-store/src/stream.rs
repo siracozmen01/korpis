@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Streams' segment index (§4 of docs/14-streams.md), kept from what nodes journal.
+//! Streams' segment index, kept from what nodes journal.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};

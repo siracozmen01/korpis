@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The runs a restored control plane recovers from the assignments its nodes present (§8 of
-//! docs/03-state.md): a run the store lacks is recorded as its signed reference made it, running
-//! on the node that presented it, and what the store keeps of the workload's schedule and power
-//! cycles is moved past it, so the run maker never makes a second run for what is already
-//! running.
+//! The runs a restored control plane recovers from the assignments its nodes present: a run the
+//! store lacks is recorded as its signed reference made it, running on the node that presented it,
+//! and what the store keeps of the workload's schedule and power cycles is moved past it, so the
+//! run maker never makes a second run for what is already running.
 
 use super::{Run, RunRef, RunState, RunStatus, Trigger};
 use crate::workload::spec::{IntentBody, Schedule};

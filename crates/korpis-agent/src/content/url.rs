@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An install's `fetch` (§4 of docs/09-recipes.md): content named by a URL and a hash, fetched by
-//! the content store once per node and kept by its hash, so a second workload installing the same
-//! file fetches nothing (Rule K-15), and the worker that writes tenant paths never touches the
-//! network. The hash, not the transport, is what is trusted, so `http` is allowed: what arrives is
-//! kept only once it hashes to what the recipe declared, and anything else is deleted unkept.
-//! What the hash does not protect is the request itself, so where it may go is bounded by
-//! [`Reach`]: the public internet, and the networks the operator names.
+//! An install's `fetch`: content named by a URL and a hash, fetched by the content store once per
+//! node and kept by its hash, so a second workload installing the same file fetches nothing, and
+//! the worker that writes tenant paths never touches the network. The hash, not the transport, is
+//! what is trusted, so `http` is allowed: what arrives is kept only once it hashes to what the
+//! recipe declared, and anything else is deleted unkept. What the hash does not protect is the
+//! request itself, so where it may go is bounded by [`Reach`]: the public internet, and the
+//! networks the operator names.
 //!
 //! What a fetch keeps is kept apart from the rest of the store, in `fetched/`: a digest a recipe
 //! names reaches only what some fetch downloaded from a public address, never a recipe's file or

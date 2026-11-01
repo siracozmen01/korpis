@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes (§7 of docs/06-storage.md): kept from what nodes report, read through the project
-//! they belong to.
+//! Volumes: kept from what nodes report, read through the project they belong to.
 
 use super::StoreResult;
 use crate::page::Page;
@@ -25,8 +24,8 @@ pub trait VolumeRead {
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<Volume>>> + Send;
 
-    /// Live declared volumes on one node's disk that a workload holds, or that keep replicas,
-    /// after the page's cursor: those whose replicas are tended (§2.2 of docs/06-storage.md).
+    /// Live declared volumes on one node's disk that a workload holds, or that keep replicas, after
+    /// the page's cursor: those whose replicas are tended.
     fn replicable(&self, page: Page) -> impl Future<Output = StoreResult<Vec<Volume>>> + Send;
 }
 
@@ -67,11 +66,11 @@ pub trait VolumeWrite {
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Records what `node` reports of a volume, at `now`: a volume ensured is created on first
-    /// report, in the project of the workload it is for, and attached to that workload; one
-    /// deleted is marked so, never removed, and a console stream's deletion leaves no segment
-    /// of the stream held on `node`. A volume of a shared class is known by its `store` and the
-    /// helper's identifier, whichever node reports it (§2.1 of docs/06-storage.md), and only as
-    /// the reporting workload's own: false, and nothing recorded, for another's.
+    /// report, in the project of the workload it is for, and attached to that workload; one deleted
+    /// is marked so, never removed, and a console stream's deletion leaves no segment of the stream
+    /// held on `node`. A volume of a shared class is known by its `store` and the helper's
+    /// identifier, whichever node reports it, and only as the reporting workload's own: false, and
+    /// nothing recorded, for another's.
     fn record_volume(
         &mut self,
         node: Uuid,

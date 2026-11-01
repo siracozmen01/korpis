@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Runs, the executions of a task or scheduled workload (§4 of docs/05-scheduling.md). The control
-// plane makes every run; one is requested by restarting the workload (WorkloadService.Restart),
-// since a higher power cycle is what requests one, and no call here makes one. A run needs no
-// action of its own (§5 of docs/10-api.md): it is read under workload.read on its workload and
-// cancelled under workload.stop.
+// Runs, the executions of a task or scheduled workload. The control plane makes every run; one is
+// requested by restarting the workload (WorkloadService.Restart), since a higher power cycle is
+// what requests one, and no call here makes one. A run needs no action of its own: it is read under
+// workload.read on its workload and cancelled under workload.stop.
 
 syntax = "proto3";
 

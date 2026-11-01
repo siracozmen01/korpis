@@ -12,7 +12,7 @@
 //!
 //! Integers are little-endian. A frame whose bytes end early or whose checksum fails is where a
 //! crash stopped a write: reading stops there, and the writer cuts the file back to it. The
-//! footer's digest is the segment's address once sealed (§4 of docs/14-streams.md).
+//! footer's digest is the segment's address once sealed.
 
 use crate::record::{Kind, Record, Source};
 use sha2::{Digest as _, Sha256};

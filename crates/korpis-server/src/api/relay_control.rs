@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `RelayControlService` (§3.1 of docs/02-architecture.md): what a relay running as its own
-//! process asks of the control plane. Joining is authenticated by the enrollment token in the
-//! request, as an agent's enrollment is; the feed and renewals by the relay's identity key.
+//! `RelayControlService`: what a relay running as its own process asks of the control plane.
+//! Joining is authenticated by the enrollment token in the request, as an agent's enrollment is;
+//! the feed and renewals by the relay's identity key.
 //!
 //! The feed sends the terms first, then each part whole when the relay connects and again when it
 //! changes: the revocation list as this process publishes it, and the token and node keys as a
@@ -50,7 +50,7 @@ fn node_keys(keys: &[(Uuid, Vec<u8>)]) -> relay::NodeKeys {
 }
 
 /// What the feed last sent of what changes: the token keys, the node keys, and the portals'
-/// origins (§3.6 of docs/07-networking.md).
+/// origins.
 type Sent = (Option<relay::TokenKeys>, Option<relay::NodeKeys>, Option<relay::PortalOrigins>);
 
 /// The keys and the portals' origins as they stand, each sent when it differs from what was

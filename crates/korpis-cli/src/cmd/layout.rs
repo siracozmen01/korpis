@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis layout …` (question 2 of §10 of docs/11-surface-web.md): the landing screen an
-//! organization composes for those it serves, shown to it and everything beneath it that sets
-//! none of its own. `set` reads the layout from a file, in the form `korpis --json layout show`
-//! prints its `layout`, so a layout shown, edited, and set again round-trips.
+//! `korpis layout …`: the landing screen an organization composes for those it serves, shown to it
+//! and everything beneath it that sets none of its own. `set` reads the layout from a file, in the
+//! form `korpis --json layout show` prints its `layout`, so a layout shown, edited, and set again
+//! round-trips.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

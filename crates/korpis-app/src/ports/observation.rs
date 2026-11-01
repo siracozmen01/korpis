@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The latest observation per workload (§4.3 of docs/02-architecture.md).
+//! The latest observation per workload.
 
 use super::StoreResult;
 use korpis_core::workload::observation::Observation;

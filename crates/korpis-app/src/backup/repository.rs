@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Repositories (§5.3 of docs/06-storage.md): made under `repository.write` on the project or
-//! organization they serve, each with a key-encryption key the vault generates and keeps sealed,
-//! or, under `tenant` custody, naming the tenant's key in its own key management service, which
-//! makes and opens its data keys and of which nothing is kept here (§5.5).
-//! A repository names its backup target provider by name, as calls do; one need not be serving
-//! when the repository is made, and a backup through it waits for one as any call does.
+//! Repositories: made under `repository.write` on the project or organization they serve, each with
+//! a key-encryption key the vault generates and keeps sealed, or, under `tenant` custody, naming
+//! the tenant's key in its own key management service, which makes and opens its data keys and of
+//! which nothing is kept here. A repository names its backup target provider by name, as calls do;
+//! one need not be serving when the repository is made, and a backup through it waits for one as
+//! any call does.
 
 use crate::App;
 use crate::caller::Caller;

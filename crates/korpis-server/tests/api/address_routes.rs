@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The router's contract (§3.7 of docs/07-networking.md, trace 77 of docs/23-walkthroughs.md): a
-//! cluster pool names an `address_router` provider its organization sees, and is refused naming
-//! none; a workload holding one of its addresses is placed on any node of the organization, and
-//! its node is given the address only once the router, written with the SDK, says it routes it
-//! there; a router failing leaves the workload waiting, its status naming the router and why,
-//! until it is asked again; and a retired workload's address is routed nowhere.
+//! The router's contract: a cluster pool names an `address_router` provider its organization sees,
+//! and is refused naming none; a workload holding one of its addresses is placed on any node of the
+//! organization, and its node is given the address only once the router, written with the SDK, says
+//! it routes it there; a router failing leaves the workload waiting, its status naming the router
+//! and why, until it is asked again; and a retired workload's address is routed nowhere.
 
 use crate::dependencies::{declare, placement};
 use crate::egress::assigned;

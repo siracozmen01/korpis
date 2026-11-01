@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A reseller's portal for the browser to sign in at (§3.6 of docs/07-networking.md, trace 48 of
-//! docs/23-walkthroughs.md). Pinecone, beneath the root organization, holds `pinecone.localhost`,
-//! which Chromium resolves to this machine as it does every name beneath `localhost`, and serves
-//! `panel.pinecone.localhost` with a certificate of its own, provided; its theme names the panel
-//! "Pinecone Panel", and its landing screen welcomes those it serves; and Ada is invited with a
-//! grant on the root organization, beyond Pinecone, so the session she begins at the portal is
-//! confined beneath what her grant reaches.
+//! A reseller's portal for the browser to sign in at. Pinecone, beneath the root organization,
+//! holds `pinecone.localhost`, which Chromium resolves to this machine as it does every name
+//! beneath `localhost`, and serves `panel.pinecone.localhost` with a certificate of its own,
+//! provided; its theme names the panel "Pinecone Panel", and its landing screen welcomes those it
+//! serves; and Ada is invited with a grant on the root organization, beyond Pinecone, so the
+//! session she begins at the portal is confined beneath what her grant reaches.
 
 use crate::support::{ControlPlane, mutation};
 use korpis_proto::korpis::v1 as pb;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-fsworker`: one file session (§3.2 of docs/06-storage.md), started by the node's
-//! helper with its spec on standard input and the session's socket as its standard output. It
-//! runs as two processes, as the install job does (§4 of docs/09-recipes.md), so that the one that
-//! reads what a tenant sends holds no privilege beyond its workload's files.
+//! `korpis-fsworker`: one file session, started by the node's helper with its spec on standard
+//! input and the session's socket as its standard output. It runs as two processes, as the install
+//! job does, so that the one that reads what a tenant sends holds no privilege beyond its
+//! workload's files.
 //!
 //! The first, root, joins the cgroup the spec names, makes a pid namespace, and starts the worker
 //! in it as that namespace's first process, with the session as its standard input and a socket
@@ -111,9 +111,9 @@ fn first() -> Result<(), String> {
     if status.success() { Ok(()) } else { Err(format!("the worker ended: {status}")) }
 }
 
-/// Starts the worker on the session, with `control` to this process as its standard output. It
-/// is this binary, reached through `/proc/self/exe` rather than by its path: in a guest, the boot
-/// drive that holds it is outside the root this process runs in (§4.4 of docs/04-runtimes.md).
+/// Starts the worker on the session, with `control` to this process as its standard output. It is
+/// this binary, reached through `/proc/self/exe` rather than by its path: in a guest, the boot
+/// drive that holds it is outside the root this process runs in.
 fn spawn(control: UnixStream) -> Result<Child, String> {
     let session = std::io::stdout().as_fd().try_clone_to_owned().map_err(|e| e.to_string())?;
     Command::new("/proc/self/exe")

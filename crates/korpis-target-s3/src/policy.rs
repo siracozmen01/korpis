@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The session policy a job's temporary credential carries (§5.5 and §5.6 of
-//! docs/06-storage.md): objects beneath one key prefix of one bucket, read and written for a
-//! backup, read for a restore, never deleted; and listing only beneath that prefix. The store
-//! grants what both this and the provider's own credential allow, so the credential's policy
-//! must allow at least this. The prefix is plain characters only (Finding 42 of
-//! docs/23-walkthroughs.md), so nothing in it is read as a pattern.
+//! The session policy a job's temporary credential carries: objects beneath one key prefix of one
+//! bucket, read and written for a backup, read for a restore, never deleted; and listing only
+//! beneath that prefix. The store grants what both this and the provider's own credential allow, so
+//! the credential's policy must allow at least this. The prefix is plain characters only, so
+//! nothing in it is read as a pattern.
 
 use serde_json::{Value, json};
 

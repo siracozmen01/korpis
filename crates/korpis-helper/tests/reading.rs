@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block device's backup restored for reading through the helper's verbs (§5.4 of
-//! docs/06-storage.md), with the real job binary and a real store, on ext4 with project quota: the
-//! job restores the image into a place of its own beside the volume, marked a block device's, and
-//! says where; the live volume is untouched; a commit is refused and leaves it; forgetting the job
-//! discards it; one left when the volume is deleted goes with the volume; and a volume of files is
-//! refused, its backup being read as it is. It needs root, the e2fsprogs, and MinIO
-//! (`scripts/test-tools.sh`), and is skipped without them.
+//! A block device's backup restored for reading through the helper's verbs, with the real job
+//! binary and a real store, on ext4 with project quota: the job restores the image into a place of
+//! its own beside the volume, marked a block device's, and says where; the live volume is
+//! untouched; a commit is refused and leaves it; forgetting the job discards it; one left when the
+//! volume is deleted goes with the volume; and a volume of files is refused, its backup being read
+//! as it is. It needs root, the e2fsprogs, and MinIO (`scripts/test-tools.sh`), and is skipped
+//! without them.
 
 #![allow(
     clippy::unwrap_used,

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The ACME directory the operator configures (§3.2 of docs/07-networking.md), Let's Encrypt by
-//! default, and the installation's account at it. The account is made the first time a
-//! certificate is ordered, never at start, so an installation that serves no ingress never
-//! contacts a directory, and only if the operator agreed to the directory's terms; its
-//! credentials are kept in the data directory beside the other keys, one file per directory.
-//! Each order makes a fresh key for its certificate, which never leaves this process but sealed.
+//! The ACME directory the operator configures, Let's Encrypt by default, and the installation's
+//! account at it. The account is made the first time a certificate is ordered, never at start, so
+//! an installation that serves no ingress never contacts a directory, and only if the operator
+//! agreed to the directory's terms; its credentials are kept in the data directory beside the other
+//! keys, one file per directory. Each order makes a fresh key for its certificate, which never
+//! leaves this process but sealed.
 
 use crate::data::DataDir;
 use instant_acme::{

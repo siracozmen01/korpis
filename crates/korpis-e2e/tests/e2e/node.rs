@@ -188,9 +188,8 @@ impl Node {
         Some(Self::join_with(cp, name, dir, (volumes, Some(at), None), Vec::new(), None).await)
     }
 
-    /// As [`Self::join`], its helper offering a shared class, `shared`, on the directory
-    /// `shared`, which other nodes of the test offer too, and its driver mounting volumes there
-    /// (§2.1 of docs/06-storage.md).
+    /// As [`Self::join`], its helper offering a shared class, `shared`, on the directory `shared`,
+    /// which other nodes of the test offer too, and its driver mounting volumes there.
     #[allow(dead_code, reason = "the browser test, a binary of its own, shares no storage")]
     pub async fn join_sharing(cp: &ControlPlane, name: &str, shared: &Path) -> Self {
         let dir = tempfile::tempdir().unwrap();
@@ -300,9 +299,9 @@ impl Node {
         let host = NodeHost::new(HelperClient::new(&self.helper), content);
         let identity = self.state.load().unwrap();
         let (server, id) = (identity.server, identity.node);
-        // As `--advertise-address` with this machine's own address would: the test's control
-        // plane is on this machine, and the node forwards its endpoints' ports on every address
-        // but loopback (§3 of docs/07-networking.md).
+        // As `--advertise-address` with this machine's own address would: the test's control plane
+        // is on this machine, and the node forwards its endpoints' ports on every address but
+        // loopback.
         let address = self.inside.unwrap_or_else(host_address);
         let advertise = Advertise::new(vec![address.into()], self.ports, &server);
         let ingress = ingress.then(|| advertise.ingress());
@@ -318,7 +317,7 @@ impl Node {
         let (devices, _) = korpis_agent::devices::watch(config).await;
         let facts = facts_of(&runtime, &host, offer, (advertise, devices.clone())).await.unwrap();
         // As `--workload-ipv4` with the node's own pool would; a node in a namespace of its own
-        // uses the pool it was given, as the mesh requires (§9.1 of docs/07-networking.md).
+        // uses the pool it was given, as the mesh requires.
         let given = korpis_agent::network::ipv4_pool(None, &identity.keys.workload_ipv4);
         let pool = if self.inside.is_some() { given } else { self.pool };
         let network = korpis_agent::network::offered(&runtime, &host, &id, (pool, None)).await;

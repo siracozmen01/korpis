@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A heartbeat probe on a real node (§5 of docs/04-runtimes.md): a container runs `korpis
-//! heartbeat --every 1s`, which says on the identity socket its node mounts into it that it is
-//! alive, and its liveness probe allows three seconds of silence. Healthy while it beats; once its
-//! process is stopped from the host, silent, so unhealthy and restarted; and healthy again in its
-//! new life.
+//! A heartbeat probe on a real node: a container runs `korpis heartbeat --every 1s`, which says on
+//! the identity socket its node mounts into it that it is alive, and its liveness probe allows
+//! three seconds of silence. Healthy while it beats; once its process is stopped from the host,
+//! silent, so unhealthy and restarted; and healthy again in its new life.
 
 use crate::dependencies::running;
 use crate::image::{KORPIS, push_image};

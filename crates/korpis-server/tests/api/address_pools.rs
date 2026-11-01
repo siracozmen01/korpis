@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Address pools and dedicated addresses (§3.7 of docs/07-networking.md, trace 77 of
-//! docs/23-walkthroughs.md), the control plane's half: a pool is held on its organization's own
-//! nodes alone and overlaps no other; a workload with `dedicated_ip` endpoints is placed only
-//! where a pool reaches with a free address, holds one however many such endpoints it has, is
-//! told it in its assignment and shows it on its endpoints; and a pool is deleted only while none
-//! of its addresses is held. Making one is an operator's attestation, since nothing proves who
-//! holds a range (Finding 187 of docs/23-walkthroughs.md), and deleting one is its owner's.
+//! Address pools and dedicated addresses, the control plane's half: a pool is held on its
+//! organization's own nodes alone and overlaps no other; a workload with `dedicated_ip` endpoints
+//! is placed only where a pool reaches with a free address, holds one however many such endpoints
+//! it has, is told it in its assignment and shows it on its endpoints; and a pool is deleted only
+//! while none of its addresses is held. Making one is an operator's attestation, since nothing
+//! proves who holds a range, and deleting one is its owner's.
 
 use crate::dependencies::{declare, node, placement};
 use crate::domains::child;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Scoring (§2.2 of docs/05-scheduling.md): of the nodes that can run this, which is best. A
-//! signal is scored only where its information exists: content locality only for a node that
-//! reported its content, rather than a guess for one that did not. Churn is scored for every
-//! node, since the control plane records every loss itself and a node with none lost nothing.
+//! Scoring: of the nodes that can run this, which is best. A signal is scored only where its
+//! information exists: content locality only for a node that reported its content, rather than a
+//! guess for one that did not. Churn is scored for every node, since the control plane records
+//! every loss itself and a node with none lost nothing.
 
 use super::topology::{Fleet, counts, domain, matching};
 use super::{
@@ -129,9 +129,9 @@ fn failure_domain(
 }
 
 /// Every evaluated signal of every survivor, and the survivors best first: the nearest owner's
-/// nodes before a farther one's, and within one owner the best scored by that owner's strategy
-/// and weights, so two policies' scores are never compared (§2.2 of docs/05-scheduling.md). A
-/// spread constraint and an affinity rule are the workload's, whoever owns the node.
+/// nodes before a farther one's, and within one owner the best scored by that owner's strategy and
+/// weights, so two policies' scores are never compared. A spread constraint and an affinity rule
+/// are the workload's, whoever owns the node.
 pub(super) fn rank(
     req: &Request<'_>,
     survivors: &[Candidate<'_>],
@@ -152,8 +152,8 @@ pub(super) fn rank(
             // Phase 0 volumes live on the node of the placement that created them.
             values.push((Signal::VolumeLocality, if cur.node == id { 1.0 } else { 0.0 }));
         }
-        // A node's devices are spared for workloads that ask for them (§6.3 of
-        // docs/05-scheduling.md): what its driver could give is not what the node has.
+        // A node's devices are spared for workloads that ask for them: what its driver could give
+        // is not what the node has.
         let spared = req.body.devices.is_empty() && !c.node.devices.is_empty();
         values.push((Signal::DeviceFit, if spared { 0.0 } else { 1.0 }));
         if let Some(v) = failure_domain(req, c.node, &eligible, fleet, peers, &policies.workload) {

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A task or scheduled workload's runs on this node (§4.2 and §4.5 of docs/05-scheduling.md).
-//! The workload's own object is never started: each run its assignment names gets an object of
-//! its own, built as the workload's is and labelled with the run, started once and never
-//! brought back. Its timeout is the node's to enforce, so it holds while the control plane is
-//! unreachable. A run no longer named is stopped. A run that ended is reported once and its
-//! object kept while it is still named, so a node that has not yet been told it ended never runs
-//! it twice, and is removed once it is not.
+//! A task or scheduled workload's runs on this node. The workload's own object is never started:
+//! each run its assignment names gets an object of its own, built as the workload's is and labelled
+//! with the run, started once and never brought back. Its timeout is the node's to enforce, so it
+//! holds while the control plane is unreachable. A run no longer named is stopped. A run that ended
+//! is reported once and its object kept while it is still named, so a node that has not yet been
+//! told it ended never runs it twice, and is removed once it is not.
 
 use super::act::{Failure, running};
 use super::streams::name_parts;
@@ -87,12 +86,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(())
     }
 
-    /// Deletes the console stream volume of every run of `a`'s workload that the control plane
-    /// no longer holds, nor names, nor this node holds: retention deleted the run, and its
-    /// stream goes with it (§4 of docs/14-streams.md). Only a run absent from what the control
-    /// plane holds is deleted, never one this node has just stopped or ended, which the control
-    /// plane keeps until it hears. What the stream wrote is journaled first. A deletion that
-    /// fails is tried again on the next pass.
+    /// Deletes the console stream volume of every run of `a`'s workload that the control plane no
+    /// longer holds, nor names, nor this node holds: retention deleted the run, and its stream goes
+    /// with it. Only a run absent from what the control plane holds is deleted, never one this node
+    /// has just stopped or ended, which the control plane keeps until it hears. What the stream
+    /// wrote is journaled first. A deletion that fails is tried again on the next pass.
     pub(super) async fn drop_unkept(
         &mut self,
         a: &agent::Assignment,
@@ -160,8 +158,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         };
         if let Some(why) = why {
             r.stopped_for.get_or_insert(why);
-            // Moved on by one pass, as every stop is (§6 of docs/02-architecture.md); a run still
-            // stopping is kept, and so is one whose stop failed, so no run is ever forgotten.
+            // Moved on by one pass, as every stop is; a run still stopping is kept, and so is one
+            // whose stop failed, so no run is ever forgotten.
             let hook = t.pre_stop.as_ref().map(|h| (workload, h));
             if let Err(e) = self.halt(&r.runtime, &mut r.halting, hook).await {
                 t.runs.insert(run.to_owned(), r);

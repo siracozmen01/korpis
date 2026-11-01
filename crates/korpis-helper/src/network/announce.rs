@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Announcing an address a node has just taken on a link (§3.1 of docs/07-networking.md), so the
-//! link's neighbours and its router send to this node at once rather than once their entries for
-//! the address's last holder go stale: for IPv4 a gratuitous ARP, a request and a reply each
-//! naming the address at the link's own hardware address, broadcast; for IPv6 an unsolicited
-//! neighbour advertisement from the address to every node of the link, its override flag set so
-//! a neighbour replaces what it had (RFC 4861 §7.2.6). Each is sent whole on a packet socket,
-//! whose link-layer address has no safe wrapper; this is one of the crate's unsafe modules.
+//! Announcing an address a node has just taken on a link, so the link's neighbours and its router
+//! send to this node at once rather than once their entries for the address's last holder go stale:
+//! for IPv4 a gratuitous ARP, a request and a reply each naming the address at the link's own
+//! hardware address, broadcast; for IPv6 an unsolicited neighbour advertisement from the address to
+//! every node of the link, its override flag set so a neighbour replaces what it had (RFC 4861
+//! §7.2.6). Each is sent whole on a packet socket, whose link-layer address has no safe wrapper;
+//! this is one of the crate's unsafe modules.
 
 #![expect(unsafe_code, reason = "a packet socket and its link-layer address have no safe wrapper")]
 

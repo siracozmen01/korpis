@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The dedicated cores verb (§5.2 of docs/05-scheduling.md): the workloads' cpusets kept to the
-//! cores the node's placements hold, under the drivers' cgroup parents the helper keeps.
+//! The dedicated cores verb: the workloads' cpusets kept to the cores the node's placements hold,
+//! under the drivers' cgroup parents the helper keeps.
 
 use super::Helper;
 use crate::cores::Cores;

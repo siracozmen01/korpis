@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grant templates (§4 of docs/08-identity.md): a named, versioned request for a grant, owned by
-//! an organization and offered to its subtree. A template is applied by attenuating a grant the
-//! issuer already holds, with the template filling in the request; it grants nobody anything,
-//! and no authorization decision reads it.
+//! Grant templates: a named, versioned request for a grant, owned by an organization and offered to
+//! its subtree. A template is applied by attenuating a grant the issuer already holds, with the
+//! template filling in the request; it grants nobody anything, and no authorization decision reads
+//! it.
 
 use super::action::Action;
 use super::grant::{Conditions, Delegation};
@@ -23,8 +23,8 @@ pub struct ScopePattern {
     /// The kind of object it is applied to: an organization, a project, or a workload; any of
     /// the three when not said.
     pub kind: Option<Kind>,
-    /// With an organization or a project: the workloads below it carrying these labels, a
-    /// selector scope (§3.4 of docs/08-identity.md).
+    /// With an organization or a project: the workloads below it carrying these labels, a selector
+    /// scope.
     pub selector: Option<LabelSelector>,
 }
 
@@ -37,7 +37,7 @@ pub struct TemplateConditions {
     pub source_cidr: Vec<IpNet>,
     /// Whether every use needs a second factor.
     pub requires_mfa: bool,
-    /// Redeemed online (§6.2 of docs/08-identity.md).
+    /// Redeemed online.
     pub max_uses: Option<u64>,
 }
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's managed files (§5.2 of docs/09-recipes.md), rendered each time its runtime object
-//! is built, so a change of value reaches the software at its next start as every other setting
-//! does. Each is rendered from the recipe's template, with the context only its own fields make
-//! (§6), and written into `config/` of the workload's node directory, which the workload sees
-//! read-only at `/run/korpis`. A file the recipe no longer declares is removed.
+//! A workload's managed files, rendered each time its runtime object is built, so a change of value
+//! reaches the software at its next start as every other setting does. Each is rendered from the
+//! recipe's template, with the context only its own fields make, and written into `config/` of the
+//! workload's node directory, which the workload sees read-only at `/run/korpis`. A file the recipe
+//! no longer declares is removed.
 //!
 //! The agent renders rather than a worker: the template engine reads nothing but its source and
 //! its context, and the file is written by name into a directory of the node's, so there is no

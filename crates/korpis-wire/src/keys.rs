@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Key management calls on the wire (§5.5 of docs/06-storage.md).
+//! Key management calls on the wire.
 
 use korpis_core::extension::{CallOutcome, CallRequest};
 use korpis_proto::korpis::v1 as pb;

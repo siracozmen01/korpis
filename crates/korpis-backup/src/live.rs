@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a workload's kept backups reference (§5.5 of docs/06-storage.md): every object a prune
-//! must leave, by its name beneath the workload's prefix. Each kept backup's record is read, and
-//! from its root every tree once, however many backups share it, several at a time; a tree names
-//! the chunks of its files and the trees of its directories. Recipe content a file refers to is
-//! not beneath the prefix, so it is not named here. A record or tree that cannot be read fails the
-//! whole: what a prune would delete is only ever judged from a complete answer.
+//! What a workload's kept backups reference: every object a prune must leave, by its name beneath
+//! the workload's prefix. Each kept backup's record is read, and from its root every tree once,
+//! however many backups share it, several at a time; a tree names the chunks of its files and the
+//! trees of its directories. Recipe content a file refers to is not beneath the prefix, so it is
+//! not named here. A record or tree that cannot be read fails the whole: what a prune would delete
+//! is only ever judged from a complete answer.
 
 use crate::error::Result;
 use crate::repo::Repo;

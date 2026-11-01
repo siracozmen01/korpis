@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota held at admission (§5.1 of docs/05-scheduling.md).
+//! Quota held at admission.
 
 use crate::support::{GIB, body};
 use korpis_core::labels::LabelSelector;
@@ -72,7 +72,11 @@ fn a_workload_with_dedicated_ip_endpoints_counts_the_one_address_they_share() {
     }
     assert_eq!(b.endpoints.len(), 2);
     let held = Held::of(&b);
-    assert_eq!(held.reservations[&D::DedicatedIpv4], 1, "Finding 185 of docs/23-walkthroughs.md");
+    assert_eq!(
+        held.reservations[&D::DedicatedIpv4],
+        1,
+        "a dedicated address is held where it is declared"
+    );
     assert_eq!(Held::of(&body()).reservations[&D::DedicatedIpv4], 0);
 }
 

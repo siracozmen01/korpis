@@ -1,28 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How a `task` or `scheduled` workload's runs are made, ended, and kept (§4 of
-//! docs/05-scheduling.md). The defaults are the values that can neither run two runs against one
-//! volume nor fire a herd of missed ones: `forbid`, and no catching up.
+//! How a `task` or `scheduled` workload's runs are made, ended, and kept. The defaults are the
+//! values that can neither run two runs against one volume nor fire a herd of missed ones:
+//! `forbid`, and no catching up.
 
 use super::SpecError;
 use std::time::Duration;
 
-/// The most missed occurrences caught up at once; older ones are recorded as one missed run
-/// (§4.3 of docs/05-scheduling.md).
+/// The most missed occurrences caught up at once; older ones are recorded as one missed run.
 pub const MAX_CATCH_UP: u32 = 100;
 /// The most retries a policy may ask for.
 pub const MAX_RETRIES: u32 = 100;
 /// The most runs of either kind a policy may keep: each kept run is a stream on its node.
 pub const MAX_KEPT: u32 = 1000;
-/// The most runs `allow` may keep active at once: each active run is a stream on its node, as
-/// each kept one is, so the disk quota can count them (§4.3 of docs/05-scheduling.md).
+/// The most runs `allow` may keep active at once: each active run is a stream on its node, as each
+/// kept one is, so the disk quota can count them.
 pub const MAX_ACTIVE: u32 = 100;
 /// How many runs `allow` keeps active at once when its policy says nothing.
 pub const ALLOW_ACTIVE: u32 = 10;
 /// The longest backoff a policy may ask for.
 pub const MAX_BACKOFF: Duration = Duration::from_secs(86_400);
 
-/// What a run due while another is active does (§4.3 of docs/05-scheduling.md).
+/// What a run due while another is active does.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Concurrency {
     /// It is recorded missed, and the active one goes on.
@@ -104,9 +103,8 @@ impl RunPolicy {
         }
     }
 
-    /// The most runs whose console streams the node holds at once: those kept of either kind
-    /// and those active (§4 of docs/14-streams.md). What the disk quota counts a workload's
-    /// streams by.
+    /// The most runs whose console streams the node holds at once: those kept of either kind and
+    /// those active. What the disk quota counts a workload's streams by.
     #[must_use]
     pub const fn streams_held(&self) -> u32 {
         self.keep_successful.saturating_add(self.keep_failed).saturating_add(self.max_active)

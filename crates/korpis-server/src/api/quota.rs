@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `OrganizationService.SetQuota` (§5.1 of docs/05-scheduling.md): an organization's quota set,
-//! or one of its projects', set from above.
+//! `OrganizationService.SetQuota`: an organization's quota set, or one of its projects', set from
+//! above.
 
 use super::wire::tenancy::{organization_to_pb, project_to_pb};
 use super::wire::{self, Refuse};

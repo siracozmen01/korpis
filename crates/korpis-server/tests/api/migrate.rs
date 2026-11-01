@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server migrate` and the schema `serve` will run on (§4 of docs/18-operations.md): a
-//! rollback undoes what the newer build applied, a schema older or newer than the binary is
-//! refused by `serve` with what makes them meet, and nothing is undone past the baseline.
+//! `korpis-server migrate` and the schema `serve` will run on: a rollback undoes what the newer
+//! build applied, a schema older or newer than the binary is refused by `serve` with what makes
+//! them meet, and nothing is undone past the baseline.
 
 use korpis_store::schema::{BASELINE, latest};
 use korpis_store::testing::TestDb;

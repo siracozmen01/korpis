@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How far a workload is from what was approved for it (§4.3 of docs/02-architecture.md).
+//! How far a workload is from what was approved for it.
 //!
-//! Two states are facts about plans, held by the control plane and never inferred from a node:
-//! a plan waiting for approval, and an approved plan waiting for its window. The others are
-//! measured from what the node reports; with no report there is no measurement, and the answer
-//! is `Unknown` (or `Unplaced`, when no node was chosen), never a remembered value (P4).
+//! Two states are facts about plans, held by the control plane and never inferred from a node: a
+//! plan waiting for approval, and an approved plan waiting for its window. The others are measured
+//! from what the node reports; with no report there is no measurement, and the answer is `Unknown`
+//! (or `Unplaced`, when no node was chosen), never a remembered value.
 
 use super::observation::{Observation, ObservedState};
 use super::plan::PlanStatus;
@@ -98,24 +98,24 @@ fn for_head(plan: &Plan, w: &Workload) -> bool {
 pub struct Reported<'a> {
     /// The latest observation.
     pub observation: &'a Observation,
-    /// Whether the node is heard. An observation from a node that missed three heartbeats is
-    /// not current, however recent it looks (question 6 of §10 of docs/02-architecture.md).
+    /// Whether the node is heard. An observation from a node that missed three heartbeats is not
+    /// current, however recent it looks.
     pub fresh: bool,
     /// The generation at which what the node's assignment has it run last changed: all of the
     /// assignment but its plan, measured by its own progress, and its ACME challenges.
     pub generation: u64,
     /// The approved power declaration.
     pub power: &'a Power,
-    /// Whether the workload has runs (§4 of docs/05-scheduling.md): its own object never runs,
-    /// so running, it is where it should be between its runs as much as during one.
+    /// Whether the workload has runs: its own object never runs, so running, it is where it should
+    /// be between its runs as much as during one.
     pub runs: bool,
 }
 
-/// How far a workload is from what was approved (§4.3 of docs/02-architecture.md). A
-/// declaration ahead of what was approved, with a plan proposed for it, is awaiting approval; an
-/// approved plan with a window still ahead is scheduled; an approved target with no node is
-/// unplaced. Those are the control plane's facts. Everything else is measured from what the node
-/// reported, and with no current report the answer is `Unknown`.
+/// How far a workload is from what was approved. A declaration ahead of what was approved, with a
+/// plan proposed for it, is awaiting approval; an approved plan with a window still ahead is
+/// scheduled; an approved target with no node is unplaced. Those are the control plane's facts.
+/// Everything else is measured from what the node reported, and with no current report the answer
+/// is `Unknown`.
 #[must_use]
 pub fn convergence(
     w: &Workload,

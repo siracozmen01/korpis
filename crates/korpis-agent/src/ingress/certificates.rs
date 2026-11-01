@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The certificates the node's proxy serves with (§3.2 of docs/07-networking.md). Each is asked
-//! of the control plane up the session when an endpoint placed here names it at a revision the
-//! node does not hold, answered only because the endpoint is placed here, and kept in the state
-//! directory, readable by the agent alone, so a restart while the control plane is unreachable
-//! still serves. One no endpoint here names any more is removed, key and all.
+//! The certificates the node's proxy serves with. Each is asked of the control plane up the session
+//! when an endpoint placed here names it at a revision the node does not hold, answered only
+//! because the endpoint is placed here, and kept in the state directory, readable by the agent
+//! alone, so a restart while the control plane is unreachable still serves. One no endpoint here
+//! names any more is removed, key and all.
 //!
 //! Asking never holds the reconciler's loop: a pass asks and moves on, and a later pass finds the
 //! answer. A question unanswered for a minute is taken as lost, and asked again; a refusal is

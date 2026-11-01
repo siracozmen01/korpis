@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Devices (§6.3 of docs/05-scheduling.md): a node is kept only where its driver gives the class
-//! and mode asked and enough matching devices are free beside what other placements hold, and a
-//! node with devices is spared for workloads that ask for them.
+//! Devices: a node is kept only where its driver gives the class and mode asked and enough matching
+//! devices are free beside what other placements hold, and a node with devices is spared for
+//! workloads that ask for them.
 
 use super::{Case, checks, driver, node};
 use crate::node::device::{Device, DeviceHold, DeviceMode};

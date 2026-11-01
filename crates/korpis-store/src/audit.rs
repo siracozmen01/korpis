@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The effect log: append-only, partitioned on the ingest clock (§4 of docs/03-state.md).
+//! The effect log: append-only, partitioned on the ingest clock.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_json, from_time, principal, to_count, to_json, to_time};

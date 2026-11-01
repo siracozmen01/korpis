@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A console's files on the driver's side (§4 and §6 of docs/14-streams.md), the same whichever
-//! driver runs the workload, since each hands its console to `korpis-stream-writer`: the stream
-//! directory a spec may name, the writer's arguments, the secret values it redacts, kept in a
-//! file only the driver's user reads, and an interactive console's input. Input reaches the
-//! writer through a FIFO the driver writes framed input to and the writer reads, so the writer
-//! records who typed what before it hands the bytes to the workload; the driver opens the FIFO
-//! for each input without waiting, so a writer that is not running, or not reading, refuses the
-//! input rather than stalling the call.
+//! A console's files on the driver's side, the same whichever driver runs the workload, since each
+//! hands its console to `korpis-stream-writer`: the stream directory a spec may name, the writer's
+//! arguments, the secret values it redacts, kept in a file only the driver's user reads, and an
+//! interactive console's input. Input reaches the writer through a FIFO the driver writes framed
+//! input to and the writer reads, so the writer records who typed what before it hands the bytes to
+//! the workload; the driver opens the FIFO for each input without waiting, so a writer that is not
+//! running, or not reading, refuses the input rather than stalling the call.
 
 use base64::Engine as _;
 use korpis_core::workload::stream::StreamKind;

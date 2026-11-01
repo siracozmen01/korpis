@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's network, made before its runtime object is created and released once the
-//! workload has left the node with nothing of it left here (§4.1 of docs/07-networking.md).
+//! A workload's network, made before its runtime object is created and released once the workload
+//! has left the node with nothing of it left here.
 
 use super::Reconciler;
 use super::act::Failure;
@@ -25,15 +25,13 @@ pub(crate) fn transport(p: &pb::Endpoint) -> helper::Transport {
     }
 }
 
-/// The ports inside the workload its endpoints listen on, which its firewall accepts, and the
-/// ports of the node forwarded to them (§3 of docs/07-networking.md), each with its own limits
-/// and whether it is counted (§7 there). An endpoint of exposure
-/// `none` is not reachable, so its port stays closed. Only `node_port` and `node_bound` hold a
-/// port of the node; an `ingress` endpoint's address is the proxy's, on 443, and the proxy
+/// The ports inside the workload its endpoints listen on, which its firewall accepts, and the ports
+/// of the node forwarded to them, each with its own limits and whether it is counted. An endpoint
+/// of exposure `none` is not reachable, so its port stays closed. Only `node_port` and `node_bound`
+/// hold a port of the node; an `ingress` endpoint's address is the proxy's, on 443, and the proxy
 /// reaches the workload at its own address. A port is reached from outside the node at the
-/// workload's own address only where its exposure is `node_port`, `node_bound`, or
-/// `dedicated_ip`; any other, from outside, only through what the node translates or proxies
-/// (§4 there).
+/// workload's own address only where its exposure is `node_port`, `node_bound`, or `dedicated_ip`;
+/// any other, from outside, only through what the node translates or proxies.
 fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>) {
     let reachable =
         endpoints.iter().filter(|e| e.exposure.as_known() != Some(pb::Exposure::EXPOSURE_NONE));
@@ -211,9 +209,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Publishes what the node's ingress proxy serves for the set held and for its edge groups
-    /// (§3.1 of docs/07-networking.md), when it changed; and says once the proxy has been given
-    /// the groups' challenges.
+    /// Publishes what the node's ingress proxy serves for the set held and for its edge groups,
+    /// when it changed; and says once the proxy has been given the groups' challenges.
     pub(super) async fn publish_ingress(&mut self, held: &HeldSet) {
         let (Some(publish), Some(net)) = (&self.wiring.ingress, &self.wiring.network) else {
             return;
@@ -263,10 +260,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     }
 
     /// Serves the API's relay to every workload the set marks as reaching it (an installed
-    /// extension's, or one holding a grant in force) and that has a runtime object here, its own
-    /// or a run's, and withdraws it from every other: an installation or a grant can begin or end
-    /// while its workload runs, and a restarted agent serves it again (§9.5 of
-    /// docs/08-identity.md).
+    /// extension's, or one holding a grant in force) and that has a runtime object here, its own or
+    /// a run's, and withdraws it from every other: an installation or a grant can begin or end
+    /// while its workload runs, and a restarted agent serves it again.
     pub(super) fn serve_relays(&self, held: &HeldSet) {
         let Some(identity) = &self.wiring.identity else { return };
         for a in held.assignments.values().filter(|a| !a.residual) {

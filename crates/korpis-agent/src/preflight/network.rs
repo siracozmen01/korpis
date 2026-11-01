@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What workloads' networks need (§4, §4.1, and §7 of docs/07-networking.md, §2 of
-//! docs/18-operations.md): nftables 1.0 or later with its JSON input, IP forwarding, IPv6 for
-//! the default addressing mode, `tc` with the HTB qdisc for bandwidth, and WireGuard for the mesh
-//! (§9.1 there). A node without the first two gives its workloads loopback alone; one without
-//! IPv6 addresses them over IPv4 only; one that cannot shape enforces no bandwidth; one without
+//! What workloads' networks need: nftables 1.0 or later with its JSON input, IP forwarding, IPv6
+//! for the default addressing mode, `tc` with the HTB qdisc for bandwidth, and WireGuard for the
+//! mesh. A node without the first two gives its workloads loopback alone; one without IPv6
+//! addresses them over IPv4 only; one that cannot shape enforces no bandwidth; one without
 //! WireGuard is outside the mesh.
 
 use super::{Check, Machine, Outcome, Probes};

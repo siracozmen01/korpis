@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The lifecycle of §4.2 of docs/04-runtimes.md, for guests. `Create` makes the drives and the
-//! jail and runs nothing; `Start` has the jailer start Firecracker, detached, as the workload's
-//! own id; a stop is Ctrl+Alt+Del and a kill a second one, then the process after a bound (§6
-//! there); `Destroy` removes the jail, the cgroup, and the object. Each object is recorded on disk
+//! The driver lifecycle, for guests. `Create` makes the drives and the jail
+//! and runs nothing; `Start` has the jailer start Firecracker, detached, as the workload's own id;
+//! a stop is Ctrl+Alt+Del and a kill a second one, then the process after a bound; `Destroy`
+//! removes the jail, the cgroup, and the object. Each object is recorded on disk
 //! ([`crate::object`]), so `Recover` finds every guest after the driver restarts, and each running
 //! Firecracker is watched through a process descriptor, which is what `Events` reports.
 
@@ -162,7 +162,7 @@ impl Machine {
 
     /// Serves object `id`'s guest the relays of `/run/korpis`, if `spec` names the workload's
     /// directory, which must resolve to the workload's own under the identity root, not through a
-    /// link to another workload's (§9.5 of docs/08-identity.md).
+    /// link to another workload's.
     fn relay(&self, id: &str, spec: &driver::PreparedSpec) -> MachineResult<()> {
         if spec.identity_dir.is_empty() {
             return Ok(());
@@ -293,7 +293,7 @@ impl Machine {
     }
 
     /// Waits until object `id`'s run has said it started, within a bound: its serial port is open
-    /// and its agent listens from then (Finding 146 of docs/23-walkthroughs.md).
+    /// and its agent listens from then.
     pub(super) async fn until_started(&self, id: &str) -> MachineResult<()> {
         let dir = self.dir(id)?;
         let until = Instant::now() + JAILER_BOUND;
@@ -340,8 +340,8 @@ impl Machine {
         Ok(())
     }
 
-    /// Every object, each running one watched again: after a restart of the driver, this is how
-    /// its guests are found (§4.4 of docs/02-architecture.md).
+    /// Every object, each running one watched again: after a restart of the driver, this is how its
+    /// guests are found.
     #[must_use]
     pub fn recover(&self) -> Vec<driver::RuntimeObject> {
         let objects = Object::all(&self.settings.objects());

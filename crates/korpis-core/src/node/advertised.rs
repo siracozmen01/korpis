@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node offers for inbound traffic before anything has measured it (§9 of
-//! docs/07-networking.md): the addresses clients would reach it at, and the ports its endpoints
-//! are allocated from. Reachability is measured against these, never assumed from them.
+//! What a node offers for inbound traffic before anything has measured it: the addresses clients
+//! would reach it at, and the ports its endpoints are allocated from. Reachability is measured
+//! against these, never assumed from them.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
@@ -77,8 +77,8 @@ impl PortRange {
         false
     }
 
-    /// How many ports endpoints may hold (§3 of docs/07-networking.md): every port but one,
-    /// which is kept free for the reachability probe to listen on (§9 there).
+    /// How many ports endpoints may hold: every port but one, which is kept free for the
+    /// reachability probe to listen on.
     #[must_use]
     pub fn allocatable(self) -> u64 {
         self.len() - 1
@@ -104,7 +104,7 @@ pub struct Advertised {
     /// Where its endpoints' ports come from.
     pub ports: PortRange,
     /// Whether it holds ports 80 and 443 of its addresses for the ingress proxy, as it found at
-    /// start (§3.2 of docs/07-networking.md).
+    /// start.
     pub ingress: bool,
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The examples of docs/08-identity.md, run against the one authorization path.
+//! The grant examples of the design, run against the one authorization path.
 //!
 //! A three-level tenancy tree: a host, a reseller under it, a customer under the reseller. The
 //! customer has project "Survival" with two workloads; W1 is labelled game=mc.

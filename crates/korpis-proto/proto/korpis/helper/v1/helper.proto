@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The privileged helper (§6 of docs/02-architecture.md): the only component on a node that holds
-// root. It serves one structured request at a time over a local socket, from the supervisor
-// only, and performs exactly these operations. There is no request that runs a command or takes
-// a free-form path: every path it acts on is derived from identifiers it validates.
+// The privileged helper: the only component on a node that holds root. It serves one structured
+// request at a time over a local socket, from the supervisor only, and performs exactly these
+// operations. There is no request that runs a command or takes a free-form path: every path it acts
+// on is derived from identifiers it validates.
 //
-// The transport is not HTTP. The helper is synchronous and single-threaded (§4 of
-// docs/21-stack.md), and an HTTP/2 server is the code it should least carry, so the service below
-// names the verbs and the envelopes after it carry them: on a Unix stream socket, each message is
-// a 4-byte big-endian length followed by that many bytes of one HelperRequest or HelperResponse,
-// at most 1 MiB, and a connection carries one request at a time, answered in order.
+// The transport is not HTTP. The helper is synchronous and single-threaded, and an HTTP/2 server is
+// the code it should least carry, so the service below names the verbs and the envelopes after it
+// carry them: on a Unix stream socket, each message is a 4-byte big-endian length followed by that
+// many bytes of one HelperRequest or HelperResponse, at most 1 MiB, and a connection carries one
+// request at a time, answered in order.
 
 syntax = "proto3";
 
@@ -23,20 +23,17 @@ import "korpis/v1/provider.proto";
 
 service HelperService {
   // Create a workload volume in a storage class, with byte and inode quota enforced by the
-  // filesystem in the write path where the class can (§3 of docs/06-storage.md). Idempotent by
-  // volume.
+  // filesystem in the write path where the class can. Idempotent by volume.
   rpc EnsureVolume(EnsureVolumeRequest) returns (EnsureVolumeResponse);
   // Remove a volume. Reached only from an approved, irreversible plan step.
   rpc DeleteVolume(DeleteVolumeRequest) returns (DeleteVolumeResponse);
   // Report a volume's usage as the filesystem accounts it.
   rpc VolumeUsage(VolumeUsageRequest) returns (VolumeUsageResponse);
-  // Reserve a uid range for a workload, as its assignment names it, recorded on disk (§4.5 of
-  // docs/04-runtimes.md).
+  // Reserve a uid range for a workload, as its assignment names it, recorded on disk.
   rpc EnsureIdRange(EnsureIdRangeRequest) returns (EnsureIdRangeResponse);
-  // The storage classes this node offers, with what each enforces (§2 of docs/06-storage.md).
+  // The storage classes this node offers, with what each enforces.
   rpc DescribeStorage(DescribeStorageRequest) returns (DescribeStorageResponse);
-  // Take a read-only snapshot of a volume, in a class that can (§4 of docs/06-storage.md).
-  // Idempotent by volume and snapshot.
+  // Take a read-only snapshot of a volume, in a class that can. Idempotent by volume and snapshot.
   rpc SnapshotVolume(SnapshotVolumeRequest) returns (SnapshotVolumeResponse);
   // Make a volume what one of its snapshots holds, keeping its limits. Reached only from an
   // approved, irreversible plan step, with the workload stopped.
@@ -48,44 +45,41 @@ service HelperService {
   rpc JobStatus(JobStatusRequest) returns (JobStatusResponse);
   rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
   rpc ForgetJob(ForgetJobRequest) returns (ForgetJobResponse);
-  // Make a workload's network what the request says (§4.1 of docs/07-networking.md): its own
-  // network namespace, the routed link between it and the host, its addresses and routes, and
-  // the rules that belong to it, inside the namespace and on the host. Idempotent by workload;
-  // what changed is changed, and a network the node lost to a reboot is made again.
+  // Make a workload's network what the request says: its own network namespace, the routed link
+  // between it and the host, its addresses and routes, and the rules that belong to it, inside the
+  // namespace and on the host. Idempotent by workload; what changed is changed, and a network the
+  // node lost to a reboot is made again.
   rpc EnsureNetwork(EnsureNetworkRequest) returns (EnsureNetworkResponse);
   // Remove a workload's network: its rules, its link, and its namespace. Idempotent.
   rpc ReleaseNetwork(ReleaseNetworkRequest) returns (ReleaseNetworkResponse);
   // Whether this node can give workloads a network, and what in the host stands in its way.
   rpc DescribeNetwork(DescribeNetworkRequest) returns (DescribeNetworkResponse);
-  // Makes the node's uplinks shape what its workloads send (§7 of docs/07-networking.md):
-  // each declared uplink an HTB tree of its capacity, and every tree of Korpis's on an
-  // interface no longer declared removed.
+  // Makes the node's uplinks shape what its workloads send: each declared uplink an HTB tree of its
+  // capacity, and every tree of Korpis's on an interface no longer declared removed.
   rpc EnsureUplinks(EnsureUplinksRequest) returns (EnsureUplinksResponse);
-  // What the host's table has counted of every workload's link (§7 of docs/07-networking.md):
-  // each named counter, in one listing of the table, which the meter reads at each reading.
+  // What the host's table has counted of every workload's link: each named counter, in one listing
+  // of the table, which the meter reads at each reading.
   rpc ReadCounters(ReadCountersRequest) returns (ReadCountersResponse);
-  // Keeps the workloads' cpusets to the dedicated cores held (§5.2 of docs/05-scheduling.md):
-  // under each driver's cgroup parent the request names, each one the helper was configured to
-  // keep, its `shared` cgroup on the node's online CPUs less every CPU held, and the CPUs held
-  // there written as the exclusive CPUs of that cgroup, the cgroups above it, and its `dedicated`
-  // cgroup, which a driver's partitions take theirs from.
+  // Keeps the workloads' cpusets to the dedicated cores held: under each driver's cgroup parent the
+  // request names, each one the helper was configured to keep, its `shared` cgroup on the node's
+  // online CPUs less every CPU held, and the CPUs held there written as the exclusive CPUs of that
+  // cgroup, the cgroups above it, and its `dedicated` cgroup, which a driver's partitions take
+  // theirs from.
   rpc HoldCores(HoldCoresRequest) returns (HoldCoresResponse);
-  // Keeps the node's side of the mesh (§9.1 of docs/07-networking.md): its WireGuard interface,
-  // made with a key of the helper's own the first time, whose private half never leaves it; the
-  // peers the request names, each with its allowed IPs, every other peer removed; and a route to
-  // each peer's allowed IPs through the interface. Answers the interface's public key and when
-  // each peer last completed a handshake. Added 2026-10-25.
+  // Keeps the node's side of the mesh: its WireGuard interface, made with a key of the helper's own
+  // the first time, whose private half never leaves it; the peers the request names, each with its
+  // allowed IPs, every other peer removed; and a route to each peer's allowed IPs through the
+  // interface. Answers the interface's public key and when each peer last completed a handshake.
   rpc KeepOverlay(KeepOverlayRequest) returns (KeepOverlayResponse);
-  // Replicas (§2.2 of docs/06-storage.md), in a class that can send increments. SendReplica takes
-  // a read-only snapshot of a volume kept for replication and starts sending it, whole or from a
-  // snapshot sent before, into a pipe whose read end the answer carries; ReceiveReplica starts
-  // receiving a volume's replica from a pipe whose write end the answer carries, and
-  // ReceiveStatus says whether it ended, and how; ReplicaSnapshots lists what a volume's
-  // replication keeps here, ReleaseReplica deletes one of them, and PromoteReplica makes the
-  // volume a writable copy of one received; ReplicaVolumes lists every volume whose replication
-  // keeps anything here; OpenTransfer opens the TCP socket a node receives replicas on, or sends
-  // them from, at its own mesh address in the namespace the helper keeps the mesh in. Added
-  // 2026-10-27.
+  // Replicas, in a class that can send increments. SendReplica takes a read-only snapshot of a
+  // volume kept for replication and starts sending it, whole or from a snapshot sent before, into a
+  // pipe whose read end the answer carries; ReceiveReplica starts receiving a volume's replica from
+  // a pipe whose write end the answer carries, and ReceiveStatus says whether it ended, and how;
+  // ReplicaSnapshots lists what a volume's replication keeps here, ReleaseReplica deletes one of
+  // them, and PromoteReplica makes the volume a writable copy of one received; ReplicaVolumes lists
+  // every volume whose replication keeps anything here; OpenTransfer opens the TCP socket a node
+  // receives replicas on, or sends them from, at its own mesh address in the namespace the helper
+  // keeps the mesh in.
   rpc SendReplica(SendReplicaRequest) returns (SendReplicaResponse);
   rpc ReceiveReplica(ReceiveReplicaRequest) returns (ReceiveReplicaResponse);
   rpc ReceiveStatus(ReceiveStatusRequest) returns (ReceiveStatusResponse);
@@ -94,17 +88,15 @@ service HelperService {
   rpc PromoteReplica(PromoteReplicaRequest) returns (PromoteReplicaResponse);
   rpc ReplicaVolumes(ReplicaVolumesRequest) returns (ReplicaVolumesResponse);
   rpc OpenTransfer(OpenTransferRequest) returns (OpenTransferResponse);
-  // Unmounts the volume of a block class and lets go of its device, which the storage keeps
-  // (§2.1 of docs/06-storage.md).
+  // Unmounts the volume of a block class and lets go of its device, which the storage keeps.
   rpc ReleaseDevice(ReleaseDeviceRequest) returns (ReleaseDeviceResponse);
   // Every device a block class has attached on this node, with the workload it was attached
   // for: what the agent lets go of once nothing holds it.
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
-  // A migration's tree passes (§8.1 of docs/05-scheduling.md), for a class sending no increments:
-  // SendTree starts rsync's daemon side over a volume, read only and confined by its own chroot
-  // to it, and ReceiveTree its client side, pulling into the destination's copy, each answering
-  // one end of a socket the agent joins to the transfer connection; TreeStatus reads how one
-  // ended. Added 2026-10-28.
+  // A migration's tree passes, for a class sending no increments: SendTree starts rsync's daemon
+  // side over a volume, read only and confined by its own chroot to it, and ReceiveTree its client
+  // side, pulling into the destination's copy, each answering one end of a socket the agent joins
+  // to the transfer connection; TreeStatus reads how one ended.
   rpc SendTree(SendTreeRequest) returns (SendTreeResponse);
   rpc ReceiveTree(ReceiveTreeRequest) returns (ReceiveTreeResponse);
   rpc TreeStatus(TreeStatusRequest) returns (TreeStatusResponse);
@@ -226,19 +218,17 @@ message EnsureVolumeRequest {
   string storage_class = 3;
   uint64 size_bytes = 4;
   uint64 inodes = 5;
-  // Unused, and kept only so the field number is never reused. Files carry workload-relative
-  // ids (§4.5 of docs/04-runtimes.md), so the volume root is owned by id 0 as the workload sees
-  // it, whatever range the workload holds on this node.
+  // Unused, and kept only so the field number is never reused. Files carry workload-relative ids,
+  // so the volume root is owned by id 0 as the workload sees it, whatever range the workload holds
+  // on this node.
   uint32 uid_base = 6 [deprecated = true];
-  // The workload's driver declares its volumes block devices (§3.1 of docs/06-storage.md): the
-  // volume holds one image of `size_bytes`, an ext4 the helper makes empty and never mounts,
-  // grown when a larger size is asked and never shrunk. A volume of one kind is never made the
-  // other.
+  // The workload's driver declares its volumes block devices: the volume holds one image of
+  // `size_bytes`, an ext4 the helper makes empty and never mounts, grown when a larger size is
+  // asked and never shrunk. A volume of one kind is never made the other.
   bool block_device = 7;
-  // For a volume of a block class, the device its class's provider attached to this node for
-  // the workload's lease (§2.1 of docs/06-storage.md): the helper attaches it, formats it ext4
-  // when it holds nothing, and mounts it as the volume, whose bound is the device's size. Added
-  // 2026-10-27.
+  // For a volume of a block class, the device its class's provider attached to this node for the
+  // workload's lease: the helper attaches it, formats it ext4 when it holds nothing, and mounts it
+  // as the volume, whose bound is the device's size.
   BlockDevice device = 8;
 }
 
@@ -250,9 +240,9 @@ message BlockDevice {
   string target = 2;
   // As `BlockAttachment.credential` says it; never kept by the helper.
   string credential = 3;
-  // A guest's disk: never mounted, probed, or read on the host, and given to the driver as a
-  // device node where a block device's image would be (§3.1 of docs/06-storage.md). Asked for a
-  // volume of the other kind, it is refused.
+  // A guest's disk: never mounted, probed, or read on the host, and given to the driver as a device
+  // node where a block device's image would be. Asked for a volume of the other kind, it is
+  // refused.
   bool guest = 4;
   // No volume was made of it yet: a guest's disk is formatted, which writes and reads nothing a
   // guest wrote.
@@ -288,19 +278,18 @@ message EnsureVolumeResponse {
   // image it holds.
   string host_path = 1;
   bool created = 2;
-  // Whether the size and inode limits asked for are enforced in the write path. False on a
-  // class that cannot (§2 of docs/06-storage.md), where they are kept nowhere and shown nowhere.
+  // Whether the size and inode limits asked for are enforced in the write path. False on a class
+  // that cannot, where they are kept nowhere and shown nowhere.
   bool quota_enforced = 3;
   // The class it is in: the one asked for, or the helper's default when none was.
   string storage_class = 4;
 }
 
-// A workload's network (§4.1 of docs/07-networking.md): a network namespace owned by a user
-// namespace mapped to the workload's uid range, since a container's root may mount its own
-// sysfs only in a network it owns, and it holds no capability to change it. The supervisor
-// allocates the addresses from the node's pools and the helper applies them; it derives every
-// name it makes, the namespaces' directory and the host side of the link, from the workload
-// identifier it validates.
+// A workload's network: a network namespace owned by a user namespace mapped to the workload's uid
+// range, since a container's root may mount its own sysfs only in a network it owns, and it holds
+// no capability to change it. The supervisor allocates the addresses from the node's pools and the
+// helper applies them; it derives every name it makes, the namespaces' directory and the host side
+// of the link, from the workload identifier it validates.
 message EnsureNetworkRequest {
   string workload = 1;
   // The workload's IPv4 address, in the pool below.
@@ -313,36 +302,34 @@ message EnsureNetworkRequest {
   // translated and what leaves from any other is not, since only a prefix routed to the node
   // gives a workload a global address.
   string ipv6_pool = 5;
-  // The uid range the workload holds on this node (§4.5 of docs/04-runtimes.md), which the user
-  // namespace that owns its network maps.
+  // The uid range the workload holds on this node, which the user namespace that owns its network
+  // maps.
   uint32 uid_base = 7;
   uint32 uid_count = 8;
   // The ports inside the workload its declared endpoints listen on, which its own firewall
   // accepts new connections to; every other port is closed to new connections from anywhere.
   repeated Port inbound = 9;
-  // The ports of the node forwarded to it (§3 of docs/07-networking.md): each on every address
-  // of the node but loopback, to the workload's address and a port inside it.
+  // The ports of the node forwarded to it: each on every address of the node but loopback, to the
+  // workload's address and a port inside it.
   repeated Forward forwards = 10;
-  // Destinations opened for it past the egress default (§6 of docs/07-networking.md): the
-  // control plane's API, for an installed extension's workload, and nothing else today.
+  // Destinations opened for it past the egress default: the control plane's API, for an installed
+  // extension's workload, and nothing else today.
   repeated Destination opened = 11;
   // Its own outbound rules, from its intent's egress policy, before the egress default.
   repeated Rule egress = 12;
-  // Its own limits on the connections it opens: at most the default's, and zero for the
-  // default (§6 of docs/07-networking.md).
+  // Its own limits on the connections it opens: at most the default's, and zero for the default.
   uint32 max_connections = 13;
   uint32 new_per_sec = 14;
-  // What it may send and be sent (§7 of docs/07-networking.md); absent shapes nothing.
+  // What it may send and be sent; absent shapes nothing.
   Bandwidth bandwidth = 15;
-  // The workload's interface is a tap, for a microVM's guest to hold (NETWORK_MODE_TAP, §4.1 of
-  // docs/07-networking.md): the addresses are the guest's, set by its own kernel, and the
-  // namespace routes between the tap and its link, which the VMM, running as the range's first
-  // id, alone may open. A network made for one kind of interface is made anew for the other.
+  // The workload's interface is a tap, for a microVM's guest to hold (NETWORK_MODE_TAP): the
+  // addresses are the guest's, set by its own kernel, and the namespace routes between the tap and
+  // its link, which the VMM, running as the range's first id, alone may open. A network made for
+  // one kind of interface is made anew for the other.
   bool tap = 16;
-  // The address of the workload's own it holds, where it holds one (§3.7 of
-  // docs/07-networking.md): every new connection to it translated to the workload's IPv4 address,
-  // all ports alike, ahead of every other translation on the node; and what the workload sends
-  // beyond the node leaving from it. Added 2026-10-26.
+  // The address of the workload's own it holds, where it holds one: every new connection to it
+  // translated to the workload's IPv4 address, all ports alike, ahead of every other translation on
+  // the node; and what the workload sends beyond the node leaving from it.
   DedicatedAddress dedicated = 17;
 }
 
@@ -364,8 +351,8 @@ message Bandwidth {
   uint64 egress_reservation = 1;
   uint64 egress_limit = 2;
   uint64 ingress_limit = 3;
-  // Its egress budget is spent (§5.1 of docs/05-scheduling.md): held to `floor` instead of its
-  // limit, or with `cut_off` sending nothing beyond the node.
+  // Its egress budget is spent: held to `floor` instead of its limit, or with `cut_off` sending
+  // nothing beyond the node.
   bool exhausted = 4;
   uint64 floor = 5;
   bool cut_off = 6;
@@ -408,7 +395,7 @@ message Counter {
 }
 
 // Opens the sockets of a workload's resolver inside its network namespace, on the resolver's
-// address and port 53 (§5.1 of docs/07-networking.md), for the supervisor to answer on.
+// address and port 53, for the supervisor to answer on.
 message OpenResolverRequest {
   string workload = 1;
 }
@@ -419,12 +406,12 @@ message OpenResolverResponse {
   uint32 attached = 1;
 }
 
-// Opens a socket inside a workload's network namespace for the supervisor's health probes (§5
-// of docs/04-runtimes.md): an IPv4 socket of the transport asked for, a stream unless UDP is,
-// neither bound nor connected, which the supervisor connects to the workload's address. A connection made from it starts inside the
-// namespace, so it reaches the workload as the workload's own loopback or its guest's link
-// does, past the rules its endpoints set for connections from elsewhere, and it reaches
-// nothing the workload itself could not.
+// Opens a socket inside a workload's network namespace for the supervisor's health probes: an IPv4
+// socket of the transport asked for, a stream unless UDP is, neither bound nor connected, which the
+// supervisor connects to the workload's address. A connection made from it starts inside the
+// namespace, so it reaches the workload as the workload's own loopback or its guest's link does,
+// past the rules its endpoints set for connections from elsewhere, and it reaches nothing the
+// workload itself could not.
 message OpenProbeRequest {
   string workload = 1;
   // TCP when unspecified.
@@ -436,9 +423,9 @@ message OpenProbeResponse {
   uint32 attached = 1;
 }
 
-// Opens a file session on a workload's volumes (§3.2 of docs/06-storage.md): the helper starts a
-// filesystem worker that sees those volumes and nothing else, confined as an install's worker is,
-// and answers with the session's socket.
+// Opens a file session on a workload's volumes: the helper starts a filesystem worker that sees
+// those volumes and nothing else, confined as an install's worker is, and answers with the
+// session's socket.
 message OpenFilesRequest {
   // The workload, and the base of the id range it holds, which the worker runs as: the helper
   // refuses a range its ledger does not record for that workload.
@@ -481,9 +468,9 @@ message FileWorkerSpec {
   string cgroup = 5;
 }
 
-// Opens ports 80 and 443 on each of the node's advertised addresses, for its ingress proxy (§3.2
-// of docs/07-networking.md): binding them needs a privilege neither the supervisor nor the proxy
-// has. Loopback, unspecified, and multicast addresses are refused.
+// Opens ports 80 and 443 on each of the node's advertised addresses, for its ingress proxy: binding
+// them needs a privilege neither the supervisor nor the proxy has. Loopback, unspecified, and
+// multicast addresses are refused.
 message OpenIngressRequest {
   repeated string addresses = 1;
 }
@@ -522,20 +509,19 @@ message Destination {
   string address = 1;
   uint32 port = 2;
   Transport transport = 3;
-  // Why it is opened: a dependency's target (§5 of docs/07-networking.md).
+  // Why it is opened: a dependency's target.
   DestinationReason reason = 4;
 }
 
 enum DestinationReason {
   // The control plane's API for an installed extension's workload, until the node relayed it
-  // instead (§9.5 of docs/08-identity.md).
+  // instead.
   reserved 1;
   reserved "DESTINATION_REASON_CONTROL_PLANE";
   DESTINATION_REASON_UNSPECIFIED = 0;
   DESTINATION_REASON_DEPENDENCY = 2;
-  // A dependency's target on another node, opened only through the mesh's interface, so that a
-  // node with no route to the target through the mesh sends nothing towards it (§9.1 of
-  // docs/07-networking.md).
+  // A dependency's target on another node, opened only through the mesh's interface, so that a node
+  // with no route to the target through the mesh sends nothing towards it.
   DESTINATION_REASON_DEPENDENCY_OVERLAY = 3;
 }
 
@@ -555,21 +541,19 @@ message Port {
   // Connections to it at once, and new ones a second; zero for no limit of its own.
   uint32 max_connections = 4;
   uint32 new_per_sec = 5;
-  // What the endpoint may send from its port and be sent to it, in bits a second, each held in
-  // a class of its own on the workload's link (§7 of docs/07-networking.md); zero for no limit
-  // of its own.
+  // What the endpoint may send from its port and be sent to it, in bits a second, each held in a
+  // class of its own on the workload's link; zero for no limit of its own.
   uint64 egress_limit = 6;
   uint64 ingress_limit = 7;
   // Whether what it carries is counted, in and out, in the host's table.
   bool accounted = 8;
-  // Whether it is reached from outside the node at the workload's own address: an endpoint
-  // exposed `node_port`, `node_bound`, or `dedicated_ip`. A port that is not is reached from
-  // outside only through what the node translates or proxies, and otherwise only by other
-  // workloads (§4 of docs/07-networking.md). Added 2026-10-26.
+  // Whether it is reached from outside the node at the workload's own address: an endpoint exposed
+  // `node_port`, `node_bound`, or `dedicated_ip`. A port that is not is reached from outside only
+  // through what the node translates or proxies, and otherwise only by other workloads.
   bool outside = 9;
 }
 
-// A rule of a workload's own policy (§6 of docs/07-networking.md), naming an address range.
+// A rule of a workload's own policy, naming an address range.
 message Rule {
   // Allow: inbound, let in; outbound, on to the egress default, which decides the rest. Deny:
   // dropped, and counted.
@@ -581,9 +565,8 @@ message Rule {
   repeated PortSpan ports = 3;
   // Unspecified for any.
   Transport transport = 4;
-  // The addresses of the workloads a rule naming workloads names on this node, which the
-  // control plane resolved (§6 of docs/07-networking.md); none matches nothing. Added
-  // 2026-10-26.
+  // The addresses of the workloads a rule naming workloads names on this node, which the control
+  // plane resolved; none matches nothing.
   repeated string addresses = 5;
 }
 
@@ -629,16 +612,15 @@ message DescribeNetworkResponse {
   string why_not = 2;
   // Whether IPv6 forwarding is on, which a workload's IPv6 address needs.
   bool ipv6 = 3;
-  // The base chains of another firewall on the forward hook that drop what they do not accept,
-  // as `family table chain`: each drops the traffic of every workload that leaves the node or
-  // reaches it from outside until its operator opens it for Korpis's links, which the helper
-  // does not do (§4.1 of docs/07-networking.md).
+  // The base chains of another firewall on the forward hook that drop what they do not accept, as
+  // `family table chain`: each drops the traffic of every workload that leaves the node or reaches
+  // it from outside until its operator opens it for Korpis's links, which the helper does not do.
   repeated string closed_forward = 4;
-  // Whether the kernel answers a SYN flood with SYN cookies, which keeps half-open connections
-  // from filling the connection table (§6 of docs/07-networking.md).
+  // Whether the kernel answers a SYN flood with SYN cookies, which keeps half-open connections from
+  // filling the connection table.
   bool syn_cookies = 5;
-  // Whether the node can shape bandwidth: `tc` answers and makes an HTB qdisc (§7 of
-  // docs/07-networking.md); and why not, when it cannot.
+  // Whether the node can shape bandwidth: `tc` answers and makes an HTB qdisc; and why not, when it
+  // cannot.
   bool shapes = 6;
   string why_not_shapes = 7;
 }
@@ -813,12 +795,10 @@ message VolumeUsageResponse {
   uint64 limit_bytes = 3;
   uint64 limit_inodes = 4;
   // Whether the filesystem accounts the volume at all. A class without quota accounting answers
-  // false and zeros: usage is read, never computed by walking the tree (§3 of
-  // docs/06-storage.md).
+  // false and zeros: usage is read, never computed by walking the tree.
   bool accounted = 5;
-  // The volume is a block device, and its bytes are the blocks its image has allocated, which
-  // grow as its guest writes and do not shrink when it deletes: not what the guest's filesystem
-  // holds (§3.1 of docs/06-storage.md).
+  // The volume is a block device, and its bytes are the blocks its image has allocated, which grow
+  // as its guest writes and do not shrink when it deletes: not what the guest's filesystem holds.
   bool allocated = 6;
 }
 
@@ -836,12 +816,11 @@ message DescribeStorageResponse {
   repeated korpis.v1.StorageClassInfo classes = 1;
 }
 
-// Starts a backup or restore job (§5.5 of docs/06-storage.md), or an install job (§4 of
-// docs/09-recipes.md), as a process of its own, in a cgroup of its own, holding only the
-// capabilities its work needs and confined by Landlock to what it works in. The helper names
-// every directory from the identifiers below; a backup or restore job receives the data key and
-// the store's access on its standard input. Idempotent by job: a job already started is not
-// started again.
+// Starts a backup or restore job, or an install job, as a process of its own, in a cgroup of its
+// own, holding only the capabilities its work needs and confined by Landlock to what it works in.
+// The helper names every directory from the identifiers below; a backup or restore job receives the
+// data key and the store's access on its standard input. Idempotent by job: a job already started
+// is not started again.
 message StartJobRequest {
   // The job's identifier: letters, digits, '-', '_', '.', at most 128.
   string job = 1;
@@ -853,8 +832,8 @@ message StartJobRequest {
   bytes data_key = 4;
   korpis.v1.S3Access store = 5;
   uint32 concurrency = 6;
-  // Access to the repository's recipe content, kept once per repository (§5.2 of
-  // docs/06-storage.md): written by a backup, read by a restore. Absent where none was granted.
+  // Access to the repository's recipe content, kept once per repository: written by a backup, read
+  // by a restore. Absent where none was granted.
   korpis.v1.S3Access content_store = 8;
 }
 
@@ -885,14 +864,12 @@ message RestoreVolume {
   // touched until the commit, so the workload may run while the job does.
   bool replace = 5;
   // Restore the whole backup of a block device into a staging place of the job's own beside the
-  // volume, for its image to be read in a service guest (§5.4 of docs/06-storage.md), never made
-  // the volume: CommitJob refuses it, and ForgetJob discards it. `path`, `into`, and `replace`
-  // are then unset.
+  // volume, for its image to be read in a service guest, never made the volume: CommitJob refuses
+  // it, and ForgetJob discards it. `path`, `into`, and `replace` are then unset.
   bool reading = 6;
 }
 
-// A recipe's install actions, run beneath a workload's volumes by a worker that sees nothing else
-// (§4 of docs/09-recipes.md).
+// A recipe's install actions, run beneath a workload's volumes by a worker that sees nothing else.
 message InstallWork {
   // As korpis.install.v1.InstallSpec carries them.
   repeated korpis.v1.Value actions = 1;
@@ -1003,28 +980,28 @@ message HoldCoresResponse {
 message KeepOverlayRequest {
   uint32 port = 1;
   repeated OverlayPeer peers = 2;
-  // What another node's workload may reach of this node's through the mesh: a dependent's
-  // address, to a port of its dependency's endpoint (§9.1 of docs/07-networking.md). Nothing
-  // else arriving on the interface reaches a workload.
+  // What another node's workload may reach of this node's through the mesh: a dependent's address,
+  // to a port of its dependency's endpoint. Nothing else arriving on the interface reaches a
+  // workload.
   repeated OverlayAdmitted admitted = 3;
-  // This node's own address in the mesh, the last of its IPv4 pool, which no workload is given:
-  // put on the interface, and the local end of every GRE link to and from an edge (§3.1 of
-  // docs/07-networking.md). Empty for none, and then no links are kept. Added 2026-10-26.
+  // This node's own address in the mesh, the last of its IPv4 pool, which no workload is given: put
+  // on the interface, and the local end of every GRE link to and from an edge. Empty for none, and
+  // then no links are kept.
   string mesh_address = 4;
   // What this node forwards and holds as a member of edge groups, and what edges forward to it.
   EdgeTable edges = 5;
   // This node's own IPv6 address in the mesh, the last of its unique local prefix: put on the
-  // interface beside `mesh_address`, at which the node answers the probe of an IPv6 address an
-  // edge forwards to it. Empty for none. Added 2026-10-26.
+  // interface beside `mesh_address`, at which the node answers the probe of an IPv6 address an edge
+  // forwards to it. Empty for none.
   string mesh_address_v6 = 6;
-  // The mesh addresses of the nodes that send this node's replicas their volumes (§2.2 of
-  // docs/06-storage.md): each admitted to `mesh_address`, on TCP port `transfer_port`, and
-  // nothing else of them beyond what the rest admits. Added 2026-10-27.
+  // The mesh addresses of the nodes that send this node's replicas their volumes: each admitted to
+  // `mesh_address`, on TCP port `transfer_port`, and nothing else of them beyond what the rest
+  // admits.
   repeated string transfer_sources = 7;
   uint32 transfer_port = 8;
 }
 
-// The node's part in edge groups (§3.1 of docs/07-networking.md), kept whole by every call.
+// The node's part in edge groups, kept whole by every call.
 message EdgeTable {
   // The other end of every GRE link kept, by its mesh address: each node this member forwards
   // to, and each edge forwarding to this node. Every other link is removed.

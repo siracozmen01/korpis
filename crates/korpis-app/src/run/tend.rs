@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Making runs (§4 of docs/05-scheduling.md). Every pass, each workload whose runs the control
-//! plane tends is read in a transaction of its own, holding the workload and its run state, and
-//! what `korpis_core::workload::run::tend` decides is written with an effect for each run made
-//! or ended. Two control planes take a workload in turn, so each occurrence is made once.
+//! Making runs. Every pass, each workload whose runs the control plane tends is read in a
+//! transaction of its own, holding the workload and its run state, and what
+//! `korpis_core::workload::run::tend` decides is written with an effect for each run made or ended.
+//! Two control planes take a workload in turn, so each occurrence is made once.
 
 use crate::App;
 use crate::error::AppError;
@@ -64,9 +64,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// # Errors
     /// The store failed.
     pub async fn tend_runs(&self) -> Result<u64, AppError> {
-        // While a restore settles, the store's leases and runs are the backup's, and the nodes
-        // are presenting what they run (§8 of docs/03-state.md): a run made or lost now could
-        // be the second of an occurrence, or a run still running, so none is until it ends.
+        // While a restore settles, the store's leases and runs are the backup's, and the nodes are
+        // presenting what they run: a run made or lost now could be the second of an occurrence, or
+        // a run still running, so none is until it ends.
         if self.settling().await?.is_some() {
             return Ok(0);
         }
@@ -87,7 +87,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             None => None,
         };
         // A workload a suspension holds stopped is tended as stopped: no run is made, and its
-        // running ones end (§2.1 of docs/08-identity.md).
+        // running ones end.
         let held = self.held_by(w.organization).await?.is_some();
         let power = self.store.power_at(id, w.power_target_version).await?;
         let zone = target
@@ -129,10 +129,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(true)
     }
 
-    /// Deletes the runs of `workload` that `policy` no longer keeps; whether it deleted any. A
-    /// run retention deletes takes its console stream with it (§4 of docs/14-streams.md): its
-    /// node deletes the volume once the run is neither named nor kept, and the stream's
-    /// offloaded segments are kept no longer than the operator's floor.
+    /// Deletes the runs of `workload` that `policy` no longer keeps; whether it deleted any. A run
+    /// retention deletes takes its console stream with it: its node deletes the volume once the run
+    /// is neither named nor kept, and the stream's offloaded segments are kept no longer than the
+    /// operator's floor.
     async fn prune(
         &self,
         tx: &mut S::Tx,

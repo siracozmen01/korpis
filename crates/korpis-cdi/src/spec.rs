@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A Container Device Interface spec file, as version 1.1.0 of the specification defines it (§5
-//! of docs/research/evidence.md), read as strictly as its reference implementation reads it: a
-//! field it does not define refuses the file, so no edit a vendor wrote is silently dropped.
+//! A Container Device Interface spec file, as version 1.1.0 of the specification defines it, read
+//! as strictly as its reference implementation reads it: a field it does not define refuses the
+//! file, so no edit a vendor wrote is silently dropped.
 
 use serde::Deserialize;
 use std::collections::BTreeMap;

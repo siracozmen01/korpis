@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The panel's build (§9 of docs/21-stack.md): static files with hashed names, no server runtime.
+// The panel's build: static files with hashed names, no server runtime.
 
 import react from "@vitejs/plugin-react";
 import { execFileSync } from "node:child_process";
@@ -27,9 +27,9 @@ function revision(): string {
 }
 
 /**
- * The panel's own source notice (§7 of docs/11-surface-web.md, §2 of docs/19-governance.md):
- * `about/source.json`, which a control plane serving the bundle names on its `/about/source`,
- * and `about/source/index.html`, the same said unstyled for a panel served from anywhere else.
+ * The panel's own source notice: `about/source.json`, which a control plane serving the bundle
+ * names on its `/about/source`, and `about/source/index.html`, the same said unstyled for a panel
+ * served from anywhere else.
  */
 function sourceNotice(): Plugin {
   return {
@@ -55,11 +55,11 @@ function sourceNotice(): Plugin {
 }
 
 /**
- * The control plane and its relays in the panel's own policy: `index.html` lets the page connect
- * to its own origin. When the build names the control plane elsewhere (`VITE_KORPIS_API`) and the
+ * The control plane and its relays in the panel's own policy: `index.html` lets the page connect to
+ * its own origin. When the build names the control plane elsewhere (`VITE_KORPIS_API`) and the
  * relays a console or a file session is opened at (`VITE_KORPIS_RELAYS`, comma-separated), their
  * origins are added and nothing else. A control plane serving the bundle itself writes the relays
- * it names into the policy as it serves the page (§3.1 of docs/02-architecture.md).
+ * it names into the policy as it serves the page.
  */
 function connectPolicy(named: readonly (string | undefined)[]): Plugin {
   const origins = named
@@ -97,10 +97,10 @@ function vendorChunk(id: string): string | undefined {
 }
 
 /**
- * The panel's service worker (question 3 of §10 of docs/11-surface-web.md): built from
- * `src/sw/worker.ts` as `sw.js` beside the page, with the files of this bundle written into it and
- * its cache named for them, so a new bundle is a new worker. It is loaded as a classic script, so
- * a worker that would import or export anything fails the build rather than the browser.
+ * The panel's service worker: built from `src/sw/worker.ts` as `sw.js` beside the page, with the
+ * files of this bundle written into it and its cache named for them, so a new bundle is a new
+ * worker. It is loaded as a classic script, so a worker that would import or export anything fails
+ * the build rather than the browser.
  */
 function shellWorker(): Plugin {
   return {

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A workload whose bound node's driver refuses it after the bind, before anything of it was made
-//! there, is placed again with that node left out, its plan still open to run where it lands
-//! (§2.1 of docs/05-scheduling.md). An operator's choice of node is not overruled: there, the
-//! refusal fails the plan as any failure does.
+//! there, is placed again with that node left out, its plan still open to run where it lands. An
+//! operator's choice of node is not overruled: there, the refusal fails the plan as any failure
+//! does.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{ack, assignment, plan_status, send, until};

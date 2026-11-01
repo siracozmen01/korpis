@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The revocation list: `korpis.agent.v1.RevocationList` (§6.3 of docs/08-identity.md). Reading
-//! it checks its shape only; whether it is trusted is the signature's question, answered by
-//! [`SignedList::verify`] against the token keys the verifier holds.
+//! The revocation list: `korpis.agent.v1.RevocationList`. Reading it checks its shape only; whether
+//! it is trusted is the signature's question, answered by [`SignedList::verify`] against the token
+//! keys the verifier holds.
 
 use crate::{Result, invalid};
 use korpis_core::authz::revocation::{RevocationList, SignedList};

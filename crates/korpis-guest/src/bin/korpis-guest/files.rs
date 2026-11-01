@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The workload's files in `/run/korpis` inside its guest (§6 of docs/04-runtimes.md): its
-//! managed files in `config/` and its dependencies' files in `deps/`, copies of those its node
-//! keeps in its directory on the host, which the driver sends as they change. A file is written
-//! under a hidden name as its parts arrive and renamed into place, read-only, once the last has,
-//! so the workload reads a whole file or the one before it, as a container does; a sync ends with
-//! what each directory keeps. Nothing is written before the first process has entered the
-//! workload's root, and the entry waits for the first sync, so it starts with its files as a
-//! container does.
+//! The workload's files in `/run/korpis` inside its guest: its managed files in `config/` and its
+//! dependencies' files in `deps/`, copies of those its node keeps in its directory on the host,
+//! which the driver sends as they change. A file is written under a hidden name as its parts arrive
+//! and renamed into place, read-only, once the last has, so the workload reads a whole file or the
+//! one before it, as a container does; a sync ends with what each directory keeps. Nothing is
+//! written before the first process has entered the workload's root, and the entry waits for the
+//! first sync, so it starts with its files as a container does.
 
 use korpis_guest::control::{Part, Place};
 use std::io::{self, Seek as _, Write as _};

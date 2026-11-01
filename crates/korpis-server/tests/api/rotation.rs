@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A restore's second step (§8 of docs/03-state.md): the token key rotated, so every token signed
-//! before stops verifying and no verifier is given the old key again, and every session ended.
+//! A restore's second step: the token key rotated, so every token signed before stops verifying and
+//! no verifier is given the old key again, and every session ended.
 
 use korpis_app::ports::EnrollmentRead as _;
 use korpis_core::authz::token::key_name;

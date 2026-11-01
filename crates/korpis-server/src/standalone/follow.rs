@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Following the feed (§3.1 of docs/02-architecture.md): the relay opens it with a request its
-//! identity key signs, trusting the control plane by the authority it pinned when it joined, and
-//! takes in every update. A feed that ends, fails, or stays silent for three of its declared
-//! heartbeat intervals is opened again, backing off; a feed the control plane refuses to
-//! authenticate means the relay was removed, and following stops. The request reports what the
-//! relay serves over SFTP, and a feed is opened again, at once, when that changes, so the control
-//! plane always holds what the relay serves.
+//! Following the feed: the relay opens it with a request its identity key signs, trusting the
+//! control plane by the authority it pinned when it joined, and takes in every update. A feed that
+//! ends, fails, or stays silent for three of its declared heartbeat intervals is opened again,
+//! backing off; a feed the control plane refuses to authenticate means the relay was removed, and
+//! following stops. The request reports what the relay serves over SFTP, and a feed is opened
+//! again, at once, when that changes, so the control plane always holds what the relay serves.
 
 use super::RelayDir;
 use super::fed::Fed;

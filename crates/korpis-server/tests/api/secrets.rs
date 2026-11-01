@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A secret field's value is read back only with `workload.secret.read` (§5.2 of
-//! docs/09-recipes.md, Finding 84 of docs/23-walkthroughs.md): every read that returns an intent
-//! withholds it from anyone else and names it, and such a caller keeps it across a change it
+//! A secret field's value is read back only with `workload.secret.read`: every read that returns an
+//! intent withholds it from anyone else and names it, and such a caller keeps it across a change it
 //! declares without ever learning it.
 
 use crate::recipes::{PAPER, body, change, create, project, push_paper, push_paper_like, text};

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The ingress on one machine (§3.2 of docs/07-networking.md): a workload with an `ingress`
-//! endpoint is placed only on a node serving the ingress, which holds ports 80 and 443, unless
-//! an edge group's members serve it (§3.1 there), whatever serves its `stable` endpoints.
+//! The ingress on one machine: a workload with an `ingress` endpoint is placed only on a node
+//! serving the ingress, which holds ports 80 and 443, unless an edge group's members serve it,
+//! whatever serves its `stable` endpoints.
 
 use super::{Case, checks, node};
 use crate::node::advertised::{Advertised, PortRange};
@@ -54,8 +54,7 @@ fn an_edge_group_serving_the_stable_endpoints_alone_leaves_the_ingress_to_the_no
     let mut case = Case::new(vec![without]);
     case.body.endpoints =
         vec![endpoint("game", Exposure::Stable), endpoint("web", Exposure::Ingress)];
-    // A group serves its `stable` endpoint and not its ingress: the node must serve that
-    // (Finding 197 of docs/23-walkthroughs.md).
+    // A group serves its `stable` endpoint and not its ingress: the node must serve that.
     case.edge_members = vec![Uuid::from_u128(1)];
     assert_eq!(checks(&case.run(), 1), [Check::Reachability]);
     case.ingress_edge = true;

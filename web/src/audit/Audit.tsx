@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// An organization's audit trail (§4 of docs/15-observability.md, §1 of docs/11-surface-web.md):
-// what was done to anything in its subtree, newest last, as far as the viewer's grants reach,
-// a page at a time. Each entry says when, what, how it turned out, who did it, and the client
-// that relayed them if one did, so a person acting through a bot is never shown as the bot. A
-// refusal is marked as one: what was attempted against what the organization holds is the
-// signal an audit trail exists for.
+// An organization's audit trail: what was done to anything in its subtree, newest last, as far as
+// the viewer's grants reach, a page at a time. Each entry says when, what, how it turned out, who
+// did it, and the client that relayed them if one did, so a person acting through a bot is never
+// shown as the bot. A refusal is marked as one: what was attempted against what the organization
+// holds is the signal an audit trail exists for.
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useCallback } from "react";

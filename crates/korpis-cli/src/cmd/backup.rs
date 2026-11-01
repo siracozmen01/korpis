@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis backup …` (§5 of docs/06-storage.md): taking a backup of a volume into a repository,
-//! reading a workload's backups, and restoring one. A block device's backup is read inside its
-//! image through a session ([`inside`]).
+//! `korpis backup …`: taking a backup of a volume into a repository, reading a workload's backups,
+//! and restoring one. A block device's backup is read inside its image through a session
+//! ([`inside`]).
 
 pub mod inside;
 

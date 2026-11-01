@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's devices (§6 of docs/05-scheduling.md): those the Container Device Interface's files on
-//! it describe, as its agent reports them, and the holds a placement keeps on them. A device
-//! carries no record of who holds it; placements do.
+//! A node's devices: those the Container Device Interface's files on it describe, as its agent
+//! reports them, and the holds a placement keeps on them. A device carries no record of who holds
+//! it; placements do.
 
 use super::driver::DeviceClass;
 use std::collections::BTreeMap;
 
-/// How a workload holds a device (§6.2 of docs/05-scheduling.md).
+/// How a workload holds a device.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DeviceMode {
     /// The device, alone, while the workload is placed.
@@ -54,11 +54,11 @@ pub struct DeviceHold {
 /// The longest device name kept: a kind's prefix of 253, its name of 63, and a device's name.
 const LONGEST: usize = 512;
 
-/// Whether `id` is a CDI device name, `vendor.com/kind=name` (§5 of docs/research/evidence.md):
-/// a DNS subdomain, a slash, the kind's name of at most 63 characters, `=`, and the device's name,
-/// each name of alphanumerics with dashes, underscores, and dots between. A device's name may also
-/// hold a colon between, as NVIDIA's MIG devices' (`nvidia.com/gpu=1:0`) do, which the
-/// specification's grammar does not list and its files rely on.
+/// Whether `id` is a CDI device name, `vendor.com/kind=name`: a DNS subdomain, a slash, the kind's
+/// name of at most 63 characters, `=`, and the device's name, each name of alphanumerics with
+/// dashes, underscores, and dots between. A device's name may also hold a colon between, as
+/// NVIDIA's MIG devices' (`nvidia.com/gpu=1:0`) do, which the specification's grammar does not list
+/// and its files rely on.
 #[must_use]
 pub fn is_cdi_name(id: &str) -> bool {
     let Some((kind, name)) = id.split_once('=') else { return false };

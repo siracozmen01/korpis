@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The GRE links between an edge and the nodes it forwards to (§3.1 of docs/07-networking.md):
-//! one per pair, from this node's mesh address to the other's, made, listed by their names'
-//! beginning, and removed.
+//! The GRE links between an edge and the nodes it forwards to: one per pair, from this node's mesh
+//! address to the other's, made, listed by their names' beginning, and removed.
 
 use super::{Answer, Rtnl};
 use netlink_packet_core::{NLM_F_DUMP, NLM_F_REQUEST, NetlinkPayload};

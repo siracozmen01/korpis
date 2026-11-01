@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A provider's circuit breaker at work (§5 of docs/16-extensions.md). A call is admitted, or
-//! refused at once, by the breaker of the provider it calls, in the transaction that queues it;
-//! when it has finished, its caller judges the provider by the calls it last finished, and trips
-//! the breaker, or closes it after a probe, in a transaction holding the breaker's lock, so two
-//! replicas never both decide. Each decision that changes the provider's condition is an event.
+//! A provider's circuit breaker at work. A call is admitted, or refused at once, by the breaker of
+//! the provider it calls, in the transaction that queues it; when it has finished, its caller
+//! judges the provider by the calls it last finished, and trips the breaker, or closes it after a
+//! probe, in a transaction holding the breaker's lock, so two replicas never both decide. Each
+//! decision that changes the provider's condition is an event.
 
 use crate::App;
 use crate::caller::Caller;

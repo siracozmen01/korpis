@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Watching one workload (§4.3 of docs/02-architecture.md): its status now, then each status that
-//! differs from the last one sent, read when the workload is announced as changed and on every
-//! resync. Each is read with the caller's authority as it is at that moment, so a grant revoked
-//! during a watch ends it with the same refusal a fresh read would get. Opening the watch is the
-//! read a use-limited grant pays for; each later read continues it through the grant that paid
-//! and spends nothing, as a session's renewals do (§6.1 of docs/08-identity.md), or a three-use
-//! share link would watch three changes and go dark.
+//! Watching one workload: its status now, then each status that differs from the last one sent,
+//! read when the workload is announced as changed and on every resync. Each is read with the
+//! caller's authority as it is at that moment, so a grant revoked during a watch ends it with the
+//! same refusal a fresh read would get. Opening the watch is the read a use-limited grant pays for;
+//! each later read continues it through the grant that paid and spends nothing, as a session's
+//! renewals do, or a three-use share link would watch three changes and go dark.
 
 use super::read::WorkloadView;
 use crate::App;

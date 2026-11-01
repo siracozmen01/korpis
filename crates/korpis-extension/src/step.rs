@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Writing a recipe step provider (§4 of docs/09-recipes.md). A step resolves into
-//! content-addressed artifacts, each a URL and its SHA-256, which the node fetches once and the
-//! workload's own worker writes; the provider never touches the volume. It says whether the
-//! request named the content exactly (pinned), and what it resolved to. Requires the
-//! `provider.step` capability.
+//! Writing a recipe step provider. A step resolves into content-addressed artifacts, each a URL and
+//! its SHA-256, which the node fetches once and the workload's own worker writes; the provider
+//! never touches the volume. It says whether the request named the content exactly (pinned), and
+//! what it resolved to. Requires the `provider.step` capability.
 
 pub use crate::provider::Failure;
 use crate::provider::{Handler, Outcome, Unsupported};

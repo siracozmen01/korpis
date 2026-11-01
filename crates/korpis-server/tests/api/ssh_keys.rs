@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! SSH keys and the file tokens a relay serving SFTP asks for with them (§9.9 of
-//! docs/08-identity.md): a person registers keys they prove they hold, one installation-wide per
-//! fingerprint, and a relay is given, for a key its client holds, a token for what that person's
-//! grants allow on the workload, writing or else reading, recorded under the relay's name, and
-//! nothing for a key no one holds, once it is removed, or while its account is disabled.
+//! SSH keys and the file tokens a relay serving SFTP asks for with them: a person registers keys
+//! they prove they hold, one installation-wide per fingerprint, and a relay is given, for a key its
+//! client holds, a token for what that person's grants allow on the workload, writing or else
+//! reading, recorded under the relay's name, and nothing for a key no one holds, once it is
+//! removed, or while its account is disabled.
 
 use crate::lifecycle::workload;
 use crate::panel::{access, browser, invite, redeem_keeping_cookie};

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The members of a bound set who delegated, in the store (§5.1 of docs/08-identity.md): a
-//! grant naming a member in its `via` records them, unverified, and makes the set's binding due;
-//! re-verification reads the members whose grants still stand and records what it found, never
-//! an answer that a member is still there over a record written since it asked (Finding 141).
+//! The members of a bound set who delegated, in the store: a grant naming a member in its `via`
+//! records them, unverified, and makes the set's binding due; re-verification reads the members
+//! whose grants still stand and records what it found, never an answer that a member is still there
+//! over a record written since it asked.
 
 use crate::support::{Fixture, alice, fixture, now};
 use korpis_app::ports::{BindingWrite, GrantWrite, MemberRead, MemberWrite, Store, Tx};

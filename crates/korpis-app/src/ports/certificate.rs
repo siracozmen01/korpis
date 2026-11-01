@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Certificates organizations hold for the ingress (§3.2 of docs/07-networking.md), and the
-//! control plane's TLS key, which reads what is uploaded and seals every certificate's key.
+//! Certificates organizations hold for the ingress, and the control plane's TLS key, which reads
+//! what is uploaded and seals every certificate's key.
 
 use super::HttpOffer;
 use super::{SealedKey, StoreResult, VaultError};
@@ -207,8 +207,8 @@ pub trait CertificateWrite {
         challenges: &[AlpnChallenge],
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Records that a node's proxy proved `certificate`'s names `way` (§3.2 of
-    /// docs/07-networking.md), which its next order tries first.
+    /// Records that a node's proxy proved `certificate`'s names `way`, which its next order tries
+    /// first.
     fn set_node_proof(
         &mut self,
         certificate: Uuid,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A declaration's secrets (§5.2 of docs/09-recipes.md): kept from the head for a caller that may
-//! not read them, and withheld from what a declaration answers.
+//! A declaration's secrets: kept from the head for a caller that may not read them, and withheld
+//! from what a declaration answers.
 
 use super::{Base, Declared};
 use crate::App;

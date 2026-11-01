@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's network, made by the helper on this machine (§4.1 of docs/07-networking.md):
-//! its namespace and routed link, its addresses, its closed inbound, and its removal. Needs root
-//! and nftables; skipped without them.
+//! A workload's network, made by the helper on this machine: its namespace and routed link, its
+//! addresses, its closed inbound, and its removal. Needs root and nftables; skipped without them.
 
 #![allow(
     clippy::unwrap_used,

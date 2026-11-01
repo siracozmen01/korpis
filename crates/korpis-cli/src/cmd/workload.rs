@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis workload …`: the imperative commands on one workload (§2 of docs/13-surface-cli.md).
+//! `korpis workload …`: the imperative commands on one workload.
 
 use crate::complete;
 use clap::Subcommand;
@@ -27,8 +27,8 @@ pub enum WorkloadAction {
         /// The workload.
         workload: String,
     },
-    /// Places it by hand on a node you choose, overriding the node's cordon and taints and
-    /// nothing else (§2.3 of docs/05-scheduling.md).
+    /// Places it by hand on a node you choose, overriding the node's cordon and taints and nothing
+    /// else.
     Place {
         /// The workload.
         #[arg(add = ArgValueCompleter::new(complete::workloads))]
@@ -40,8 +40,8 @@ pub enum WorkloadAction {
         #[arg(long)]
         reason: String,
     },
-    /// Proposes moving it to another node: a plan a person approves, which stops it, copies
-    /// its volumes, and starts it there (§8.1 of docs/05-scheduling.md).
+    /// Proposes moving it to another node: a plan a person approves, which stops it, copies its
+    /// volumes, and starts it there.
     Move {
         /// The workload.
         #[arg(add = ArgValueCompleter::new(complete::workloads))]
@@ -54,8 +54,7 @@ pub enum WorkloadAction {
         hold: Option<String>,
     },
     /// Sets how its plan steps are classified: the operator's layer, over the driver's and the
-    /// recipe's and never below the vocabulary's floor (§3.3 of docs/01-model.md). The whole
-    /// set: none clears it.
+    /// recipe's and never below the vocabulary's floor. The whole set: none clears it.
     Classify {
         /// The workload.
         #[arg(add = ArgValueCompleter::new(complete::workloads))]
@@ -77,8 +76,8 @@ pub enum WorkloadAction {
         #[arg(long = "delete-volumes", value_delimiter = ',')]
         delete_volumes: Vec<String>,
     },
-    /// The recipe it runs: what it is, the configuration it declares, and the words it shows,
-    /// in your language where the recipe speaks it (§5.3 of docs/09-recipes.md).
+    /// The recipe it runs: what it is, the configuration it declares, and the words it shows, in
+    /// your language where the recipe speaks it.
     Recipe {
         #[arg(add = ArgValueCompleter::new(complete::workloads))]
         /// The workload.

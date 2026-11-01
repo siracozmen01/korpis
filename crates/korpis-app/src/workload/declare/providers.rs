@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Pinning the providers a declaration names (§4.1 of docs/16-extensions.md): the step providers
-//! its recipe's install names, and the health providers its query probes name (§5 of
-//! docs/04-runtimes.md). Each resolves to the nearest organization, walking up from the declaring
-//! one, with a live installation that provides it; each step's arguments are checked against the
-//! schema that installation declares; and the installation and its artifact's digest are recorded
-//! in the recipe reference, so a provider registered or upgraded later never answers for this
-//! declaration.
+//! Pinning the providers a declaration names: the step providers its recipe's install names, and
+//! the health providers its query probes name. Each resolves to the nearest organization, walking
+//! up from the declaring one, with a live installation that provides it; each step's arguments are
+//! checked against the schema that installation declares; and the installation and its artifact's
+//! digest are recorded in the recipe reference, so a provider registered or upgraded later never
+//! answers for this declaration.
 
 use crate::App;
 use crate::error::AppError;

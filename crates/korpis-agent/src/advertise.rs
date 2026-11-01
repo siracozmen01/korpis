@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the node advertises for inbound traffic (§9 of docs/07-networking.md): the addresses its
-//! operator names, or, when they name none, the address the node's traffic towards the control
-//! plane leaves from, if that address is routable on the internet. A node behind NAT therefore
-//! advertises nothing of its own accord, which is the truth: nobody outside can reach it at an
-//! address it can see. Nothing here is a claim of reachability; the control plane measures that.
+//! What the node advertises for inbound traffic: the addresses its operator names, or, when they
+//! name none, the address the node's traffic towards the control plane leaves from, if that address
+//! is routable on the internet. A node behind NAT therefore advertises nothing of its own accord,
+//! which is the truth: nobody outside can reach it at an address it can see. Nothing here is a
+//! claim of reachability; the control plane measures that.
 
 use korpis_core::node::advertised::{PortRange, is_global};
 use korpis_proto::korpis::agent::v1 as agent;
@@ -17,8 +17,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub struct Advertise {
     declared: Vec<IpAddr>,
     ports: PortRange,
-    /// Whether the node holds ports 80 and 443 for the ingress proxy (§3.2 of
-    /// docs/07-networking.md), which the ingress's supervisor says.
+    /// Whether the node holds ports 80 and 443 for the ingress proxy, which the ingress's
+    /// supervisor says.
     ingress: Arc<AtomicBool>,
     /// The control plane's addresses, resolved once at start.
     towards: Vec<SocketAddr>,

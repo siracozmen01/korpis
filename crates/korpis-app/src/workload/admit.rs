@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Admission (§5.1 of docs/05-scheduling.md): a declaration fits every quota entry of its
-//! project and of every organization above it that counts it, read from the totals kept beside
-//! each entry, and the entries are held, locked and consumed, in the transaction that writes it.
-//! An organization's entry counts what it promised the organizations beneath it beside what it
-//! holds, so a parent's own workloads never take what it guaranteed a child (Finding 139). A
-//! refusal names the set and its numbers only to a caller who may read the set's owner (Finding
-//! 140).
+//! Admission: a declaration fits every quota entry of its project and of every organization above
+//! it that counts it, read from the totals kept beside each entry, and the entries are held, locked
+//! and consumed, in the transaction that writes it. An organization's entry counts what it promised
+//! the organizations beneath it beside what it holds, so a parent's own workloads never take what
+//! it guaranteed a child. A refusal names the set and its numbers only to a caller who may read the
+//! set's owner.
 
 use crate::App;
 use crate::caller::Caller;
@@ -72,8 +71,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// The refusal `caller` is given for `x`: the set's owner, its bound, and what would be held
     /// where the caller may read that owner, as `GetOrganization` and `GetProject` show the set;
-    /// otherwise only the dimension, since an ancestor's bound and what everything beneath it
-    /// holds are the ancestor's to see, not its tenants' (§8 of docs/10-api.md).
+    /// otherwise only the dimension, since an ancestor's bound and what everything beneath it holds
+    /// are the ancestor's to see, not its tenants'.
     async fn quota_refused(&self, caller: &Caller, x: &Exceeded) -> AppError {
         let (action, object) = match x.owner {
             QuotaOwner::Organization(o) => ("org.read", ObjectRef::new(Kind::Organization, o)),

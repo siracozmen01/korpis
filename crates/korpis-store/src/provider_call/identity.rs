@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity provider calls in the stored queue (§5 of docs/08-identity.md). Evidence is kept as
-//! the person presented it, hex-encoded, only while its call is queued and recorded, like any
-//! call; an assertion keeps its instant in milliseconds since the Unix epoch.
+//! Identity provider calls in the stored queue. Evidence is kept as the person presented it,
+//! hex-encoded, only while its call is queued and recorded, like any call; an assertion keeps its
+//! instant in milliseconds since the Unix epoch.
 
 use super::keys::{hex, unhex};
 use korpis_core::extension::identity::{

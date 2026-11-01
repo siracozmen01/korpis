@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // The parts of a declaration: shape, runtime, resources, volumes, endpoints, health, placement.
-// Shape is independent declared fields, not one enum (P7, §2 of docs/01-model.md).
+// Shape is independent declared fields, not one enum.
 
 syntax = "proto3";
 
@@ -33,9 +33,9 @@ enum IsolationTier {
   ISOLATION_TIER_VM = 4;
 }
 
-// Driver, tier, and driver-specific configuration validated against the driver's own schema.
-// The limits of a workload's console stream (§5 of docs/14-streams.md), enforced where it is
-// written. Zero is the default; the stream's retention counts against the workload's disk quota.
+// Driver, tier, and driver-specific configuration validated against the driver's own schema. The
+// limits of a workload's console stream, enforced where it is written. Zero is the default; the
+// stream's retention counts against the workload's disk quota.
 message StreamSpec {
   // Bytes a second admitted on average; what exceeds it is dropped and recorded as a gap.
   uint64 rate_bytes_per_sec = 1;
@@ -48,13 +48,11 @@ message StreamSpec {
     uint64 retention_bytes = 4;
   }
   // How long an offloaded segment is kept in the repository that took it, from when it was
-  // offloaded (§4 of docs/14-streams.md); 30 days when unset. The operator's disclosed floor
-  // raises it where it is lower (§8 of docs/17-security.md).
+  // offloaded; 30 days when unset. The operator's disclosed floor raises it where it is lower.
   google.protobuf.Duration offload_retention = 5;
 }
 
-// What a run due while another of the workload's is active does (§4.3 of
-// docs/05-scheduling.md). Unspecified is forbid.
+// What a run due while another of the workload's is active does. Unspecified is forbid.
 enum Concurrency {
   CONCURRENCY_UNSPECIFIED = 0;
   // It is recorded missed, and the active one goes on.
@@ -65,8 +63,8 @@ enum Concurrency {
   CONCURRENCY_ALLOW = 3;
 }
 
-// How a task or scheduled workload's runs are made, ended, and kept (§4 of
-// docs/05-scheduling.md). A field left unset is its default.
+// How a task or scheduled workload's runs are made, ended, and kept. A field left unset is its
+// default.
 message RunPolicy {
   Concurrency concurrency = 1;
   // How many times a failed run is tried again; none when unset, at most 100.
@@ -81,9 +79,8 @@ message RunPolicy {
   optional uint32 keep_failed = 6;
   // Whether occurrences missed while the control plane was down are run, oldest first.
   bool catch_up = 7;
-  // The most runs active at once under `allow`, 10 when unset, at most 100; one under `forbid`
-  // and `replace`. A run due past it is recorded missed, cause `concurrency` (§4.3 of
-  // docs/05-scheduling.md).
+  // The most runs active at once under `allow`, 10 when unset, at most 100; one under `forbid` and
+  // `replace`. A run due past it is recorded missed, cause `concurrency`.
   optional uint32 max_active = 8;
 }
 
@@ -94,7 +91,7 @@ message RuntimeSpec {
   map<string, Value> config = 3;
 }
 
-// A workload's request for devices of one class (§6.3 of docs/05-scheduling.md).
+// A workload's request for devices of one class.
 message DeviceRequest {
   DeviceClass class = 1;
   // How many; at least one.
@@ -105,7 +102,7 @@ message DeviceRequest {
   DeviceMode mode = 4;
 }
 
-// Reservation and limit are different numbers (§5.2 of docs/05-scheduling.md).
+// Reservation and limit are different numbers.
 message ResourceSpec {
   CpuSpec cpu = 1;
   ReservedLimit memory = 2;
@@ -134,7 +131,7 @@ message ReservedLimit {
   uint64 limit = 2;
 }
 
-// Ceilings and a proportional share; IO has no reservation (§5.2 of docs/05-scheduling.md).
+// Ceilings and a proportional share; IO has no reservation.
 message IoSpec {
   uint64 read_bytes_per_sec = 1;
   uint64 write_bytes_per_sec = 2;
@@ -167,8 +164,8 @@ message VolumeSpec {
   // Create it holding what this backup held, restored before the workload first runs on it;
   // never with `existing`. Reading the backup takes backup.read on its workload.
   optional string from_backup = 7;
-  // How many other nodes keep a copy of it, brought up to date every `replication_interval`;
-  // zero for none, and only in a class that can send increments (§2.2 of docs/06-storage.md).
+  // How many other nodes keep a copy of it, brought up to date every `replication_interval`; zero
+  // for none, and only in a class that can send increments.
   uint32 replicas = 8;
   // How often its replicas are brought up to date: a minute at least, five when unset; only
   // with `replicas`.
@@ -191,7 +188,7 @@ enum EndpointProtocol {
   ENDPOINT_PROTOCOL_QUIC = 5;
 }
 
-// How the network reaches a workload (§3 of docs/07-networking.md).
+// How the network reaches a workload.
 enum Exposure {
   EXPOSURE_UNSPECIFIED = 0;
   EXPOSURE_NODE_PORT = 1;
@@ -213,16 +210,16 @@ message EndpointSpec {
   NetworkPolicy policy = 7;
   bool accounting = 8;
   ShapingSpec shaping = 9;
-  // How the workload is told who its client is, declared only as CLIENT_ADDRESS_PROXY_PROTOCOL
-  // and only on an ingress endpoint whose TLS is passed through, whose workload is then sent a
-  // PROXY header before the connection's first byte (§3.2 of docs/07-networking.md). Left
-  // unspecified, the platform says how the workload sees its client: Endpoint.client_address.
+  // How the workload is told who its client is, declared only as CLIENT_ADDRESS_PROXY_PROTOCOL and
+  // only on an ingress endpoint whose TLS is passed through, whose workload is then sent a PROXY
+  // header before the connection's first byte. Left unspecified, the platform says how the workload
+  // sees its client: Endpoint.client_address.
   ClientAddress client_address = 10;
 }
 
-// How the workload sees the client (§3.4 of docs/07-networking.md). Defined here, beside the
-// declaration that may name it, and observed on korpis.v1.Endpoint; moved 2026-10-22 from
-// attached.proto, in the same package, so its name and its numbers are unchanged.
+// How the workload sees the client. Defined here, beside the declaration that may name it, and
+// observed on korpis.v1.Endpoint; moved 2026-10-22 from attached.proto, in the same package, so its
+// name and its numbers are unchanged.
 enum ClientAddress {
   CLIENT_ADDRESS_UNSPECIFIED = 0;
   CLIENT_ADDRESS_PRESERVED = 1;
@@ -235,9 +232,9 @@ message TlsSpec {
   TlsSource source = 1;
   // For TLS_SOURCE_PROVIDED: the secret holding the certificate and key.
   string secret = 2;
-  // For TLS the proxy terminates, ACME's or provided: whether clients are asked for a certificate
-  // (§3.2 of docs/07-networking.md); unspecified asks for none. Refused with passthrough, whose
-  // workload asks for certificates itself.
+  // For TLS the proxy terminates, ACME's or provided: whether clients are asked for a certificate;
+  // unspecified asks for none. Refused with passthrough, whose workload asks for certificates
+  // itself.
   ClientCertificates client_certificates = 3;
   // With client_certificates: the certificates, in PEM, of the authorities a client's certificate
   // is verified against, 1 to 16 of them and at most 64 KiB, and nothing else; they are public.
@@ -266,14 +263,14 @@ message NetworkPolicy {
   // matches is let in.
   repeated NetworkRule ingress = 1;
   // Refused when set. Corrected 2026-10-15: a workload's outbound connections leave from no
-  // endpoint, so no node could judge a packet by an endpoint's rule; they are IntentBody.egress
-  // (§6 of docs/07-networking.md). Kept because the schema is frozen (rule E).
+  // endpoint, so no node could judge a packet by an endpoint's rule; they are IntentBody.egress.
+  // Kept because the schema is frozen (rule E).
   repeated NetworkRule egress = 2;
   // Limits on the connections made to it.
   ConntrackLimits conntrack = 3;
 }
 
-// Where a workload may connect out, beyond the egress default (§6 of docs/07-networking.md).
+// Where a workload may connect out, beyond the egress default.
 message EgressPolicy {
   // In order; the first that matches decides. A deny holds anywhere; an allow lets the
   // connection on to the egress default, which decides the rest.
@@ -315,7 +312,7 @@ message ShapingSpec {
   uint64 ingress_bits_per_sec = 2;
 }
 
-// Health is application-level (Rule K-16, §5 of docs/04-runtimes.md).
+// Health is application-level.
 message HealthSpec {
   Probe readiness = 1;
   Probe liveness = 2;
@@ -367,7 +364,7 @@ message HeartbeatProbe {
   google.protobuf.Duration max_interval = 1;
 }
 
-// Constraints and preferences for placement (§2 of docs/05-scheduling.md).
+// Constraints and preferences for placement.
 message PlacementSpec {
   LabelSelector node_selector = 1;
   repeated Toleration tolerations = 2;
@@ -388,12 +385,12 @@ message AffinityRule {
   string topology_key = 4;
 }
 
-// A dependency declared explicitly, so the graph is visible to the scheduler and to plans (§5
-// of docs/07-networking.md). Its current address is injected at start.
+// A dependency declared explicitly, so the graph is visible to the scheduler and to plans. Its
+// current address is injected at start.
 message Dependency {
   // Names what is injected: KORPIS_DEP_<NAME>_HOST, _PORT, and _ADDRESSES, and
-  // /run/korpis/deps/<name>.json (§5 of docs/07-networking.md).
-  // Lowercase letters, digits, and underscores, starting with a letter; unique in the body.
+  // /run/korpis/deps/<name>.json. Lowercase letters, digits, and underscores, starting with a
+  // letter; unique in the body.
   string name = 1;
   // What it reaches: a workload or an endpoint by identifier, or the workloads a selector
   // matches within the dependent's project.
@@ -415,12 +412,10 @@ enum DependencyInjection {
   DEPENDENCY_INJECTION_BOTH = 3;
 }
 
-// What a workload does when its lease ends and cannot be renewed (§4.5 of
-// docs/02-architecture.md).
+// What a workload does when its lease ends and cannot be renewed.
 message ContinuitySpec {
   OnLeaseExpiry on_lease_expiry = 1;
-  // Whether failover may start it on a replica of its volumes, losing what the replica lacks
-  // (§2.4 of docs/05-scheduling.md).
+  // Whether failover may start it on a replica of its volumes, losing what the replica lacks.
   ReplicaFailover replica_failover = 2;
 }
 

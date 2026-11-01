@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// What a relay running as its own process asks of the control plane (§3.1 of
-// docs/02-architecture.md). It joins once with an enrollment token an operator created, and is
-// given an identity and a certificate under the installation's authority, which agents and
-// clients already trust.
+// What a relay running as its own process asks of the control plane. It joins once with an
+// enrollment token an operator created, and is given an identity and a certificate under the
+// installation's authority, which agents and clients already trust.
 
 syntax = "proto3";
 
@@ -25,22 +24,23 @@ service RelayControlService {
   rpc Feed(FeedRequest) returns (stream FeedUpdate);
   // A fresh certificate for a new TLS key, issued as Join issued the first: for the relay's URL's
   // host, under the installation's authority, as long-lived as the relay's certificates are. A
-  // relay asks at about two thirds of its certificate's life (§7 of docs/18-operations.md).
+  // relay asks at about two thirds of its certificate's life.
   rpc Renew(RenewRequest) returns (RenewResponse);
-  // A file token for an SFTP client the relay serves (§9.9 of docs/08-identity.md): the relay has
-  // checked that the client holds `key`, and the control plane believes it, mints for the
-  // account the key is registered to what that account's grants allow on the workload from the
-  // client's address, writing or else reading, and records the first under the relay's name.
-  // Refused as unauthenticated for a key no account holds.
+  // A file token for an SFTP client the relay serves: the relay has checked that the client holds
+  // `key`, and the control plane believes it, mints for the account the key is registered to what
+  // that account's grants allow on the workload from the client's address, writing or else reading,
+  // and records the first under the relay's name. Refused as unauthenticated for a key no account
+  // holds.
   rpc AuthorizeFiles(AuthorizeFilesRequest) returns (AuthorizeFilesResponse);
 }
 
 message AuthorizeFilesRequest {
   string relay = 1;
   // The relay identity key's Ed25519 signature over
-  // "korpis.relay.v1.AuthorizeFiles|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<digest in lowercase hex>",
-  // where the digest is SHA-256 over each of key, the workload's sixteen bytes, client, and
-  // renews, each preceded by its length as eight big-endian bytes; fresh and never replayed.
+  // "korpis.relay.v1.AuthorizeFiles|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase
+  // hex>|<digest in lowercase hex>", where the digest is SHA-256 over each of key, the workload's
+  // sixteen bytes, client, and renews, each preceded by its length as eight big-endian bytes; fresh
+  // and never replayed.
   korpis.agent.v1.NodeAuth auth = 2;
   // The client's SSH public key, in SSH's wire form (RFC 4253 §6.6).
   bytes key = 3;
@@ -56,7 +56,7 @@ message AuthorizeFilesRequest {
 message AuthorizeFilesResponse {
   string token = 1;
   google.protobuf.Timestamp expires_at = 2;
-  // The route the relay opens the session by (§3.1 of docs/02-architecture.md).
+  // The route the relay opens the session by.
   string route = 3;
   // `workload.file.write`, or `workload.file.read` where reading alone is allowed.
   string action = 4;
@@ -65,8 +65,8 @@ message AuthorizeFilesResponse {
 message RenewRequest {
   string relay = 1;
   // The relay identity key's Ed25519 signature over
-  // "korpis.relay.v1.Renew|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<tls_key in lowercase hex>",
-  // fresh and never replayed, as a FeedRequest's.
+  // "korpis.relay.v1.Renew|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<tls_key
+  // in lowercase hex>", fresh and never replayed, as a FeedRequest's.
   korpis.agent.v1.NodeAuth auth = 2;
   // The new TLS key's public half: an uncompressed P-256 point, 65 bytes.
   bytes tls_key = 3;
@@ -80,13 +80,13 @@ message RenewResponse {
 
 message FeedRequest {
   string relay = 1;
-  // The relay identity key's Ed25519 signature over
-  // "korpis.relay.v1.Feed|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<sftp_host_key in lowercase hex>|<sftp_address>",
-  // the timestamp within the control plane's auth skew window and the nonce never seen before
-  // from this relay.
+  // The relay identity key's Ed25519 signature over "korpis.relay.v1.Feed|<relay>|<seconds>.<nanos,
+  // nine digits>|<nonce in lowercase hex>|<sftp_host_key in lowercase hex>|<sftp_address>", the
+  // timestamp within the control plane's auth skew window and the nonce never seen before from this
+  // relay.
   korpis.agent.v1.NodeAuth auth = 2;
   // The SSH host key of the SFTP this relay serves, in SSH's wire form, Ed25519; empty where it
-  // serves none (§3.1 of docs/02-architecture.md).
+  // serves none.
   bytes sftp_host_key = 3;
   // Where clients reach that SFTP, `host:port`: `--sftp-advertise`, or the host of the relay's
   // URL and the port it listens on; empty where it serves none.
@@ -104,9 +104,9 @@ message FeedUpdate {
   }
 }
 
-// The origin of every portal (§3.6 of docs/07-networking.md), whose panels open console and file
-// sessions here: sent when the feed opens and whenever they change, and answered beside the
-// relay's own --web-origin for its sessions alone.
+// The origin of every portal, whose panels open console and file sessions here: sent when the feed
+// opens and whenever they change, and answered beside the relay's own --web-origin for its sessions
+// alone.
 message PortalOrigins {
   repeated string origins = 1;
 }
@@ -128,8 +128,8 @@ message Heartbeat {
 // Every key that ever signed a capability token.
 message TokenKeys {
   repeated korpis.agent.v1.SigningKey keys = 1;
-  // The route key of each token key, by the same epoch: what the relay opens a session's route
-  // with to learn its node (§3.1 of docs/02-architecture.md).
+  // The route key of each token key, by the same epoch: what the relay opens a session's route with
+  // to learn its node.
   repeated RouteKey route_keys = 2;
 }
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The egress budget (§5.1 of docs/05-scheduling.md, "The egress budget"), on a real control
-//! plane: a budget is set with what its spending does, and refused without it; the month's egress
-//! of the workloads it counts is reckoned from their records; a spent budget holds each of them,
-//! and its node is told in the workload's next assignment; a budget raised lets them go.
+//! The egress budget ("The egress budget"), on a real control plane: a budget is set with what its
+//! spending does, and refused without it; the month's egress of the workloads it counts is reckoned
+//! from their records; a spent budget holds each of them, and its node is told in the workload's
+//! next assignment; a budget raised lets them go.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, send, until};

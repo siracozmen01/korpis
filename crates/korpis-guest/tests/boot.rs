@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A microVM booted as its driver will boot one (§6 of docs/04-runtimes.md): the node's guest
-//! kernel (scripts/guest-kernel.sh), a boot drive holding nothing but `korpis-guest`, an image
-//! drive built from an image's layer by `korpis-image-build`, the config drive, a volume, and a
-//! vsock device. The entry runs as its user with its environment, writes its volume, and its exit
-//! status comes back on the config drive; a stop sent as Ctrl+Alt+Del reaches it as `SIGTERM`;
-//! and the guest's agent answers on its control port and sends the entry a signal named. Needs root, /dev/kvm, Firecracker (scripts/tools.sh), the guest
-//! kernel, and mkfs.ext4 and debugfs, and is skipped without them.
+//! A microVM booted as its driver will boot one: the node's guest kernel (scripts/guest-kernel.sh),
+//! a boot drive holding nothing but `korpis-guest`, an image drive built from an image's layer by
+//! `korpis-image-build`, the config drive, a volume, and a vsock device. The entry runs as its user
+//! with its environment, writes its volume, and its exit status comes back on the config drive; a
+//! stop sent as Ctrl+Alt+Del reaches it as `SIGTERM`; and the guest's agent answers on its control
+//! port and sends the entry a signal named. Needs root, /dev/kvm, Firecracker (scripts/tools.sh),
+//! the guest kernel, and mkfs.ext4 and debugfs, and is skipped without them.
 
 #![allow(
     clippy::unwrap_used,

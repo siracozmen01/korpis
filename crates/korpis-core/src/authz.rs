@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Authority: the grant algebra and its evaluation (docs/08-identity.md).
+//! Authority: the grant algebra and its evaluation.
 //!
-//! There is exactly one authorization path (P6). This module is that path: [`grant`] decides
-//! whether a child may be attenuated from a parent, [`evaluate`] decides whether a request is
-//! permitted by a chain of grants, and [`token`] is the wire form of a grant, verified offline
-//! by relays and agents. Nothing here touches a database; the caller supplies the grants and the
-//! object hierarchy, so the same code runs in the gateway, the relay, and the agent.
+//! There is exactly one authorization path. This module is that path: [`grant`] decides whether a
+//! child may be attenuated from a parent, [`evaluate`] decides whether a request is permitted by a
+//! chain of grants, and [`token`] is the wire form of a grant, verified offline by relays and
+//! agents. Nothing here touches a database; the caller supplies the grants and the object
+//! hierarchy, so the same code runs in the gateway, the relay, and the agent.
 //!
 //! The action vocabulary is plain data, needed wherever an extension's document is read, so it
 //! is compiled always; everything else is behind the `authz` feature.

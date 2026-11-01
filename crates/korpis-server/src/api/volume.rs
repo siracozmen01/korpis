@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `VolumeService`: volumes as nodes reported them, through the project they belong to (§7 of
-//! docs/06-storage.md). A size is shown only where the write path enforces it (Rule K-3).
+//! `VolumeService`: volumes as nodes reported them, through the project they belong to. A size is
+//! shown only where the write path enforces it.
 
 use super::wire::plan::plan_to_pb;
 use super::wire::{self, Refuse};

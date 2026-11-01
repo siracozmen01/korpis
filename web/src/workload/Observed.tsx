@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// What the node observed, each value in its state (§2 of docs/11-surface-web.md): the value when
-// known; the value dimmed, with how long ago it was heard, when stale; and "unknown" when
-// unknown, with the last observation beside it and its age, never in its place.
+// What the node observed, each value in its state: the value when known; the value dimmed, with how
+// long ago it was heard, when stale; and "unknown" when unknown, with the last observation beside
+// it and its age, never in its place.
 
 import type { WorkloadStatus } from "../gen/korpis/v1/api_pb";
 import { t } from "../i18n/intl";
@@ -55,10 +55,9 @@ export function Value(props: {
 }
 
 /** The observed values of `status`: its state and its health. A resource figure is not among
- * them: an observation's carry no window and no collection method, and nothing fills them, so
- * what a workload uses is the usage section's (../usage/Usage.tsx), its node's latest reading
- * beside the records accounted, each with its source, its window, and how it was measured (§8
- * of docs/11-surface-web.md, §2 of docs/15-observability.md). */
+ * them: an observation's carry no window and no collection method, and nothing fills them, so what
+ * a workload uses is the usage section's (../usage/Usage.tsx), its node's latest reading beside the
+ * records accounted, each with its source, its window, and how it was measured. */
 export function Observed(props: {
   readonly status: WorkloadStatus;
   readonly freshness: Freshness;

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Streams: `korpis.v1.StreamSpec`, `Stream`, and `StreamSegment` (§3.6 of docs/01-model.md,
-//! docs/14-streams.md). A limit left zero is the default, so an intent stored before streams had
-//! limits reads as one with the defaults.
+//! Streams: `korpis.v1.StreamSpec`, `Stream`, and `StreamSegment`. A limit left zero is the
+//! default, so an intent stored before streams had limits reads as one with the defaults.
 
 use crate::{Result, duration, duration_from, invalid, time, timestamp, wire_id};
 use korpis_core::id::IdKind;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Granting and releasing leases (§4.5 of docs/02-architecture.md). The decision is
-//! [`decide`]'s; this applies it in one transaction holding the workload, so two requests for one
-//! workload are decided one after the other against what the first left.
+//! Granting and releasing leases. The decision is [`decide`]'s; this applies it in one transaction
+//! holding the workload, so two requests for one workload are decided one after the other against
+//! what the first left.
 
 use crate::App;
 use crate::error::AppError;
@@ -62,8 +62,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 }
                 let epoch = match tx.next_epoch(now).await? {
                     EpochIssue::Issued(epoch) => epoch,
-                    // Nothing is issued while a restore settles (§8 of docs/03-state.md), nor
-                    // beyond the issue rate; the node asks again, as for any transient refusal.
+                    // Nothing is issued while a restore settles, nor beyond the issue rate; the
+                    // node asks again, as for any transient refusal.
                     EpochIssue::Settling | EpochIssue::RateSpent => {
                         return Ok(LeaseAnswer::Refused(Refusal::Unavailable));
                     }
@@ -94,7 +94,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             epoch,
             term: terms.lease_term,
             rho_ppm: terms.rho_ppm,
-            // As the assignment resolves it (§4.8 of docs/02-architecture.md).
+            // As the assignment resolves it.
             on_expiry,
         })
     }
@@ -108,8 +108,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         epoch: u64,
     ) -> Result<bool, AppError> {
         let mut tx = self.store.begin().await?;
-        // The workload before its lease, as a request takes them, so a migration's cutover,
-        // which needs both, follows the release at once (§8.1 of docs/05-scheduling.md).
+        // The workload before its lease, as a request takes them, so a migration's cutover, which
+        // needs both, follows the release at once.
         tx.lock_workload(workload).await?;
         let released = tx.release_lease(workload, node, epoch, self.clock.now()).await?;
         if released {
@@ -120,8 +120,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 }
 
-/// What one node may spend of the epoch issue rate: fifty a second, a hundred at once, a
-/// twentieth of the installation's default cap (§8 of docs/03-state.md). Renewals spend nothing.
+/// What one node may spend of the epoch issue rate: fifty a second, a hundred at once, a twentieth
+/// of the installation's default cap. Renewals spend nothing.
 pub(crate) fn node_issue(node: Uuid) -> Bucket {
     Bucket {
         policy: "lease-issue-node",

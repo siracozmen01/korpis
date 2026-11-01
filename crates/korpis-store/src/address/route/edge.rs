@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The routes of routed edge pools' addresses (migration 0134, §3.1 of docs/07-networking.md).
-//! An address is wanted at the member its lease was last issued to while that member has not
-//! released it and a `stable` port holds the address or it is its group's ingress address, and
-//! nowhere otherwise; a lease whose term
-//! has passed unrenewed moves nothing by itself, since the member that holds the address next is
-//! asked for at its grant.
+//! The routes of routed edge pools' addresses (migration 0134). An address is wanted at the member
+//! its lease was last issued to while that member has not released it and a `stable` port holds the
+//! address or it is its group's ingress address, and nowhere otherwise; a lease whose term has
+//! passed unrenewed moves nothing by itself, since the member that holds the address next is asked
+//! for at its grant.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

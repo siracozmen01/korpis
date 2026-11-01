@@ -9,8 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-# A node's workload pool is a network of the installation's range (§9.1 of
-# docs/07-networking.md).
+# A node's workload pool is a network of the installation's range.
 ipnet = "2"
 korpis-core = { workspace = true, features = ["accounts", "authz", "identity", "trust"] }
 # Schedules are read in the zone their intent names, handed over by the Zones port.

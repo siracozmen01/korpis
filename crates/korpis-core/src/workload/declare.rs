@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A declaration as a subject writes it, and how the recipe completes it into an intent body
-//! (§3.1 of docs/09-recipes.md).
+//! A declaration as a subject writes it, and how the recipe completes it into an intent body.
 //!
 //! A subject declares what it cares about and the recipe supplies the rest: the shape its
 //! preset proposes, its probes, the tier it runs at. The control plane completes the declaration
@@ -46,7 +45,7 @@ pub struct Declaration {
     pub endpoints: Vec<DeclaredEndpoint>,
     /// Probes; each one absent is the recipe's.
     pub health: HealthSpec,
-    /// Configuration as declared; resolved against the schema afterwards (Rule K-17).
+    /// Configuration as declared; resolved against the schema afterwards.
     pub config: ValueMap,
     /// Where it may run.
     pub placement: PlacementSpec,
@@ -64,9 +63,8 @@ pub struct Declaration {
 
 impl Declaration {
     /// The intent body this declaration means, given its recipe. The body is validated: a
-    /// declaration the recipe cannot complete, or whose completion is inconsistent, is refused,
-    /// as is one whose volumes leave somewhere its recipe installs into outside every volume
-    /// (§4 of docs/09-recipes.md).
+    /// declaration the recipe cannot complete, or whose completion is inconsistent, is refused, as
+    /// is one whose volumes leave somewhere its recipe installs into outside every volume.
     pub fn complete(self, recipe_ref: RecipeRef, recipe: &Recipe) -> Result<IntentBody, SpecError> {
         let preset = &recipe.preset;
         let lifecycle = self.lifecycle.unwrap_or(preset.lifecycle);

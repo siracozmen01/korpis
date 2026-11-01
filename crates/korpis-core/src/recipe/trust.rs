@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Which recipes an organization runs (§7 of docs/09-recipes.md): a recipe is used when one of
-//! the organization's accepted signers has signed its digest, or, by a deliberate and logged
-//! decision, when nobody it accepts has. Signing proves who published a recipe, not whether they
-//! should be trusted; whom to accept is the operator's (question 4 of §13 of
-//! docs/17-security.md).
+//! Which recipes an organization runs: a recipe is used when one of the organization's accepted
+//! signers has signed its digest, or, by a deliberate and logged decision, when nobody it accepts
+//! has. Signing proves who published a recipe, not whether they should be trusted; whom to accept
+//! is the operator's.
 //!
 //! The policy is evaluated against the digest before the recipe is fetched, and what vouched
 //! for the recipe is recorded in every intent declared from it.
@@ -42,7 +41,7 @@ pub struct TrustPolicy {
     pub accepted_signers: Vec<Signer>,
     /// Use recipes none of `accepted_signers` has signed; every such use is logged.
     pub allow_unsigned: bool,
-    /// Use imported recipes graded `unverified` (§9 of docs/09-recipes.md).
+    /// Use imported recipes graded `unverified`.
     pub allow_unverified: bool,
 }
 

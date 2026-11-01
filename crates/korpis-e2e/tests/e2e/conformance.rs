@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The driver conformance suite (§8 of docs/04-runtimes.md) against both of Korpis's drivers,
-//! each started by the suite as its own process serving its socket, as a node starts it, and
-//! killed and started again by it, over a content store, a volume root, and state of the test's
-//! own; a restart of the host is what this machine can do without restarting containerd, which
-//! other services share. The suite is run by its runner, as a third party runs it, from a
-//! fixture file; every case's verdict is printed, and no case may fail. The `oci` driver
-//! needs root and the machine's containerd; the `firecracker` driver needs what the microVM tests
-//! need. A driver this machine cannot run is not run.
+//! The driver conformance suite against both of Korpis's drivers, each started by the suite as its
+//! own process serving its socket, as a node starts it, and killed and started again by it, over a
+//! content store, a volume root, and state of the test's own; a restart of the host is what this
+//! machine can do without restarting containerd, which other services share. The suite is run by
+//! its runner, as a third party runs it, from a fixture file; every case's verdict is printed, and
+//! no case may fail. The `oci` driver needs root and the machine's containerd; the `firecracker`
+//! driver needs what the microVM tests need. A driver this machine cannot run is not run.
 
 use crate::guests::{able, end_guests, musl};
 use crate::node::{built, live, writer};

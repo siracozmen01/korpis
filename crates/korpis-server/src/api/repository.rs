@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `RepositoryService` (§5.3 of docs/06-storage.md).
+//! `RepositoryService`.
 
 use super::wire::{self, Refuse, name};
 use super::{Api, encode, error, mutation_key, respond};

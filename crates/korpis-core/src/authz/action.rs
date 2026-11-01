@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The action vocabulary (§5 of docs/10-api.md). Actions are never renamed and never split.
+//! The action vocabulary. Actions are never renamed and never split.
 
 use std::fmt;
 
@@ -85,8 +85,8 @@ pub const CORE: &[&str] = &[
     "node.remove",
 ];
 
-/// Irreversible actions: excluded from set-subject and link-form grants by default, and routed
-/// to explicit confirmation by every surface. One list, here (finding S35).
+/// Irreversible actions: excluded from set-subject and link-form grants by default, and routed to
+/// explicit confirmation by every surface. One list, here.
 pub const IRREVERSIBLE: &[&str] = &[
     "workload.delete",
     "volume.delete",
@@ -97,8 +97,7 @@ pub const IRREVERSIBLE: &[&str] = &[
     "node.remove",
 ];
 
-/// Tenant-private actions: they do not cross an organization boundary implicitly (§3.3 of
-/// docs/08-identity.md).
+/// Tenant-private actions: they do not cross an organization boundary implicitly.
 pub const PRIVATE: &[&str] = &[
     "workload.console.read",
     "workload.console.write",
@@ -112,10 +111,10 @@ pub const PRIVATE: &[&str] = &[
     "backup.restore",
 ];
 
-/// What a suspended organization's tenants may still do under their own grants (§2.1 of
-/// docs/08-identity.md): read their grants, their tree, and the status and audit of what runs in
-/// it, so a customer asked to pay can see what for. Reaching the service itself, a console, a
-/// file, a backup's contents, is what suspension withholds, and every change is refused.
+/// What a suspended organization's tenants may still do under their own grants: read their grants,
+/// their tree, and the status and audit of what runs in it, so a customer asked to pay can see what
+/// for. Reaching the service itself, a console, a file, a backup's contents, is what suspension
+/// withholds, and every change is refused.
 pub const WHILE_SUSPENDED: &[&str] = &[
     "grant.read",
     "org.read",
@@ -147,31 +146,28 @@ impl Action {
         &self.0
     }
 
-    /// Whether it cannot be undone, which keeps it out of links and set grants by default (§5.2 of
-    /// docs/08-identity.md).
+    /// Whether it cannot be undone, which keeps it out of links and set grants by default.
     #[must_use]
     pub fn is_irreversible(&self) -> bool {
         IRREVERSIBLE.contains(&self.0.as_str())
     }
 
-    /// Whether it changes nothing: the `*.read` actions and `backup.browse`. Such an action is
-    /// not proposed and approved, because approval governs change (§3.6 of
-    /// docs/08-identity.md). Every other action, an extension's included, is a change.
+    /// Whether it changes nothing: the `*.read` actions and `backup.browse`. Such an action is not
+    /// proposed and approved, because approval governs change. Every other action, an extension's
+    /// included, is a change.
     #[must_use]
     pub fn changes_nothing(&self) -> bool {
         let name = self.0.as_str();
         CORE.contains(&name) && (name.rsplit('.').next() == Some("read") || name == "backup.browse")
     }
 
-    /// Whether a grant scoped inside a suspended organization still authorizes it (§2.1 of
-    /// docs/08-identity.md).
+    /// Whether a grant scoped inside a suspended organization still authorizes it.
     #[must_use]
     pub fn stays_while_suspended(&self) -> bool {
         WHILE_SUSPENDED.contains(&self.0.as_str())
     }
 
-    /// Whether it reaches a customer's data, which an ancestor never reaches implicitly (§7 of
-    /// docs/08-identity.md).
+    /// Whether it reaches a customer's data, which an ancestor never reaches implicitly.
     #[must_use]
     pub fn is_private(&self) -> bool {
         PRIVATE.contains(&self.0.as_str())
@@ -204,7 +200,7 @@ mod tests {
         assert!(Action::parse("workload.restart").is_ok());
         assert!(Action::parse("ext.rcon.kick").is_ok());
         assert!(Action::parse("ext.rcon").is_err(), "an extension action needs a name");
-        assert!(Action::parse("grant.issue").is_err(), "there is no grant.issue (§3.2)");
+        assert!(Action::parse("grant.issue").is_err(), "there is no grant.issue");
         assert!(Action::parse("workload.exec").unwrap().is_private());
         assert!(Action::parse("volume.delete").unwrap().is_irreversible());
     }

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis console` (§8 of docs/13-surface-cli.md): attach to a workload's console. Two data-path
-//! sessions at a relay: one reading the stream from its scrollback and following it, and, where
-//! the caller may type, one writing input (§6 of docs/14-streams.md). Reading and writing are
-//! separate actions, so a caller who may only watch is attached read-only and told so.
+//! `korpis console`: attach to a workload's console. Two data-path sessions at a relay: one reading
+//! the stream from its scrollback and following it, and, where the caller may type, one writing
+//! input. Reading and writing are separate actions, so a caller who may only watch is attached
+//! read-only and told so.
 //!
 //! On a terminal the command puts it in raw mode, so every key reaches the workload as typed,
 //! sends the terminal's size and every change of it, and detaches on `Ctrl-]`, as telnet does.
 //! Output is written as the workload wrote it, its line ends included; what someone typed is
-//! shown as a notice naming who typed it, as §6 of docs/14-streams.md shows it. With input from
+//! shown as a notice naming who typed it. With input from
 //! a pipe, the command sends what the pipe holds, shows two more seconds of output, and ends.
 
 use super::session::{Minted, Session, frame, mint, open, relay, renew};
@@ -121,8 +121,8 @@ fn notice(raw: bool, text: &str) {
     out(format!("{end}\u{2500}\u{2500} {text} \u{2500}\u{2500}{end}").as_bytes());
 }
 
-/// Who typed an input record and what, its line end left off (§6 of docs/14-streams.md): the
-/// stream writer records each input as `{"by", "session", "text"}`. `None` for any other record.
+/// Who typed an input record and what, its line end left off: the stream writer records each input
+/// as `{"by", "session", "text"}`. `None` for any other record.
 fn typed(r: &pb::StreamRecord) -> Option<(String, String)> {
     if r.source != "input" {
         return None;

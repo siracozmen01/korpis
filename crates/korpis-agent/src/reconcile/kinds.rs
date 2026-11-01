@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What each of the node's drivers is, as each declared itself when the agent started: whether
-//! it takes its volumes as block devices (§3.1 of docs/06-storage.md), and whether its workloads
-//! hold a tap rather than a veth's end (§4.1 of docs/07-networking.md). What a driver is does not
-//! change while it runs, and asking it again for each volume or network would tie every one of
-//! them to the driver's own health.
+//! What each of the node's drivers is, as each declared itself when the agent started: whether it
+//! takes its volumes as block devices, and whether its workloads hold a tap rather than a veth's
+//! end. What a driver is does not change while it runs, and asking it again for each volume or
+//! network would tie every one of them to the driver's own health.
 
 use korpis_proto::korpis::v1 as pb;
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,8 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 struct Kind {
     block_device: bool,
     tap: bool,
-    /// The cgroup its objects live under, for dedicated cores (§5.2 of docs/05-scheduling.md);
-    /// empty when it declares none.
+    /// The cgroup its objects live under, for dedicated cores; empty when it declares none.
     cgroup_parent: String,
 }
 
@@ -40,8 +38,8 @@ impl DriverKinds {
         Self(drivers.iter().map(|d| (d.name.clone(), kind(d))).collect())
     }
 
-    /// The cgroups the node's drivers make their objects under, each once, whose cpusets the
-    /// helper keeps for dedicated cores (§5.2 of docs/05-scheduling.md).
+    /// The cgroups the node's drivers make their objects under, each once, whose cpusets the helper
+    /// keeps for dedicated cores.
     #[must_use]
     pub fn cgroup_parents(&self) -> BTreeSet<String> {
         self.0.values().map(|k| k.cgroup_parent.clone()).filter(|p| !p.is_empty()).collect()

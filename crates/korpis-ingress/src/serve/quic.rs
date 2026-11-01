@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! HTTP/3 on UDP port 443 (§3.2 of docs/07-networking.md): QUIC with TLS 1.3, the certificate
-//! chosen by the name the client asks for as on TCP, of a route that is terminated and asks for
-//! no client certificate (`crate::tls`); each request whose authority is one of that route's names
-//! forwarded to its workload over HTTP/1.1 as one over HTTP/2 is, and any other refused 421. A
-//! WebSocket, which HTTP/3 would open by extended CONNECT, is not served here, and its client
-//! keeps to TCP. Every connection counts against the proxy's limit as one over TCP does.
+//! HTTP/3 on UDP port 443: QUIC with TLS 1.3, the certificate chosen by the name the client asks
+//! for as on TCP, of a route that is terminated and asks for no client certificate (`crate::tls`);
+//! each request whose authority is one of that route's names forwarded to its workload over
+//! HTTP/1.1 as one over HTTP/2 is, and any other refused 421. A WebSocket, which HTTP/3 would open
+//! by extended CONNECT, is not served here, and its client keeps to TCP. Every connection counts
+//! against the proxy's limit as one over TCP does.
 
 use super::Shared;
 use crate::forward::{BoxError, Origin, answer};

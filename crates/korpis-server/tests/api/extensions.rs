@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Extensions through the API (docs/16-extensions.md): an extension's artifact is installed,
-//! never declared as a workload of its own; installing it declares its workload and issues it one
-//! grant per approved need, each attenuated from one its installer holds.
+//! Extensions through the API: an extension's artifact is installed, never declared as a workload
+//! of its own; installing it declares its workload and issues it one grant per approved need, each
+//! attenuated from one its installer holds.
 
 use crate::recipes::{body, change, create, project, push_paper, registry_address};
 use crate::support::{Harness, detail, mutation, reason, test_key};
@@ -12,7 +12,7 @@ use korpis_recipe::artifact::Artifact;
 use korpis_recipe::registry::Registry;
 use uuid::Uuid;
 
-/// The DNS extension the recipe crate's tests load (§3.1 of docs/16-extensions.md).
+/// The DNS extension the recipe crate's tests load.
 pub const DNS: &str = include_str!("../../../korpis-recipe/tests/recipe/dns.yaml");
 
 /// Pushes the DNS extension, signed by the signer every harness's root organization accepts;

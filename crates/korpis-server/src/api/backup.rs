@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `BackupService` (§5 of docs/06-storage.md): backups, authorized on the workload whose volume
-//! they are of.
+//! `BackupService`: backups, authorized on the workload whose volume they are of.
 
 use super::wire::plan::plan_to_pb;
 use super::wire::{self, Refuse};

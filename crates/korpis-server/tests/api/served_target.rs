@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A backup target that serves its store itself (§5.6 of docs/06-storage.md): it names the
-//! endpoint it serves on rather than an address, and the control plane answers every reader with
-//! that endpoint's published address and the target's certificate; an endpoint with no published
-//! address is unreachable, and an answer naming both an address and an endpoint is malformed.
+//! A backup target that serves its store itself: it names the endpoint it serves on rather than an
+//! address, and the control plane answers every reader with that endpoint's published address and
+//! the target's certificate; an endpoint with no published address is unreachable, and an answer
+//! naming both an address and an endpoint is malformed.
 
 use crate::extensions::{DNS, push_document};
 use crate::providers::installed_from;

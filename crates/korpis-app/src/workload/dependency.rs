@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's dependencies, the control plane's half (§5 of docs/07-networking.md): checked
-//! when declared, and resolved to the endpoints they reach whenever the workload is placed or its
-//! assignment is computed. Where each endpoint's workload is, its node says.
+//! A workload's dependencies, the control plane's half: checked when declared, and resolved to the
+//! endpoints they reach whenever the workload is placed or its assignment is computed. Where each
+//! endpoint's workload is, its node says.
 
 use crate::App;
 use crate::error::AppError;
@@ -89,9 +89,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .collect())
     }
 
-    /// Refuses a dependency of `workload` in `project` whose target is not one: a workload or
-    /// an endpoint outside the project, the workload itself, or a workload without exactly one
-    /// endpoint anything can reach (§5 of docs/07-networking.md).
+    /// Refuses a dependency of `workload` in `project` whose target is not one: a workload or an
+    /// endpoint outside the project, the workload itself, or a workload without exactly one
+    /// endpoint anything can reach.
     pub(crate) async fn check_dependencies(
         &self,
         (project, workload): (Uuid, Uuid),
@@ -112,7 +112,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         target: &DependencyTarget,
     ) -> Result<Option<&'static str>, AppError> {
         const OUTSIDE: &str = "not a workload of this project, which a dependency's target is \
-                               until question 9 of §11 of docs/07-networking.md is answered";
+                               until dependencies across projects are designed";
         let ours = |w: Option<Workload>| {
             w.filter(|w| w.deleted_at.is_none() && w.project == project && w.id != workload)
         };

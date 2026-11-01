@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The per-node journal cursor (§4.10 of docs/02-architecture.md).
+//! The per-node journal cursor.
 
 use super::StoreResult;
 use std::future::Future;

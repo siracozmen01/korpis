@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node journal end to end (§4.10 of docs/02-architecture.md): what the node records is
-//! ingested exactly once and in order, across a restart and while disconnected, with repeats
-//! coalesced; and a control plane restored from a backup older than the journal's tail is sent
-//! a gap record for what the node no longer holds.
+//! The node journal end to end: what the node records is ingested exactly once and in order, across
+//! a restart and while disconnected, with repeats coalesced; and a control plane restored from a
+//! backup older than the journal's tail is sent a gap record for what the node no longer holds.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};

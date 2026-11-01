@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The assignment (§4.8 of docs/02-architecture.md): everything a node is told about one
-//! workload placed on it. It is desired state, never an instruction: the node makes it true, and
-//! a lost message is repaired by the next set, which carries the whole truth again.
+//! The assignment: everything a node is told about one workload placed on it. It is desired state,
+//! never an instruction: the node makes it true, and a lost message is repaired by the next set,
+//! which carries the whole truth again.
 
 use super::plan::step::{Step, StepExecutor};
 use super::plan::{Plan, PlanStatus, PlanTarget};
@@ -21,14 +21,14 @@ pub struct Assignment {
     /// Its organization.
     pub organization: Uuid,
     /// Its name, which the node does not use: what a restore that lost the workload recovers it
-    /// under (§8 of docs/03-state.md).
+    /// under.
     pub name: crate::tenancy::Name,
     /// Its labels, for the same reason.
     pub labels: crate::labels::Labels,
     /// Monotonic per workload and node; any change below increments it.
     pub generation: u64,
-    /// The intent in full that the workload's plans reached, or that `plan` is reaching: never
-    /// its head, and its target only once a plan reaches it (§4.8 of docs/02-architecture.md).
+    /// The intent in full that the workload's plans reached, or that `plan` is reaching: never its
+    /// head, and its target only once a plan reaches it.
     pub target: Intent,
     /// Likewise for power; stopped at version zero while no plan has brought the workload to
     /// any intent.
@@ -46,59 +46,51 @@ pub struct Assignment {
     pub node: Uuid,
     /// The lease epoch under which the node may act for the workload; zero until it holds one.
     pub lease_epoch: u64,
-    /// The host ids the workload's user namespace maps onto (§4.5 of docs/04-runtimes.md).
+    /// The host ids the workload's user namespace maps onto.
     pub ids: IdRange,
-    /// A retired workload's residual assignment: it carries only a plan for what the workload
-    /// left on the node, and the node executes that plan and nothing else (§7 of
-    /// docs/06-storage.md).
+    /// A retired workload's residual assignment: it carries only a plan for what the workload left
+    /// on the node, and the node executes that plan and nothing else.
     pub residual: bool,
     /// The helper's identifier of each existing volume the target attaches, by the name the
-    /// workload mounts it under (§7 of docs/06-storage.md).
+    /// workload mounts it under.
     pub volume_ids: BTreeMap<String, String>,
-    /// The target's endpoints as placed on this node, each with the port of the node it holds
-    /// where it holds one (§3 of docs/07-networking.md); sorted by name.
+    /// The target's endpoints as placed on this node, each with the port of the node it holds where
+    /// it holds one; sorted by name.
     pub endpoints: Vec<super::endpoint::Endpoint>,
     /// Whether the node relays the control plane's API to the workload: it runs an installed
-    /// extension, or holds a grant in force (§9.5 of docs/08-identity.md).
+    /// extension, or holds a grant in force.
     pub reaches_api: bool,
-    /// What a spent egress budget holds it to this month, if one does (§5.1 of
-    /// docs/05-scheduling.md, "The egress budget").
+    /// What a spent egress budget holds it to this month, if one does ("The egress budget").
     pub egress: Option<crate::tenancy::quota::Exhaustion>,
-    /// Its dependencies, resolved to the endpoints they reach now (§5 of
-    /// docs/07-networking.md).
+    /// Its dependencies, resolved to the endpoints they reach now.
     pub dependencies: Vec<super::dependency::ResolvedDependency>,
     /// The HTTP-01 challenges the node's proxy answers for its endpoints' names while their
-    /// certificates are ordered (§3.2 of docs/07-networking.md).
+    /// certificates are ordered.
     pub challenges: Vec<crate::dns::certificate::HttpChallenge>,
     /// The TLS-ALPN-01 challenges it answers for them on port 443, by name.
     pub alpn_challenges: Vec<crate::dns::certificate::AlpnChallenge>,
-    /// The runs of a task or scheduled workload the node is to execute (§4.5 of
-    /// docs/05-scheduling.md).
+    /// The runs of a task or scheduled workload the node is to execute.
     pub runs: Vec<super::run::RunRef>,
-    /// Every run of it the control plane still holds, in any status: the node keeps their
-    /// streams, and deletes another run's only because it is not here, which is the control
-    /// plane saying retention deleted it (§4.4 of docs/05-scheduling.md, §4 of
-    /// docs/14-streams.md).
+    /// Every run of it the control plane still holds, in any status: the node keeps their streams,
+    /// and deletes another run's only because it is not here, which is the control plane saying
+    /// retention deleted it.
     pub kept_runs: Vec<Uuid>,
-    /// The node's devices its placement there holds, which the node gives its driver (§6.3 of
-    /// docs/05-scheduling.md).
+    /// The node's devices its placement there holds, which the node gives its driver.
     pub devices: Vec<crate::node::device::DeviceHold>,
-    /// The node's cores its placement there holds, by id (§5.2 of docs/05-scheduling.md).
+    /// The node's cores its placement there holds, by id.
     pub cores: Vec<u32>,
     /// Its dependents on other nodes of the mesh, which its node admits from the mesh to the
-    /// endpoint each depends on (§9.1 of docs/07-networking.md).
+    /// endpoint each depends on.
     pub dependents: Vec<super::dependency::OverlayDependent>,
-    /// The addresses each of its rules naming workloads names on its node (§6 of
-    /// docs/07-networking.md).
+    /// The addresses each of its rules naming workloads names on its node.
     pub peers: Vec<super::peers::RuleAddresses>,
     /// The dedicated address it holds, where an endpoint of it is `dedicated_ip` and the address
-    /// may be held on this node (§3.7 of docs/07-networking.md).
+    /// may be held on this node.
     pub dedicated: Option<crate::address::Dedicated>,
     /// The devices of its volumes in block classes attached for it to this node at its lease's
-    /// epoch, by the helper's identifier of each volume (§2.1 of docs/06-storage.md).
+    /// epoch, by the helper's identifier of each volume.
     pub block_attachments: Vec<crate::workload::block::NodeDevice>,
-    /// Its node's part in its migration, while one runs that the node takes part in (§8.1 of
-    /// docs/05-scheduling.md).
+    /// Its node's part in its migration, while one runs that the node takes part in.
     pub migration: Option<crate::workload::migration::MigrationRole>,
 }
 
@@ -144,7 +136,7 @@ impl IdRange {
     }
 }
 
-/// The steps of a plan a node executes (§4.8, §4.9 of docs/02-architecture.md).
+/// The steps of a plan a node executes.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodePlan {
     /// The plan.
@@ -153,17 +145,16 @@ pub struct NodePlan {
     pub steps: Vec<Step>,
     /// The last step index the node may execute; cancelling lowers it.
     pub through: u32,
-    /// The plan in full, which the node does not use: what a restore that lost it recovers it
-    /// from (§8 of docs/03-state.md). Its status is applying and its progress none whatever
-    /// they are, so that neither changes what the node is told.
+    /// The plan in full, which the node does not use: what a restore that lost it recovers it from.
+    /// Its status is applying and its progress none whatever they are, so that neither changes what
+    /// the node is told.
     pub whole: Plan,
 }
 
 impl NodePlan {
     /// The node's part of `plan`, if it has one now: its node steps, through the last of them
-    /// before the first control-plane step not yet completed, which the node waits for (§4.9 of
-    /// docs/02-architecture.md). A plan whose next step is the control plane's, with no node step
-    /// before it left, is no node's yet.
+    /// before the first control-plane step not yet completed, which the node waits for. A plan
+    /// whose next step is the control plane's, with no node step before it left, is no node's yet.
     #[must_use]
     pub fn of(plan: &Plan) -> Option<Self> {
         let pending = |s: &&Step| plan.completed.is_none_or(|c| s.index > c);
@@ -188,10 +179,10 @@ pub fn retires(plan: &Plan) -> bool {
 }
 
 impl Continuity {
-    /// What a node does when the lease ends, resolved: a declared answer stands, and a derived
-    /// one is `Stop` exactly when `elsewhere`, another node may start the workload on a volume
-    /// it holds: one in a class more than one node can attach, or a replicated one the workload
-    /// fails over onto (§4.5 of docs/02-architecture.md).
+    /// What a node does when the lease ends, resolved: a declared answer stands, and a derived one
+    /// is `Stop` exactly when `elsewhere`, another node may start the workload on a volume it
+    /// holds: one in a class more than one node can attach, or a replicated one the workload fails
+    /// over onto.
     #[must_use]
     pub fn resolved(self, elsewhere: bool) -> Self {
         match self {
@@ -202,9 +193,9 @@ impl Continuity {
     }
 }
 
-/// The digest of an assignment set (§9 of docs/10-api.md): over each assignment's workload and
-/// generation, sorted by workload, as `sha256:` and 64 hexadecimal digits. The agent computes the
-/// same over what it holds, and a match means nothing needs to be sent.
+/// The digest of an assignment set: over each assignment's workload and generation, sorted by
+/// workload, as `sha256:` and 64 hexadecimal digits. The agent computes the same over what it
+/// holds, and a match means nothing needs to be sent.
 #[cfg(feature = "identity")]
 #[must_use]
 pub fn set_digest(entries: &[(Uuid, u64)]) -> String {

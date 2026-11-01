@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recovering what a restored store lost from the assignments nodes present (§8 of
-//! docs/03-state.md): rows written as recovered, each saying which node presented it and which
-//! signature vouched for it, and the workload's counters moved forward past what was presented.
+//! Recovering what a restored store lost from the assignments nodes present: rows written as
+//! recovered, each saying which node presented it and which signature vouched for it, and the
+//! workload's counters moved forward past what was presented.
 
 use super::StoreResult;
 use korpis_core::placement::Placement;

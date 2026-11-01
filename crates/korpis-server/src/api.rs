@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The client API (docs/10-api.md): a driving adapter. Each handler authenticates the caller,
-//! translates the request into domain values, calls one use case, and translates the answer
-//! back. Handlers hold no rule; an `if` here that is not about the wire is in the wrong crate.
+//! The client API: a driving adapter. Each handler authenticates the caller, translates the request
+//! into domain values, calls one use case, and translates the answer back. Handlers hold no rule;
+//! an `if` here that is not about the wire is in the wrong crate.
 
 // Handlers are `async fn`, which the lint reads as refining the generated traits' `impl Future`
 // signatures. The futures are Send (the router requires it), and nothing outside relies on the
@@ -120,7 +120,7 @@ pub struct Api {
     revocations: Arc<crate::revocations::Revocations>,
     /// The relay role in this process: attached data connections and the sessions they carry.
     relay: Arc<RelayRole<InProcess>>,
-    /// Whether this process serves the relay role (§3.1 of docs/02-architecture.md).
+    /// Whether this process serves the relay role.
     serves_relay: bool,
     /// The relays this process names to the nodes it holds sessions with.
     named_relays: Arc<crate::named_relays::NamedRelays>,
@@ -130,7 +130,7 @@ pub struct Api {
     edges: Arc<crate::edges::KeptEdges>,
     /// What this process tells the nodes it holds sessions with of replicas.
     replicas: Arc<crate::replicas::KeptReplicas>,
-    /// The key page tokens are sealed under (§8 of docs/10-api.md).
+    /// The key page tokens are sealed under.
     cursors: Arc<cursor::Cursors>,
     /// The SFTP servers named to clients.
     sftp: crate::sftp::Advertised,
@@ -165,8 +165,8 @@ impl Api {
         }
     }
 
-    /// Seals page tokens under the installation's key, so every control plane opens what
-    /// another sealed (§8 of docs/10-api.md).
+    /// Seals page tokens under the installation's key, so every control plane opens what another
+    /// sealed.
     #[must_use]
     pub fn with_cursor_key(mut self, key: [u8; 32]) -> Self {
         self.cursors = Arc::new(cursor::Cursors::new(key));
@@ -186,7 +186,7 @@ impl Api {
         self.serves_relay
     }
 
-    /// Tells enrolling agents to pin the CA with `fingerprint` (§3 of docs/18-operations.md).
+    /// Tells enrolling agents to pin the CA with `fingerprint`.
     #[must_use]
     pub fn with_ca_fingerprint(mut self, fingerprint: String) -> Self {
         self.ca_fingerprint = fingerprint;
@@ -244,7 +244,7 @@ impl Api {
 
     /// Serves SFTP for this process's relay role on `listener` with `host_key`, reading a PROXY
     /// header from connections whose peer is in `proxies`, and names it to clients as reached at
-    /// `address` (§3.1 of docs/02-architecture.md). Ends only if accepting fails.
+    /// `address`. Ends only if accepting fails.
     ///
     /// # Errors
     /// The host key is not one a client can be told of.
@@ -286,7 +286,7 @@ impl Api {
             None => self.authenticated(ctx).await?,
         };
         // A client that relayed what a person presented acts for them with the ticket it was
-        // handed, beside its own credential (§5.2 of docs/08-identity.md).
+        // handed, beside its own credential.
         match ctx.headers().get(RELAYED_AS) {
             Some(ticket) => {
                 let ticket = ticket.to_str().unwrap_or_default();
@@ -296,10 +296,10 @@ impl Api {
         }
     }
 
-    /// Refused while a restore settles (§8 of docs/03-state.md): until what the agents present
-    /// is recovered, a caller would act on the backup's state, and a declaration could take a
-    /// version a node is running. Agents and relays are served, and so is what needs no caller.
-    /// Asked of the store at most once a second.
+    /// Refused while a restore settles: until what the agents present is recovered, a caller would
+    /// act on the backup's state, and a declaration could take a version a node is running. Agents
+    /// and relays are served, and so is what needs no caller. Asked of the store at most once a
+    /// second.
     async fn not_settling(&self) -> Result<(), ConnectError> {
         let fresh = |at: &std::time::Instant| at.elapsed() < std::time::Duration::from_secs(1);
         let known = *self.settling.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -345,7 +345,7 @@ fn bearer(ctx: &RequestContext) -> &str {
         .unwrap_or_default()
 }
 
-/// The idempotency key every mutation carries (§6 of docs/10-api.md).
+/// The idempotency key every mutation carries.
 fn mutation_key(m: Option<&pb::Mutation>) -> Result<&str, ConnectError> {
     let m = m.ok_or_else(|| error::invalid("mutation", "required"))?;
     if m.idempotency_key.is_empty() {

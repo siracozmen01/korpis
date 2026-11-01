@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the agent asks of the node beyond the runtime: the privileged helper's volume verbs
-//! (§6 of docs/02-architecture.md), spoken in the helper protocol's own messages, and the
-//! node-local content store, which the agent owns and drivers only reference by digest (§6 of
-//! docs/04-runtimes.md). The helper is a separate root process and the content store sits in
-//! front of the runtime's; adapters over both implement these, and so does [`InMemoryHost`].
+//! What the agent asks of the node beyond the runtime: the privileged helper's volume verbs, spoken
+//! in the helper protocol's own messages, and the node-local content store, which the agent owns
+//! and drivers only reference by digest. The helper is a separate root process and the content
+//! store sits in front of the runtime's; adapters over both implement these, and so does
+//! [`InMemoryHost`].
 
 mod devices;
 mod memory;
@@ -28,7 +28,7 @@ use std::future::Future;
 #[error("{0}")]
 pub struct HostError(pub String);
 
-/// What is asked of a volume's snapshot (§4 of docs/06-storage.md).
+/// What is asked of a volume's snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SnapshotOp {
     /// Take it, read-only; idempotent.
@@ -63,8 +63,8 @@ pub trait Host: Replicating + Devicing + Send + Sync + 'static {
     /// idempotent, and shared by every workload that references it.
     fn fetch(&self, reference: &str) -> impl Future<Output = Result<(), HostError>> + Send;
 
-    /// Fetches the artifact `reference` names, a recipe's, with its files; each file's path in
-    /// the artifact and its digest (§2 of docs/09-recipes.md).
+    /// Fetches the artifact `reference` names, a recipe's, with its files; each file's path in the
+    /// artifact and its digest.
     fn fetch_files(
         &self,
         reference: &str,
@@ -85,16 +85,15 @@ pub trait Host: Replicating + Devicing + Send + Sync + 'static {
         limit: usize,
     ) -> impl Future<Output = Result<Vec<u8>, HostError>> + Send;
 
-    /// Fetches what `url` serves, kept only if it hashes to `digest`; idempotent by digest
-    /// (§4 of docs/09-recipes.md).
+    /// Fetches what `url` serves, kept only if it hashes to `digest`; idempotent by digest.
     fn fetch_url(
         &self,
         url: &str,
         digest: &str,
     ) -> impl Future<Output = Result<(), HostError>> + Send;
 
-    /// Records the id range `workload` holds on this node, as its assignment names it (§4.5 of
-    /// docs/04-runtimes.md); a range that is not one workload's is refused.
+    /// Records the id range `workload` holds on this node, as its assignment names it; a range that
+    /// is not one workload's is refused.
     fn ensure_ids(
         &self,
         workload: &str,
@@ -127,7 +126,7 @@ pub trait Host: Replicating + Devicing + Send + Sync + 'static {
     /// The jobs kept, and where each is.
     fn list_jobs(&self) -> impl Future<Output = Result<Vec<helper::JobSummary>, HostError>> + Send;
 
-    /// Makes a workload's network what `request` says (§4.1 of docs/07-networking.md).
+    /// Makes a workload's network what `request` says.
     fn ensure_network(
         &self,
         request: &helper::EnsureNetworkRequest,
@@ -140,24 +139,22 @@ pub trait Host: Replicating + Devicing + Send + Sync + 'static {
     ) -> impl Future<Output = Result<bool, HostError>> + Send;
 
     /// The sockets of a workload's resolver, opened inside its network namespace: UDP, then TCP
-    /// listening (§5.1 of docs/07-networking.md).
+    /// listening.
     fn open_resolver(
         &self,
         workload: &str,
     ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send;
 
-    /// A socket for probing a workload's health (§5 of docs/04-runtimes.md), a datagram socket
-    /// if `udp` and a stream otherwise, opened inside its network namespace, neither bound nor
-    /// connected.
+    /// A socket for probing a workload's health, a datagram socket if `udp` and a stream otherwise,
+    /// opened inside its network namespace, neither bound nor connected.
     fn open_probe(
         &self,
         workload: &str,
         udp: bool,
     ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send;
 
-    /// Ports 80 and 443 of each of `addresses`, opened listening for the ingress proxy: every
-    /// port 80, then every 443, then every UDP port 443 for HTTP/3 (§3.2 of
-    /// docs/07-networking.md).
+    /// Ports 80 and 443 of each of `addresses`, opened listening for the ingress proxy: every port
+    /// 80, then every 443, then every UDP port 443 for HTTP/3.
     fn open_ingress(
         &self,
         addresses: &[String],
@@ -173,9 +170,9 @@ pub trait Host: Replicating + Devicing + Send + Sync + 'static {
     /// Stops the ingress proxy; whether it ran.
     fn stop_ingress(&self) -> impl Future<Output = Result<bool, HostError>> + Send;
 
-    /// A file session on a workload's volumes (§3.2 of docs/06-storage.md): the socket of the
-    /// worker serving it, on which each `FileRequest` is written and each `FileResponse` read as
-    /// four bytes of little-endian length and the message.
+    /// A file session on a workload's volumes: the socket of the worker serving it, on which each
+    /// `FileRequest` is written and each `FileResponse` read as four bytes of little-endian length
+    /// and the message.
     fn open_files(
         &self,
         request: &helper::OpenFilesRequest,
@@ -186,36 +183,34 @@ pub trait Host: Replicating + Devicing + Send + Sync + 'static {
         &self,
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send;
 
-    /// Makes the node's uplinks shape what its workloads send, exactly those `request` names
-    /// (§7 of docs/07-networking.md).
+    /// Makes the node's uplinks shape what its workloads send, exactly those `request` names.
     fn ensure_uplinks(
         &self,
         request: &helper::EnsureUplinksRequest,
     ) -> impl Future<Output = Result<helper::EnsureUplinksResponse, HostError>> + Send;
 
-    /// What the host's table has counted of every workload's link: each endpoint whose
-    /// accounting is on, and its egress (§7 of docs/07-networking.md).
+    /// What the host's table has counted of every workload's link: each endpoint whose accounting
+    /// is on, and its egress.
     fn read_counters(
         &self,
     ) -> impl Future<Output = Result<helper::ReadCountersResponse, HostError>> + Send;
 
-    /// What the filesystem accounts for `volume`, read rather than computed (§3 of
-    /// docs/06-storage.md): what the meter samples as its stored bytes (§2 of
-    /// docs/15-observability.md).
+    /// What the filesystem accounts for `volume`, read rather than computed: what the meter samples
+    /// as its stored bytes.
     fn volume_usage(
         &self,
         volume: &str,
     ) -> impl Future<Output = Result<helper::VolumeUsageResponse, HostError>> + Send;
 
     /// Keeps the workloads' cpusets to the CPUs `request` says the node's dedicated cores hold,
-    /// under the drivers' cgroup parents it names (§5.2 of docs/05-scheduling.md).
+    /// under the drivers' cgroup parents it names.
     fn hold_cores(
         &self,
         request: &helper::HoldCoresRequest,
     ) -> impl Future<Output = Result<helper::HoldCoresResponse, HostError>> + Send;
 
-    /// Keeps the node's side of the mesh to `request` (§9.1 of docs/07-networking.md): its
-    /// interface, its peers, and the routes to them; its public key and the peers' handshakes.
+    /// Keeps the node's side of the mesh to `request`: its interface, its peers, and the routes to
+    /// them; its public key and the peers' handshakes.
     fn keep_overlay(
         &self,
         request: &helper::KeepOverlayRequest,

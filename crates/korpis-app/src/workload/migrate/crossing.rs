@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How each of a migrating workload's volumes crosses (§8.1 of docs/05-scheduling.md), decided by
-//! the classes both nodes declared at their last `Hello`: by increments where both send them from
-//! the same backend, by its tree where both helpers declare `tree_sync`, not at all for a shared
-//! or block class, and otherwise not: the migration is refused, naming the volume and the node
-//! that cannot. Every volume attached to the workload crosses, its console's among them.
+//! How each of a migrating workload's volumes crosses, decided by the classes both nodes declared
+//! at their last `Hello`: by increments where both send them from the same backend, by its tree
+//! where both helpers declare `tree_sync`, not at all for a shared or block class, and otherwise
+//! not: the migration is refused, naming the volume and the node that cannot. Every volume attached
+//! to the workload crosses, its console's among them.
 
 use crate::App;
 use crate::error::AppError;

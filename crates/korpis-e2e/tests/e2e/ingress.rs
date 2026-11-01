@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's ingress on a real node (§3.2 of docs/07-networking.md). The helper opens ports 80
-//! and 443 on the node's address and starts the real proxy, in a cgroup of its own under the
-//! rule that lets its new connections leave only through a workload's link; the node says at
-//! once that it serves the ingress; the agent feeds the proxy the routes of a workload's ingress
-//! endpoints. Port 80 redirects a routed name to HTTPS and answers ACME's challenge path only for
-//! a token it holds; port 443 terminates TLS for a name served with a certificate its
-//! organization uploaded, which the node fetched over its session, and forwards the request with
-//! a `Forwarded` header only the proxy wrote; it passes a TLS stream through by its server name to
-//! a workload, which receives exactly what the client sent. An endpoint left to `acme` is given a
-//! certificate from Pebble, which validates its HTTP-01 challenge for real, resolving the name
-//! through a DNS server answering this machine's address and fetching the token from the proxy on
-//! port 80, and is then served over HTTPS like the uploaded one. Retiring the workload withdraws
-//! its routes. It needs root, containerd, and Pebble, and holds ports 80 and 443 of this machine's
-//! address while it runs.
+//! The node's ingress on a real node. The helper opens ports 80 and 443 on the node's address and
+//! starts the real proxy, in a cgroup of its own under the rule that lets its new connections leave
+//! only through a workload's link; the node says at once that it serves the ingress; the agent
+//! feeds the proxy the routes of a workload's ingress endpoints. Port 80 redirects a routed name to
+//! HTTPS and answers ACME's challenge path only for a token it holds; port 443 terminates TLS for a
+//! name served with a certificate its organization uploaded, which the node fetched over its
+//! session, and forwards the request with a `Forwarded` header only the proxy wrote; it passes a
+//! TLS stream through by its server name to a workload, which receives exactly what the client
+//! sent. An endpoint left to `acme` is given a certificate from Pebble, which validates its HTTP-01
+//! challenge for real, resolving the name through a DNS server answering this machine's address and
+//! fetching the token from the proxy on port 80, and is then served over HTTPS like the uploaded
+//! one. Retiring the workload withdraws its routes. It needs root, containerd, and Pebble, and
+//! holds ports 80 and 443 of this machine's address while it runs.
 
 use crate::network::converged;
 use crate::node::{Node, host_address, live};

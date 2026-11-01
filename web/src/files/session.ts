@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A file session as a browser holds one (§3.2 of docs/06-storage.md): a `workload.file.read` or
-// `workload.file.write` session at a relay, each request one FileRequest frame sent with `Send`,
-// each answer one FileResponse frame heard on the `Watch`, matched to its request by number.
-// Requests may be sent ahead of their answers; they are sent one call at a time, in order, since
-// the relay numbers what it delivered and a call sent beside another would repeat its numbers.
+// A file session as a browser holds one: a `workload.file.read` or `workload.file.write` session at
+// a relay, each request one FileRequest frame sent with `Send`, each answer one FileResponse frame
+// heard on the `Watch`, matched to its request by number. Requests may be sent ahead of their
+// answers; they are sent one call at a time, in order, since the relay numbers what it delivered
+// and a call sent beside another would repeat its numbers.
 
 import { create, fromBinary, toBinary, type MessageInitShape } from "@bufbuild/protobuf";
 import {

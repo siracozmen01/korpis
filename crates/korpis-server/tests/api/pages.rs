@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Page tokens (§8 of docs/10-api.md), on a real control plane: a token is opaque, naming no
-//! row, and following it walks the whole list once; a token one list gave is refused by another,
-//! and one no list gave is refused outright.
+//! Page tokens, on a real control plane: a token is opaque, naming no row, and following it walks
+//! the whole list once; a token one list gave is refused by another, and one no list gave is
+//! refused outright.
 
 use crate::support::{Harness, mutation};
 use connectrpc::ErrorCode;

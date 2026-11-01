@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-server restore` (§6 of docs/18-operations.md): run at the machine while the control
-//! plane is stopped, after PostgreSQL has restored the database, with the control-plane backup
-//! file and the key installation printed for it. It puts the backup's keys back, fences the
-//! epochs with the settling window left for the next start, rotates the token key, holds the
-//! relays, and records the gap; then the operator starts the control plane, whose first start
-//! opens the window in which the agents present what they hold.
+//! `korpis-server restore`: run at the machine while the control plane is stopped, after PostgreSQL
+//! has restored the database, with the control-plane backup file and the key installation printed
+//! for it. It puts the backup's keys back, fences the epochs with the settling window left for the
+//! next start, rotates the token key, holds the relays, and records the gap; then the operator
+//! starts the control plane, whose first start opens the window in which the agents present what
+//! they hold.
 
 use clap::Args;
 use korpis_server::data::DataDir;

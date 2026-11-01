@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The keys a backup job works under (§5.5 of docs/06-storage.md): everything is derived from the
-//! one workload's data key, which the job receives for its length and nothing else. Identifiers
-//! are keyed hashes under keys of their own, so equal content in two workloads has unrelated
-//! identifiers and nobody can confirm another workload holds a file; each kind of object is
-//! encrypted under its own key.
+//! The keys a backup job works under: everything is derived from the one workload's data key, which
+//! the job receives for its length and nothing else. Identifiers are keyed hashes under keys of
+//! their own, so equal content in two workloads has unrelated identifiers and nobody can confirm
+//! another workload holds a file; each kind of object is encrypted under its own key.
 
 use hkdf::Hkdf;
 use sha2::Sha256;

@@ -33,12 +33,11 @@ pub(super) fn validate(spec: &driver::PreparedSpec, settings: &Settings) -> Mach
     if spec.tier.as_known() != Some(pb::IsolationTier::ISOLATION_TIER_MICROVM) {
         return Err(refused("the firecracker driver builds the microvm tier alone"));
     }
-    // It declares no device class (§4.1 of docs/04-runtimes.md): Firecracker passes none through.
+    // It declares no device class: Firecracker passes none through.
     if !spec.devices.is_empty() {
         return Err(refused("a microvm is given no device"));
     }
-    // Its dedicated cores, checked against the topology the driver reads (§4.2 of
-    // docs/04-runtimes.md).
+    // Its dedicated cores, checked against the topology the driver reads.
     crate::cores::given(&settings.cores(), &spec.cores).map_err(refused)?;
     let digest = spec.rootfs.rsplit_once('@').map_or("", |(_, d)| d);
     korpis_core::content::hex_of(digest).map_err(|_| refused("an image by its digest"))?;
@@ -158,10 +157,10 @@ fn programs(settings: &Settings) -> korpis_image::boot::Programs<'_> {
     }
 }
 
-/// `drives` with the node's kernel and boot drive as they are now, each made if missing, so what
-/// a guest boots is the node's at its start, whatever it was when its object was made: an
-/// upgraded kernel or `korpis-guest` reaches every guest at its next boot (Finding 150 of
-/// docs/23-walkthroughs.md). The image's drive and the volumes are the object's own.
+/// `drives` with the node's kernel and boot drive as they are now, each made if missing, so what a
+/// guest boots is the node's at its start, whatever it was when its object was made: an upgraded
+/// kernel or `korpis-guest` reaches every guest at its next boot. The image's drive and the volumes
+/// are the object's own.
 pub(super) fn current(settings: &Settings, drives: Drives) -> std::io::Result<Drives> {
     let boot = korpis_image::boot::drive(&programs(settings), &settings.drives())?;
     Ok(Drives { kernel: kernel(settings)?, boot, ..drives })
@@ -203,8 +202,8 @@ impl Machine {
         if let Some(o) =
             Object::all(&self.settings.objects()).into_iter().find(|o| same(&o.spec, &spec))
         {
-            // Its guest starts holding the cores it was made with, so it is never handed back
-            // for others (§4.2 of docs/04-runtimes.md).
+            // Its guest starts holding the cores it was made with, so it is never handed back for
+            // others.
             if o.spec.cores != spec.cores {
                 return Err(refused(format!("{} exists holding other cores; destroy it", o.id)));
             }

@@ -3,7 +3,7 @@
 //! The credentials the provider mints, one per grant: an access key, its secret, and a session
 //! token, each random, scoped to one prefix and one mode, and gone when they expire. They live in
 //! memory alone, so a provider that restarts has issued none, and none outlives the access the
-//! control plane recorded (§5.5 of docs/06-storage.md).
+//! control plane recorded.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};

@@ -1,4 +1,4 @@
-# Supply-chain policy (§3 of docs/21-stack.md: one dependency tree, audited).
+# Supply-chain policy: one dependency tree, audited.
 
 [graph]
 all-features = true
@@ -24,12 +24,12 @@ ignore = [
     { id = "RUSTSEC-2026-0371", reason = "zbus_names merged into zbus 6; reached via secret-service" },
     { id = "RUSTSEC-2026-0372", reason = "zvariant_derive merged into zbus 6; via secret-service" },
     # The Marvin attack recovers an RSA private key from the timing of operations that use it:
-    # decrypting and signing. rsa reaches Korpis through russh, the SSH server a relay serving
-    # SFTP runs (§3.1 of docs/02-architecture.md), so that a person's RSA key can sign them in,
-    # and there it only verifies signatures, an operation on the public key with nothing secret
-    # to time. The relay's own host key is Ed25519, made so and refused otherwise, so no RSA
-    # private key is ever held. Revisit when rsa releases a constant-time version, and at once
-    # if anything here ever signs with RSA. Found by cargo-deny on 2026-10-22.
+    # decrypting and signing. rsa reaches Korpis through russh, the SSH server a relay serving SFTP
+    # runs, so that a person's RSA key can sign them in, and there it only verifies signatures, an
+    # operation on the public key with nothing secret to time. The relay's own host key is Ed25519,
+    # made so and refused otherwise, so no RSA private key is ever held. Revisit when rsa releases a
+    # constant-time version, and at once if anything here ever signs with RSA. Found by cargo-deny
+    # on 2026-10-22.
     { id = "RUSTSEC-2023-0071", reason = "rsa verifies client keys only; the host key is Ed25519" },
     # crypto-bigint's arithmetic could branch on secret values. Its 0.7 line is patched, and
     # Cargo.lock holds 0.7.6. Its 0.5 line has no patched release, and reaches Korpis only through
@@ -56,9 +56,9 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "CDLA-Permissive-2.0",
-    # Permissive licences asking less than MIT does, which the web client's packages carry
-    # (§9 of docs/21-stack.md): no conditions at all (0BSD, MIT-0, CC0-1.0), or MIT's in plainer
-    # words with an explicit patent grant (BlueOak-1.0.0).
+    # Permissive licences asking less than MIT does, which the web client's packages carry: no
+    # conditions at all (0BSD, MIT-0, CC0-1.0), or MIT's in plainer words with an explicit patent
+    # grant (BlueOak-1.0.0).
     "0BSD",
     "MIT-0",
     "CC0-1.0",

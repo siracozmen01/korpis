@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A guest's dedicated cores (§4.2 of docs/04-runtimes.md, §5.2 of docs/05-scheduling.md). Its
-//! Firecracker runs in a cgroup of its own under the driver's `dedicated` cgroup, the jailer
-//! writing the cores' `cpuset` and, unless the host shares them, making it a partition before
-//! Firecracker runs; the guest is given one vCPU for each of their logical CPUs, no CPU quota, and
-//! each vCPU's thread pinned to a CPU of its own. The cores are checked against the topology the
-//! driver reads itself, and the partition against what the kernel says it made.
+//! A guest's dedicated cores. Its Firecracker runs in a cgroup of its own under the driver's
+//! `dedicated` cgroup, the jailer writing the cores' `cpuset` and, unless the host shares them,
+//! making it a partition before Firecracker runs; the guest is given one vCPU for each of their
+//! logical CPUs, no CPU quota, and each vCPU's thread pinned to a CPU of its own. The cores are
+//! checked against the topology the driver reads itself, and the partition against what the kernel
+//! says it made.
 
 use crate::guest::MAX_VCPUS;
 use crate::jail::Shape;

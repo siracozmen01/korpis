@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Device cookies over the API (§9.6 of docs/08-identity.md): a redemption gives the browser a
-//! host-bound cookie naming the account, and once a stranger has spent the sign-in name's
-//! guesses, the browser holding it still signs in where one without it is refused.
+//! Device cookies over the API: a redemption gives the browser a host-bound cookie naming the
+//! account, and once a stranger has spent the sign-in name's guesses, the browser holding it still
+//! signs in where one without it is refused.
 
 use crate::panel::{accounts, invite};
 use crate::support::Harness;

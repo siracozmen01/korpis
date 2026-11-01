@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The document as written (§3 of docs/09-recipes.md). Unknown fields are refused, so a typo is
-//! an error with a line number rather than a setting silently ignored.
+//! The document as written. Unknown fields are refused, so a typo is an error with a line number
+//! rather than a setting silently ignored.
 
 use serde::Deserialize;
 use serde_json::Value;

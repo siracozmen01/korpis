@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Routes: how a relay learns which node to carry a session to without the client learning it
-//! (§3.1 of docs/02-architecture.md). The gateway, which knows where a workload is placed, seals
-//! the node's identifier when it mints a session token, and the client hands the sealed route to
-//! the relay with the token. The relay opens it and asks that node. A tenant who may open a
-//! session with a workload has no authority to read the node it runs on, and a route tells it
-//! nothing: each is sealed under a fresh nonce, so two routes to the same node do not compare
-//! equal, and the client cannot learn which of its workloads share a machine.
+//! Routes: how a relay learns which node to carry a session to without the client learning it. The
+//! gateway, which knows where a workload is placed, seals the node's identifier when it mints a
+//! session token, and the client hands the sealed route to the relay with the token. The relay
+//! opens it and asks that node. A tenant who may open a session with a workload has no authority to
+//! read the node it runs on, and a route tells it nothing: each is sealed under a fresh nonce, so
+//! two routes to the same node do not compare equal, and the client cannot learn which of its
+//! workloads share a machine.
 //!
 //! The route key is derived from the token key and shares its fate: rotating the token key, as
 //! every restore does, retires every route sealed under it, exactly as it retires every token.

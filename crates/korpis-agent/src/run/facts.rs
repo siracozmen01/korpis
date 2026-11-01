@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node reports of itself (§2.1 of docs/05-scheduling.md): this machine's capacity and what
-//! placement may reserve of it, its drivers and storage as each declares itself, the cores it
-//! offers, its uplinks' bandwidth, and its devices.
+//! What a node reports of itself: this machine's capacity and what placement may reserve of it, its
+//! drivers and storage as each declares itself, the cores it offers, its uplinks' bandwidth, and
+//! its devices.
 
 use crate::advertise::Advertise;
 use crate::host::Host;
@@ -37,9 +37,8 @@ fn memory_total() -> u64 {
         .map_or(0, |kib| kib.saturating_mul(1024))
 }
 
-/// This machine's capacity, and what placement may reserve of it: capacity less `reserve`,
-/// each part of which is capped at a quarter of capacity so a small machine is not reserved away
-/// (§2.1 of docs/05-scheduling.md).
+/// This machine's capacity, and what placement may reserve of it: capacity less `reserve`, each
+/// part of which is capped at a quarter of capacity so a small machine is not reserved away.
 #[must_use]
 pub fn machine(reserve: Reserve) -> (pb::Resources, pb::Resources) {
     let cores = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
@@ -54,11 +53,10 @@ pub fn machine(reserve: Reserve) -> (pb::Resources, pb::Resources) {
     (capacity, allocatable)
 }
 
-/// The facts a node reports: its drivers, each as it declares itself, its storage, as the
-/// helper declares it, this machine and the `cores` it offers, the bandwidth of its `uplinks`
-/// once the helper shapes them (§7 of docs/07-networking.md), and its `devices` as they are
-/// when asked. A helper that cannot be reached leaves the node offering no storage class and no
-/// bandwidth rather than keeping it from starting.
+/// The facts a node reports: its drivers, each as it declares itself, its storage, as the helper
+/// declares it, this machine and the `cores` it offers, the bandwidth of its `uplinks` once the
+/// helper shapes them, and its `devices` as they are when asked. A helper that cannot be reached
+/// leaves the node offering no storage class and no bandwidth rather than keeping it from starting.
 pub async fn facts_of<R: Runtime, H: Host>(
     runtime: &R,
     host: &H,
@@ -71,10 +69,9 @@ pub async fn facts_of<R: Runtime, H: Host>(
         Vec::new()
     });
     let (mut capacity, mut allocatable) = machine(reserve);
-    // Disk is what the storage classes hold, and what is free in them now: anything already
-    // on their filesystems, this node's own volumes included, counts as taken (§2.1 of
-    // docs/05-scheduling.md). A shared class is a store other nodes mount too, and not this
-    // node's disk (§2.1 of docs/06-storage.md).
+    // Disk is what the storage classes hold, and what is free in them now: anything already on
+    // their filesystems, this node's own volumes included, counts as taken. A shared class is a
+    // store other nodes mount too, and not this node's disk.
     let own = || storage_classes.iter().filter(|c| c.store.is_empty());
     capacity.disk_bytes = own().map(|c| c.capacity_bytes).sum();
     allocatable.disk_bytes = own().map(|c| c.free_bytes).sum();

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an extension's document declares (§3.1 of docs/16-extensions.md): the contract it
-//! speaks, the actions it needs and over what, where it reaches, what it consumes and serves, and
-//! the actions and UI slots it adds. Everything else in its document describes its workload, as
-//! any recipe does; this is the one section that makes the recipe an extension.
+//! What an extension's document declares: the contract it speaks, the actions it needs and over
+//! what, where it reaches, what it consumes and serves, and the actions and UI slots it adds.
+//! Everything else in its document describes its workload, as any recipe does; this is the one
+//! section that makes the recipe an extension.
 
 mod backup;
 pub mod block;
@@ -44,7 +44,7 @@ pub const API_VERSION_PREFIX: &str = "korpis.extension.v";
 /// The `extension` block of an extension's document, validated.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtensionManifest {
-    /// The contract it speaks (§6 of docs/16-extensions.md).
+    /// The contract it speaks.
     pub api_version: String,
     /// Contract capabilities it cannot work without; a contract missing one refuses the install.
     pub requires: Vec<String>,
@@ -56,9 +56,9 @@ pub struct ExtensionManifest {
     pub subscribes: Vec<EventFilter>,
     /// What it serves.
     pub provides: Vec<ProvidedInterface>,
-    /// The arguments each step it provides takes, by step kind (§4 of docs/09-recipes.md):
-    /// scalar values only, since a step runs under the extension's grant and not the recipe
-    /// author's, so it is never handed a resource to act on.
+    /// The arguments each step it provides takes, by step kind: scalar values only, since a step
+    /// runs under the extension's grant and not the recipe author's, so it is never handed a
+    /// resource to act on.
     pub step_arguments: std::collections::BTreeMap<String, Vec<ActionArgument>>,
     /// The actions it adds, `ext.<name>.<action>`.
     pub actions: Vec<ActionDecl>,
@@ -115,7 +115,7 @@ pub struct Egress {
     pub port: u16,
 }
 
-/// The kinds of thing Korpis calls out to an extension for (§5 of docs/16-extensions.md).
+/// The kinds of thing Korpis calls out to an extension for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ProviderType {
     /// DNS records for endpoints.
@@ -136,11 +136,9 @@ pub enum ProviderType {
     ChatAdapter,
     /// A key management service holding a repository's key-encryption key for its tenant.
     KeyManagement,
-    /// A router moving a cluster pool's addresses to the node holding each (§3.7 of
-    /// docs/07-networking.md).
+    /// A router moving a cluster pool's addresses to the node holding each.
     AddressRouter,
-    /// Network block storage, a volume a device one node attaches at a time (§2.1 of
-    /// docs/06-storage.md).
+    /// Network block storage, a volume a device one node attaches at a time.
     BlockStorage,
 }
 
@@ -194,7 +192,7 @@ pub struct ProvidedInterface {
     pub name: String,
 }
 
-/// An action an extension adds (§5 of docs/16-extensions.md).
+/// An action an extension adds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActionDecl {
     /// The part after `ext.<extension>.`.
@@ -252,8 +250,7 @@ impl ArgumentType {
             .find(|v| v.as_str() == s)
     }
 
-    /// Whether it names a resource, which is authorized for the invoker, never for the extension
-    /// (§5 of docs/16-extensions.md).
+    /// Whether it names a resource, which is authorized for the invoker, never for the extension.
     #[must_use]
     pub const fn is_resource(self) -> bool {
         matches!(self, Self::Workload | Self::Project)

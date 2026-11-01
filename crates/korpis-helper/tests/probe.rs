@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The socket a health probe is made from (§5 of docs/04-runtimes.md): opened by the helper
-//! inside the workload's namespace, it reaches the workload's endpoint where the endpoint's own
-//! rules turn away every connection from elsewhere, the host's among them. Needs root and
-//! nftables; skipped without them.
+//! The socket a health probe is made from: opened by the helper inside the workload's namespace, it
+//! reaches the workload's endpoint where the endpoint's own rules turn away every connection from
+//! elsewhere, the host's among them. Needs root and nftables; skipped without them.
 
 #![allow(
     clippy::unwrap_used,

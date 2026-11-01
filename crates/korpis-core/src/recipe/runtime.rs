@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How a recipe runs, and the shape it proposes (§3 of docs/09-recipes.md).
+//! How a recipe runs, and the shape it proposes.
 
 use super::reference::is_digest;
 use super::{RecipeError, artifact_path};

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's migration (§8 and §8.1 of docs/05-scheduling.md): its seven phases in order, how
-//! it ended, and how each of its volumes crosses from the source to the destination, decided by
-//! the classes both nodes declared. A phase is a desired state the control plane sets on both
-//! nodes' assignments and advances only on their reports; nothing here talks to a node.
+//! A workload's migration: its seven phases in order, how it ended, and how each of its volumes
+//! crosses from the source to the destination, decided by the classes both nodes declared. A phase
+//! is a desired state the control plane sets on both nodes' assignments and advances only on their
+//! reports; nothing here talks to a node.
 
 use crate::node::driver::{StorageClass, StorageFeature};
 use std::time::{Duration, SystemTime};
@@ -120,11 +120,11 @@ impl Outcome {
 /// How a volume crosses from the source to the destination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Crossing {
-    /// By increments between snapshots, as a replica is sent (§2.2 of docs/06-storage.md).
+    /// By increments between snapshots, as a replica is sent.
     Increments,
     /// By rsync over the tree, pass after pass.
     Tree,
-    /// Not at all: the destination reaches the same storage (§2.1 of docs/06-storage.md).
+    /// Not at all: the destination reaches the same storage.
     Nothing,
 }
 
@@ -169,7 +169,7 @@ impl std::fmt::Display for Uncrossable {
             Self::NoTreeSync(lacking) => write!(
                 f,
                 "its class sends no increments between the two nodes, and the {} cannot sync \
-                 its tree (rsync, §2 of docs/18-operations.md)",
+                 its tree (rsync)",
                 lacking.join(" and the ")
             ),
         }

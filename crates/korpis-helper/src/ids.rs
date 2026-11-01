@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The id ranges the node's workloads hold, as their assignments name them (§4.5 of
-//! docs/04-runtimes.md), recorded on disk. The helper refuses any range that is not exactly one
-//! workload slot, so no request makes it treat a host's own ids, root's above all, as a
-//! workload's. The control plane gives a slot again only once its workload is retired, so a
-//! range recorded for another workload is a retired one's, and the newer record replaces it.
+//! The id ranges the node's workloads hold, as their assignments name them, recorded on disk. The
+//! helper refuses any range that is not exactly one workload slot, so no request makes it treat a
+//! host's own ids, root's above all, as a workload's. The control plane gives a slot again only
+//! once its workload is retired, so a range recorded for another workload is a retired one's, and
+//! the newer record replaces it.
 
 use crate::error::{HelperError, HelperResult, identifier};
 use korpis_core::workload::assignment::IdRange;

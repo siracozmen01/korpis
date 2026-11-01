@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The epoch sequence a restore fences (§8 of docs/03-state.md): issued at most at its rate cap,
-//! nothing at all while a restore settles, and never at or below a floor a restore or a node's
-//! signed epoch raised.
+//! The epoch sequence a restore fences: issued at most at its rate cap, nothing at all while a
+//! restore settles, and never at or below a floor a restore or a node's signed epoch raised.
 
 use crate::support::fixture;
 use korpis_app::ports::{EpochIssue, LeaseWrite as _, Store as _, Tx as _};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis event` end to end (§5 of docs/15-observability.md): subscribe, follow what comes as
-//! it comes, acknowledge it, and resume after it.
+//! `korpis event` end to end: subscribe, follow what comes as it comes, acknowledge it, and resume
+//! after it.
 
 use crate::support::{ControlPlane, registry};
 use std::io::{BufRead as _, BufReader};

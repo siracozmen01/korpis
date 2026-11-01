@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis extension install|list|show|upgrade|uninstall|providers|ping` (§7 of
-//! docs/13-surface-cli.md, §4 of docs/16-extensions.md). Installing is two steps, as planning and
-//! applying are: without `--approve` it shows what the extension needs and the command that
-//! approves exactly that, the artifact pinned by digest; with it, it installs, granting what the
-//! document at that digest declares. Upgrading is the same two steps.
+//! `korpis extension install|list|show|upgrade|uninstall|providers|ping`. Installing is two steps,
+//! as planning and applying are: without `--approve` it shows what the extension needs and the
+//! command that approves exactly that, the artifact pinned by digest; with it, it installs,
+//! granting what the document at that digest declares. Upgrading is the same two steps.
 
 use super::{Answer, json, mutation, pairs};
 use crate::connect::Connection;

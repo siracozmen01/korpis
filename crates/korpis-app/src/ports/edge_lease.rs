@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Leases on the addresses of edge pools, and the health of each group's members (§3.1 of
-//! docs/07-networking.md).
+//! Leases on the addresses of edge pools, and the health of each group's members.
 
 use super::StoreResult;
 use korpis_core::edge::lease::{Hold, MemberState};

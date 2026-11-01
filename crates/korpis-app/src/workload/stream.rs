@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a workload's stream as the control plane knows it (§4 of docs/14-streams.md): the
-//! index of its segments, what is held only on its node, what is lost, and the limits it is
-//! written to. Never its records, which the node serves over the data path.
+//! Reading a workload's stream as the control plane knows it: the index of its segments, what is
+//! held only on its node, what is lost, and the limits it is written to. Never its records, which
+//! the node serves over the data path.
 
 use crate::App;
 use crate::caller::Caller;
@@ -21,20 +21,20 @@ pub struct StreamView {
     pub stream: Stream,
     /// The limits it is written to, from the intent its node runs.
     pub limits: StreamSpec,
-    /// The operator's floor on how long offloaded segments are kept, disclosed with the stream
-    /// (§8 of docs/17-security.md); zero is none.
+    /// The operator's floor on how long offloaded segments are kept, disclosed with the stream;
+    /// zero is none.
     pub floor: std::time::Duration,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The stream `key` names: a workload's of a kind, and a run's for a task or scheduled
-    /// workload, whose console each run writes its own of (§4 of docs/14-streams.md). Reading it
-    /// takes `workload.console.read`, the authority to read the records themselves: how much a
-    /// workload wrote, and when, is part of what it wrote. A workload whose console mode is
-    /// `none` has no stream, and is not found; nor is a run that is not the workload's, nor,
-    /// before its first segment, a console of no run for a workload whose runs write their own.
-    /// For the same reason a caller whose grant is limited to a range of the stream is shown
-    /// only the segments that hold some of it (§8 of docs/14-streams.md).
+    /// workload, whose console each run writes its own of. Reading it takes
+    /// `workload.console.read`, the authority to read the records themselves: how much a workload
+    /// wrote, and when, is part of what it wrote. A workload whose console mode is `none` has no
+    /// stream, and is not found; nor is a run that is not the workload's, nor, before its first
+    /// segment, a console of no run for a workload whose runs write their own. For the same reason
+    /// a caller whose grant is limited to a range of the stream is shown only the segments that
+    /// hold some of it.
     pub async fn get_stream(
         &self,
         caller: &Caller,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A task's runs on a node, against a real control plane with the in-memory runtime standing in
-//! for a driver (§4.2 and §4.5 of docs/05-scheduling.md): the run its assignment names is started
-//! once in an object of its own, its end reported with its exit status and believed, after which
-//! it is named no more, its object removed, and never run again; a run cancelled is stopped by
-//! its node and removed; and a run is stopped at its timeout.
+//! A task's runs on a node, against a real control plane with the in-memory runtime standing in for
+//! a driver: the run its assignment names is started once in an object of its own, its end reported
+//! with its exit status and believed, after which it is named no more, its object removed, and
+//! never run again; a run cancelled is stopped by its node and removed; and a run is stopped at its
+//! timeout.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation, push_paper};

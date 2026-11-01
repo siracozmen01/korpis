@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Block storage providers' calls (§2.1 of docs/06-storage.md, §5 of docs/16-extensions.md): one
-//! Korpis volume is one device of the storage, which the provider names; it is made, attached to
-//! one node for one lease epoch after every other node is refused it, detached, deleted, and
-//! described. Each call says the whole of what is wanted, so a repeat changes nothing.
+//! Block storage providers' calls: one Korpis volume is one device of the storage, which the
+//! provider names; it is made, attached to one node for one lease epoch after every other node is
+//! refused it, detached, deleted, and described. Each call says the whole of what is wanted, so a
+//! repeat changes nothing.
 
 use uuid::Uuid;
 

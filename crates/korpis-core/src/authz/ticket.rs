@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Acting as an external identity (§5.2 of docs/08-identity.md). A client that relays what a
-//! person presented, a chat interaction, has the person's identity provider assert it, and is
-//! handed a ticket: one action, on one object, once, within a minute, by that client alone. The
-//! client never holds the person's authority; the gateway evaluates the person's own grants, and
-//! those of the sets the assertion names, for that one call.
+//! Acting as an external identity. A client that relays what a person presented, a chat
+//! interaction, has the person's identity provider assert it, and is handed a ticket: one action,
+//! on one object, once, within a minute, by that client alone. The client never holds the person's
+//! authority; the gateway evaluates the person's own grants, and those of the sets the assertion
+//! names, for that one call.
 
 use super::action::Action;
 use super::binding::ProviderRef;
@@ -49,8 +49,8 @@ pub struct Ticket {
 }
 
 /// What a ticket's one action is asked of: an object, or, for `grant.revoke` alone, the grant to
-/// revoke, so a person can kill a leaked link from where it leaked (§3 of
-/// docs/12-surface-discord.md) and the ticket still names exactly one thing.
+/// revoke, so a person can kill a leaked link from where it leaked and the ticket still names
+/// exactly one thing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TicketObject {
     /// An object of the hierarchy.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A volume's replicas (§2.2 of docs/06-storage.md).
+//! A volume's replicas.
 
 use super::StoreResult;
 use korpis_core::workload::replica::Replica;
@@ -90,12 +90,11 @@ pub trait ReplicaWrite {
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Moves the volume of `moved`, a volume and the nodes it leaves and goes to, to the second,
-    /// where it is made from a replica of it as `made`, the helper's identifier it takes there,
-    /// the replica's snapshot it is made from, and when the replica received it, at `now` (§2.2
-    /// of docs/06-storage.md). The copy it leaves is recorded as divergent, with its snapshots;
-    /// the replica it is made from is no longer one, its snapshot kept until the node reports
-    /// the volume made, and every other is marked stale, to be sent whole. Whether the volume
-    /// was on the node it leaves.
+    /// where it is made from a replica of it as `made`, the helper's identifier it takes there, the
+    /// replica's snapshot it is made from, and when the replica received it, at `now`. The copy it
+    /// leaves is recorded as divergent, with its snapshots; the replica it is made from is no
+    /// longer one, its snapshot kept until the node reports the volume made, and every other is
+    /// marked stale, to be sent whole. Whether the volume was on the node it leaves.
     fn promote_replica(
         &mut self,
         moved: (Uuid, Uuid, Uuid),

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A microVM's backup restored on a real node (§5.4 of docs/06-storage.md, §4.4 of
-//! docs/04-runtimes.md): its volume is a block device, so a path of its backup is restored into a
-//! new directory by a plan that stages the backup's image, stops the workload, has the
-//! `firecracker` driver copy the path inside a guest, and starts it again, and the running guest
-//! reads both what the backup held there and what it has written since; and a replacing restore
-//! of the whole volume leaves a block device the workload starts on (Finding 159 of
-//! docs/23-walkthroughs.md). Needs what the microVM test needs, and MinIO.
+//! A microVM's backup restored on a real node: its volume is a block device, so a path of its
+//! backup is restored into a new directory by a plan that stages the backup's image, stops the
+//! workload, has the `firecracker` driver copy the path inside a guest, and starts it again, and
+//! the running guest reads both what the backup held there and what it has written since; and a
+//! replacing restore of the whole volume leaves a block device the workload starts on. Needs what
+//! the microVM test needs, and MinIO.
 
 use crate::backups::{installed, nightly, serve, wire};
 use crate::files::{Files, open};

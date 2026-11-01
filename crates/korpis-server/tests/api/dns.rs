@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Publishing records through a DNS provider (§3.5 of docs/07-networking.md): the control plane
-//! sends an owner's records whole, a provider written with the SDK makes its zone agree, and what
-//! it refuses comes back with the provider's reason.
+//! Publishing records through a DNS provider: the control plane sends an owner's records whole, a
+//! provider written with the SDK makes its zone agree, and what it refuses comes back with the
+//! provider's reason.
 
 use crate::providers::installed;
 use crate::support::Harness;

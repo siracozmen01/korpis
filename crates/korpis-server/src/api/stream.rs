@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `StreamService`: a workload's stream as the control plane knows it, its segment index, what
-//! is held only on its node, and what is lost (§4 of docs/14-streams.md).
+//! `StreamService`: a workload's stream as the control plane knows it, its segment index, what is
+//! held only on its node, and what is lost.
 
 use super::wire::{self, Refuse};
 use super::{Api, error, stream_offloaded};

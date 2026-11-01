@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A file session through the driver (§4.4 of docs/04-runtimes.md): the driver's `Files` stream,
-//! opened on the object, or on a block device's backup staged for reading (§5.4 of
-//! docs/06-storage.md), and bridged to an in-memory stream that carries the session's frames as a
-//! host worker's socket does, so the node's file sessions read and write one kind of stream
-//! whichever worker serves them. Each frame is bounded as the worker bounds it.
+//! A file session through the driver: the driver's `Files` stream, opened on the object, or on a
+//! block device's backup staged for reading, and bridged to an in-memory stream that carries the
+//! session's frames as a host worker's socket does, so the node's file sessions read and write one
+//! kind of stream whichever worker serves them. Each frame is bounded as the worker bounds it.
 
 use super::{DriverRuntime, error};
 use crate::runtime::RuntimeResult;

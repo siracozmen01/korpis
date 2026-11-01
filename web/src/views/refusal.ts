@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// What a refused call tells its user (§5 of docs/10-api.md): the reason the API gave in its own
-// words where one is shown, and for a refused credential nothing about which part was wrong. A
-// screen that branches on a refusal reads the `korpis.v1.Error` detail's reason (§8 of
-// docs/10-api.md), never the message.
+// What a refused call tells its user: the reason the API gave in its own words where one is shown,
+// and for a refused credential nothing about which part was wrong. A screen that branches on a
+// refusal reads the `korpis.v1.Error` detail's reason, never the message.
 
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ErrorSchema } from "../gen/korpis/v1/common_pb";
@@ -41,9 +40,8 @@ export function refusal(e: unknown): string {
         id: "1UtyFZcc",
       });
     default:
-      // Said here rather than in the control plane's words: what a session begun at a portal
-      // may not do is reached from the installation's own address (§9.8 of
-      // docs/08-identity.md).
+      // Said here rather than in the control plane's words: what a session begun at a portal may
+      // not do is reached from the installation's own address.
       if (reasonOf(e) === "session.portal_confined") {
         return t({
           defaultMessage:

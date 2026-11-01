@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where the PostgreSQL server comes from, decided before anything else (§2 of
-//! docs/18-operations.md): named by `--postgres`, implied by `--database-owner-url`, or asked on
-//! a terminal. A server the installer provisions is provisioned only after what preflight can
-//! judge without it, the data directory and the backup target, has passed, so a refusal there
-//! still changes nothing.
+//! Where the PostgreSQL server comes from, decided before anything else: named by `--postgres`,
+//! implied by `--database-owner-url`, or asked on a terminal. A server the installer provisions is
+//! provisioned only after what preflight can judge without it, the data directory and the backup
+//! target, has passed, so a refusal there still changes nothing.
 
 use super::{Failure, InstallArgs, is_root};
 use clap::Args;
@@ -173,7 +172,7 @@ pub fn made_report(made: Source, owner_url: &str, owner_file: Option<&Path>) -> 
     if made == Source::Container {
         out.push_str(
             "\nPostgreSQL runs in a container: an evaluation setup, not a production one. Nothing \
-             backs it up, upgrades it, or watches it but you (§2 of docs/18-operations.md).\n",
+             backs it up, upgrades it, or watches it but you.\n",
         );
     }
     out

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `Describe` (§4.1 of docs/04-runtimes.md): what this driver does, declared from its code. Every
-//! limit it holds names what holds it, the hypervisor or the kernel's cgroup around the guest's
-//! Firecracker, and what it cannot hold is declared not enforced, which keeps it from being shown
-//! (Rule K-3): a guest's processes are its own kernel's to count, and its volumes are block
-//! devices whose size is their bound (§3.1 of docs/06-storage.md).
+//! `Describe`: what this driver does, declared from its code. Every limit it holds names what holds
+//! it, the hypervisor or the kernel's cgroup around the guest's Firecracker, and what it cannot
+//! hold is declared not enforced, which keeps it from being shown: a guest's processes are its own
+//! kernel's to count, and its volumes are block devices whose size is their bound.
 
 use crate::prepare::NAME;
 use korpis_proto::korpis::v1 as pb;
@@ -41,9 +40,8 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
     let disk = declared(true, "a volume's block device size", "the guest's ENOSPC at its size");
     let pids = declared(false, "none", "a guest's processes are its own kernel's to count");
     let io = declared(false, "none", "no io.max is set");
-    // The node's network shapes a guest's link as it does a container's, and the agent declares
-    // so on the driver's behalf where the node does (§7 of docs/07-networking.md); the driver
-    // itself shapes nothing.
+    // The node's network shapes a guest's link as it does a container's, and the agent declares so
+    // on the driver's behalf where the node does; the driver itself shapes nothing.
     let egress = declared(false, "none", "no shaper is applied by the driver");
     let ingress = declared(false, "none", "no policer is applied by the driver");
     [("memory", memory), ("cpu", cpu), ("disk", disk), ("pids", pids), ("io", io)]
@@ -54,8 +52,7 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
 }
 
 /// What the driver declares; `healthy` is whether this machine can run a guest now, and `cores`
-/// where its guests' cgroups are and how it holds dedicated cores there (§5.2 of
-/// docs/05-scheduling.md).
+/// where its guests' cgroups are and how it holds dedicated cores there.
 #[must_use]
 pub fn info(healthy: bool, cores: &korpis_driver_kit::cores::Cores) -> pb::DriverInfo {
     let mut held = pb::Capabilities::default().enforcement;
@@ -70,8 +67,7 @@ pub fn info(healthy: bool, cores: &korpis_driver_kit::cores::Cores) -> pb::Drive
         ]
         .map(Into::into)
         .into(),
-        // Named signals reach a guest's entry through its agent on the control port (§6 of
-        // docs/04-runtimes.md).
+        // Named signals reach a guest's entry through its agent on the control port.
         signals: korpis_guest::control::SIGNALS.iter().map(|s| (*s).to_owned()).collect(),
         device_modes: Vec::new(),
         rootfs_sources: vec![pb::RootfsSource::ROOTFS_SOURCE_OCI_IMAGE.into()],
@@ -83,14 +79,14 @@ pub fn info(healthy: bool, cores: &korpis_driver_kit::cores::Cores) -> pb::Drive
         cgroup_parent: cores.parent.clone(),
         volume_semantics: pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE.into(),
         // A running guest's file sessions are served inside it, by the worker its boot drive
-        // carries (§4.4 of docs/04-runtimes.md).
+        // carries.
         file_access: pb::FileAccess::FILE_ACCESS_GUEST_WORKER.into(),
         guest_agent: true,
         guest_filesystems: GUEST_FILESYSTEMS.iter().map(|f| (*f).to_owned()).collect(),
-        // A command runs inside a guest through its agent (§4.2 of docs/04-runtimes.md).
+        // A command runs inside a guest through its agent.
         exec: true,
         // A guest's /run/korpis: its identity socket and API relay relayed over vsock, and its
-        // files sent as they change (§6 of docs/04-runtimes.md).
+        // files sent as they change.
         identity_dir: true,
         config_schema: r#"{"type":"object","additionalProperties":false}"#.into(),
         ..Default::default()
@@ -124,7 +120,7 @@ mod tests {
         assert!(caps.enforcement["dedicated_cores"].enforced, "the host shares them");
         let tiers: Vec<_> = caps.tiers.iter().map(buffa::EnumValue::as_known).collect();
         assert_eq!(tiers, [Some(pb::IsolationTier::ISOLATION_TIER_MICROVM)]);
-        // Finding 144 kept this empty until a guest's agent could carry a signal's name.
+        // Empty until a guest's agent could carry a signal's name.
         assert!(caps.signals.iter().any(|s| s == "SIGHUP"), "named signals, through the agent");
         assert!(caps.identity_dir, "a guest's /run/korpis, over vsock");
         let guest = Some(pb::FileAccess::FILE_ACCESS_GUEST_WORKER);

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Ingesting a node's journal (§4.10 of docs/02-architecture.md): exactly once, in order, each
-//! record in the transaction that advances the node's cursor. A record is believed only as far
-//! as the node's own assignments reach: an effect for a workload the node was never told about,
-//! or for a step of a plan it does not execute, is kept as a rejection, visibly, and moves
-//! nothing. The actor of a node-originated effect is the control plane executing a decision
-//! already made, and its grant is the one the plan was approved under (§3.2 of
-//! docs/01-model.md).
+//! Ingesting a node's journal: exactly once, in order, each record in the transaction that advances
+//! the node's cursor. A record is believed only as far as the node's own assignments reach: an
+//! effect for a workload the node was never told about, or for a step of a plan it does not
+//! execute, is kept as a rejection, visibly, and moves nothing. The actor of a node-originated
+//! effect is the control plane executing a decision already made, and its grant is the one the plan
+//! was approved under.
 
 use crate::App;
 use crate::error::AppError;
@@ -30,9 +29,8 @@ mod metering;
 mod reports;
 mod runs;
 
-/// The actions a node reports as the act of a session's subject: a console read (§8 of
-/// docs/17-security.md) and input (§6 of docs/14-streams.md), and a file session's opening and
-/// end (§3.2 of docs/06-storage.md).
+/// The actions a node reports as the act of a session's subject: a console read and input, and a
+/// file session's opening and end.
 const SESSION_ACTS: &[&str] = &[
     "workload.console.read",
     "workload.console.write",
@@ -158,9 +156,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// What the node carried on a session, console input or a file session's opening or end,
-    /// recorded as the act of the subject it names, if that subject could have done it (§6 of
-    /// docs/14-streams.md): the node held the workload's lease, and the grant named is the
-    /// subject's and permitted the action when it happened.
+    /// recorded as the act of the subject it names, if that subject could have done it: the node
+    /// held the workload's lease, and the grant named is the subject's and permitted the action
+    /// when it happened.
     async fn session_act(
         &self,
         node: Uuid,
@@ -294,8 +292,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// A step that was in flight when its plan was cancelled finished (§7 of
-    /// docs/03-state.md): it counts toward what the plan completed, and moves nothing else.
+    /// A step that was in flight when its plan was cancelled finished: it counts toward what the
+    /// plan completed, and moves nothing else.
     async fn after_cancel(
         &self,
         tx: &mut S::Tx,
@@ -314,8 +312,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// The node removed the workload: its placement goes, and its identity is retired (§3.3 of
-    /// docs/01-model.md, §4.8 of docs/02-architecture.md).
+    /// The node removed the workload: its placement goes, and its identity is retired.
     async fn finish_retirement(&self, tx: &mut S::Tx, plan: &Plan) -> Result<(), AppError> {
         let w = tx
             .lock_workload(plan.workload)
@@ -325,8 +322,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.rehold(tx, w.id).await?;
         self.place_target(tx, &w, None).await?;
         // Under the placement lock, its dedicated address and its stable addresses and ports go
-        // back to rest, and no group serves its ingress (§3.1 and §3.7 of
-        // docs/07-networking.md).
+        // back to rest, and no group serves its ingress.
         tx.release_address(w.id, self.clock.now()).await?;
         tx.release_stable(w.id, &[], self.clock.now()).await?;
         tx.serve_ingress(w.id, None, self.clock.now()).await?;
@@ -341,9 +337,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 }
 
 /// The stream step `step` of `plan` deletes, if it is the deletion of a stream's volume, the
-/// workload's or one of its runs' (§4 of docs/14-streams.md): the tenant's approved decision,
-/// not the node's report, ends the stream, so a node cannot have a stream's offloaded evidence
-/// deleted by saying it deleted it.
+/// workload's or one of its runs': the tenant's approved decision, not the node's report, ends the
+/// stream, so a node cannot have a stream's offloaded evidence deleted by saying it deleted it.
 fn deletes_stream(plan: &Plan, step: u32) -> Option<StreamKey> {
     use korpis_core::workload::stream::StreamKind;
     let s = plan.steps.iter().find(|s| s.index == step)?;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Why the control stream ended, with the one end that dialling again soon cannot mend told
-//! apart: a control plane that refuses this agent's protocol (§4 of docs/18-operations.md), which
-//! only an upgrade of one side or the other does.
+//! Why the control stream ended, with the one end that dialling again soon cannot mend told apart:
+//! a control plane that refuses this agent's protocol, which only an upgrade of one side or the
+//! other does.
 
 use base64::Engine as _;
 use buffa::Message as _;

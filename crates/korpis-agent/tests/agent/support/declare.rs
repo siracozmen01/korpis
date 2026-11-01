@@ -31,9 +31,9 @@ impl ControlPlane {
         repo: String,
         volumes: Vec<pb::VolumeSpec>,
     ) -> String {
-        // The recipe's game endpoint is `stable`, which without an edge tier needs a node
-        // reachable on its own address (§3 of docs/07-networking.md). The test nodes advertise
-        // the loopback address, which the control plane's prober reaches; wait until it has.
+        // The recipe's game endpoint is `stable`, which without an edge tier needs a node reachable
+        // on its own address. The test nodes advertise the loopback address, which the control
+        // plane's prober reaches; wait until it has.
         self.measured().await;
         let declared = self
             .workloads()

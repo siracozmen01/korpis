@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An edge forwarding an IPv6 stable address to a workload on another node (§3.1 of
-//! docs/07-networking.md, trace 78 of docs/23-walkthroughs.md), as the helper keeps it on both.
-//! The client and the edge share a link of IPv6 alone, the edge and the node are joined by the
-//! mesh over IPv4, and the workload behind the node has a unique local address of the node's
-//! prefix: the GRE link inside the mesh, IPv4 itself, carries IPv6. The address taken is
-//! announced with an unsolicited neighbour advertisement; the client reaches the workload and the
-//! workload sees the client's own address; a port no endpoint holds is refused at once; the
-//! probe port reaches the node at its own IPv6 address in the mesh and is answered back through
-//! the link; and the address is taken off when no longer held. Needs root, the kernel's
-//! WireGuard and GRE, and nftables; skipped without them.
+//! An edge forwarding an IPv6 stable address to a workload on another node, as the helper keeps it
+//! on both. The client and the edge share a link of IPv6 alone, the edge and the node are joined by
+//! the mesh over IPv4, and the workload behind the node has a unique local address of the node's
+//! prefix: the GRE link inside the mesh, IPv4 itself, carries IPv6. The address taken is announced
+//! with an unsolicited neighbour advertisement; the client reaches the workload and the workload
+//! sees the client's own address; a port no endpoint holds is refused at once; the probe port
+//! reaches the node at its own IPv6 address in the mesh and is answered back through the link; and
+//! the address is taken off when no longer held. Needs root, the kernel's WireGuard and GRE, and
+//! nftables; skipped without them.
 
 #![allow(
     clippy::unwrap_used,

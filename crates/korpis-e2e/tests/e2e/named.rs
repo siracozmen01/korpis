@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Rules naming workloads on a real node (§6 of docs/07-networking.md, trace 76 of
-//! docs/23-walkthroughs.md): a database whose endpoint lets in the workloads labelled `role=web`
-//! and then denies every IPv4 address, and two workloads that depend on it, a web application so
-//! labelled and a nightly report labelled `role=batch`. Both are let out by their dependencies,
-//! and the database's rule, resolved by the control plane to the web application's address and
-//! held by the node, answers the one and drops the other. The node's data plane is in a network
-//! namespace of the test's own, as the mesh's test has it; skipped without root and containerd.
+//! Rules naming workloads on a real node: a database whose endpoint lets in the workloads labelled
+//! `role=web` and then denies every IPv4 address, and two workloads that depend on it, a web
+//! application so labelled and a nightly report labelled `role=batch`. Both are let out by their
+//! dependencies, and the database's rule, resolved by the control plane to the web application's
+//! address and held by the node, answers the one and drops the other. The node's data plane is in a
+//! network namespace of the test's own, as the mesh's test has it; skipped without root and
+//! containerd.
 
 use crate::dependencies::{address_of, running};
 use crate::mesh::{Netns, fetched, net_of, node_in, served};

@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Failover onto a replica (§2.4 of docs/05-scheduling.md, §2.2 of docs/06-storage.md): a
-//! workload declaring `replica_failover: automatic`, its `data` volume on its own node's disk
-//! with two replicas, one of which received a snapshot. Its power is cut, and once its lease has
-//! ended it is placed again on the node holding the freshest replica, which a lease derived as
-//! `stop` lets happen (Finding 206), and made there by a remake plan that promotes the replica.
-//! The volume is the same one, now on that node under a name of its own there; the copy left on
-//! the node it left is a retained volume of its own, listed as divergent, which a person deletes
-//! as any retained volume, through a residual assignment of the node keeping it; and the other
-//! replica is marked stale, to be sent whole. The failover's effect records since when what was
-//! written is lost.
+//! Failover onto a replica: a workload declaring `replica_failover: automatic`, its `data` volume
+//! on its own node's disk with two replicas, one of which received a snapshot. Its power is cut,
+//! and once its lease has ended it is placed again on the node holding the freshest replica, which
+//! a lease derived as `stop` lets happen, and made there by a remake plan that promotes the
+//! replica. The volume is the same one, now on that node under a name of its own there; the copy
+//! left on the node it left is a retained volume of its own, listed as divergent, which a person
+//! deletes as any retained volume, through a residual assignment of the node keeping it; and the
+//! other replica is marked stale, to be sent whole. The failover's effect records since when what
+//! was written is lost.
 
 use crate::agent::Stream;
 use crate::failover::{assignment, kind};

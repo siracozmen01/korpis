@@ -1,12 +1,12 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
--- The ancestry of one object ($1 kind, $2 id): the object first, then each ancestor up to its
--- root organization, with labels. A node's parent is the organization it was enrolled into, and a
+-- The ancestry of one object ($1 kind, $2 id): the object first, then each ancestor up to its root
+-- organization, with labels. A node's parent is the organization it was enrolled into, and a
 -- volume's the project it belongs to, a repository's its project, or its organization when it is
 -- scoped to the whole of it, and a domain's or a certificate's the organization holding it. One
 -- statement walks from the object to its organization and then up the organization tree, so the
--- answer is consistent with a single snapshot. An organization says whether it is suspended,
--- which authorization derives every grant's suspension from (§2.1 of docs/08-identity.md), and
--- the delegation ceiling it sets, if it sets one (§5.1).
+-- answer is consistent with a single snapshot. An organization says whether it is suspended, which
+-- authorization derives every grant's suspension from, and the delegation ceiling it sets, if it
+-- sets one.
 WITH RECURSIVE
 start AS (
     SELECT 'workload'::text AS kind, w.id, w.labels, 0 AS depth,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the control plane does with one workload's runs at one moment (§4 of
-//! docs/05-scheduling.md): which runs to make, which to end, and what to keep of its schedule. It
-//! is a function of what the store holds, the time, and the zone, so every rule of §4.1 to §4.4
-//! is evaluated here and nowhere else, and each can be tested at any moment of any year.
+//! What the control plane does with one workload's runs at one moment: which runs to make, which to
+//! end, and what to keep of its schedule. It is a function of what the store holds, the time, and
+//! the zone, so every rule of a run's life is evaluated here and nowhere else, and each can be
+//! tested at any moment of any year.
 
 use super::{Cause, Run, RunEnd, RunState, RunStatus, Trigger};
 use crate::workload::PowerState;
@@ -15,8 +15,7 @@ use std::collections::VecDeque;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
-/// How late an occurrence's run may be made and still be on time (§4.3 of
-/// docs/05-scheduling.md).
+/// How late an occurrence's run may be made and still be on time.
 pub const ON_TIME: Duration = Duration::from_secs(60);
 /// The most occurrences counted into one missed run; past it, the rest are passed over uncounted.
 const MOST_COUNTED: u32 = 100_000;
@@ -103,8 +102,8 @@ fn instant(t: SystemTime) -> Timestamp {
 }
 
 impl Work {
-    /// Every running run whose node no longer holds the workload's lease has failed, its node
-    /// lost (§4.2 of docs/05-scheduling.md); a retry is made from it like any failure.
+    /// Every running run whose node no longer holds the workload's lease has failed, its node lost;
+    /// a retry is made from it like any failure.
     fn lost(&mut self, lease: Option<(Uuid, SystemTime)>) {
         let held =
             |r: &Run| lease.is_some_and(|(node, until)| r.node == Some(node) && until > self.now);
@@ -250,8 +249,8 @@ impl Work {
                 }
                 self.make(run);
             }
-            // `forbid` keeps one running and `allow` at most `max_active` (§4.3 of
-            // docs/05-scheduling.md): a run due past it is missed.
+            // `forbid` keeps one running and `allow` at most `max_active`: a run due past it is
+            // missed.
             Concurrency::Forbid | Concurrency::Allow if running >= room => {
                 let missed = Run {
                     status: RunStatus::Missed,
@@ -261,8 +260,7 @@ impl Work {
                 };
                 self.out.made.push(missed);
             }
-            // With room: made, and a pending one ahead of it is started first (§4.5 of
-            // docs/05-scheduling.md).
+            // With room: made, and a pending one ahead of it is started first.
             Concurrency::Allow | Concurrency::Forbid => self.make(run),
         }
     }

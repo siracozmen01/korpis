@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The host's half of a guest's `/run/korpis` (§9.5 of docs/08-identity.md, §6 of
-//! docs/04-runtimes.md). A connection the guest opens to its host on the identity port or the
-//! API port arrives, through its Firecracker, on a socket the driver listens on in the guest's
-//! chroot (`vsock.socket_<port>`), and is relayed, byte for byte, to the workload's own socket of
-//! that name in the directory the agent serves it: the driver reads nothing that crosses, and the
-//! host's socket is the workload's identity, as for a container. The workload's socket is opened as
-//! the API socket is, never through a link. A task beside them keeps the guest's agent told of the
-//! rest of the directory (`sync`). At most sixteen connections are relayed at once for each guest.
+//! The host's half of a guest's `/run/korpis`. A connection the guest opens to its host on the
+//! identity port or the API port arrives, through its Firecracker, on a socket the driver listens
+//! on in the guest's chroot (`vsock.socket_<port>`), and is relayed, byte for byte, to the
+//! workload's own socket of that name in the directory the agent serves it: the driver reads
+//! nothing that crosses, and the host's socket is the workload's identity, as for a container. The
+//! workload's socket is opened as the API socket is, never through a link. A task beside them keeps
+//! the guest's agent told of the rest of the directory (`sync`). At most sixteen connections are
+//! relayed at once for each guest.
 
 use crate::api::socket_at;
 use korpis_guest::control;

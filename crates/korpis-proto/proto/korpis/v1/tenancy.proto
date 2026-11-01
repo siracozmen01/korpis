@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Tenancy: organizations, projects, and quota (§3.1 of docs/01-model.md, §5.1 of
-// docs/05-scheduling.md, §2 of docs/08-identity.md).
+// Tenancy: organizations, projects, and quota.
 
 syntax = "proto3";
 
@@ -19,10 +18,10 @@ message Organization {
   optional string parent = 3;
   QuotaSet quota = 4;
   OrganizationStatus status = 5;
-  // Present while suspended (§2.1 of docs/08-identity.md).
+  // Present while suspended.
   Suspension suspension = 6;
   google.protobuf.Timestamp created = 7;
-  // Compare-and-swap version for updates (§6 of docs/10-api.md).
+  // Compare-and-swap version for updates.
   uint64 version = 8;
 }
 
@@ -59,9 +58,9 @@ message Project {
   uint64 version = 7;
 }
 
-// Selector-scoped quota entries, each with reservations and limits (§5.1 of
-// docs/05-scheduling.md). Reservations sum against the parent and are never oversubscribed;
-// limits may exceed the parent's by the parent's declared overcommit ratio.
+// Selector-scoped quota entries, each with reservations and limits. Reservations sum against the
+// parent and are never oversubscribed; limits may exceed the parent's by the parent's declared
+// overcommit ratio.
 message QuotaSet {
   repeated QuotaEntry entries = 1;
   // Per-dimension overcommit ratio this owner permits its children's limits, in percent of its
@@ -72,28 +71,27 @@ message QuotaSet {
 message QuotaEntry {
   // The bounds were `Resources`, whose fields cannot say zero apart from absent, and a bound of
   // zero, which allows none of a dimension, is one a host sets: no dedicated IPv4 for this
-  // customer. They are `QuotaBounds` now, under new numbers and names (§4 of docs/10-api.md).
+  // customer. They are `QuotaBounds` now, under new numbers and names.
   reserved 2, 3;
   reserved "reservations", "limits";
   // Absent applies to everything the owner contains.
   LabelSelector selector = 1;
-  // Participates in the admission compare-and-swap (§5.1 of docs/05-scheduling.md).
+  // Participates in the admission compare-and-swap.
   uint64 version = 4;
-  // What shaping applies when the egress budget for the month is exhausted (§5.1 of
-  // docs/05-scheduling.md). Set exactly when egress_bytes_per_month is: a budget that changes
-  // nothing when it is spent is refused, since it would be displayed and not enforced.
+  // What shaping applies when the egress budget for the month is exhausted. Set exactly when
+  // egress_bytes_per_month is: a budget that changes nothing when it is spent is refused, since it
+  // would be displayed and not enforced.
   EgressExhaustion egress_exhausted = 5;
-  // The bytes a calendar month of UTC days the workloads it counts may send beyond their links,
-  // as their nodes count it (§7 of docs/07-networking.md). Not admitted: enforced after use, by
-  // shaping, from the month's records as an invoice sums them.
+  // The bytes a calendar month of UTC days the workloads it counts may send beyond their links, as
+  // their nodes count it. Not admitted: enforced after use, by shaping, from the month's records as
+  // an invoice sums them.
   optional uint64 egress_bytes_per_month = 10;
   // What the workloads it counts sent this month, as last reckoned. Output only; absent for an
   // entry with no budget, or one not yet reckoned.
   EgressSpent egress_spent = 11;
-  // The nodes it counts the workloads on, by their labels: set, it counts a workload while it
-  // is placed on one of them, by what its placement runs, and is checked when it is bound;
-  // absent, it counts the workload from its declaration, wherever it runs ("Where a workload
-  // runs", §5.1 of docs/05-scheduling.md).
+  // The nodes it counts the workloads on, by their labels: set, it counts a workload while it is
+  // placed on one of them, by what its placement runs, and is checked when it is bound; absent, it
+  // counts the workload from its declaration, wherever it runs ("Where a workload runs").
   LabelSelector nodes = 6;
   // Guaranteed: what the reservations of the workloads it counts may sum to. Sums against the
   // parent's entry of the same shape and is never oversubscribed.
@@ -104,9 +102,9 @@ message QuotaEntry {
   QuotaHeld held = 9;
 }
 
-// Bounds per quota dimension (§5.1 of docs/05-scheduling.md): a dimension present is bounded
-// at its value, zero included, which allows none of it; one absent is not bounded. The numbers
-// are those of `Resources` for the same dimension.
+// Bounds per quota dimension: a dimension present is bounded at its value, zero included, which
+// allows none of it; one absent is not bounded. The numbers are those of `Resources` for the same
+// dimension.
 message QuotaBounds {
   optional uint64 cpu_millis = 1;
   optional uint64 memory_bytes = 2;
@@ -121,7 +119,7 @@ message QuotaBounds {
   optional uint64 endpoints = 12;
   optional uint64 dedicated_ipv4 = 13;
   optional uint64 node_ports = 15;
-  // Devices held, by class (§6.4 of docs/05-scheduling.md).
+  // Devices held, by class.
   optional uint64 devices_gpu = 16;
   optional uint64 devices_usb = 17;
   optional uint64 devices_pci = 18;
@@ -155,7 +153,7 @@ message EgressExhaustion {
   bool cut_off = 2;
 }
 
-// Anything that can act (§3.2 of docs/01-model.md).
+// Anything that can act.
 message Subject {
   oneof kind {
     string user = 1;
@@ -165,20 +163,19 @@ message Subject {
     string extension = 5;
     // The control plane acting on its own decisions: reconciliation, scheduling.
     SystemActor system = 6;
-    // Whoever holds a share link: the bearer of the link-form grant named, which is the grant's
-    // own identifier (§6.1 of docs/08-identity.md).
+    // Whoever holds a share link: the bearer of the link-form grant named, which is the grant's own
+    // identifier.
     string link = 7;
     // Whoever presented a credential that opened nothing: the actor of a failed attempt to
-    // authenticate, known only by where it came from (§10 of docs/10-api.md). Always true when
-    // set; it holds no grant.
+    // authenticate, known only by where it came from. Always true when set; it holds no grant.
     bool anonymous = 8;
   }
 }
 
 message ExternalIdentity {
-  // The identity provider that verifies it: `org_…/<name>`, the organization it is installed
-  // into and its name there, so two providers never vouch for one subject and a provider
-  // vouches only at and beneath its organization (§5 of docs/08-identity.md).
+  // The identity provider that verifies it: `org_…/<name>`, the organization it is installed into
+  // and its name there, so two providers never vouch for one subject and a provider vouches only at
+  // and beneath its organization.
   string provider = 1;
   oneof selector {
     // One person.
@@ -191,7 +188,7 @@ message ExternalIdentity {
 message ExternalSet {
   // Where the set lives at its provider, never containing ':': a Discord guild id, the OIDC claim
   // or SAML attribute naming the groups. An issuer is the provider's own, so it is not repeated
-  // here (§5 of docs/08-identity.md).
+  // here.
   string realm = 1;
   // e.g. role id, claim value.
   string member_of = 2;
@@ -206,9 +203,9 @@ enum SystemActor {
   SYSTEM_ACTOR_AUTHORITY = 4;
 }
 
-// An organization's brand (§7 of docs/11-surface-web.md): data, applied by the panel to whatever
-// it shows of the organization and everything beneath it that sets none of its own. Every field
-// is optional; an unset one keeps the panel's own.
+// An organization's brand: data, applied by the panel to whatever it shows of the organization and
+// everything beneath it that sets none of its own. Every field is optional; an unset one keeps the
+// panel's own.
 message Theme {
   // The name the panel shows for itself: at most 64 characters, one line.
   string product_name = 1;
@@ -219,7 +216,7 @@ message Theme {
   // What the sign-in page says above its form: at most 2,000 characters, shown as text.
   string sign_in_text = 5;
   // A stylesheet applied after the panel's own, at most 64 KiB, without @import; the panel's
-  // content security policy fences what it may load (§7 of docs/11-surface-web.md).
+  // content security policy fences what it may load.
   string stylesheet = 6;
 }
 
@@ -255,9 +252,9 @@ message GoverningTheme {
   uint64 own_version = 3;
 }
 
-// A landing screen an organization composes for those it serves (question 2 of §10 of
-// docs/11-surface-web.md): the panel's own components in order, each rendered under the viewer's
-// own authority, shown to it and to everything beneath it that sets none of its own.
+// A landing screen an organization composes for those it serves: the panel's own components in
+// order, each rendered under the viewer's own authority, shown to it and to everything beneath it
+// that sets none of its own.
 message Layout {
   // The landing screen's heading: at most 64 characters, one line; empty for the panel's own.
   string name = 1;
@@ -276,9 +273,8 @@ message LayoutItem {
     LayoutNotice notice = 3;
     // A link elsewhere, shown with the host it goes to.
     LayoutLink link = 4;
-    // An extension's contribution to a declared slot, by the slot's name: refused until
-    // extensions declare slots (§5 of docs/16-extensions.md), since a layout places only what
-    // exists.
+    // An extension's contribution to a declared slot, by the slot's name: refused until extensions
+    // declare slots, since a layout places only what exists.
     string slot = 5;
   }
 }

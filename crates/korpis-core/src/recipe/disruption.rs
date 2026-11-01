@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a recipe says interruption costs (§5.1 of docs/09-recipes.md). It may only make a step
-//! more disruptive than the driver says, never less.
+//! What a recipe says interruption costs. It may only make a step more disruptive than the driver
+//! says, never less.
 
 /// One declaration.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

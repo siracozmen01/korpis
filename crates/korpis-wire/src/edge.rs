@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Edge groups, `korpis.v1.EdgeGroup`, and what a node is told of edges, `korpis.agent.v1.Edges`
-//! (§3.1 of docs/07-networking.md, §3.6 of docs/01-model.md).
+//! Edge groups, `korpis.v1.EdgeGroup`, and what a node is told of edges, `korpis.agent.v1.Edges`.
 
 use crate::assignment::{alpn_challenge_to_pb, http_challenge_to_pb};
 use crate::endpoint::{endpoint_to_pb, ingress_endpoint_from_pb};

@@ -113,7 +113,7 @@ impl Harness {
         Self::build(heartbeat, denial_window, None, AcmeConfig::default(), unmetered(), any()).await
     }
 
-    /// A control plane charging the client API's requests at `rates` (§10 of docs/10-api.md).
+    /// A control plane charging the client API's requests at `rates`.
     pub async fn with_rates(rates: Rates) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
@@ -136,8 +136,8 @@ impl Harness {
         Self::build(heartbeat, window, resolver, acme, unmetered(), any()).await
     }
 
-    /// As [`Self::with_acme`], listening on `listen`: where a directory's TLS-ALPN-01
-    /// validation must reach the control plane's own listener (§3.6 of docs/07-networking.md).
+    /// As [`Self::with_acme`], listening on `listen`: where a directory's TLS-ALPN-01 validation
+    /// must reach the control plane's own listener.
     pub async fn with_acme_on(acme: AcmeConfig, listen: std::net::SocketAddr) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
@@ -209,8 +209,8 @@ impl Harness {
         h
     }
 
-    /// The root organization accepts recipes signed by [`test_key`], as an operator's first act
-    /// is to say whose recipes it runs (§7 of docs/09-recipes.md).
+    /// The root organization accepts recipes signed by [`test_key`], as an operator's first act is
+    /// to say whose recipes it runs.
     async fn accept_test_signer(&self) {
         let policy =
             pb::TrustPolicy { accepted_signers: vec![test_signer()], ..Default::default() };
@@ -284,7 +284,8 @@ impl Harness {
         (id, secret)
     }
 
-    /// Issues `actions` on the root organization to `token`, from the root grant; the new grant's id.
+    /// Issues `actions` on the root organization to `token`, from the root grant; the new grant's
+    /// id.
     pub async fn issue_to(&self, token: Uuid, key: &str, actions: &[&str]) -> String {
         let issued = self
             .grants(self.root())

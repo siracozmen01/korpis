@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Where sealed objects are kept: an object store reached under one workload's prefix, with the
-//! three things a job may do there (§5.6 of docs/06-storage.md): put an object, get one, and list
-//! what is there. Nothing here deletes; pruning runs elsewhere, with a credential a job never
-//! holds. The names given are relative to the prefix, which the store was opened on.
+//! three things a job may do there: put an object, get one, and list what is there. Nothing here
+//! deletes; pruning runs elsewhere, with a credential a job never holds. The names given are
+//! relative to the prefix, which the store was opened on.
 
 use std::collections::BTreeMap;
 use std::future::Future;

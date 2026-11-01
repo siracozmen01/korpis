@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recent sign-in (§9.6 of docs/08-identity.md): a factor is changed only from a session that
-//! signed in or re-authenticated within ten minutes, a caller without a session never changes
-//! one, and a session re-authenticates with a factor of its own account and no other's.
+//! A recent sign-in: a factor is changed only from a session that signed in or re-authenticated
+//! within ten minutes, a caller without a session never changes one, and a session re-authenticates
+//! with a factor of its own account and no other's.
 
 use crate::support::{browser, fixture, in_session, invite, redeem, signed_in};
 use korpis_app::AppError;

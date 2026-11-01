@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declared sets (§3.3 of docs/01-model.md, §5 and §6 of docs/13-surface-cli.md): a set owns
-//! what it created or adopted and touches nothing else; a change made outside it is drift, which
-//! advisory mode refuses to overwrite unless asked and strict mode overwrites on the record.
+//! Declared sets: a set owns what it created or adopted and touches nothing else; a change made
+//! outside it is drift, which advisory mode refuses to overwrite unless asked and strict mode
+//! overwrites on the record.
 
 use crate::recipes::{body, change, create, project, push_paper, text};
 use crate::support::{Harness, mutation, reason};

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The directory a restore of one path is made into (§5.4 of docs/06-storage.md).
+//! The directory a restore of one path is made into.
 
 use crate::error::{HelperError, HelperResult, identifier};
 use std::path::{Path, PathBuf};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `EventService` (§5 of docs/15-observability.md): the caller's subscriptions, stored positions
-//! in the event log, their delivery, and their acknowledgements.
+//! `EventService`: the caller's subscriptions, stored positions in the event log, their delivery,
+//! and their acknowledgements.
 
 use super::wire::event::{
     event_id, event_to_pb, filter_from_pb, position_from, subscription_to_pb,

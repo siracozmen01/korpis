@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the node reports about each workload (§4.3 of docs/02-architecture.md): field by field,
-//! what it has converged to, and what it sees. An observation is sent when it changes and again
-//! on every new session; the control plane keeps the latest and decides from it whether the
-//! workload has converged.
+//! What the node reports about each workload: field by field, what it has converged to, and what it
+//! sees. An observation is sent when it changes and again on every new session; the control plane
+//! keeps the latest and decides from it whether the workload has converged.
 
 use super::act::running;
 use super::workload::wants_running;
@@ -40,8 +39,8 @@ fn state(a: &agent::Assignment, t: &Tracked) -> pb::ObservedState {
         return pb::ObservedState::OBSERVED_STATE_UNSATISFIABLE;
     }
     if super::runs::has_runs(a) {
-        // Its own object never runs; it is running while one of its runs is (§4.2 of
-        // docs/05-scheduling.md), and otherwise waits for the next, stopped.
+        // Its own object never runs; it is running while one of its runs is, and otherwise waits
+        // for the next, stopped.
         return if t.runs.values().any(|r| r.running) {
             pb::ObservedState::OBSERVED_STATE_RUNNING
         } else {
@@ -67,10 +66,9 @@ fn state(a: &agent::Assignment, t: &Tracked) -> pb::ObservedState {
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
-    /// Each endpoint of `a` that is reachable at all, at the address the node gave the workload
-    /// and the port it listens on, ready while the workload runs and its readiness probe passes
-    /// (§4.1 of docs/07-networking.md, §5 of docs/04-runtimes.md); none where the node gives its
-    /// workloads no network.
+    /// Each endpoint of `a` that is reachable at all, at the address the node gave the workload and
+    /// the port it listens on, ready while the workload runs and its readiness probe passes; none
+    /// where the node gives its workloads no network.
     fn endpoints(
         &self,
         a: &agent::Assignment,

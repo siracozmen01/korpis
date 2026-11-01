@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An explanation as one viewer may see it (§8 of docs/08-identity.md). The stored explanation is
-//! the full derivation; what a subject sees is filtered by their grants on read, so there is
-//! never a second version of the truth.
+//! An explanation as one viewer may see it. The stored explanation is the full derivation; what a
+//! subject sees is filtered by their grants on read, so there is never a second version of the
+//! truth.
 //!
 //! ```text
 //! a node the viewer may read        its rejections, its scores, whether it was chosen

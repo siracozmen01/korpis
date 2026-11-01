@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Rate limits on the client API (§10 of docs/10-api.md): each request is charged to its subject's
-//! bucket and to the bucket of each organization the subject holds a grant in, so a grant minted
-//! by attenuation adds no capacity; the requests that compute a plan, back up, or install are also
-//! charged to a budget of their own; every response says where the caller stands; and every
-//! replica charges the same buckets.
+//! Rate limits on the client API: each request is charged to its subject's bucket and to the bucket
+//! of each organization the subject holds a grant in, so a grant minted by attenuation adds no
+//! capacity; the requests that compute a plan, back up, or install are also charged to a budget of
+//! their own; every response says where the caller stands; and every replica charges the same
+//! buckets.
 
 use crate::support::{Harness, detail, mutation, org_scope, reason};
 use connectrpc::client::ClientConfig;

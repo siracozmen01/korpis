@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! `korpis-backup-job`: one backup or restore job, started by the node's helper with its spec on
-//! standard input (§5.5 of docs/06-storage.md). It confines itself before anything else, while it
-//! is one thread, then runs, then writes its result where the spec says, and exits 0 when it
-//! wrote one, whatever the result says.
+//! standard input. It confines itself before anything else, while it is one thread, then runs, then
+//! writes its result where the spec says, and exits 0 when it wrote one, whatever the result says.
 
 use korpis_backup::job::{confine_to, read_spec, run, write_result};
 use korpis_proto::korpis::backup::v1 as pb;

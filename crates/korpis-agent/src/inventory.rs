@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The recipes whose content this node holds, for the scheduler's content locality (§2.2 of
-//! docs/05-scheduling.md): a recipe is held once a `pull_recipe` step fetched its content here,
-//! and the inventory is reported as `ContentStatus` whenever it grows and on every new session.
-//! It is kept on disk, one digest per line, because a restarted agent still holds what it
-//! fetched. Nothing on a node removes fetched content yet; whatever comes to remove it must
-//! remove the recipe from here too, or the node is preferred for content it no longer has.
+//! The recipes whose content this node holds, for the scheduler's content locality: a recipe is
+//! held once a `pull_recipe` step fetched its content here, and the inventory is reported as
+//! `ContentStatus` whenever it grows and on every new session. It is kept on disk, one digest per
+//! line, because a restarted agent still holds what it fetched. Nothing on a node removes fetched
+//! content yet; whatever comes to remove it must remove the recipe from here too, or the node is
+//! preferred for content it no longer has.
 
 use crate::durable;
 use korpis_proto::korpis::agent::v1 as agent;

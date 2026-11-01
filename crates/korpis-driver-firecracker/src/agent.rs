@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The guest's agent, as the driver reaches it: over the microVM's vsock device, whose socket is
-//! in the guest's chroot (§6 of docs/04-runtimes.md). A connection on that socket is told which
-//! port of the guest it is for, `CONNECT <port>`, and Firecracker answers `OK <port>` once the
-//! guest has accepted it; what follows is the control port's frames
-//! (`korpis_guest::control`). The socket is opened as the API socket is, never through a link,
-//! since the guest's Firecracker can write the chroot; and everything the guest says is bounded
-//! before it is read and given a deadline, since the guest is the tenant's.
+//! The guest's agent, as the driver reaches it: over the microVM's vsock device, whose socket is in
+//! the guest's chroot. A connection on that socket is told which port of the guest it is for,
+//! `CONNECT <port>`, and Firecracker answers `OK <port>` once the guest has accepted it; what
+//! follows is the control port's frames (`korpis_guest::control`). The socket is opened as the API
+//! socket is, never through a link, since the guest's Firecracker can write the chroot; and
+//! everything the guest says is bounded before it is read and given a deadline, since the guest is
+//! the tenant's.
 
 use crate::api::socket_at;
 use korpis_driver_kit::exec::{Command, Ran};

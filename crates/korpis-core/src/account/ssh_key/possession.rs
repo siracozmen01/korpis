@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Proof that whoever registers an SSH key holds its private half (§9.9 of docs/08-identity.md):
-//! an SSH signature as `ssh-keygen -Y sign` makes one (OpenSSH's `PROTOCOL.sshsig`), in Korpis's
-//! namespace, over the text naming the account the key is registered to. A public key is public,
-//! so naming one proves nothing; a signature over the account's name is good for that account
-//! alone, so a key cannot be registered to anyone but by its holder. Verified with `ring`, as a
-//! passkey's assertion is, and an RSA signature only with SHA-2.
+//! Proof that whoever registers an SSH key holds its private half: an SSH signature as `ssh-keygen
+//! -Y sign` makes one (OpenSSH's `PROTOCOL.sshsig`), in Korpis's namespace, over the text naming
+//! the account the key is registered to. A public key is public, so naming one proves nothing; a
+//! signature over the account's name is good for that account alone, so a key cannot be registered
+//! to anyone but by its holder. Verified with `ring`, as a passkey's assertion is, and an RSA
+//! signature only with SHA-2.
 
 use super::{SshKeyError, SshKeyKind, SshPublicKey, Wire, refuse};
 use base64::Engine as _;

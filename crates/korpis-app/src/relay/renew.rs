@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A relay's certificate, kept current (§7 of docs/18-operations.md). The relay renews it with a
-//! request its identity key signs over the new TLS key, and is issued a certificate as at its
-//! join; the control plane reports each step of an unrenewed certificate's approach to expiry as
-//! an event, once, so an operator hears of a relay that stopped renewing well before the
-//! certificate runs out.
+//! A relay's certificate, kept current. The relay renews it with a request its identity key signs
+//! over the new TLS key, and is issued a certificate as at its join; the control plane reports each
+//! step of an unrenewed certificate's approach to expiry as an event, once, so an operator hears of
+//! a relay that stopped renewing well before the certificate runs out.
 
 use super::join::lifetime;
 use crate::App;

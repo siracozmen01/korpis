@@ -139,10 +139,9 @@ async fn volumes(
             break;
         }
     }
-    // A volume is on one node's disk, or in a shared store any node offering it reaches (§2.1 of
-    // docs/06-storage.md).
+    // A volume is on one node's disk, or in a shared store any node offering it reaches.
     let header = ["ID", "NAME", "KIND", "CLASS", "SIZE", "WHERE", "ATTACHED TO", "DELETED"];
-    // A size nothing enforces is not shown (Rule K-3).
+    // A size nothing enforces is not shown.
     let human = rows(&header, &list, |v| {
         let size = if v.quota_enforced { v.size_bytes.to_string() } else { "-".into() };
         let deleted = v.deleted_at.as_option().map_or("-".into(), |t| time(Some(t)));
@@ -235,8 +234,8 @@ fn figures(b: Option<&pb::IntentBody>) -> [(&'static str, u64); 6] {
         r.memory.into_option().unwrap_or_default(),
         r.disk.into_option().unwrap_or_default(),
     );
-    // Dedicated cores are held by their cpuset, not a quota: they are shown as cores, never as
-    // a limit in millicores no kernel holds (Rule K-3, §5.2 of docs/05-scheduling.md).
+    // Dedicated cores are held by their cpuset, not a quota: they are shown as cores, never as a
+    // limit in millicores no kernel holds.
     let dedicated =
         cpu.isolation.as_known() == Some(pb::CpuIsolation::CPU_ISOLATION_DEDICATED_CORES);
     let limit = if dedicated {
@@ -254,8 +253,8 @@ fn figures(b: Option<&pb::IntentBody>) -> [(&'static str, u64); 6] {
     ]
 }
 
-/// A member changed outside its set: who changed it, and how far quota moved from what the
-/// set's files say (finding 17 of docs/23-walkthroughs.md).
+/// A member changed outside its set: who changed it, and how far quota moved from what the set's
+/// files say.
 async fn drift(c: &Connection, out: &mut String, s: &pb::WorkloadStatus) -> Result<(), CliError> {
     let Some(d) = s.drift.as_option() else { return Ok(()) };
     let _ = writeln!(
@@ -281,8 +280,7 @@ async fn drift(c: &Connection, out: &mut String, s: &pb::WorkloadStatus) -> Resu
     Ok(())
 }
 
-/// Each dependency: what it reaches and how, and what it names and does not reach, with why
-/// (§5 of docs/07-networking.md).
+/// Each dependency: what it reaches and how, and what it names and does not reach, with why.
 fn dependencies(out: &mut String, s: &pb::WorkloadStatus) {
     for d in &s.dependencies {
         let required = if d.required { ", required" } else { "" };
@@ -297,8 +295,7 @@ fn dependencies(out: &mut String, s: &pb::WorkloadStatus) {
     }
 }
 
-/// Each rule naming workloads: what it matched, and what it names at no address, with why (§6
-/// of docs/07-networking.md).
+/// Each rule naming workloads: what it matched, and what it names at no address, with why.
 fn named_rules(out: &mut String, s: &pb::WorkloadStatus) {
     for r in &s.named_rules {
         let at = if r.endpoint.is_empty() { "egress".to_owned() } else { r.endpoint.clone() };
@@ -309,8 +306,7 @@ fn named_rules(out: &mut String, s: &pb::WorkloadStatus) {
     }
 }
 
-/// The address of its own it holds, and whether it waits on its router (§3.7 of
-/// docs/07-networking.md).
+/// The address of its own it holds, and whether it waits on its router.
 fn dedicated(out: &mut String, s: &pb::WorkloadStatus) {
     let Some(d) = s.dedicated.as_option() else { return };
     let waits = if d.waiting_on_router { ", waiting on its router" } else { "" };

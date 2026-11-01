@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A suspension that stops the workloads (§2.1 of docs/08-identity.md), on a real control plane
-//! and a node: every workload beneath the suspended organization is told stopped whatever power
-//! it declares, a plan waiting to apply waits on, and one already applying is let finish; a
-//! nested suspension holds its own subtree until it is itself resumed; nothing is written onto
-//! any workload, so resuming returns each to its own power; and suspending with the workloads
-//! stopped, or resuming them, takes the authority to stop or to start them.
+//! A suspension that stops the workloads, on a real control plane and a node: every workload
+//! beneath the suspended organization is told stopped whatever power it declares, a plan waiting to
+//! apply waits on, and one already applying is let finish; a nested suspension holds its own
+//! subtree until it is itself resumed; nothing is written onto any workload, so resuming returns
+//! each to its own power; and suspending with the workloads stopped, or resuming them, takes the
+//! authority to stop or to start them.
 
 use crate::agent::{Stream, TestAgent, next, welcome};
 use crate::delegation::{Holder, delegate, delegation, organization};

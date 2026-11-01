@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's probe of each member through its forwarding path (§3.1 of
-//! docs/07-networking.md, Finding 189). A probe is one UDP datagram to the probe port of a
-//! member's own address, or of an address it holds: a nonce, the group, and the address probed.
-//! The member translates it into the GRE link of a node the group forwards to, whose agent
-//! answers with its node key's signature over a message bound to the purpose, the group, the
-//! address, itself, and the nonce, and its reply comes back through the same link and the
-//! member's translation. An answer so proves the whole path, both ways.
+//! The control plane's probe of each member through its forwarding path. A probe is one UDP
+//! datagram to the probe port of a member's own address, or of an address it holds: a nonce, the
+//! group, and the address probed. The member translates it into the GRE link of a node the group
+//! forwards to, whose agent answers with its node key's signature over a message bound to the
+//! purpose, the group, the address, itself, and the nonce, and its reply comes back through the
+//! same link and the member's translation. An answer so proves the whole path, both ways.
 
 use std::fmt::Write as _;
 use std::net::{IpAddr, Ipv6Addr};
@@ -83,8 +82,8 @@ impl Measured {
     }
 }
 
-/// Where a routed edge pool's router last said it routes an address, and why it has not
-/// routed it to its holder (§3.1 of docs/07-networking.md).
+/// Where a routed edge pool's router last said it routes an address, and why it has not routed it
+/// to its holder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EdgeRoute {
     /// The router, by its provider's name.

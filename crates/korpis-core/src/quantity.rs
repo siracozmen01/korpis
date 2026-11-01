@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Quantities (`4Gi`, `500m`, `1.5G`) and durations (`1h30m`, `250ms`) as they appear in recipe
-//! configuration (§5 of docs/09-recipes.md).
+//! configuration.
 //!
 //! The quantity syntax is the Kubernetes one without exponents: a decimal number and an optional
 //! suffix, binary (`Ki` to `Ei`), decimal (`k` to `E`), or `m` for thousandths. A quantity is kept

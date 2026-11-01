@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A file session in a guest (§4.4 of docs/04-runtimes.md): the guest's first process runs the
-//! file worker its boot drive carries, as the node's helper runs it beside a container, and the
-//! driver opens the session on the guest's files port and sends the worker's spec as its first
-//! frame. The spec names each volume at the path the guest mounts it at, which is where the worker
-//! finds it, and maps the guest's own ids, which are the workload's; the worker builds its root
-//! on an empty directory of the guest's `/run`. The driver reads nothing of the session after.
-//! A stopped object's session is served the same way by a service guest ([`super::service`]).
+//! A file session in a guest: the guest's first process runs the file worker its boot drive
+//! carries, as the node's helper runs it beside a container, and the driver opens the session on
+//! the guest's files port and sends the worker's spec as its first frame. The spec names each
+//! volume at the path the guest mounts it at, which is where the worker finds it, and maps the
+//! guest's own ids, which are the workload's; the worker builds its root on an empty directory of
+//! the guest's `/run`. The driver reads nothing of the session after. A stopped object's session is
+//! served the same way by a service guest ([`super::service`]).
 
 use super::{Machine, MachineResult, failed};
 use crate::{agent, jail, process};

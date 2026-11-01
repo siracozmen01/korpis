@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading containers back: every one the driver created, with the labels adoption matches it by
-//! (§4.4 of docs/02-architecture.md), what each is doing and since when, and what it uses. Usage
-//! is read from the container's own cgroup v2 files, which are what the kernel enforces; CPU is a
-//! rate, so it is measured between two readings.
+//! Reading containers back: every one the driver created, with the labels adoption matches it by,
+//! what each is doing and since when, and what it uses. Usage is read from the container's own
+//! cgroup v2 files, which are what the kernel enforces; CPU is a rate, so it is measured between
+//! two readings.
 
 use super::Containerd;
 use super::lifecycle::{LABEL_INTENT, LABEL_RUN, LABEL_WORKLOAD};

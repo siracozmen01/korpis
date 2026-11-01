@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! File sessions in the guest (§4.4 of docs/04-runtimes.md): on the files port, each connection
-//! the host opens is one session, served by `korpis-fsworker` from the boot drive, the worker the
-//! node's helper runs beside a container, here run by the first process with the connection as
-//! its session. The host's first frame is the worker's spec, which this process passes on
-//! unread; the worker builds its own root of the volumes, beneath a user namespace that maps the
-//! guest's own ids, confines itself, and answers the session until the host closes it. The
-//! worker's binary is held open from before the first process entered the workload's root, which
-//! does not hold it.
+//! File sessions in the guest: on the files port, each connection the host opens is one session,
+//! served by `korpis-fsworker` from the boot drive, the worker the node's helper runs beside a
+//! container, here run by the first process with the connection as its session. The host's first
+//! frame is the worker's spec, which this process passes on unread; the worker builds its own root
+//! of the volumes, beneath a user namespace that maps the guest's own ids, confines itself, and
+//! answers the session until the host closes it. The worker's binary is held open from before the
+//! first process entered the workload's root, which does not hold it.
 
 use korpis_guest::control;
 use rustix::net::{AddressFamily, SocketType};

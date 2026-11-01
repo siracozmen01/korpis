@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an install is given (§4 and §6 of docs/09-recipes.md): which verbs run and which
-//! templates render, each template's context built here, by the control plane, from declared
-//! values only, and the check that everything an install writes lands in one of the workload's
-//! volumes, because the worker that writes it sees nothing else (§6 of docs/02-architecture.md).
+//! What an install is given: which verbs run and which templates render, each template's context
+//! built here, by the control plane, from declared values only, and the check that everything an
+//! install writes lands in one of the workload's volumes, because the worker that writes it sees
+//! nothing else.
 
 use super::RecipeError;
 
@@ -39,10 +39,9 @@ impl InstallReason {
     }
 }
 
-/// The context of a template listing `vars`, from the resolved `values` of the intent. Every
-/// name is a declared field delivered through templates and never a secret (checked when the
-/// recipe loads, §5.2 of docs/09-recipes.md); this checks it again, because a context is the
-/// one thing a template can reach.
+/// The context of a template listing `vars`, from the resolved `values` of the intent. Every name
+/// is a declared field delivered through templates and never a secret (checked when the recipe
+/// loads); this checks it again, because a context is the one thing a template can reach.
 pub fn context(
     schema: &ConfigSchema,
     values: &ValueMap,

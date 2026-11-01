@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dedicated cores as a driver holds them (§5.2 of docs/05-scheduling.md, §4.2 of
-//! docs/04-runtimes.md). An object holding cores runs in a cgroup of its own under
-//! `<parent>/dedicated`, its `cpuset` its cores' logical CPUs and their NUMA nodes' memory, and
-//! every other object under `<parent>/shared`, whose `cpuset` the node's helper keeps off the held
-//! CPUs. The cores are checked against the machine's topology as the driver reads it, never as the
-//! agent says it is, and by default the holding cgroup is made a remote cpuset partition before
+//! Dedicated cores as a driver holds them. An object holding cores runs in a cgroup of its own
+//! under `<parent>/dedicated`, its `cpuset` its cores' logical CPUs and their NUMA nodes' memory,
+//! and every other object under `<parent>/shared`, whose `cpuset` the node's helper keeps off the
+//! held CPUs. The cores are checked against the machine's topology as the driver reads it, never as
+//! the agent says it is, and by default the holding cgroup is made a remote cpuset partition before
 //! anything of the object runs, which keeps the host's own processes off them too;
 //! `--dedicated-cores-host shared` leaves the host on them, and the declaration says so.
 

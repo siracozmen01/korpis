@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Removing a node (§3 of docs/18-operations.md, §9 of docs/17-security.md): once cordoned and
-//! empty, or at once as compromised, whatever it holds. Either way it is decommissioned for good:
-//! its session ends and its key opens no other. A compromised node's workloads are placed again,
-//! from their targets, on the nodes that remain.
+//! Removing a node: once cordoned and empty, or at once as compromised, whatever it holds. Either
+//! way it is decommissioned for good: its session ends and its key opens no other. A compromised
+//! node's workloads are placed again, from their targets, on the nodes that remain.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::recipes::{body, project, push_paper};

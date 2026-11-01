@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dedicated cores (§5.2 of docs/05-scheduling.md): whole cores pinned to a workload are placed
-//! only on a node whose driver declares it holds them (Rule K-3) and which offers enough free
-//! cores, and the placement reserves every logical CPU of the cores it is given.
+//! Dedicated cores: whole cores pinned to a workload are placed only on a node whose driver
+//! declares it holds them and which offers enough free cores, and the placement reserves every
+//! logical CPU of the cores it is given.
 
 use super::{Case, checks, driver, node};
 use crate::node::Node;

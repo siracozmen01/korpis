@@ -154,8 +154,8 @@ impl ControlPlane {
         pb::WorkloadServiceClient::new(self.http(), self.config())
     }
 
-    /// A project in the root organization, whose policy runs unsigned recipes: the agent's
-    /// tests are about the node, not about trust (§7 of docs/09-recipes.md).
+    /// A project in the root organization, whose policy runs unsigned recipes: the agent's tests
+    /// are about the node, not about trust.
     pub async fn project(&self) -> String {
         let policy = pb::TrustPolicy { allow_unsigned: true, ..Default::default() };
         pb::OrganizationServiceClient::new(self.http(), self.config())

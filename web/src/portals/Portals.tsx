@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The portals of an organization (§3.6 of docs/07-networking.md, §9.8 of docs/08-identity.md):
-// names it holds under which the control plane answers for it, each shown with the certificate it
-// is served with and how that certificate stands. A caller holding `portal.write` there makes
-// one, served with its own `acme` certificate or a provided one it names, serves one with another
-// certificate, and deletes one once told how many passkeys deleting it removes and how many
-// accounts would then sign in nowhere. Nothing here is offered through a share link.
+// The portals of an organization: names it holds under which the control plane answers for it, each
+// shown with the certificate it is served with and how that certificate stands. A caller holding
+// `portal.write` there makes one, served with its own `acme` certificate or a provided one it
+// names, serves one with another certificate, and deletes one once told how many passkeys deleting
+// it removes and how many accounts would then sign in nowhere. Nothing here is offered through a
+// share link.
 
 import { useCallback, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";

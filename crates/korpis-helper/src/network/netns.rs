@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A workload's namespaces, kept by bind mounts as `ip netns` keeps a network namespace: a
-//! namespace lives while a file is mounted over it, so it outlives the process that made it and
-//! is joined by its path (§4.1 of docs/07-networking.md). Each workload has a directory holding
-//! two: `net`, its network, and `user`, the user namespace that owns it, mapped to the
-//! workload's uid range as its container's is. The container joins both, because the kernel lets
-//! a container's root mount its own sysfs only in a network namespace its user namespace owns;
-//! its capabilities leave out `CAP_NET_ADMIN`, so owning the namespace does not let it change it.
+//! namespace lives while a file is mounted over it, so it outlives the process that made it and is
+//! joined by its path. Each workload has a directory holding two: `net`, its network, and `user`,
+//! the user namespace that owns it, mapped to the workload's uid range as its container's is. The
+//! container joins both, because the kernel lets a container's root mount its own sysfs only in a
+//! network namespace its user namespace owns; its capabilities leave out `CAP_NET_ADMIN`, so owning
+//! the namespace does not let it change it.
 //!
 //! The pair is made by a child that unshares both and waits while the helper writes its id
 //! maps and binds its namespaces, because a user namespace can only be made by a process with

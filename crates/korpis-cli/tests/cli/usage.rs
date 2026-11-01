@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis get usage` and `korpis get periods` (§2 of docs/15-observability.md): each figure in
-//! its unit with the window it covers and how it was measured, an absent one never a zero, and
-//! the API's records under `--json`.
+//! `korpis get usage` and `korpis get periods`: each figure in its unit with the window it covers
+//! and how it was measured, an absent one never a zero, and the API's records under `--json`.
 
 use crate::support::{ControlPlane, push_recipe};
 use korpis_core::id::{Id, IdKind};

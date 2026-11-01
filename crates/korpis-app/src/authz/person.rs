@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A person signed in through an identity provider, calling (§9.7 of docs/08-identity.md). Their
-//! access token names their session, which the gateway reads at each call: it must not have
-//! ended, its holder's binding must not be retired, and of the sets the provider named at the
-//! sign-in, the caller holds only those whose record of the person as a member still vouches,
-//! at the control plane's clock. No second factor is theirs (§9), so a grant requiring one does
-//! not permit them.
+//! A person signed in through an identity provider, calling. Their access token names their
+//! session, which the gateway reads at each call: it must not have ended, its holder's binding must
+//! not be retired, and of the sets the provider named at the sign-in, the caller holds only those
+//! whose record of the person as a member still vouches, at the control plane's clock. No second
+//! factor is theirs, so a grant requiring one does not permit them.
 
 use crate::App;
 use crate::caller::Caller;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The SFTP servers `ServerInfo` names to clients (§3.1 of docs/02-architecture.md): the control
-//! plane's own relay role's, once it serves one, and each relay's, as the replica last listed
-//! them from what the relays reported in their feeds, so answering a client reads no database.
+//! The SFTP servers `ServerInfo` names to clients: the control plane's own relay role's, once it
+//! serves one, and each relay's, as the replica last listed them from what the relays reported in
+//! their feeds, so answering a client reads no database.
 
 use korpis_app::relay::SftpEndpoint;
 use korpis_core::id::IdKind;

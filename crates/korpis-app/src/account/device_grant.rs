@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The CLI's sign-in (§9.4 of docs/08-identity.md): the OAuth device authorization grant of RFC
+//! The CLI's sign-in: the OAuth device authorization grant of RFC
 //! 8628. A CLI asks and is given a device code to poll with and a user code for its user; an
 //! account signed in to the panel, recently, approves the user code there, having been shown where
 //! the CLI asked from; and the CLI's next poll begins a session of its own and spends the grant.
-//! A person signed in through an identity provider approves one the same way (§9.7), and the
+//! A person signed in through an identity provider approves one the same way, and the
 //! CLI's session is then theirs, with the sets the approving session holds.
 
 use super::{Begun, Client, own_holder, record_held};
@@ -154,11 +154,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or(AppError::NotFound { kind: "device authorization" })
     }
 
-    /// Approves, or denies, the pending device authorization whose user code is `typed`, for
-    /// the caller's account. Approving begins a session for whoever holds the device code, so
-    /// it needs a recent sign-in, as a change of factors does, and is honoured only while the
-    /// session it was given from lasts and its account may sign in (Findings 74 and 75 of
-    /// docs/23-walkthroughs.md); denying needs none.
+    /// Approves, or denies, the pending device authorization whose user code is `typed`, for the
+    /// caller's account. Approving begins a session for whoever holds the device code, so it needs
+    /// a recent sign-in, as a change of factors does, and is honoured only while the session it was
+    /// given from lasts and its account may sign in; denying needs none.
     pub async fn decide_device(
         &self,
         caller: &Caller,
@@ -181,11 +180,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Begins the CLI's session for `holder`, who approved from session `from`: an account's,
-    /// or a person's with the sets that session holds, which they signed in with. It is
-    /// confined as the approving session is, beneath the organization it reaches beneath, or a
-    /// page served at its portal could approve a login of its own and hold a session confined
-    /// to nothing (§9.8 of docs/08-identity.md, Finding 129).
+    /// Begins the CLI's session for `holder`, who approved from session `from`: an account's, or a
+    /// person's with the sets that session holds, which they signed in with. It is confined as the
+    /// approving session is, beneath the organization it reaches beneath, or a page served at its
+    /// portal could approve a login of its own and hold a session confined to nothing.
     async fn begin_cli_session(
         &self,
         tx: &mut S::Tx,

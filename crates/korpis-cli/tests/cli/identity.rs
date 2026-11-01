@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis identity` and `korpis organization ceiling` through the binary (§5 and §5.1 of
-//! docs/08-identity.md): a set is bound at an installed identity provider and shown with its
-//! interval and grace together, edited against its version, asked about now, and retired; and
-//! the delegation ceiling is read, raised at the root, and removed.
+//! `korpis identity` and `korpis organization ceiling` through the binary: a set is bound at an
+//! installed identity provider and shown with its interval and grace together, edited against its
+//! version, asked about now, and retired; and the delegation ceiling is read, raised at the root,
+//! and removed.
 
 use crate::support::{ControlPlane, registry};
 

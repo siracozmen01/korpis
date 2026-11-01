@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Conditions as events (§5 of docs/15-observability.md): what the control plane last decided of
-//! a workload's convergence, and the condition events it writes when that changes.
+//! Conditions as events: what the control plane last decided of a workload's convergence, and the
+//! condition events it writes when that changes.
 
 use super::StoreResult;
 use korpis_core::event::Condition;

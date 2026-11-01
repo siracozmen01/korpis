@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! A test extension, the one the end-to-end tests run in a container on a real node: it serves
-//! the DNS provider its installation provides, answering pings and refusing every other call, and
+//! A test extension, the one the end-to-end tests run in a container on a real node: it serves the
+//! DNS provider its installation provides, answering pings and refusing every other call, and
 //! follows every subscription its installation holds, printing each event to its console. It
 //! reaches the control plane however the SDK finds it does, through its node's relay inside a
-//! container (§9.5 of docs/08-identity.md).
+//! container.
 //!
 //! The provider's name is `KORPIS_TEST_PROVIDER`, `test` without it. Run as `test-extension
 //! --health <protocol>`, it serves a health provider of that query protocol instead, the one the
 //! end-to-end tests of query probes judge a workload by: it has the node send `ping`, and the
-//! workload is healthy if what came back starts with `pong` (§5 of docs/16-extensions.md).
+//! workload is healthy if what came back starts with `pong`.
 
 use korpis_extension::consumer::{Consumer, EventHandler};
 use korpis_extension::health::{Failure, Health, HealthProvider, send, verdict};

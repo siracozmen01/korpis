@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Browsing and reading a backup through the API (§5.4 of docs/06-storage.md): the use case
-//! decides who may, records the read, and grants the workload's key with minutes of read access
-//! to its prefix; this reads the repository with them, a directory's tree or a file's chunks,
-//! and nothing else.
+//! Browsing and reading a backup through the API: the use case decides who may, records the read,
+//! and grants the workload's key with minutes of read access to its prefix; this reads the
+//! repository with them, a directory's tree or a file's chunks, and nothing else.
 
 use super::wire::{self, Refuse, timestamp};
 use super::{Api, error};

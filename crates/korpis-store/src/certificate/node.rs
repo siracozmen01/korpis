@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node's proxy proves an order's names with, beyond HTTP-01 (migration 0120, §3.2 of
-//! docs/07-networking.md): the TLS-ALPN-01 digests standing while an order runs, carried to the
-//! nodes serving the certificate's routes as the HTTP-01 tokens are, and the way a node's proxy
-//! last proved the certificate, which its next order tries first.
+//! What a node's proxy proves an order's names with, beyond HTTP-01 (migration 0120): the
+//! TLS-ALPN-01 digests standing while an order runs, carried to the nodes serving the certificate's
+//! routes as the HTTP-01 tokens are, and the way a node's proxy last proved the certificate, which
+//! its next order tries first.
 
 use crate::errors::from_sqlx;
 use crate::{PgStore, PgTx};

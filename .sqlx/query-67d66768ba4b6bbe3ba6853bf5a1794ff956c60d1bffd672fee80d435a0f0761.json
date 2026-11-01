@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The plan most recently approved to move a workload's target to an intent: whether that intent\n-- was ever reached (§3.3 of docs/01-model.md).\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume,\n       to_repository\n  FROM plan\n WHERE workload_id = $1 AND to_intent = $2 AND approved_at IS NOT NULL\n ORDER BY approved_at DESC, id DESC LIMIT 1\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The plan most recently approved to move a workload's power target to a version: whether that\n-- power was ever reached.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume,\n       to_repository\n  FROM plan\n WHERE workload_id = $1 AND to_power = $2 AND approved_at IS NOT NULL\n ORDER BY approved_at DESC, id DESC LIMIT 1\n",
   "describe": {
     "columns": [
       {
@@ -271,7 +271,7 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Uuid"
+        "Int8"
       ]
     },
     "nullable": [
@@ -301,5 +301,5 @@
       true
     ]
   },
-  "hash": "ac91159961ec07ac1d00a9047c3c6f067c4644274af459823c6676050d53cec7"
+  "hash": "67d66768ba4b6bbe3ba6853bf5a1794ff956c60d1bffd672fee80d435a0f0761"
 }

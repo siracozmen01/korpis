@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Relays that run as their own process, and the tokens that enroll them (§3.1 of
-//! docs/02-architecture.md).
+//! Relays that run as their own process, and the tokens that enroll them.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, principal, to_time};

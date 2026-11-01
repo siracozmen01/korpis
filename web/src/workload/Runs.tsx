@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A task or scheduled workload's runs (§4 of docs/05-scheduling.md, §2 of
-// docs/11-surface-web.md): each with what made it, where it is, when it was due and started, and
-// how it ended; its console, which each run writes its own of (§4 of docs/14-streams.md), opened
-// by naming it; and an active one cancelled by whoever may stop the workload. Read again whenever
-// the workload's status says its newest run changed.
+// A task or scheduled workload's runs: each with what made it, where it is, when it was due and
+// started, and how it ended; its console, which each run writes its own of, opened by naming it;
+// and an active one cancelled by whoever may stop the workload. Read again whenever the workload's
+// status says its newest run changed.
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";

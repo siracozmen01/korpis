@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Leases (§4.5 of docs/02-architecture.md).
+//! Leases.
 
 use super::StoreResult;
 use korpis_core::workload::lease::Lease;
@@ -27,16 +27,15 @@ pub trait LeaseWrite {
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Option<Lease>>> + Send;
 
-    /// The next epoch: one past every epoch ever issued and past the floor a restore set
-    /// (§8 of docs/03-state.md), unless a restore is settling or the issue rate is spent, at
-    /// `now`.
+    /// The next epoch: one past every epoch ever issued and past the floor a restore set, unless a
+    /// restore is settling or the issue rate is spent, at `now`.
     fn next_epoch(
         &mut self,
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<EpochIssue>> + Send;
 
-    /// Raises the epoch floor to at least `floor` and refuses to issue until `settling_until`:
-    /// a restore's first fence (§8 of docs/03-state.md).
+    /// Raises the epoch floor to at least `floor` and refuses to issue until `settling_until`: a
+    /// restore's first fence.
     fn fence_epochs(
         &mut self,
         floor: u64,

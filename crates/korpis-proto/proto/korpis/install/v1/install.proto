@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// An install job (§4 of docs/09-recipes.md): what the helper hands the confined install worker
-// on its standard input, and what the worker reports. The worker runs a recipe's install actions
-// in order beneath the workload's volumes, as the workload's own ids in a user namespace, in a
-// mount namespace holding nothing but those volumes and the node's content, read-only; it
-// reaches no network.
+// An install job: what the helper hands the confined install worker on its standard input, and what
+// the worker reports. The worker runs a recipe's install actions in order beneath the workload's
+// volumes, as the workload's own ids in a user namespace, in a mount namespace holding nothing but
+// those volumes and the node's content, read-only; it reaches no network.
 
 syntax = "proto3";
 
@@ -39,8 +38,7 @@ message InstallSpec {
   // The first of the 65536 host ids the workload's ids are, which the worker runs as.
   uint32 id_base = 10;
   // Set instead of the actions: a path of a block device's backup restored into the volume, its
-  // image mounted as the content (§5.4 of docs/06-storage.md). The result's `done` is 1 once it
-  // has been copied.
+  // image mounted as the content. The result's `done` is 1 once it has been copied.
   RestoreTree restore = 11;
 }
 

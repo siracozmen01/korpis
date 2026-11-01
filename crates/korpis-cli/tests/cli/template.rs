@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grant templates through the binary (§4 of docs/08-identity.md): the host defines a reseller's
-//! Moderator from a file, finds it offered there by name, issues from it at a project, edits it
-//! from what `template show --json` printed, finds the grant it issued behind the new version,
-//! and retires it, after which it is offered nowhere and is still the reseller's to read.
+//! Grant templates through the binary: the host defines a reseller's Moderator from a file, finds
+//! it offered there by name, issues from it at a project, edits it from what `template show --json`
+//! printed, finds the grant it issued behind the new version, and retires it, after which it is
+//! offered nowhere and is still the reseller's to read.
 
 use crate::support::ControlPlane;
 use serde_json::{Value, json};

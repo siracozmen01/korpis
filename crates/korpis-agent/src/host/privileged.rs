@@ -133,7 +133,7 @@ impl HelperClient {
         }
     }
 
-    /// Makes a workload's network what `r` says (§4.1 of docs/07-networking.md).
+    /// Makes a workload's network what `r` says.
     pub async fn ensure_network(
         &self,
         r: &helper::EnsureNetworkRequest,
@@ -155,7 +155,7 @@ impl HelperClient {
     }
 
     /// The sockets of `workload`'s resolver, opened by the helper inside its network namespace:
-    /// UDP, then TCP listening (§5.1 of docs/07-networking.md).
+    /// UDP, then TCP listening.
     pub async fn open_resolver(&self, workload: &str) -> Result<Vec<OwnedFd>, HostError> {
         let r = helper::OpenResolverRequest { workload: workload.to_owned(), ..Default::default() };
         match self.call_attached(Verb::OpenResolver(Box::new(r))).await? {
@@ -168,8 +168,8 @@ impl HelperClient {
         }
     }
 
-    /// A socket for probing `workload`, a datagram socket if `udp` and a stream otherwise,
-    /// opened by the helper inside its network namespace (§5 of docs/04-runtimes.md).
+    /// A socket for probing `workload`, a datagram socket if `udp` and a stream otherwise, opened
+    /// by the helper inside its network namespace.
     pub async fn open_probe(&self, workload: &str, udp: bool) -> Result<OwnedFd, HostError> {
         let transport =
             if udp { helper::Transport::TRANSPORT_UDP } else { helper::Transport::TRANSPORT_TCP };
@@ -188,8 +188,8 @@ impl HelperClient {
         }
     }
 
-    /// Ports 80 and 443 of each of `addresses`, opened by the helper for the ingress proxy:
-    /// every port 80, then every 443 (§3.2 of docs/07-networking.md).
+    /// Ports 80 and 443 of each of `addresses`, opened by the helper for the ingress proxy: every
+    /// port 80, then every 443.
     pub async fn open_ingress(&self, addresses: &[String]) -> Result<Vec<OwnedFd>, HostError> {
         let r = helper::OpenIngressRequest { addresses: addresses.to_vec(), ..Default::default() };
         match self.call_attached(Verb::OpenIngress(Box::new(r))).await? {
@@ -239,8 +239,7 @@ impl HelperClient {
         }
     }
 
-    /// The socket of the worker the helper started for the file session `request` asks for
-    /// (§3.2 of docs/06-storage.md).
+    /// The socket of the worker the helper started for the file session `request` asks for.
     pub async fn open_files(
         &self,
         request: &helper::OpenFilesRequest,

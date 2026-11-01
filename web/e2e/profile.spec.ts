@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Steps 11 and 14 of §38 of docs/23-walkthroughs.md, in a browser: the keeper of an organization
-// dresses it in a theme that everyone whose organization it is then wears (§7 of
-// docs/11-surface-web.md); confirms it is them once their sign-in is more than ten minutes old
-// and adds a second passkey on another device, which then signs them in alone (§9.6 of
-// docs/08-identity.md); and loads the panel again with no network, from the browser's copy of
-// it, which says the control plane cannot be reached and when it was last heard from. The theme
-// it set is in the organization's audit trail (§4 of docs/15-observability.md), and the landing
-// screen it composes is what its people land on.
+// In a browser: the keeper of an organization
+// dresses it in a theme that everyone whose organization it is then wears; confirms it is them once
+// their sign-in is more than ten minutes old and adds a second passkey on another device, which
+// then signs them in alone; and loads the panel again with no network, from the browser's copy of
+// it, which says the control plane cannot be reached and when it was last heard from. The theme it
+// set is in the organization's audit trail, and the landing screen it composes is what its people
+// land on.
 
 import { expect, test } from "@playwright/test";
 import { aged, authenticator, given, visit } from "./support";
@@ -41,8 +40,8 @@ test("a keeper themes the organization, adds a passkey, and loads the panel offl
   const themed = audit.getByRole("listitem").filter({ hasText: "org.theme.set" });
   await expect(themed.filter({ hasText: "by user " })).toBeVisible();
 
-  // A landing screen composed for everyone the organization serves: a notice above what each
-  // of them can reach (question 2 of §10 of docs/11-surface-web.md).
+  // A landing screen composed for everyone the organization serves: a notice above what each of
+  // them can reach.
   const landing = page.getByRole("region", { name: "Landing screen" });
   await landing.getByLabel("Notice heading").fill("Acme news");
   await landing.getByLabel("Notice text").fill("The new region opens on Monday.");

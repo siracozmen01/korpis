@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The panel's service worker (question 3 of §10 of docs/11-surface-web.md), served as `sw.js`
-// beside the page: it keeps the files of the bundle it was built with, so a browser that loaded
-// the panel once loads it again when the control plane cannot be reached, and it keeps nothing
-// else (routing.ts). The build writes the bundle's files into it, so a new bundle is a new worker,
-// which the browser installs at the next load, and which removes the old bundle's files.
+// The panel's service worker, served as `sw.js` beside the page: it keeps the files of the bundle
+// it was built with, so a browser that loaded the panel once loads it again when the control plane
+// cannot be reached, and it keeps nothing else (routing.ts). The build writes the bundle's files
+// into it, so a new bundle is a new worker, which the browser installs at the next load, and which
+// removes the old bundle's files.
 
 /// <reference lib="webworker" />
 

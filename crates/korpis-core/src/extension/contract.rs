@@ -1,44 +1,41 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The extension contract this control plane speaks (§6 of docs/16-extensions.md): its versions
-//! and its capabilities. A capability names an interface the control plane actually speaks, never
-//! one it merely tolerates, so an extension requiring one that is absent is refused at install
-//! rather than installed to wait for calls that never come.
+//! The extension contract this control plane speaks: its versions and its capabilities. A
+//! capability names an interface the control plane actually speaks, never one it merely tolerates,
+//! so an extension requiring one that is absent is refused at install rather than installed to wait
+//! for calls that never come.
 
 use super::ExtensionManifest;
 
 /// The contract versions this control plane serves, oldest first.
 pub const CONTRACT_VERSIONS: &[&str] = &["korpis.extension.v1"];
 
-/// The capabilities this control plane offers extensions, sorted. `provider.<type>` joins when
-/// that type's calls are part of the contract (§5 of docs/16-extensions.md).
+/// The capabilities this control plane offers extensions, sorted. `provider.<type>` joins when that
+/// type's calls are part of the contract.
 pub const CAPABILITIES: &[&str] = &[
-    // Subscriptions and their delivery, §5 of docs/15-observability.md.
+    // Subscriptions and their delivery.
     "events.subscribe",
-    // The workload credential socket of §9.5 of docs/08-identity.md.
+    // The workload credential socket.
     "identity.credential",
-    // Address routers' calls: routing an address to a node, or nowhere, §3.7 of
-    // docs/07-networking.md.
+    // Address routers' calls: routing an address to a node, or nowhere.
     "provider.address_router",
-    // Backup targets' calls: scoped access, listing, and deletion, §5.6 of docs/06-storage.md.
+    // Backup targets' calls: scoped access, listing, and deletion.
     "provider.backup_target",
     // Block storage providers' calls: a device made, attached to one node for one lease epoch,
-    // detached, deleted, and described, §2.1 of docs/06-storage.md.
+    // detached, deleted, and described.
     "provider.block_storage",
-    // DNS providers' calls: applying an owner's records, §3.5 of docs/07-networking.md.
+    // DNS providers' calls: applying an owner's records.
     "provider.dns",
-    // Health providers' calls: a query probe's next round, or its verdict, §5 of
-    // docs/04-runtimes.md.
+    // Health providers' calls: a query probe's next round, or its verdict.
     "provider.health",
-    // Identity providers' calls: a binding re-verified, and a presentation asserted, §5 of
-    // docs/08-identity.md.
+    // Identity providers' calls: a binding re-verified, and a presentation asserted.
     "provider.identity",
     // Key management providers' calls: a data key made, and one opened, each sealed to its
-    // recipient, §5.5 of docs/06-storage.md.
+    // recipient.
     "provider.key_management",
-    // A provider's stream: registering, being pinged, and being cancelled, §3.3.
+    // A provider's stream: registering, being pinged, and being cancelled.
     "provider.serve",
-    // Recipe step providers' calls: resolving a step into artifacts, §4 of docs/09-recipes.md.
+    // Recipe step providers' calls: resolving a step into artifacts.
     "provider.step",
 ];
 

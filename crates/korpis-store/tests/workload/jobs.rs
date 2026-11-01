@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The job queue (§6 of docs/03-state.md): queueing under one key once; one claimer at a time,
-//! however many ask together; a lease that runs out handing the job to another, and the first
-//! holder unable to end it after; a retry put back for its time, and failed once its attempts are
-//! spent.
+//! The job queue: queueing under one key once; one claimer at a time, however many ask together; a
+//! lease that runs out handing the job to another, and the first holder unable to end it after; a
+//! retry put back for its time, and failed once its attempts are spent.
 
 use crate::support::{fixture, now};
 use korpis_app::ports::{JobEnd, JobRead, JobWrite, NewJob, Store, Tx};

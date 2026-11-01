@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Which backups a prune forgets (§5.3 of docs/06-storage.md), and why each other one is kept.
-//! Each volume's backups are judged on their own, since a backup is of one volume: a whole backup
-//! is kept if it is one of its volume's newest `keep_last`, or the newest of its hour, day, ISO
-//! week, month, or year among the newest that many of each that have a backup, in UTC. So any
-//! policy that keeps something keeps each volume's newest whole backup, which its next backup
-//! takes unchanged files from.
-//! Whatever the policy says, a backup younger than `min_retention` is kept, as is one still
-//! pending, and one an open plan restores (Finding 35 of docs/23-walkthroughs.md); a failed one
-//! is kept for `keep_failed`, so its reason can still be read. Everything else is forgotten.
+//! Which backups a prune forgets, and why each other one is kept. Each volume's backups are judged
+//! on their own, since a backup is of one volume: a whole backup is kept if it is one of its
+//! volume's newest `keep_last`, or the newest of its hour, day, ISO week, month, or year among the
+//! newest that many of each that have a backup, in UTC. So any policy that keeps something keeps
+//! each volume's newest whole backup, which its next backup takes unchanged files from. Whatever
+//! the policy says, a backup younger than `min_retention` is kept, as is one still pending, and one
+//! an open plan restores; a failed one is kept for `keep_failed`, so its reason can still be read.
+//! Everything else is forgotten.
 
 use super::calendar;
 use super::{BackupStatus, Retention};

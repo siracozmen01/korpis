@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The words a run is shown with (§4 of docs/05-scheduling.md): how it was made, where it is, and
-// why it ended, each described by what it names.
+// The words a run is shown with: how it was made, where it is, and why it ended, each described by
+// what it names.
 
 import { RunCause, RunStatus, RunTrigger } from "../gen/korpis/v1/workload_pb";
 import { t } from "../i18n/intl";

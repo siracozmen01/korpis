@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Revoking what a node removed as compromised was given (§9 of docs/17-security.md): every chain
-//! of an `acme` certificate it was given, each through the directory with `keyCompromise`. A
-//! revocation the directory refuses, a chain it already revoked or one past its validity, is done
-//! and its answer kept; one it could not be asked is asked again at the issuer's next look.
+//! Revoking what a node removed as compromised was given: every chain of an `acme` certificate it
+//! was given, each through the directory with `keyCompromise`. A revocation the directory refuses,
+//! a chain it already revoked or one past its validity, is done and its answer kept; one it could
+//! not be asked is asked again at the issuer's next look.
 
 use crate::App;
 use crate::error::AppError;

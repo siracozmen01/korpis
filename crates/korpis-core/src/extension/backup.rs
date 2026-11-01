@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A backup target provider's calls (§5.6 of docs/06-storage.md): access scoped to one
-//! workload's prefix for one job, and the listing and deletion the control plane prunes with.
-//! Object bytes never travel through these calls.
+//! A backup target provider's calls: access scoped to one workload's prefix for one job, and the
+//! listing and deletion the control plane prunes with. Object bytes never travel through these
+//! calls.
 
 use std::time::{Duration, SystemTime};
 
 /// The shortest access a job is granted: the shortest a store's token service issues, so that no
-/// target grants longer than asked, which a prune's sweep relies on (§5.5 of
-/// docs/06-storage.md).
+/// target grants longer than asked, which a prune's sweep relies on.
 pub const MIN_ACCESS: Duration = Duration::from_secs(15 * 60);
 
 /// The longest access a job is granted: a job longer than this asks again.
@@ -20,8 +19,8 @@ pub const MAX_KEYS: usize = 1000;
 /// What access is for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccessMode {
-    /// Put, get, and list under the prefix; never delete. A backup reads its parent's record
-    /// and trees to take unchanged files from it (Finding 41 of docs/23-walkthroughs.md).
+    /// Put, get, and list under the prefix; never delete. A backup reads its parent's record and
+    /// trees to take unchanged files from it.
     Write,
     /// Get and list under the prefix.
     Read,
@@ -46,9 +45,8 @@ pub struct S3Access {
     pub session_token: String,
     /// Whether the bucket is addressed in the path rather than the host name.
     pub path_style: bool,
-    /// For a store its provider serves itself, the provider's endpoint it serves on, in place of
-    /// an address, until the control plane puts the endpoint's address in `endpoint` (§5.6 of
-    /// docs/06-storage.md).
+    /// For a store its provider serves itself, the provider's endpoint it serves on, in place of an
+    /// address, until the control plane puts the endpoint's address in `endpoint`.
     pub served_by: String,
     /// The one certificate, DER, such a store presents; empty for system roots.
     pub certificate: Vec<u8>,
@@ -98,8 +96,7 @@ pub struct StoredObject {
 /// Whether `prefix` is a repository prefix: relative, `/`-terminated, at most 1024 bytes, each
 /// component letters, digits, `.`, `_`, and `-`, and none `.` or `..`. A target scopes access by
 /// writing the prefix into a policy, where `*`, `?`, and `${…}` are patterns and variables, so a
-/// prefix holds nothing a policy could read as more than itself (Finding 42 of
-/// docs/23-walkthroughs.md).
+/// prefix holds nothing a policy could read as more than itself.
 #[must_use]
 pub fn is_prefix(prefix: &str) -> bool {
     let plain = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-');

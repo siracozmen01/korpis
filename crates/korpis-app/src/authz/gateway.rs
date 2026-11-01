@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The gateway: authentication, and the one authorization path (P6, §3 of
-//! docs/08-identity.md). Every use case authorizes through [`App::authorize`]; nothing else
-//! decides.
+//! The gateway: authentication, and the one authorization path. Every use case authorizes through
+//! [`App::authorize`]; nothing else decides.
 
 use super::Snapshot;
 use crate::App;
@@ -21,7 +20,7 @@ use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Authenticates a secret presented from `source_ip`: an API token's, a running workload's
-    /// credential (§9.5 of docs/08-identity.md), or a share link (§6.1).
+    /// credential, or a share link.
     pub async fn authenticate(
         &self,
         presented: &str,
@@ -31,9 +30,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if presented.starts_with(access::ACCESS_PREFIX)
             || presented.starts_with(access::PERSON_ACCESS_PREFIX)
         {
-            // An account's is verified by its signature and expiry alone (§9.4 of
-            // docs/08-identity.md): what the user may do is evaluated per call, from the grants it
-            // holds then. A person's names a session the gateway reads (§9.7).
+            // An account's is verified by its signature and expiry alone: what the user may do is
+            // evaluated per call, from the grants it holds then. A person's names a session the
+            // gateway reads.
             let claims = access::verify(&self.token_ring()?, presented, now)
                 .map_err(|_| AppError::Unauthenticated)?;
             return match claims.holder {
@@ -106,8 +105,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.decide_as(caller, (action, object), via, false).await
     }
 
-    /// [`Self::decide`], for a renewal when `renewal` is set: a session token renewed whose use
-    /// was spent when the first was minted (§6.1 of docs/08-identity.md).
+    /// [`Self::decide`], for a renewal when `renewal` is set: a session token renewed whose use was
+    /// spent when the first was minted.
     pub(crate) async fn decide_as(
         &self,
         caller: &Caller,
@@ -132,8 +131,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Vec<Vec<Grant>>, AppError> {
         let mut chains = Vec::new();
         let mut held = self.store.chains_held_by(&caller.subject.key).await?;
-        // A person acting through a relay holds, for the call, what the sets the assertion
-        // names hold (§5.2 of docs/08-identity.md).
+        // A person acting through a relay holds, for the call, what the sets the assertion names
+        // hold.
         for set in &caller.memberships {
             held.extend(self.store.chains_held_by(&set.key).await?);
         }
@@ -188,9 +187,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller.confined(authz::Hierarchy::resource(&snapshot, object).as_ref())
     }
 
-    /// Whether each of `objects` lies where the caller may act ([`Caller::reaches`]): what a
-    /// list of the caller's own, such as the grants it holds, answers a session begun at a
-    /// portal (§9.8 of docs/08-identity.md).
+    /// Whether each of `objects` lies where the caller may act ([`Caller::reaches`]): what a list
+    /// of the caller's own, such as the grants it holds, answers a session begun at a portal.
     pub(crate) async fn reached_each(
         &self,
         caller: &Caller,
@@ -209,9 +207,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(reached)
     }
 
-    /// Whether `caller` may do `action` on each of `objects` now, without recording anything:
-    /// the caller's grants are loaded once for all of them, which is what filtering a list or
-    /// an explanation per viewer needs (§8 of docs/08-identity.md).
+    /// Whether `caller` may do `action` on each of `objects` now, without recording anything: the
+    /// caller's grants are loaded once for all of them, which is what filtering a list or an
+    /// explanation per viewer needs.
     pub(crate) async fn permitted_each(
         &self,
         caller: &Caller,
@@ -243,7 +241,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Whether `caller` may do `action` on `object` now, without recording anything. Nothing is
     /// spent here, so a use-limited grant permits nothing through it: a grant is used only where
-    /// its use is counted (§6.2 of docs/08-identity.md).
+    /// its use is counted.
     pub(crate) async fn permitted(
         &self,
         caller: &Caller,
@@ -258,9 +256,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// Authorizes an action performed now. A propose-only grant does not authorize it. A refusal
-    /// is recorded as an effect, and a caller who may not even read the object is told it does
-    /// not exist (§8 of docs/10-api.md).
+    /// Authorizes an action performed now. A propose-only grant does not authorize it. A refusal is
+    /// recorded as an effect, and a caller who may not even read the object is told it does not
+    /// exist.
     pub(crate) async fn authorize(
         &self,
         caller: &Caller,
@@ -276,12 +274,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// Authorizes a call that continues one already authorized through the grant `through`, as
-    /// each later read of a watch does: the grant is evaluated as it stands, so revocation,
-    /// expiry, and its conditions still end it, but no use is spent and a grant whose last use
-    /// was taken still permits it, because the call it continues spent the one it costs (§6.1
-    /// of docs/08-identity.md). Only that grant is consulted, so the continuation is never paid
-    /// for by another.
+    /// Authorizes a call that continues one already authorized through the grant `through`, as each
+    /// later read of a watch does: the grant is evaluated as it stands, so revocation, expiry, and
+    /// its conditions still end it, but no use is spent and a grant whose last use was taken still
+    /// permits it, because the call it continues spent the one it costs. Only that grant is
+    /// consulted, so the continuation is never paid for by another.
     pub(crate) async fn authorize_continued(
         &self,
         caller: &Caller,
@@ -298,10 +295,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// Spends one use of a use-limited grant that permitted a call, by compare-and-swap, before
-    /// the call proceeds (§6.2 of docs/08-identity.md). A use is spent when the call is
-    /// authorized, whether or not the call then succeeds, so a grant is never used more often
-    /// than it allows; a grant whose last use a concurrent call took refuses this one.
+    /// Spends one use of a use-limited grant that permitted a call, by compare-and-swap, before the
+    /// call proceeds. A use is spent when the call is authorized, whether or not the call then
+    /// succeeds, so a grant is never used more often than it allows; a grant whose last use a
+    /// concurrent call took refuses this one.
     pub(crate) async fn redeem(
         &self,
         caller: &Caller,
@@ -325,8 +322,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Authorizes a declaration: like [`App::authorize`], except that a propose-only grant
-    /// authorizes it too, and the plan it produces then waits for an approver (§3.6 of
-    /// docs/08-identity.md).
+    /// authorizes it too, and the plan it produces then waits for an approver.
     pub(crate) async fn authorize_declaration(
         &self,
         caller: &Caller,

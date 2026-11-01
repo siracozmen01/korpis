@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis address-pool …` (§3.7 of docs/07-networking.md): the addresses an organization's
-//! nodes hold for its workloads' `dedicated_ip` endpoints.
+//! `korpis address-pool …`: the addresses an organization's nodes hold for its workloads'
+//! `dedicated_ip` endpoints.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;
@@ -25,9 +25,10 @@ pub enum Routing {
 /// `korpis address-pool …`.
 #[derive(Debug, Clone, Subcommand)]
 pub enum AddressPoolAction {
-    /// Makes a pool of addresses routed to one node of the organization's, moved between them by
-    /// an address router, or held by an edge group's members: an operator's, vouching that the organization holds the range
-    /// (`address_pool.attest`). One overlapping any other pool is refused.
+    /// Makes a pool of addresses routed to one node of the organization's, moved between them by an
+    /// address router, or held by an edge group's members: an operator's, vouching that the
+    /// organization holds the range (`address_pool.attest`). One overlapping any other pool is
+    /// refused.
     Create {
         /// Its addresses, as a network, e.g. `203.0.113.0/28`.
         cidr: String,

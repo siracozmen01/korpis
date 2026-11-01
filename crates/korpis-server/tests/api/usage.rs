@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading metering (§2 of docs/15-observability.md): an organization's usage under
-//! `metering.read`, a page at a time, without the operator's node; refused without the action;
-//! and the days of metering with where each stands.
+//! Reading metering: an organization's usage under `metering.read`, a page at a time, without the
+//! operator's node; refused without the action; and the days of metering with where each stands.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, send, until};

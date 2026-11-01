@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The template language (§6 of docs/09-recipes.md): text, `{{name}}` substitution, a section
-//! `{{#name}}…{{/name}}` rendered when the value is present and not false or empty, its inverse
-//! `{{^name}}…{{/name}}`, and a comment `{{! … }}`. Nothing else: no loops, no traversal, no
-//! calls, no includes, no partials, no change of delimiters.
+//! The template language: text, `{{name}}` substitution, a section `{{#name}}…{{/name}}` rendered
+//! when the value is present and not false or empty, its inverse `{{^name}}…{{/name}}`, and a
+//! comment `{{! … }}`. Nothing else: no loops, no traversal, no calls, no includes, no partials, no
+//! change of delimiters.
 
 use super::TemplateError;
 

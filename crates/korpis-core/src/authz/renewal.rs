@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Renewing a session token (§6.1 of docs/08-identity.md): the gateway mints its successor for a
-//! caller who presents it while it lives. A use of a use-limited grant is a redemption, and the
-//! tokens that keep the session it opened alive are renewals of that redemption, not new uses;
-//! what makes a mint a renewal is that it shows the live token it continues, which this reads.
+//! Renewing a session token: the gateway mints its successor for a caller who presents it while it
+//! lives. A use of a use-limited grant is a redemption, and the tokens that keep the session it
+//! opened alive are renewals of that redemption, not new uses; what makes a mint a renewal is that
+//! it shows the live token it continues, which this reads.
 
 use super::scope::{Kind, ObjectRef};
 use super::token::{KeyRing, TokenError, chain_of};

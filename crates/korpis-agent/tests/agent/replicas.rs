@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Two nodes' part in replication (§2.2 of docs/06-storage.md), each with its own mesh address
-//! on the loopback, which Linux holds whole: the volume's node is told a transfer to the other,
-//! and sends it from its mesh address with its ticket; the other was told it receives that
-//! snapshot from that node, admits the stream, receives it, and journals that it holds it. A
-//! stream under a ticket the token keys do not open is refused, and nothing of it is journaled.
+//! Two nodes' part in replication, each with its own mesh address on the loopback, which Linux
+//! holds whole: the volume's node is told a transfer to the other, and sends it from its mesh
+//! address with its ticket; the other was told it receives that snapshot from that node, admits the
+//! stream, receives it, and journals that it holds it. A stream under a ticket the token keys do
+//! not open is refused, and nothing of it is journaled.
 
 use korpis_agent::host::InMemoryHost;
 use korpis_agent::journal::{Bounds, JournalHandle};

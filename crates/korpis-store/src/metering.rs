@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Metering's readings and records (§2 of docs/15-observability.md).
+//! Metering's readings and records.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_json, from_time, to_count, to_json, to_time};

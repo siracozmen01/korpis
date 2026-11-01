@@ -66,7 +66,7 @@ async fn retry_placements(api: Arc<Api>, every: Duration) {
 }
 
 /// How often the runs of task and scheduled workloads are made: well within the minute an
-/// occurrence's run may be late and still be on time (§4.3 of docs/05-scheduling.md).
+/// occurrence's run may be late and still be on time.
 const RUN_EVERY: Duration = Duration::from_secs(10);
 
 /// Makes and ends the runs of task and scheduled workloads, every few seconds, as their
@@ -85,10 +85,9 @@ async fn make_runs(api: Arc<Api>) {
 }
 
 /// Marks unreachable, every heartbeat interval, each connected node not heard for three, then
-/// places again each workload on an unreachable node that may be now (§2.4 of
-/// docs/05-scheduling.md), then moves each migrating workload whose source's lease ran out at its
-/// cutover and ends each migration a silent node stalls (§8.1 there), then tends every volume's
-/// replicas against the nodes as they are now (§2.2 of docs/06-storage.md). The task ends with
+/// places again each workload on an unreachable node that may be now, then moves each migrating
+/// workload whose source's lease ran out at its cutover and ends each migration a silent node
+/// stalls, then tends every volume's replicas against the nodes as they are now. The task ends with
 /// the process.
 async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
     let mut tick = tokio::time::interval(every);
@@ -134,8 +133,8 @@ async fn close_denial_runs(api: Arc<Api>, window: Duration) {
     }
 }
 
-/// Decides workloads' convergence on every announced change and every resync, writing an event
-/// when it changed (§5 of docs/15-observability.md). The task ends with the process.
+/// Decides workloads' convergence on every announced change and every resync, writing an event when
+/// it changed. The task ends with the process.
 async fn track_conditions(api: Arc<Api>) {
     use korpis_app::ports::{Change, Changes as _, Store as _};
     let mut changes = api.app().store().subscribe();
@@ -153,8 +152,7 @@ async fn track_conditions(api: Arc<Api>) {
 }
 
 /// Reports, hourly, each relay certificate and each ingress certificate that came a step closer to
-/// expiring (§7 of docs/18-operations.md, §3.2 of docs/07-networking.md). The task ends with the
-/// process.
+/// expiring. The task ends with the process.
 async fn alert_certificates(api: Arc<Api>) {
     let mut tick = tokio::time::interval(Duration::from_secs(3600));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -173,8 +171,7 @@ async fn alert_certificates(api: Arc<Api>) {
     }
 }
 
-/// Deletes, hourly, offloaded stream segments past their retention (§4 of docs/14-streams.md).
-/// The task ends with the process.
+/// Deletes, hourly, offloaded stream segments past their retention. The task ends with the process.
 async fn expire_offloaded(api: Arc<Api>) {
     let mut tick = tokio::time::interval(Duration::from_secs(3600));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -196,7 +193,7 @@ async fn expire_offloaded(api: Arc<Api>) {
 }
 
 /// How often due identity bindings are looked for: well within the shortest interval one may
-/// declare, a minute (§5.1 of docs/08-identity.md).
+/// declare, a minute.
 const REVERIFY_EVERY: Duration = Duration::from_secs(5);
 
 /// Re-verifies, every few seconds, the identity bindings due, so a membership that ended stops
@@ -217,9 +214,8 @@ async fn reverify_bindings(api: Arc<Api>) {
     }
 }
 
-/// Forgets, every minute, the presentations and tickets past use (§5.2 of
-/// docs/08-identity.md), and the sign-ins begun that expired unspent (§9.7). The task ends with
-/// the process.
+/// Forgets, every minute, the presentations and tickets past use, and the sign-ins begun that
+/// expired unspent. The task ends with the process.
 async fn forget_assertions(api: Arc<Api>) {
     let mut tick = tokio::time::interval(Duration::from_secs(60));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -232,9 +228,8 @@ async fn forget_assertions(api: Arc<Api>) {
 }
 
 /// Recounts, hourly, what every workload holds against quota and checks every entry's totals
-/// against it (question 7 of §10 of docs/05-scheduling.md); a difference is corrected and
-/// recorded as a `quota.drift` effect. The first pass is the one at start. The task ends with the
-/// process.
+/// against it; a difference is corrected and recorded as a `quota.drift` effect. The first pass is
+/// the one at start. The task ends with the process.
 async fn reconcile_quota(api: Arc<Api>) {
     let mut tick = tokio::time::interval(Duration::from_secs(3600));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -250,8 +245,7 @@ async fn reconcile_quota(api: Arc<Api>) {
 }
 
 /// Writes, every minute, the metering gaps now due and closes the days whose lateness window has
-/// passed (§2 of docs/15-observability.md), then reckons the egress budgets (§5.1 of
-/// docs/05-scheduling.md). The task ends with the process.
+/// passed, then reckons the egress budgets. The task ends with the process.
 async fn keep_metering(api: Arc<Api>) {
     let mut tick = tokio::time::interval(Duration::from_secs(60));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);

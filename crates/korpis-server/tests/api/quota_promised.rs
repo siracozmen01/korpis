@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a parent guaranteed beneath it is kept (§5.1 of docs/05-scheduling.md, Finding 139 of
-//! docs/23-walkthroughs.md, trace 52 there): a reseller given 12 GiB that guaranteed its
-//! sub-tenant 8 runs no more than the 4 left of its own; it gives no other child what it would
-//! then have to take back from its own; and its sub-tenant reserves its whole 8, even after the
-//! host lowers the reseller beneath what the two hold together. Each paper server reserves 4 GiB.
+//! What a parent guaranteed beneath it is kept: a reseller given 12 GiB that
+//! guaranteed its sub-tenant 8 runs no more than the 4 left of its own; it gives no other child
+//! what it would then have to take back from its own; and its sub-tenant reserves its whole 8, even
+//! after the host lowers the reseller beneath what the two hold together. Each paper server
+//! reserves 4 GiB.
 
 use crate::delegation::{Holder, organization};
 use crate::recipes::{body, create, project, push_paper};

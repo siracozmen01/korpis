@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Offloading console streams (§4 and question 1 of docs/14-streams.md): every segment the writer
-//! seals is sent, sealed again under the workload's data key, to the repository that takes the
-//! workload's streams, with write access to its stream prefix alone, and journaled as offloaded,
-//! from which the control plane's index says it outlives the node. A task of its own, so the
-//! reconciler's loop never waits on a store. It follows each stream's changes log from its own
-//! durable place, so a segment sealed while no repository took streams, or while the control
-//! plane was away, is offloaded once one does, if the node still holds it; one pruned first is
-//! what the index reports held only on the node, and lost with it.
+//! Offloading console streams: every segment the writer seals is sent, sealed again under the
+//! workload's data key, to the repository that takes the workload's streams, with write access to
+//! its stream prefix alone, and journaled as offloaded, from which the control plane's index says
+//! it outlives the node. A task of its own, so the reconciler's loop never waits on a store. It
+//! follows each stream's changes log from its own durable place, so a segment sealed while no
+//! repository took streams, or while the control plane was away, is offloaded once one does, if the
+//! node still holds it; one pruned first is what the index reports held only on the node, and lost
+//! with it.
 
 mod positions;
 

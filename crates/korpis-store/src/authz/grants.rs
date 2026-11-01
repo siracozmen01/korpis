@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grants. Revocation is written on one row and derived for the subtree (§3.5 of
-//! docs/08-identity.md), so nothing here ever walks downwards to revoke.
+//! Grants. Revocation is written on one row and derived for the subtree, so nothing here ever walks
+//! downwards to revoke.
 
 use crate::errors::from_sqlx;
 use crate::stored::{
@@ -122,9 +122,9 @@ async fn chain(db: impl PgExecutor<'_>, id: Uuid) -> StoreResult<Vec<GrantRecord
     all(rows)
 }
 
-/// Records the member a grant names in its `via`, unverified, and makes their set's binding due,
-/// so its next question asks about them (§5.1 of docs/08-identity.md): every way of issuing
-/// such a grant inserts it here, so none forgets.
+/// Records the member a grant names in its `via`, unverified, and makes their set's binding due, so
+/// its next question asks about them: every way of issuing such a grant inserts it here, so none
+/// forgets.
 async fn record_member(db: impl PgExecutor<'_>, v: &Via, at: SystemTime) -> StoreResult<()> {
     sqlx::query!(
         "WITH b AS (SELECT id FROM identity_binding WHERE subject = $1 AND retired_at IS NULL),

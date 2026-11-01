@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The intent chain, the head and target pointers, and power (§3.2 of docs/03-state.md).
+//! The intent chain, the head and target pointers, and power.
 
 use crate::support::{body, create, fixture, intent, power};
 use korpis_app::Page;
@@ -46,7 +46,7 @@ async fn the_body_is_stored_in_its_wire_form_with_defaults_written() {
         .unwrap();
     let json: serde_json::Value = row.get("body");
     assert_eq!(row.get::<String, _>("schema_version"), "korpis.v1");
-    assert_eq!(json["schedule"], "", "a default is written, not omitted (§3.1, R10)");
+    assert_eq!(json["schedule"], "", "a default is written, not omitted");
     assert_eq!(json["recipe"]["digest"], first.body.recipe.digest);
     assert_eq!(json["config"]["motd"]["stringValue"], "hello");
 }

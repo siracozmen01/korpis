@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The mesh between nodes (§9.1 of docs/07-networking.md): who is a member, which members are
-//! paired, and which pairs reach each other. Every node that reports a mesh interface is a
-//! member, unless it reports a pool it was not given ([`routed`]) or one of its pools overlaps a
-//! pool of a node enrolled before it, which would leave the mesh two routes to one address; that
-//! node is outside, and says why. Two members are paired only when they may host workloads of one
-//! project: one's organization is the other's or above it, so no tenant's node learns of a
-//! sibling tenant's. A pair is reachable when each of its nodes reports a handshake with the
-//! other younger than WireGuard's Reject-After-Time, past which a session carries no data, so the
-//! control plane joins two reports neither node can make alone.
+//! The mesh between nodes: who is a member, which members are paired, and which pairs reach each
+//! other. Every node that reports a mesh interface is a member, unless it reports a pool it was not
+//! given ([`routed`]) or one of its pools overlaps a pool of a node enrolled before it, which would
+//! leave the mesh two routes to one address; that node is outside, and says why. Two members are
+//! paired only when they may host workloads of one project: one's organization is the other's or
+//! above it, so no tenant's node learns of a sibling tenant's. A pair is reachable when each of its
+//! nodes reports a handshake with the other younger than WireGuard's Reject-After-Time, past which
+//! a session carries no data, so the control plane joins two reports neither node can make alone.
 
 mod routed;
 
@@ -22,8 +21,7 @@ use uuid::Uuid;
 /// A WireGuard public key.
 pub type Key = [u8; 32];
 
-/// The age past which a session carries no data: WireGuard's Reject-After-Time (§5 of
-/// docs/research/evidence.md).
+/// The age past which a session carries no data: WireGuard's Reject-After-Time.
 pub const REJECT_AFTER: Duration = Duration::from_secs(180);
 
 /// What a node reports of its side of the mesh.
@@ -46,14 +44,14 @@ pub struct Candidate {
     pub node: Uuid,
     /// When it enrolled, which decides which of two overlapping nodes stays.
     pub enrolled_at: SystemTime,
-    /// The addresses it advertises (§9 of docs/07-networking.md); the first is its endpoint.
+    /// The addresses it advertises; the first is its endpoint.
     pub addresses: Vec<IpAddr>,
     /// What it reports of the mesh.
     pub facts: OverlayFacts,
     /// The IPv4 pool the control plane gave it at enrollment; none for a node enrolled before
     /// pools were given.
     pub given: Option<Ipv4Net>,
-    /// The unique local IPv6 prefix derived from its identity (§4.1 of docs/07-networking.md).
+    /// The unique local IPv6 prefix derived from its identity.
     pub derived_ipv6: Ipv6Net,
     /// Its organization, then each organization above it.
     pub lineage: Vec<Uuid>,
@@ -86,7 +84,7 @@ pub struct Mesh {
 
 /// Whether two nodes, by their organizations' lineages, may host workloads of one project: one's
 /// organization is the other's or above it, since a project's workloads run on nodes of its
-/// organization and of those above it alone (§2.1 of docs/05-scheduling.md).
+/// organization and of those above it alone.
 #[must_use]
 pub fn related(a: &[Uuid], b: &[Uuid]) -> bool {
     a.first().is_some_and(|o| b.contains(o)) || b.first().is_some_and(|o| a.contains(o))
@@ -121,8 +119,8 @@ pub fn mesh(mut candidates: Vec<Candidate>) -> Mesh {
                 continue;
             }
         };
-        // The other node is not named: it may be another tenant's (Finding 179 of
-        // docs/23-walkthroughs.md); whoever may read both sees their pools.
+        // The other node is not named: it may be another tenant's; whoever may read both sees their
+        // pools.
         if out.members.iter().any(|m| overlaps(&m.pools, &pools)) {
             let why =
                 "its workload pool overlaps an earlier member's: enrolled again, it is given \
@@ -156,7 +154,7 @@ impl FromIterator<(Uuid, Uuid)> for Pairs {
     }
 }
 
-/// A node's place in the mesh, as the API shows it (§3.4 of docs/01-model.md).
+/// A node's place in the mesh, as the API shows it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Standing {
     /// It is a member and reaches every member it is paired with.
@@ -192,7 +190,7 @@ impl Standing {
 }
 
 /// The pairs of members that reach each other, which the scheduler asks of a dependency across
-/// nodes (§2.1 of docs/05-scheduling.md).
+/// nodes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Pairs(std::collections::BTreeSet<(Uuid, Uuid)>);
 

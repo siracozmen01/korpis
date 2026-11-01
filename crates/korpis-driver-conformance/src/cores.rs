@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Dedicated cores as the node gives them (§5.2 of docs/05-scheduling.md, §4.2 of
-//! docs/04-runtimes.md): a core of the machine read from the kernel's topology, as an agent reads
-//! one to offer it, and the cpusets the helper keeps under the driver's cgroup parent while an
-//! object holds it. The parent's `shared` cgroup is kept off its CPUs, and they are written as the
-//! exclusive CPUs of every cgroup from below the root down to the parent's `dedicated` one, from
-//! the top down, which is where a driver's partitions take theirs from; writing them takes no CPU
-//! from anyone until a partition is made. The suite reads the topology itself, depending on
-//! nothing of Korpis's but the protocol.
+//! Dedicated cores as the node gives them: a core of the machine read from the kernel's topology,
+//! as an agent reads one to offer it, and the cpusets the helper keeps under the driver's cgroup
+//! parent while an object holds it. The parent's `shared` cgroup is kept off its CPUs, and they are
+//! written as the exclusive CPUs of every cgroup from below the root down to the parent's
+//! `dedicated` one, from the top down, which is where a driver's partitions take theirs from;
+//! writing them takes no CPU from anyone until a partition is made. The suite reads the topology
+//! itself, depending on nothing of Korpis's but the protocol.
 
 use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeSet;

@@ -1,8 +1,8 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
--- Every workload placed now ($1 and $2 bounding the month) or with egress recorded in the month,
--- on each node, with what its records hold for it there as an invoice sums them: a measurement
--- in the month its interval begins, an adjustment in the month it was recorded, and a record
--- superseded only by an adjustment still counted (§2 of docs/15-observability.md).
+-- Every workload placed now ($1 and $2 bounding the month) or with egress recorded in the month, on
+-- each node, with what its records hold for it there as an invoice sums them: a measurement in the
+-- month its interval begins, an adjustment in the month it was recorded, and a record superseded
+-- only by an adjustment still counted.
 WITH spent AS (
     SELECT r.workload_id, r.node_id, sum(r.egress_bytes)::bigint AS bytes
       FROM metering_record r

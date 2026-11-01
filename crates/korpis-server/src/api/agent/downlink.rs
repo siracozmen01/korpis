@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What goes down a session: the node's assignment set (§4.1, §4.8 of
-//! docs/02-architecture.md), recomputed whenever something it is made of changes and sent when
-//! its digest differs from the last one sent. On the first pass a node already holding the set
-//! is told `InSync` and nothing else (§9 of docs/10-api.md). While a restore settles nothing is
-//! sent. Deltas are an optimization this
-//! does not make: every change sends the whole set, which is always correct.
+//! What goes down a session: the node's assignment set, recomputed whenever something it is made of
+//! changes and sent when its digest differs from the last one sent. On the first pass a node
+//! already holding the set is told `InSync` and nothing else. While a restore settles nothing is
+//! sent. Deltas are an optimization this does not make: every change sends the whole set, which is
+//! always correct.
 
 use crate::api::ServerApp;
 use crate::sessions::Sessions;
@@ -89,9 +88,9 @@ impl Downlink {
         }
     }
 
-    /// How long to wait before sending anything, while a restore settles: the restored set is
-    /// older than what the node runs, and it goes out once what nodes present is recovered and
-    /// the window ends (§8 of docs/03-state.md). A failure to tell is waited out too.
+    /// How long to wait before sending anything, while a restore settles: the restored set is older
+    /// than what the node runs, and it goes out once what nodes present is recovered and the window
+    /// ends. A failure to tell is waited out too.
     async fn settling(&self) -> Option<std::time::Duration> {
         match self.app.settling().await {
             Ok(None) => None,

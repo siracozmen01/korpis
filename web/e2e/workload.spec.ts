@@ -3,10 +3,9 @@
 // A workload on a real node, used in a browser whose language is Turkish: an operator reads what it
 // uses now beside what was accounted, restarts it and is shown the plan after, types into its
 // console and reads the answer, changes its configuration through the form its recipe generates,
-// whose labels are the recipe's own Turkish ones (§5.3 of docs/09-recipes.md), previews a deletion
-// and cancels it, uploads a file the network cuts off and resumes it, and shares its console by a
-// link whose uses run out. The panel itself has no Turkish catalogue yet, so its own words stay
-// English.
+// whose labels are the recipe's own Turkish ones, previews a deletion and cancels it, uploads a
+// file the network cuts off and resumes it, and shares its console by a link whose uses run out.
+// The panel itself has no Turkish catalogue yet, so its own words stay English.
 
 import { type Browser, expect, test, type Page } from "@playwright/test";
 import { authenticator, given, visit } from "./support";
@@ -33,8 +32,7 @@ function world(): Buffer {
 }
 
 /** An upload into the workload's volume that the network cuts off after its first chunks, and
- * that is resumed from what reached the node once the network is back (§8 of
- * docs/11-surface-web.md). */
+ * that is resumed from what reached the node once the network is back. */
 async function uploadResumed(page: Page): Promise<void> {
   const files = page.getByRole("region", { name: "Files" });
   await files.getByRole("button", { name: "Open data" }).click();
@@ -71,10 +69,9 @@ async function uploadResumed(page: Page): Promise<void> {
   await expect(files.getByText("Uploaded world.bin.")).toBeVisible({ timeout: 30_000 });
 }
 
-/** The console shared by a link, for a day and three uses, as step 8 of §38 shares it, opened by a
- * moderator with no account in a browser of their own (step 12): the screen is one use, the
- * console another, asked for, and once the three are spent the link says so (§6 of
- * docs/11-surface-web.md). */
+/** The console shared by a link, for a day and three uses, opened by a
+ * moderator with no account in a browser of their own (step 12): the screen is one use, the console
+ * another, asked for, and once the three are spent the link says so. */
 async function sharedConsole(page: Page, browser: Browser): Promise<void> {
   const share = page.getByRole("region", { name: "Share as a link" });
   await expect(share.getByRole("checkbox", { name: "read its console" })).toBeChecked();
@@ -128,8 +125,7 @@ test("a workload is restarted, typed into, configured, filled, and shared", asyn
   await expect(console_.getByText("ready hello")).toBeVisible();
 
   // What it uses now is its node's latest reading, beside the day accounted, which says how many
-  // intervals it measured, none yet for a workload started minutes ago unless an hour turned
-  // (§8 of docs/11-surface-web.md, §2 of docs/15-observability.md).
+  // intervals it measured, none yet for a workload started minutes ago unless an hour turned.
   const usage = page.getByRole("region", { name: "Usage" });
   const now = usage.getByRole("region", { name: "Now" });
   await expect(now.getByText("Memory", { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -138,8 +134,8 @@ test("a workload is restarted, typed into, configured, filled, and shared", asyn
   await expect(accounted).toContainText(/\d+ intervals? measured/);
   await expect(accounted).toContainText("differenced between two samples");
 
-  // The recipe says a restart costs something: its plan is previewed in place and confirmed once
-  // (§4 of docs/11-surface-web.md), and its convergence shown as it happens (step 5 of §38).
+  // The recipe says a restart costs something: its plan is previewed in place and confirmed once,
+  // and its convergence shown as it happens.
   await page.getByRole("button", { name: "Restart" }).click();
   const restarting = page.getByLabel("Preview");
   await expect(restarting.getByText("Restart will do this:")).toBeVisible();

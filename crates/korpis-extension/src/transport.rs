@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! How the extension reaches the control plane: directly, over the network, or through the
-//! relay its node serves in its directory (§9.5 of docs/08-identity.md). Either way it speaks TLS
-//! to the control plane itself and verifies it under the CA the identity socket gave, so the
-//! relay carries what it cannot read.
+//! How the extension reaches the control plane: directly, over the network, or through the relay
+//! its node serves in its directory. Either way it speaks TLS to the control plane itself and
+//! verifies it under the CA the identity socket gave, so the relay carries what it cannot read.
 
 use crate::error::Error;
 use connectrpc::ConnectError;

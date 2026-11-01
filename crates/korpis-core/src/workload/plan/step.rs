@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Steps, the action vocabulary, and where `disruptive` comes from (§3.3 of docs/01-model.md,
-//! finding R9): one override chain, every layer visible, and no layer below the operator able to
-//! make a step less disruptive than the layer beneath it.
+//! Steps, the action vocabulary, and where `disruptive` comes from: one override chain, every layer
+//! visible, and no layer below the operator able to make a step less disruptive than the layer
+//! beneath it.
 
 use crate::node::driver::DriverInfo;
 use crate::object::ObjectRef;
@@ -37,18 +37,18 @@ pub enum StepAction {
     RestoreVolume,
     /// Make a volume what its staged restore holds; what it held is lost.
     ReplaceVolume,
-    /// Make the volume, on this node, what the last snapshot its replica here received holds
-    /// (§2.2 of docs/06-storage.md): what was written after it was lost with the node the
-    /// volume was on, and is the age the failover recorded; the copy left there is kept.
+    /// Make the volume, on this node, what the last snapshot its replica here received holds: what
+    /// was written after it was lost with the node the volume was on, and is the age the failover
+    /// recorded; the copy left there is kept.
     PromoteReplica,
-    /// Copy a path of a block device's staged backup into a new directory of its volume, in a
-    /// guest while the workload is stopped (§5.4 of docs/06-storage.md); nothing is lost.
+    /// Copy a path of a block device's staged backup into a new directory of its volume, in a guest
+    /// while the workload is stopped; nothing is lost.
     ApplyRestore,
     /// Forget the backups a retention policy no longer keeps, and mark what only they held for
-    /// deletion (§5.3 of docs/06-storage.md).
+    /// deletion.
     PruneBackups,
-    /// Run the recipe's install verbs and render its templates into the volumes (§4 and §6 of
-    /// docs/09-recipes.md); what it writes over is not kept, so it cannot be undone.
+    /// Run the recipe's install verbs and render its templates into the volumes; what it writes
+    /// over is not kept, so it cannot be undone.
     Install,
     /// Create the runtime instance.
     Create,
@@ -135,10 +135,10 @@ impl StepAction {
         Self::ALL.into_iter().find(|a| a.as_str() == s)
     }
 
-    /// The vocabulary's floor: (disruptive, reversible). Nothing relaxes the disruptive floor,
-    /// and reversibility is a property of the action alone, with one exception: an install
-    /// that writes only into volumes its own plan creates writes over nothing, and the plan
-    /// marks it reversible (§4 of docs/09-recipes.md).
+    /// The vocabulary's floor: (disruptive, reversible). Nothing relaxes the disruptive floor, and
+    /// reversibility is a property of the action alone, with one exception: an install that writes
+    /// only into volumes its own plan creates writes over nothing, and the plan marks it
+    /// reversible.
     #[must_use]
     pub const fn floor(self) -> (bool, bool) {
         match self {
@@ -153,7 +153,7 @@ impl StepAction {
     }
 }
 
-/// Who executes a step (§4.9 of docs/02-architecture.md).
+/// Who executes a step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepExecutor {
     /// The control plane.
@@ -177,7 +177,7 @@ pub enum Layer {
     Operator,
 }
 
-/// How a runtime driver changes the floor (§3.3 of docs/01-model.md, docs/04-runtimes.md).
+/// How a runtime driver changes the floor.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DriverClass {
     /// Actions the driver makes disruptive on its tier, e.g. `stop` on a `vm` costs a boot.
@@ -245,8 +245,7 @@ impl Override {
     }
 }
 
-/// How long the node gives a running object to stop once it is signalled, before it kills it
-/// (§6 of docs/02-architecture.md).
+/// How long the node gives a running object to stop once it is signalled, before it kills it.
 pub const STOP_GRACE: Duration = Duration::from_secs(30);
 
 /// Everything a classification reads.
@@ -259,7 +258,7 @@ pub struct Classifier<'a> {
     /// The operator's overrides for this workload.
     pub overrides: &'a [Override],
     /// How long the recipe's `pre_stop` hook gives the software to exit before it is signalled;
-    /// zero when it declares none (§3 of docs/09-recipes.md).
+    /// zero when it declares none.
     pub stop_wait: Duration,
 }
 

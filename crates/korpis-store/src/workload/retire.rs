@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Retiring workloads (§3.3 of docs/01-model.md).
+//! Retiring workloads.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

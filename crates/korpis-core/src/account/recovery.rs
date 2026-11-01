@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recovery codes (§9.3 of docs/08-identity.md): ten, shown once at enrolment, each a second
-//! factor that works once. A code is 80 random bits, written as sixteen base32 characters in
-//! four groups, and stored as its SHA-256 digest: with that much entropy a slow hash protects
-//! nothing, as for an API token, and checking one code against ten stored ones stays cheap.
+//! Recovery codes: ten, shown once at enrolment, each a second factor that works once. A code is 80
+//! random bits, written as sixteen base32 characters in four groups, and stored as its SHA-256
+//! digest: with that much entropy a slow hash protects nothing, as for an API token, and checking
+//! one code against ten stored ones stays cheap.
 
 use super::{EntropyError, base32, random};
 use sha2::{Digest, Sha256};

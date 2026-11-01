@@ -11,9 +11,9 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# The job a driver starts for each image it has not built (§6 of docs/04-runtimes.md): it reads
-# layers a tenant's publisher wrote, so the part that reads them holds no privilege, and nothing
-# here links an RPC stack, a runtime, or a store (scripts/check-layers.sh).
+# The job a driver starts for each image it has not built: it reads layers a tenant's publisher
+# wrote, so the part that reads them holds no privilege, and nothing here links an RPC stack, a
+# runtime, or a store (scripts/check-layers.sh).
 [[bin]]
 name = "korpis-image-build"
 path = "src/bin/korpis-image-build/main.rs"

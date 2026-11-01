@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The reconciler (§4 of docs/02-architecture.md): it makes the node match the set it holds,
-//! level-triggered, one workload at a time. When the agent starts it adopts every runtime object
-//! its driver created, matching them to assignments by the labels they carry, and touches none
-//! of them (§4.4); an object no assignment claims is reported as an orphan and never deleted.
-//! Then, on every change and on a period, it executes the plan steps it was given in order up
-//! to `through`, journals each completion, keeps the approved power state and cycle, restarts a
-//! crashed workload with a backoff, and reports what it observes. Between passes it runs each
-//! running workload's health probes, and passes again when a verdict changes (§5 of
-//! docs/04-runtimes.md). It acts only under a lease (§4.5): without one it changes nothing, and
-//! when another node holds the workload it stops it.
+//! The reconciler: it makes the node match the set it holds, level-triggered, one workload at a
+//! time. When the agent starts it adopts every runtime object its driver created, matching them to
+//! assignments by the labels they carry, and touches none of them; an object no assignment claims
+//! is reported as an orphan and never deleted. Then, on every change and on a period, it executes
+//! the plan steps it was given in order up to `through`, journals each completion, keeps the
+//! approved power state and cycle, restarts a crashed workload with a backoff, and reports what it
+//! observes. Between passes it runs each running workload's health probes, and passes again when a
+//! verdict changes. It acts only under a lease: without one it changes nothing, and when another
+//! node holds the workload it stops it.
 
 pub(crate) mod act;
 pub(crate) use act::volume_id;
@@ -99,20 +98,18 @@ struct Tracked {
     since: Option<SystemTime>,
     /// The required dependency it waits for before it is created, by name.
     waiting: Option<String>,
-    /// A task or scheduled workload's runs, by run, each its own object (§4.2 of
-    /// docs/05-scheduling.md).
+    /// A task or scheduled workload's runs, by run, each its own object.
     runs: BTreeMap<String, runs::RunTracked>,
     /// Where the stop of its object is, while one is under way.
     halting: halt::Halting,
-    /// Its recipe's pre-stop hook, and the recipe it was read from (§3 of docs/09-recipes.md).
+    /// Its recipe's pre-stop hook, and the recipe it was read from.
     pre_stop: Option<korpis_core::recipe::behaviour::Hook>,
     hook_of: String,
-    /// Its health probes in the life of its object (§5 of docs/04-runtimes.md).
+    /// Its health probes in the life of its object.
     probing: health::Probing,
     /// The kind of the liveness probe whose failure it is being restarted for, until it is.
     recovering: Option<&'static str>,
-    /// The cgroup parent its object's dedicated cores are held under, and their logical CPUs
-    /// (§5.2 of docs/05-scheduling.md).
+    /// The cgroup parent its object's dedicated cores are held under, and their logical CPUs.
     cores: (String, Vec<u32>),
 }
 
@@ -135,8 +132,8 @@ pub struct Wiring {
     pub period: Duration,
     /// How long a runtime object is given to stop once signalled, before it is killed.
     pub grace: Duration,
-    /// The workloads' identity sockets (§9.5 of docs/08-identity.md); none where the node
-    /// gives its workloads no identity, as in tests of other things.
+    /// The workloads' identity sockets; none where the node gives its workloads no identity, as in
+    /// tests of other things.
     pub identity: Option<Arc<IdentitySockets>>,
     /// Where it says which runtime object each workload runs as, for the console's input.
     pub runtimes: watch::Sender<BTreeMap<String, String>>,
@@ -144,23 +141,21 @@ pub struct Wiring {
     pub jobs: Arc<crate::jobs::JobAccesses>,
     /// Where installs ask what their provider steps resolved to.
     pub steps: Arc<crate::steps::StepAnswers>,
-    /// The recipes whose content the node holds, reported for content locality (§2.2 of
-    /// docs/05-scheduling.md).
+    /// The recipes whose content the node holds, reported for content locality.
     pub inventory: crate::inventory::Inventory,
-    /// The workloads' networks (§4.1 of docs/07-networking.md); none where the node gives its
-    /// workloads loopback alone.
+    /// The workloads' networks; none where the node gives its workloads loopback alone.
     pub network: Option<crate::network::Networking>,
-    /// Where what the node's ingress proxy serves is published (§3.2 of docs/07-networking.md);
-    /// none where the node runs no ingress.
+    /// Where what the node's ingress proxy serves is published; none where the node runs no
+    /// ingress.
     pub ingress: Option<watch::Sender<korpis_proto::korpis::ingress::v1::IngressConfig>>,
     /// The certificates its proxy serves with, asked of the control plane and kept.
     pub certificates: Arc<crate::ingress::Certificates>,
-    /// The table of edges the mesh keeps, whose groups' routes the proxy serves too (§3.1 of
-    /// docs/07-networking.md); none where the node keeps no mesh.
+    /// The table of edges the mesh keeps, whose groups' routes the proxy serves too; none where the
+    /// node keeps no mesh.
     pub edges: Option<watch::Receiver<agent::Edges>>,
     /// What each of the node's drivers is: whether it takes block devices, and holds a tap.
     pub driver_kinds: DriverKinds,
-    /// Where query probes ask their health provider's rounds (§5 of docs/16-extensions.md).
+    /// Where query probes ask their health provider's rounds.
     pub queries: Arc<crate::health::Queries>,
     /// The reading jobs live backup sessions hold, which are not forgotten under them.
     pub reading: crate::data::backup::Reading,
@@ -173,11 +168,9 @@ pub struct Wiring {
 /// What a node offers its workloads beside its drivers, as it declared it.
 #[derive(Debug, Clone, Default)]
 pub struct Offered {
-    /// The cores it offers for dedication, which a placement's are given from (§5.2 of
-    /// docs/05-scheduling.md).
+    /// The cores it offers for dedication, which a placement's are given from.
     pub cores: Vec<pb::Core>,
-    /// Its block classes, whose volumes are made only with the device their assignment carries
-    /// (§2.1 of docs/06-storage.md).
+    /// Its block classes, whose volumes are made only with the device their assignment carries.
     pub block_classes: BTreeSet<String>,
 }
 

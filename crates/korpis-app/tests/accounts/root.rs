@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The root account (§9.1 and §9.2 of docs/08-identity.md): installation creates it holding the
-//! root grant, invited for an hour by an invitation only a passkey redeems; and recovery at the
-//! machine creates another, recorded with who ran it. Installation also makes the first node's
-//! enrollment, attenuated from the root grant.
+//! The root account: installation creates it holding the root grant, invited for an hour by an
+//! invitation only a passkey redeems; and recovery at the machine creates another, recorded with
+//! who ran it. Installation also makes the first node's enrollment, attenuated from the root grant.
 
 use crate::support::{Bound, ORIGIN, RP, browser, signed_in};
 use korpis_app::account::{NewRegistration, PasswordRedemption};

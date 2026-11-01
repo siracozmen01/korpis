@@ -28,8 +28,8 @@ pub(crate) fn slug(s: &str) -> bool {
 }
 
 /// A name a publisher qualifies, `<publisher>/<name>`, the name words joined by dots, as
-/// `valve/steam.app` is: what a step kind and a health provider's query protocol are named, so
-/// that two publishers' names never collide (finding S26).
+/// `valve/steam.app` is: what a step kind and a health provider's query protocol are named, so that
+/// two publishers' names never collide.
 #[must_use]
 pub fn qualified(name: &str) -> bool {
     name.split_once('/').is_some_and(|(a, b)| slug(a) && b.len() <= 63 && b.split('.').all(slug))

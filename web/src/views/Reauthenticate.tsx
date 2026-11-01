@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Re-authenticating the session (§9.4 of docs/08-identity.md): a change of factors, or approving
-// a command-line client's sign-in, needs a sign-in within the last ten minutes, and a session
-// older than that proves itself again with a passkey or the password and its second factor. The
-// account is the session's, so no sign-in name is asked for. A person signed in through an
-// identity provider holds no factors, and signs in through it again instead (§9.7).
+// Re-authenticating the session: a change of factors, or approving a command-line client's sign-in,
+// needs a sign-in within the last ten minutes, and a session older than that proves itself again
+// with a passkey or the password and its second factor. The account is the session's, so no sign-in
+// name is asked for. A person signed in through an identity provider holds no factors, and signs in
+// through it again instead.
 
 import type { Client } from "@connectrpc/connect";
 import { useCallback, useState } from "react";

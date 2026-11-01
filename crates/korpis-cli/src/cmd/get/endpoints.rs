@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The endpoints `korpis status` shows: each with where a client reaches it, and for a `stable`
-//! one the control plane does not know reached, why, with its edge group (§3.1 of
-//! docs/07-networking.md).
+//! The endpoints `korpis status` shows: each with where a client reaches it, and for a `stable` one
+//! the control plane does not know reached, why, with its edge group.
 
 use crate::show::short;
 use korpis_proto::korpis::v1 as pb;

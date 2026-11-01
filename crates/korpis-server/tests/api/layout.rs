@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Organizations' layouts (question 2 of §10 of docs/11-surface-web.md): set by `org.write`,
-//! inherited from the nearest organization that set one, checked item by item, read under the
-//! read action of whatever the panel shows, and, at a landing, the layout and theme of the
-//! organization the caller lands at: at a portal its own, else the nearest above everything the
-//! caller's grants reach, which they may not read (Finding 134 of docs/23-walkthroughs.md), else
-//! the root's.
+//! Organizations' layouts: set by `org.write`, inherited from the nearest organization that set
+//! one, checked item by item, read under the read action of whatever the panel shows, and, at a
+//! landing, the layout and theme of the organization the caller lands at: at a portal its own, else
+//! the nearest above everything the caller's grants reach, which they may not read, else the
+//! root's.
 
 use crate::domains::child;
 use crate::links::in_an_hour;

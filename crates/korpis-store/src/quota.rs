@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota entries and what the workloads under them hold (§5.1 of docs/05-scheduling.md), with
-//! the totals kept beside each entry (question 7 of §10 there).
+//! Quota entries and what the workloads under them hold, with the totals kept beside each entry
+//! .
 
 use crate::errors::from_sqlx;
 use crate::stored::{

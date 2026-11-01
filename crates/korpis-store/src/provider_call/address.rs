@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Address router calls in the stored queue (§3.7 of docs/07-networking.md): an address, the
-//! node it is to be routed to or none, and that node's advertised addresses; answered by its
-//! being routed so.
+//! Address router calls in the stored queue: an address, the node it is to be routed to or none,
+//! and that node's advertised addresses; answered by its being routed so.
 
 use korpis_core::address::Route;
 use korpis_core::extension::{CallOutcome, CallRequest};

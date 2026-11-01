@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A session held by a person signed in through an identity provider (§9.7 of
-//! docs/08-identity.md, migration 0101): kept with the sets of the sign-in, read and ended by
-//! its holder alone, and unusable once the person's binding is retired; and the person recorded
-//! in the sets their sign-in named, and asked about by those sets while their session lives.
+//! A session held by a person signed in through an identity provider (migration 0101): kept with
+//! the sets of the sign-in, read and ended by its holder alone, and unusable once the person's
+//! binding is retired; and the person recorded in the sets their sign-in named, and asked about by
+//! those sets while their session lives.
 
 use crate::support::{fixture, now};
 use korpis_app::ports::{

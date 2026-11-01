@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Binding a workload's approved target to a node (§2.3 of docs/05-scheduling.md), in the
-//! transaction that approved it and under the placement lock.
+//! Binding a workload's approved target to a node, in the transaction that approved it and under
+//! the placement lock.
 //!
 //! A workload not yet placed is placed wherever the policy prefers. A workload already placed
 //! follows its new target in place if its node can hold it, and is otherwise unplaced for that
-//! target: moving it is a migration (§8 of docs/05-scheduling.md), never a side effect of an
-//! approval. Every attempt that finds no node is kept with its full derivation and logged once
-//! per target, so retrying does not flood the log.
+//! target: moving it is a migration, never a side effect of an approval. Every attempt that finds
+//! no node is kept with its full derivation and logged once per target, so retrying does not flood
+//! the log.
 
 use super::failover::Failover;
 use super::remake::Held;
@@ -47,9 +47,9 @@ struct Binding<'a> {
 
 /// What a workload is given on the node it is bound to.
 pub(super) struct Given {
-    /// Its devices (§6.3 of docs/05-scheduling.md).
+    /// Its devices.
     pub(super) devices: Vec<DeviceHold>,
-    /// Its cores (§5.2 of docs/05-scheduling.md).
+    /// Its cores.
     pub(super) cores: Vec<u32>,
     /// What it reserves there: its cores' threads, where it holds any, for its declared CPU.
     pub(super) reserved: Bounds,
@@ -112,8 +112,8 @@ fn reason(followed: bool, failover: bool) -> String {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The organizations whose nodes may serve one owned by `organization`: it and every
-    /// ancestor, nearest first (§3.4 of docs/01-model.md).
+    /// The organizations whose nodes may serve one owned by `organization`: it and every ancestor,
+    /// nearest first.
     pub(crate) async fn owners(&self, organization: Uuid) -> Result<Vec<Uuid>, AppError> {
         let chain = self.store.ancestry(ObjectRef::new(Kind::Organization, organization)).await?;
         Ok(chain.into_iter().map(|n| n.object.id).collect())
@@ -161,9 +161,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.place_screened(tx, w, target, &Screened::default()).await
     }
 
-    /// As [`Self::place_target`], with what a shortlist query found (§2.1 of
-    /// docs/05-scheduling.md): its refusals kept beside every refusal recorded for the target,
-    /// and the nodes that did not answer passed over.
+    /// As [`Self::place_target`], with what a shortlist query found: its refusals kept beside every
+    /// refusal recorded for the target, and the nodes that did not answer passed over.
     pub(crate) async fn place_screened(
         &self,
         tx: &mut S::Tx,
@@ -173,8 +172,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(), AppError> {
         tx.lock_placement().await?;
         self.place_locked(tx, w, target, screened).await?;
-        // Where it is counted follows where it is placed now, whatever was decided (§5.1 of
-        // docs/05-scheduling.md, "Where a workload runs").
+        // Where it is counted follows where it is placed now, whatever was decided ("Where a
+        // workload runs").
         self.count_placed(tx, w).await?;
         Ok(())
     }

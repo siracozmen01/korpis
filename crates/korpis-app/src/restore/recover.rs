@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The declarations a restore recovers from what nodes present (§8 of docs/03-state.md): a
-//! workload the store lacks, under its signed owner; its target intent with the identifier,
-//! version, body, and declarer it was signed with; its power declaration; and its head, target,
-//! and power target moved forward to them, so a node is never sent back to the backup's
-//! configuration without a plan and no version is issued twice; and where it runs, so it is not
-//! placed a second time. Each recovered row is recorded with an effect naming the node and the
-//! signature, in the transaction that writes it.
+//! The declarations a restore recovers from what nodes present: a workload the store lacks, under
+//! its signed owner; its target intent with the identifier, version, body, and declarer it was
+//! signed with; its power declaration; and its head, target, and power target moved forward to
+//! them, so a node is never sent back to the backup's configuration without a plan and no version
+//! is issued twice; and where it runs, so it is not placed a second time. Each recovered row is
+//! recorded with an effect naming the node and the signature, in the transaction that writes it.
 
 use crate::App;
 use crate::error::AppError;
@@ -82,7 +81,7 @@ fn recovered_placement(
         intent: opened.target.id,
         // As if no edge serves it: a recovered placement may reserve a port of its node for a
         // `stable` endpoint an edge serves, which only ever errs towards holding too much, until
-        // the workload is next placed (§3.1 of docs/07-networking.md).
+        // the workload is next placed.
         reserved: node.map_or_else(
             || reservation(body, false),
             |n| korpis_core::schedule::cores::reservation_on((body, false), n, &opened.cores),
@@ -220,7 +219,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             effects.extend(recover_plan(&mut tx, plan, opened, sealed).await?);
         }
         // Its head and target may have moved forward; quota is locked before placement, as
-        // everywhere (§5.1 of docs/05-scheduling.md).
+        // everywhere.
         self.rehold(&mut tx, opened.workload).await?;
         let (placed, here) = self.recover_where(&mut tx, opened, sealed).await?;
         effects.extend(placed);
@@ -240,12 +239,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(if recovered { Recovery::Recovered } else { Recovery::Held })
     }
 
-    /// Where `opened`'s workload runs, recovered (Finding 96 of docs/23-walkthroughs.md): its
-    /// placement bound to the presenting node unless it is placed elsewhere under a lease epoch
-    /// at least as high, and, where it is placed on that node, the id slot the node runs it
-    /// under, unless a workload placed there holds it. Takes the placement lock, after the
-    /// workload's, as every placement does. Whether the workload is placed on the presenting
-    /// node after it.
+    /// Where `opened`'s workload runs, recovered: its placement bound to the presenting node unless
+    /// it is placed elsewhere under a lease epoch at least as high, and, where it is placed on that
+    /// node, the id slot the node runs it under, unless a workload placed there holds it. Takes the
+    /// placement lock, after the workload's, as every placement does. Whether the workload is
+    /// placed on the presenting node after it.
     async fn recover_where(
         &self,
         tx: &mut S::Tx,
@@ -297,7 +295,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 }
             }
         }
-        // Where it is counted follows where it is placed (§5.1 of docs/05-scheduling.md).
+        // Where it is counted follows where it is placed.
         if let Some(w) = tx.lock_workload(opened.workload).await? {
             self.count_placed(tx, &w).await?;
         }

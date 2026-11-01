@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The storage classes the helper offers (§2 of docs/06-storage.md), each a directory it owns
-//! with the backend that holds its volumes, chosen from what the filesystem can do rather than
-//! from what anyone says it can. On ext4 or XFS with project quota on, a volume is a project with
-//! byte and inode limits in the write path. On btrfs with qgroups on and consistent, a volume is
-//! a subvolume with a byte limit, and the class can snapshot and send. Anywhere else a class is a
-//! `directory`: it enforces nothing, and every capability it declares says so, so a size asked of
-//! it is kept nowhere and shown nowhere (Rule K-3). A block class keeps each volume on a device of
-//! its own, which its provider makes and attaches, mounted under the class's root, its bound the
-//! device's size ([`device`], §2.1 of docs/06-storage.md).
+//! The storage classes the helper offers, each a directory it owns with the backend that holds its
+//! volumes, chosen from what the filesystem can do rather than from what anyone says it can. On
+//! ext4 or XFS with project quota on, a volume is a project with byte and inode limits in the write
+//! path. On btrfs with qgroups on and consistent, a volume is a subvolume with a byte limit, and
+//! the class can snapshot and send. Anywhere else a class is a `directory`: it enforces nothing,
+//! and every capability it declares says so, so a size asked of it is kept nowhere and shown
+//! nowhere. A block class keeps each volume on a device of its own, which its provider makes and
+//! attaches, mounted under the class's root, its bound the device's size ([`device`]).
 
 use crate::projects::Projects;
 use crate::{btrfs, quota};
@@ -38,8 +37,8 @@ pub enum Backend {
     XfsProject,
     /// One subvolume per volume, its bytes limited by its qgroup.
     Btrfs,
-    /// Plain directories on a filesystem reached over the network that other nodes mount too
-    /// (§2.1 of docs/06-storage.md); no quota, and the agents' leases the only fencing.
+    /// Plain directories on a filesystem reached over the network that other nodes mount too; no
+    /// quota, and the agents' leases the only fencing.
     Shared,
     /// One device per volume, attached as its provider answers, formatted ext4, and mounted; its
     /// bound is the device's size.
@@ -110,29 +109,29 @@ fn root_of(root: &Path, make: bool) -> std::io::Result<File> {
     File::open(root)
 }
 
-/// What `backend` can do, as it is declared (§2 of docs/06-storage.md).
+/// What `backend` can do, as it is declared.
 fn capabilities(backend: Backend) -> pb::StorageCapabilities {
     let mut c =
         pb::StorageCapabilities { fencing: pb::Fencing::FENCING_NONE.into(), ..Default::default() };
-    // A local class's tree crosses to another node by rsync, where this node has it (§8.1 of
-    // 05-scheduling); a shared or block class's volume is reached where it is.
+    // A local class's tree crosses to another node by rsync, where this node has it; a shared or
+    // block class's volume is reached where it is.
     c.tree_sync =
         !matches!(backend, Backend::Shared | Backend::Block) && crate::tree::syncs_trees();
     match backend {
         Backend::Directory => {}
         // Many nodes mount it, any of them may attach a volume after another, and nothing but
-        // the agents' leases keeps two from writing at once (§2.1 of 06-storage).
+        // the agents' leases keeps two from writing at once .
         Backend::Shared => {
             (c.shared_access, c.multi_node_attach) = (true, true);
             c.fencing = pb::Fencing::FENCING_LEASE_ONLY.into();
         }
-        // Quota is all a project backend has (§2 of 06-storage).
+        // Quota is all a project backend has.
         Backend::Ext4Project | Backend::XfsProject => {
             (c.quota_enforced, c.quota_capacity, c.quota_inodes) = (true, true, true);
         }
         // Any node of the organization may attach a device after another, one at a time, and the
         // node itself guarantees only its lease: whether the storage fences the node before is
-        // the provider's to say, in its registration (§5 of 16-extensions). The device's size is
+        // the provider's to say, in its registration. The device's size is
         // its bound, and its filesystem's inodes are fixed when it is formatted.
         Backend::Block => {
             c.multi_node_attach = true;
@@ -162,10 +161,10 @@ impl Class {
         Ok(Self { name, root, backend, handle, projects, store: None, devices: None })
     }
 
-    /// The shared class `name` at `root`, where the operator mounted a filesystem other nodes
-    /// mount too: refused unless it is reached over the network, where `network` requires it, and
-    /// unless root may make, give away, and remove a directory there (§2.1 of
-    /// docs/06-storage.md). The directory is the operator's mount, and is not made here.
+    /// The shared class `name` at `root`, where the operator mounted a filesystem other nodes mount
+    /// too: refused unless it is reached over the network, where `network` requires it, and unless
+    /// root may make, give away, and remove a directory there. The directory is the operator's
+    /// mount, and is not made here.
     pub fn shared(name: &str, root: &Path, network: Network) -> std::io::Result<Self> {
         let handle = root_of(root, false)?;
         let store = shared::open(root, &handle, network)?;
@@ -177,8 +176,7 @@ impl Class {
     }
 
     /// The block class `name`, its devices attached by `protocol`, each volume's mounted under
-    /// `root`, made if missing, and what was attached recorded under `records` (§2.1 of
-    /// docs/06-storage.md).
+    /// `root`, made if missing, and what was attached recorded under `records`.
     pub fn block(
         name: &str,
         root: &Path,

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Agent sessions (§4.2 and §7 of docs/02-architecture.md): a signed Hello opens one, a
-//! replayed, forged, or stale one does not, and a node that stops sending heartbeats is
-//! unreachable after three.
+//! Agent sessions: a signed Hello opens one, a replayed, forged, or stale one does not, and a node
+//! that stops sending heartbeats is unreachable after three.
 
 use crate::agent::{TestAgent, welcome};
 use crate::support::{Harness, detail, reason};

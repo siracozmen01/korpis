@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ingress` through edge groups (migration 0136, §3.1 of docs/07-networking.md): each group's
-//! ingress address of each family, the workloads whose `ingress` endpoints a group serves, and
-//! the challenges each node's proxy holds of its groups' names.
+//! `ingress` through edge groups (migration 0136): each group's ingress address of each family, the
+//! workloads whose `ingress` endpoints a group serves, and the challenges each node's proxy holds
+//! of its groups' names.
 
 use crate::address::address;
 use crate::errors::from_sqlx;

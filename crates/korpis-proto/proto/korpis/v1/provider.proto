@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// How Korpis reaches a provider (§3.3 of docs/16-extensions.md): the extension dials out and
-// holds one bidirectional stream, authenticated by its workload credential; it registers what
-// it serves, and the control plane sends calls down the stream, each with a deadline. Each
-// provider type's calls and results are messages of their own, numbered from 20 in the
-// envelopes below (§5 of docs/16-extensions.md).
+// How Korpis reaches a provider: the extension dials out and holds one bidirectional stream,
+// authenticated by its workload credential; it registers what it serves, and the control plane
+// sends calls down the stream, each with a deadline. Each provider type's calls and results are
+// messages of their own, numbered from 20 in the envelopes below.
 
 syntax = "proto3";
 
@@ -53,17 +52,16 @@ message Register {
   ProviderType type = 1;
   // One of the provides entries its installation recorded.
   string name = 2;
-  // The provider's own version, for the registry and for replacement as a drain (§9 of
-  // docs/16-extensions.md, question 1).
+  // The provider's own version, for the registry and for replacement as a drain.
   string version = 3;
   // How many calls it accepts at once on this stream; the control plane never sends more.
   uint32 concurrency = 4;
-  // identity: it signs people in, answering Authorize (§9.7 of docs/08-identity.md). A provider
-  // that registered without it is never asked to.
+  // identity: it signs people in, answering Authorize. A provider that registered without it is
+  // never asked to.
   bool sign_in = 5;
   // block_storage: whether its attach refuses every other node in the storage itself
-  // (storage_enforced) or cannot (lease_only), which the control plane takes as its class's
-  // (§2.1 of docs/06-storage.md). Required of a block storage provider, refused of any other.
+  // (storage_enforced) or cannot (lease_only), which the control plane takes as its class's.
+  // Required of a block storage provider, refused of any other.
   Fencing fencing = 6;
 }
 
@@ -159,9 +157,9 @@ message ProviderRegistration {
   google.protobuf.Timestamp connected = 8;
   // When the replica holding its stream last confirmed it open.
   google.protobuf.Timestamp seen = 9;
-  // An identity provider's: it signs people in (§9.7 of docs/08-identity.md).
+  // An identity provider's: it signs people in.
   bool sign_in = 10;
-  // A block storage provider's: whether its attach fences (§2.1 of docs/06-storage.md).
+  // A block storage provider's: whether its attach fences.
   Fencing fencing = 11;
 }
 
@@ -175,7 +173,7 @@ message ListProvidersResponse {
   repeated ProviderHealth health = 2;
 }
 
-// A provider's circuit breaker and what was last measured of it (§5 of docs/16-extensions.md).
+// A provider's circuit breaker and what was last measured of it.
 message ProviderHealth {
   ProviderType type = 1;
   string name = 2;
@@ -219,10 +217,10 @@ message PingProviderResponse {
   Error error = 5;
 }
 
-// DNS (§3.5 of docs/07-networking.md). The control plane holds what each owner's records should
-// be; a provider makes them so in the zones it manages, removing records the owner no longer has
-// and leaving every record it does not own alone. A name in no zone it manages fails
-// dns.zone_not_found; a name held by a record it does not own fails dns.conflict.
+// DNS. The control plane holds what each owner's records should be; a provider makes them so in the
+// zones it manages, removing records the owner no longer has and leaving every record it does not
+// own alone. A name in no zone it manages fails dns.zone_not_found; a name held by a record it does
+// not own fails dns.conflict.
 message ApplyRecords {
   // Who the records belong to, e.g. an endpoint, `ep_...`: stable for as long as they exist.
   string owner = 1;
@@ -257,11 +255,11 @@ message RecordsApplied {
   uint32 deleted = 3;
 }
 
-// Address routers (§3.7 of docs/07-networking.md). The control plane holds which node each
-// address of a cluster pool is to be routed to, and asks the pool's router to make the network
-// route it so: announcing it over BGP with the node as its next hop, or moving a provider's
-// floating address to the node. Each call says the whole of what is wanted, so a repeat changes
-// nothing; the node holds the address only once the router has answered.
+// Address routers. The control plane holds which node each address of a cluster pool is to be
+// routed to, and asks the pool's router to make the network route it so: announcing it over BGP
+// with the node as its next hop, or moving a provider's floating address to the node. Each call
+// says the whole of what is wanted, so a repeat changes nothing; the node holds the address only
+// once the router has answered.
 message RouteAddress {
   // The IPv4 address.
   string address = 1;
@@ -274,9 +272,8 @@ message RouteAddress {
 // The network routes the address as asked.
 message AddressRouted {}
 
-// Block storage (§2.1 of docs/06-storage.md, §5 of docs/16-extensions.md). One Korpis volume is
-// one device of the storage, which the provider names. Each call says the whole of what is
-// wanted, so a repeat changes nothing.
+// Block storage. One Korpis volume is one device of the storage, which the provider names. Each
+// call says the whole of what is wanted, so a repeat changes nothing.
 message CreateBlockVolume {
   // The volume, `vol_...`: a provider asked again for one it made answers the device it made.
   string volume = 1;
@@ -339,10 +336,9 @@ message BlockVolumeDescription {
   uint64 epoch = 3;
 }
 
-// Recipe steps (§4 of docs/09-recipes.md). A step provider resolves a step into content-addressed
-// artifacts; the node's content store fetches each by its hash and the workload's own filesystem
-// worker writes it, so the provider never touches a tenant's volume and re-running a step
-// overwrites the same targets.
+// Recipe steps. A step provider resolves a step into content-addressed artifacts; the node's
+// content store fetches each by its hash and the workload's own filesystem worker writes it, so the
+// provider never touches a tenant's volume and re-running a step overwrites the same targets.
 message RunStep {
   // The step kind, `<publisher>/<step>`.
   string step = 1;
@@ -369,8 +365,7 @@ message StepResult {
 }
 
 message StepArtifact {
-  // Relative to the `to` of the recipe step that asked (§4 of docs/09-recipes.md); never absolute,
-  // never through `..`.
+  // Relative to the `to` of the recipe step that asked; never absolute, never through `..`.
   string path = 1;
   // http or https; fetched once per node by the content store.
   string url = 2;
@@ -382,9 +377,9 @@ message StepArtifact {
   bool extract = 6;
 }
 
-// Backup targets (§5.6 of docs/06-storage.md). Object bytes never cross this stream: a node writes
-// or reads with access scoped to one workload's prefix, which the provider issues per job, and
-// the control plane prunes through the provider, which alone holds the target's own credential.
+// Backup targets. Object bytes never cross this stream: a node writes or reads with access scoped
+// to one workload's prefix, which the provider issues per job, and the control plane prunes through
+// the provider, which alone holds the target's own credential.
 message GrantAccess {
   // A key prefix in the repository, ending in "/", e.g. "workloads/wl_.../".
   string prefix = 1;
@@ -404,8 +399,7 @@ enum AccessMode {
 }
 
 // Access the node uses directly. A store that cannot scope access to a prefix is served by its
-// provider itself, which mints the access (§5.6 of docs/06-storage.md); a provider that can do
-// neither fails backup.unscoped.
+// provider itself, which mints the access; a provider that can do neither fails backup.unscoped.
 message ObjectAccess {
   google.protobuf.Timestamp expires_at = 1;
   oneof protocol {
@@ -426,9 +420,9 @@ message S3Access {
   // (`bucket.endpoint/key`): what most self-hosted stores need, and what AWS no longer
   // recommends.
   bool path_style = 8;
-  // A store its provider serves itself (§5.6 of docs/06-storage.md): the name of the endpoint of
-  // the provider's own workload it serves on, in place of `endpoint`. The control plane puts the
-  // endpoint's published address in `endpoint`, and clears this, before anything uses the access.
+  // A store its provider serves itself: the name of the endpoint of the provider's own workload it
+  // serves on, in place of `endpoint`. The control plane puts the endpoint's published address in
+  // `endpoint`, and clears this, before anything uses the access.
   string served_by = 9;
   // The one certificate, DER, such a store presents: the client trusts it and no other, whatever
   // name or address it reaches the store by. Empty for a store verified against system roots.
@@ -464,10 +458,10 @@ message ObjectsDeleted {
   uint32 deleted = 1;
 }
 
-// A new data key for one workload in one repository (§5.5 of docs/06-storage.md): made by the
-// provider, wrapped by the tenant's key for the control plane to store, and sealed to the
-// recipient, never sent in the clear. The provider must refuse a context its policy does not
-// name, so a credential taken from it unwraps nothing else.
+// A new data key for one workload in one repository: made by the provider, wrapped by the tenant's
+// key for the control plane to store, and sealed to the recipient, never sent in the clear. The
+// provider must refuse a context its policy does not name, so a credential taken from it unwraps
+// nothing else.
 message GenerateKey {
   // The tenant's key, as the repository names it: opaque to Korpis.
   string key = 1;
@@ -495,9 +489,9 @@ message KeyMaterial {
   bytes sealed = 2;
 }
 
-// An identity provider re-verifying what it vouched for (§5.1 of docs/08-identity.md). With a
-// set: whether it still exists and is the set it was, and which of `members` are in it and in
-// every required set. Without one: which of `members` the provider still knows.
+// An identity provider re-verifying what it vouched for. With a set: whether it still exists and is
+// the set it was, and which of `members` are in it and in every required set. Without one: which of
+// `members` the provider still knows.
 message VerifyMembers {
   ExternalSet set = 1;
   // People at the provider, by their identifier there; at most 256.
@@ -512,15 +506,14 @@ message Members {
   // Those of the members asked about who are confirmed: in the set and every required one, or,
   // without a set, known to the provider.
   repeated string present = 2;
-  // Those of the members asked about the provider holds no current evidence of, neither present
-  // nor gone: each keeps their last confirmation, to lapse on its own (§5.1 of
-  // docs/08-identity.md). Every member named neither here nor in `present` is gone.
+  // Those of the members asked about the provider holds no current evidence of, neither present nor
+  // gone: each keeps their last confirmation, to lapse on its own. Every member named neither here
+  // nor in `present` is gone.
   repeated string unknown = 3;
 }
 
-// What a person presented to an identity provider's surface, passed on as received: a signed
-// chat interaction, an authorization code. Its form is the provider's own; Korpis reads only the
-// answer (§5.2 of docs/08-identity.md).
+// What a person presented to an identity provider's surface, passed on as received: a signed chat
+// interaction, an authorization code. Its form is the provider's own; Korpis reads only the answer.
 message Assert {
   // At most 64 KiB.
   bytes evidence = 1;
@@ -541,8 +534,8 @@ message Assertion {
   google.protobuf.Timestamp at = 4;
 }
 
-// A sign-in the control plane began (§9.7 of docs/08-identity.md): the provider answers where to
-// send the person, carrying these as its protocol carries them.
+// A sign-in the control plane began: the provider answers where to send the person, carrying these
+// as its protocol carries them.
 message Authorize {
   // Opaque, made by the control plane; returned with the person.
   string state = 1;
@@ -559,11 +552,10 @@ message Authorization {
   string url = 1;
 }
 
-// Health providers (§5 of docs/04-runtimes.md, §5 of docs/16-extensions.md). A query probe is an
-// exchange the node runs and the provider directs: the node holds the socket, inside the
-// workload's network namespace, and the provider holds the protocol. Each step tells the provider
-// the rounds run so far, and it answers with the next round or the verdict; it is never given a way
-// to the workload itself.
+// Health providers. A query probe is an exchange the node runs and the provider directs: the node
+// holds the socket, inside the workload's network namespace, and the provider holds the protocol.
+// Each step tells the provider the rounds run so far, and it answers with the next round or the
+// verdict; it is never given a way to the workload itself.
 message HealthStep {
   // `<publisher>/<protocol>`, the name the provider registered.
   string protocol = 1;

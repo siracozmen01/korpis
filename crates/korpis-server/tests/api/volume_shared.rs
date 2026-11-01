@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A shared storage class (§2.1 of docs/06-storage.md): two nodes declaring a class of one
-//! store. A volume a node reports in it is the store's, with no node, and the same volume
-//! whichever node reports it; a workload holding one is told to stop when its lease cannot be
-//! renewed, as its class is attachable from more than one node; and a workload attaching it is
-//! placed on the other node, which reaches the store, once the first is cordoned. A node of
-//! another organization declaring the same store is not given it (Finding 201), until the
-//! organization holding it has no node offering it and no volume in it (Finding 203).
+//! A shared storage class: two nodes declaring a class of one store. A volume a node reports in it
+//! is the store's, with no node, and the same volume whichever node reports it; a workload holding
+//! one is told to stop when its lease cannot be renewed, as its class is attachable from more than
+//! one node; and a workload attaching it is placed on the other node, which reaches the store, once
+//! the first is cordoned. A node of another organization declaring the same store is not given it,
+//! until the organization holding it has no node offering it and no volume in it.
 
 use crate::agent::{TestAgent, welcome};
 use crate::edge_groups::cordon;
@@ -162,8 +161,8 @@ async fn a_store_belongs_to_the_organization_whose_node_declared_it_first() {
     assert_eq!(shown(&c.node).await, "", "another organization's node is not given it");
     assert_eq!(h.effects("node.store_refused").await.len(), 1, "and that is recorded");
 
-    // Once the organization holding it has no node offering it and no volume in it, the next
-    // node declaring it is given it (Finding 203).
+    // Once the organization holding it has no node offering it and no volume in it, the next node
+    // declaring it is given it.
     let nodes = h.nodes(h.root());
     cordon(&h, &a.node).await;
     let removal = pb::RemoveNodeRequest {

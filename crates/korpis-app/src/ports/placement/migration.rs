@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Migrations (§8.1 of docs/05-scheduling.md): the record each keeps, its volumes, and how it
-//! ended.
+//! Migrations: the record each keeps, its volumes, and how it ended.
 
 use crate::ports::StoreResult;
 use korpis_core::workload::migration::{
@@ -143,9 +142,9 @@ pub trait MigrationMoves {
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Keeps `volume`'s `copy`, on a node under a helper identifier, as a volume of its own,
-    /// retained and held by no workload, diverged from it at the first of `times`, `volume`
-    /// holding what was written up to the second: a migration rolled back leaves it so, as a
-    /// failover onto a replica does (§2.2 of docs/06-storage.md).
+    /// retained and held by no workload, diverged from it at the first of `times`, `volume` holding
+    /// what was written up to the second: a migration rolled back leaves it so, as a failover onto
+    /// a replica does.
     fn keep_divergent(
         &mut self,
         volume: Uuid,

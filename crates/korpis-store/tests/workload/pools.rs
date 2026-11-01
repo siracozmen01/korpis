@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Connections under contention (Finding 177 of docs/23-walkthroughs.md): more transactions
-//! waiting for the placement lock than the store has connections, the one holding it reading
-//! outside its transaction, as placement does. In one pool the waiters held every connection and
-//! the holder waited for one until the pool gave up; with transactions and reads apart, every
-//! one finishes at once.
+//! Connections under contention: more transactions waiting for the placement lock than the store
+//! has connections, the one holding it reading outside its transaction, as placement does. In one
+//! pool the waiters held every connection and the holder waited for one until the pool gave up;
+//! with transactions and reads apart, every one finishes at once.
 
 use korpis_app::ports::{NodeRead, PlacementWrite, Store, Tx};
 use korpis_store::testing::TestDb;

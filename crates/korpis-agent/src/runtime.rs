@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The runtime driver, as the supervisor uses it: the lifecycle of §4.2 of docs/04-runtimes.md,
-//! spoken in the driver protocol's own messages (`korpis.driver.v1`), so the port and the wire
-//! a driver process serves cannot drift apart. A driver is a separate process (§3 of
-//! docs/04-runtimes.md); an adapter over its socket implements this, and so does the in-process
-//! [`memory`] runtime that tests and a driverless trial run use.
+//! The runtime driver, as the supervisor uses it: the driver lifecycle,
+//! spoken in the driver protocol's own messages (`korpis.driver.v1`), so the port and the wire a
+//! driver process serves cannot drift apart. A driver is a separate process; an adapter over its
+//! socket implements this, and so does the in-process [`memory`] runtime that tests and a
+//! driverless trial run use.
 //!
-//! Liveness is read with `inspect`, polled by the reconciler, which is the level-triggered
-//! reading anyway (§4.1 of docs/02-architecture.md); `changes`, the protocol's `Events`, only
-//! makes it look sooner, so a crash is seen when it happens. Of the capability-gated verbs,
-//! console input and resizing are here (§6 of docs/14-streams.md), and exec, which an `exec`
-//! probe runs (§5 of docs/04-runtimes.md), file sessions and installs served inside a guest
-//! (§4.4 there); resource resizing is not yet (§4 of docs/20-roadmap.md).
+//! Liveness is read with `inspect`, polled by the reconciler, which is the level-triggered reading
+//! anyway; `changes`, the protocol's `Events`, only makes it look sooner, so a crash is seen when
+//! it happens. Of the capability-gated verbs, console input and resizing are here, and exec, which
+//! an `exec` probe runs, file sessions and installs served inside a guest; resource resizing is not
+//! yet.
 
 pub mod drivers;
 pub mod memory;
@@ -49,7 +48,7 @@ pub enum RuntimeError {
 /// A result from a driver.
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
 
-/// How a command run inside a runtime object ended (§4.2 of docs/04-runtimes.md).
+/// How a command run inside a runtime object ended.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Executed {
     /// Its exit status; 128 and the signal's number for one a signal ended.
@@ -112,8 +111,7 @@ pub trait Runtime: Send + Sync + 'static {
     /// Releases every resource it holds.
     fn destroy(&self, id: &str) -> impl Future<Output = RuntimeResult<()>> + Send;
 
-    /// Every runtime object this driver created, with its labels: adoption's input (§4.4 of
-    /// docs/02-architecture.md).
+    /// Every runtime object this driver created, with its labels: adoption's input.
     fn recover(&self) -> impl Future<Output = RuntimeResult<Vec<driver::RuntimeObject>>> + Send;
 
     /// What it is doing now.
@@ -123,7 +121,7 @@ pub trait Runtime: Send + Sync + 'static {
     ) -> impl Future<Output = RuntimeResult<driver::RuntimeStatus>> + Send;
 
     /// What it is using now, and its counters since it was made, each absent where the driver
-    /// cannot read it (§2 of docs/15-observability.md).
+    /// cannot read it.
     fn stats(&self, id: &str) -> impl Future<Output = RuntimeResult<driver::StatsResponse>> + Send;
 
     /// Sends it a driver-declared signal.
@@ -167,8 +165,7 @@ pub trait Runtime: Send + Sync + 'static {
     ) -> impl Future<Output = RuntimeResult<bool>> + Send;
 
     /// Whether the driver of object `id` serves its file sessions inside it, its `file_access`
-    /// being `GUEST_WORKER` (§4.4 of docs/04-runtimes.md), rather than leaving them to the
-    /// helper's worker on the host.
+    /// being `GUEST_WORKER`, rather than leaving them to the helper's worker on the host.
     fn serves_files(&self, id: &str) -> impl Future<Output = RuntimeResult<bool>> + Send;
 
     /// A file session on running object `id`'s volumes, writing them if `write`, served inside
@@ -182,9 +179,9 @@ pub trait Runtime: Send + Sync + 'static {
     ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send;
 
     /// A read-only file session on `image`, a block device's backup the helper restored for
-    /// reading, served by the driver named `driver` from a service guest of the image's own (§5.4
-    /// of docs/06-storage.md), at `/backup`: a stream as [`Runtime::files`] gives. Capability-
-    /// gated: a driver whose volumes are block devices.
+    /// reading, served by the driver named `driver` from a service guest of the image's own, at
+    /// `/backup`: a stream as [`Runtime::files`] gives. Capability- gated: a driver whose volumes
+    /// are block devices.
     fn image_files(
         &self,
         driver: &str,
@@ -192,9 +189,9 @@ pub trait Runtime: Send + Sync + 'static {
     ) -> impl Future<Output = RuntimeResult<tokio::io::DuplexStream>> + Send;
 
     /// Starts install `asked.job` into the block devices of the workload `asked.spec` describes,
-    /// run by the driver `asked.spec.driver` names in a service guest (§4.4 of
-    /// docs/04-runtimes.md), as the helper runs one beside a container. Capability-gated: a driver
-    /// whose volumes are block devices. A job already known is left as it is.
+    /// run by the driver `asked.spec.driver` names in a service guest, as the helper runs one
+    /// beside a container. Capability-gated: a driver whose volumes are block devices. A job
+    /// already known is left as it is.
     fn start_install(
         &self,
         asked: &driver::StartInstallRequest,

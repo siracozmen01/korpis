@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Moving a workload to another node (§8.1 of docs/05-scheduling.md), as far as its proposal,
-//! its approval, and its abandonment. It is proposed as a plan of kind `migrate` naming the node
-//! the scheduler chose among the others, which a person approves whatever the policy would
-//! allow; approved, the migration is in `prepare`, the destination a placement that is not
-//! authoritative, holding its capacity on that node; abandoned, the destination is freed and the
-//! plan cancelled. A workload on no node, a move to the node it is on, a second migration, and a
-//! volume whose class cannot cross between the two nodes are refused, and so is the approval of a
-//! move onto a node the scheduler chose that was cordoned since.
+//! Moving a workload to another node, as far as its proposal, its approval, and its abandonment. It
+//! is proposed as a plan of kind `migrate` naming the node the scheduler chose among the others,
+//! which a person approves whatever the policy would allow; approved, the migration is in
+//! `prepare`, the destination a placement that is not authoritative, holding its capacity on that
+//! node; abandoned, the destination is freed and the plan cancelled. A workload on no node, a move
+//! to the node it is on, a second migration, and a volume whose class cannot cross between the two
+//! nodes are refused, and so is the approval of a move onto a node the scheduler chose that was
+//! cordoned since.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::edge_groups::cordon;

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The agent's meter, as it keeps it on its own disk between readings (§2 of
-// docs/15-observability.md, "Measuring it, as designed"): each workload's base, the last reading
-// of each of its sources, and what its current interval has seen. The file is the agent's own,
-// replaced at every reading; nothing else reads it, and it is described here so that its
-// encoding is versioned like every other.
+// The agent's meter, as it keeps it on its own disk between readings ("Measuring it, as designed"):
+// each workload's base, the last reading of each of its sources, and what its current interval has
+// seen. The file is the agent's own, replaced at every reading; nothing else reads it, and it is
+// described here so that its encoding is versioned like every other.
 
 syntax = "proto3";
 

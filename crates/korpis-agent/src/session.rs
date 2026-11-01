@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control stream, as the agent holds it (§4.2 and §7 of docs/02-architecture.md). It dials
-//! out, proves the node's identity in a signed Hello, keeps the heartbeat the Welcome declares,
-//! believes an assignment set only once every signature verifies, keeps it on disk, and
-//! acknowledges it. When the stream drops it dials again, backing off; the node keeps doing its
-//! job meanwhile from the set it holds (§4.6).
+//! The control stream, as the agent holds it. It dials out, proves the node's identity in a signed
+//! Hello, keeps the heartbeat the Welcome declares, believes an assignment set only once every
+//! signature verifies, keeps it on disk, and acknowledges it. When the stream drops it dials again,
+//! backing off; the node keeps doing its job meanwhile from the set it holds.
 
 use crate::feasibility::Answerer;
 use crate::held::HeldSet;
@@ -67,8 +66,8 @@ pub struct Session {
     queries: Arc<crate::health::Queries>,
     offered: Arc<tokio::sync::Notify>,
     certificates: Arc<crate::ingress::Certificates>,
-    /// What answers feasibility queries, when the agent drives a runtime that can (§2.1 of
-    /// docs/05-scheduling.md); where answers go; and how many more may be answered at once.
+    /// What answers feasibility queries, when the agent drives a runtime that can; where answers
+    /// go; and how many more may be answered at once.
     answering: Option<(Answerer, mpsc::Sender<agent::AgentMessage>, Arc<Semaphore>)>,
 }
 
@@ -315,8 +314,8 @@ impl Session {
         self.metering.send_replace(metering.filter(|d| !d.is_zero()));
         let _ = self.events.send(Event::Welcomed { heartbeat: interval });
         if welcome.present_assignments {
-            // A restored control plane settles: it is shown what this node was told, as signed,
-            // so its epoch floor passes every epoch issued here (§8 of docs/03-state.md).
+            // A restored control plane settles: it is shown what this node was told, as signed, so
+            // its epoch floor passes every epoch issued here.
             let assignments = self.held.borrow().raw.assignments.clone();
             let presented = agent::Presented { assignments, ..Default::default() };
             let up = agent::AgentMessage {

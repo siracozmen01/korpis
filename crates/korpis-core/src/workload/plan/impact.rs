@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a plan costs. Where a figure cannot be computed it is `Unknown`, never zero, and an
-//! unknown impact is never auto-approvable (P4, §3.3 of docs/01-model.md).
+//! What a plan costs. Where a figure cannot be computed it is `Unknown`, never zero, and an unknown
+//! impact is never auto-approvable.
 
 use super::step::{Step, StepAction};
 use crate::value::Value;
@@ -52,8 +52,7 @@ pub struct Impact {
     pub data_at_risk: Estimate<Vec<String>>,
     /// How reservations change.
     pub cost_delta: ResourceDelta,
-    /// What it does to the exposure of each endpoint it creates or changes (§3 of
-    /// docs/07-networking.md).
+    /// What it does to the exposure of each endpoint it creates or changes.
     pub exposures: Vec<crate::workload::endpoint::ExposureImpact>,
 }
 

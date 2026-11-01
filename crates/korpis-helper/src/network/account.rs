@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What each workload's link carries, counted in the host's table, and the class of the node's
-//! uplinks its packets go in (§7 of docs/07-networking.md). Three base chains, on the forward,
-//! input, and output hooks, ahead of the filter, send every packet from a workload's link to its
-//! `from_` chain and every packet to it to its `to_` chain, through two maps keyed by the link;
-//! neither chain decides anything but a cut-off, so the filter's verdicts are untouched. The
-//! counters are named objects, which a chain rewritten keeps counting into, and which the meter
-//! reads; the class is kept in a map from the link, so the helper allocates it without a ledger
-//! of its own and finds it again to remove it. The `to_` chain also decides the class on the
-//! host's side of the link of everything sent to the workload: an endpoint's own, by its port,
-//! where it has a limit of its own, and otherwise none, so a priority set before, by the
-//! sender's chain or by a program on the node, never lands in one.
+//! uplinks its packets go in. Three base chains, on the forward, input, and output hooks, ahead of
+//! the filter, send every packet from a workload's link to its `from_` chain and every packet to it
+//! to its `to_` chain, through two maps keyed by the link; neither chain decides anything but a
+//! cut-off, so the filter's verdicts are untouched. The counters are named objects, which a chain
+//! rewritten keeps counting into, and which the meter reads; the class is kept in a map from the
+//! link, so the helper allocates it without a ledger of its own and finds it again to remove it.
+//! The `to_` chain also decides the class on the host's side of the link of everything sent to the
+//! workload: an endpoint's own, by its port, where it has a limit of its own, and otherwise none,
+//! so a priority set before, by the sender's chain or by a program on the node, never lands in one.
 
 use super::forward::Transport;
 use super::nft::{TABLE, chain};

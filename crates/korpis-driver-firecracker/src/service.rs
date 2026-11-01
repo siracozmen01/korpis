@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The driver protocol (`korpis.driver.v1.DriverService`) answered over [`Machine`]: each verb of
-//! §4.2 of docs/04-runtimes.md, and every failure given the code the agent branches on. A
-//! console's input reaches the guest; resizing is refused, since nothing carries a terminal's
-//! size into a guest until its agent does (§6 of docs/04-runtimes.md).
+//! the driver lifecycle, and every failure given the code the agent branches on. A console's
+//! input reaches the guest; resizing is refused, since nothing carries a terminal's size into a
+//! guest until its agent does.
 
 use crate::describe::info;
 use crate::machine::{Install, Machine, MachineError, Restore};

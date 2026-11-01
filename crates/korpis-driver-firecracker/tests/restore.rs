@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A path of a block device's backup restored into its live volume in a live guest (§5.4 of
-//! docs/06-storage.md, §4.4 of docs/04-runtimes.md): the image the node staged is held by a
-//! service guest of the workload's beside its volume, attached writable so its journal replays
-//! and mounted read-only, and the install job copies the path from it into a new directory of the
-//! volume with its modes; asked again it is done; and the workload, started, reads it. Needs what
-//! the driver's runtime tests need.
+//! A path of a block device's backup restored into its live volume in a live guest: the image the
+//! node staged is held by a service guest of the workload's beside its volume, attached writable so
+//! its journal replays and mounted read-only, and the install job copies the path from it into a
+//! new directory of the volume with its modes; asked again it is done; and the workload, started,
+//! reads it. Needs what the driver's runtime tests need.
 
 #![allow(
     clippy::unwrap_used,

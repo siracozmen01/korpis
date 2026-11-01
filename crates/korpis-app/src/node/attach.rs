@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node attaching its data connection to the relay this control plane serves (§3.1 of
-//! docs/02-architecture.md). It proves the node's key as a Hello does, over a message of its own
-//! form, so neither proof can stand in for the other, and its nonce joins the same memory, so
-//! neither can be replayed as itself either.
+//! A node attaching its data connection to the relay this control plane serves. It proves the
+//! node's key as a Hello does, over a message of its own form, so neither proof can stand in for
+//! the other, and its nonce joins the same memory, so neither can be replayed as itself either.
 
 use super::NodeProof;
 use super::session::fresh;
@@ -62,8 +61,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The URLs of the relays enrolled to run as their own process and admitted, neither removed
-    /// nor held by a restore, which every node keeps a data connection to (§3.1 of
-    /// docs/02-architecture.md).
+    /// nor held by a restore, which every node keeps a data connection to.
     pub async fn relay_urls(&self) -> Result<Vec<String>, AppError> {
         let relays = self.store.relays().await?;
         let live = relays.into_iter().filter(Relay::admitted);

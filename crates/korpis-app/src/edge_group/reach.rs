@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Whether a workload's `stable` endpoints, and its `ingress` endpoints an edge group serves, are
-//! known to be reached (§3.1 of docs/07-networking.md, Finding 190 of docs/23-walkthroughs.md):
-//! each with the edge group its address is of, and why it is not reached where the control plane
-//! knows it is not. The
-//! control plane, which grants the address and probes the group, is what knows; the workload's
-//! node cannot see the edge.
+//! known to be reached: each with the edge group its address is of, and why it is not reached where
+//! the control plane knows it is not. The control plane, which grants the address and probes the
+//! group, is what knows; the workload's node cannot see the edge.
 
 use crate::App;
 use crate::error::AppError;

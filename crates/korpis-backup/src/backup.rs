@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backing up a volume (§5.1 of docs/06-storage.md): its tree read from a snapshot where its class
-//! can take one, chunked, deduplicated against what the workload's repository already holds,
-//! sealed, and written several objects at once; the backup's record last, so a backup whose
-//! record exists is whole and one that failed leaves only objects a later backup reuses.
+//! Backing up a volume: its tree read from a snapshot where its class can take one, chunked,
+//! deduplicated against what the workload's repository already holds, sealed, and written several
+//! objects at once; the backup's record last, so a backup whose record exists is whole and one that
+//! failed leaves only objects a later backup reuses.
 
 use crate::error::{Error, Result, sys};
 use crate::file::Content;

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How the node stops what it runs (§6 of docs/02-architecture.md, §3 of docs/09-recipes.md):
-//! it asks first, as the recipe's `pre_stop` hook says, by writing the hook's data to the console
-//! as the reconciler's input, and software that heeds it exits without a signal; software that
-//! does not is signalled once the hook's wait is over, and killed once its grace is, if it
-//! ignores the signal too, as a container's first process with no handler does, or if the signal
-//! cannot reach it, as a guest whose hypervisor has stopped answering. None of it holds
-//! up the node's other workloads, and whatever needed the stop, a retirement or a run's
+//! How the node stops what it runs: it asks first, as the recipe's `pre_stop` hook says, by writing
+//! the hook's data to the console as the reconciler's input, and software that heeds it exits
+//! without a signal; software that does not is signalled once the hook's wait is over, and killed
+//! once its grace is, if it ignores the signal too, as a container's first process with no handler
+//! does, or if the signal cannot reach it, as a guest whose hypervisor has stopped answering. None
+//! of it holds up the node's other workloads, and whatever needed the stop, a retirement or a run's
 //! cancellation, completes once it has.
 
 use crate::session::until;
@@ -250,7 +249,7 @@ async fn a_retirement_the_driver_does_not_answer_is_asked_again_rather_than_fail
 
 #[tokio::test]
 async fn a_stop_whose_object_the_driver_does_not_answer_for_is_asked_again_rather_than_failed() {
-    // As containerd answers a task's state late while its shim is busy (Finding 165).
+    // As containerd answers a task's state late while its shim is busy.
     let cp = ControlPlane::start().await;
     let project = cp.project().await;
     let dir = tempfile::tempdir().unwrap();

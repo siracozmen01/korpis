@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A relay's SSH host key (§3 of docs/18-operations.md): read from its file, or made there at the
-//! first start where the file is absent, readable by the server alone. It is Ed25519 and nothing
-//! else, so the relay never holds an RSA private key, whose signing is the operation the `rsa`
-//! crate's timing advisory concerns (`deny.toml`).
+//! A relay's SSH host key: read from its file, or made there at the first start where the file is
+//! absent, readable by the server alone. It is Ed25519 and nothing else, so the relay never holds
+//! an RSA private key, whose signing is the operation the `rsa` crate's timing advisory concerns
+//! (`deny.toml`).
 
 pub use russh::keys::PrivateKey;
 use russh::keys::ssh_key::LineEnding;

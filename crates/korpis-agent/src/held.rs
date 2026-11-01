@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The assignment set the node holds (§4.8 of docs/02-architecture.md): every assignment
-//! verified against the control plane's assignment keys before it is believed, the set digest
-//! recomputed, and the set kept on disk with its signatures, so the node keeps doing its job
-//! while the control plane is away (§4.6) and can prove what it was told (§8 of
-//! docs/03-state.md).
+//! The assignment set the node holds: every assignment verified against the control plane's
+//! assignment keys before it is believed, the set digest recomputed, and the set kept on disk with
+//! its signatures, so the node keeps doing its job while the control plane is away and can prove
+//! what it was told.
 
 use buffa::Message as _;
 use ed25519_dalek::{Signature, VerifyingKey};
@@ -46,8 +45,7 @@ pub struct HeldSet {
 }
 
 impl HeldSet {
-    /// The ports of the node its endpoints hold, which it forwards to its workloads (§3 of
-    /// docs/07-networking.md).
+    /// The ports of the node its endpoints hold, which it forwards to its workloads.
     #[must_use]
     pub fn forwarded(&self) -> Vec<u16> {
         self.assignments

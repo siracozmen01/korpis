@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's own policy (§6 of docs/07-networking.md), as the helper holds it: the rules of
-//! its intent's egress policy, applied in its chain on the host before the egress default, and
-//! each endpoint's rules and limits on who connects to it, applied in its own namespace. Every
-//! rule names addresses, because a packet filter judges addresses: a range, or, for a rule
-//! naming workloads, the addresses the control plane resolved it to on this node, which are held
-//! as a rule for each family that has any, and as none where there are none, since such a rule
-//! matches nothing. The control plane refuses the rules a node could not hold before any reaches
-//! here.
+//! A workload's own policy, as the helper holds it: the rules of its intent's egress policy,
+//! applied in its chain on the host before the egress default, and each endpoint's rules and limits
+//! on who connects to it, applied in its own namespace. Every rule names addresses, because a
+//! packet filter judges addresses: a range, or, for a rule naming workloads, the addresses the
+//! control plane resolved it to on this node, which are held as a rule for each family that has
+//! any, and as none where there are none, since such a rule matches nothing. The control plane
+//! refuses the rules a node could not hold before any reaches here.
 
 use super::forward::Transport;
 use super::{Prefix, port, range};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Taking a backup (§5.1 of docs/06-storage.md): a plan of one step on the volume, authorized
-//! on the volume's workload; and the workload's backups, read on it.
+//! Taking a backup: a plan of one step on the volume, authorized on the volume's workload; and the
+//! workload's backups, read on it.
 
 use crate::App;
 use crate::caller::Caller;
@@ -74,9 +74,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.propose_on_volume(caller, idem, ask).await
     }
 
-    /// One backup's record, read under `workload.read` on its workload: that a backup exists
-    /// and what it holds is the workload's state, while its file tree and contents are the
-    /// private `backup.browse` and `backup.read` (§3.3 and §7 of docs/08-identity.md).
+    /// One backup's record, read under `workload.read` on its workload: that a backup exists and
+    /// what it holds is the workload's state, while its file tree and contents are the private
+    /// `backup.browse` and `backup.read`.
     pub async fn get_backup(&self, caller: &Caller, id: Uuid) -> Result<Backup, AppError> {
         let b = self.store.backup(id).await?.ok_or(AppError::NotFound { kind: "backup" })?;
         self.authorize(caller, "workload.read", ObjectRef::new(Kind::Workload, b.workload)).await?;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A layout's items as the editor changes them (question 2 of §10 of docs/11-surface-web.md):
-// described in words, moved, removed, and added, each change a new array, so a draft is never
-// changed in place. What the viewer's grants open is never removed, since the control plane
-// refuses a layout without it; the quota is added at most once, for the same reason.
+// A layout's items as the editor changes them: described in words, moved, removed, and added, each
+// change a new array, so a draft is never changed in place. What the viewer's grants open is never
+// removed, since the control plane refuses a layout without it; the quota is added at most once,
+// for the same reason.
 
 import { create } from "@bufbuild/protobuf";
 import { type LayoutItem, LayoutItemSchema } from "../gen/korpis/v1/tenancy_pb";

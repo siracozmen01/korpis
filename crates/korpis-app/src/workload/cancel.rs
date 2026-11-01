@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Cancelling a plan (§7 of docs/03-state.md), and reading plans.
+//! Cancelling a plan, and reading plans.
 //!
 //! A proposed plan is withdrawn. An approved or queued plan none of whose steps has completed is
 //! withdrawn too, and the targets it moved are put back, so cancelling it leaves the workload as

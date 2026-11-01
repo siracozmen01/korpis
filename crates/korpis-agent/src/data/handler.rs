@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What runs a session on the node, chosen by the action the session's token carries (§3.1 of
-//! docs/02-architecture.md). A handler is given what the client opened with, already verified,
-//! and the session's bytes both ways; the session ends when the handler returns, with the reason
-//! it gives. An action no handler serves is refused as `unimplemented`.
+//! What runs a session on the node, chosen by the action the session's token carries. A handler is
+//! given what the client opened with, already verified, and the session's bytes both ways; the
+//! session ends when the handler returns, with the reason it gives. An action no handler serves is
+//! refused as `unimplemented`.
 
 use korpis_core::authz::StreamRange;
 use std::collections::HashMap;
@@ -33,8 +33,8 @@ pub struct Opened {
     pub chain: Vec<Uuid>,
     /// When the token stops carrying the session unless renewed.
     pub expires_at: SystemTime,
-    /// The only records of the stream it may read, when its grant is limited to a range (§8 of
-    /// docs/14-streams.md). Renewals continue the same chain, so the same range.
+    /// The only records of the stream it may read, when its grant is limited to a range. Renewals
+    /// continue the same chain, so the same range.
     pub stream_range: Option<StreamRange>,
 }
 

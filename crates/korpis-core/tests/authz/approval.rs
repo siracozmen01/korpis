@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Approval: propose-only grants, approval scopes that only move up, and the rule that nobody
-//! approves their own plan (§3.3 of docs/01-model.md, §4 of docs/08-identity.md).
+//! approves their own plan.
 
 use korpis_core::authz::evaluate::{Approval, may_approve};
 use korpis_core::authz::grant::At;
@@ -118,9 +118,9 @@ fn nobody_approves_their_own_plan_and_every_condition_binds_the_approver() {
     assert!(!approves(&tree, now, &spent, &held(&spent), &p));
 }
 
-/// A plan with an irreversible step needs approval even when its proposer's grant does not
-/// (§3.3 of docs/01-model.md). Such a proposer could mint a sock puppet holding plan.approve over
-/// the scope; everything about the puppet holds except the chain rule.
+/// A plan with an irreversible step needs approval even when its proposer's grant does not. Such a
+/// proposer could mint a sock puppet holding plan.approve over the scope; everything about the
+/// puppet holds except the chain rule.
 #[test]
 fn a_chain_through_the_proposing_grant_is_not_a_second_approver() {
     let tree = Tree::new();

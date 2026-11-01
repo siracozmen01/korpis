@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! OCI images as a node holds them (§6 of docs/04-runtimes.md): content addressed by digest,
-//! fetched once by the agent and referenced by drivers. This is the part of the image format both
-//! need and neither may get wrong: which manifest of an index is this machine's, what an image
-//! manifest names, and the chain identifiers its unpacked layers are known by. Pure: bytes in,
-//! decisions out, and every digest checked by the caller against the bytes it names.
+//! OCI images as a node holds them: content addressed by digest, fetched once by the agent and
+//! referenced by drivers. This is the part of the image format both need and neither may get wrong:
+//! which manifest of an index is this machine's, what an image manifest names, and the chain
+//! identifiers its unpacked layers are known by. Pure: bytes in, decisions out, and every digest
+//! checked by the caller against the bytes it names.
 
 pub mod image;
 
@@ -51,8 +51,7 @@ pub struct Descriptor {
     /// For an index entry, the platform it is for.
     #[serde(default)]
     pub platform: Option<Platform>,
-    /// Its annotations; a recipe's file layer is named by its title (§2 of
-    /// docs/09-recipes.md).
+    /// Its annotations; a recipe's file layer is named by its title.
     #[serde(default)]
     pub annotations: std::collections::BTreeMap<String, String>,
 }

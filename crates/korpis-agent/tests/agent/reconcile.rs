@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The reconciler against a real control plane, with the in-memory runtime standing in for a
-//! driver (§4 of docs/02-architecture.md): a declared workload is placed, its plan executed step
-//! by step under a lease, and it converges, all wired as `korpis-agent run` wires them; the agent restarts and adopts it without touching
-//! it; a crash is restarted as soon as the runtime reports it; and a retirement removes the runtime object, keeps the volumes,
-//! which the node reported as it made them, releases the lease, and retires the workload. The
-//! node reports the recipe whose content it pulled, for content locality.
+//! driver: a declared workload is placed, its plan executed step by step under a lease, and it
+//! converges, all wired as `korpis-agent run` wires them; the agent restarts and adopts it without
+//! touching it; a crash is restarted as soon as the runtime reports it; and a retirement removes
+//! the runtime object, keeps the volumes, which the node reported as it made them, releases the
+//! lease, and retires the workload. The node reports the recipe whose content it pulled, for
+//! content locality.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};
@@ -165,8 +166,8 @@ async fn a_workload_converges_survives_an_agent_restart_untouched_and_retires() 
     let agent = start(&state, &runtime, &host, Duration::from_millis(200)).await;
     let w = cp.declare(&project, "mc").await;
     let id = converges(&cp, &w, &runtime, &orphan).await;
-    // The image the recipe runs; for its install, the recipe with its files (a template reads
-    // one) and the jar its `fetch` names, by the hash it declares (§4 of docs/09-recipes.md).
+    // The image the recipe runs; for its install, the recipe with its files (a template reads one)
+    // and the jar its `fetch` names, by the hash it declares.
     let content = host.content();
     assert_eq!(content.len(), 3, "each fetched once: {content:?}");
     assert!(content.iter().any(|c| c == &format!("sha256:{}", "1".repeat(64))), "{content:?}");
@@ -178,7 +179,7 @@ async fn a_workload_converges_survives_an_agent_restart_untouched_and_retires() 
     assert!(base >= 1 << 30 && count == 1 << 16, "a workload slot: {base} {count}");
     let attached = "SELECT count(*) FROM volume WHERE name = 'data' AND attached_to IS NOT NULL";
     counted(&cp, attached, 1).await;
-    // Its recipe's content is held here now, and the node said so (§2.2 of 05-scheduling.md).
+    // Its recipe's content is held here now, and the node said so.
     counted(&cp, "SELECT count(*) FROM node_content", 1).await;
 
     agent.stop().await;
@@ -237,10 +238,9 @@ async fn a_cancelled_plan_finishes_the_step_in_flight_and_begins_no_other() {
     drop(agent);
 }
 
-/// A driver that cannot say what it holds when the agent starts, as a containerd too busy to
-/// answer within its deadline: the agent reconciles nothing until it can, so it starts no second
-/// copy of what runs, and once the driver answers it adopts the object it had and touches it no
-/// more (§4.4 of docs/02-architecture.md).
+/// A driver that cannot say what it holds when the agent starts, as a containerd too busy to answer
+/// within its deadline: the agent reconciles nothing until it can, so it starts no second copy of
+/// what runs, and once the driver answers it adopts the object it had and touches it no more.
 #[tokio::test]
 async fn an_agent_whose_driver_cannot_enumerate_waits_and_then_adopts() {
     let cp = ControlPlane::start().await;
@@ -270,7 +270,7 @@ async fn an_agent_whose_driver_cannot_enumerate_waits_and_then_adopts() {
 
 /// A workload whose driver takes its volumes as block devices has its install run by that driver,
 /// in a service guest, and never by the helper, whose worker would parse a filesystem a guest
-/// formatted (§4.4 of docs/04-runtimes.md); what the install reads is fetched as before.
+/// formatted; what the install reads is fetched as before.
 #[tokio::test]
 async fn a_block_device_workload_s_install_is_run_by_its_driver_and_not_the_helper() {
     let cp = ControlPlane::start().await;

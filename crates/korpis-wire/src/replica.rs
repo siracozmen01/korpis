@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Replicas between nodes on the wire (§2.2 of docs/06-storage.md): what a node is told of them,
-//! and what it reports of a receive. Snapshots are named by their bare identifiers, as the
-//! helper knows them.
+//! Replicas between nodes on the wire: what a node is told of them, and what it reports of a
+//! receive. Snapshots are named by their bare identifiers, as the helper knows them.
 
 use crate::{Result, id, invalid, timestamp, wire_id};
 use korpis_core::id::IdKind;

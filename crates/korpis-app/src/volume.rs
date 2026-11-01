@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading volumes (§7 of docs/06-storage.md): what nodes reported of them, through the project
-//! they belong to, so a volume whose workload is gone is still listed, and an orphan is seen.
+//! Reading volumes: what nodes reported of them, through the project they belong to, so a volume
+//! whose workload is gone is still listed, and an orphan is seen.
 
 use crate::App;
 use crate::caller::Caller;

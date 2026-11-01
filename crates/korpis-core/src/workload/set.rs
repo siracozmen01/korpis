@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declared sets: a named group of workloads one declarative source owns, in one project (§3.3
-//! of docs/01-model.md), and the rule for declaring through one (§5 and §6 of
-//! docs/13-surface-cli.md). Drift is derived from what is already stored, never stored itself.
+//! Declared sets: a named group of workloads one declarative source owns, in one project, and the
+//! rule for declaring through one. Drift is derived from what is already stored, never stored
+//! itself.
 
 use super::{Intent, Workload};
 use crate::principal::Principal;

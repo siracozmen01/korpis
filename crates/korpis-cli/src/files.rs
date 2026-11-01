@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis plan -f` and `korpis apply -f` over a set of files (§4 and §5 of
-//! docs/13-surface-cli.md): each file declared, through a set when one is named; the set's
-//! members the files no longer declare proposed for deletion; and, with `--plan`, exactly the
-//! plans named applied, deletions among them.
+//! `korpis plan -f` and `korpis apply -f` over a set of files: each file declared, through a set
+//! when one is named; the set's members the files no longer declare proposed for deletion; and,
+//! with `--plan`, exactly the plans named applied, deletions among them.
 
 use crate::apply::{Mode, Through, apply_planned, declare, plans};
 use crate::connect::Connection;

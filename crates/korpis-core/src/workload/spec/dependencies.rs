@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dependencies declared explicitly (§5 of docs/07-networking.md): what a workload reaches by
-//! name, so the graph is visible to the scheduler and to plans, and its address is injected at
-//! start rather than discovered.
+//! Dependencies declared explicitly: what a workload reaches by name, so the graph is visible to
+//! the scheduler and to plans, and its address is injected at start rather than discovered.
 
 use super::SpecError;
 use crate::labels::LabelSelector;

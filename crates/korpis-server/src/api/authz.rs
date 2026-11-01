@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `GrantService` (§3 and §6 of docs/08-identity.md).
+//! `GrantService`.
 
 use super::wire::Refuse;
 use super::wire::authz::{actions, conditions_from_pb, delegation_from_pb, grant_to_pb};
@@ -83,7 +83,7 @@ fn issue_command(req: &pb::IssueGrantRequest) -> Result<IssueGrant, ConnectError
 }
 
 /// The answer to an issue; the record kept for a replay leaves the token's secret, the link, and
-/// the invitation out, because a secret recorded is a secret stored (§6 of docs/10-api.md).
+/// the invitation out, because a secret recorded is a secret stored.
 fn issued(i: &Issued, now: SystemTime, secret: bool) -> pb::IssueGrantResponse {
     let token = i.secret.as_ref().filter(|_| secret).map(|s| s.expose().to_owned());
     let link = i.link.clone().filter(|_| secret);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Nodes (§3.4 of docs/01-model.md).
+//! Nodes.
 
 use super::StoreResult;
 use crate::page::Page;
@@ -32,12 +32,11 @@ pub trait NodeRead {
         owners: &[Uuid],
     ) -> impl Future<Output = StoreResult<Vec<DriverInfo>>> + Send;
 
-    /// The workload pool `node` was given when it enrolled; none for a node enrolled before
-    /// pools were given (§9.1 of docs/07-networking.md).
+    /// The workload pool `node` was given when it enrolled; none for a node enrolled before pools
+    /// were given.
     fn node_pool(&self, node: Uuid) -> impl Future<Output = StoreResult<Option<Ipv4Net>>> + Send;
 
-    /// Every node not decommissioned that reports a mesh interface, as the mesh sees it (§9.1
-    /// of docs/07-networking.md).
+    /// Every node not decommissioned that reports a mesh interface, as the mesh sees it.
     fn mesh_candidates(
         &self,
     ) -> impl Future<Output = StoreResult<Vec<korpis_core::node::mesh::Candidate>>> + Send;
@@ -45,9 +44,8 @@ pub trait NodeRead {
 
 /// Changing nodes.
 pub trait NodeWrite {
-    /// Records a newly enrolled node. Enrollment itself (§3 of docs/18-operations.md) is the
-    /// agent protocol's; this is where it lands, with the public half of the key the node
-    /// generated for itself (§7 of docs/02-architecture.md).
+    /// Records a newly enrolled node. Enrollment itself is the agent protocol's; this is where it
+    /// lands, with the public half of the key the node generated for itself.
     fn enroll_node(
         &mut self,
         node: &Node,

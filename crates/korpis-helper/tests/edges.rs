@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An edge forwarding a stable address to a workload on another node (§3.1 of
-//! docs/07-networking.md, trace 78 of docs/23-walkthroughs.md), as the helper keeps it on both.
-//! A client, an edge, and a node are network namespaces of the test's own, the client and the
-//! edge on one link, the edge and the node joined by the mesh over another, and the node's
-//! workload a namespace behind it; so nothing is made in this machine's own namespace. The
-//! client reaches the workload at the address the edge holds, and the workload sees the
-//! client's own address; a port nothing is behind is refused at once; a port the node was not
-//! told to admit is not reached; the address is announced on its link when taken; a UDP flow
-//! follows its port when the port's target moves; GRE from the edge's mesh address arriving other than through
-//! the mesh is dropped; and an address no longer held is taken off, unless it was the
-//! operator's before. Needs root, the kernel's WireGuard and GRE, and nftables; skipped without
-//! them.
+//! An edge forwarding a stable address to a workload on another node, as the helper keeps it on
+//! both. A client, an edge, and a node are network namespaces of the test's own, the client and the
+//! edge on one link, the edge and the node joined by the mesh over another, and the node's workload
+//! a namespace behind it; so nothing is made in this machine's own namespace. The client reaches
+//! the workload at the address the edge holds, and the workload sees the client's own address; a
+//! port nothing is behind is refused at once; a port the node was not told to admit is not reached;
+//! the address is announced on its link when taken; a UDP flow follows its port when the port's
+//! target moves; GRE from the edge's mesh address arriving other than through the mesh is dropped;
+//! and an address no longer held is taken off, unless it was the operator's before. Needs root, the
+//! kernel's WireGuard and GRE, and nftables; skipped without them.
 
 #![allow(
     clippy::unwrap_used,

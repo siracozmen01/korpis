@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The event log's upkeep (§5 of docs/15-observability.md, migration 0023): the sequencer that
-//! gives events their positions once every transaction that could still commit an earlier one
-//! has ended, and the pruning that keeps the log to its retention window. Events themselves are
-//! written by the database, beside the effects they report.
+//! The event log's upkeep (migration 0023): the sequencer that gives events their positions once
+//! every transaction that could still commit an earlier one has ended, and the pruning that keeps
+//! the log to its retention window. Events themselves are written by the database, beside the
+//! effects they report.
 
 use crate::{Error, PgStore};
 use std::time::Duration;
@@ -34,10 +34,9 @@ impl PgStore {
         }
     }
 
-    /// Deletes the events up to the newest one older than `retention`; how many. What is left
-    /// is contiguous, so a subscriber whose position falls before it is told of exactly the gap
-    /// when it next reads (§5 of docs/15-observability.md). Effects, the audit record, are never
-    /// touched.
+    /// Deletes the events up to the newest one older than `retention`; how many. What is left is
+    /// contiguous, so a subscriber whose position falls before it is told of exactly the gap when
+    /// it next reads. Effects, the audit record, are never touched.
     ///
     /// # Errors
     /// The database's.

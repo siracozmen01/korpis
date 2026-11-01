@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-/* The console (§8): a scrolling box of fixed width text, its gaps and its input set apart, and
+/* The console: a scrolling box of fixed width text, its gaps and its input set apart, and
    the sixteen colours a workload may ask for, as classes from a fixed set (src/console/ansi.ts). */
 .console {
   max-height: 60vh;

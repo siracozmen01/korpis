@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's files on a real node (§3.2 of docs/06-storage.md), through the control plane's
-//! relay to the node's own file worker, its volumes on a btrfs made for the test with qgroups on:
-//! the volume is listed and written as the workload sees it; a link the tenant planted is refused
-//! rather than followed out; an upload cut off part way is resumed in a new session from the size
-//! a stat reports; a write past the volume's quota is refused as the volume being full; and the
-//! sessions are on record as their holder's acts. It needs root, containerd, and `mkfs.btrfs`,
-//! and is skipped without them.
+//! A workload's files on a real node, through the control plane's relay to the node's own file
+//! worker, its volumes on a btrfs made for the test with qgroups on: the volume is listed and
+//! written as the workload sees it; a link the tenant planted is refused rather than followed out;
+//! an upload cut off part way is resumed in a new session from the size a stat reports; a write
+//! past the volume's quota is refused as the volume being full; and the sessions are on record as
+//! their holder's acts. It needs root, containerd, and `mkfs.btrfs`, and is skipped without them.
 
 use crate::node::{Node, live};
 use crate::recipes::push_sleeper;

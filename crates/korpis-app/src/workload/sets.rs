@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declared sets as objects (§3.3 of docs/01-model.md): a project's sets are read with
-//! `project.read`, and a set's drift mode is project configuration, changed with `project.write`.
-//! A set is created only by the first declaration through it (`declare`).
+//! Declared sets as objects: a project's sets are read with `project.read`, and a set's drift mode
+//! is project configuration, changed with `project.write`. A set is created only by the first
+//! declaration through it (`declare`).
 
 use crate::App;
 use crate::caller::Caller;

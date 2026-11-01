@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An endpoint's TLS (§3.2 of docs/07-networking.md): where its certificate comes from; for TLS
-//! the proxy terminates, the client certificates it asks for and the authorities, in PEM, it
-//! verifies them against; and for TLS it passes through, whether its workload is sent a PROXY
-//! header, which the wire declares as the endpoint's `client_address`.
+//! An endpoint's TLS: where its certificate comes from; for TLS the proxy terminates, the client
+//! certificates it asks for and the authorities, in PEM, it verifies them against; and for TLS it
+//! passes through, whether its workload is sent a PROXY header, which the wire declares as the
+//! endpoint's `client_address`.
 //!
 //! The authorities are read here as the proxy reads them: every PEM section must be a
 //! certificate `webpki` takes as a trust anchor, so a declaration admitted is one the proxy can
@@ -89,9 +89,9 @@ fn clients_from_pb(field: &str, t: &pb::TlsSpec) -> Result<Option<ClientAuth>> {
     Ok(Some(ClientAuth { certificates, authorities }))
 }
 
-/// The client address `e` declares, as its TLS: `proxy_protocol` is declared on an endpoint
-/// whose TLS is passed through and on no other, and the other ways a workload sees its client
-/// are the platform's to say, never declared (§3.2 and §3.4 of docs/07-networking.md).
+/// The client address `e` declares, as its TLS: `proxy_protocol` is declared on an endpoint whose
+/// TLS is passed through and on no other, and the other ways a workload sees its client are the
+/// platform's to say, never declared.
 pub(crate) fn client_address_from_pb(
     field: &str,
     e: &pb::EndpointSpec,
@@ -106,13 +106,13 @@ pub(crate) fn client_address_from_pb(
             _ => Err(invalid(
                 field,
                 "the PROXY protocol is written by the proxy that passes TLS through: declared \
-                 only with tls passthrough (§3.2 of docs/07-networking.md)",
+                 only with tls passthrough",
             )),
         },
         _ => Err(invalid(
             field,
             "only proxy_protocol is declared; preserved and translated say what the platform \
-             does (§3.4 of docs/07-networking.md)",
+             does",
         )),
     }
 }

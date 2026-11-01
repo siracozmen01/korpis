@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `SessionService` (§9.4 of docs/08-identity.md): a refresh credential exchanged for access
-//! tokens and rotated, from the browser's cookie or in the CLI's request body; and a user's
-//! sessions listed and ended.
+//! `SessionService`: a refresh credential exchanged for access tokens and rotated, from the
+//! browser's cookie or in the CLI's request body; and a user's sessions listed and ended.
 
 use super::wire::Refuse as _;
 use super::{Api, cookie, device, error};

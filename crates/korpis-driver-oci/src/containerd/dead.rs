@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A container whose shim died under it (Finding 163 of docs/23-walkthroughs.md). containerd then
-//! forgets the task and cleans up after the shim: it runs the shim's `delete` in the task's
-//! bundle, which removes runc's state, and removes the bundle. When that cleanup does not finish,
-//! as containerd v2.4.2's did not on this machine, killed past its five seconds (§5 of
-//! docs/research/evidence.md), the bundle and runc's state stay, and every later task of the
+//! A container whose shim died under it. containerd then forgets the task and cleans up after the
+//! shim: it runs the shim's `delete` in the task's bundle, which removes runc's state, and removes
+//! the bundle. When that cleanup does not finish, as containerd v2.4.2's did not on this machine,
+//! killed past its five seconds, the bundle and runc's state stay, and every later task of the
 //! container is refused as existing until containerd itself restarts. So a task the driver creates
 //! on a container it holds waits out containerd's cleanup while containerd still holds the task's
 //! place, and once containerd has given it up and only the bundle is left, the driver finishes the

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Sealing assignments with the control plane's assignment key (§4.8 of
-//! docs/02-architecture.md): the encoded `korpis.agent.v1.Assignment` and an Ed25519 signature
-//! over exactly those bytes, so an agent can prove what it was told and a restored control
-//! plane can recover what it forgot (§8 of docs/03-state.md).
+//! Sealing assignments with the control plane's assignment key: the encoded
+//! `korpis.agent.v1.Assignment` and an Ed25519 signature over exactly those bytes, so an agent can
+//! prove what it was told and a restored control plane can recover what it forgot.
 
 use buffa::Message as _;
 use ed25519_dalek::{Signer as _, SigningKey};

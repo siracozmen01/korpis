@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Revoking a grant (§3.5 of docs/08-identity.md). Revocation is written on one grant and
-//! derived for everything below it.
+//! Revoking a grant. Revocation is written on one grant and derived for everything below it.
 
 use super::Snapshot;
 use crate::App;
@@ -27,10 +26,10 @@ pub struct Revoked {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Revokes a grant. Permitted to its holder; to anyone holding a currently valid grant above
-    /// it on its chain, a person through a set the assertion they act under names included; and
-    /// to a holder of `grant.revoke` over a scope containing it. A person acting through a relay
-    /// revokes only the grant their ticket names (§5.2 of docs/08-identity.md).
+    /// Revokes a grant. Permitted to its holder; to anyone holding a currently valid grant above it
+    /// on its chain, a person through a set the assertion they act under names included; and to a
+    /// holder of `grant.revoke` over a scope containing it. A person acting through a relay revokes
+    /// only the grant their ticket names.
     pub async fn revoke_grant(
         &self,
         caller: &Caller,
@@ -48,12 +47,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if target.grant.root {
             return Err(AppError::invalid(
                 "grant",
-                "a root grant is replaced by local root recovery, not revoked (§9.2 of \
-                 docs/08-identity.md)",
+                "a root grant is replaced by local root recovery, not revoked",
             ));
         }
-        // A session begun at a portal revokes only what lies beneath its organization, a grant
-        // it holds or one above it on its chain included (§9.8 of docs/08-identity.md).
+        // A session begun at a portal revokes only what lies beneath its organization, a grant it
+        // holds or one above it on its chain included.
         self.confine(caller, target.grant.scope.anchor()).await?;
         let chain: Vec<Grant> = records.into_iter().map(|r| r.grant).collect();
         let at = caller.revoking_at(target.grant.scope.anchor());

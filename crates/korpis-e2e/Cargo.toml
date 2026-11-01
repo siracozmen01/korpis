@@ -51,8 +51,8 @@ ppp = "2.3"
 quinn = { version = "0.11", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
-# A node's helper served from inside a network namespace of the test's own (§9.1 of
-# docs/07-networking.md), as the helper's own mesh test enters one.
+# A node's helper served from inside a network namespace of the test's own, as the helper's own mesh
+# test enters one.
 rustix = { version = "1", features = ["thread"] }
 sha2 = "0.10"
 sqlx = { workspace = true }

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! `Create`, `Start`, and what a driver answers of an object it does not hold (§4.2 of
-//! docs/04-runtimes.md): an object is made before anything runs in it, made once however often
-//! it is asked for, refused when its spec names a volume the helper did not make (§6.1 of
-//! docs/02-architecture.md), and started once however often it is asked; and every verb naming an
-//! object the driver does not hold is answered `NotFound`, which the node takes as "already gone".
+//! `Create`, `Start`, and what a driver answers of an object it does not hold: an object is made
+//! before anything runs in it, made once however often it is asked for, refused when its spec names
+//! a volume the helper did not make, and started once however often it is asked; and every verb
+//! naming an object the driver does not hold is answered `NotFound`, which the node takes as
+//! "already gone".
 
 use super::Stopped;
 use crate::case::Verdict;

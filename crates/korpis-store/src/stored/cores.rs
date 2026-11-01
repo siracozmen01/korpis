@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's cores offered for dedication, as stored in the `node` table (§5.2 of
-//! docs/05-scheduling.md).
+//! A node's cores offered for dedication, as stored in the `node` table.
 
 use super::{from_json, to_json};
 use korpis_app::ports::StoreResult;

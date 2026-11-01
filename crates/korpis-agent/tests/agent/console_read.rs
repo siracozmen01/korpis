@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading a console is recorded (§8 of docs/17-security.md, Finding 122 of
-//! docs/23-walkthroughs.md), wired as `korpis-agent run` wires it: the node journals the read as
-//! the act of the session's subject, under the grant its token was minted from, before it sends a
-//! record; and the control plane records it as that subject's act because that grant permitted
+//! Reading a console is recorded, wired as `korpis-agent run` wires it: the node journals the read
+//! as the act of the session's subject, under the grant its token was minted from, before it sends
+//! a record; and the control plane records it as that subject's act because that grant permitted
 //! it.
 
 use crate::console_write::running;

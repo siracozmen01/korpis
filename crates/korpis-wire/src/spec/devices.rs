@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's device requests (§6.3 of docs/05-scheduling.md): a mode left unspecified is
-//! `passthrough`, and a selector left empty selects any device of the class.
+//! A workload's device requests: a mode left unspecified is `passthrough`, and a selector left
+//! empty selects any device of the class.
 
 use crate::node::{device_from_pb, device_to_pb, mode_from_pb, mode_to_pb};
 use crate::scope::{selector_from_pb, selector_to_pb};

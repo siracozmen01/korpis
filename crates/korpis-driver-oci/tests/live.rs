@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The driver against the machine's containerd, when there is one and the test runs as root:
-//! busybox, fetched into a content store by the agent's own fetcher, imported, unpacked, and run
-//! as a hardened container in the `korpis` namespace, then stopped, started again, and destroyed;
-//! and, while it runs, commands run inside it as an `exec` probe's are (§4.2 of
-//! docs/04-runtimes.md): their status and output, a timeout, and output past its limit.
+//! busybox, fetched into a content store by the agent's own fetcher, imported, unpacked, and run as
+//! a hardened container in the `korpis` namespace, then stopped, started again, and destroyed; and,
+//! while it runs, commands run inside it as an `exec` probe's are: their status and output, a
+//! timeout, and output past its limit.
 
 #![allow(
     clippy::unwrap_used,

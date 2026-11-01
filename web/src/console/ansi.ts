@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A workload's output, rendered without letting it do anything (§8 of docs/11-surface-web.md).
-// Of the terminal's escape sequences, only the colours and weights of SGR are kept, and as class
-// names from a fixed set, never as markup or a style the output wrote; every other sequence (a
-// cursor move, a title, a hyperlink, a clipboard write) and every control character but a line
-// break and a tab is dropped. The text is text: React escapes it as it renders it.
+// A workload's output, rendered without letting it do anything. Of the terminal's escape sequences,
+// only the colours and weights of SGR are kept, and as class names from a fixed set, never as
+// markup or a style the output wrote; every other sequence (a cursor move, a title, a hyperlink, a
+// clipboard write) and every control character but a line break and a tab is dropped. The text is
+// text: React escapes it as it renders it.
 
 /** A run of text and the classes of its style. */
 export interface Run {

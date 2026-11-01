@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a person signed in through their identity provider passes on through their set (§5.1 of
-//! docs/08-identity.md), issued from their own session: it names the set and the person it came
-//! through, its expiry is clamped to the delegation ceiling, it works while the set still has
-//! them, and it is refused once the set's re-verification finds they left, without anyone
-//! revoking it. The set's grant is listed among the grants they hold while the set vouches for
-//! them, which is how the CLI and the panel find where they may act (Finding 142).
+//! What a person signed in through their identity provider passes on through their set, issued from
+//! their own session: it names the set and the person it came through, its expiry is clamped to the
+//! delegation ceiling, it works while the set still has them, and it is refused once the set's
+//! re-verification finds they left, without anyone revoking it. The set's grant is listed among the
+//! grants they hold while the set vouches for them, which is how the CLI and the panel find where
+//! they may act.
 
 use crate::bindings::{bind, from_template, project_scope, set};
 use crate::delegated::readers;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The churn signal (§2.2 of docs/05-scheduling.md): a node that recently lost its workloads may
-//! be unhealthy. What it counts is the node's loss events, each time it went unheard while it held
-//! workloads, one event however many it held; a workload's own crashes are not counted, because
-//! they say more about the recipe than the machine and restart backoff already answers them. Each
-//! event is remembered with a half-life of a day and forgotten after a week.
+//! The churn signal: a node that recently lost its workloads may be unhealthy. What it counts is
+//! the node's loss events, each time it went unheard while it held workloads, one event however
+//! many it held; a workload's own crashes are not counted, because they say more about the recipe
+//! than the machine and restart backoff already answers them. Each event is remembered with a
+//! half-life of a day and forgotten after a week.
 
 use std::time::Duration;
 

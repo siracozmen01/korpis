@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Exec honesty (§8 of docs/04-runtimes.md): a driver that declares `exec` runs a command as its
-//! object's own process runs, killed at its timeout and sending no more of its output than its
-//! limit, as `Exec` says (§4.2); and one that does not declare it refuses it. The probe says who
-//! it is, through `Exec` and as the entry wrote it, and the two are compared line by line.
+//! Exec honesty: a driver that declares `exec` runs a command as its object's own process runs,
+//! killed at its timeout and sending no more of its output than its limit, as `Exec` says; and one
+//! that does not declare it refuses it. The probe says who it is, through `Exec` and as the entry
+//! wrote it, and the two are compared line by line.
 
 use super::Stopped;
 use crate::case::Verdict;

@@ -12,8 +12,8 @@ use crate::workload::spec::volumes::{Replication, VolumeMode, VolumeSpec};
 use crate::workload::spec::{IsolationTier, RuntimeSpec, SpecError};
 use uuid::Uuid;
 
-/// The driver a tier runs on when the declaration names none: the Linux driver of §3 of
-/// docs/04-runtimes.md for that tier. A workload for another operating system names its driver.
+/// The driver a tier runs on when the declaration names none: the first-party Linux driver
+/// for that tier. A workload for another operating system names its driver.
 #[must_use]
 pub fn default_driver(tier: IsolationTier) -> &'static str {
     match tier {
@@ -194,7 +194,7 @@ pub(super) fn endpoints(
                 .container_port
                 .or(from.map(|f| f.container_port))
                 .ok_or_else(|| SpecError::new(&at("container_port"), "required"))?,
-            // §3 of docs/07-networking.md: stable is the default, resolved at placement.
+            // Stable is the default, resolved at placement.
             exposure: d.exposure.or(from.map(|f| f.exposure)).unwrap_or(Exposure::Stable),
             name: d.name,
             domains: d.domains,

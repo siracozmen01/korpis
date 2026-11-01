@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A declaration as sent: an `IntentBody` whose unset parts the recipe completes (§3.1 of
-//! docs/09-recipes.md). An unspecified enum, a zero port or size, an empty path or driver, and an
-//! unset probe each mean "the recipe's", never a value of their own.
+//! A declaration as sent: an `IntentBody` whose unset parts the recipe completes. An unspecified
+//! enum, a zero port or size, an empty path or driver, and an unset probe each mean "the recipe's",
+//! never a value of their own.
 
 use super::endpoints::{
     client_address_from_pb, exposure_from_pb, policy_from_pb, protocol_from_pb, tls_from_pb,

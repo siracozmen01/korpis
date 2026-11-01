@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A volume made from its replica (§2.2 of docs/06-storage.md): its record moves to the
-//! replica's node under the identifier it is made under there, which keeps the replica's
-//! snapshot until it reports the volume made. The copy it leaves is a volume of its own on the
-//! node it left, retained and held by no workload, with the volume's snapshots, which are there;
-//! and every other replica is sent whole next, since what it holds is no base the new node
-//! keeps.
+//! A volume made from its replica: its record moves to the replica's node under the identifier it
+//! is made under there, which keeps the replica's snapshot until it reports the volume made. The
+//! copy it leaves is a volume of its own on the node it left, retained and held by no workload,
+//! with the volume's snapshots, which are there; and every other replica is sent whole next, since
+//! what it holds is no base the new node keeps.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;

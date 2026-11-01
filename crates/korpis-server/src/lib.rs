@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The Korpis control plane: the client API adapter and the composition root that wires the
-//! PostgreSQL store into the application (§1 of ARCHITECTURE.md).
+//! PostgreSQL store into the application.
 
 #![warn(missing_docs)]
 
@@ -85,9 +85,9 @@ pub struct ServeConfig {
     /// loopback only. Every other registry is HTTPS.
     pub plain_http_registries: Vec<String>,
     /// Networks a registry a recipe names may be on besides the public internet, for a private
-    /// mirror (§3 of docs/17-security.md).
+    /// mirror.
     pub fetch_allow: Vec<ipnet::IpNet>,
-    /// The installation's placement policy (§2.2 of docs/05-scheduling.md).
+    /// The installation's placement policy.
     pub placement_policy: PlacementPolicy,
     /// How often workloads no node could take are tried again.
     pub placement_retry: Duration,
@@ -95,44 +95,40 @@ pub struct ServeConfig {
     pub watch_resync: Duration,
     /// How often agents send their heartbeat; three missed make a node unreachable.
     pub heartbeat_interval: Duration,
-    /// How long a lease lasts from the holder's request (§4.5 of docs/02-architecture.md).
+    /// How long a lease lasts from the holder's request.
     pub lease_term: Duration,
-    /// The metering interval every node is told (§2 of docs/15-observability.md).
+    /// The metering interval every node is told.
     pub metering_interval: Duration,
-    /// How long after a day ends its metering may still change (§2 of
-    /// docs/15-observability.md).
+    /// How long after a day ends its metering may still change.
     pub metering_lateness: Duration,
-    /// The window repeated identical denials are coalesced over (§10 of docs/10-api.md).
+    /// The window repeated identical denials are coalesced over.
     pub denial_window: Duration,
-    /// How long the event log keeps an event (§5 of docs/15-observability.md).
+    /// How long the event log keeps an event.
     pub event_retention: Duration,
     /// The operator's floor on how long offloaded stream segments are kept, disclosed to every
-    /// tenant with the stream (§8 of docs/17-security.md); zero is none.
+    /// tenant with the stream; zero is none.
     pub stream_retention_floor: Duration,
-    /// Whether this process serves the relay role (§3.1 of docs/02-architecture.md); off where
-    /// relays run as their own processes and the control plane should carry no sessions.
+    /// Whether this process serves the relay role; off where relays run as their own processes and
+    /// the control plane should carry no sessions.
     pub relay_role: bool,
-    /// The load balancers whose connections open with a PROXY header naming the client (§3.1 of
-    /// docs/02-architecture.md); none reads no header from anyone.
+    /// The load balancers whose connections open with a PROXY header naming the client; none reads
+    /// no header from anyone.
     pub proxy_protocol_from: Vec<ipnet::IpNet>,
-    /// The DNS server domains are verified through (§3.2 of docs/07-networking.md); the
-    /// system's resolvers when none.
+    /// The DNS server domains are verified through; the system's resolvers when none.
     pub dns_resolver: Option<std::net::SocketAddr>,
-    /// The ACME directory `acme` certificates are ordered from, and as whom (§3.2 of
-    /// docs/07-networking.md).
+    /// The ACME directory `acme` certificates are ordered from, and as whom.
     pub acme: acme::AcmeConfig,
-    /// The rates of the client API's buckets (§10 of docs/10-api.md).
+    /// The rates of the client API's buckets.
     pub rates: korpis_core::rate::Rates,
-    /// The site passkeys are bound to and the origins a ceremony may come from (§9.6 of
-    /// docs/08-identity.md); without one, no passkey can be registered or used.
+    /// The site passkeys are bound to and the origins a ceremony may come from; without one, no
+    /// passkey can be registered or used.
     pub relying_party: Option<korpis_core::webauthn::RelyingParty>,
-    /// How long user sessions last (§9.4 of docs/08-identity.md).
+    /// How long user sessions last.
     pub session_limits: korpis_core::account::session::SessionLimits,
-    /// The panel's static bundle, served on the API's address (§1 of docs/11-surface-web.md);
-    /// without one, the address serves the API alone.
+    /// The panel's static bundle, served on the API's address; without one, the address serves the
+    /// API alone.
     pub web_root: Option<std::path::PathBuf>,
-    /// The range each enrolling node is given a workload pool of (§9.1 of
-    /// docs/07-networking.md).
+    /// The range each enrolling node is given a workload pool of.
     pub overlay_range: ipnet::Ipv4Net,
 }
 
@@ -226,9 +222,9 @@ fn application(
     Ok(app)
 }
 
-/// Refuses a schema this build was not made for, saying what makes them meet (§4 of
-/// docs/18-operations.md): an older schema is migrated forward by this binary, and a newer one is
-/// undone by the binary that applied it, or served by that binary.
+/// Refuses a schema this build was not made for, saying what makes them meet: an older schema is
+/// migrated forward by this binary, and a newer one is undone by the binary that applied it, or
+/// served by that binary.
 pub(crate) async fn schema_fits(url: &str) -> Result<(), ServeError> {
     use korpis_store::schema::{self, Fit};
     let list = |v: &[i64]| v.iter().map(i64::to_string).collect::<Vec<_>>().join(", ");
@@ -249,9 +245,9 @@ pub(crate) async fn schema_fits(url: &str) -> Result<(), ServeError> {
 }
 
 /// Refuses to serve when the store trusts a token key other than the one this data directory signs
-/// with: a rotation stopped between the two, or a data directory from before one (§8 of
-/// docs/03-state.md). Serving then would sign what no verifier accepts while tokens of a key the
-/// restore meant to void went on verifying.
+/// with: a rotation stopped between the two, or a data directory from before one. Serving then
+/// would sign what no verifier accepts while tokens of a key the restore meant to void went on
+/// verifying.
 async fn signs_with_the_trusted_key(
     app: &api::ServerApp,
     keys: &keys::Keys,
@@ -305,8 +301,8 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     }
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");
-    // Every workload counted before any declaration is admitted against the totals, so a new
-    // entry is reckoned from every workload under it (§5.1 of docs/05-scheduling.md).
+    // Every workload counted before any declaration is admitted against the totals, so a new entry
+    // is reckoned from every workload under it.
     let drifted = app.reconcile_quota().await?;
     if drifted > 0 {
         tracing::warn!(drifted, "quota totals differed from what the workloads hold, corrected");
@@ -344,8 +340,8 @@ async fn trust_token_keys(api: &Api) -> Result<(), ServeError> {
     Ok(())
 }
 
-/// The listener's TLS: the installation's own configuration `own`, and the portals, kept from
-/// now on, with their origins as they change (§3.6 of docs/07-networking.md).
+/// The listener's TLS: the installation's own configuration `own`, and the portals, kept from now
+/// on, with their origins as they change.
 fn serving_portals(
     api: &Arc<Api>,
     own: Arc<rustls::ServerConfig>,

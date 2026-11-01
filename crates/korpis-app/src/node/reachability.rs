@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the control plane learns of a node beyond its heartbeat: whether it can be reached at
-//! what it advertises (§9 of docs/07-networking.md), and which recipes' content it holds (§2.2
-//! of docs/05-scheduling.md). For reachability, the control plane decides when a node is due,
-//! the prober measures it, and the result is recorded only if the node still advertises what was
-//! measured: a measurement of addresses it has since given up says nothing about the ones it has
-//! now.
+//! What the control plane learns of a node beyond its heartbeat: whether it can be reached at what
+//! it advertises, and which recipes' content it holds. For reachability, the control plane decides
+//! when a node is due, the prober measures it, and the result is recorded only if the node still
+//! advertises what was measured: a measurement of addresses it has since given up says nothing
+//! about the ones it has now.
 
 use crate::App;
 use crate::error::AppError;
@@ -27,7 +26,7 @@ pub struct ProbeDue {
     /// Its public key, raw.
     pub key: Vec<u8>,
     /// The ports of its range its endpoints hold, which the probe must not listen on: the node
-    /// forwards each to a workload (Finding 53 of docs/23-walkthroughs.md).
+    /// forwards each to a workload.
     pub held: Vec<u16>,
 }
 
@@ -66,9 +65,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Some(ProbeDue { advertised, key, held }))
     }
 
-    /// Records the recipes whose content `node` holds, as its agent reported them, replacing
-    /// what it reported before (§2.2 of docs/05-scheduling.md). A report naming anything but
-    /// canonical digests, or more than [`CONTENT_REPORTED`] of them, is refused whole.
+    /// Records the recipes whose content `node` holds, as its agent reported them, replacing what
+    /// it reported before. A report naming anything but canonical digests, or more than
+    /// [`CONTENT_REPORTED`] of them, is refused whole.
     pub async fn record_content(&self, node: Uuid, present: &[String]) -> Result<(), AppError> {
         if present.len() > CONTENT_REPORTED {
             return Err(AppError::invalid("content_status.present", "too many digests"));

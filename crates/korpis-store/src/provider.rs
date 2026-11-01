@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Providers (§3.3 of docs/16-extensions.md, migration 0026).
+//! Providers (migration 0026).
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_time, to_time};

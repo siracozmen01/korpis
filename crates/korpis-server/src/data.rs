@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's data directory: signing keys and TLS material, never in the database
-//! (§6 of docs/18-operations.md). It is part of what Korpis' own backup must hold, outside the
-//! system it protects.
+//! The control plane's data directory: signing keys and TLS material, never in the database. It is
+//! part of what Korpis' own backup must hold, outside the system it protects.
 //!
 //! ```text
 //! <data>/keys/token-<n>.key        capability-token signing key, 32 raw bytes
@@ -18,7 +17,7 @@ use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
 /// The control plane's data directory: signing keys and TLS material, which never enter the
-/// database and are backed up separately (§6 of docs/18-operations.md).
+/// database and are backed up separately.
 #[derive(Debug, Clone)]
 pub struct DataDir {
     root: PathBuf,

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Issuing a grant: attenuating one the caller holds (§3.2 of docs/08-identity.md), to a named
-//! holder, to an API token created to hold it (§3.7), to an account created to hold it and invited
-//! to register its first factor (§9.6), or to whoever holds the share link it is answered as
-//! (§6.1).
+//! Issuing a grant: attenuating one the caller holds, to a named holder, to an API token created to
+//! hold it, to an account created to hold it and invited to register its first factor, or to
+//! whoever holds the share link it is answered as.
 
 use super::Snapshot;
 use crate::App;
@@ -44,15 +43,15 @@ pub enum Holder {
     /// An API token created in the same transaction, which exists only to hold the grant.
     NewToken,
     /// An account created in the same transaction, holding the grant and no factor, with an
-    /// invitation to register its first (§9.6 of docs/08-identity.md).
+    /// invitation to register its first.
     NewUser {
         /// How the account is shown.
         display_name: String,
         /// When the invitation stops working, at most seven days on; seven days if not said.
         invitation_expires_at: Option<SystemTime>,
     },
-    /// Whoever holds the share link the grant is answered as: a link-form grant, which must
-    /// expire and limit its uses, on one object, and can never delegate (§6.1).
+    /// Whoever holds the share link the grant is answered as: a link-form grant, which must expire
+    /// and limit its uses, on one object, and can never delegate.
     Link,
 }
 
@@ -75,8 +74,8 @@ pub struct IssueGrant {
     /// What it is for, for people; required for a new token, which it names. From a template,
     /// the template's name when not given.
     pub label: String,
-    /// The template it is issued from, which then says its actions, delegation, and scope from
-    /// the object `scope` names (§4 of docs/08-identity.md).
+    /// The template it is issued from, which then says its actions, delegation, and scope from the
+    /// object `scope` names.
     pub template: Option<super::FromTemplate>,
 }
 
@@ -139,10 +138,10 @@ fn validate(cmd: &IssueGrant) -> Result<(), AppError> {
     }
 }
 
-/// What a link must say of itself (§6.1 of docs/08-identity.md): short expiry and a use cap
-/// are defaults, not options, so a link without either is refused rather than given one here,
-/// where the issuer would not see it; and it is for one object, not a selector, because the
-/// person it is sent to is shown exactly what it reaches.
+/// What a link must say of itself: short expiry and a use cap are defaults, not options, so a link
+/// without either is refused rather than given one here, where the issuer would not see it; and it
+/// is for one object, not a selector, because the person it is sent to is shown exactly what it
+/// reaches.
 fn link_conditions(cmd: &IssueGrant) -> Result<(), AppError> {
     if cmd.conditions.expires_at.is_none() {
         return Err(AppError::invalid("conditions.expires_at", "a link expires"));
@@ -233,7 +232,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         created: Created,
     ) -> Result<Reply<Issued>, AppError> {
         let mut tx = self.store.begin().await?;
-        // A child takes its uses from a use-limited parent under compare-and-swap (§6.2), so two
+        // A child takes its uses from a use-limited parent under compare-and-swap, so two
         // concurrent attenuations cannot both spend the same uses.
         if let (Some(max), Some(taken)) =
             (parent.conditions.max_uses, record.grant.conditions.max_uses)

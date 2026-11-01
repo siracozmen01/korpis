@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Metering samples: `korpis.agent.v1.MeteringSample` (§2 of docs/15-observability.md),
-//! translated strictly; whether to believe one is the ingesting use case's.
+//! Metering samples: `korpis.agent.v1.MeteringSample`, translated strictly; whether to believe one
+//! is the ingesting use case's.
 
 use crate::{Result, duration_from, id, invalid, time};
 use korpis_core::id::IdKind;

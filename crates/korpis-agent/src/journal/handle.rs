@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The journal as the rest of the agent shares it. Every call that may touch the disk runs on
-//! the blocking pool, since a sync waits on the device; whoever sends the journal is woken
-//! whenever its head moves. The handle also measures how fast the journal grows, which is what
-//! turns the declared bound into the horizon `NodeStatus` reports (§4.10 of
-//! docs/02-architecture.md).
+//! The journal as the rest of the agent shares it. Every call that may touch the disk runs on the
+//! blocking pool, since a sync waits on the device; whoever sends the journal is woken whenever its
+//! head moves. The handle also measures how fast the journal grows, which is what turns the
+//! declared bound into the horizon `NodeStatus` reports.
 
 use super::{Appended, Bounds, Journal};
 use korpis_proto::korpis::agent::v1 as agent;

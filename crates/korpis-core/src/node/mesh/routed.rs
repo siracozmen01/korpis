@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the mesh routes to a member (§9.1 of docs/07-networking.md, Finding 178 of
-//! docs/23-walkthroughs.md). A member's pools become routes on every member related to it and
-//! the only sources accepted from it, so they are what the control plane gave or can derive,
+//! What the mesh routes to a member. A member's pools become routes on every member related to it
+//! and the only sources accepted from it, so they are what the control plane gave or can derive,
 //! never what the node says: the IPv4 pool it was given at enrollment, or for a node enrolled
 //! before pools were given the default every such node shares, and the unique local IPv6 prefix
 //! derived from its identity. A routed IPv6 prefix of the operator's is routed by the operator's
@@ -12,7 +11,7 @@ use super::Candidate;
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use std::net::Ipv4Addr;
 
-/// The pool of a node enrolled before pools were given (§4.1 of docs/07-networking.md).
+/// The pool of a node enrolled before pools were given.
 #[must_use]
 pub fn legacy_pool() -> Ipv4Net {
     Ipv4Net::new(Ipv4Addr::new(10, 47, 0, 0), 16).unwrap_or_default()

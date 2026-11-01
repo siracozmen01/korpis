@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Restores through the control plane (§5.4 of docs/06-storage.md): into a new directory of the
-//! volume, one step that applies at once; replacing a running workload's volume, staged while it
-//! runs and exchanged while it is stopped, waiting for a person because what the volume holds is
-//! lost; the node holding the volume given the backup's own key and access to its workload's
-//! prefix; only a whole backup restored; and `backup.restore` required to put a workload's backup
-//! back into it; and a new workload created holding a backup, by one who may read it.
+//! Restores through the control plane: into a new directory of the volume, one step that applies at
+//! once; replacing a running workload's volume, staged while it runs and exchanged while it is
+//! stopped, waiting for a person because what the volume holds is lost; the node holding the volume
+//! given the backup's own key and access to its workload's prefix; only a whole backup restored;
+//! and `backup.restore` required to put a workload's backup back into it; and a new workload
+//! created holding a backup, by one who may read it.
 
 use crate::agent::Stream;
 use crate::backup_target::{Bucket, serving};

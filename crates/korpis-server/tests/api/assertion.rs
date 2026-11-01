@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Asserting an external identity (§5.2 of docs/08-identity.md), against a real control plane
-//! and an identity provider written with the SDK: a client holding `identity.relay` over the
-//! provider's organization passes on what a person presented, the provider says who presented
-//! it, and the client is handed a ticket for the one action on the one object. A presentation
-//! is accepted once, the person's binding is made at their first use, and a client without the
-//! action, or evidence the provider refuses, gets nothing.
+//! Asserting an external identity, against a real control plane and an identity provider written
+//! with the SDK: a client holding `identity.relay` over the provider's organization passes on what
+//! a person presented, the provider says who presented it, and the client is handed a ticket for
+//! the one action on the one object. A presentation is accepted once, the person's binding is made
+//! at their first use, and a client without the action, or evidence the provider refuses, gets
+//! nothing.
 
 use crate::idp::serving;
 use crate::support::Harness;

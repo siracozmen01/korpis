@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Joining (§3.1 of docs/02-architecture.md). The relay creates its keys before it sends anything,
-//! so a join whose answer was lost is asked again with the same keys and answered with the same
-//! relay; it trusts the control plane only once the installation's authority, presented behind
-//! the control plane's certificate, has the fingerprint the join command carries.
+//! Joining. The relay creates its keys before it sends anything, so a join whose answer was lost is
+//! asked again with the same keys and answered with the same relay; it trusts the control plane
+//! only once the installation's authority, presented behind the control plane's certificate, has
+//! the fingerprint the join command carries.
 
 use super::RelayDir;
 use connectrpc::client::{ClientConfig, HttpClient};

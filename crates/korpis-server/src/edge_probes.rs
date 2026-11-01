@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's probe of every edge group's members through their forwarding paths
-//! (§3.1 of docs/07-networking.md, Finding 189). Every [`CLAIM`] this replica claims the groups
-//! no other replica probes, holding each for [`HOLD`], and runs one task for each it holds. A
-//! group's task sends, every interval of the group's, one datagram to the probe port of each
-//! member's own address and of each address it holds, and counts an answer signed by the node
-//! the group forwards the probe to, arriving within the interval, as the probe passed. A member
-//! whose own address misses the group's count of probes in a row is failing, and one that
-//! answers is ready again at once. What changes is recorded at once, and what does not every
-//! [`RECORD`], so a group's status says when each member was last probed.
+//! The control plane's probe of every edge group's members through their forwarding paths. Every
+//! [`CLAIM`] this replica claims the groups no other replica probes, holding each for [`HOLD`], and
+//! runs one task for each it holds. A group's task sends, every interval of the group's, one
+//! datagram to the probe port of each member's own address and of each address it holds, and counts
+//! an answer signed by the node the group forwards the probe to, arriving within the interval, as
+//! the probe passed. A member whose own address misses the group's count of probes in a row is
+//! failing, and one that answers is ready again at once. What changes is recorded at once, and what
+//! does not every [`RECORD`], so a group's status says when each member was last probed.
 
 use crate::api::Api;
 use korpis_app::edge_group::{ProbePlan, ProbeTarget};

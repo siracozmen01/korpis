@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What SFTP says for what the session says (§3.2 of docs/06-storage.md): paths beneath `/`, the
-//! root the session sees, an entry's attributes and the line `ls -l` shows for it, and a refusal's
-//! status.
+//! What SFTP says for what the session says: paths beneath `/`, the root the session sees, an
+//! entry's attributes and the line `ls -l` shows for it, and a refusal's status.
 
 use korpis_proto::korpis::v1 as pb;
 use russh_sftp::protocol::{File, FileAttributes, Status, StatusCode};

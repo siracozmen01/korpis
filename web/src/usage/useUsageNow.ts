@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// What a workload uses now, live (§2 of docs/15-observability.md): a `metering.read` session at
-// its node through the relay, which is sent the meter's reading of the workload each time the
-// meter takes one, every ten seconds. Reopened by itself after a failure, waiting longer each
-// time, unless reopening is asked for first, as a share link's is.
+// What a workload uses now, live: a `metering.read` session at its node through the relay, which is
+// sent the meter's reading of the workload each time the meter takes one, every ten seconds.
+// Reopened by itself after a failure, waiting longer each time, unless reopening is asked for
+// first, as a share link's is.
 
 import { fromBinary } from "@bufbuild/protobuf";
 import { useEffect, useReducer } from "react";

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The policy routing edges need (§3.1 of docs/07-networking.md): a rule sending packets of one
-//! mark to a table of Korpis's own, and that table's routes, each out of a GRE link; and for
-//! each such link, rules routing what arrives through it by the main table alone. Every rule is
-//! made for IPv4 and IPv6 alike, since one link carries both, and a table holds the routes of
-//! both. All are listed, so a call removes what it no longer asks for and leaves the rest in
-//! place, and no packet of a flow is ever routed by the main table while its own is being
-//! rewritten.
+//! The policy routing edges need: a rule sending packets of one mark to a table of Korpis's own,
+//! and that table's routes, each out of a GRE link; and for each such link, rules routing what
+//! arrives through it by the main table alone. Every rule is made for IPv4 and IPv6 alike, since
+//! one link carries both, and a table holds the routes of both. All are listed, so a call removes
+//! what it no longer asks for and leaves the rest in place, and no packet of a flow is ever routed
+//! by the main table while its own is being rewritten.
 
 use super::{Answer, Rtnl, ip_family, route_address};
 use netlink_packet_core::{NLM_F_CREATE, NLM_F_DUMP, NLM_F_REPLACE, NLM_F_REQUEST, NetlinkPayload};

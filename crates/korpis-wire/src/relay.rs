@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Relays that run as their own process: `korpis.v1.Relay` (§3.1 of docs/02-architecture.md).
+//! Relays that run as their own process: `korpis.v1.Relay`.
 
 use crate::{timestamp, wire_id};
 use korpis_core::id::IdKind;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A passkey ceremony in the browser (§9.6 of docs/08-identity.md): the options the control plane
-// gives, as `navigator.credentials` takes them, and its answer as the control plane reads it.
-// Every byte travels as bytes; nothing is re-encoded on the way.
+// A passkey ceremony in the browser: the options the control plane gives, as
+// `navigator.credentials` takes them, and its answer as the control plane reads it. Every byte
+// travels as bytes; nothing is re-encoded on the way.
 
 import { t } from "../i18n/intl";
 
@@ -20,7 +20,7 @@ export interface Registered {
   readonly attestationObject: Uint8Array;
 }
 
-/** The algorithms the control plane accepts (§9.6): ES256, EdDSA, RS256. */
+/** The algorithms the control plane accepts: ES256, EdDSA, RS256. */
 const ALGORITHMS: PublicKeyCredentialParameters[] = [
   { type: "public-key", alg: -7 },
   { type: "public-key", alg: -8 },

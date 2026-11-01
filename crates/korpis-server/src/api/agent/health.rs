@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's question about a query probe it runs, and its answer on the same stream (§5 of
-//! docs/04-runtimes.md): the health provider's next round or verdict, or why the probe was not
-//! judged this time. Answering calls the provider, so each question is answered from a task of
-//! its own and the session goes on meanwhile. The answer always comes, echoing the question.
+//! A node's question about a query probe it runs, and its answer on the same stream: the health
+//! provider's next round or verdict, or why the probe was not judged this time. Answering calls the
+//! provider, so each question is answered from a task of its own and the session goes on meanwhile.
+//! The answer always comes, echoing the question.
 
 use crate::api::ServerApp;
 use crate::api::wire::id;

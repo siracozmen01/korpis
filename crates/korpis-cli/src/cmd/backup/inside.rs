@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block device's backup, read inside its image (§5.4 of docs/06-storage.md). The repository
-//! holds such a backup as one file, the image, and only a guest's kernel parses what is in it, so
-//! `korpis backup ls` and `cat` open a session of `backup.browse` or `backup.read` through a relay,
-//! as `korpis files` opens one, and list or read beneath `/backup` there: the node restores the
-//! image beside the workload's volume and its driver serves it from a guest. `--image` reads the
-//! backup as the repository holds it instead.
+//! A block device's backup, read inside its image. The repository holds such a backup as one file,
+//! the image, and only a guest's kernel parses what is in it, so `korpis backup ls` and `cat` open
+//! a session of `backup.browse` or `backup.read` through a relay, as `korpis files` opens one, and
+//! list or read beneath `/backup` there: the node restores the image beside the workload's volume
+//! and its driver serves it from a guest. `--image` reads the backup as the repository holds it
+//! instead.
 
 use super::super::Answer;
 use super::super::files::{self, Remote, transfer};

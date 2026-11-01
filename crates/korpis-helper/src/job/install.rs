@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Install jobs (§4 of docs/09-recipes.md): a `korpis-install-job` process running a recipe's
-//! install actions beneath a workload's volumes, as the workload's own ids. The helper names each
-//! volume's directory from its identifier, checks each path the workload sees it at, and refuses
-//! an id range its ledger does not record for the workload; the worker mounts nothing else. It
-//! writes its progress and its result in a directory of the job's made for it and given to the
-//! workload's root, so nothing else of the job's directory (its pid, its log) is the worker's to
-//! write.
+//! Install jobs: a `korpis-install-job` process running a recipe's install actions beneath a
+//! workload's volumes, as the workload's own ids. The helper names each volume's directory from its
+//! identifier, checks each path the workload sees it at, and refuses an id range its ledger does
+//! not record for the workload; the worker mounts nothing else. It writes its progress and its
+//! result in a directory of the job's made for it and given to the workload's root, so nothing else
+//! of the job's directory (its pid, its log) is the worker's to write.
 
 use crate::error::{HelperError, HelperResult};
 use crate::ids::Ledger;

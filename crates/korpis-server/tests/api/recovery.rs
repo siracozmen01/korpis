@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A restore recovers the declarations it lost from what nodes present (§8 of
-//! docs/03-state.md): an intent declared after the backup, a workload created after it, and the
-//! target moved forward to what the node runs; nothing is sent while the restore settles, so the
-//! node is never told the backup's configuration; and an assignment whose project is gone is
-//! refused and recorded.
+//! A restore recovers the declarations it lost from what nodes present: an intent declared after
+//! the backup, a workload created after it, and the target moved forward to what the node runs;
+//! nothing is sent while the restore settles, so the node is never told the backup's configuration;
+//! and an assignment whose project is gone is refused and recorded.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::leases::{connect, send};

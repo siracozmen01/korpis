@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Encoding a value for the format it is placed in (§6 of docs/09-recipes.md), so that no value
-//! can end the line, the string, or the element it was placed in. Text is written as a whole
-//! token of the format: a quoted string in JSON, YAML, TOML, and env files, escaped character data
-//! in XML, an escaped value in properties. What a format cannot carry is refused, never dropped:
-//! a line break in INI, a character XML 1.0 does not allow.
+//! Encoding a value for the format it is placed in, so that no value can end the line, the string,
+//! or the element it was placed in. Text is written as a whole token of the format: a quoted string
+//! in JSON, YAML, TOML, and env files, escaped character data in XML, an escaped value in
+//! properties. What a format cannot carry is refused, never dropped: a line break in INI, a
+//! character XML 1.0 does not allow.
 
 use super::{TemplateFormat, Var};
 use std::fmt::Write as _;

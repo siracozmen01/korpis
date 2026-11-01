@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Project quota on ext4 and XFS (§3 of docs/06-storage.md): a volume's directory is given a
-//! project identifier that everything created in it inherits, and the project is given byte and
-//! inode limits the kernel checks in the write path, where exceeding them is `EDQUOT`. Usage is
-//! read from the same accounting, never computed.
+//! Project quota on ext4 and XFS: a volume's directory is given a project identifier that
+//! everything created in it inherits, and the project is given byte and inode limits the kernel
+//! checks in the write path, where exceeding them is `EDQUOT`. Usage is read from the same
+//! accounting, never computed.
 //!
 //! This is one of the crate's unsafe modules, listed in the crate's header: neither the ioctl that
 //! sets a directory's project nor `quotactl_fd(2)` has a safe wrapper in the libraries the helper
 //! may link. Each call passes a descriptor borrowed for its duration and a pointer to one
 //! correctly laid out structure owned by the caller, and nothing else. `quotactl_fd` takes any
 //! file on the filesystem rather than its block device, so no device path is ever looked up; it
-//! needs Linux 5.14, below the kernel floor of §2 of docs/18-operations.md.
+//! needs Linux 5.14, below the supported kernel floor.
 
 #![expect(unsafe_code, reason = "the project-quota ioctl and quotactl_fd have no safe wrapper")]
 

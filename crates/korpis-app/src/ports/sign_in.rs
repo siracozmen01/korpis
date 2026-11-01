@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Sign-ins through an identity provider, begun and not yet completed (§9.7 of
-//! docs/08-identity.md).
+//! Sign-ins through an identity provider, begun and not yet completed.
 
 use super::StoreResult;
 use korpis_core::authz::sign_in::PendingSignIn;

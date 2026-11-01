@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Reading metering (§2 of docs/15-observability.md): what each interval of a workload used, as
-// measured from its node's samples, where nothing was heard, and which days have closed. Read
-// under metering.read over a workload, a project, or an organization, which a parent holds over
-// its children as it holds every read (§7 of docs/08-identity.md), and which a suspended
-// organization keeps (§2.1 there). Every figure says its window, where it came from, and how it
-// was measured, since a billable number is never shown without them (§8 of
-// docs/11-surface-web.md).
+// Reading metering: what each interval of a workload used, as measured from its node's samples,
+// where nothing was heard, and which days have closed. Read under metering.read over a workload, a
+// project, or an organization, which a parent holds over its children as it holds every read, and
+// which a suspended organization keeps. Every figure says its window, where it came from, and how
+// it was measured, since a billable number is never shown without them.
 
 syntax = "proto3";
 
@@ -98,24 +96,22 @@ message UsageRecord {
   optional uint64 memory_peak_bytes = 18;
   optional uint64 disk_bytes = 19;
   // `disk_bytes` is what the workload's block devices have allocated, which grows as its guest
-  // writes and does not shrink when it deletes, not what its filesystems hold: a different
-  // number from a container's, and shown as such (§3.1 of docs/06-storage.md).
+  // writes and does not shrink when it deletes, not what its filesystems hold: a different number
+  // from a container's, and shown as such.
   bool disk_allocated = 23;
   // What the node could not measure within it.
   repeated UsageLoss losses = 20;
   // Bytes that left the workload's link for anything but another workload's link on its node,
-  // counted in the node's host table: what its egress budget is measured in (§5.1 of
-  // docs/05-scheduling.md). Traffic to the node's ingress proxy counts; to another workload of
-  // the node does not.
+  // counted in the node's host table: what its egress budget is measured in. Traffic to the node's
+  // ingress proxy counts; to another workload of the node does not.
   optional uint64 egress_bytes = 21;
   // What each endpoint whose accounting is on carried, by name; none for an endpoint whose
   // accounting is off, which is not counted.
   repeated EndpointUsage endpoints = 22;
-  // Each dedicated core the workload's placement held, for the seconds it was held, whatever ran
-  // on it (§5.2 of docs/05-scheduling.md). Added 2026-10-25.
+  // Each dedicated core the workload's placement held, for the seconds it was held, whatever ran on
+  // it.
   optional uint64 dedicated_core_seconds = 24;
-  // Each device it held, by class, for the seconds it was held (§6 of docs/05-scheduling.md).
-  // Added 2026-10-25.
+  // Each device it held, by class, for the seconds it was held.
   repeated DeviceSeconds device_seconds = 25;
 }
 
@@ -169,12 +165,11 @@ message ListPeriodsResponse {
   repeated MeteringPeriod periods = 1;
 }
 
-// What a workload uses now, as its node reads it: sent by the node at each of its meter's
-// readings, every ten seconds, on a session opened under metering.read over the workload (§3.1
-// of docs/02-architecture.md), whose params are empty. It is not a record: nothing keeps it, and
-// what is billed is the UsageRecord of the interval it falls in. Each rate is over the window
-// from the reading before, and absent where either reading did not measure it, or on the first,
-// which has no reading before it.
+// What a workload uses now, as its node reads it: sent by the node at each of its meter's readings,
+// every ten seconds, on a session opened under metering.read over the workload, whose params are
+// empty. It is not a record: nothing keeps it, and what is billed is the UsageRecord of the
+// interval it falls in. Each rate is over the window from the reading before, and absent where
+// either reading did not measure it, or on the first, which has no reading before it.
 message UsageNow {
   // When the node read it, by the node's clock.
   google.protobuf.Timestamp at = 1;

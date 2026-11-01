@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The node's real [`Host`]: the privileged helper over its socket for volumes, id ranges, and
-//! storage, and the agent's own content store for what workloads run from (§6 of
-//! docs/04-runtimes.md), which the agent fills and drivers only read.
+//! storage, and the agent's own content store for what workloads run from, which the agent fills
+//! and drivers only read.
 
 use super::privileged::HelperClient;
 use super::{Host, HostError, SnapshotOp};

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The program the driver conformance suite runs as a driver's object (§8 of
-//! docs/04-runtimes.md), built static so its image holds nothing else. What it does is its first
-//! argument, and what it says goes to its standard output, one line each:
+//! The program the driver conformance suite runs as a driver's object, built static so its image
+//! holds nothing else. What it does is its first argument, and what it says goes to its standard
+//! output, one line each:
 //!
 //! - `serve`: runs until it is sent the terminating signal, then exits 0;
 //! - `stubborn`: takes the terminating signal and goes on running, so only a kill ends it;

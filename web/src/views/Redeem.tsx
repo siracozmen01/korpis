@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Redeeming an invitation (§9.6 of docs/08-identity.md): a sign-in name chosen, and a first
-// factor registered with it, a passkey, or, where the invitation allows, a password with an
-// authenticator app's codes beside it. The recovery codes are shown once, here, and never again.
+// Redeeming an invitation: a sign-in name chosen, and a first factor registered with it, a passkey,
+// or, where the invitation allows, a password with an authenticator app's codes beside it. The
+// recovery codes are shown once, here, and never again.
 
 import type { Client } from "@connectrpc/connect";
 import { useEffect, useState } from "react";

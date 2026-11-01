@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A recipe's words and values as the configuration form shows them (§5 and §5.3 of
-// docs/09-recipes.md). A recipe's message holds no placeholder, so showing it is reading its
-// quoting, as the control plane checked it; a value is shown as text and read back as the type
-// its field declares, the control plane deciding whether it is valid.
+// A recipe's words and values as the configuration form shows them. A recipe's message holds no
+// placeholder, so showing it is reading its quoting, as the control plane checked it; a value is
+// shown as text and read back as the type its field declares, the control plane deciding whether it
+// is valid.
 
 import { create } from "@bufbuild/protobuf";
 import { ConfigType, type ConfigField } from "../gen/korpis/v1/recipe_pb";

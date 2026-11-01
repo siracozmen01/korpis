@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The step of a migration's plan (§8.1 of docs/05-scheduling.md): one `migrate`, which the
-//! control plane executes by advancing the migration's phases on both nodes. Its detail is what
-//! the approver reads: the two nodes, the hold, each volume with what crosses for it, whether the
-//! workload is stopped or its state captured, and each address that changes.
+//! The step of a migration's plan: one `migrate`, which the control plane executes by advancing the
+//! migration's phases on both nodes. Its detail is what the approver reads: the two nodes, the
+//! hold, each volume with what crosses for it, whether the workload is stopped or its state
+//! captured, and each address that changes.
 
 use super::{Builder, int, text};
 use crate::object::{Kind, ObjectRef};

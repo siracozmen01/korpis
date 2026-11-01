@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recipe trust policies (§7 of docs/09-recipes.md): an organization sets its own, or is
-//! governed by its nearest ancestor's, or by the default, which runs nothing.
+//! Recipe trust policies: an organization sets its own, or is governed by its nearest ancestor's,
+//! or by the default, which runs nothing.
 
 use crate::App;
 use crate::caller::Caller;

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's report of its side of a migration's phase, as its journal carries it (§8.1 of
-//! docs/05-scheduling.md), and where two manifests, each reported in runs of entries, first
-//! differ.
+//! A node's report of its side of a migration's phase, as its journal carries it, and where two
+//! manifests, each reported in runs of entries, first differ.
 
 use super::{Phase, Side, Watermark};
 use uuid::Uuid;

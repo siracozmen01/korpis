@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Refresh tokens, kept in the provider's own volume and nowhere else (§9.7 of
-//! docs/08-identity.md), and what refreshing one last found. One person is refreshed at a time,
-//! and one refresh answers for that person for a minute however many sets ask, because issuers
-//! rotate refresh tokens and take a rotated one presented again as theft, revoking the person's
-//! grant (Finding 119 of docs/23-walkthroughs.md).
+//! Refresh tokens, kept in the provider's own volume and nowhere else, and what refreshing one last
+//! found. One person is refreshed at a time, and one refresh answers for that person for a minute
+//! however many sets ask, because issuers rotate refresh tokens and take a rotated one presented
+//! again as theft, revoking the person's grant.
 
 use ring::digest::{SHA256, digest};
 use serde_json::{Value, json};
@@ -184,7 +183,7 @@ mod tests {
             ask(Arc::clone(&r), Arc::clone(&asked)),
             ask(Arc::clone(&r), Arc::clone(&asked))
         );
-        assert_eq!(asked.load(Ordering::SeqCst), 1, "Finding 119: one refresh for both");
+        assert_eq!(asked.load(Ordering::SeqCst), 1, "one refresh for both");
         assert_eq!((a.clone(), b), (Standing::Known(Some(vec!["ops".into()])), a));
         assert_eq!(r.kept("dana").await.as_deref(), Some("t2"), "the rotated token is kept");
 

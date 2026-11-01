@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Bytes by endpoint, and egress (§2 of docs/15-observability.md): what a node's host table
-//! counted of a workload's link, sampled with its other counters, recorded as each interval's
-//! difference, and read with the record; a sample naming an endpoint twice is not believed.
+//! Bytes by endpoint, and egress: what a node's host table counted of a workload's link, sampled
+//! with its other counters, recorded as each interval's difference, and read with the record; a
+//! sample naming an endpoint twice is not believed.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, send, until};

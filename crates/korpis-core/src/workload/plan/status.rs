@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A plan's status and the transitions between statuses (§3.3 of docs/01-model.md, §7 of
-//! docs/03-state.md).
+//! A plan's status and the transitions between statuses.
 
 /// Where a plan is in its life.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -55,8 +55,8 @@ export async function authenticator(page: Page): Promise<Authenticator> {
   };
 }
 
-/** Has the harness age browser sessions past the ten minutes that make one recent (§9.4 of
- * docs/08-identity.md): the keeper's, or with `KORPIS_E2E_AGE_PERSON` those of people signed in
+/** Has the harness age browser sessions past the ten minutes that make one recent: the keeper's, or
+/** with `KORPIS_E2E_AGE_PERSON` those of people signed in
  * through an identity provider. It is asked by a file appearing, and answers by removing it. */
 export async function aged(file = "KORPIS_E2E_AGE"): Promise<void> {
   const asked = given(file);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Accounts, invitations, factors, and challenges (§9.6 of docs/08-identity.md): every
-//! single-use thing is spent once, however the requests race.
+//! Accounts, invitations, factors, and challenges: every single-use thing is spent once, however
+//! the requests race.
 
 use crate::support::{fixture, now};
 use korpis_app::ports::{AccountRead, AccountWrite, SealedKey, Store, StoreError, Tx, Unique};

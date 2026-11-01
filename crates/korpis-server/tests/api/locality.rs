@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Content locality (§2.2 of docs/05-scheduling.md): a node that reported holding the recipe's
-//! content is preferred over one alike in every other way, a node that never reported is not
-//! scored for it, and a report naming anything but canonical digests is refused whole.
+//! Content locality: a node that reported holding the recipe's content is preferred over one alike
+//! in every other way, a node that never reported is not scored for it, and a report naming
+//! anything but canonical digests is refused whole.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::recipes::{body, create, project, push_paper_signed_by};

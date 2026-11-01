@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis workload classify`: the operator's layer of the classification chain (§3.3 of
-//! docs/01-model.md), set as a whole, on the record, under the workload's version.
+//! `korpis workload classify`: the operator's layer of the classification chain, set as a whole, on
+//! the record, under the workload's version.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

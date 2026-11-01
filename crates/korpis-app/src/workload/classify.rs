@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The operator's layer of the classification chain (§3.3 of docs/01-model.md): per workload,
-//! which plan steps are disruptive, set on the record. It may make a step more or less
-//! disruptive than the driver or the recipe said, never less than the vocabulary's floor, and
-//! every change is an effect naming its author, its reason, and the set before and after. Plans
-//! computed after it read the new set; a plan already proposed keeps the classification its
-//! proposer saw, because its approval kind is what they were shown.
+//! The operator's layer of the classification chain: per workload, which plan steps are disruptive,
+//! set on the record. It may make a step more or less disruptive than the driver or the recipe
+//! said, never less than the vocabulary's floor, and every change is an effect naming its author,
+//! its reason, and the set before and after. Plans computed after it read the new set; a plan
+//! already proposed keeps the classification its proposer saw, because its approval kind is what
+//! they were shown.
 
 use crate::App;
 use crate::caller::Caller;

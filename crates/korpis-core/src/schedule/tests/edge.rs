@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Edges (§3.1 of docs/07-networking.md): a workload whose `stable` endpoint an edge group
-//! serves is placed only on a node that reaches every member through the mesh, and holds no
-//! port of it.
+//! Edges: a workload whose `stable` endpoint an edge group serves is placed only on a node that
+//! reaches every member through the mesh, and holds no port of it.
 
 use super::{Case, checks, node};
 use crate::schedule::{Check, reservation};

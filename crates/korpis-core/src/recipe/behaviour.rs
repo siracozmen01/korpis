@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the recipe knows about the software's behaviour: log lines that mean something, and how
-//! to stop it cleanly (§3 of docs/09-recipes.md).
+//! What the recipe knows about the software's behaviour: log lines that mean something, and how to
+//! stop it cleanly.
 
 use super::RecipeError;
 use regex::Regex;

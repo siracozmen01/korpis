@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The organizations a request is charged to (§10 of docs/10-api.md): those the subject holds a
-//! live grant in, read over every grant it holds. A grant revoked, expired, or descending from a
-//! revoked one charges nothing, so an organization that revokes a subject stops paying for it.
+//! The organizations a request is charged to: those the subject holds a live grant in, read over
+//! every grant it holds. A grant revoked, expired, or descending from a revoked one charges
+//! nothing, so an organization that revokes a subject stops paying for it.
 
 use crate::recipes::project;
 use crate::support::{Harness, mutation, org_scope};

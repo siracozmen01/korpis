@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The workloads' cpusets for dedicated cores (§5.2 of docs/05-scheduling.md). Under each driver's
-//! cgroup parent a request names, and only one the helper was configured to keep, it keeps a
-//! `shared` cgroup on the node's online CPUs less every one held, so no workload holding no cores
-//! runs on one held, and writes the CPUs held there as the exclusive CPUs of that cgroup, those
-//! above it, and its `dedicated` cgroup, which a driver's cpuset partitions take theirs from; the
-//! kernel uses those only once a partition is made, so writing them takes no CPU from anyone (§5
-//! of docs/research/evidence.md).
+//! The workloads' cpusets for dedicated cores. Under each driver's cgroup parent a request names,
+//! and only one the helper was configured to keep, it keeps a `shared` cgroup on the node's online
+//! CPUs less every one held, so no workload holding no cores runs on one held, and writes the CPUs
+//! held there as the exclusive CPUs of that cgroup, those above it, and its `dedicated` cgroup,
+//! which a driver's cpuset partitions take theirs from; the kernel uses those only once a partition
+//! is made, so writing them takes no CPU from anyone.
 
 use crate::error::{HelperError, HelperResult};
 use korpis_topology::listed;

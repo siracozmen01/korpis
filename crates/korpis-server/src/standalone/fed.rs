@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a relay running as its own process verifies by (§3.1 of docs/02-architecture.md): only
-//! what its feed sent, held in memory. Token keys and node keys replace what was held whole; a
-//! revocation list is believed only once its signature verifies against the token keys held,
-//! as an agent believes one (§6.3 of docs/08-identity.md). A `DataHello` is accepted only for
-//! this relay's own URL, fresh by the control plane's skew window, and with a nonce this relay
-//! has not seen inside twice that window: nonce memory is the relay's own, which is why the URL
-//! is signed.
+//! What a relay running as its own process verifies by: only what its feed sent, held in memory.
+//! Token keys and node keys replace what was held whole; a revocation list is believed only once
+//! its signature verifies against the token keys held, as an agent believes one. A `DataHello` is
+//! accepted only for this relay's own URL, fresh by the control plane's skew window, and with a
+//! nonce this relay has not seen inside twice that window: nonce memory is the relay's own, which
+//! is why the URL is signed.
 //!
 //! What it does not do: with the feed lost, it verifies by the last of each it received, as the
-//! agent does (§4.6 of docs/02-architecture.md); and before the first terms arrive it admits no
-//! node at all.
+//! agent does; and before the first terms arrive it admits no node at all.
 
 use crate::api::error;
 use crate::relay::{Verifier, token_ring};
@@ -96,8 +94,7 @@ impl Fed {
         }
     }
 
-    /// The portals' origins the feed named, and every change after (§3.6 of
-    /// docs/07-networking.md).
+    /// The portals' origins the feed named, and every change after.
     #[must_use]
     pub fn portal_origins(&self) -> tokio::sync::watch::Receiver<Arc<[String]>> {
         self.portal_origins.subscribe()

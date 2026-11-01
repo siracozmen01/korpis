@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's request for a certificate its proxy serves with, and its answer on the same stream
-//! (§3.2 of docs/07-networking.md). Opening the key reads the store and the TLS key alone, but
-//! each request is answered from a task of its own like every other request a node makes, so the
-//! session never waits on one. The answer always comes, echoing the request.
+//! A node's request for a certificate its proxy serves with, and its answer on the same stream.
+//! Opening the key reads the store and the TLS key alone, but each request is answered from a task
+//! of its own like every other request a node makes, so the session never waits on one. The answer
+//! always comes, echoing the request.
 
 use crate::api::ServerApp;
 use crate::api::wire::id;

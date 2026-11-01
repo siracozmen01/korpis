@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Journaling what became of each stream's segments (§4 of docs/14-streams.md). The writer
-//! records every seal and prune in its stream's changes log; on every pass the reconciler reads
-//! each log from where it left off and journals each change, from which the control plane keeps
-//! its segment index. A stream whose workload left the set is read one last time and then no
-//! longer watched; what it wrote stays on the node, as a volume does (§4 of docs/14-streams.md).
+//! Journaling what became of each stream's segments. The writer records every seal and prune in its
+//! stream's changes log; on every pass the reconciler reads each log from where it left off and
+//! journals each change, from which the control plane keeps its segment index. A stream whose
+//! workload left the set is read one last time and then no longer watched; what it wrote stays on
+//! the node, as a volume does.
 
 use super::Reconciler;
 use super::streams::name_parts;

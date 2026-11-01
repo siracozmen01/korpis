@@ -52,7 +52,7 @@ export type GetInvitationResponse = Message<"korpis.v1.GetInvitationResponse"> &
   expiresAt?: Timestamp | undefined;
 
   /**
-   * Only registering a passkey redeems it (§9.1 and §9.2 of docs/08-identity.md).
+   * Only registering a passkey redeems it.
    *
    * @generated from field: bool passkey_only = 3;
    */
@@ -238,8 +238,7 @@ export type RedeemResponse = Message<"korpis.v1.RedeemResponse"> & {
   account: string;
 
   /**
-   * Ten codes, each a second factor once; shown once and stored only as digests (§9.3 of
-   * docs/08-identity.md).
+   * Ten codes, each a second factor once; shown once and stored only as digests.
    *
    * @generated from field: repeated string recovery_codes = 2;
    */
@@ -512,13 +511,12 @@ export const SignInResponseSchema: GenMessage<SignInResponse> = /*@__PURE__*/
   messageDesc(file_korpis_v1_account, 16);
 
 /**
- * Accounts (§9.6 of docs/08-identity.md): redeeming an invitation by registering a first factor,
- * and signing in. Every procedure here is called without a credential: what it checks is in the
- * request, an invitation's secret, a password, a code, or a passkey's answer to a challenge, and
- * each one refused is a failed attempt (§10 of docs/10-api.md), answered UNAUTHENTICATED whichever
- * part of it failed, or RATE_LIMITED once its source has failed too often. A ceremony carries no
- * idempotency key (§6 of docs/10-api.md): each spends a single-use proof, so a retry is refused
- * rather than applied twice, and a client that lost an answer begins the ceremony again.
+ * Accounts: redeeming an invitation by registering a first factor, and signing in. Every procedure
+ * here is called without a credential: what it checks is in the request, an invitation's secret, a
+ * password, a code, or a passkey's answer to a challenge, and each one refused is a failed attempt,
+ * answered UNAUTHENTICATED whichever part of it failed, or RATE_LIMITED once its source has failed
+ * too often. A ceremony carries no idempotency key: each spends a single-use proof, so a retry is
+ * refused rather than applied twice, and a client that lost an answer begins the ceremony again.
  *
  * @generated from service korpis.v1.AccountService
  */

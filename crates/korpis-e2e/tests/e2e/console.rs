@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis console` on a real node (§6 of docs/14-streams.md): an interactive workload runs in a
-//! container under a terminal, and the `korpis` binary attaches to it with its input from a pipe.
-//! What is typed reaches the workload, its answer comes back through the relay, and the input is
-//! an effect of whoever typed it; a caller who may only watch is attached read-only.
+//! `korpis console` on a real node: an interactive workload runs in a container under a terminal,
+//! and the `korpis` binary attaches to it with its input from a pipe. What is typed reaches the
+//! workload, its answer comes back through the relay, and the input is an effect of whoever typed
+//! it; a caller who may only watch is attached read-only.
 
 use crate::node::{Node, live};
 use crate::recipes::push_answerer;

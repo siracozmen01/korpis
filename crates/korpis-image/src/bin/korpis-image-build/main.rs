@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-image-build`: one image drive (§6 of docs/04-runtimes.md), started by a driver with its
-//! request (`korpis_image::build::Request`) on standard input. It runs as two processes, so that
-//! the one that reads what a publisher wrote holds no privilege.
+//! `korpis-image-build`: one image drive, started by a driver with its request
+//! (`korpis_image::build::Request`) on standard input. It runs as two processes, so that the one
+//! that reads what a publisher wrote holds no privilege.
 //!
 //! The first, root, resolves the image in the content store and makes a pid namespace and a work
 //! directory owned by the request's ids. It starts the worker as that namespace's first process;

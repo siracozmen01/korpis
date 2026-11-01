@@ -36,10 +36,10 @@ pub(crate) fn serve_config(
         watch_resync: Duration::from_secs(1),
         // [`crate::support::ControlPlane::start_beating`] sets another.
         heartbeat_interval: Duration::from_secs(30),
-        // Long enough that a renewal delayed on a loaded machine does not let a lease lapse: a
-        // run on a lapsed lease is judged lost (§4.2 of docs/05-scheduling.md), which is right
-        // of a node gone silent and wrong of one that was merely slow. Nothing here tests
-        // expiry; the agent's and the API's tests do, at terms of their own.
+        // Long enough that a renewal delayed on a loaded machine does not let a lease lapse: a run
+        // on a lapsed lease is judged lost, which is right of a node gone silent and wrong of one
+        // that was merely slow. Nothing here tests expiry; the agent's and the API's tests do, at
+        // terms of their own.
         lease_term: Duration::from_secs(15),
         metering_interval: std::time::Duration::from_secs(3600),
         metering_lateness: std::time::Duration::from_secs(86_400),

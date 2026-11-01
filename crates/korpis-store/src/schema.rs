@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The schema's version, and moving it (§4 of docs/18-operations.md): migrations are applied
-//! forward by the schema's owner, and every migration after [`BASELINE`] carries its inverse, so a
-//! binary can be rolled back one version by undoing what the newer one applied. sqlx's own undo
-//! passes over a migration that has no inverse without a word, which would leave a schema the
-//! older binary was not built for; [`migrate_to`] refuses instead, before it changes anything.
+//! The schema's version, and moving it: migrations are applied forward by the schema's owner, and
+//! every migration after [`BASELINE`] carries its inverse, so a binary can be rolled back one
+//! version by undoing what the newer one applied. sqlx's own undo passes over a migration that has
+//! no inverse without a word, which would leave a schema the older binary was not built for;
+//! [`migrate_to`] refuses instead, before it changes anything.
 
 use crate::Error;
 use sqlx::migrate::Migrator;

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Bytes from a pipe, cut into records at line ends. A record is the bytes as written, its line
-//! end included (`\n`, or `\r\n` from a terminal), so a reader reproduces the output exactly and
-//! can tell a finished line from a prompt still waiting for input, which the caller flushes as a
-//! record of its own with no line end (§2 of docs/14-streams.md). A line longer than the stream's
-//! largest record is kept up to that size and the rest of it dropped and counted, so a workload
-//! that prints a 200 MB line costs a gap record rather than the memory to hold it (question 5 of
-//! §9).
+//! Bytes from a pipe, cut into records at line ends. A record is the bytes as written, its line end
+//! included (`\n`, or `\r\n` from a terminal), so a reader reproduces the output exactly and can
+//! tell a finished line from a prompt still waiting for input, which the caller flushes as a record
+//! of its own with no line end. A line longer than the stream's largest record is kept up to that
+//! size and the rest of it dropped and counted, so a workload that prints a 200 MB line costs a gap
+//! record rather than the memory to hold it.
 
 /// What the splitter yields.
 #[derive(Debug, Clone, PartialEq, Eq)]

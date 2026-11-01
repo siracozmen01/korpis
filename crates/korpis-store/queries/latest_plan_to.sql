@@ -1,6 +1,6 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
--- The plan most recently approved to move a workload's target to an intent: whether that intent
--- was ever reached (§3.3 of docs/01-model.md).
+-- The plan most recently approved to move a workload's target to an intent: whether that intent was
+-- ever reached.
 SELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,
        computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,
        approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume,

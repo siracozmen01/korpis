@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The installation's certificate authority, issuing relays their server certificates (§3.1 of
-//! docs/02-architecture.md, §7 of docs/18-operations.md). Agents and clients trust this
-//! authority already, so a relay holding one of its certificates is trusted as the control plane
-//! is, and nothing new has to be distributed to them.
+//! The installation's certificate authority, issuing relays their server certificates. Agents and
+//! clients trust this authority already, so a relay holding one of its certificates is trusted as
+//! the control plane is, and nothing new has to be distributed to them.
 
 use crate::data::DataDir;
 use crate::tls::{TlsError, ca_params};

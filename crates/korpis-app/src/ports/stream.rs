@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Streams' segment index (§4 of docs/14-streams.md): kept from what nodes journal, read to say
-//! where a stream's records are and what is held only on a node.
+//! Streams' segment index: kept from what nodes journal, read to say where a stream's records are
+//! and what is held only on a node.
 
 use super::StoreResult;
 use korpis_core::workload::stream::{Segment, SegmentEvent, Stream, StreamKey};

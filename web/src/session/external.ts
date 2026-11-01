@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A sign-in through an identity provider, begun in this tab (§9.7 of docs/08-identity.md, §1 of
-// docs/11-surface-web.md): the verifier, where to return, and whether it re-authenticates the
-// session rather than beginning one, kept in the tab's session storage while the person is at
-// their provider. A tab that kept nothing, because another browser began the sign-in, completes
-// nothing.
+// A sign-in through an identity provider, begun in this tab: the verifier, where to return, and
+// whether it re-authenticates the session rather than beginning one, kept in the tab's session
+// storage while the person is at their provider. A tab that kept nothing, because another browser
+// began the sign-in, completes nothing.
 
 import type { Client } from "@connectrpc/connect";
 import type { SessionService } from "../gen/korpis/v1/session_pb";

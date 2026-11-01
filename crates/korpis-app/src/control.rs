@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's own plan steps (§4.9 of docs/02-architecture.md, §6 of docs/03-state.md).
-//! A step whose turn has come is queued as a job keyed by its plan and index, so it is queued
-//! once however many replicas notice; a worker of any replica claims it, does it, and records its
-//! completion as a node's is recorded, in the transaction that ends the job, so the step is
-//! never completed without its job ending or the other way round. An attempt that fails is tried
-//! again later, and the step fails when the job's attempts are spent.
+//! The control plane's own plan steps. A step whose turn has come is queued as a job keyed by its
+//! plan and index, so it is queued once however many replicas notice; a worker of any replica
+//! claims it, does it, and records its completion as a node's is recorded, in the transaction that
+//! ends the job, so the step is never completed without its job ending or the other way round. An
+//! attempt that fails is tried again later, and the step fails when the job's attempts are spent.
 
 use crate::App;
 use crate::error::AppError;
@@ -33,10 +32,10 @@ pub fn backoff(attempt: u32) -> Duration {
     Duration::from_secs(30u64.saturating_mul(1 << attempt.min(6))).min(Duration::from_secs(1800))
 }
 
-/// The step of `plan` the control plane executes next, if it is due at `now`: the plan is
-/// approved or applying, its schedule has come, and its next step is the control plane's. A
-/// `migrate` step is no job: it is carried out by its migration's phases, which complete it
-/// when the migration ends (§8.1 of docs/05-scheduling.md).
+/// The step of `plan` the control plane executes next, if it is due at `now`: the plan is approved
+/// or applying, its schedule has come, and its next step is the control plane's. A `migrate` step
+/// is no job: it is carried out by its migration's phases, which complete it when the migration
+/// ends.
 #[must_use]
 pub fn due(plan: &Plan, now: SystemTime) -> Option<&Step> {
     if !matches!(plan.status, PlanStatus::Approved | PlanStatus::Applying)
@@ -91,8 +90,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(queued)
     }
 
-    /// The plan and step of job `job`, if the step is still to be done: its plan is open and
-    /// has not completed it. A cancelled plan begins no step (§7 of docs/03-state.md).
+    /// The plan and step of job `job`, if the step is still to be done: its plan is open and has
+    /// not completed it. A cancelled plan begins no step.
     pub async fn step_to_do(&self, job: &Job) -> Result<Option<(Plan, Step)>, AppError> {
         let Some(j) = StepJob::of(job) else { return Ok(None) };
         let Some(plan) = self.store.plan(j.plan).await? else { return Ok(None) };

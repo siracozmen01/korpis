@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How a resolved configuration reaches the software through the runtime (§5.2 of
-//! docs/09-recipes.md): `env` fields become environment variables and `arg` fields command-line
-//! arguments, in the schema's declaration order, each value written as text by its field's type.
-//! Template fields are not the runtime's to deliver, and `managed_file` fields are named so the
-//! caller can deliver them or say that it cannot.
+//! How a resolved configuration reaches the software through the runtime: `env` fields become
+//! environment variables and `arg` fields command-line arguments, in the schema's declaration
+//! order, each value written as text by its field's type. Template fields are not the runtime's to
+//! deliver, and `managed_file` fields are named so the caller can deliver them or say that it
+//! cannot.
 
 use super::config::{ConfigDelivery, ConfigField, ConfigSchema, ConfigType};
 use crate::quantity::{Quantity, parse_duration};
@@ -23,8 +23,8 @@ pub struct Delivered {
     pub args: Vec<String>,
     /// The keys of `managed_file` fields that have a value: files the runtime does not render.
     pub managed: Vec<String>,
-    /// Each secret field with a value, and that value as the software reads it: what the
-    /// workload's stream redacts (§7 of docs/14-streams.md), however the field is delivered.
+    /// Each secret field with a value, and that value as the software reads it: what the workload's
+    /// stream redacts, however the field is delivered.
     pub secrets: Vec<(String, String)>,
 }
 

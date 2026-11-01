@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the workloads a quota entry counts hold together (§5.1 and question 7 of §10 of
-//! docs/05-scheduling.md): kept beside the entry and moved in the transaction of every change to
-//! what one of them holds, so that admission reads one row rather than every workload the entry
-//! counts. Each workload's own contribution is kept with it, so taking it back out is exact.
+//! What the workloads a quota entry counts hold together: kept beside the entry and moved in the
+//! transaction of every change to what one of them holds, so that admission reads one row rather
+//! than every workload the entry counts. Each workload's own contribution is kept with it, so
+//! taking it back out is exact.
 
 use super::{Dimension, Held};
 use std::collections::BTreeMap;

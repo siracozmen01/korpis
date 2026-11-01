@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declared files (§3 and §4 of docs/13-surface-cli.md): a typo is a local error with its line;
-//! `plan` answers with a real plan that waits; `apply --plan` applies exactly it; and a file
-//! changed after its plan was read is a conflict, not a silent apply of something unread.
+//! Declared files: a typo is a local error with its line; `plan` answers with a real plan that
+//! waits; `apply --plan` applies exactly it; and a file changed after its plan was read is a
+//! conflict, not a silent apply of something unread.
 
 use crate::support::{ControlPlane, push_recipe};
 use serde_json::Value;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis get usage` and `korpis get periods`: what metering recorded (§2 of
-//! docs/15-observability.md), each figure with the window it covers and how it was measured.
+//! `korpis get usage` and `korpis get periods`: what metering recorded, each figure with the window
+//! it covers and how it was measured.
 
 use super::{Answer, json};
 use crate::complete;

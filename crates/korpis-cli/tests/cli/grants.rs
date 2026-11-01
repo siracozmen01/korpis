@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The CI case of §7 of docs/13-surface-cli.md, end to end: a grant issued to a new token deploys
+//! The CI case, end to end: a grant issued to a new token deploys
 //! one project by name, its label shows wherever it is listed, and revoking it is one row.
 
 use crate::support::{ControlPlane, push_recipe};

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backups (§5 of docs/06-storage.md): a volume read into content-defined chunks and one tree per
-//! directory, each sealed under a key derived from the workload's data key and written beneath
-//! the workload's prefix in an object store, then restored whole or one path at a time, and
-//! verified against what was backed up. The format is `korpis.backup.v1`.
+//! Backups: a volume read into content-defined chunks and one tree per directory, each sealed under
+//! a key derived from the workload's data key and written beneath the workload's prefix in an
+//! object store, then restored whole or one path at a time, and verified against what was backed
+//! up. The format is `korpis.backup.v1`.
 //!
-//! A backup job runs this on the node with only the capabilities it needs, the one workload's
-//! data key, and a credential that can write beneath that workload's prefix and nothing else
-//! (§5.5 of the same document). Nothing here deletes from a store.
+//! A backup job runs this on the node with only the capabilities it needs, the one workload's data
+//! key, and a credential that can write beneath that workload's prefix and nothing else. Nothing
+//! here deletes from a store.
 
 mod apply;
 pub mod backup;

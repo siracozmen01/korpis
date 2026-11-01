@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's metering samples (§2 of docs/15-observability.md, "Measuring it, as designed"): each
-//! is measured from the last sample of its workload on that node, and what it measured is
-//! appended as a record, superseding every gap it covers, and an adjustment where the day it
-//! begins in is closed. A sample is believed only from a node that held the workload, and it is
-//! not an effect: metering is not the audit log, and the record is its own. Only a sample that
-//! is not believed leaves an effect, as a rejection.
+//! A node's metering samples ("Measuring it, as designed"): each is measured from the last sample
+//! of its workload on that node, and what it measured is appended as a record, superseding every
+//! gap it covers, and an adjustment where the day it begins in is closed. A sample is believed only
+//! from a node that held the workload, and it is not an effect: metering is not the audit log, and
+//! the record is its own. Only a sample that is not believed leaves an effect, as a rejection.
 
 use super::rejected;
 use crate::App;

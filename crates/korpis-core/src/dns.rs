@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! DNS records as Korpis publishes them through a DNS provider (§3.5 of
-//! docs/07-networking.md). A record is checked here, before any provider sees it, so a provider
-//! is never asked to publish something malformed and every provider is asked the same thing.
+//! DNS records as Korpis publishes them through a DNS provider. A record is checked here, before
+//! any provider sees it, so a provider is never asked to publish something malformed and every
+//! provider is asked the same thing.
 
 pub mod certificate;
 pub mod domain;

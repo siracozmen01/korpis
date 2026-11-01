@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What each node is told of replicas (§2.2 of docs/06-storage.md), as this replica tells the
-//! nodes it holds sessions with. Each replica recomputes it every [`EVERY`] from the replicas the
-//! control plane holds, and publishes it when it changed; each session sends its node its own
-//! part once one is computed, empty when the node keeps nothing, and again whenever it changes,
-//! so a transfer made due or a receive recorded reaches both nodes within about [`EVERY`]. What a
-//! node is told is the whole of what it keeps, so a node is always told, even nothing.
+//! What each node is told of replicas, as this replica tells the nodes it holds sessions with. Each
+//! replica recomputes it every [`EVERY`] from the replicas the control plane holds, and publishes
+//! it when it changed; each session sends its node its own part once one is computed, empty when
+//! the node keeps nothing, and again whenever it changes, so a transfer made due or a receive
+//! recorded reaches both nodes within about [`EVERY`]. What a node is told is the whole of what it
+//! keeps, so a node is always told, even nothing.
 
 use crate::api::Api;
 use crate::sessions::Sessions;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Assignments (§4.8 of docs/02-architecture.md): sealed by the control plane's assignment key,
-//! kept with their generation, and acknowledged by the node.
+//! Assignments: sealed by the control plane's assignment key, kept with their generation, and
+//! acknowledged by the node.
 
 use super::StoreResult;
 use korpis_core::workload::assignment::Assignment;
@@ -9,8 +9,8 @@ use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-/// An assignment as it travels and is kept: its exact bytes and the signature over them, so a
-/// node can prove what it was told (§8 of docs/03-state.md).
+/// An assignment as it travels and is kept: its exact bytes and the signature over them, so a node
+/// can prove what it was told.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sealed {
     /// The encoded assignment.
@@ -35,16 +35,16 @@ pub trait AssignmentSealer: Send + Sync + std::fmt::Debug {
     /// The assignment's bytes and signature.
     fn seal(&self, assignment: &Assignment) -> Result<Sealed, SealError>;
 
-    /// What a sealed assignment says, if `keys` holds the key it names and its signature over
-    /// its exact bytes verifies with it (§8 of docs/03-state.md): believed in nothing otherwise.
+    /// What a sealed assignment says, if `keys` holds the key it names and its signature over its
+    /// exact bytes verifies with it: believed in nothing otherwise.
     ///
     /// # Errors
     /// No such key, a signature that does not verify, or bytes that are not an assignment.
     fn open(&self, sealed: &Sealed, keys: &[super::VerifyKey]) -> Result<Opened, SealError>;
 }
 
-/// What an assignment a node presented says, its signature verified: what a restored control
-/// plane recovers from it (§8 of docs/03-state.md).
+/// What an assignment a node presented says, its signature verified: what a restored control plane
+/// recovers from it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Opened {
     /// The workload.
@@ -73,13 +73,11 @@ pub struct Opened {
     pub ids: korpis_core::workload::assignment::IdRange,
     /// The plan it is applying, in full, its status and progress left out.
     pub plan: Option<korpis_core::workload::Plan>,
-    /// The runs it named (§4.5 of docs/05-scheduling.md).
+    /// The runs it named.
     pub runs: Vec<korpis_core::workload::run::RunRef>,
-    /// The node's devices it held, which its recovered placement holds again (§6.3 of
-    /// docs/05-scheduling.md).
+    /// The node's devices it held, which its recovered placement holds again.
     pub devices: Vec<korpis_core::node::device::DeviceHold>,
-    /// The node's cores it held, which its recovered placement holds again (§5.2 of
-    /// docs/05-scheduling.md).
+    /// The node's cores it held, which its recovered placement holds again.
     pub cores: Vec<u32>,
 }
 
@@ -92,8 +90,8 @@ pub struct StoredAssignment {
     pub generation: u64,
     /// Over its content, generation ignored.
     pub content_digest: Vec<u8>,
-    /// Over what it has the node run: its content without its plan and its ACME challenges,
-    /// which are measured by their own progress (§4.3 of docs/02-architecture.md).
+    /// Over what it has the node run: its content without its plan and its ACME challenges, which
+    /// are measured by their own progress.
     pub runs_digest: Vec<u8>,
     /// The generation at which what it has the node run last changed: what the node's report is
     /// compared with to say whether the workload converged.
@@ -107,16 +105,14 @@ pub struct StoredAssignment {
 /// Reading what assignments are computed from.
 pub trait AssignmentRead {
     /// The workloads placed on `node` that it is told to run: a placement a restore holds is left
-    /// out, unless its workload is being retired, which its node has to be told to do (§8 of
-    /// docs/03-state.md).
+    /// out, unless its workload is being retired, which its node has to be told to do.
     fn placed_on(&self, node: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
     /// The digest of the set `node` last acknowledged holding, if it acknowledged one.
     fn acked_set(&self, node: Uuid) -> impl Future<Output = StoreResult<Option<String>>> + Send;
 
     /// The workloads not placed on `node` with an approved, queued, or applying plan deleting a
-    /// retained volume there: those whose residual assignment it is sent (§7 of
-    /// docs/06-storage.md).
+    /// retained volume there: those whose residual assignment it is sent.
     fn residual_on(&self, node: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
     /// The nodes a change to `workload` concerns: those it is placed on, those holding an active

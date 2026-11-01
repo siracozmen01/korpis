@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A driver process, as a [`Runtime`]: the driver protocol (`korpis.driver.v1`) over the
-//! driver's Unix socket, gRPC on HTTP/2 (§3 of docs/04-runtimes.md). Every call has a deadline,
-//! so a driver that hangs costs the reconciler one pass rather than the node; `Create` gets the
-//! longest, because it may import and unpack an image. The driver's `Events` stream is held
-//! open for as long as the runtime lives, reopened when it ends, and each event wakes the
-//! reconciler for the object it names.
+//! A driver process, as a [`Runtime`]: the driver protocol (`korpis.driver.v1`) over the driver's
+//! Unix socket, gRPC on HTTP/2. Every call has a deadline, so a driver that hangs costs the
+//! reconciler one pass rather than the node; `Create` gets the longest, because it may import and
+//! unpack an image. The driver's `Events` stream is held open for as long as the runtime lives,
+//! reopened when it ends, and each event wakes the reconciler for the object it names.
 
 use super::{Executed, Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
 use connectrpc::client::{CallOptions, ClientConfig, Http2Connection, SharedHttp2Connection};

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's own backup target, declared outside Korpis (§6 of
-//! docs/18-operations.md, Finding 15 of docs/23-walkthroughs.md): an installation is refused
+//! The control plane's own backup target, declared outside Korpis: an installation is refused
 //! without one, since a Korpis repository holding Korpis's own backup is sealed by a key whose
 //! reference is in the database it would restore. What is backed up there is sealed with a key
-//! installation makes, prints once, and keeps beside the data directory so a scheduled backup
-//! can run; the copy that matters is the one the operator keeps elsewhere.
+//! installation makes, prints once, and keeps beside the data directory so a scheduled backup can
+//! run; the copy that matters is the one the operator keeps elsewhere.
 
 use crate::data::{DataDir, write_public, write_secret};
 use base64::Engine as _;

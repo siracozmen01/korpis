@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Choosing a volume's replicas (§2.2 of docs/06-storage.md): another node whose class sends
-//! increments and has room, in another failure domain first, then the most room; and a replica
-//! goes stale ten intervals after it last received.
+//! Choosing a volume's replicas: another node whose class sends increments and has room, in another
+//! failure domain first, then the most room; and a replica goes stale ten intervals after it last
+//! received.
 
 use super::{GIB, node};
 use crate::node::StorageClass;

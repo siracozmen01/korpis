@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's probe of an edge group's members, and failover by it (§3.1 of
-//! docs/07-networking.md, steps 6 and 7 of trace 78 in docs/23-walkthroughs.md). Each member's
-//! own address is on the loopback here, and the test answers a probe there as the node behind
-//! the group would once the member's forwarding carried it: signed with that node's key. A member
-//! answered is ready and named to hold the address; one whose probes go unanswered is failing,
-//! and shown with why. When the holder stops answering and the other member answers, the other
-//! is named instead, and is granted the address once the holder has released it.
+//! The control plane's probe of an edge group's members, and failover by it. Each member's own
+//! address is on the loopback here, and the test answers a probe there as the node behind the group
+//! would once the member's forwarding carried it: signed with that node's key. A member answered is
+//! ready and named to hold the address; one whose probes go unanswered is failing, and shown with
+//! why. When the holder stops answering and the other member answers, the other is named instead,
+//! and is granted the address once the holder has released it.
 
 use crate::across::running_at;
 use crate::agent::{Stream, TestAgent, any};

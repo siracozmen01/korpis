@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A container's console stream (§4 of docs/14-streams.md). The driver names the stream writer as
-//! the task's logging binary in containerd's `binary://` form, so the shim starts it with every
-//! task and hands it the workload's stdout and stderr; what it is told comes from the container's
-//! labels, kept with the container so a task started after a driver restart is told the same.
-//! The secret values it redacts are not labels, which anyone reading containerd's records could
-//! see: they are written to a file in the driver's state directory, readable by the driver's user
-//! alone, and the writer is given its path.
+//! A container's console stream. The driver names the stream writer as the task's logging binary in
+//! containerd's `binary://` form, so the shim starts it with every task and hands it the workload's
+//! stdout and stderr; what it is told comes from the container's labels, kept with the container so
+//! a task started after a driver restart is told the same. The secret values it redacts are not
+//! labels, which anyone reading containerd's records could see: they are written to a file in the
+//! driver's state directory, readable by the driver's user alone, and the writer is given its path.
 //!
-//! An interactive console takes input (§6 of docs/14-streams.md). The driver makes two FIFOs in
-//! its state directory: the task's stdin, which the writer holds open for the task's whole life
-//! and feeds, and the one the driver sends input on, framed, so the writer records who typed what
-//! before handing it to the workload. The driver opens the second for each input without waiting:
-//! a writer that is not running, or not reading, refuses the input rather than stalling the call.
+//! An interactive console takes input. The driver makes two FIFOs in its state directory: the
+//! task's stdin, which the writer holds open for the task's whole life and feeds, and the one the
+//! driver sends input on, framed, so the writer records who typed what before handing it to the
+//! workload. The driver opens the second for each input without waiting: a writer that is not
+//! running, or not reading, refuses the input rather than stalling the call.
 
 use crate::error::{DriverError, DriverResult};
 use crate::validate::Valid;

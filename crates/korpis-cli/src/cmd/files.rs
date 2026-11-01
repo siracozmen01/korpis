@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis files` (§8 of docs/13-surface-cli.md): a workload's files through a relay, never
-//! through the control plane, over the file session of §3.2 of docs/06-storage.md. A remote path
-//! is written `w:WORKLOAD/PATH`, the path absolute within the workload as its volumes are
-//! mounted (`w:mc-survival/data/world`), or `w:WORKLOAD:PATH` when the workload is named as
-//! `project/name`.
+//! `korpis files`: a workload's files through a relay, never through the control plane, over the
+//! file session. A remote path is written `w:WORKLOAD/PATH`, the path
+//! absolute within the workload as its volumes are mounted (`w:mc-survival/data/world`), or
+//! `w:WORKLOAD:PATH` when the workload is named as `project/name`.
 
 mod remote;
 mod sync;
@@ -106,8 +105,7 @@ pub enum FilesAction {
 
 /// `text` from the workload, safe to print on a terminal: a name is the tenant's to choose, and a
 /// control character in it (an escape sequence that moves the cursor, retitles the window, or
-/// writes the clipboard) is shown as its escape instead of acted on (Finding 82 of
-/// docs/23-walkthroughs.md).
+/// writes the clipboard) is shown as its escape instead of acted on.
 #[must_use]
 pub fn printable(text: &str) -> String {
     text.chars()
@@ -145,8 +143,8 @@ async fn session(
     let workload = resolve::workload(c, &named).await?;
     let at = relay.map(String::as_str);
     let r = match Remote::open(c, &workload, write, at).await {
-        // A caller who may write reads through a writing session, which reads too (§3.2 of
-        // docs/06-storage.md), though no grant of theirs names the reading action.
+        // A caller who may write reads through a writing session, which reads too, though no grant
+        // of theirs names the reading action.
         Err(CliError::Api { code: pb::ErrorCode::ERROR_CODE_DENIED, .. }) if !write => {
             Remote::open(c, &workload, true, at).await?
         }

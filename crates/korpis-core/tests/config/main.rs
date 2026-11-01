@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Typed, permissioned configuration (§5 of docs/09-recipes.md, Rule K-17), run against the
-//! example schema of that section.
+//! Typed, permissioned configuration, run against the example schema of that section.
 
 #![allow(
     clippy::unwrap_used,

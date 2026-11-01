@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Coalescing repeated identical effects into one record with a count (§4.10 of
-//! docs/02-architecture.md), so a crash loop's restarts do not fill the journal one record at a
-//! time. The first of a run is written at once; repeats within the window are counted in memory
-//! and written as one record when the window passes or something else is written. Only effects
-//! are coalesced: a record whose order matters, such as a break-glass session or a lease
-//! release, is always written before the append returns.
+//! Coalescing repeated identical effects into one record with a count, so a crash loop's restarts
+//! do not fill the journal one record at a time. The first of a run is written at once; repeats
+//! within the window are counted in memory and written as one record when the window passes or
+//! something else is written. Only effects are coalesced: a record whose order matters, such as a
+//! break-glass session or a lease release, is always written before the append returns.
 
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
 use std::time::{Duration, SystemTime};

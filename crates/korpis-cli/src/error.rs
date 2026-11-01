@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the CLI reports when a command fails, and the exit code it reports it with (§2 of
-//! docs/13-surface-cli.md). An error the API returned carries its structured `korpis.v1.Error`
-//! (§8 of docs/10-api.md), and its code decides the exit code, so a script tells `DENIED` from
-//! `CONFLICT` from `UNSATISFIABLE` without reading a word of the message.
+//! What the CLI reports when a command fails, and the exit code it reports it with. An error the
+//! API returned carries its structured `korpis.v1.Error`, and its code decides the exit code, so a
+//! script tells `DENIED` from `CONFLICT` from `UNSATISFIABLE` without reading a word of the
+//! message.
 
 use base64::Engine as _;
 use buffa::Message as _;
@@ -60,8 +60,7 @@ pub fn code_name(code: pb::ErrorCode) -> &'static str {
     }
 }
 
-/// The exit code of an API error code: ten and up, one per code, in the order of §8 of
-/// docs/10-api.md.
+/// The exit code of an API error code: ten and up, one per code, in the API's order.
 #[must_use]
 pub fn exit_code_of(code: pb::ErrorCode) -> u8 {
     use pb::ErrorCode as C;

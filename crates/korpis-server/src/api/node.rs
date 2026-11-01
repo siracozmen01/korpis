@@ -50,8 +50,7 @@ impl pb::NodeService for Api {
                 .transpose()
                 .refuse()?,
         };
-        // The record kept for a replay leaves the secret out: a secret recorded is a secret
-        // stored (§6 of docs/10-api.md).
+        // The record kept for a replay leaves the secret out: a secret recorded is a secret stored.
         let fingerprint = self.ca_fingerprint.clone();
         let response = |t: &EnrollmentToken, secret: bool| pb::CreateEnrollmentTokenResponse {
             token: if secret { t.secret.expose().to_owned() } else { String::new() },

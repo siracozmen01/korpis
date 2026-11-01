@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! DNS records' wire form, `korpis.v1.DnsRecord` (§3.5 of docs/07-networking.md).
+//! DNS records' wire form, `korpis.v1.DnsRecord`.
 
 use crate::{Result, invalid};
 use korpis_core::dns::{DnsRecord, RecordType};

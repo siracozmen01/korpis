@@ -42,7 +42,7 @@ export const ExchangeRequestSchema: GenMessage<ExchangeRequest> = /*@__PURE__*/
 export type ExchangeResponse = Message<"korpis.v1.ExchangeResponse"> & {
   /**
    * The bearer of the holder's calls: `korpisat_` and the rest for an account, `korpisax_` for a
-   * person signed in through an identity provider (§9.7 of docs/08-identity.md).
+   * person signed in through an identity provider.
    *
    * @generated from field: string access_token = 1;
    */
@@ -397,9 +397,8 @@ export type DeviceTokenResponse = Message<"korpis.v1.DeviceTokenResponse"> & {
   sessionExpiresAt?: Timestamp | undefined;
 
   /**
-   * The binding of the person signed in through an identity provider who approved it, as
-   * `idb_…`, and who holds the CLI's session (§9.7 of docs/08-identity.md); empty when an
-   * account did.
+   * The binding of the person signed in through an identity provider who approved it, as `idb_…`,
+   * and who holds the CLI's session; empty when an account did.
    *
    * @generated from field: string binding = 5;
    */
@@ -717,14 +716,14 @@ export const CompleteExternalSignInResponseSchema: GenMessage<CompleteExternalSi
   messageDesc(file_korpis_v1_session, 27);
 
 /**
- * User sessions (§9.4 of docs/08-identity.md). A browser's refresh credential is a cookie,
- * `__Host-korpis_refresh`, which is `HttpOnly`, `Secure`, `SameSite=Strict`, and bound to the
- * control plane's own name, so no script can read it, no other site's request carries it, and no
- * sibling name can set one; the CLI's travels in the request and response bodies instead.
- * Exchange, SignOut, AuthorizeDevice, and DeviceToken take no other credential, and a refused one
- * is a failed attempt (§10 of docs/10-api.md); ListSignInProviders and BeginExternalSignIn take
- * none at all, and are charged to their source, as CompleteExternalSignIn is when it begins a
- * session; the rest are called with an access token, as any call is.
+ * User sessions. A browser's refresh credential is a cookie, `__Host-korpis_refresh`, which is
+ * `HttpOnly`, `Secure`, `SameSite=Strict`, and bound to the control plane's own name, so no script
+ * can read it, no other site's request carries it, and no sibling name can set one; the CLI's
+ * travels in the request and response bodies instead. Exchange, SignOut, AuthorizeDevice, and
+ * DeviceToken take no other credential, and a refused one is a failed attempt; ListSignInProviders
+ * and BeginExternalSignIn take none at all, and are charged to their source, as
+ * CompleteExternalSignIn is when it begins a session; the rest are called with an access token, as
+ * any call is.
  *
  * @generated from service korpis.v1.SessionService
  */
@@ -841,9 +840,8 @@ export const SessionService: GenService<{
     output: typeof DenyDeviceResponseSchema;
   },
   /**
-   * The identity providers the installation's sign-in page offers: those of its root
-   * organization that sign people in (§9.7 of docs/08-identity.md). A provider anywhere else is
-   * reached by its own sign-in link.
+   * The identity providers the installation's sign-in page offers: those of its root organization
+   * that sign people in. A provider anywhere else is reached by its own sign-in link.
    *
    * @generated from rpc korpis.v1.SessionService.ListSignInProviders
    */
@@ -866,14 +864,13 @@ export const SessionService: GenService<{
     output: typeof BeginExternalSignInResponseSchema;
   },
   /**
-   * Completes a sign-in through an identity provider with what the person returned with and
-   * the verifier the panel kept: the state is spent once, and the provider asserts the code.
-   * Called without a credential, it begins a session for the person and sets its refresh
-   * credential as the cookie; called with the access token of a session the same person holds
-   * through the same provider, it re-authenticates that session instead (§9.6). A state unknown,
-   * expired, or spent, a verifier that is not the challenge's, a code the provider will not
-   * assert, or another person's session is UNAUTHENTICATED, a failed attempt of the kind
-   * `session.external`.
+   * Completes a sign-in through an identity provider with what the person returned with and the
+   * verifier the panel kept: the state is spent once, and the provider asserts the code. Called
+   * without a credential, it begins a session for the person and sets its refresh credential as the
+   * cookie; called with the access token of a session the same person holds through the same
+   * provider, it re-authenticates that session instead. A state unknown, expired, or spent, a
+   * verifier that is not the challenge's, a code the provider will not assert, or another person's
+   * session is UNAUTHENTICATED, a failed attempt of the kind `session.external`.
    *
    * @generated from rpc korpis.v1.SessionService.CompleteExternalSignIn
    */

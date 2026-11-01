@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Consuming events (§5 of docs/15-observability.md, §5 of docs/16-extensions.md). Installing an
-//! extension created the subscriptions its document declares, held by the installation. A
-//! consumer follows every one of them, hands each event to the handler, and acknowledges it only
-//! once the handler succeeded, so an event the handler failed on, or never saw because the
-//! extension stopped, is delivered again. Delivery is at least once: the event's `id` is how a
-//! handler recognises one it has already handled.
+//! Consuming events. Installing an extension created the subscriptions its document declares, held
+//! by the installation. A consumer follows every one of them, hands each event to the handler, and
+//! acknowledges it only once the handler succeeded, so an event the handler failed on, or never saw
+//! because the extension stopped, is delivered again. Delivery is at least once: the event's `id`
+//! is how a handler recognises one it has already handled.
 
 use crate::error::Error;
 use crate::identity::{Connection, CredentialSource};

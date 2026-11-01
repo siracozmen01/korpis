@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placing workloads that ask for devices and dedicated cores, against the real schema (§6.3 and
-//! §5.2 of docs/05-scheduling.md): the bind holds what the filter found free, a device or core held
-//! is given to no one else, and a placement removed frees it. Needs the development database
-//! (`scripts/dev-pg.sh up`).
+//! Placing workloads that ask for devices and dedicated cores, against the real schema: the bind
+//! holds what the filter found free, a device or core held is given to no one else, and a placement
+//! removed frees it. Needs the development database (`scripts/dev-pg.sh up`).
 
 #![allow(
     clippy::unwrap_used,

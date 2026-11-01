@@ -24,17 +24,17 @@ pub struct ServeArgs {
     /// loopback. Repeatable.
     #[arg(long = "plain-http-registry")]
     plain_http_registries: Vec<String>,
-    /// A network a registry a recipe names may be on besides the public internet, as a CIDR, for
-    /// a private mirror; repeatable. Loopback, private, and link-local addresses are otherwise
-    /// refused (§3 of docs/17-security.md).
+    /// A network a registry a recipe names may be on besides the public internet, as a CIDR, for a
+    /// private mirror; repeatable. Loopback, private, and link-local addresses are otherwise
+    /// refused.
     #[arg(long = "fetch-allow")]
     fetch_allow: Vec<ipnet::IpNet>,
-    /// The installation's placement policy: a `korpis.v1.PlacementPolicy` in JSON. Without
-    /// it, `balanced` with every weight 1 (§2.2 of docs/05-scheduling.md).
+    /// The installation's placement policy: a `korpis.v1.PlacementPolicy` in JSON. Without it,
+    /// `balanced` with every weight 1.
     #[arg(long, env = "KORPIS_PLACEMENT_POLICY")]
     placement_policy: Option<PathBuf>,
     /// The range each enrolling node is given a /22 workload pool of, so that no two nodes'
-    /// workloads share addresses the mesh routes between them (§9.1 of docs/07-networking.md).
+    /// workloads share addresses the mesh routes between them.
     #[arg(long, default_value = korpis_core::node::pool::DEFAULT_RANGE,
           value_parser = overlay_range)]
     overlay_range: ipnet::Ipv4Net,
@@ -44,50 +44,47 @@ pub struct ServeArgs {
     /// Seconds between re-reads of a watched workload when nothing was announced.
     #[arg(long, default_value_t = 15)]
     watch_resync_secs: u64,
-    /// Seconds between agent heartbeats; a node missing three is unreachable (question 6
-    /// of §10 of docs/02-architecture.md).
+    /// Seconds between agent heartbeats; a node missing three is unreachable.
     #[arg(long, default_value_t = 30)]
     agent_heartbeat_secs: u64,
-    /// Seconds a lease lasts from the holder's request; a handoff from an unreachable node
-    /// waits this long (§4.5 of docs/02-architecture.md).
+    /// Seconds a lease lasts from the holder's request; a handoff from an unreachable node waits
+    /// this long.
     #[arg(long, default_value_t = 60)]
     lease_term_secs: u64,
-    /// Seconds over which repeated identical denials are written as one effect with a
-    /// count; the first of each run is written at once (§10 of docs/10-api.md).
+    /// Seconds over which repeated identical denials are written as one effect with a count; the
+    /// first of each run is written at once.
     #[arg(long, default_value_t = 60)]
     denial_window_secs: u64,
-    /// Days the event log keeps an event; a subscriber further behind is told of the gap
-    /// (§5 of docs/15-observability.md). Effects are kept regardless.
+    /// Days the event log keeps an event; a subscriber further behind is told of the gap. Effects
+    /// are kept regardless.
     #[arg(long, default_value_t = 30)]
     event_retention_days: u64,
-    /// Days below which no workload's offloaded console segments are deleted, whatever it
-    /// declares; every tenant is shown it with the stream (§8 of docs/17-security.md). Zero is
-    /// none.
+    /// Days below which no workload's offloaded console segments are deleted, whatever it declares;
+    /// every tenant is shown it with the stream. Zero is none.
     #[arg(long, default_value_t = 0)]
     stream_retention_floor_days: u64,
-    /// The metering interval every node samples at, `<n>m` or `1h`: a whole number of minutes
-    /// that divides an hour (§2 of docs/15-observability.md).
+    /// The metering interval every node samples at, `<n>m` or `1h`: a whole number of minutes that
+    /// divides an hour.
     #[arg(long, default_value = "1h", value_parser = korpis_server::metering_interval)]
     metering_interval: Duration,
-    /// How long after a day ends a late sample may still revise it, in whole hours, before the
-    /// day closes and a later one is an adjustment (§2 of docs/15-observability.md).
+    /// How long after a day ends a late sample may still revise it, in whole hours, before the day
+    /// closes and a later one is an adjustment.
     #[arg(long, default_value = "1d", value_parser = korpis_server::metering_lateness)]
     metering_lateness: Duration,
-    /// Whether this process serves the relay role, carrying console and file sessions; turn it
-    /// off where relays run as their own processes (§3.1 of docs/02-architecture.md).
+    /// Whether this process serves the relay role, carrying console and file sessions; turn it off
+    /// where relays run as their own processes.
     #[arg(long, env = "KORPIS_RELAY_ROLE", default_value_t = true, action = clap::ArgAction::Set)]
     relay_role: bool,
     /// A load balancer whose connections open with a PROXY header (version 1 or 2) naming the
     /// client, as a CIDR; repeatable. Connections from anywhere else are their own client.
     #[arg(long = "proxy-protocol-from", env = "KORPIS_PROXY_PROTOCOL_FROM", value_delimiter = ',')]
     proxy_protocol_from: Vec<ipnet::IpNet>,
-    /// The DNS server, `address:port`, that domains are verified through by their TXT records;
-    /// the system's resolvers when unset. Name a public resolver where the system's would answer
-    /// for an internal view of a zone (§3.2 of docs/07-networking.md).
+    /// The DNS server, `address:port`, that domains are verified through by their TXT records; the
+    /// system's resolvers when unset. Name a public resolver where the system's would answer for an
+    /// internal view of a zone.
     #[arg(long, env = "KORPIS_DNS_RESOLVER")]
     dns_resolver: Option<std::net::SocketAddr>,
-    /// The ACME directory `acme` certificates are ordered from (§3.2 of
-    /// docs/07-networking.md).
+    /// The ACME directory `acme` certificates are ordered from.
     #[arg(long, env = "KORPIS_ACME_DIRECTORY", default_value = korpis_server::acme::LETS_ENCRYPT)]
     acme_directory: String,
     /// A certificate, in PEM, the ACME directory's own is trusted by instead of the system's
@@ -101,7 +98,7 @@ pub struct ServeArgs {
     /// no `acme` certificate is issued, each saying why.
     #[arg(long, env = "KORPIS_ACME_AGREE_TERMS")]
     acme_agree_terms: bool,
-    /// Each subject's bucket, `<per second>/<burst>` (§10 of docs/10-api.md).
+    /// Each subject's bucket, `<per second>/<burst>`.
     #[arg(long, default_value = "20/200", value_parser = Rate::parse)]
     rate_individual: Rate,
     /// Each organization's bucket, shared by every subject holding a grant in it.
@@ -121,27 +118,26 @@ pub struct ServeArgs {
     /// past it, every source's failures are counted together.
     #[arg(long, default_value = "600/600", value_parser = Rate::parse_per_minute)]
     rate_failures_recorded: Rate,
-    /// The address the installation is reached at, such as `https://korpis.example.com`: its
-    /// origin is the panel's and its host the site passkeys are bound to (§9.6 of
-    /// docs/08-identity.md). Without it, no passkey can be registered or used.
+    /// The address the installation is reached at, such as `https://korpis.example.com`: its origin
+    /// is the panel's and its host the site passkeys are bound to. Without it, no passkey can be
+    /// registered or used.
     #[arg(long, env = "KORPIS_PUBLIC_URL")]
     public_url: Option<String>,
     /// The site passkeys are bound to, when it is a registrable suffix of the public URL's host
     /// rather than the host itself, so a panel at a sibling name can share it.
     #[arg(long, env = "KORPIS_RP_ID")]
     rp_id: Option<String>,
-    /// Another origin a panel is served from, on the same site (§1 of docs/11-surface-web.md).
+    /// Another origin a panel is served from, on the same site.
     #[arg(long = "web-origin", env = "KORPIS_WEB_ORIGIN", value_delimiter = ',')]
     web_origin: Vec<String>,
-    /// How long a user session lasts without being used, as `<n>m`, `<n>h`, or `<n>d` (§9.4 of
-    /// docs/08-identity.md).
+    /// How long a user session lasts without being used, as `<n>m`, `<n>h`, or `<n>d`.
     #[arg(long, default_value = "12h", value_parser = korpis_server::span)]
     session_idle: Duration,
     /// How long a user session lasts in all, as `--session-idle` is written.
     #[arg(long, default_value = "7d", value_parser = korpis_server::span)]
     session_max: Duration,
-    /// The panel's built bundle, served on this address beside the API (§1 of
-    /// docs/11-surface-web.md); without it, the address serves the API alone.
+    /// The panel's built bundle, served on this address beside the API; without it, the address
+    /// serves the API alone.
     #[arg(long, env = "KORPIS_WEB_ROOT")]
     web_root: Option<PathBuf>,
     #[command(flatten)]

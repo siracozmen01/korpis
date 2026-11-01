@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A dependency across nodes (§9.1 of docs/07-networking.md, trace 74 of
-//! docs/23-walkthroughs.md): a dependent whose target's node it cannot share is placed on a node
+//! A dependency across nodes: a dependent whose target's node it cannot share is placed on a node
 //! that reaches the target's through the mesh, is told the address the target's node gave it and
 //! whether it is ready, and the target's node is told to admit the dependent's address to the
 //! endpoint it depends on.

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The portals this replica serves (§3.6 of docs/07-networking.md). It holds each portal whose
-//! certificate can be served now, with a TLS configuration of its own, and reads them again
-//! whenever the database announces a change to a portal or its certificate, and every minute
-//! besides. The listener chooses a connection's configuration by the name the client sent in
-//! SNI; a connection offering only `acme-tls/1` for a portal's name is answered with a
-//! certificate made for the order's TLS-ALPN-01 challenge, read from the database for that
-//! handshake, so whichever replica the directory reaches answers it.
+//! The portals this replica serves. It holds each portal whose certificate can be served now, with
+//! a TLS configuration of its own, and reads them again whenever the database announces a change to
+//! a portal or its certificate, and every minute besides. The listener chooses a connection's
+//! configuration by the name the client sent in SNI; a connection offering only `acme-tls/1` for a
+//! portal's name is answered with a certificate made for the order's TLS-ALPN-01 challenge, read
+//! from the database for that handshake, so whichever replica the directory reaches answers it.
 
 use crate::api::Api;
 use korpis_app::ports::{Store as _, Wakeups};
@@ -130,8 +129,7 @@ impl Portals {
         }
     }
 
-    /// The origins of every portal served, and every change after: what a relay is told
-    /// (§3.6 of docs/07-networking.md).
+    /// The origins of every portal served, and every change after: what a relay is told.
     #[must_use]
     pub fn origins(&self) -> watch::Receiver<Arc<[String]>> {
         self.origins.subscribe()

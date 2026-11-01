@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! HTTP/3 (§3.2 of docs/07-networking.md): a terminated route is served over QUIC on UDP 443,
-//! with the certificate its name chooses, each request routed among the route's names and
-//! forwarded over HTTP/1.1 as one over TCP is; a response over TCP advertises it; and a route
-//! asking for client certificates is neither served over QUIC nor advertised there, its clients
-//! keeping to TCP, where it asks for them.
+//! HTTP/3: a terminated route is served over QUIC on UDP 443, with the certificate its name
+//! chooses, each request routed among the route's names and forwarded over HTTP/1.1 as one over TCP
+//! is; a response over TCP advertises it; and a route asking for client certificates is neither
+//! served over QUIC nor advertised there, its clients keeping to TCP, where it asks for them.
 
 use crate::support::{Pki, Proxy, connect, get, quic_client, route, workload};
 use bytes::Buf as _;

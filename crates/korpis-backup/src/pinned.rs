@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Trusting one certificate and no other: a store its provider serves itself presents a
-//! certificate the provider made, which the access carries (§5.6 of docs/06-storage.md). The
-//! store is reached at a published address its certificate cannot name, so the certificate is
-//! matched whole rather than by name or authority; the handshake's signatures are still checked,
-//! so only the holder of its key can present it.
+//! Trusting one certificate and no other: a store its provider serves itself presents a certificate
+//! the provider made, which the access carries. The store is reached at a published address its
+//! certificate cannot name, so the certificate is matched whole rather than by name or authority;
+//! the handshake's signatures are still checked, so only the holder of its key can present it.
 
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::crypto::{CryptoProvider, verify_tls12_signature, verify_tls13_signature};

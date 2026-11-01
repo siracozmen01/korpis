@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Provided certificates (§3.2 of docs/07-networking.md): uploaded chain and key, the key shown
-//! to be the leaf's and never answered; named by an endpoint only if they are its organization's,
-//! valid, and cover every name it routes; replaced in place only by a chain still covering what
-//! is served with them; and deleted only once no endpoint serves with them. A node is given one,
-//! key and all, only if an endpoint served with it is placed there, and its assignment names the
-//! certificate's revision, so a replacement reaches it.
+//! Provided certificates: uploaded chain and key, the key shown to be the leaf's and never
+//! answered; named by an endpoint only if they are its organization's, valid, and cover every name
+//! it routes; replaced in place only by a chain still covering what is served with them; and
+//! deleted only once no endpoint serves with them. A node is given one, key and all, only if an
+//! endpoint served with it is placed there, and its assignment names the certificate's revision, so
+//! a replacement reaches it.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::domains::child;

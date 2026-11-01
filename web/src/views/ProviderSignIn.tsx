@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Signing in through an identity provider (§9.7 of docs/08-identity.md, §1 of
-// docs/11-surface-web.md): a button on the sign-in page for each provider of the installation's
-// root organization that signs people in, and the page a provider's sign-in link opens,
-// `/sign-in/<organization>/<name>`, which offers that one. Either keeps the verifier in the tab
-// and sends the browser to the provider.
+// Signing in through an identity provider: a button on the sign-in page for each provider of the
+// installation's root organization that signs people in, and the page a provider's sign-in link
+// opens, `/sign-in/<organization>/<name>`, which offers that one. Either keeps the verifier in the
+// tab and sends the browser to the provider.
 
 import type { Client } from "@connectrpc/connect";
 import { useCallback, useState } from "react";

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Agent sessions (§4.2 and §7 of docs/02-architecture.md). A session opens with a Hello the
-//! node signs with the key it enrolled; the control plane checks the signature, the timestamp
-//! against a declared skew window, and the nonce against those it has seen inside the window,
-//! then records what the agent reports and that the node is connected. A node is heard through
-//! its heartbeats, and one that misses three is unreachable.
+//! Agent sessions. A session opens with a Hello the node signs with the key it enrolled; the
+//! control plane checks the signature, the timestamp against a declared skew window, and the nonce
+//! against those it has seen inside the window, then records what the agent reports and that the
+//! node is connected. A node is heard through its heartbeats, and one that misses three is
+//! unreachable.
 
 use crate::App;
 use crate::error::AppError;
@@ -18,8 +18,7 @@ use korpis_core::principal::{Principal, SystemActor};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-/// The agent protocols this control plane speaks, newest first (§7 of
-/// docs/02-architecture.md).
+/// The agent protocols this control plane speaks, newest first.
 pub const AGENT_PROTOCOLS: &[&str] = &["korpis.agent.v1"];
 
 /// The form a proof signs: [`hello_message`] or
@@ -36,12 +35,12 @@ pub struct SessionTerms {
     pub heartbeat_interval: Duration,
     /// How far a Hello's timestamp may be from the control plane's clock, either way.
     pub auth_skew: Duration,
-    /// How long a lease lasts from the holder's request (§4.5 of docs/02-architecture.md).
+    /// How long a lease lasts from the holder's request.
     pub lease_term: Duration,
     /// The declared bound on clock-rate error, in parts per million: the holder treats its
     /// lease as ending `term × ρ` early.
     pub rho_ppm: u32,
-    /// The metering interval every node samples at (§2 of docs/15-observability.md).
+    /// The metering interval every node samples at.
     pub metering_interval: Duration,
 }
 
@@ -138,21 +137,20 @@ fn version(protocol: &str) -> Option<u32> {
     protocol.strip_prefix("korpis.agent.v")?.parse().ok()
 }
 
-/// What a refusal of `theirs` tells the operator: which side to upgrade (§4 of
-/// docs/18-operations.md). The window covers every protocol a supported release ships (§4 of
-/// docs/10-api.md), so an agent newer than it means the control plane was not upgraded first, and
-/// one older than it is an agent from a release no longer supported.
+/// What a refusal of `theirs` tells the operator: which side to upgrade. The window covers every
+/// protocol a supported release ships, so an agent newer than it means the control plane was not
+/// upgraded first, and one older than it is an agent from a release no longer supported.
 fn unsupported(theirs: &str) -> String {
     let ours = AGENT_PROTOCOLS.join(", ");
     let window: Vec<u32> = AGENT_PROTOCOLS.iter().filter_map(|p| version(p)).collect();
     match (version(theirs), window.iter().min(), window.iter().max()) {
         (Some(v), _, Some(&newest)) if v > newest => format!(
             "this agent speaks {theirs}, newer than this control plane, which speaks {ours}: \
-             upgrade the control plane first, then the agents (§4 of docs/18-operations.md)"
+             upgrade the control plane first, then the agents"
         ),
         (Some(v), Some(&oldest), _) if v < oldest => format!(
             "this agent speaks {theirs}, which this control plane no longer speaks ({ours}): \
-             upgrade the agent to a supported release (§4 of docs/10-api.md)"
+             upgrade the agent to a supported release"
         ),
         _ => format!(
             "this agent speaks {theirs}, which is not a protocol of this control plane: \
@@ -161,8 +159,8 @@ fn unsupported(theirs: &str) -> String {
     }
 }
 
-/// The store of the block class `class` of `organization`'s nodes (§2.1 of
-/// docs/06-storage.md): one storage, which its provider of that name serves.
+/// The store of the block class `class` of `organization`'s nodes: one storage, which its provider
+/// of that name serves.
 pub(crate) fn block_store(organization: Uuid, class: &str) -> String {
     format!("block/{organization}/{class}")
 }
@@ -202,11 +200,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Binds each shared store `facts` declares to `node`'s organization where no organization
     /// holds it, and strikes from its class a store another organization holds, so that a node's
-    /// word about its mount never reaches another organization's volumes (§2.1 of
-    /// docs/06-storage.md, Findings 201 and 203 of docs/23-walkthroughs.md); each strike, and
-    /// each store bound away from the organization that held it, is an effect. A block class's
-    /// store is not the node's to say: it is the organization's storage of that class's name,
-    /// which every node of the organization offering the class reaches through its provider.
+    /// word about its mount never reaches another organization's volumes; each strike, and each
+    /// store bound away from the organization that held it, is an effect. A block class's store is
+    /// not the node's to say: it is the organization's storage of that class's name, which every
+    /// node of the organization offering the class reaches through its provider.
     async fn bind_stores(
         &self,
         tx: &mut S::Tx,
@@ -298,8 +295,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(n)
     }
 
-    /// At start: nothing is known of a node until it is heard again (§3.4 of
-    /// docs/01-model.md), so a node recorded as connected is unknown; how many.
+    /// At start: nothing is known of a node until it is heard again, so a node recorded as
+    /// connected is unknown; how many.
     pub async fn forget_connections(&self) -> Result<u64, AppError> {
         let mut tx = self.store.begin().await?;
         let n = tx.forget_connections().await?;

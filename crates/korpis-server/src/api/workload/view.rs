@@ -18,8 +18,8 @@ use korpis_wire::node::{holds_to_pb, resources_to_pb};
 use korpis_wire::observation::observation_to_pb;
 use std::sync::Arc;
 
-/// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md), its
-/// placement as the caller may see it. The observation is empty until a node reports one.
+/// Everything a client needs to render one workload, its placement as the caller may see it. The
+/// observation is empty until a node reports one.
 pub(super) fn status(v: &WorkloadView) -> pb::WorkloadStatus {
     pb::WorkloadStatus {
         endpoints: endpoints(v),

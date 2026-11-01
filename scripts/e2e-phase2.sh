@@ -1,23 +1,21 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# The Phase 2 done-when (§4 of docs/20-roadmap.md), end to end, the way an operator, its
-# resellers, and a customer's staff run it, every step through the `korpis` CLI or, for a person
-# signing in, through the calls the panel makes. A control plane is installed into a fresh
-# database and this machine enrolled as its node. The operator makes Northwind, a reseller, gives
-# it a quota set, and issues it a credential of its own; Northwind, acting with that credential
-# and never root's, makes Kestrel beneath it and gives it a smaller set and a credential; Kestrel
-# makes Pinecone, its customer, and gives it a set and its administrator's credential. Quota
-# inherits: Pinecone's server is placed within all three sets and runs; its next, which fits
-# Pinecone's set, is refused by Northwind's, and Pinecone is told no more than that a set it may
-# not read refused it, while Northwind, planning the same declaration, is told its own set and
-# numbers; and Northwind's own servers cannot take what it guaranteed Kestrel (trace 52 of
-# docs/23-walkthroughs.md). Each credential reaches only beneath the organization it was issued
-# at. Then an external role grants a person authority over one project with no account made
-# anywhere (trace 44): Pinecone installs korpis-idp-oidc against an independent OpenID Connect
-# issuer, binds its `ops` group to an Operator template granted on one project, and Dana, whom
-# the issuer signs in, restarts a server there and reads nothing else; removed from `ops` at the
-# issuer, she loses that authority within the binding's interval. Then it deletes all of it, and
-# checks the node removed what it made.
+# The Phase 2 done-when, end to end, the way an operator, its resellers, and a customer's staff run
+# it, every step through the `korpis` CLI or, for a person signing in, through the calls the panel
+# makes. A control plane is installed into a fresh database and this machine enrolled as its node.
+# The operator makes Northwind, a reseller, gives it a quota set, and issues it a credential of its
+# own; Northwind, acting with that credential and never root's, makes Kestrel beneath it and gives
+# it a smaller set and a credential; Kestrel makes Pinecone, its customer, and gives it a set and
+# its administrator's credential. Quota inherits: Pinecone's server is placed within all three sets
+# and runs; its next, which fits Pinecone's set, is refused by Northwind's, and Pinecone is told no
+# more than that a set it may not read refused it, while Northwind, planning the same declaration,
+# is told its own set and numbers; and Northwind's own servers cannot take what it guaranteed
+# Kestrel. Each credential reaches only beneath the organization it was issued at. Then an external
+# role grants a person authority over one project with no account made anywhere: Pinecone installs
+# korpis-idp-oidc against an independent OpenID Connect issuer, binds its `ops` group to an Operator
+# template granted on one project, and Dana, whom the issuer signs in, restarts a server there and
+# reads nothing else; removed from `ops` at the issuer, she loses that authority within the
+# binding's interval. Then it deletes all of it, and checks the node removed what it made.
 #
 # Needs root, containerd, docker (for scripts/dev-pg.sh and scripts/dev-registry.sh), psql, jq,
 # curl, openssl, unshare, oras from scripts/tools.sh, and Node.js with conformance/oidc's packages
@@ -267,10 +265,10 @@ as "$PINECONE_ADMIN" --json extension install "$EXTENSION" --version "$DIGEST" -
 INSTALLATION=$(jq -r .extension.id "$WORK/corp/installed.json")
 CORP=$(jq -r .extension.workload "$WORK/corp/installed.json")
 WORKLOADS+=("$CORP")
-# Its workload holds its place on the node, and the provider's own program is run here, through
-# the identity socket and the relay the node serves that workload, mounted where the workload's
-# own mount puts them: the node's egress rules deny a workload every address of its own host
-# (§7 of docs/07-networking.md), and the issuer is on this one.
+# Its workload holds its place on the node, and the provider's own program is run here, through the
+# identity socket and the relay the node serves that workload, mounted where the workload's own
+# mount puts them: the node's egress rules deny a workload every address of its own host, and the
+# issuer is on this one.
 SOCKETS="$NODE/agent/identity/$CORP"
 # Where it keeps the refresh tokens it re-verifies people with: its own volume, in a workload.
 install -d -m 0700 "$WORK/corp/state"

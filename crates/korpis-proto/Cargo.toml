@@ -10,9 +10,9 @@ publish.workspace = true
 
 [features]
 default = []
-# The generated Connect service traits and their registration: what a program that serves or
-# calls a service needs. Without it the crate is the messages alone, and links no RPC stack, which
-# is what the privileged helper takes (§4 of docs/21-stack.md).
+# The generated Connect service traits and their registration: what a program that serves or calls a
+# service needs. Without it the crate is the messages alone, and links no RPC stack, which is what
+# the privileged helper takes.
 services = ["dep:connectrpc"]
 # Generated clients for every service.
 client = ["services", "connectrpc/client"]

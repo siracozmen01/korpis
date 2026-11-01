@@ -40,10 +40,10 @@ impl HelperError {
 /// A result from the helper.
 pub type HelperResult<T> = Result<T, HelperError>;
 
-/// That `id` is an identifier the helper may turn into one path component: 1 to 128 bytes of
-/// ASCII letters, digits, `_`, `-`, and `.`, starting with a letter or digit, so it can never be
-/// `.`, `..`, or contain a separator. Every path the helper touches is built from one of these
-/// (§6 of docs/02-architecture.md); nothing else a request carries ever reaches a path.
+/// That `id` is an identifier the helper may turn into one path component: 1 to 128 bytes of ASCII
+/// letters, digits, `_`, `-`, and `.`, starting with a letter or digit, so it can never be `.`,
+/// `..`, or contain a separator. Every path the helper touches is built from one of these; nothing
+/// else a request carries ever reaches a path.
 pub fn identifier(what: &str, id: &str) -> HelperResult<()> {
     let allowed = |b: u8| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.');
     let ok = (1..=128).contains(&id.len())

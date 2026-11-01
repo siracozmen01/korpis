@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where SFTP is served (§3.1 of docs/02-architecture.md, §3 of docs/18-operations.md). A relay
-//! reports, in the feed request its identity key signs, the address clients reach its SFTP at
-//! and the host key it serves, or nothing where it serves none; the control plane records what
-//! changed, as an effect, since a host key replaced is what a client is warned of, and lists the
-//! endpoints of every relay admitted, which `ServerInfo` names to clients.
+//! Where SFTP is served. A relay reports, in the feed request its identity key signs, the address
+//! clients reach its SFTP at and the host key it serves, or nothing where it serves none; the
+//! control plane records what changed, as an effect, since a host key replaced is what a client is
+//! warned of, and lists the endpoints of every relay admitted, which `ServerInfo` names to clients.
 
 use crate::App;
 use crate::error::AppError;

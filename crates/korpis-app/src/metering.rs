@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Keeping metering honest between samples (§2 of docs/15-observability.md): an interval of a
-//! workload a node holds that no record covers two intervals after it ended is written as a gap,
-//! one record an interval, which a measurement arriving later supersedes; and a UTC day closes
-//! once its lateness window passes, after which a record of it is an adjustment.
+//! Keeping metering honest between samples: an interval of a workload a node holds that no record
+//! covers two intervals after it ended is written as a gap, one record an interval, which a
+//! measurement arriving later supersedes; and a UTC day closes once its lateness window passes,
+//! after which a record of it is an adjustment.
 
 use crate::App;
 use crate::error::AppError;

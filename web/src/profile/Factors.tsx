@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The account's factors (§9.3 and §9.6 of docs/08-identity.md): passkeys added and removed, a
-// password set or removed, an authenticator app enrolled or removed, and recovery codes renewed,
-// each change needing a recent sign-in (guard.tsx). The control plane refuses any change that
-// would leave nothing able to sign in, or a password with nothing beside it
-// (`account.last_factor`), and the screen says its refusal as it gave it.
+// The account's factors: passkeys added and removed, a password set or removed, an authenticator
+// app enrolled or removed, and recovery codes renewed, each change needing a recent sign-in
+// (guard.tsx). The control plane refuses any change that would leave nothing able to sign in, or a
+// password with nothing beside it (`account.last_factor`), and the screen says its refusal as it
+// gave it.
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useState } from "react";

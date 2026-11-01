@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Share links (§6.1 of docs/08-identity.md): the bearer form of a link-form grant, carried in a
-//! URL's fragment. A link is a Biscuit signed by the token key, so it dies with the key's epoch,
-//! as every token does when a restored control plane rotates it (§6), and a link the restored
-//! database no longer accounts for stops working with the rest.
+//! Share links: the bearer form of a link-form grant, carried in a URL's fragment. A link is a
+//! Biscuit signed by the token key, so it dies with the key's epoch, as every token does when a
+//! restored control plane rotates it, and a link the restored database no longer accounts for stops
+//! working with the rest.
 //!
-//! It is accepted by the gateway alone, online, where the grant it names is evaluated as it
-//! stands: expiry, revocation, and the use it spends. A relay and an agent verify tokens offline
-//! against a revocation list whose horizon is a session token's lifetime (§6.3), so a link they
-//! accepted would outlive its own revocation by its whole lifetime. They cannot accept one: a
-//! link states no right and no scope, so the session check of [`super::token::verify`], which
-//! allows only a right the token states on a scope it states, refuses it for every action. Every
-//! use of a link begins at the gateway anyway: an action is an API call, and a session needs
-//! the route only the gateway seals.
+//! It is accepted by the gateway alone, online, where the grant it names is evaluated as it stands:
+//! expiry, revocation, and the use it spends. A relay and an agent verify tokens offline against a
+//! revocation list whose horizon is a session token's lifetime, so a link they accepted would
+//! outlive its own revocation by its whole lifetime. They cannot accept one: a link states no right
+//! and no scope, so the session check of [`super::token::verify`], which allows only a right the
+//! token states on a scope it states, refuses it for every action. Every use of a link begins at
+//! the gateway anyway: an action is an API call, and a session needs the route only the gateway
+//! seals.
 
 use super::token::{KeyRing, SigningKey, TokenError};
 use biscuit_auth::builder::{Term, date, string};

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Workload identity on the node (§9.5 of docs/08-identity.md, §6 of
-//! docs/02-architecture.md): each workload gets a socket of its own, and a request on it goes up
-//! the control stream naming the workload the socket was made for. The control plane decides;
+//! Workload identity on the node: each workload gets a socket of its own, and a request on it goes
+//! up the control stream naming the workload the socket was made for. The control plane decides;
 //! the agent passes the answer back and keeps nothing.
 
 mod relay;
@@ -28,8 +27,8 @@ pub enum NoCredential {
     /// The control plane refused, with its reason.
     #[error("refused: {0}")]
     Refused(String),
-    /// The control plane did not answer in time, or the stream is down; the node keeps running
-    /// its workloads meanwhile (§4.6 of docs/02-architecture.md), and the workload asks again.
+    /// The control plane did not answer in time, or the stream is down; the node keeps running its
+    /// workloads meanwhile, and the workload asks again.
     #[error("the control plane did not answer; ask again")]
     Unavailable,
 }

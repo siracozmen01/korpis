@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading workloads (§4.3 of docs/02-architecture.md): states the control plane can state
-//! without a node, and nothing it cannot.
+//! Reading workloads: states the control plane can state without a node, and nothing it cannot.
 
 use crate::lifecycle::{approve, workload};
 use crate::recipes::{body, change, text};

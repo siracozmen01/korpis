@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What a declaration may ask of the network, and of its resources, that a node of this release
-//! enforces (Rule K-3). A field nothing would enforce is refused when it is declared, naming the
-//! phase that builds it or why it is not one a packet filter can hold, rather than accepted,
-//! stored, and shown as if it held (§6 and §7 of docs/07-networking.md, §4 of
-//! docs/20-roadmap.md). Dedicated cores, refused here until a driver held them, are declared now:
-//! a node whose drivers do not declare them held is never chosen for them (§5.2 of
-//! docs/05-scheduling.md).
+//! enforces. A field nothing would enforce is refused when it is declared, naming the phase that
+//! builds it or why it is not one a packet filter can hold, rather than accepted, stored, and shown
+//! as if it held. Dedicated cores, refused here until a driver held them, are declared now: a node
+//! whose drivers do not declare them held is never chosen for them.
 
 use crate::error::AppError;
 use korpis_core::workload::IntentBody;
@@ -28,7 +26,7 @@ pub(super) fn refuse_unenforced(body: &IntentBody) -> Result<(), AppError> {
                 format!("{at}.action"),
                 "an egress allow returns a connection to the default, which denies every other \
                  workload, so one naming workloads could open nothing: a dependency is what \
-                 opens one workload to another (§5 and §6 of docs/07-networking.md)",
+                 opens one workload to another",
             ));
         }
     }
@@ -46,7 +44,7 @@ fn limits(limits: ConntrackLimits) -> Result<(), AppError> {
                 "a workload's limits may lower the default of {DEFAULT_MAX_CONNECTIONS} \
                  connections and {DEFAULT_NEW_PER_SEC} new a second, and not raise it: that \
                  protects every other workload on the node, and only an operator-level policy \
-                 could relax it (question 7 of §11 of docs/07-networking.md)"
+                 could relax it"
             ),
         ));
     }
@@ -60,7 +58,7 @@ fn half_open(at: &str, limits: ConntrackLimits) -> Result<(), AppError> {
     Err(AppError::invalid(
         format!("{at}.max_half_open"),
         "half-open connections have no counter of their own: the new-connection rate and SYN \
-         cookies bound them (§6 of docs/07-networking.md)",
+         cookies bound them",
     ))
 }
 
@@ -81,14 +79,13 @@ fn endpoint(at: &str, e: &EndpointSpec) -> Result<(), AppError> {
 
 fn peer(at: &str, r: &NetworkRule) -> Result<(), AppError> {
     match &r.peer {
-        // Resolved by the control plane to the addresses of the workloads a selector matches
-        // (§6 of docs/07-networking.md); an egress allow naming them is refused above.
+        // Resolved by the control plane to the addresses of the workloads a selector matches; an
+        // egress allow naming them is refused above.
         Peer::Cidr(_) | Peer::Workloads(_) => Ok(()),
         Peer::Domain(_) => Err(AppError::invalid(
             format!("{at}.peer"),
             "a packet filter sees addresses, not names, and what a name resolves to changes \
-             under it, so a rule naming a domain is not yet one a node can hold (question 8 of \
-             §11 of docs/07-networking.md)",
+             under it, so a rule naming a domain is not yet one a node can hold",
         )),
     }
 }

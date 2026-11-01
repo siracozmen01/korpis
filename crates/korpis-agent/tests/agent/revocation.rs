@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The revocation list on the node (§6.3 of docs/08-identity.md): sent when the session opens,
-//! sent again when a grant is revoked, believed once its signature verifies against the token
-//! keys enrollment returned, and kept, so a restarted agent refuses the same chains before it
-//! reaches the control plane again.
+//! The revocation list on the node: sent when the session opens, sent again when a grant is
+//! revoked, believed once its signature verifies against the token keys enrollment returned, and
+//! kept, so a restarted agent refuses the same chains before it reaches the control plane again.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};

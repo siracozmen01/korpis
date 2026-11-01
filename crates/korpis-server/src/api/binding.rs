@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `IdentityService` (§5 of docs/08-identity.md): identity bindings.
+//! `IdentityService`: identity bindings.
 
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, respond};

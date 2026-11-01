@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `CertificateService` (§3.2 of docs/07-networking.md). A key arrives in an upload and is
-//! answered never.
+//! `CertificateService`. A key arrives in an upload and is answered never.
 
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, respond};

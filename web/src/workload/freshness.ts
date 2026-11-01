@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The three states of an observed value (§2 of docs/11-surface-web.md). Known: the control plane
-// holds a current observation and the panel is hearing it live. Stale: the panel has stopped
-// hearing, so what it shows is as old as the last thing it heard, and it says how old. Unknown:
-// nothing was ever observed, or the control plane says the observation is not current (its node
-// is not heard, §4.3 of docs/02-architecture.md); the last one is shown with its time, never as
-// now.
+// The three states of an observed value. Known: the control plane holds a current observation and
+// the panel is hearing it live. Stale: the panel has stopped hearing, so what it shows is as old as
+// the last thing it heard, and it says how old. Unknown: nothing was ever observed, or the control
+// plane says the observation is not current (its node is not heard); the last one is shown with its
+// time, never as now.
 
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { Convergence, type WorkloadStatus } from "../gen/korpis/v1/api_pb";

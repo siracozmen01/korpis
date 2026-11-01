@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Searching a stream within its retention window (§8 of docs/14-streams.md): a substring, or a
-//! regular expression, matched against each text or structured record's body. It is a property
-//! of the segment files rather than a search product: no index, a scan of what the node holds.
+//! Searching a stream within its retention window: a substring, or a regular expression, matched
+//! against each text or structured record's body. It is a property of the segment files rather than
+//! a search product: no index, a scan of what the node holds.
 //!
 //! A pattern comes from whoever holds `workload.console.read`, and the node runs it, so it is
 //! bounded. Regular expressions are matched by an engine with no backtracking, in time linear in

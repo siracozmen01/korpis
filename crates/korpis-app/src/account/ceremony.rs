@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `WebAuthn` challenges (§9.6 of docs/08-identity.md): each issued for one ceremony, kept for
-//! five minutes, and taken, in a transaction of its own, by the answer that names it, so a
-//! refused answer spends it as surely as an accepted one.
+//! `WebAuthn` challenges: each issued for one ceremony, kept for five minutes, and taken, in a
+//! transaction of its own, by the answer that names it, so a refused answer spends it as surely as
+//! an accepted one.
 
 use crate::App;
 use crate::error::AppError;

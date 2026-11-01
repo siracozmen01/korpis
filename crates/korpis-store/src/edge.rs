@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Edge groups and the stable addresses and ports of `stable` endpoints (migration 0132, §3.1 of
-//! docs/07-networking.md). A group's members are rows of their own; a stable address and port is
-//! one endpoint's at most, which its key holds, and keeps its row, resting, once released.
+//! Edge groups and the stable addresses and ports of `stable` endpoints (migration 0132). A group's
+//! members are rows of their own; a stable address and port is one endpoint's at most, which its
+//! key holds, and keeps its row, resting, once released.
 
 use crate::address::address;
 use crate::errors::from_sqlx;
@@ -212,7 +212,7 @@ impl EdgeWrite for PgTx {
 
     async fn stable_taken(&mut self, pool: Uuid) -> StoreResult<TakenPorts> {
         // A group's ingress address keeps its ports 80 and 443, over both transports, for the
-        // group's proxies (§3.1 of docs/07-networking.md).
+        // group's proxies.
         let rows = sqlx::query!(
             r#"SELECT host(address) AS "address!", port AS "port!", transport AS "transport!",
                       workload_id AS "workload_id?", released_at AS "released_at?"

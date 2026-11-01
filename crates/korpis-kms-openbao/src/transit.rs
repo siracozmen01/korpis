@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The tenant's Transit engine as a key management service (§5.5 of docs/06-storage.md). A data
-//! key is made by `datakey/plaintext`, which returns it and its wrapping, and opened by `decrypt`,
-//! each with the call's context, so the engine derives a key per context and a wrapping opens for
-//! its own `<repository>/<workload>` alone. A key that is not `derived` would ignore the context,
-//! and a credential taken from the provider would then open every workload's keys, so such a key
-//! is refused. The engine's own policy decides who may call it, and its audit device logs each.
+//! The tenant's Transit engine as a key management service. A data key is made by
+//! `datakey/plaintext`, which returns it and its wrapping, and opened by `decrypt`, each with the
+//! call's context, so the engine derives a key per context and a wrapping opens for its own
+//! `<repository>/<workload>` alone. A key that is not `derived` would ignore the context, and a
+//! credential taken from the provider would then open every workload's keys, so such a key is
+//! refused. The engine's own policy decides who may call it, and its audit device logs each.
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The one request the driver makes of a running Firecracker, over its API socket: Ctrl+Alt+Del,
-//! which is how a stop reaches the guest (§6 of docs/04-runtimes.md). One HTTP/1.1 request on a
-//! connection of its own, read back as far as its status line; Firecracker answers 204.
+//! which is how a stop reaches the guest. One HTTP/1.1 request on a connection of its own, read
+//! back as far as its status line; Firecracker answers 204.
 //!
 //! The socket is in the guest's chroot, which its Firecracker can write: one that a guest had
 //! escaped into could put a link there to any socket on the host, and the driver is root. So the

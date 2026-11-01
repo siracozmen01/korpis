@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An install in a service guest (§4.4 of docs/04-runtimes.md, §4 of docs/09-recipes.md): the
-//! install job the boot drive carries, run as the node's helper runs it beside a container, its
-//! spec the content drive's `spec`, which the driver wrote naming the guest's own paths: the
-//! volumes where this guest mounts them, the content drive where it is mounted, its root and its
-//! output in the guest's `/run`, and the guest's own ids from 0. It makes its own namespaces,
-//! confines itself, runs the actions, and writes its progress and result in its output, which the
-//! agent reads back for the driver. The guest runs nothing else, and stays up once the job has
-//! ended, serving file sessions, until the driver stops it.
+//! An install in a service guest: the install job the boot drive carries, run as the node's helper
+//! runs it beside a container, its spec the content drive's `spec`, which the driver wrote naming
+//! the guest's own paths: the volumes where this guest mounts them, the content drive where it is
+//! mounted, its root and its output in the guest's `/run`, and the guest's own ids from 0. It makes
+//! its own namespaces, confines itself, runs the actions, and writes its progress and result in its
+//! output, which the agent reads back for the driver. The guest runs nothing else, and stays up
+//! once the job has ended, serving file sessions, until the driver stops it.
 
 use korpis_guest::control::Installing;
 use korpis_guest::drive::{INSTALL_CONTENT, INSTALL_OUT, INSTALL_ROOT, INSTALL_SPEC};

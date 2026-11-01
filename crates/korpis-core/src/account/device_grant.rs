@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The CLI's sign-in (§9.4 of docs/08-identity.md): the OAuth device authorization grant of RFC
+//! The CLI's sign-in: the OAuth device authorization grant of RFC
 //! 8628. The CLI asks for a device authorization and is given a device code, which it keeps and
 //! polls with, and a user code, which its user types into the panel of a browser already signed
 //! in; the account approves it there, and the CLI's next poll begins a session of its own.
@@ -42,8 +42,8 @@ pub struct DeviceAuthorization {
     pub decision: Option<Decision>,
 }
 
-/// The answer to a device authorization, by an account or by a person signed in through an
-/// identity provider (§9.7 of docs/08-identity.md).
+/// The answer to a device authorization, by an account or by a person signed in through an identity
+/// provider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Decision {
     /// Who decided, and who holds the session the CLI begins if it approved.

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A relay of its own asking the control plane for its SFTP clients' file tokens (§9.9 of
-//! docs/08-identity.md): `AuthorizeFiles`, signed by the relay's identity key over all it asks,
-//! trusting the control plane by the authority the relay pinned when it joined.
+//! A relay of its own asking the control plane for its SFTP clients' file tokens: `AuthorizeFiles`,
+//! signed by the relay's identity key over all it asks, trusting the control plane by the authority
+//! the relay pinned when it joined.
 
 use super::RelayDir;
 use super::feed::{FilesAsked, signed_files_request};

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Reading runs and cancelling one (§4.4 of docs/05-scheduling.md). A run needs no action of its
-//! own (§5 of docs/10-api.md): it is read under `workload.read` on its workload and cancelled
-//! under `workload.stop`, since cancelling one stops what it runs.
+//! Reading runs and cancelling one. A run needs no action of its own: it is read under
+//! `workload.read` on its workload and cancelled under `workload.stop`, since cancelling one stops
+//! what it runs.
 
 use crate::App;
 use crate::caller::Caller;

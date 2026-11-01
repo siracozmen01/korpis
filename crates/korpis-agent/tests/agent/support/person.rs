@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A person holding an SSH key, for SFTP (§9.9 of docs/08-identity.md): invited with a grant, as
-//! an owner invites one, and the key written to the store as the profile registers it, since
-//! registering it through the API needs a sign-in this harness does not make.
+//! A person holding an SSH key, for SFTP: invited with a grant, as an owner invites one, and the
+//! key written to the store as the profile registers it, since registering it through the API needs
+//! a sign-in this harness does not make.
 
 use super::{ControlPlane, mutation};
 use korpis_core::account::ssh_key::SshPublicKey;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's recipe as a client shows it (§5.3 of docs/09-recipes.md): its schema, and its
-//! messages in the first of the caller's languages it speaks, read under `workload.read`.
+//! A workload's recipe as a client shows it: its schema, and its messages in the first of the
+//! caller's languages it speaks, read under `workload.read`.
 
 use crate::recipes::{PAPER, body, create, project, push_paper_with};
 use crate::support::Harness;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The relay role in the control plane's own process (§3.1 of docs/02-architecture.md): it
-//! verifies tokens by the keys the process loaded and the revocation list it publishes, and a
-//! node's `DataHello` against the database, whose nonce memory every replica shares.
+//! The relay role in the control plane's own process: it verifies tokens by the keys the process
+//! loaded and the revocation list it publishes, and a node's `DataHello` against the database,
+//! whose nonce memory every replica shares.
 
 use super::Verifier;
 use crate::api::{ServerApp, error};

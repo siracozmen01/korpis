@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Dedicated cores (§4.1 and §4.2 of docs/04-runtimes.md, §5.2 of docs/05-scheduling.md): a
-//! driver that declares them held runs an object given a core on that core's CPUs alone, seen
-//! from inside as the CPUs it may run on (on a kernel of its own, as many as it holds) and from
-//! outside as its cgroup under the parent's `dedicated` one, with the parent's `shared` cgroup off
-//! them; and it refuses, before it makes anything, a core it may not give.
+//! Dedicated cores: a driver that declares them held runs an object given a core on that core's
+//! CPUs alone, seen from inside as the CPUs it may run on (on a kernel of its own, as many as it
+//! holds) and from outside as its cgroup under the parent's `dedicated` one, with the parent's
+//! `shared` cgroup off them; and it refuses, before it makes anything, a core it may not give.
 
 use super::Stopped;
 use crate::case::Verdict;

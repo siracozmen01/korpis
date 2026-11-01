@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's devices (§2.1 of docs/06-storage.md): one per volume, made by the class's
-//! provider and attached to one node for one lease epoch. What a device is asked for next is
-//! decided here from what it is and what is wanted of it: made, if it is not; attached, if the
-//! node and epoch its workload holds its lease for are not the ones it was attached for, which
-//! the provider does by fencing whichever node held it before; detached, if no lease is held for
-//! the node and epoch it was attached for; and deleted, once its volume is, or once its workload
-//! is and no volume was ever made of it, after it is detached.
+//! A block class's devices: one per volume, made by the class's provider and attached to one node
+//! for one lease epoch. What a device is asked for next is decided here from what it is and what is
+//! wanted of it: made, if it is not; attached, if the node and epoch its workload holds its lease
+//! for are not the ones it was attached for, which the provider does by fencing whichever node held
+//! it before; detached, if no lease is held for the node and epoch it was attached for; and
+//! deleted, once its volume is, or once its workload is and no volume was ever made of it, after it
+//! is detached.
 
 use crate::extension::block::BlockProtocol;
 use std::time::Duration;
@@ -32,7 +32,7 @@ pub struct WantedDevice {
     /// Its size.
     pub size_bytes: u64,
     /// Whether it is a guest's disk, which the host never mounts, as the driver running its
-    /// workload takes volumes; fixed when it is first wanted (§3.1 of docs/06-storage.md).
+    /// workload takes volumes; fixed when it is first wanted.
     pub guest: bool,
 }
 

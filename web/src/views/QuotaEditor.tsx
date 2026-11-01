@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Setting an organization's quota (§5.1 of docs/05-scheduling.md), offered to a signed-in caller
-// whose grants hold `org.quota.write` over an organization above it: a quota is set from above,
-// never by the organization it bounds. Each entry is a shape, the labels of the workloads it
-// counts and of the nodes it counts them on, with a guaranteed and a sold bound per dimension,
-// empty for unbounded; the set carries the overcommit its organization may sell below at. The
-// control plane checks the set against the sets around it and says which bound it breaks.
+// Setting an organization's quota, offered to a signed-in caller whose grants hold
+// `org.quota.write` over an organization above it: a quota is set from above, never by the
+// organization it bounds. Each entry is a shape, the labels of the workloads it counts and of the
+// nodes it counts them on, with a guaranteed and a sold bound per dimension, empty for unbounded;
+// the set carries the overcommit its organization may sell below at. The control plane checks the
+// set against the sets around it and says which bound it breaks.
 
 import { useCallback, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";

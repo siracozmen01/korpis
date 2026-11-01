@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in through an identity provider (§9.7 of docs/08-identity.md). The control plane
-//! begins a sign-in by making a state and a nonce and keeping both, with the provider and the
-//! PKCE challenge, for ten minutes; the person returns with the state, which is spent once, and
-//! the provider asserts the code they bring. The control plane keeps only the state's digest, so
-//! the store's contents begin no one's sign-in.
+//! Signing in through an identity provider. The control plane begins a sign-in by making a state
+//! and a nonce and keeping both, with the provider and the PKCE challenge, for ten minutes; the
+//! person returns with the state, which is spent once, and the provider asserts the code they
+//! bring. The control plane keeps only the state's digest, so the store's contents begin no one's
+//! sign-in.
 
 use super::binding::{IdentityBinding, ProviderRef};
 use super::credential::EntropyError;
@@ -34,8 +34,8 @@ pub struct PendingSignIn {
     /// Where the person is sent back to, the address it began at: the code is redeemed with it,
     /// as the identity provider requires.
     pub redirect_uri: String,
-    /// The portal it began at, whose panel holds the verifier and where it is completed; none
-    /// for the installation's own address (§9.8 of docs/08-identity.md).
+    /// The portal it began at, whose panel holds the verifier and where it is completed; none for
+    /// the installation's own address.
     pub portal: Option<uuid::Uuid>,
     /// When it was begun.
     pub begun_at: SystemTime,
@@ -103,7 +103,7 @@ pub fn verifies(verifier: &str, challenge: &str) -> bool {
 }
 
 /// Of the live bindings of the sets a sign-in named, those it confirms the person in: each whose
-/// required sets it named too (Finding 117 of docs/23-walkthroughs.md).
+/// required sets it named too.
 #[must_use]
 pub fn confirmed_in<'a>(
     named: &[SetName],

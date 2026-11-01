@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Edge groups (§3.1 of docs/07-networking.md, §3.6 of docs/01-model.md): made, changed, and
-//! deleted by whoever may write them in their organization, their members that organization's
-//! own nodes alone, since a member translates every connection to the addresses it holds.
+//! Edge groups: made, changed, and deleted by whoever may write them in their organization, their
+//! members that organization's own nodes alone, since a member translates every connection to the
+//! addresses it holds.
 
 use crate::App;
 use crate::caller::Caller;

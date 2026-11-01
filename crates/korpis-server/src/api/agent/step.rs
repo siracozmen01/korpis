@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A node's request to resolve a provider step of an install it runs, and its answer on the same
-//! stream (§4 of docs/09-recipes.md). Resolving calls the step provider, which may take a while,
-//! so each request is answered from a task of its own and the session goes on meanwhile. The
-//! answer always comes, echoing the request.
+//! stream. Resolving calls the step provider, which may take a while, so each request is answered
+//! from a task of its own and the session goes on meanwhile. The answer always comes, echoing the
+//! request.
 
 use crate::api::ServerApp;
 use crate::api::wire::id;

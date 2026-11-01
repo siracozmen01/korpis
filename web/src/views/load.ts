@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Reading for a screen: what is being read, what was read, or why it could not be. A refusal
-// that means "not yours to see" hides what was asked for, since an object the caller cannot read
-// is not shown as locked (§5 of docs/11-surface-web.md); any other failure is said, because a
-// screen that shows nothing when the control plane is down would be lying (§2).
+// Reading for a screen: what is being read, what was read, or why it could not be. A refusal that
+// means "not yours to see" hides what was asked for, since an object the caller cannot read is not
+// shown as locked; any other failure is said, because a screen that shows nothing when the control
+// plane is down would be lying.
 
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useEffect, useState } from "react";

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The snapshot verbs (§4 of docs/06-storage.md): each on the class that holds its volume.
+//! The snapshot verbs: each on the class that holds its volume.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};

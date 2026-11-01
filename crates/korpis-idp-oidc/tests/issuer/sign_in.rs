@@ -38,7 +38,7 @@ async fn a_person_signs_in_once_and_leaving_a_group_is_found_by_one_refresh() {
     assert_eq!(found(&left), (&[][..], &[][..]), "left the group, and said so");
 
     // Two sets ask about her at once: one refresh answers both, so the issuer never sees her
-    // rotated token twice and never revokes her grant (Finding 119).
+    // rotated token twice and never revokes her grant.
     let both = provider(issuer.settings(Some(state.path())));
     let (ops, oncall) = tokio::join!(
         both.verify(asked(Some(group("ops")))),
@@ -66,9 +66,9 @@ async fn a_code_redeemed_twice_is_refused_and_ends_what_it_gave() {
     oidc.assert(code.clone(), headers(&returned)).await.unwrap();
     let again = oidc.assert(code, headers(&returned)).await.unwrap_err();
     assert_eq!(again.reason, "identity.unverified", "a code is redeemed once");
-    // The issuer takes the second redemption as theft and revokes the first's refresh token
-    // (RFC 6749 §4.1.2), which is why the control plane spends a sign-in's state before it
-    // ever asks for the code (§9.7 of docs/08-identity.md).
+    // The issuer takes the second redemption as theft and revokes the first's refresh token (RFC
+    // 6749 §4.1.2), which is why the control plane spends a sign-in's state before it ever asks for
+    // the code.
     let later = provider(issuer.settings(Some(state.path())));
     assert_eq!(found(&later.verify(asked(None)).await.unwrap()), (&[][..], &[][..]));
 }

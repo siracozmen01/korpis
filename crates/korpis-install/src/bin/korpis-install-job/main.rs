@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-install-job`: one install (§4 of docs/09-recipes.md), started by the node's helper with
-//! its spec on standard input. It runs as two processes, so that the one that reads what a recipe
-//! supplies holds no privilege (§6 of docs/02-architecture.md).
+//! `korpis-install-job`: one install, started by the node's helper with its spec on standard input.
+//! It runs as two processes, so that the one that reads what a recipe supplies holds no privilege.
 //!
 //! The first, root, joins the job's cgroup, makes a pid namespace, and starts the worker in it,
 //! as that namespace's first process: it can name, signal, or trace no process outside it, and
@@ -107,7 +106,7 @@ fn first() -> Result<ExitCode, String> {
 
 /// Starts the worker with `spec`, its length first. The worker is this binary again, reached
 /// through `/proc/self/exe` rather than by its path: in a service guest the path is on the boot
-/// drive, which the root this runs in does not hold (§4.4 of docs/04-runtimes.md).
+/// drive, which the root this runs in does not hold.
 fn spawn(spec: &[u8]) -> Result<Child, String> {
     let mut child = Command::new("/proc/self/exe")
         .arg(WORKER)

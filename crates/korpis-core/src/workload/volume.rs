@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes as the control plane knows them (§3.6 of docs/01-model.md, §7 of docs/06-storage.md):
-//! durable state with a lifecycle of its own. A node creates a volume when a workload needs it
-//! and reports every one it ensures or deletes; the control plane keeps the object from those
-//! reports, so a volume stays listed after the workload it was made for is gone, and a volume
-//! no workload holds is an orphan to be listed, never collected.
+//! Volumes as the control plane knows them: durable state with a lifecycle of its own. A node
+//! creates a volume when a workload needs it and reports every one it ensures or deletes; the
+//! control plane keeps the object from those reports, so a volume stays listed after the workload
+//! it was made for is gone, and a volume no workload holds is an orphan to be listed, never
+//! collected.
 
 use crate::node::StorageClass;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-/// A block-device volume's image, in its volume's directory on the node (§3.1 of
-/// docs/06-storage.md): what the helper makes and the driver gives its guest.
+/// A block-device volume's image, in its volume's directory on the node: what the helper makes and
+/// the driver gives its guest.
 pub const BLOCK_IMAGE: &str = "block.ext4";
 
 /// The extended attribute on a volume's directory that says it holds a block device, and its
@@ -23,7 +23,7 @@ pub const BLOCK_MARK: (&str, &[u8]) = ("trusted.korpis.volume", b"block_device")
 pub enum VolumeKind {
     /// The workload declared it.
     Declared,
-    /// It holds the workload's console stream (§4 of docs/14-streams.md).
+    /// It holds the workload's console stream.
     Stream,
 }
 
@@ -59,8 +59,8 @@ pub struct Volume {
     pub name: String,
     /// Why it exists.
     pub kind: VolumeKind,
-    /// The node whose helper holds it, for a volume on one node's disk; `None` for one in a
-    /// shared class, which every node offering its store reaches (§2.1 of docs/06-storage.md).
+    /// The node whose helper holds it, for a volume on one node's disk; `None` for one in a shared
+    /// class, which every node offering its store reaches.
     pub node: Option<Uuid>,
     /// The storage a shared class's volume is in; `None` for one on a node's disk.
     pub store: Option<String>,
@@ -83,16 +83,15 @@ pub struct Volume {
     pub deleted_at: Option<SystemTime>,
     /// Its live snapshots, oldest first.
     pub snapshots: Vec<Uuid>,
-    /// The nodes keeping a replica of it, by node (§2.2 of docs/06-storage.md).
+    /// The nodes keeping a replica of it, by node.
     pub replicas: Vec<super::replica::Replica>,
-    /// The live copies of it left on nodes it failed over from (§2.2 of docs/06-storage.md).
+    /// The live copies of it left on nodes it failed over from.
     pub divergent: Vec<super::replica::Divergent>,
     /// For such a copy, the volume it diverged from.
     pub divergent_of: Option<Uuid>,
 }
 
-/// Where a volume's data is, which decides the nodes that reach it (§2.1 of
-/// docs/06-storage.md).
+/// Where a volume's data is, which decides the nodes that reach it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Home {
     /// On one node's disk.
@@ -140,7 +139,7 @@ impl Volume {
     }
 
     /// The size a client may be shown: the one the write path enforces, and none where nothing
-    /// does (Rule K-3).
+    /// does.
     #[must_use]
     pub const fn shown_size(&self) -> Option<u64> {
         if self.quota_enforced { Some(self.size_bytes) } else { None }
@@ -177,8 +176,8 @@ pub struct ReportedVolume {
     pub kind: VolumeKind,
 }
 
-/// A snapshot of a volume (§4 of docs/06-storage.md): a point the volume can be rolled back to,
-/// on the volume's node and filesystem, and so no protection against losing either.
+/// A snapshot of a volume: a point the volume can be rolled back to, on the volume's node and
+/// filesystem, and so no protection against losing either.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Snapshot {
     /// Immutable; the helper knows it by its wire form.

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An install into a stopped guest's volume (§4.4 of docs/04-runtimes.md, §4 of
-//! docs/09-recipes.md): the driver boots a service guest with the install's content drive, the
-//! guest runs the install job its boot drive carries, confined as on a host, and the driver keeps
-//! what it wrote; the workload's start is refused while it runs; an install asked to start from a
-//! later action skips the earlier ones; and the workload, started, reads what was written. Needs
-//! what the driver's runtime tests need.
+//! An install into a stopped guest's volume: the driver boots a service guest with the install's
+//! content drive, the guest runs the install job its boot drive carries, confined as on a host, and
+//! the driver keeps what it wrote; the workload's start is refused while it runs; an install asked
+//! to start from a later action skips the earlier ones; and the workload, started, reads what was
+//! written. Needs what the driver's runtime tests need.
 
 #![allow(
     clippy::unwrap_used,

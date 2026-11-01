@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The Minecraft server of §3 of docs/13-surface-cli.md, as an intent body.
+//! The CLI documentation's Minecraft server, as an intent body.
 
 use korpis_core::recipe::{Disruption, DisruptionDecl, RecipeRef};
 use korpis_core::value::{Value, ValueMap};

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backup target calls on the wire (§5.6 of docs/06-storage.md).
+//! Backup target calls on the wire.
 
 use crate::timestamp;
 use korpis_core::extension::{

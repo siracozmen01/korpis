@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Restoring a backup into a volume (§5.4 of docs/06-storage.md): into a new directory of it,
-//! which loses nothing and applies at once, or replacing it, which loses what it holds and waits
-//! for a person. Either is a plan of the workload holding the volume. Putting a workload's backup
-//! back into that workload is `backup.restore` there; putting it into another workload's volume
-//! hands its contents to that workload's holders, so it takes `backup.read` on the backup's
-//! workload and `workload.file.write` on the other. A block device's files are its guest's to
-//! parse, so a path of its backup is restored into a new directory of it by a copy inside a guest
-//! from the backup's image, staged on the node, while the workload is stopped (Finding 158 of
-//! docs/23-walkthroughs.md); all of it, only by replacing the volume or cloning the backup.
+//! Restoring a backup into a volume: into a new directory of it, which loses nothing and applies at
+//! once, or replacing it, which loses what it holds and waits for a person. Either is a plan of the
+//! workload holding the volume. Putting a workload's backup back into that workload is
+//! `backup.restore` there; putting it into another workload's volume hands its contents to that
+//! workload's holders, so it takes `backup.read` on the backup's workload and `workload.file.write`
+//! on the other. A block device's files are its guest's to parse, so a path of its backup is
+//! restored into a new directory of it by a copy inside a guest from the backup's image, staged on
+//! the node, while the workload is stopped; all of it, only by replacing the volume or cloning the
+//! backup.
 
 use crate::App;
 use crate::caller::Caller;
@@ -131,7 +131,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Whether `workload`'s volumes are block devices, as they are on a tier that runs a guest
-    /// kernel (§3.1 of docs/06-storage.md): its approved intent's, or its head's before one is.
+    /// kernel: its approved intent's, or its head's before one is.
     async fn block_devices(&self, workload: Uuid) -> Result<bool, AppError> {
         let Some(w) = self.store.workload(workload).await? else { return Ok(false) };
         let intent = self.store.intent(w.target.unwrap_or(w.intent)).await?;

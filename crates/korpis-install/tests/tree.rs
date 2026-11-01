@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A path of a backup restored into a new directory of a volume (§5.4 of docs/06-storage.md),
-//! between two real directories: a tree is copied under its own name with its files' data and
-//! holes, its links as links and never followed, and its modes, owners, and times; asked again as
-//! the same job it finds its own work; a directory already there is refused; a tree holding a
-//! fifo is refused with nothing left at the target; and the backup's root and a path that climbs
-//! are refused.
+//! A path of a backup restored into a new directory of a volume, between two real directories: a
+//! tree is copied under its own name with its files' data and holes, its links as links and never
+//! followed, and its modes, owners, and times; asked again as the same job it finds its own work; a
+//! directory already there is refused; a tree holding a fifo is refused with nothing left at the
+//! target; and the backup's root and a path that climbs are refused.
 
 #![allow(
     clippy::unwrap_used,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The install DSL (§4 of docs/09-recipes.md). The verb list is closed and none of them runs
-//! code; a step that needs more is a provider step, answered by an extension in its own sandbox.
+//! The install DSL. The verb list is closed and none of them runs code; a step that needs more is a
+//! provider step, answered by an extension in its own sandbox.
 
 use super::template::TemplateFormat;
 use super::{RecipeError, artifact_path, workload_path};
@@ -85,7 +85,7 @@ pub enum InstallStep {
         /// Its mode.
         mode: u32,
     },
-    /// Render a template (§6 of docs/09-recipes.md).
+    /// Render a template.
     Template {
         /// The template, inside the artifact.
         from: String,
@@ -142,7 +142,7 @@ pub enum InstallStep {
 pub const FETCHED: &str = "/.korpis/content/fetched/";
 
 const MAX_MODE: u32 = 0o7777;
-/// The highest id a workload sees (§4.5 of docs/04-runtimes.md).
+/// The highest id a workload sees.
 const MAX_ID: u32 = 65_535;
 
 fn mode(at: &str, m: u32) -> Result<(), RecipeError> {
@@ -214,7 +214,7 @@ impl InstallStep {
                 workload_path(&f("path"), path)
             }
             Self::Chown { path, uid, gid } => {
-                // Workload-relative ids (§4.5 of docs/04-runtimes.md).
+                // Workload-relative ids.
                 if *uid > MAX_ID || *gid > MAX_ID {
                     return Err(RecipeError::new(at, "uid and gid are 0 to 65535"));
                 }

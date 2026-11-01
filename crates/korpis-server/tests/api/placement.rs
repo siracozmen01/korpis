@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placement (§2 of docs/05-scheduling.md): bound when the target is approved, retried while no
-//! node can take it, never moved by an approval, and explained to each viewer as far as their
-//! grants reach (§8 of docs/08-identity.md).
+//! Placement: bound when the target is approved, retried while no node can take it, never moved by
+//! an approval, and explained to each viewer as far as their grants reach.
 
 use crate::lifecycle::{approve, workload};
 use crate::recipes::{body, change};

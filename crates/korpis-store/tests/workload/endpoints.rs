@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Endpoints as placed (migrations 0053, 0056, 0118 and 0119, §3.2 of docs/07-networking.md):
-//! an ingress endpoint reads back with where its certificate comes from and the client
-//! certificates it asks for, and one whose TLS is passed through with whether its workload is
-//! sent a PROXY header; neither may be stored on an endpoint of the other kind.
+//! Endpoints as placed (migrations 0053, 0056, 0118 and 0119): an ingress endpoint reads back with
+//! where its certificate comes from and the client certificates it asks for, and one whose TLS is
+//! passed through with whether its workload is sent a PROXY header; neither may be stored on an
+//! endpoint of the other kind.
 
 use crate::support::{create, fixture, now};
 use korpis_app::ports::{EndpointRead as _, EndpointWrite as _, Store as _, Tx as _};

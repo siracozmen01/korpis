@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a migration's sides report, its phases, and its placement's move (migration 0146, §8.1 of
-//! docs/05-scheduling.md). A volume's progress is kept by its name in the workload's declaration,
-//! which is what a node knows it by; where both sides' manifests are in, the first path where
-//! they differ is kept beside them.
+//! What a migration's sides report, its phases, and its placement's move (migration 0146). A
+//! volume's progress is kept by its name in the workload's declaration, which is what a node knows
+//! it by; where both sides' manifests are in, the first path where they differ is kept beside them.
 
 use super::volumes_of;
 use crate::PgTx;

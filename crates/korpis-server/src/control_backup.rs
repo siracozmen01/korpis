@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's own backup (§6 of docs/18-operations.md): what the table there names that
-//! is not the database, which is every key in the data directory (the grant signing key, the
-//! assignment keyring, the CA nodes pin, the backup, TLS, and factor keys, the ACME account) and
-//! the epoch watermark with its rate cap, written as one file to the target installation declared
-//! outside Korpis, sealed with the key installation printed once. The database is PostgreSQL's
-//! own to back up, by archiving its write-ahead log (§8 of docs/03-state.md); this says whether
-//! it does, and does not pretend a dump would be the same thing. It runs as the control plane's
-//! own user, which owns the data directory and is given the target: what it reads and writes is
-//! no more than that user could already, whatever the data directory says.
+//! The control plane's own backup: what the table there names that is not the database, which is
+//! every key in the data directory (the grant signing key, the assignment keyring, the CA nodes
+//! pin, the backup, TLS, and factor keys, the ACME account) and the epoch watermark with its rate
+//! cap, written as one file to the target installation declared outside Korpis, sealed with the key
+//! installation printed once. The database is PostgreSQL's own to back up, by archiving its
+//! write-ahead log; this says whether it does, and does not pretend a dump would be the same thing.
+//! It runs as the control plane's own user, which owns the data directory and is given the target:
+//! what it reads and writes is no more than that user could already, whatever the data directory
+//! says.
 
 use crate::data::DataDir;
 use crate::vault::{open_bytes, seal_bytes};
@@ -194,7 +194,7 @@ pub fn prune(target: &Path, keep: usize) -> std::io::Result<Vec<PathBuf>> {
 pub fn archived(a: &Archiving) -> Result<String, String> {
     if a.mode == "off" {
         return Err("archive_mode is off, so the database is not backed up: configure WAL \
-                    archiving and a base backup (§8 of docs/03-state.md)"
+                    archiving and a base backup"
             .into());
     }
     if a.last_failed {

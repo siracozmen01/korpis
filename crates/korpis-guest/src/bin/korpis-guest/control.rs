@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control port, which the first process serves the driver over the microVM's vsock device (§6
-//! of docs/04-runtimes.md): a thread that accepts, and one for each connection, at most eight at
-//! once, each answering frames until the host closes it or is silent for half a minute. A ping is
-//! answered with the protocol's version and how long the agent has run; a signal named is sent to
-//! the entry's process group, if it is one the driver declares; a resize sets an interactive
-//! entry's terminal to the size asked; a command is run as the entry runs (`exec`); the relays
-//! beside the workload's identity socket are served as the host says (`relay`); and the workload's
-//! files are written as the host sends them (`files`). A guest whose kernel has no vsock, or whose
-//! device is missing, boots all the same, and says so: its `guest_agent` probe then fails, which
-//! is what such a guest is.
+//! The control port, which the first process serves the driver over the microVM's vsock device: a
+//! thread that accepts, and one for each connection, at most eight at once, each answering frames
+//! until the host closes it or is silent for half a minute. A ping is answered with the protocol's
+//! version and how long the agent has run; a signal named is sent to the entry's process group, if
+//! it is one the driver declares; a resize sets an interactive entry's terminal to the size asked;
+//! a command is run as the entry runs (`exec`); the relays beside the workload's identity socket
+//! are served as the host says (`relay`); and the workload's files are written as the host sends
+//! them (`files`). A guest whose kernel has no vsock, or whose device is missing, boots all the
+//! same, and says so: its `guest_agent` probe then fails, which is what such a guest is.
 
 use korpis_guest::config::Config;
 use korpis_guest::control::{self, Kind, Pong, Resized, Signalled};

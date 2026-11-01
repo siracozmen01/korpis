@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The console streams the node writes, and how far into each one's changes log the agent has
-//! journaled (§4 of docs/14-streams.md). Kept in a small text file replaced atomically, one line
-//! per workload: its name, the byte of its changes log to read from next, and its directory.
-//! A change is journaled before the position past it is kept here, so a crash between the two
-//! journals it again, which the control plane's index takes as the same segment, rather than
-//! losing it.
+//! journaled. Kept in a small text file replaced atomically, one line per workload: its name, the
+//! byte of its changes log to read from next, and its directory. A change is journaled before the
+//! position past it is kept here, so a crash between the two journals it again, which the control
+//! plane's index takes as the same segment, rather than losing it.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tokio::sync::watch;
 
 /// The name a stream is watched, located, and offloaded under: its workload's, and for a run's
-/// console its workload's, `/`, and its run's (§4 of docs/14-streams.md). A wire identifier has
-/// neither `/` nor a space, so a name is one word of the file the streams are kept in.
+/// console its workload's, `/`, and its run's. A wire identifier has neither `/` nor a space, so a
+/// name is one word of the file the streams are kept in.
 #[must_use]
 pub fn stream_name(workload: &str, run: &str) -> String {
     if run.is_empty() { workload.to_owned() } else { format!("{workload}/{run}") }

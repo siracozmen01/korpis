@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The relay role of this process (§3.1 of docs/02-architecture.md): the data connections nodes
-//! attached here, and the sessions between a client opening one and the node carrying it.
+//! The relay role of this process: the data connections nodes attached here, and the sessions
+//! between a client opening one and the node carrying it.
 //!
 //! A client's open is verified, then the node it names is asked to open the session under a
 //! random identifier; the node answers by carrying that identifier on a stream of its own, or by

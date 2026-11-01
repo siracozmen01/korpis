@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the node's configured offer needs of the machine (§2 of docs/18-operations.md): its
-//! driver's runtime, the storage the helper can enforce, I/O shares, and KVM and the tun driver,
-//! which only the virtual-machine tiers need, as its drivers declare them, and nested
-//! virtualization only when the node is itself a virtual machine (finding S67).
+//! What the node's configured offer needs of the machine: its driver's runtime, the storage the
+//! helper can enforce, I/O shares, and KVM and the tun driver, which only the virtual-machine tiers
+//! need, as its drivers declare them, and nested virtualization only when the node is itself a
+//! virtual machine.
 
 use super::{Check, Machine, Offer, Outcome, Probes};
 use korpis_proto::korpis::v1 as pb;
@@ -65,7 +65,7 @@ fn kvm(m: &Machine, p: &Probes) -> Check {
         },
         Ok(false) => Outcome::NotNeeded(
             "no driver this node runs offers the microvm or vm tiers; without KVM it offers \
-             process and container only (§4.1 of docs/04-runtimes.md)"
+             process and container only"
                 .into(),
         ),
         Err(e) => Outcome::Unchecked(e),
@@ -73,8 +73,7 @@ fn kvm(m: &Machine, p: &Probes) -> Check {
     Check { name: "KVM", needed_for: "microvm, vm", found, outcome, essential: false }
 }
 
-/// The tun driver, through which the helper makes a guest's tap (§4.1 of
-/// docs/07-networking.md).
+/// The tun driver, through which the helper makes a guest's tap.
 fn tun(m: &Machine, p: &Probes) -> Check {
     let present = m.dev.join("net/tun").exists();
     let found = if present { "/dev/net/tun present" } else { "no /dev/net/tun" }.to_owned();
@@ -109,7 +108,7 @@ fn io_cost(m: &Machine, p: &Probes) -> Check {
         Outcome::Met
     } else {
         Outcome::Lacking {
-            costs: "I/O ceilings only, no proportional shares (§3 of docs/06-storage.md)".into(),
+            costs: "I/O ceilings only, no proportional shares".into(),
             fix: format!("echo \"{disk} enable=1\" > /sys/fs/cgroup/io.cost.qos, at every boot"),
         }
     };
@@ -180,7 +179,7 @@ fn storage(p: &Probes) -> Check {
     } else {
         Outcome::Lacking {
             costs: format!(
-                "{} enforce no size and take no snapshots, and say so (Rule K-3)",
+                "{} enforce no size and take no snapshots, and say so",
                 unenforced.join(", ")
             ),
             fix: "put the volume root on ext4 or XFS mounted with prjquota (ext4: `tune2fs -O \

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What each side of a migration reports, and what the control plane does next (§8.1 of
-//! docs/05-scheduling.md). A phase is done once every side acting in it has reported it done;
-//! `verify` is done only where every volume sent arrived as it left; a side reporting a phase
-//! failed abandons the migration before `cutover` and rolls it back from then on, since only
-//! then does the destination hold the workload.
+//! What each side of a migration reports, and what the control plane does next. A phase is done
+//! once every side acting in it has reported it done; `verify` is done only where every volume sent
+//! arrived as it left; a side reporting a phase failed abandons the migration before `cutover` and
+//! rolls it back from then on, since only then does the destination hold the workload.
 
 use super::{Migration, MigrationVolume, Phase};
 use uuid::Uuid;

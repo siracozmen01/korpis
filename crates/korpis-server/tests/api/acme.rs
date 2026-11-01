@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The ACME adapter against Pebble (§3.2 of docs/07-networking.md): an account is made only with
-//! the terms agreed and is kept, an order's challenges, HTTP-01 and DNS-01 for each name, are
-//! handed over before the directory is told to look, and what it issues is a chain whose leaf the fresh key it came with matches.
+//! The ACME adapter against Pebble: an account is made only with the terms agreed and is kept, an
+//! order's challenges, HTTP-01 and DNS-01 for each name, are handed over before the directory is
+//! told to look, and what it issues is a chain whose leaf the fresh key it came with matches.
 
 use korpis_app::ports::{Acme, AcmeError, Challenge, Proof, ReadError, TlsVault};
 use korpis_server::acme::{AcmeClient, AcmeConfig};

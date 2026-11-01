@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The PROXY protocol header, version 2 (§2.2 of `proxy-protocol.txt`, the specification
-//! `HAProxy` publishes), which the proxy writes to a `passthrough` workload that declared it,
-//! before the first byte it splices (§3.2 of docs/07-networking.md): the client's address and
-//! port, and the address and port the client reached, over TCP. It carries no TLVs: the proxy has
-//! read nothing of the connection but its SNI, which the workload reads itself.
+//! The PROXY protocol header, version 2 (§2.2 of `proxy-protocol.txt`, the specification `HAProxy`
+//! publishes), which the proxy writes to a `passthrough` workload that declared it, before the
+//! first byte it splices: the client's address and port, and the address and port the client
+//! reached, over TCP. It carries no TLVs: the proxy has read nothing of the connection but its SNI,
+//! which the workload reads itself.
 
 use std::net::{IpAddr, SocketAddr};
 

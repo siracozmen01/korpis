@@ -26,8 +26,8 @@ http = "1"
 # Reading the times a stream range is given in, a time of day in the local zone among them.
 jiff = "0.2"
 korpis-core.workspace = true
-# Inside a workload, its identity socket and the node's relay to the control plane (§9.5 of
-# docs/08-identity.md), spoken as the SDK speaks them.
+# Inside a workload, its identity socket and the node's relay to the control plane, spoken as the
+# SDK speaks them.
 korpis-extension.workspace = true
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-recipe = { workspace = true }
@@ -43,8 +43,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 clap_complete = { version = "4", features = ["unstable-dynamic"] }
-# Where `korpis login` keeps a session (§7 of docs/13-surface-cli.md): the system keyring, by
-# each platform's own store, behind one interface.
+# Where `korpis login` keeps a session: the system keyring, by each platform's own store, behind one
+# interface.
 keyring-core = "1"
 # Naming a control plane's session file by the digest of its URL.
 sha2 = "0.10"

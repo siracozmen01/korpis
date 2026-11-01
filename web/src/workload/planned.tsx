@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A change proposed and then confirmed, interrupting as much as its plan's risk calls for (§4 of
-// docs/11-surface-web.md, tier.ts): applied at once and shown after, previewed in place with one
-// confirmation, or reviewed on a screen of its own with an explicit confirmation. A plan that
-// needs someone else's authority (§3.6 of docs/08-identity.md) is left waiting for them, and the
-// screen says so. Whatever proposes it, a power change or a new configuration, is confirmed by
-// the plan's identifier, so the plan reviewed is the plan that runs.
+// A change proposed and then confirmed, interrupting as much as its plan's risk calls for
+// (tier.ts): applied at once and shown after, previewed in place with one confirmation, or reviewed
+// on a screen of its own with an explicit confirmation. A plan that needs someone else's authority
+// is left waiting for them, and the screen says so. Whatever proposes it, a power change or a new
+// configuration, is confirmed by the plan's identifier, so the plan reviewed is the plan that runs.
 
 import { useState, type ReactNode } from "react";
 import { Button, CheckboxButton, CheckboxField } from "react-aria-components";

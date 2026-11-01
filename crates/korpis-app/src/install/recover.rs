@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Local root recovery (§9.2 of docs/08-identity.md): whoever holds root on the machine running
-//! the control plane already holds everything, so recovering a lost root grant is done there and
-//! says so. It issues a new root grant to a new account and an invitation only registering a
-//! passkey redeems, and records it as the `System` bootstrap actor and the operating-system user
-//! who ran it.
+//! Local root recovery: whoever holds root on the machine running the control plane already holds
+//! everything, so recovering a lost root grant is done there and says so. It issues a new root
+//! grant to a new account and an invitation only registering a passkey redeems, and records it as
+//! the `System` bootstrap actor and the operating-system user who ran it.
 
 use super::{RootInvitation, root_account};
 use crate::App;

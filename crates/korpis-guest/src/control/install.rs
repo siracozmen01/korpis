@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! How an install in a service guest goes (§4.4 of docs/04-runtimes.md), as its agent answers a
-//! [`super::Kind::InstallStatus`]: how many actions have run, whether the install job has ended,
-//! and the result it wrote, an `InstallResult` the install job encodes and the host decodes with
-//! the same memory-safe decoder it reads a host install's with, bounded by the frame.
+//! How an install in a service guest goes, as its agent answers a [`super::Kind::InstallStatus`]:
+//! how many actions have run, whether the install job has ended, and the result it wrote, an
+//! `InstallResult` the install job encodes and the host decodes with the same memory-safe decoder
+//! it reads a host install's with, bounded by the frame.
 
 /// The fixed part of an answer: the progress and the ended flag.
 const FIXED: usize = 5;

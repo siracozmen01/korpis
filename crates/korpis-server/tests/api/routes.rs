@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The names `ingress` endpoints route (§3.2 of docs/07-networking.md): only names the
-//! workload's organization holds, each by one endpoint in the installation, checked at
-//! declaration and claimed when the target moves; freed by a target that drops them (and by
-//! retirement, which `korpis-store`'s tests show); and kept from being taken by a domain's
-//! deletion or delegation while routed.
+//! The names `ingress` endpoints route: only names the workload's organization holds, each by one
+//! endpoint in the installation, checked at declaration and claimed when the target moves; freed by
+//! a target that drops them (and by retirement, which `korpis-store`'s tests show); and kept from
+//! being taken by a domain's deletion or delegation while routed.
 
 use crate::domains::child;
 use crate::recipes::{body, change, create, project, push_paper};

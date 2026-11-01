@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Upgrading an installation in place (§9 question 6 of docs/16-extensions.md): the same
+//! Upgrading an installation in place: the same
 //! installation and subject, the grants its needs still ask for kept, new needs granted from the
 //! upgrader's, dropped needs revoked, and the new digest declared on the same workload.
 

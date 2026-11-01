@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Runs as the store keeps them (§4 of docs/05-scheduling.md): one per occurrence and per power
-//! cycle, changed only while active, and pruned to what the policy keeps.
+//! Runs as the store keeps them: one per occurrence and per power cycle, changed only while active,
+//! and pruned to what the policy keeps.
 
 use crate::support::{create, fixture, now};
 use korpis_app::page::Page;

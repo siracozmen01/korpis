@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity bindings (§5 of docs/08-identity.md): what a binding may say, where its provider may
-//! vouch, and that a chain through an external identity stands only while its binding vouches.
+//! Identity bindings: what a binding may say, where its provider may vouch, and that a chain
+//! through an external identity stands only while its binding vouches.
 
 use crate::support::{Tree, actions, child, root};
 use korpis_core::authz::binding::{
@@ -174,6 +174,6 @@ fn a_lapsed_confirmation_reads_unverified_before_anything_records_it() {
     let within = now + b.terms.reverify_interval + b.terms.grace;
     assert_eq!(b.state_at(within), BindingState::Verified);
     let lapsed = within + Duration::from_secs(1);
-    assert_eq!(b.state_at(lapsed), BindingState::Unverified, "Finding 118: shown as enforced");
+    assert_eq!(b.state_at(lapsed), BindingState::Unverified, "shown as enforced");
     assert_eq!(b.state, BindingState::Verified, "reading records nothing");
 }

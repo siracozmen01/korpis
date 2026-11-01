@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An extension's document and artifact (§3.1 of docs/16-extensions.md): a recipe with one more
-//! block, read by the same parser, and published under types of its own.
+//! An extension's document and artifact: a recipe with one more block, read by the same parser, and
+//! published under types of its own.
 
 use crate::support::{PAPER, address, registry};
 use korpis_app::ports::RecipeSource as _;

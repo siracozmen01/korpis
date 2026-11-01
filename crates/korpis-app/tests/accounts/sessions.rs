@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! User sessions (§9.4 of docs/08-identity.md): a sign-in begins one, its refresh credential is
-//! exchanged for access tokens the gateway accepts and rotated each time, a rotated credential
-//! presented again ends it, and its user lists and ends sessions.
+//! User sessions: a sign-in begins one, its refresh credential is exchanged for access tokens the
+//! gateway accepts and rotated each time, a rotated credential presented again ends it, and its
+//! user lists and ends sessions.
 
 use crate::support::{browser, fixture, fixture_with, invite, redeem};
 use korpis_app::AppError;

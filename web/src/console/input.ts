@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Typing into a console (§6 of docs/14-streams.md): a `workload.console.write` session, a
-// separate action from reading so watching and typing are delegated separately, opened on the
-// first line typed and kept while the screen is open. Each line is one ConsoleInput frame sent
-// with `Send`, numbered, so a retried call never types it twice.
+// Typing into a console: a `workload.console.write` session, a separate action from reading so
+// watching and typing are delegated separately, opened on the first line typed and kept while the
+// screen is open. Each line is one ConsoleInput frame sent with `Send`, numbered, so a retried call
+// never types it twice.
 
 import { create, toBinary } from "@bufbuild/protobuf";
 import { ConsoleInputSchema } from "../gen/korpis/v1/console_pb";

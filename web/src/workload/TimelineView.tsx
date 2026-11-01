@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The convergence timeline as §3 of docs/11-surface-web.md draws it: the declaration with its time
+// The convergence timeline: the declaration with its time
 // and version, then each moment with its lag from the declaration.
 
 import { intl, t } from "../i18n/intl";

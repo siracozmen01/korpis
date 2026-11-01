@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Trace 10 of docs/23-walkthroughs.md through the CLI (§5 and §6 of docs/13-surface-cli.md): a
-//! set is applied, a person changes a member at 03:00, the 09:00 apply fails whole naming the
-//! change, `--accept-drift` applies the rest, and a member removed from the files is proposed for
-//! deletion by `plan` and deleted only by the `apply --plan` that names it.
+//! Drift through the CLI: a set is applied, a person changes a member
+//! at 03:00, the 09:00 apply fails whole naming the change, `--accept-drift` applies the rest, and
+//! a member removed from the files is proposed for deletion by `plan` and deleted only by the
+//! `apply --plan` that names it.
 
 use crate::support::{ControlPlane, push_recipe};
 use std::path::Path;

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Replicated volumes as declared (§2.2 of docs/06-storage.md): a volume asking for replicas is
-//! refused while no node's class can send increments, and once one can it is placed there and
-//! not on a node whose class cannot; its replicas, interval, and the workload's
-//! `replica_failover` are kept as declared. Once its volume is made, the control plane chooses
-//! the nodes keeping its replicas among those whose class sends increments, shows them on the
-//! volume, and drops one whose node is removed.
+//! Replicated volumes as declared: a volume asking for replicas is refused while no node's class
+//! can send increments, and once one can it is placed there and not on a node whose class cannot;
+//! its replicas, interval, and the workload's `replica_failover` are kept as declared. Once its
+//! volume is made, the control plane chooses the nodes keeping its replicas among those whose class
+//! sends increments, shows them on the volume, and drops one whose node is removed.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::failover::{assignment, keep_heard};

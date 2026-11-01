@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a confined session sees of its account, and what deleting a portal ends (§9.8 of
-//! docs/08-identity.md): a session begun at a portal sees the sessions begun there and the
-//! passkeys registered there, and one confined at the installation's own address sees neither;
-//! `GetPortal` says how many passkeys are registered at the portal and how many accounts sign in
-//! nowhere else; and deleting it ends the sessions begun there and removes its passkeys, each an
-//! `account.factor_removed` by the system.
+//! What a confined session sees of its account, and what deleting a portal ends: a session begun at
+//! a portal sees the sessions begun there and the passkeys registered there, and one confined at
+//! the installation's own address sees neither; `GetPortal` says how many passkeys are registered
+//! at the portal and how many accounts sign in nowhere else; and deleting it ends the sessions
+//! begun there and removes its passkeys, each an `account.factor_removed` by the system.
 
 use crate::domains::child;
 use crate::panel::{access, accounts, refresh_cookie};

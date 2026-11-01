@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A volume's filesystem grown to fill its drive (§3.1 of docs/06-storage.md). The helper grows a
-//! block device's image when its workload is given more, and never touches the filesystem in it;
-//! the guest's own kernel grows the ext4 to the drive's size as it mounts it, online, so nothing
-//! on the host ever parses what the guest wrote. A filesystem already as large as its drive is
-//! left as it is.
+//! A volume's filesystem grown to fill its drive. The helper grows a block device's image when its
+//! workload is given more, and never touches the filesystem in it; the guest's own kernel grows the
+//! ext4 to the drive's size as it mounts it, online, so nothing on the host ever parses what the
+//! guest wrote. A filesystem already as large as its drive is left as it is.
 //!
 //! It holds this program's second `unsafe` block: the resize is an `ioctl` with no safe form.
 

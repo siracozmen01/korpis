@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Snapshots on a real node (§4 of docs/06-storage.md), its volumes on a btrfs made for the test:
-//! a snapshot taken while the workload runs, the volume griefed, then rolled back by a plan that
-//! stops the workload, swaps the snapshot's data in, and starts it again, so what was written
-//! since is gone and the workload runs on what the snapshot held; and the snapshot deleted. It
-//! needs root, containerd, and `mkfs.btrfs`, and is skipped without them.
+//! Snapshots on a real node, its volumes on a btrfs made for the test: a snapshot taken while the
+//! workload runs, the volume griefed, then rolled back by a plan that stops the workload, swaps the
+//! snapshot's data in, and starts it again, so what was written since is gone and the workload runs
+//! on what the snapshot held; and the snapshot deleted. It needs root, containerd, and
+//! `mkfs.btrfs`, and is skipped without them.
 
 use crate::node::{Node, live};
 use crate::recipes::push_sleeper;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placing a workload by hand (§2.3 of docs/05-scheduling.md): an operator binds a workload
-//! whose approved target has no node to a node of their choosing, with their reason. The choice
-//! overrides the node's cordon and taints, which are the operator's own decisions about it, and
-//! nothing else: a node that cannot run the workload, or that its tenant's declaration excludes,
-//! is refused whoever chooses it. A workload already on a node moves only by migration.
+//! Placing a workload by hand: an operator binds a workload whose approved target has no node to a
+//! node of their choosing, with their reason. The choice overrides the node's cordon and taints,
+//! which are the operator's own decisions about it, and nothing else: a node that cannot run the
+//! workload, or that its tenant's declaration excludes, is refused whoever chooses it. A workload
+//! already on a node moves only by migration.
 
 use crate::App;
 use crate::caller::Caller;

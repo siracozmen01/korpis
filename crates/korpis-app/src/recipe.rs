@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Resolving a recipe (§8 of docs/09-recipes.md): `name:version` becomes a digest once, at
-//! declaration, and from then on the digest is the recipe's identity. The store keeps every
-//! recipe ever resolved, so a workload never depends on a registry still holding what it runs.
+//! Resolving a recipe: `name:version` becomes a digest once, at declaration, and from then on the
+//! digest is the recipe's identity. The store keeps every recipe ever resolved, so a workload never
+//! depends on a registry still holding what it runs.
 
 use crate::App;
 use crate::error::AppError;
@@ -44,8 +44,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok((reference, described.recipe))
     }
 
-    /// [`Self::resolve_recipe`], with everything the artifact describes: its extension block
-    /// and its catalogues (§5.3 of docs/09-recipes.md).
+    /// [`Self::resolve_recipe`], with everything the artifact describes: its extension block and
+    /// its catalogues.
     pub async fn described_recipe(
         &self,
         name: &str,
@@ -90,10 +90,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// What `name` at `version` describes, resolved for a workload of `organization` under the
-    /// trust policy that governs it (§7 of docs/09-recipes.md), and recorded with what vouched
-    /// for it. The policy is decided on the digest and its signatures before anything of the
-    /// recipe is fetched; a recipe the store already holds is decided on the signatures kept
-    /// with it, and the registry is asked again only if those do not suffice.
+    /// trust policy that governs it, and recorded with what vouched for it. The policy is decided
+    /// on the digest and its signatures before anything of the recipe is fetched; a recipe the
+    /// store already holds is decided on the signatures kept with it, and the registry is asked
+    /// again only if those do not suffice.
     pub async fn resolve_trusted(
         &self,
         name: &str,

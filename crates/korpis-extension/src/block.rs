@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Writing a block storage provider (§2.1 of docs/06-storage.md, §5 of docs/16-extensions.md).
-//! One Korpis volume is one device of the storage, which the provider names. The control plane
-//! asks for a device of a size, and at each placement asks for it attached to one node for one
-//! lease epoch: the provider first refuses it, in the storage itself where it can, to every other
-//! node, and refuses an epoch lower than one it has attached the device for, then answers with
-//! what the node needs. It registers saying whether its attach fences that way
-//! (`FENCING_STORAGE_ENFORCED`) or cannot (`FENCING_LEASE_ONLY`). Each call says the whole of
-//! what is wanted, so a repeat changes nothing. Requires the `provider.block_storage`
+//! Writing a block storage provider. One Korpis volume is one device of the storage, which the
+//! provider names. The control plane asks for a device of a size, and at each placement asks for it
+//! attached to one node for one lease epoch: the provider first refuses it, in the storage itself
+//! where it can, to every other node, and refuses an epoch lower than one it has attached the
+//! device for, then answers with what the node needs. It registers saying whether its attach fences
+//! that way (`FENCING_STORAGE_ENFORCED`) or cannot (`FENCING_LEASE_ONLY`). Each call says the whole
+//! of what is wanted, so a repeat changes nothing. Requires the `provider.block_storage`
 //! capability.
 
 pub use crate::provider::Failure;

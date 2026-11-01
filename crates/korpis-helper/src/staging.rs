@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A replacing restore's staging place (§5.4 of docs/06-storage.md): beside the volume in the
-//! class root, under `.<volume>.restore`, a name no volume identifier can take. It is made empty,
-//! with the volume's limit, as a subvolume on btrfs and in a quota project of its own where the
-//! class keeps projects, so the restore is never counted against the live volume while both
-//! exist. Committing exchanges it with the volume in one rename and removes what was the volume;
-//! discarding removes it. Either finishes what an interrupted earlier call began, because the
-//! staging place's identity, recorded when it was made, says whether the exchange happened. A
-//! reading restore's place, `.<volume>.read+<job>`, is made the same way beside a block device for
-//! its backup's image to be read in a service guest, and is only ever discarded.
+//! A replacing restore's staging place: beside the volume in the class root, under
+//! `.<volume>.restore`, a name no volume identifier can take. It is made empty, with the volume's
+//! limit, as a subvolume on btrfs and in a quota project of its own where the class keeps projects,
+//! so the restore is never counted against the live volume while both exist. Committing exchanges
+//! it with the volume in one rename and removes what was the volume; discarding removes it. Either
+//! finishes what an interrupted earlier call began, because the staging place's identity, recorded
+//! when it was made, says whether the exchange happened. A reading restore's place,
+//! `.<volume>.read+<job>`, is made the same way beside a block device for its backup's image to be
+//! read in a service guest, and is only ever discarded.
 
 use crate::btrfs;
 use crate::error::{HelperError, HelperResult, identifier};
@@ -103,8 +103,7 @@ impl Class {
         }
         std::os::unix::fs::chown(&path, Some(0), Some(0))?;
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
-        // A block device's restore is its image, and what takes the volume's name is one too
-        // (Finding 159 of docs/23-walkthroughs.md).
+        // A block device's restore is its image, and what takes the volume's name is one too.
         if crate::block::is_block(&self.path_of(volume)) {
             crate::block::mark(&path)?;
         }

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Issuing from a grant template (§4 of docs/08-identity.md), on a real control plane: a reseller
-//! applies its Moderator at a customer's project, and the grant is the template's actions and
-//! delegation on that project, expiring after its lifetime, named after it, and carrying the
-//! version it came from. Editing the template afterwards widens nothing already issued, and an
-//! issue made against the old version is a conflict. The template grants nobody anything: one
-//! naming an action the issuer cannot pass on is refused as a hand-written request would be.
+//! Issuing from a grant template, on a real control plane: a reseller applies its Moderator at a
+//! customer's project, and the grant is the template's actions and delegation on that project,
+//! expiring after its lifetime, named after it, and carrying the version it came from. Editing the
+//! template afterwards widens nothing already issued, and an issue made against the old version is
+//! a conflict. The template grants nobody anything: one naming an action the issuer cannot pass on
+//! is refused as a hand-written request would be.
 
 use crate::delegation::{Holder, delegate, delegation, organization};
 use crate::support::{Harness, mutation, org_scope};

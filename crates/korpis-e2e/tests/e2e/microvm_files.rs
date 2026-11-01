@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A microVM's files on a real node (§4.4 of docs/04-runtimes.md, §3.1 of
-//! docs/06-storage.md): its volume is a block device the host never mounts, so a file session
-//! reaches it through the relay, the node, and the `firecracker` driver to the file worker inside
-//! the guest. The volume is listed as the guest mounts it, written, and read back; and OpenSSH's
-//! `sftp` puts a file there and gets it back whole, served the same way. Stopped, its volume is
-//! served by a service guest: what was written while it ran is read, a file is written, and the
-//! workload started again finds it. Needs what the microVM test needs, and OpenSSH's client for
-//! the sftp half.
+//! A microVM's files on a real node: its volume is a block device the host never mounts, so a file
+//! session reaches it through the relay, the node, and the `firecracker` driver to the file worker
+//! inside the guest. The volume is listed as the guest mounts it, written, and read back; and
+//! OpenSSH's `sftp` puts a file there and gets it back whole, served the same way. Stopped, its
+//! volume is served by a service guest: what was written while it ran is read, a file is written,
+//! and the workload started again finds it. Needs what the microVM test needs, and OpenSSH's client
+//! for the sftp half.
 
 use crate::files::open;
 use crate::node::{Node, live};

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Offloaded segments past their retention (§4 of docs/14-streams.md), against a real object
-//! store (MinIO, `scripts/test-tools.sh`; skipped without it): a segment kept longer than its
-//! stream declares, from when it was offloaded, is deleted from the repository and forgotten by
-//! the index, and one inside it is kept; the operator's floor keeps both; and the stream says how
-//! long offloaded segments are kept, and what the floor is.
+//! Offloaded segments past their retention, against a real object store (MinIO,
+//! `scripts/test-tools.sh`; skipped without it): a segment kept longer than its stream declares,
+//! from when it was offloaded, is deleted from the repository and forgotten by the index, and one
+//! inside it is kept; the operator's floor keeps both; and the stream says how long offloaded
+//! segments are kept, and what the floor is.
 
 use crate::offloads::{bodies, create, journaled, made, offload, read, sealed};
 use crate::prunes::{real, repo_of, sql};

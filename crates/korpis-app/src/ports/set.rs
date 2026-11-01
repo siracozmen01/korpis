@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declared sets (§3.3 of docs/01-model.md): the sets of a project, membership, and the intent a
-//! set last declared for a member.
+//! Declared sets: the sets of a project, membership, and the intent a set last declared for a
+//! member.
 
 use super::StoreResult;
 use crate::Page;

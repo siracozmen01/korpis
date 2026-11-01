@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The event log's wire forms (§5 of docs/15-observability.md): filters, `korpis.v1.EventFilter`;
-//! subscriptions, `korpis.v1.Subscription`; and event identifiers, which are positions.
+//! The event log's wire forms: filters, `korpis.v1.EventFilter`; subscriptions,
+//! `korpis.v1.Subscription`; and event identifiers, which are positions.
 
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::{IdKind, Result, id, invalid, timestamp, wire_id};

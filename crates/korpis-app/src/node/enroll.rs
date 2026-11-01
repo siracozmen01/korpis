@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Enrolling a node (§3 of docs/18-operations.md, §7 of docs/02-architecture.md). An operator
-//! creates a one-time token bound to an organization, a name, and labels; the agent presents it
-//! once with the public half of the key it generated, and the node exists from then on.
+//! Enrolling a node. An operator creates a one-time token bound to an organization, a name, and
+//! labels; the agent presents it once with the public half of the key it generated, and the node
+//! exists from then on.
 //!
 //! The token is not a special credential. It is a Token subject holding a grant of
 //! `node.enroll` attenuated from the creator's, with `max_uses` 1, so it is redeemed online
@@ -82,8 +82,8 @@ pub struct Enrolled {
     pub assignment_keys: Vec<VerifyKey>,
     /// Every key that ever signed a capability token.
     pub token_keys: Vec<VerifyKey>,
-    /// The pool the node's workloads take IPv4 addresses from (§9.1 of docs/07-networking.md);
-    /// none for a node enrolled before pools were given, or once the range is full.
+    /// The pool the node's workloads take IPv4 addresses from; none for a node enrolled before
+    /// pools were given, or once the range is full.
     pub workload_ipv4: Option<ipnet::Ipv4Net>,
 }
 
@@ -289,8 +289,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.complete_enrollment(enrollment.token, node.id, now).await? {
             return Err(AppError::conflict("enrollment.used", "the token was redeemed meanwhile"));
         }
-        // A full range enrolls the node all the same: it is outside the mesh until it is given
-        // a pool, which its status says (§9.1 of docs/07-networking.md).
+        // A full range enrolls the node all the same: it is outside the mesh until it is given a
+        // pool, which its status says.
         let pool = tx.take_pool(node.id, self.overlay_range).await?;
         let pool = pool.map_or_else(|| "none: the range is full".to_owned(), |p| p.to_string());
         let mut effect =
@@ -331,10 +331,10 @@ fn creation_effects(caller: &Caller, parent: Uuid, e: &Enrollment) -> [Effect; 2
     ]
 }
 
-/// The first node's enrollment, made by installation in its own transaction (§2 of
-/// docs/18-operations.md): attenuated from the root grant `parent`, which no one has exercised
-/// yet, and recorded as the bootstrap actor, as the root itself is. It lasts the longest an
-/// enrollment may, a day, since whoever installs joins the first node next.
+/// The first node's enrollment, made by installation in its own transaction: attenuated from the
+/// root grant `parent`, which no one has exercised yet, and recorded as the bootstrap actor, as the
+/// root itself is. It lasts the longest an enrollment may, a day, since whoever installs joins the
+/// first node next.
 pub(crate) async fn first_enrollment<T: Tx>(
     tx: &mut T,
     (organization, parent): (Uuid, Uuid),

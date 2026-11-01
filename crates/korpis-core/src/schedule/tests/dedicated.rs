@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dedicated addresses (§3.7 of docs/07-networking.md): a workload with a `dedicated_ip`
-//! endpoint is placed only on a node it may hold its address on, and one without asks nothing;
-//! and so is one whose `stable` endpoints are routed at a `cluster` pool's address (§3.1 there).
+//! Dedicated addresses: a workload with a `dedicated_ip` endpoint is placed only on a node it may
+//! hold its address on, and one without asks nothing; and so is one whose `stable` endpoints are
+//! routed at a `cluster` pool's address.
 
 use super::{Case, checks, node};
 use crate::schedule::Check;

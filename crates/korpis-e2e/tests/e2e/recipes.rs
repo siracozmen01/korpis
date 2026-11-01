@@ -22,11 +22,10 @@ pub fn busybox() -> String {
 /// The thin recipe's version.
 pub const VERSION: &str = "1.0.0";
 
-/// A thin recipe (§2 of docs/09-recipes.md): an image by digest, an entry that records each
-/// start in its volume, a configured greeting it writes there and prints to its console, and
-/// what it finds of its identity socket (§9.5 of docs/08-identity.md). It ends when asked to
-/// stop, as software does, rather than as `sleep` run first in its namespace, which ignores the
-/// signal and so held every stop to its thirty seconds of grace.
+/// A thin recipe: an image by digest, an entry that records each start in its volume, a configured
+/// greeting it writes there and prints to its console, and what it finds of its identity socket. It
+/// ends when asked to stop, as software does, rather than as `sleep` run first in its namespace,
+/// which ignores the signal and so held every stop to its thirty seconds of grace.
 fn sleeper() -> String {
     let busybox = busybox();
     format!(
@@ -60,8 +59,8 @@ config:
     )
 }
 
-/// A recipe with an interactive console that answers every line typed into it, as a game
-/// server's console does (§6 of docs/14-streams.md).
+/// A recipe with an interactive console that answers every line typed into it, as a game server's
+/// console does.
 fn answerer() -> String {
     let busybox = busybox();
     format!(
@@ -83,9 +82,9 @@ preset:
     )
 }
 
-/// An extension providing a backup target named `s3` (§3 of docs/16-extensions.md) whose
-/// container only sleeps: the test serves the provider itself, with the credential the node hands
-/// the extension's workload through its identity socket, as the container would.
+/// An extension providing a backup target named `s3` whose container only sleeps: the test serves
+/// the provider itself, with the credential the node hands the extension's workload through its
+/// identity socket, as the container would.
 fn target() -> String {
     let busybox = busybox();
     format!(
@@ -146,8 +145,8 @@ pub async fn push_target() -> String {
     push("s3-target", target()).await
 }
 
-/// An extension providing the block storage `fast` (§5 of docs/16-extensions.md) whose container
-/// only sleeps, as the backup target's does: the test serves the provider itself.
+/// An extension providing the block storage `fast` whose container only sleeps, as the backup
+/// target's does: the test serves the provider itself.
 pub async fn push_block_storage() -> String {
     let document = target()
         .replace("name: s3-target", "name: block-storage")
@@ -172,8 +171,8 @@ pub async fn push_with(name: &str, document: String, files: Vec<File>) -> String
     repo
 }
 
-/// A task (§4 of docs/05-scheduling.md): it prints three lines to its console and exits, so
-/// each of its runs ends by itself and writes a console of its own.
+/// A task: it prints three lines to its console and exits, so each of its runs ends by itself and
+/// writes a console of its own.
 fn printer() -> String {
     let busybox = busybox();
     format!(
@@ -200,8 +199,8 @@ pub async fn push_printer() -> String {
     push("printer", printer()).await
 }
 
-/// A task that waits until it is stopped (§4 of docs/05-scheduling.md), so its run is still
-/// active, pending or running, when the browser cancels it.
+/// A task that waits until it is stopped, so its run is still active, pending or running, when the
+/// browser cancels it.
 fn waiter() -> String {
     let busybox = busybox();
     format!(

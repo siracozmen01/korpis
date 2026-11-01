@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node is told to hold of a workload (§4.8 of docs/02-architecture.md): the intent and
-//! power its plans reached, or that its active plan is reaching. Approval moves the target before
-//! anything runs, and a node runs what it is told, so a node told the target ran what no plan had
-//! made: a create approved for a later window started at once, without its install, and so did a
-//! create whose plan failed (Finding 52 of docs/23-walkthroughs.md). A workload no plan has
-//! brought to any intent is still told its target, so the node keeps what the plan's steps
-//! saved, such as an install's progress, but with nothing to run.
+//! What a node is told to hold of a workload: the intent and power its plans reached, or that its
+//! active plan is reaching. Approval moves the target before anything runs, and a node runs what it
+//! is told, so a node told the target ran what no plan had made: a create approved for a later
+//! window started at once, without its install, and so did a create whose plan failed. A workload
+//! no plan has brought to any intent is still told its target, so the node keeps what the plan's
+//! steps saved, such as an install's progress, but with nothing to run.
 
 use crate::App;
 use crate::error::AppError;

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A restore's first fence (§8 of docs/03-state.md): the floor past what the rate allowed since
-//! the backup, a settling window in which no epoch is issued and each reconnecting agent is asked
-//! to present what it holds, and a floor raised by the epochs that verify, never by those that
-//! do not.
+//! A restore's first fence: the floor past what the rate allowed since the backup, a settling
+//! window in which no epoch is issued and each reconnecting agent is asked to present what it
+//! holds, and a floor raised by the epochs that verify, never by those that do not.
 
 use crate::agent::{TestAgent, welcome};
 use crate::leases::{connect, grant, refusal, request, send, until};

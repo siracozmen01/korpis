@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The revocation list down the agent session (§6.3 of docs/08-identity.md): sent when a session
-//! opens, sent again when a grant is revoked, and signed by the token key the node was given at
-//! enrollment.
+//! The revocation list down the agent session: sent when a session opens, sent again when a grant
+//! is revoked, and signed by the token key the node was given at enrollment.
 
 use crate::agent::{Stream, TestAgent, next_list, welcome};
 use crate::support::{Harness, mutation};

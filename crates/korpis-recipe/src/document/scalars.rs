@@ -18,7 +18,7 @@ pub fn named<T: Copy>(field: &str, name: &str, table: &[(&str, T)]) -> Result<T,
     })
 }
 
-/// A template's format (§6 of docs/09-recipes.md), by its name in a document.
+/// A template's format, by its name in a document.
 pub fn template_format(field: &str, name: &str) -> Result<TemplateFormat, RecipeError> {
     use TemplateFormat as F;
     let formats = [

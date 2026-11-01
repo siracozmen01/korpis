@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's side of the mesh (§9.1 of docs/07-networking.md). The control plane names the
-//! mesh's other members; the agent keeps them on disk, so the mesh runs with the control plane
-//! gone (§4.6 of docs/02-architecture.md), and has the helper keep the interface to them every
-//! [`EVERY`] and whenever they change, admitting from the mesh only the dependents on other nodes
-//! its assignments name. What the helper answers, its public key and each peer's latest
-//! handshake, is what the node reports, from which the control plane judges which pairs reach
-//! each other.
+//! The node's side of the mesh. The control plane names the mesh's other members; the agent keeps
+//! them on disk, so the mesh runs with the control plane gone, and has the helper keep the
+//! interface to them every [`EVERY`] and whenever they change, admitting from the mesh only the
+//! dependents on other nodes its assignments name. What the helper answers, its public key and each
+//! peer's latest handshake, is what the node reports, from which the control plane judges which
+//! pairs reach each other.
 
 mod answer;
 mod edges;
@@ -103,8 +102,8 @@ impl<H: Host> Overlay<H> {
         (o, reported)
     }
 
-    /// The table of edges last told, as it changes: what the node's proxy serves for its groups
-    /// is read from it (§3.1 of docs/07-networking.md).
+    /// The table of edges last told, as it changes: what the node's proxy serves for its groups is
+    /// read from it.
     #[must_use]
     pub fn edges(&self) -> watch::Receiver<agent::Edges> {
         self.told.subscribe()

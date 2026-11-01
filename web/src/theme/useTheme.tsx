@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The theme the page wears, chosen by who is looking rather than by what is shown (§7 of
-// docs/11-surface-web.md): a signed-in viewer wears the brand of whoever provides their access,
-// whatever deeper place they open, so a tenant's theme never dresses its provider's screens. The
-// control plane names that provider (Finding 134 of docs/23-walkthroughs.md): at a portal
-// (§3.6 of docs/07-networking.md) the portal's organization, the address being its own, and
-// elsewhere the nearest organization above everything the viewer's grants reach, which a
-// customer holding only a project's grant cannot read. A share link's holder wears the brand of
-// the place it opens, its colours, name, and logo but never its stylesheet; before anyone signs
-// in, the address's: the portal's organization's, or the installation root's. A theme that
-// cannot be read leaves the panel's own on, which is what its absence means.
+// The theme the page wears, chosen by who is looking rather than by what is shown: a signed-in
+// viewer wears the brand of whoever provides their access, whatever deeper place they open, so a
+// tenant's theme never dresses its provider's screens. The control plane names that provider: at a
+// portal the portal's organization, the address being its own, and elsewhere the nearest
+// organization above everything the viewer's grants reach, which a customer holding only a
+// project's grant cannot read. A share link's holder wears the brand of the place it opens, its
+// colours, name, and logo but never its stylesheet; before anyone signs in, the address's: the
+// portal's organization's, or the installation root's. A theme that cannot be read leaves the
+// panel's own on, which is what its absence means.
 
 import {
   createContext,
@@ -69,7 +68,7 @@ async function read(source: Source): Promise<Theme | undefined> {
     }
     case "viewer":
       // The control plane names whoever provides the viewer's access, from the grants it holds,
-      // though the viewer may read none of their organizations (Finding 134).
+      // though the viewer may read none of their organizations.
       return (await source.clients.organizations.getLandingTheme({})).governing?.theme;
   }
 }

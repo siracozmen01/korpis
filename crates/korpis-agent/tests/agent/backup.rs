@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A backup through the agent against a real control plane (§5 of docs/06-storage.md), with the
-//! in-memory runtime and helper: the backup target is an extension installed on the same node,
-//! serving through the SDK with the credential its identity socket gives it; the agent asks for
-//! the job's key and access when the step begins, starts the job by the backup's name, reports
-//! how it ended; the backup is whole once the control plane believes that; a backup restores
-//! into a directory at once and over the volume once approved; and every job is forgotten once
-//! its plan has left the set.
+//! A backup through the agent against a real control plane, with the in-memory runtime and helper:
+//! the backup target is an extension installed on the same node, serving through the SDK with the
+//! credential its identity socket gives it; the agent asks for the job's key and access when the
+//! step begins, starts the job by the backup's name, reports how it ended; the backup is whole once
+//! the control plane believes that; a backup restores into a directory at once and over the volume
+//! once approved; and every job is forgotten once its plan has left the set.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation};

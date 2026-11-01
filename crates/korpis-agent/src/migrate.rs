@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's part in a migration's copies (§8.1 of docs/05-scheduling.md). Each pass of a
-//! volume is named by the control plane and carried, with its ticket, in both nodes' roles. The
-//! source sends each pass its role names once, and again every [`RETRY`] while it fails and the
-//! pass is still the one under way, to the destination's mesh address, and journals what it sent
-//! (`send`). The destination receives on the transfer port, which hands it each stream whose
-//! ticket is a migration pass's: admitted only under a ticket the token keys open, naming this
-//! node, a pass its role names, from the peer its role names, at that peer's mesh address; it
-//! journals that it holds the pass (`receive`). A volume of a class sending increments crosses
-//! by the replica verbs, the pass its snapshot; any other by the tree verbs.
+//! The node's part in a migration's copies. Each pass of a volume is named by the control plane and
+//! carried, with its ticket, in both nodes' roles. The source sends each pass its role names once,
+//! and again every [`RETRY`] while it fails and the pass is still the one under way, to the
+//! destination's mesh address, and journals what it sent (`send`). The destination receives on the
+//! transfer port, which hands it each stream whose ticket is a migration pass's: admitted only
+//! under a ticket the token keys open, naming this node, a pass its role names, from the peer its
+//! role names, at that peer's mesh address; it journals that it holds the pass (`receive`). A
+//! volume of a class sending increments crosses by the replica verbs, the pass its snapshot; any
+//! other by the tree verbs.
 
 mod receive;
 mod send;

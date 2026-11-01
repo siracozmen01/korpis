@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An exec probe on a real node (§5 of docs/04-runtimes.md): a container whose liveness probe
-//! runs `test ! -e /tmp/sick` inside it, through the `oci` driver's `Exec`, which containerd runs
-//! in the container's namespaces as its own user. Healthy while the command succeeds; once the
-//! file is there, unhealthy and restarted for it; and healthy again in its new life, whose
-//! entry removes the file.
+//! An exec probe on a real node: a container whose liveness probe runs `test ! -e /tmp/sick` inside
+//! it, through the `oci` driver's `Exec`, which containerd runs in the container's namespaces as
+//! its own user. Healthy while the command succeeds; once the file is there, unhealthy and
+//! restarted for it; and healthy again in its new life, whose entry removes the file.
 
 use crate::dependencies::running;
 use crate::node::{Node, live};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The seconds each class of device a workload's placement held, as a reading or a record stores
-//! them (§2 of docs/15-observability.md): each class once, by its stored name.
+//! them: each class once, by its stored name.
 
 use crate::stored::node::DeviceDoc;
 use crate::stored::{from_json, to_json};

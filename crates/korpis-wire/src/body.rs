@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The stored form of an intent body (§3.1 of docs/03-state.md): the `korpis.v1.IntentBody`
-//! message in proto3 canonical JSON, **with defaults emitted**, beside the schema version it was
-//! written under.
+//! The stored form of an intent body: the `korpis.v1.IntentBody` message in proto3 canonical JSON,
+//! **with defaults emitted**, beside the schema version it was written under.
 //!
-//! The generated serializer omits every field that holds its default, as canonical JSON allows,
-//! and a stored row that omits a field records whatever the default is when someone reads it
-//! rather than what it was when the row was written (finding R10). So the encoder walks the
-//! message with the compiled schema and writes every implicit-presence field that was left out:
-//! zero, `false`, the empty string, an enum's zero value by name, an empty list or map. Fields
-//! with explicit presence (members of a oneof, `optional` fields) and message fields that were
-//! never set are left absent, because their absence is itself the value: "not set". Well-known
-//! types (`google.protobuf.*`) have their own JSON forms and are left as they are.
+//! The generated serializer omits every field that holds its default, as canonical JSON allows, and
+//! a stored row that omits a field records whatever the default is when someone reads it rather
+//! than what it was when the row was written. So the encoder walks the message with the compiled
+//! schema and writes every implicit-presence field that was left out: zero, `false`, the empty
+//! string, an enum's zero value by name, an empty list or map. Fields with explicit presence
+//! (members of a oneof, `optional` fields) and message fields that were never set are left absent,
+//! because their absence is itself the value: "not set". Well-known types (`google.protobuf.*`)
+//! have their own JSON forms and are left as they are.
 
 use crate::spec::{body_from_pb, body_to_pb};
 use crate::{WireError, invalid};
@@ -21,8 +20,8 @@ use korpis_proto::korpis::v1 as pb;
 use serde_json::{Map, Value};
 use std::sync::LazyLock;
 
-/// The schema version recorded with every body this build writes. The compatibility rules of
-/// §4 of docs/10-api.md hold within a package version, so every body written under `korpis.v1`
+/// The schema version recorded with every body this build writes. The API's compatibility rules
+/// hold within a package version, so every body written under `korpis.v1`
 /// reads with any later `korpis.v1` schema; a `korpis.v2` would be a new reader beside this one.
 pub const SCHEMA_VERSION: &str = "korpis.v1";
 

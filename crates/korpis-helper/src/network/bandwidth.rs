@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's bandwidth as a request asks for it, checked, and made so on the node's uplinks
-//! and its link (§7 of docs/07-networking.md); and the uplinks themselves.
+//! A workload's bandwidth as a request asks for it, checked, and made so on the node's uplinks and
+//! its link; and the uplinks themselves.
 
 use super::account::{self, Listed};
 use super::policy::Inbound;
@@ -53,7 +53,7 @@ pub(crate) fn asked(b: Option<&helper::Bandwidth>) -> HelperResult<Shaping> {
 
 /// `s` as a node that `shapes`, or does not, can hold it: where nothing can be shaped, a spent
 /// budget's floor is held as a cut-off, the stricter of the two, rather than not at all, since a
-/// budget spent and not enforced is a number displayed and not held (Rule K-3).
+/// budget spent and not enforced is a number displayed and not held.
 pub(crate) fn here(s: Shaping, shapes: bool, workload: &str) -> Shaping {
     if shapes || !s.floored {
         return s;

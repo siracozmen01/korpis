@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The proxy end to end on loopback (§3.2 of docs/07-networking.md): real listeners, real TLS,
-//! and real workloads behind it, served from a table the test publishes as the agent would.
+//! The proxy end to end on loopback: real listeners, real TLS, and real workloads behind it, served
+//! from a table the test publishes as the agent would.
 
 #![allow(
     clippy::unwrap_used,

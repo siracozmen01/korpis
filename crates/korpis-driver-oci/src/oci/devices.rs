@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a container's devices add to its runtime specification (§4.2 of docs/04-runtimes.md):
-//! each node bound from the host and allowed by a cgroup rule after the rule denying every
-//! device, each mount as its edit gives it, the environment and groups appended, and each hook at
-//! the point it names.
+//! What a container's devices add to its runtime specification: each node bound from the host and
+//! allowed by a cgroup rule after the rule denying every device, each mount as its edit gives it,
+//! the environment and groups appended, and each hook at the point it names.
 
 use super::{DeviceRule, Mount, RuntimeSpec, mount};
 use crate::devices::Given;

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Health probes on a real node (Rule K-16, §5 of docs/04-runtimes.md): a server whose recipe
-//! declares an HTTP readiness and liveness probe is judged by the node from inside its network,
-//! a web application that requires it is created only once it is ready (§5 of
-//! docs/07-networking.md), and when it stops answering its liveness probe it is reported
-//! unhealthy and restarted, keeping its volume. The test decides what the server answers by
-//! writing into its root, inside its namespaces.
+//! Health probes on a real node: a server whose recipe declares an HTTP readiness and liveness
+//! probe is judged by the node from inside its network, a web application that requires it is
+//! created only once it is ready, and when it stops answering its liveness probe it is reported
+//! unhealthy and restarted, keeping its volume. The test decides what the server answers by writing
+//! into its root, inside its namespaces.
 
 use crate::dependencies::running;
 use crate::node::{Node, live};

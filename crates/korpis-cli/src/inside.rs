@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The command inside a workload (§9.5 of docs/08-identity.md, §7 of docs/13-surface-cli.md): its
-//! calls are borne by the workload's own credential, asked of the identity socket its node serves
-//! it and renewed before it expires, so the command holds exactly the grants issued to the
-//! workload and no secret is written into it. The control plane is reached through the relay
-//! the node serves beside the socket where it serves one, and over the network otherwise, under
-//! the CA the socket names, which is the one the node pinned at enrollment.
+//! The command inside a workload: its calls are borne by the workload's own credential, asked of
+//! the identity socket its node serves it and renewed before it expires, so the command holds
+//! exactly the grants issued to the workload and no secret is written into it. The control plane is
+//! reached through the relay the node serves beside the socket where it serves one, and over the
+//! network otherwise, under the CA the socket names, which is the one the node pinned at
+//! enrollment.
 
 use crate::connect::Connection;
 use crate::error::CliError;
@@ -74,9 +74,9 @@ async fn asked(source: &IdentitySocket, patience: Duration) -> Result<Credential
 }
 
 /// `korpis heartbeat`: says on the identity socket at `socket` that the workload is alive, once,
-/// or, given `every`, at that interval for as long as the process runs (§5 of
-/// docs/04-runtimes.md). A beat that fails while it repeats is said and tried again at the next
-/// interval, since an agent restarting binds the socket again; the probe judges the silence.
+/// or, given `every`, at that interval for as long as the process runs. A beat that fails while it
+/// repeats is said and tried again at the next interval, since an agent restarting binds the socket
+/// again; the probe judges the silence.
 ///
 /// # Errors
 /// A single beat the socket did not take.

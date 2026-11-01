@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A task's runs in the browser (§4 of docs/05-scheduling.md, §2 of docs/11-surface-web.md): its
-// page lists them in place of a console, an active one is cancelled from the list, and, where a
-// node runs tasks here, a run that ended by itself is opened and its own console read (§4 of
-// docs/14-streams.md), from its node, after the run is gone from it.
+// A task's runs in the browser: its page lists them in place of a console, an active one is
+// cancelled from the list, and, where a node runs tasks here, a run that ended by itself is opened
+// and its own console read, from its node, after the run is gone from it.
 
 import { expect, test, type Page } from "@playwright/test";
 import { authenticator, given, visit } from "./support";

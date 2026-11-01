@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The delegation ceiling (§5.1 of docs/08-identity.md): a structural bound, which no
-//! re-verification has to get right, on how long a grant beneath a set subject lasts.
+//! The delegation ceiling: a structural bound, which no re-verification has to get right, on how
+//! long a grant beneath a set subject lasts.
 
 use super::evaluate::ChainError;
 use super::grant::Grant;
@@ -9,8 +9,7 @@ use crate::object::ObjectRef;
 use crate::scope::Hierarchy;
 use std::time::{Duration, SystemTime};
 
-/// The delegation ceiling where no organization sets one: seven days (§5.1 of
-/// docs/08-identity.md).
+/// The delegation ceiling where no organization sets one: seven days.
 pub const DELEGATION_CEILING: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
 /// The longest a grant beneath a set subject lasts at `anchor`: the lowest ceiling any
@@ -24,10 +23,10 @@ pub fn ceiling_at(hierarchy: &impl Hierarchy, anchor: ObjectRef) -> Duration {
     set.unwrap_or(DELEGATION_CEILING)
 }
 
-/// Ends `chain[i]` at its ceiling when a set subject holds a grant above it on the chain: it
-/// stands until it was issued plus the ceiling at its scope, whatever its own expiry says, so a
-/// member's delegation outlives their membership by at most the ceiling, and a ceiling lowered
-/// later reaches grants already issued (§5.1 of docs/08-identity.md).
+/// Ends `chain[i]` at its ceiling when a set subject holds a grant above it on the chain: it stands
+/// until it was issued plus the ceiling at its scope, whatever its own expiry says, so a member's
+/// delegation outlives their membership by at most the ceiling, and a ceiling lowered later reaches
+/// grants already issued.
 pub(crate) fn within_ceiling(
     chain: &[Grant],
     i: usize,

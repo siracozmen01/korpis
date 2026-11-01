@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A volume's passes (§8.1 of docs/05-scheduling.md). The control plane starts each pass, naming
-//! it and the pass it is an increment from, and judges it from both nodes' reports: the bytes the
-//! source sent, and the destination's word that it holds the pass. In `replicate` a pass held
-//! that was small ends the volume's part, and one that was not starts the next; in `final_sync`
-//! the one pass held ends it, the pass started as the phase is entered. A pass whose ticket ran
-//! out before the destination held it is started again, under a new name, from the same parent.
+//! A volume's passes. The control plane starts each pass, naming it and the pass it is an increment
+//! from, and judges it from both nodes' reports: the bytes the source sent, and the destination's
+//! word that it holds the pass. In `replicate` a pass held that was small ends the volume's part,
+//! and one that was not starts the next; in `final_sync` the one pass held ends it, the pass
+//! started as the phase is entered. A pass whose ticket ran out before the destination held it is
+//! started again, under a new name, from the same parent.
 
 use super::{Crossing, MigrationVolume, Phase, small};
 use std::time::{Duration, SystemTime};

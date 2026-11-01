@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // The form that binds a person or a set at an organization's identity provider, or edits a
-// binding's interval and grace against the version shown (§5 of docs/08-identity.md, §5 of
-// docs/11-surface-web.md). A field it cannot read is named before anything is sent; the control
-// plane's refusal is said in its words.
+// binding's interval and grace against the version shown. A field it cannot read is named before
+// anything is sent; the control plane's refusal is said in its words.
 
 import { useState } from "react";
 import {

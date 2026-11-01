@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The imperative commands: one object, right now (§2 of docs/13-surface-cli.md). Each is one
-//! call of the API after its names are resolved, and answers with what the API answered.
+//! The imperative commands: one object, right now. Each is one call of the API after its names are
+//! resolved, and answers with what the API answered.
 
 use super::{
     Answer, NodeAction, PlanAction, TokenAction, WorkloadAction, json, mutation, pairs, seconds,

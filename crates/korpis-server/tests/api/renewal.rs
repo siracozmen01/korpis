@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A relay's certificate kept current (§7 of docs/18-operations.md): the relay renews it with a
-//! fresh key and serves the new one at once, and a certificate left unrenewed is reported as it
-//! nears expiry, once per step, until a renewal clears it.
+//! A relay's certificate kept current: the relay renews it with a fresh key and serves the new one
+//! at once, and a certificate left unrenewed is reported as it nears expiry, once per step, until a
+//! renewal clears it.
 
 use crate::agent::TestAgent;
 use crate::standalone::joined;

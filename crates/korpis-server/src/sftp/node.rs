@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The file session as the relay holds one for an SFTP client: each request one `FileRequest`
-//! data frame towards the node and each answer the `FileResponse` of the same number, in order,
-//! requests sent ahead of their answers as the CLI sends them (§3.2 of docs/06-storage.md). The
-//! token is renewed before it expires for as long as the SFTP connection lasts, judged here as
-//! the relay judges a client's renewal, so a session the relay itself is the client of is held to
-//! what any other is.
+//! The file session as the relay holds one for an SFTP client: each request one `FileRequest` data
+//! frame towards the node and each answer the `FileResponse` of the same number, in order, requests
+//! sent ahead of their answers as the CLI sends them. The token is renewed before it expires for as
+//! long as the SFTP connection lasts, judged here as the relay judges a client's renewal, so a
+//! session the relay itself is the client of is held to what any other is.
 
 use super::{Authorizer, Granted};
 use crate::api::Carried;

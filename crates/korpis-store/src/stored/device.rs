@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A node's devices and a placement's holds on them, as stored in the `node` and `placement`
-//! tables (§6 of docs/05-scheduling.md).
+//! tables.
 
 use super::node::{DeviceDoc, ModeDoc};
 use super::{from_json, to_json};

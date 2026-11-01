@@ -5,9 +5,9 @@
 //! hard links to what the driver keeps, and the volumes, which are on the node's storage where a
 //! hard link from the driver's state cannot reach, bound in and unbound with the jail; and the
 //! jailer's command line, which drops to the workload's own id, makes its cgroup with the guest's
-//! limits, joins the workload's network namespace, whose tap is the guest's `eth0` (§4.1 of
-//! docs/07-networking.md), and detaches it so the guest outlives the driver. Paths in the configuration are the chroot's, as the jailed Firecracker
-//! sees them.
+//! limits, joins the workload's network namespace, whose tap is the guest's `eth0`, and detaches it
+//! so the guest outlives the driver. Paths in the configuration are the chroot's, as the jailed
+//! Firecracker sees them.
 
 use crate::settings::Settings;
 use korpis_core::workload::network::TAP;
@@ -17,17 +17,16 @@ use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The kernel's command line: the serial port as the console, a reset as the end (Firecracker
-/// exits on it, §6 of docs/04-runtimes.md), the boot drive as a read-only root, and
-/// `korpis-guest` as the first process.
+/// The kernel's command line: the serial port as the console, a reset as the end (Firecracker exits
+/// on it), the boot drive as a read-only root, and `korpis-guest` as the first process.
 pub const BOOT_ARGS: &str = "console=ttyS0 reboot=k panic=1 pci=off quiet loglevel=3 \
                              root=/dev/vda ro init=/korpis-guest";
 
 /// The API socket, as the jailed Firecracker sees it.
 pub const API: &str = "/api.socket";
 
-/// The vsock device's socket, as the jailed Firecracker sees it: a connection on it reaches a
-/// port of the guest's agent (§6 of docs/04-runtimes.md).
+/// The vsock device's socket, as the jailed Firecracker sees it: a connection on it reaches a port
+/// of the guest's agent.
 pub const VSOCK: &str = "/vsock.socket";
 
 /// The vsock device's socket of object `id`'s Firecracker, as the driver reaches it.

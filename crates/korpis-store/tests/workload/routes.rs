@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Routes (migration 0055, §3.2 of docs/07-networking.md): a name routes to one workload's
-//! endpoint, a workload's claim replaces what it routed before, and retiring it frees its names.
+//! Routes (migration 0055): a name routes to one workload's endpoint, a workload's claim replaces
+//! what it routed before, and retiring it frees its names.
 
 use crate::support::{create, fixture, now};
 use korpis_app::ports::{DomainRead, DomainWrite, RetirementWrite, Store, Tx};

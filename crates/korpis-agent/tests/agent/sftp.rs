@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! SFTP at a relay of its own (§3.1 of docs/02-architecture.md, §3.2 of docs/06-storage.md),
-//! driven by OpenSSH's own `sftp` client against a control plane and a node: a person whose key
-//! is registered and whose grant allows writing uploads, lists, downloads, renames, and removes,
-//! a file of several mebibytes crossing with many requests in flight; a person allowed to read
-//! downloads and is refused an upload; a key no one registered is refused; and each token the
-//! relay asked for is recorded under the relay's name. Where to connect and which host key to
-//! trust come from `ServerInfo`, which names what the relay reported. Skipped where OpenSSH's client is absent.
+//! SFTP at a relay of its own, driven by OpenSSH's own `sftp` client against a control plane and a
+//! node: a person whose key is registered and whose grant allows writing uploads, lists, downloads,
+//! renames, and removes, a file of several mebibytes crossing with many requests in flight; a
+//! person allowed to read downloads and is refused an upload; a key no one registered is refused;
+//! and each token the relay asked for is recorded under the relay's name. Where to connect and
+//! which host key to trust come from `ServerInfo`, which names what the relay reported. Skipped
+//! where OpenSSH's client is absent.
 
 use crate::session::until;
 use crate::support::Relay;

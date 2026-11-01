@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A declared file checked before anything is sent (§3 of docs/13-surface-cli.md): the recipe
-//! is fetched by digest, the declaration completed from it, and the configuration resolved
-//! against its schema, by the same code the control plane runs. A typo in a field is a local
-//! error naming the file and the line; what only the control plane can decide (authority, quota,
-//! placement) it decides.
+//! A declared file checked before anything is sent: the recipe is fetched by digest, the
+//! declaration completed from it, and the configuration resolved against its schema, by the same
+//! code the control plane runs. A typo in a field is a local error naming the file and the line;
+//! what only the control plane can decide (authority, quota, placement) it decides.
 
 use crate::declared::{File, line_of};
 use crate::error::CliError;

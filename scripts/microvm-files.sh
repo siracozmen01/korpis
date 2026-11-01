@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Puts what the microvm tier runs where `korpis-server install` looks for it (§2 of
-# docs/18-operations.md): Firecracker and its jailer, the release scripts/tools.sh pins by its
-# published digest; the guest kernel, built by scripts/guest-kernel.sh from the release it pins;
-# and korpis-guest, korpis-fsworker, and korpis-install-job, built static for the musl target, which
-# every guest's boot drive carries. Each is installed root's, and its SHA-256 printed, so what a node runs can be
-# compared with what another built.
+# Puts what the microvm tier runs where `korpis-server install` looks for it: Firecracker and its
+# jailer, the release scripts/tools.sh pins by its published digest; the guest kernel, built by
+# scripts/guest-kernel.sh from the release it pins; and korpis-guest, korpis-fsworker, and
+# korpis-install-job, built static for the musl target, which every guest's boot drive carries. Each
+# is installed root's, and its SHA-256 printed, so what a node runs can be compared with what
+# another built.
 #
 #   scripts/microvm-files.sh [DIR]    (default: /usr/lib/korpis)
 #

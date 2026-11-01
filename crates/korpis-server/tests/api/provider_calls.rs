@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Provider calls (§3.3 of docs/16-extensions.md): a call is queued, sent down a stream of the
-//! newest registered version with a slot free, and finished by the provider's answer, by the
-//! stream ending, or by its deadline, when the provider is told to stop.
+//! Provider calls: a call is queued, sent down a stream of the newest registered version with a
+//! slot free, and finished by the provider's answer, by the stream ending, or by its deadline, when
+//! the provider is told to stop.
 
 use crate::providers::{Serve, installed, open, register};
 use crate::support::Harness;

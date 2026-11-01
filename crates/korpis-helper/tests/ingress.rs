@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's ingress, as the helper keeps it (§3.2 of docs/07-networking.md): ports 80 and 443
-//! opened on the addresses asked, and UDP port 443 for HTTP/3, and the proxy started as its asker in a cgroup of its own whose
-//! new connections leave only through a workload's link. Needs root, cgroup v2, and nftables;
-//! skipped without them.
+//! The node's ingress, as the helper keeps it: ports 80 and 443 opened on the addresses asked, and
+//! UDP port 443 for HTTP/3, and the proxy started as its asker in a cgroup of its own whose new
+//! connections leave only through a workload's link. Needs root, cgroup v2, and nftables; skipped
+//! without them.
 
 #![allow(
     clippy::unwrap_used,

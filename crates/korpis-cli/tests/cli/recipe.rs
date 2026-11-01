@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis workload recipe`: the recipe a workload runs, its fields, and its words in the
-//! language the caller asks for or its environment names (§5.3 of docs/09-recipes.md).
+//! `korpis workload recipe`: the recipe a workload runs, its fields, and its words in the language
+//! the caller asks for or its environment names.
 
 use crate::support::{ControlPlane, registry};
 

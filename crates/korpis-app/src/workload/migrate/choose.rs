@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A migration's destination (§8.1 of docs/05-scheduling.md): the scheduler's choice among every
-//! node serving the workload but the one it is on, or a node an operator named, checked as a
-//! placement by hand is (§2.3 there), its cordon and taints overridden and nothing else. At
-//! approval each is checked again as it was chosen: the scheduler's choice against every filter
-//! of the scheduler, among the nodes serving the workload, so a node cordoned or tainted since
-//! the proposal is refused; only a node an operator named keeps the override. The volumes it must
-//! reach where they are are those of shared and block classes alone; every other volume crosses
-//! to it.
+//! A migration's destination: the scheduler's choice among every node serving the workload but the
+//! one it is on, or a node an operator named, checked as a placement by hand is, its cordon and
+//! taints overridden and nothing else. At approval each is checked again as it was chosen: the
+//! scheduler's choice against every filter of the scheduler, among the nodes serving the workload,
+//! so a node cordoned or tainted since the proposal is refused; only a node an operator named keeps
+//! the override. The volumes it must reach where they are are those of shared and block classes
+//! alone; every other volume crosses to it.
 
 use super::super::learned::Learned;
 use super::super::place::{Given, candidates_of, given_on};

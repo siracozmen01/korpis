@@ -6,14 +6,14 @@ package korpis.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// User sessions (§9.4 of docs/08-identity.md). A browser's refresh credential is a cookie,
-// `__Host-korpis_refresh`, which is `HttpOnly`, `Secure`, `SameSite=Strict`, and bound to the
-// control plane's own name, so no script can read it, no other site's request carries it, and no
-// sibling name can set one; the CLI's travels in the request and response bodies instead.
-// Exchange, SignOut, AuthorizeDevice, and DeviceToken take no other credential, and a refused one
-// is a failed attempt (§10 of docs/10-api.md); ListSignInProviders and BeginExternalSignIn take
-// none at all, and are charged to their source, as CompleteExternalSignIn is when it begins a
-// session; the rest are called with an access token, as any call is.
+// User sessions. A browser's refresh credential is a cookie, `__Host-korpis_refresh`, which is
+// `HttpOnly`, `Secure`, `SameSite=Strict`, and bound to the control plane's own name, so no script
+// can read it, no other site's request carries it, and no sibling name can set one; the CLI's
+// travels in the request and response bodies instead. Exchange, SignOut, AuthorizeDevice, and
+// DeviceToken take no other credential, and a refused one is a failed attempt; ListSignInProviders
+// and BeginExternalSignIn take none at all, and are charged to their source, as
+// CompleteExternalSignIn is when it begins a session; the rest are called with an access token, as
+// any call is.
 service SessionService {
   // Exchanges the refresh credential for an access token, rotating it: the cookie is replaced,
   // or, for a credential sent in the body, the next one is answered in the body. A credential
@@ -51,9 +51,8 @@ service SessionService {
   rpc ApproveDevice(ApproveDeviceRequest) returns (ApproveDeviceResponse);
   // Denies a pending device authorization.
   rpc DenyDevice(DenyDeviceRequest) returns (DenyDeviceResponse);
-  // The identity providers the installation's sign-in page offers: those of its root
-  // organization that sign people in (§9.7 of docs/08-identity.md). A provider anywhere else is
-  // reached by its own sign-in link.
+  // The identity providers the installation's sign-in page offers: those of its root organization
+  // that sign people in. A provider anywhere else is reached by its own sign-in link.
   rpc ListSignInProviders(ListSignInProvidersRequest) returns (ListSignInProvidersResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -62,14 +61,13 @@ service SessionService {
   // panel to return to, and while the provider cannot answer; NOT_FOUND for a provider that does
   // not sign people in.
   rpc BeginExternalSignIn(BeginExternalSignInRequest) returns (BeginExternalSignInResponse);
-  // Completes a sign-in through an identity provider with what the person returned with and
-  // the verifier the panel kept: the state is spent once, and the provider asserts the code.
-  // Called without a credential, it begins a session for the person and sets its refresh
-  // credential as the cookie; called with the access token of a session the same person holds
-  // through the same provider, it re-authenticates that session instead (§9.6). A state unknown,
-  // expired, or spent, a verifier that is not the challenge's, a code the provider will not
-  // assert, or another person's session is UNAUTHENTICATED, a failed attempt of the kind
-  // `session.external`.
+  // Completes a sign-in through an identity provider with what the person returned with and the
+  // verifier the panel kept: the state is spent once, and the provider asserts the code. Called
+  // without a credential, it begins a session for the person and sets its refresh credential as the
+  // cookie; called with the access token of a session the same person holds through the same
+  // provider, it re-authenticates that session instead. A state unknown, expired, or spent, a
+  // verifier that is not the challenge's, a code the provider will not assert, or another person's
+  // session is UNAUTHENTICATED, a failed attempt of the kind `session.external`.
   rpc CompleteExternalSignIn(CompleteExternalSignInRequest)
       returns (CompleteExternalSignInResponse);
 }
@@ -82,7 +80,7 @@ message ExchangeRequest {
 
 message ExchangeResponse {
   // The bearer of the holder's calls: `korpisat_` and the rest for an account, `korpisax_` for a
-  // person signed in through an identity provider (§9.7 of docs/08-identity.md).
+  // person signed in through an identity provider.
   string access_token = 1;
   google.protobuf.Timestamp access_expires_at = 2;
   // The account, as `usr_…`; empty for a person's session.
@@ -168,9 +166,8 @@ message DeviceTokenResponse {
   // Its refresh credential, `korpisrt_` and the rest, exchanged as ExchangeRequest says.
   string refresh = 3;
   google.protobuf.Timestamp session_expires_at = 4;
-  // The binding of the person signed in through an identity provider who approved it, as
-  // `idb_…`, and who holds the CLI's session (§9.7 of docs/08-identity.md); empty when an
-  // account did.
+  // The binding of the person signed in through an identity provider who approved it, as `idb_…`,
+  // and who holds the CLI's session; empty when an account did.
   string binding = 5;
 }
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The runtime driver interface (§4 of docs/04-runtimes.md). A driver is a separate process
-// serving this over a local socket to the agent supervisor. It validates every spec it receives
-// against its tier's invariants (§6.1 of docs/02-architecture.md): a spec the supervisor could
-// not have produced from an honest assignment is refused and reported as a security event.
+// The runtime driver interface. A driver is a separate process serving this over a local socket to
+// the agent supervisor. It validates every spec it receives against its tier's invariants: a spec
+// the supervisor could not have produced from an honest assignment is refused and reported as a
+// security event.
 
 syntax = "proto3";
 
@@ -46,32 +46,31 @@ service DriverService {
   // Server-streaming lifecycle events (exits, OOM kills) for every object this driver holds.
   rpc Events(EventsRequest) returns (stream EventsResponse);
   rpc Signal(SignalRequest) returns (SignalResponse);
-  // Input to an interactive console (§6 of docs/14-streams.md): recorded in the stream with who
-  // sent it, then handed to the workload. Capability-gated: a console mode that takes input.
+  // Input to an interactive console: recorded in the stream with who sent it, then handed to the
+  // workload. Capability-gated: a console mode that takes input.
   rpc ConsoleInput(ConsoleInputRequest) returns (ConsoleInputResponse);
   // The terminal of an interactive console was resized; recorded as a control record.
   rpc ResizeConsole(ResizeConsoleRequest) returns (ResizeConsoleResponse);
-  // Runs a command inside a running object, in its namespaces and its cgroup, as its own user
-  // (§4.2 of docs/04-runtimes.md): what an `exec` probe runs. Capability-gated: a driver that
-  // declares `exec`. Its output is sent as it is written, at most `output_limit` bytes of it, and
-  // the last message is how the command ended.
+  // Runs a command inside a running object, in its namespaces and its cgroup, as its own user: what
+  // an `exec` probe runs. Capability-gated: a driver that declares `exec`. Its output is sent as it
+  // is written, at most `output_limit` bytes of it, and the last message is how the command ended.
   rpc Exec(ExecRequest) returns (stream ExecResponse);
-  // Whether the agent inside a guest answers, within `timeout`: what a `guest_agent` probe asks
-  // (§5 of docs/04-runtimes.md). Capability-gated: a driver that declares `guest_agent`. An
-  // object that does not run is an error, not a guest that did not answer.
+  // Whether the agent inside a guest answers, within `timeout`: what a `guest_agent` probe asks.
+  // Capability-gated: a driver that declares `guest_agent`. An object that does not run is an
+  // error, not a guest that did not answer.
   rpc PingGuest(PingGuestRequest) returns (PingGuestResponse);
   // A file session on an object's volumes, served inside its guest while it runs, and inside a
-  // service guest holding them while it does not, by the file worker the guest carries (§4.4 of
-  // docs/04-runtimes.md). Capability-gated: a driver whose `file_access` is `GUEST_WORKER`. The
-  // first request opens it; each later one is a frame of the session, and each response a frame
-  // back, which the driver passes on unread. Opened on a staged image instead, it serves a
-  // block device's backup, read-only, from a service guest of that image's own.
+  // service guest holding them while it does not, by the file worker the guest carries.
+  // Capability-gated: a driver whose `file_access` is `GUEST_WORKER`. The first request opens it;
+  // each later one is a frame of the session, and each response a frame back, which the driver
+  // passes on unread. Opened on a staged image instead, it serves a block device's backup,
+  // read-only, from a service guest of that image's own.
   rpc Files(stream FilesRequest) returns (stream FilesResponse);
   // An install into the volumes of a workload whose driver takes them as block devices, run in a
-  // service guest by the install job its boot drive carries (§4.4 of docs/04-runtimes.md, §4 of
-  // docs/09-recipes.md), as the node's helper runs one beside a container: started, asked after,
-  // and forgotten as the helper's jobs are. Capability-gated as `Files` is. A start of a job
-  // already known is answered as done; an install runs while the workload does not.
+  // service guest by the install job its boot drive carries, as the node's helper runs one beside a
+  // container: started, asked after, and forgotten as the helper's jobs are. Capability-gated as
+  // `Files` is. A start of a job already known is answered as done; an install runs while the
+  // workload does not.
   rpc StartInstall(StartInstallRequest) returns (StartInstallResponse);
   rpc InstallStatus(InstallStatusRequest) returns (InstallStatusResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -112,43 +111,39 @@ message PreparedSpec {
   korpis.v1.ResourceSpec resources = 8;
   repeated Mount mounts = 9;
   korpis.v1.IsolationTier tier = 10;
-  // Every runtime object is labelled so that adoption can match it (§4.4 of
-  // docs/02-architecture.md).
+  // Every runtime object is labelled so that adoption can match it.
   RuntimeLabels labels = 11;
-  // The uid range allocated to the workload (§4.5 of docs/04-runtimes.md).
+  // The uid range allocated to the workload.
   uint32 uid_base = 12;
   uint32 uid_count = 13;
   repeated PortMapping ports = 14;
   // The directory holding the workload's identity socket, which the agent made for it alone:
-  // mounted read-only at /run/korpis inside the workload (§9.5 of docs/08-identity.md). Empty
-  // when the node gives the workload no identity.
+  // mounted read-only at /run/korpis inside the workload. Empty when the node gives the workload no
+  // identity.
   string identity_dir = 15;
-  // Where the workload's console stream is written, and how; absent when its console mode is
-  // none (§4 of docs/14-streams.md).
+  // Where the workload's console stream is written, and how; absent when its console mode is none.
   StreamCapture stream = 16;
-  // The directory holding the namespaces the agent had the helper make for the workload, which
-  // the runtime joins rather than making its own (§4.1 of docs/07-networking.md): `net`, its
-  // network, and `user`, the user namespace that owns it, mapped to the uid range above. Empty
-  // for a workload with no network beyond loopback, as on a node that offers none.
+  // The directory holding the namespaces the agent had the helper make for the workload, which the
+  // runtime joins rather than making its own: `net`, its network, and `user`, the user namespace
+  // that owns it, mapped to the uid range above. Empty for a workload with no network beyond
+  // loopback, as on a node that offers none.
   string namespaces = 17;
-  // The driver that prepared it, by the name it describes itself with: a node with several
-  // drivers hands the spec's Create to that one (§3 of docs/04-runtimes.md).
+  // The driver that prepared it, by the name it describes itself with: a node with several drivers
+  // hands the spec's Create to that one.
   string driver = 18;
-  // The workload's addresses on its network, each as address/prefix, for a driver whose
-  // workload holds its own interface: a microVM's guest sets them on its `eth0`, routed through
-  // the gateways every workload has (§4.1 of docs/07-networking.md). Empty without `namespaces`.
+  // The workload's addresses on its network, each as address/prefix, for a driver whose workload
+  // holds its own interface: a microVM's guest sets them on its `eth0`, routed through the gateways
+  // every workload has. Empty without `namespaces`.
   repeated string addresses = 19;
-  // The devices the workload's placement holds, filled in by the agent before Create (§4.2 of
-  // docs/04-runtimes.md). A driver reads each one's edits from the node's Container Device
-  // Interface files itself, never from the agent, and refuses, before it makes anything, a
-  // device the files do not describe, of a class or mode it does not declare, or with an edit it
-  // does not apply. Added 2026-10-25.
+  // The devices the workload's placement holds, filled in by the agent before Create. A driver
+  // reads each one's edits from the node's Container Device Interface files itself, never from the
+  // agent, and refuses, before it makes anything, a device the files do not describe, of a class or
+  // mode it does not declare, or with an edit it does not apply.
   repeated GivenDevice devices = 20;
   // The node's cores the workload's placement holds for dedicated cores, filled in by the agent
-  // before Create from its own topology (§4.2 of docs/04-runtimes.md). A driver checks them
-  // against the topology it reads itself and refuses, before it makes anything, a core the
-  // machine does not have, CPUs that are not that core's, or the core holding CPU 0. Added
-  // 2026-10-25.
+  // before Create from its own topology. A driver checks them against the topology it reads itself
+  // and refuses, before it makes anything, a core the machine does not have, CPUs that are not that
+  // core's, or the core holding CPU 0.
   repeated korpis.v1.Core cores = 21;
 }
 
@@ -158,8 +153,7 @@ message GivenDevice {
   string id = 1;
   korpis.v1.DeviceClass class = 2;
   korpis.v1.DeviceMode mode = 3;
-  // Its edits, as the agent once passed them; a driver reads them itself (Finding 169 of
-  // docs/23-walkthroughs.md).
+  // Its edits, as the agent once passed them; a driver reads them itself.
   reserved 4;
   reserved "edits";
 }
@@ -176,8 +170,8 @@ message StreamCapture {
   uint64 retention_bytes = 4;
   uint64 retention_seconds = 5;
   repeated StreamSecret secrets = 6;
-  // The console takes input: the task runs with a terminal, and its stdin is the writer's to
-  // hold and to feed (§6 of docs/14-streams.md).
+  // The console takes input: the task runs with a terminal, and its stdin is the writer's to hold
+  // and to feed.
   bool input = 7;
 }
 
@@ -209,8 +203,8 @@ message RuntimeLabels {
   uint64 assignment_generation = 3;
   uint64 power_cycle = 4;
   uint64 lease_epoch = 5;
-  // The run this object executes, for a task or scheduled workload, each run its own object
-  // (§4.2 of docs/05-scheduling.md); empty for a persistent workload's one object.
+  // The run this object executes, for a task or scheduled workload, each run its own object; empty
+  // for a persistent workload's one object.
   string run = 6;
 }
 
@@ -266,8 +260,7 @@ message RuntimeObject {
   RuntimeStatus status = 3;
   // The logical CPUs of the dedicated cores the object was made holding, as its driver recorded
   // them when it made it; none for an object holding none. What an agent that adopts the object
-  // records it as holding, never what its assignment says (§4.2 of docs/04-runtimes.md, Finding
-  // 172 of docs/23-walkthroughs.md). Added 2026-10-25.
+  // records it as holding, never what its assignment says.
   repeated uint32 cpus = 4;
 }
 
@@ -305,7 +298,7 @@ message StatsRequest {
 message StatsResponse {
   // What it uses now: a rate over the time since it was last asked, and memory in use.
   korpis.v1.ResourceUsage usage = 1;
-  // Its counters since it was made, what metering sums (§2 of docs/15-observability.md).
+  // Its counters since it was made, what metering sums.
   ObjectCounters counters = 2;
 }
 
@@ -421,12 +414,11 @@ message FilesOpen {
   StagedImage image = 3;
 }
 
-// A block device's backup restored for reading (§5.4 of docs/06-storage.md): its image, restored
-// by the helper into a staging place of its own beside the volume, which is never exchanged. The
-// driver serves it from a service guest of its own, beside whatever guest holds the workload's
-// volume, at /backup in the session; the image is attached writable, since it is a copy and a
-// crash-consistent image's journal is replayed by the guest's kernel into it, and is mounted
-// read-only.
+// A block device's backup restored for reading: its image, restored by the helper into a staging
+// place of its own beside the volume, which is never exchanged. The driver serves it from a service
+// guest of its own, beside whatever guest holds the workload's volume, at /backup in the session;
+// the image is attached writable, since it is a copy and a crash-consistent image's journal is
+// replayed by the guest's kernel into it, and is mounted read-only.
 message StagedImage {
   // The image, named as a Mount's source is: `<volume root>/<staging place>/block.ext4`, in a
   // directory marked as a block device's.
@@ -463,8 +455,8 @@ message StartInstallRequest {
   // What the install's fetches downloaded, by digest, in the node's content store.
   repeated string fetched = 6;
   // Set instead of the actions: a path of a block device's backup restored into the workload's
-  // volume (§5.4 of docs/06-storage.md), from the image the node staged, which the service guest
-  // holds beside the volumes, attached writable and mounted read-only, as a browse's guest does.
+  // volume, from the image the node staged, which the service guest holds beside the volumes,
+  // attached writable and mounted read-only, as a browse's guest does.
   StagedImage restore_image = 7;
   // What the restore copies, and where to.
   korpis.install.v1.RestoreTree restore = 8;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Typing into a console through the relay (§6 of docs/14-streams.md), wired as `korpis-agent
-//! run` wires it: the node journals each input as the act of the session's subject, under the
-//! grant its token was minted from, before the driver is given it; and the control plane
-//! records it as that subject's act because that grant permitted it.
+//! Typing into a console through the relay, wired as `korpis-agent run` wires it: the node journals
+//! each input as the act of the session's subject, under the grant its token was minted from,
+//! before the driver is given it; and the control plane records it as that subject's act because
+//! that grant permitted it.
 
 use crate::data::{data, end_code, frame, open, opened};
 use crate::session::until;

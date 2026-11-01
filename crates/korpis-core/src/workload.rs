@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The workload and its state (§3.3 of docs/01-model.md): its identity, the intents declared
-//! for it, its power declaration, and the plans that move it from one to the next.
+//! The workload and its state: its identity, the intents declared for it, its power declaration,
+//! and the plans that move it from one to the next.
 
 pub mod assignment;
 pub mod block;
@@ -52,13 +52,12 @@ pub struct Workload {
     pub intent_version: u64,
     /// The approved intent nodes converge toward; `None` until the first plan is approved.
     pub target: Option<Uuid>,
-    /// Bumped every time the target moves; approval is a compare-and-swap on it (§3.2 of
-    /// docs/03-state.md).
+    /// Bumped every time the target moves; approval is a compare-and-swap on it.
     pub target_version: u64,
     /// The newest power declaration's version: the power head.
     pub power_version: u64,
-    /// The approved power declaration nodes are told, by version; zero until one is approved.
-    /// Moved only by approving a plan, like `target` (§3.3 of docs/01-model.md).
+    /// The approved power declaration nodes are told, by version; zero until one is approved. Moved
+    /// only by approving a plan, like `target`.
     pub power_target_version: u64,
     /// Bumped on every metadata change, for compare-and-swap.
     pub version: u64,
@@ -68,12 +67,12 @@ pub struct Workload {
     pub deleted_at: Option<SystemTime>,
     /// The declared set it was created through or adopted into.
     pub set: Option<Uuid>,
-    /// The operator's overrides of how its plan steps are classified: the last layer of the
-    /// chain (§3.3 of docs/01-model.md), at most one per action.
+    /// The operator's overrides of how its plan steps are classified: the last layer of the chain,
+    /// at most one per action.
     pub classification: Vec<plan::Override>,
     /// Why what it runs can no longer be reproduced from its recipe alone, and since when: an
-    /// install's step resolved to whatever a channel held (§4 of docs/09-recipes.md). `None`
-    /// while it can be; once set, never cleared.
+    /// install's step resolved to whatever a channel held. `None` while it can be; once set, never
+    /// cleared.
     pub unreproducible: Option<Unreproducible>,
 }
 
@@ -117,9 +116,8 @@ pub enum PowerState {
     Stopped,
 }
 
-/// The power declaration: versioned and attributed like an intent, and kept out of the intent
-/// so that the intent chain stays a configuration history (finding R7, §3.3 of
-/// docs/01-model.md).
+/// The power declaration: versioned and attributed like an intent, and kept out of the intent so
+/// that the intent chain stays a configuration history.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Power {
     /// Running or stopped.

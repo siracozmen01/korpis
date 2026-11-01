@@ -2,10 +2,10 @@
 
 // One workload's status, live (WatchWorkload of api.proto): the stream starts with the current
 // state and sends each change. It is one call however long it stays open, which is what lets a
-// share link with a use cap open a workload's screen for one use (§6.1 of docs/08-identity.md).
-// When it ends, the last status stays on screen as stale, with when it was last heard (§2 of
-// docs/11-surface-web.md). A signed-in screen opens it again by itself, waiting longer after
-// each failure; a share link's screen asks first, because each opening spends a use.
+// share link with a use cap open a workload's screen for one use. When it ends, the last status
+// stays on screen as stale, with when it was last heard. A signed-in screen opens it again by
+// itself, waiting longer after each failure; a share link's screen asks first, because each opening
+// spends a use.
 
 import { useEffect, useReducer } from "react";
 import type { Clients } from "../clients";

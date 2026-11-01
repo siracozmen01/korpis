@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `IdentityService.AssertIdentity` (§5.2 of docs/08-identity.md).
+//! `IdentityService.AssertIdentity`.
 
 use super::wire::scope::object_ref_from_pb;
 use super::wire::{self, Refuse};

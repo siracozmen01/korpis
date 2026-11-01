@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Uninstalling an extension (§4 of docs/16-extensions.md): its grants are revoked, which revokes
-//! everything descended from them, its record says when, and the retirement of its workload is
-//! proposed, all in one transaction. The retirement waits for a human like every other (§3.3 of
-//! docs/01-model.md); the extension can obtain nothing meanwhile, because it holds no grant.
+//! Uninstalling an extension: its grants are revoked, which revokes everything descended from them,
+//! its record says when, and the retirement of its workload is proposed, all in one transaction.
+//! The retirement waits for a human like every other; the extension can obtain nothing meanwhile,
+//! because it holds no grant.
 
 use crate::App;
 use crate::caller::Caller;

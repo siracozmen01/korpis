@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A workload's actions: each proposes its plan, which then interrupts as much as its risk calls
-// for (§4 of docs/11-surface-web.md, planned.tsx).
+// A workload's actions: each proposes its plan, which then interrupts as much as its risk calls for
+// (planned.tsx).
 
 import { Button } from "react-aria-components";
 import { useReach } from "../clients";

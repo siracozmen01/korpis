@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Relays a restore holds (§6 of docs/18-operations.md): every relay the backup records as joined
-//! is held, its feed answered as unavailable and its URL named to no node, until an operator
-//! readmits it or removes it; a relay the store does not know is refused as unauthenticated.
+//! Relays a restore holds: every relay the backup records as joined is held, its feed answered as
+//! unavailable and its URL named to no node, until an operator readmits it or removes it; a relay
+//! the store does not know is refused as unauthenticated.
 
 use crate::relays::{Feed, token};
 use crate::support::{Harness, mutation};

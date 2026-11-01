@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What keeps a workload on one node: an existing volume it attaches (§7 of docs/06-storage.md),
-//! a volume with replicas, which only a class sending increments holds (§2.2 there), and the
-//! workloads it depends on, unless the mesh joins their nodes (§5 and §9.1 of
-//! docs/07-networking.md).
+//! What keeps a workload on one node: an existing volume it attaches, a volume with replicas, which
+//! only a class sending increments holds, and the workloads it depends on, unless the mesh joins
+//! their nodes.
 
 use super::{GIB, PROJECT, body, node, req};
 use crate::node::StorageClass;

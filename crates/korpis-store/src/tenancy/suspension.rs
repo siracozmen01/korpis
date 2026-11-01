@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! An organization's status as it is kept: `status` says whether it is suspended, and
-//! `suspension` who suspended it, when, why, and what it did to the workloads (§2.1 of
-//! docs/08-identity.md). The two are written together and read together, so a row never says one
-//! without the other.
+//! An organization's status as it is kept: `status` says whether it is suspended, and `suspension`
+//! who suspended it, when, why, and what it did to the workloads. The two are written together and
+//! read together, so a row never says one without the other.
 
 use crate::stored::{from_json, principal, to_json};
 use chrono::{DateTime, Utc};

@@ -32,8 +32,7 @@ pub struct EffectFilter {
     pub node: Option<Uuid>,
     /// Ingested at or after this time.
     pub since: Option<SystemTime>,
-    /// Effects about an object in this organization's subtree (§4 of
-    /// docs/15-observability.md).
+    /// Effects about an object in this organization's subtree.
     pub organization: Option<Uuid>,
     /// Effects about an object in this project.
     pub project: Option<Uuid>,
@@ -51,8 +50,8 @@ pub trait EffectRead {
         limit: u32,
     ) -> impl Future<Output = StoreResult<Vec<Effect>>> + Send;
 
-    /// The entry that recorded declaring `intent` of `workload`: the change a drifted member's
-    /// head was made by (§6 of docs/13-surface-cli.md).
+    /// The entry that recorded declaring `intent` of `workload`: the change a drifted member's head
+    /// was made by.
     fn declaring_effect(
         &self,
         workload: Uuid,
@@ -69,8 +68,7 @@ pub trait EffectWrite {
     ) -> impl Future<Output = StoreResult<SystemTime>> + Send;
 }
 
-/// What a run of identical denials is keyed by: who was refused, what, and on which object
-/// (§10 of docs/10-api.md).
+/// What a run of identical denials is keyed by: who was refused, what, and on which object.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenialKey {
     /// The refused subject.
@@ -111,8 +109,8 @@ pub trait DenialWrite {
     fn drop_denial_run(&mut self, key: &DenialKey) -> impl Future<Output = StoreResult<()>> + Send;
 }
 
-/// What a run of identical failed attempts to authenticate is keyed by: where they came from,
-/// what was presented, and what it named, if anything (§10 of docs/10-api.md).
+/// What a run of identical failed attempts to authenticate is keyed by: where they came from, what
+/// was presented, and what it named, if anything.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FailureKey {
     /// The source, as [`korpis_core::audit::failure::source`] names it.

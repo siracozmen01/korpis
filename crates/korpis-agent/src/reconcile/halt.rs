@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Stopping a runtime object without the reconciler waiting in the call (§6 of
-//! docs/02-architecture.md). The reconciler moves through the node's workloads one after another,
-//! so a stop it waited in, a grace of thirty seconds or a hook's minutes, would hold up every
-//! other workload on the node for as long. A stop is instead a state kept with what it stops:
-//! each pass moves it on and says whether it has stopped, and whatever needed it stopped carries
-//! on in the pass that finds it so. The process's exit is a change the driver reports, which
-//! wakes the reconciler at once; anything timed waits for the next pass, at most one period late.
+//! Stopping a runtime object without the reconciler waiting in the call. The reconciler moves
+//! through the node's workloads one after another, so a stop it waited in, a grace of thirty
+//! seconds or a hook's minutes, would hold up every other workload on the node for as long. A stop
+//! is instead a state kept with what it stops: each pass moves it on and says whether it has
+//! stopped, and whatever needed it stopped carries on in the pass that finds it so. The process's
+//! exit is a change the driver reports, which wakes the reconciler at once; anything timed waits
+//! for the next pass, at most one period late.
 //!
-//! A stop asks first when the recipe says how (§3 of docs/09-recipes.md): its `pre_stop` hook's
-//! data is written to the console as korpis's input, recorded in the stream as the reconciler's,
-//! and the process is given the hook's `wait_for_exit` to exit by itself. Only then is it
-//! signalled, and killed once its grace is over, whether or not the signal could be delivered.
+//! A stop asks first when the recipe says how: its `pre_stop` hook's data is written to the console
+//! as korpis's input, recorded in the stream as the reconciler's, and the process is given the
+//! hook's `wait_for_exit` to exit by itself. Only then is it signalled, and killed once its grace
+//! is over, whether or not the signal could be delivered.
 
 use super::act::{Failure, running};
 use super::{Reconciler, Tracked, effect, text};
@@ -84,8 +84,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 match self.runtime.kill(id).await {
                     // An object gone meanwhile has stopped, which is what the kill wants.
                     Ok(()) | Err(RuntimeError::NotFound(_)) => {}
-                    // Not answered in time: the next pass kills it again (Finding 165 of
-                    // docs/23-walkthroughs.md).
+                    // Not answered in time: the next pass kills it again.
                     Err(RuntimeError::Unavailable(why)) => {
                         tracing::warn!(%id, %why, "the kill was not answered; a later pass asks again");
                     }
@@ -132,9 +131,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     }
 
     /// Whether `id` is running now; an object that is gone is not, and one the driver did not
-    /// answer for in time is not known to have stopped, so its stop goes on and the next pass
-    /// asks again, as a destroy does (§6 of docs/02-architecture.md; Finding 165 of
-    /// docs/23-walkthroughs.md). A runtime whose shim is busy answers that late under load.
+    /// answer for in time is not known to have stopped, so its stop goes on and the next pass asks
+    /// again, as a destroy does. A runtime whose shim is busy answers that late under load.
     async fn running_now(&self, id: &str) -> Result<bool, Failure> {
         match self.runtime.inspect(id).await {
             Ok(s) => Ok(running(&s)),

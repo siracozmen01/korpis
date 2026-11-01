@@ -56,8 +56,8 @@ impl ControlPlane {
             .into_owned()
     }
 
-    /// A share link to read `workload`'s console written from `from` to `to`, in nanoseconds of
-    /// the node clock (§8 of docs/14-streams.md).
+    /// A share link to read `workload`'s console written from `from` to `to`, in nanoseconds of the
+    /// node clock.
     pub async fn share_range(&self, workload: &str, (from, to): (i64, i64)) -> String {
         use korpis_core::authz::{Kind, ObjectRef};
         use korpis_core::id::{Id, IdKind};

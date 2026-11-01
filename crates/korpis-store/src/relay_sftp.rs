@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where each relay serving SFTP is reached, and the host key it serves, as the relay last
-//! reported them (§3.1 of docs/02-architecture.md); the relay store's impls call these.
+//! Where each relay serving SFTP is reached, and the host key it serves, as the relay last reported
+//! them; the relay store's impls call these.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};

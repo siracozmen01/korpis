@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis logs` (§8 of docs/13-surface-cli.md): a workload's console, read without attaching.
-//! The command mints a capability token for `workload.console.read` on the one workload, with
-//! the route the gateway seals with it, and opens a session at a relay (§3.1 of
-//! docs/02-architecture.md); the node that runs the workload sends what its stream holds, in
-//! offset order (§2 of docs/14-streams.md). Records dropped under pressure arrive as gap records
-//! and offsets the node no longer holds are said to be missing, so a quiet stretch is never a
-//! hole nobody mentioned (§3).
+//! `korpis logs`: a workload's console, read without attaching. The command mints a capability
+//! token for `workload.console.read` on the one workload, with the route the gateway seals with it,
+//! and opens a session at a relay; the node that runs the workload sends what its stream holds, in
+//! offset order. Records dropped under pressure arrive as gap records and offsets the node no
+//! longer holds are said to be missing, so a quiet stretch is never a hole nobody mentioned.
 //!
 //! Following, the command renews its token on the session before it expires, and if the session
 //! is lost it opens another from the offset it was told to read from next, so nothing is printed
@@ -72,8 +70,8 @@ pub struct Reading {
     #[arg(long)]
     pub relay: Option<String>,
     /// Read what was offloaded to the repository that takes the workload's stream, through the
-    /// control plane, rather than what the node holds: for a workload whose node is gone, or
-    /// that was retired (§4 of docs/14-streams.md).
+    /// control plane, rather than what the node holds: for a workload whose node is gone, or that
+    /// was retired.
     #[arg(long, conflicts_with_all = ["follow", "tail", "since", "grep", "relay"])]
     pub offloaded: bool,
 }

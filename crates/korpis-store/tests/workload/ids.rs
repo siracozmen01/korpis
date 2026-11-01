@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! User-namespace id slots (§4.5 of docs/04-runtimes.md): unique per node while a workload is
-//! there, kept by the workload, and given back when it is retired.
+//! User-namespace id slots: unique per node while a workload is there, kept by the workload, and
+//! given back when it is retired.
 
 use crate::support::{create, fixture, now};
 use korpis_app::ports::{AssignmentWrite, RetirementWrite, Store, Tx};

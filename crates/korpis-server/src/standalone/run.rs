@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Running a joined relay (§3.1 of docs/02-architecture.md): it serves `RelayService` and
-//! `DataService` with the certificate it was issued, renewing it as it nears expiry, verifying by
-//! what its feed sends, and holds no database; and SFTP where its operator turns it on. It stops
-//! when the control plane refuses its feed, since a removed relay must not go on verifying by
-//! what it held.
+//! Running a joined relay: it serves `RelayService` and `DataService` with the certificate it was
+//! issued, renewing it as it nears expiry, verifying by what its feed sends, and holds no database;
+//! and SFTP where its operator turns it on. It stops when the control plane refuses its feed, since
+//! a removed relay must not go on verifying by what it held.
 
 use super::RelayDir;
 use super::fed::Fed;
@@ -64,9 +63,9 @@ pub struct RunningRelay {
 }
 
 impl RunningRelay {
-    /// Serves SFTP on `listener` with `host_key` as well (§3.1 of docs/02-architecture.md),
-    /// meeting clients as the relay's API listener does, and reports it in the feed: reached at
-    /// `advertise`, or at the host of the relay's URL and the port `listener` is bound to.
+    /// Serves SFTP on `listener` with `host_key` as well, meeting clients as the relay's API
+    /// listener does, and reports it in the feed: reached at `advertise`, or at the host of the
+    /// relay's URL and the port `listener` is bound to.
     ///
     /// # Errors
     /// The relay's directory cannot be read.
@@ -101,8 +100,8 @@ pub fn url(dir: &RelayDir) -> Result<String, RunError> {
 pub struct Edge {
     /// The load balancers whose connections open with a PROXY header naming the client.
     pub proxies: Vec<ipnet::IpNet>,
-    /// The panel's origins, whose calls are answered cross-origin (§3.1 of
-    /// docs/02-architecture.md): a browser opens its sessions here.
+    /// The panel's origins, whose calls are answered cross-origin: a browser opens its sessions
+    /// here.
     pub web_origins: Vec<String>,
 }
 

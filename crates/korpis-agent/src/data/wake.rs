@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Waking a following reader when its stream is written (§4 of docs/14-streams.md). The stream's
-//! live tier is the segment being written, in the page cache; a follower is woken by inotify on
-//! the stream's directory as soon as the writer appends to it, so a record reaches it moments
-//! after it is written, and the writer has no second consumer to serve: it never learns anyone
-//! is reading.
+//! Waking a following reader when its stream is written. The stream's live tier is the segment
+//! being written, in the page cache; a follower is woken by inotify on the stream's directory as
+//! soon as the writer appends to it, so a record reaches it moments after it is written, and the
+//! writer has no second consumer to serve: it never learns anyone is reading.
 
 use rustix::fs::inotify::{self, CreateFlags, WatchFlags};
 use rustix::io::Errno;

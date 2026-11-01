@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recipe step provider's answer (§4 of docs/09-recipes.md, §5 of docs/16-extensions.md): what
-//! a step resolved to, as content-addressed artifacts the node's content store fetches and the
-//! workload's own filesystem worker copies in, exactly as it does for a `fetch` verb. The provider
-//! never writes a tenant's volume, so re-running a step re-resolves it and overwrites the same
-//! targets, and its idempotence is the interface's, not a promise of each provider.
+//! A recipe step provider's answer: what a step resolved to, as content-addressed artifacts the
+//! node's content store fetches and the workload's own filesystem worker copies in, exactly as it
+//! does for a `fetch` verb. The provider never writes a tenant's volume, so re-running a step
+//! re-resolves it and overwrites the same targets, and its idempotence is the interface's, not a
+//! promise of each provider.
 
 /// The most artifacts one step may produce: an application of many files is shipped as archives.
 pub const MAX_ARTIFACTS: usize = 1000;
@@ -24,8 +24,7 @@ pub struct Platform {
 /// One artifact a step produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StepArtifact {
-    /// Where it goes, relative to the `to` of the recipe step that asked (§4 of
-    /// docs/09-recipes.md).
+    /// Where it goes, relative to the `to` of the recipe step that asked.
     pub path: String,
     /// Where the content store fetches it from.
     pub url: String,
@@ -46,8 +45,7 @@ pub struct StepResult {
     /// What to put where.
     pub artifacts: Vec<StepArtifact>,
     /// Whether the request named the content exactly (a depot manifest, say), so the same request
-    /// always produces the same artifacts; an unpinned result marks the workload
-    /// non-reproducible (§4 of docs/09-recipes.md).
+    /// always produces the same artifacts; an unpinned result marks the workload non-reproducible.
     pub pinned: bool,
     /// What it resolved to, for the plan and the audit record, e.g. the manifest a channel held.
     pub resolved: String,

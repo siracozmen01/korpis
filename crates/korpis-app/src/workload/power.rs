@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Start, stop and restart: a new power declaration and the plan toward it (§3.3 of
-//! docs/01-model.md). The intent chain is untouched; the power head moves at declaration and the
-//! power target, which nodes are told, only when the plan is approved.
+//! Start, stop and restart: a new power declaration and the plan toward it. The intent chain is
+//! untouched; the power head moves at declaration and the power target, which nodes are told, only
+//! when the plan is approved.
 
 use super::propose::{self, Proposal};
 use crate::App;
@@ -30,10 +30,10 @@ pub struct ChangePower {
     pub workload: Uuid,
     /// Start, stop, or restart.
     pub change: PowerChange,
-    /// The power head's version the change was made against (§6 of docs/10-api.md).
+    /// The power head's version the change was made against.
     pub expected_version: u64,
-    /// Persist everything and approve nothing: the plan waits for its proposer to confirm it
-    /// even when default policy would approve it at once (§3.3 of docs/01-model.md).
+    /// Persist everything and approve nothing: the plan waits for its proposer to confirm it even
+    /// when default policy would approve it at once.
     pub propose: bool,
 }
 

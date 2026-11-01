@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The machine's zone database (§4.1 of docs/05-scheduling.md): the zones its operating system
-//! keeps under `/usr/share/zoneinfo` (or where `TZDIR` says), as updated with it, so a zone whose
-//! rules change is right once the machine's database is.
+//! The machine's zone database: the zones its operating system keeps under `/usr/share/zoneinfo`
+//! (or where `TZDIR` says), as updated with it, so a zone whose rules change is right once the
+//! machine's database is.
 
 use jiff::tz::TimeZone;
 use korpis_app::ports::Zones;

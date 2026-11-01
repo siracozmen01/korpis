@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The placement policy an organization sets for its subtree (§2.2 of docs/05-scheduling.md),
-//! kept beside it in the form an explanation keeps a policy in.
+//! The placement policy an organization sets for its subtree, kept beside it in the form an
+//! explanation keeps a policy in.
 
 use crate::errors::from_sqlx;
 use crate::stored::{PolicyDoc, from_json, to_json};

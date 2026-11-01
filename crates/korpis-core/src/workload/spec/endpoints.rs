@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Endpoints and their network policy (docs/07-networking.md).
+//! Endpoints and their network policy.
 
 use super::{SpecError, check_name};
 use crate::labels::LabelSelector;
@@ -28,7 +28,7 @@ pub enum Protocol {
     Quic,
 }
 
-/// How an endpoint is reached (§3 of docs/07-networking.md).
+/// How an endpoint is reached.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Exposure {
     /// A port on the node, chosen by Korpis.
@@ -49,9 +49,9 @@ pub enum Exposure {
 
 impl Exposure {
     /// What this declared exposure is where the installation does or does not have an edge tier
-    /// serving the workload (§3 of docs/07-networking.md). A declared `stable` is a preference:
-    /// without an edge to hold the address it resolves to `node_bound`, which needs the node to
-    /// be reachable itself. Every other mode is what it says.
+    /// serving the workload. A declared `stable` is a preference: without an edge to hold the
+    /// address it resolves to `node_bound`, which needs the node to be reachable itself. Every
+    /// other mode is what it says.
     #[must_use]
     pub const fn resolved(self, edge_tier: bool) -> Self {
         match self {
@@ -79,9 +79,9 @@ pub enum TlsSpec {
     },
     /// Not terminated: the workload handles TLS itself.
     Passthrough {
-        /// Whether the proxy tells the workload its client's address in a PROXY header, version
-        /// 2, before the first byte it splices: the endpoint's declared `client_address:
-        /// proxy_protocol` (§3.2 of docs/07-networking.md).
+        /// Whether the proxy tells the workload its client's address in a PROXY header, version 2,
+        /// before the first byte it splices: the endpoint's declared `client_address:
+        /// proxy_protocol`.
         proxy_protocol: bool,
     },
 }
@@ -226,7 +226,7 @@ fn check_endpoint(i: usize, e: &EndpointSpec) -> Result<(), SpecError> {
         check_ingress(&at, e)?;
     } else if !e.domains.is_empty() {
         let why = "names are routed by the ingress: an endpoint of another exposure is reached \
-                   at its address (§3.2 of docs/07-networking.md)";
+                   at its address";
         return Err(SpecError::new(&at("domains"), why));
     } else if e.tls.is_some() {
         let why = "certificates are the ingress's, which terminates TLS for its names";
@@ -244,9 +244,9 @@ fn check_endpoint(i: usize, e: &EndpointSpec) -> Result<(), SpecError> {
 /// The most names one endpoint routes: as many as one ACME certificate holds.
 pub const MAX_INGRESS_NAMES: usize = 100;
 
-/// An `ingress` endpoint (§3.2 of docs/07-networking.md): HTTP or HTTPS terminated by the proxy
-/// with a certificate from ACME or its organization, or TCP carrying TLS the proxy routes by SNI
-/// and passes through unread; at least one exact name, and at most [`MAX_INGRESS_NAMES`].
+/// An `ingress` endpoint: HTTP or HTTPS terminated by the proxy with a certificate from ACME or its
+/// organization, or TCP carrying TLS the proxy routes by SNI and passes through unread; at least
+/// one exact name, and at most [`MAX_INGRESS_NAMES`].
 fn check_ingress(at: &dyn Fn(&str) -> String, e: &EndpointSpec) -> Result<(), SpecError> {
     match (e.protocol, &e.tls) {
         (Protocol::Http | Protocol::Https, None)
@@ -277,10 +277,8 @@ fn check_ingress(at: &dyn Fn(&str) -> String, e: &EndpointSpec) -> Result<(), Sp
     let mut seen = BTreeSet::new();
     for d in &e.domains {
         if crate::dns::domain::DomainName::parse(d).is_none() {
-            let why = format!(
-                "{d:?} is not an exact lowercase DNS name; a wildcard is question 11 of §11 of \
-                 docs/07-networking.md"
-            );
+            let why =
+                format!("{d:?} is not an exact lowercase DNS name; wildcards are not designed yet");
             return Err(SpecError::new(&at("domains"), why));
         }
         if !seen.insert(d) {

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Writing a DNS provider (§3.5 of docs/07-networking.md). The control plane holds what each
-//! owner's records should be and sends them whole; the provider makes its zones agree, removing
-//! records the owner no longer has, and never touching a record that is not Korpis's. Requires
-//! the `provider.dns` capability.
+//! Writing a DNS provider. The control plane holds what each owner's records should be and sends
+//! them whole; the provider makes its zones agree, removing records the owner no longer has, and
+//! never touching a record that is not Korpis's. Requires the `provider.dns` capability.
 
 pub use crate::provider::Failure;
 use crate::provider::{Handler, Outcome, Unsupported};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Volumes in a class: created as a directory owned by id 0 as the workload sees it (files carry
-//! workload-relative ids, §4.5 of docs/04-runtimes.md, and the driver's idmapped mount maps them
+//! workload-relative ids, and the driver's idmapped mount maps them
 //! onto the workload's range), or as a subvolume on btrfs; put in a quota project of their own,
 //! or limited by their qgroup, where the class enforces quota; made durable before the answer;
 //! and removed without following a link. A block device is such a directory holding its image
@@ -100,9 +100,9 @@ impl Class {
         })
     }
 
-    /// Gives the new volume `volume` to the workload's root, with its mode, through a descriptor
-    /// of what was made and never through a link put in its place: in a shared class, another
-    /// client of the export may (Finding 202 of docs/23-walkthroughs.md).
+    /// Gives the new volume `volume` to the workload's root, with its mode, through a descriptor of
+    /// what was made and never through a link put in its place: in a shared class, another client
+    /// of the export may.
     fn give(&self, volume: &str) -> std::io::Result<()> {
         use rustix::fs::{Gid, Mode, OFlags, Uid};
         let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
@@ -161,8 +161,8 @@ impl Class {
 
     /// Removes the volume `volume` and everything in it; whether there was one.
     pub fn delete(&mut self, volume: &str) -> HelperResult<bool> {
-        // A block class's volume is the storage's: deleting it here lets go of it, and its
-        // provider deletes its bytes (§2.1 of docs/06-storage.md).
+        // A block class's volume is the storage's: deleting it here lets go of it, and its provider
+        // deletes its bytes.
         if self.devices.is_some() {
             return self.release_device(volume);
         }
@@ -213,8 +213,7 @@ impl Class {
         if self.backend() == Backend::Btrfs {
             return self.btrfs_usage(volume);
         }
-        // Nothing accounts a plain directory, and walking it would be computing, not reading
-        // (§3 of docs/06-storage.md).
+        // Nothing accounts a plain directory, and walking it would be computing, not reading.
         let Some(project) = self.projects.of(volume).filter(|_| self.backend().enforces()) else {
             return Ok(helper::VolumeUsageResponse::default());
         };

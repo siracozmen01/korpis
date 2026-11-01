@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The commands a person types, each a few calls of the API (§2 of docs/13-surface-cli.md).
-//! Each answers with the API's own objects, for `--json`, and with a human form; the binary
-//! prints whichever was asked for.
+//! The commands a person types, each a few calls of the API. Each answers with the API's own
+//! objects, for `--json`, and with a human form; the binary prints whichever was asked for.
 
 pub mod act;
 pub mod address_pool;
@@ -114,7 +113,7 @@ pub enum Get {
     /// caller's own when nothing is named), or one project, workload, plan, or node.
     Effects(Effects),
     /// What workloads used over intervals in a window, as their nodes measured it, and where
-    /// nothing was heard (§2 of docs/15-observability.md).
+    /// nothing was heard.
     Usage(usage::Usage),
     /// The metering days in a window, and whether each has closed.
     Periods(usage::Periods),
@@ -179,7 +178,7 @@ pub enum PlanAction {
 /// `korpis node token …`.
 #[derive(Debug, Clone, Subcommand)]
 pub enum TokenAction {
-    /// Creates a one-time enrollment token for a node (§3 of docs/18-operations.md).
+    /// Creates a one-time enrollment token for a node.
     Create {
         /// The node's name, unique in the installation.
         name: String,
@@ -239,7 +238,7 @@ pub enum Mode {
     Strict,
 }
 
-/// `korpis set …` (§5 and §6 of docs/13-surface-cli.md).
+/// `korpis set …`.
 #[derive(Debug, Clone, Subcommand)]
 pub enum SetAction {
     /// The declared sets of a project.
@@ -257,7 +256,7 @@ pub enum SetAction {
     },
 }
 
-/// `korpis grant …` (§7 of docs/13-surface-cli.md).
+/// `korpis grant …`.
 #[derive(Debug, Clone, Subcommand)]
 pub enum GrantAction {
     /// Attenuates a grant you hold into a new one: to a new token by default, whose secret is
@@ -286,7 +285,7 @@ pub enum GrantAction {
         grant: String,
     },
     /// Makes a share link: a grant whoever holds the link holds, on one object, expiring and
-    /// limited in uses, which can never make another (§6.1 of docs/08-identity.md).
+    /// limited in uses, which can never make another.
     Share(Box<share::Share>),
 }
 
@@ -296,10 +295,9 @@ pub struct Issue {
     /// What it permits, comma-separated, e.g. `workload.read,workload.write`.
     #[arg(long, value_delimiter = ',', required_unless_present = "template")]
     pub actions: Vec<String>,
-    /// Issues from a grant template, `tpl_…` or a name offered at `--scope`, which says the
-    /// actions and the delegation and is applied at the object `--scope` names (§4 of
-    /// docs/08-identity.md); `--expires`, `--source-cidr`, and `--requires-approval-by` then
-    /// replace its defaults.
+    /// Issues from a grant template, `tpl_…` or a name offered at `--scope`, which says the actions
+    /// and the delegation and is applied at the object `--scope` names; `--expires`,
+    /// `--source-cidr`, and `--requires-approval-by` then replace its defaults.
     #[arg(long, conflicts_with_all = ["actions", "delegate", "select"])]
     pub template: Option<String>,
     /// The template's version to issue; the one it has now by default.
@@ -310,8 +308,7 @@ pub struct Issue {
     #[arg(add = ArgValueCompleter::new(complete::scopes))]
     #[arg(long)]
     pub scope: String,
-    /// Narrows the scope to what carries this label, `key=value`; repeatable (§3.4 of
-    /// docs/08-identity.md).
+    /// Narrows the scope to what carries this label, `key=value`; repeatable.
     #[arg(long = "select")]
     pub select: Vec<String>,
     /// How long it lasts, as `90s`, `30m`, `12h`, or `90d`; as long as its parent otherwise.

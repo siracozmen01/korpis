@@ -102,8 +102,8 @@ pub fn verified(digest: &str, signatures: &[Signature], signers: &[Signer]) -> V
         .collect()
 }
 
-/// Signs `payload` as cosign does: ECDSA P-256 over its SHA-256, ASN.1 DER, base64. For the
-/// signing tooling of Phase 4 (§4 of docs/20-roadmap.md) and for tests.
+/// Signs `payload` as cosign does: ECDSA P-256 over its SHA-256, ASN.1 DER, base64. For the signing
+/// tooling of Phase 4 and for tests.
 #[must_use]
 pub fn sign(key: &SigningKey, payload: &[u8]) -> String {
     let sig: Sig = key.sign(payload);

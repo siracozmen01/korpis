@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Leases on the addresses of edge pools, and each member's health (migration 0133, §3.1 of
-//! docs/07-networking.md). An address's row is written when its first epoch is issued and kept
-//! after, so the next member's request is decided against the last holder's.
+//! Leases on the addresses of edge pools, and each member's health (migration 0133). An address's
+//! row is written when its first epoch is issued and kept after, so the next member's request is
+//! decided against the last holder's.
 
 use super::rows::millis;
 use crate::address::address;

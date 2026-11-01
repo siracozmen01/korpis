@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declared sets (§3.3 of docs/01-model.md). Drift is not stored: it is the head intent's
-//! `managed_by` read against the workload's `set_id`.
+//! Declared sets. Drift is not stored: it is the head intent's `managed_by` read against the
+//! workload's `set_id`.
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_time, principal, to_count, to_time};

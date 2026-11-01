@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Adoption (§4.4 of docs/02-architecture.md): when the agent starts, every runtime object its
-//! driver created is matched to the assignment its labels name and taken over as it is, touching
-//! none of them; an object no assignment claims is an orphan, reported once and never deleted.
+//! Adoption: when the agent starts, every runtime object its driver created is matched to the
+//! assignment its labels name and taken over as it is, touching none of them; an object no
+//! assignment claims is an orphan, reported once and never deleted.
 
 use super::{
     RECOVER_FIRST_WAIT, RECOVER_LONGEST_WAIT, Reconciler, Tracked, act, effect, runs, text,
@@ -14,9 +14,8 @@ use std::time::Instant;
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Every runtime object the driver created, enumerated as often as it takes: nothing is
-    /// reconciled before adoption, because acting without knowing what exists would start a
-    /// second copy of what already runs (§4.4 of docs/02-architecture.md). `None` once the
-    /// session has ended.
+    /// reconciled before adoption, because acting without knowing what exists would start a second
+    /// copy of what already runs. `None` once the session has ended.
     pub(super) async fn recovered(&mut self) -> Option<Vec<driver::RuntimeObject>> {
         let mut wait = RECOVER_FIRST_WAIT;
         loop {
@@ -36,8 +35,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Takes over every runtime object the driver created, touching none (§4.4 of
-    /// docs/02-architecture.md); what no assignment claims is an orphan.
+    /// Takes over every runtime object the driver created, touching none; what no assignment claims
+    /// is an orphan.
     pub(super) async fn adopt(&mut self, objects: Vec<driver::RuntimeObject>) {
         let held = self.wiring.held.borrow().clone();
         for o in objects {
@@ -54,7 +53,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
             let running = o.status.as_option().is_some_and(act::running);
             // The cores it holds are what its driver recorded making it with, not what its
-            // assignment says now (Finding 172 of docs/23-walkthroughs.md).
+            // assignment says now.
             let a = held.assignments.get(&workload);
             let parent =
                 a.and_then(|a| self.wiring.driver_kinds.cgroup_parent(super::driver_of(a)));

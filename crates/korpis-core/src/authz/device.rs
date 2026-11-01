@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Device cookies (§9.6 of docs/08-identity.md), after OWASP's: a browser that has signed in to
-//! an account holds one, naming the account and a device id of its own, signed by the control
-//! plane's token key, and the guesses at the account's password from that browser are counted
-//! against the device alone rather than against the sign-in name, so a stranger spending the
-//! name's guesses cannot keep the holder out of a browser they have used. It carries no
-//! authority: it only says which bucket a sign-in's guesses are charged to.
+//! Device cookies, after OWASP's: a browser that has signed in to an account holds one, naming the
+//! account and a device id of its own, signed by the control plane's token key, and the guesses at
+//! the account's password from that browser are counted against the device alone rather than
+//! against the sign-in name, so a stranger spending the name's guesses cannot keep the holder out
+//! of a browser they have used. It carries no authority: it only says which bucket a sign-in's
+//! guesses are charged to.
 //!
 //! It is a [`super::sealed`] claim: `korpisdc_`, then the payload and its signature, over the
 //! purpose label `korpis.device.v1`.

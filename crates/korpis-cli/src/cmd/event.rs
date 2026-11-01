@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis event subscribe|list|delete|follow` (§5 of docs/15-observability.md): a subscription
-//! is a position in the event log kept for you; `follow` prints what it is delivered as it
-//! comes and, with `--ack`, records each as processed, so the next `follow` resumes after it.
+//! `korpis event subscribe|list|delete|follow`: a subscription is a position in the event log kept
+//! for you; `follow` prints what it is delivered as it comes and, with `--ack`, records each as
+//! processed, so the next `follow` resumes after it.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;

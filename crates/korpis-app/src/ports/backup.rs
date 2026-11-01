@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Repositories, the sealed keys their backups are encrypted under, and backups (§5 of
-//! docs/06-storage.md).
+//! Repositories, the sealed keys their backups are encrypted under, and backups.
 
 use super::StoreResult;
 use crate::page::Page;
@@ -43,8 +42,7 @@ pub trait BackupRead {
     fn backup(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Backup>>> + Send;
 
     /// Where the console streams of a workload of `project` in `organization` are offloaded: the
-    /// project's repository that takes streams, or else the organization's (§4 of
-    /// docs/14-streams.md).
+    /// project's repository that takes streams, or else the organization's.
     fn offload_repository(
         &self,
         organization: Uuid,
@@ -59,8 +57,8 @@ pub trait BackupRead {
         project: Option<Uuid>,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Whether a backup of `workload` into `repository` is pending under a plan still open:
-    /// one writer per workload prefix (§5.5 of docs/06-storage.md).
+    /// Whether a backup of `workload` into `repository` is pending under a plan still open: one
+    /// writer per workload prefix.
     fn backup_open(
         &self,
         repository: Uuid,
@@ -150,10 +148,9 @@ impl std::fmt::Debug for DataKey {
     }
 }
 
-/// Where repository keys are held (§5.5 of docs/06-storage.md). A key-encryption key never
-/// leaves the vault: it generates one sealed, generates data keys sealed under it, and opens a
-/// data key for a job. Each seal binds what it is for, so a sealed key moved to another
-/// repository or workload does not open.
+/// Where repository keys are held. A key-encryption key never leaves the vault: it generates one
+/// sealed, generates data keys sealed under it, and opens a data key for a job. Each seal binds
+/// what it is for, so a sealed key moved to another repository or workload does not open.
 pub trait KeyVault: Send + Sync + std::fmt::Debug {
     /// A new key-encryption key for `repository`, sealed.
     fn new_kek(&self, repository: Uuid) -> Result<SealedKey, VaultError>;
@@ -175,8 +172,8 @@ pub trait KeyVault: Send + Sync + std::fmt::Debug {
         workload: Uuid,
     ) -> Result<DataKey, VaultError>;
 
-    /// A one-time recipient for a key a tenant's key management service seals to the control
-    /// plane, for its own read (§5.5 of docs/06-storage.md): its secret lives in it alone.
+    /// A one-time recipient for a key a tenant's key management service seals to the control plane,
+    /// for its own read: its secret lives in it alone.
     fn recipient(&self) -> Result<Box<dyn KeyRecipient>, VaultError>;
 }
 

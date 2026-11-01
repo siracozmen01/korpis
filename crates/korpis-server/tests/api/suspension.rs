@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Suspending an organization (§2.1 of docs/08-identity.md), on a real control plane: the host
-//! suspends a reseller's sub-tenant, whose grants then make no change and read only its grants,
-//! its tree, and the status of what runs in it; the sub-tenant cannot resume itself; a second
-//! suspension is a conflict; a root is suspended by no one; and resuming restores every grant as
-//! it was, the two recorded as the host's acts.
+//! Suspending an organization, on a real control plane: the host suspends a reseller's sub-tenant,
+//! whose grants then make no change and read only its grants, its tree, and the status of what runs
+//! in it; the sub-tenant cannot resume itself; a second suspension is a conflict; a root is
+//! suspended by no one; and resuming restores every grant as it was, the two recorded as the host's
+//! acts.
 
 use crate::delegation::{Holder, organization, reseller_and_sub_tenant};
 use crate::support::{Harness, mutation};

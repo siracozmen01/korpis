@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Where a workload may run, as its intent declares it (docs/05-scheduling.md).
+//! Where a workload may run, as its intent declares it.
 
 use super::SpecError;
 use crate::labels::LabelSelector;
 
 /// The most affinity rules an intent, or a placement policy, states: each is evaluated against
-/// every candidate and the workloads it selects while placement holds the installation's one
-/// lock (§2.3 of docs/05-scheduling.md), so their number bounds how long one tenant's placement
-/// keeps every other waiting (Finding 143 of docs/23-walkthroughs.md).
+/// every candidate and the workloads it selects while placement holds the installation's one lock,
+/// so their number bounds how long one tenant's placement keeps every other waiting.
 pub const MAX_AFFINITY: usize = 32;
 
 /// A taint the workload tolerates.
@@ -82,6 +81,6 @@ mod tests {
     #[test]
     fn an_intent_states_at_most_thirty_two_affinity_rules() {
         assert!(rules(MAX_AFFINITY).validate().is_ok());
-        assert!(rules(MAX_AFFINITY + 1).validate().is_err(), "Finding 143");
+        assert!(rules(MAX_AFFINITY + 1).validate().is_err(), "one rule over the limit is refused");
     }
 }

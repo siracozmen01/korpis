@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The schema of §5 of docs/09-recipes.md.
+//! The configuration schema of the recipe documentation's example.
 
 use korpis_core::recipe::config::anchored;
 use korpis_core::recipe::derive::{Expr, Part, Resource};

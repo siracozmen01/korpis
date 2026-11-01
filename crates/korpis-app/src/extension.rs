@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Extensions (docs/16-extensions.md): installing one, reading what is installed, uninstalling
-//! it, and the providers installations serve. An extension is a workload acting as
-//! `extension:<id>` under grants attenuated from its installer's, so everything here is built
-//! from the workload and grant use cases.
+//! Extensions: installing one, reading what is installed, uninstalling it, and the providers
+//! installations serve. An extension is a workload acting as `extension:<id>` under grants
+//! attenuated from its installer's, so everything here is built from the workload and grant use
+//! cases.
 
 mod breaker;
 mod call;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recipe's catalogues (§5.3 of docs/09-recipes.md): files `i18n/<locale>.json` of its
-//! artifact, each a JSON object from a message's key to its translation. They are read with the
-//! document when the recipe is resolved, bounded in size and number, and checked against the
-//! recipe they came in, so a catalogue that names a message the recipe does not show, or holds
-//! one the panel could not show as meant, keeps the recipe from loading.
+//! A recipe's catalogues: files `i18n/<locale>.json` of its artifact, each a JSON object from a
+//! message's key to its translation. They are read with the document when the recipe is resolved,
+//! bounded in size and number, and checked against the recipe they came in, so a catalogue that
+//! names a message the recipe does not show, or holds one the panel could not show as meant, keeps
+//! the recipe from loading.
 
 use crate::document::DocumentError;
 use korpis_core::recipe::messages::Catalogue;

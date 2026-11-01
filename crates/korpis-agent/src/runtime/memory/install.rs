@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The in-memory runtime's installs, as a driver whose volumes are block devices runs them in a
-//! service guest (§4.4 of docs/04-runtimes.md): where a test has said it takes block devices,
-//! which its declaration then says, each install it is asked for has finished at once, every
-//! action counted as run, once its spec names the workload's ids and its volumes' places, as a
-//! driver's does; a restore's request is recorded among its calls. One it is not asked for is
-//! unknown, and one forgotten is again.
+//! service guest: where a test has said it takes block devices, which its declaration then says,
+//! each install it is asked for has finished at once, every action counted as run, once its spec
+//! names the workload's ids and its volumes' places, as a driver's does; a restore's request is
+//! recorded among its calls. One it is not asked for is unknown, and one forgotten is again.
 
 use super::{InMemory, info};
 use crate::runtime::{RuntimeError, RuntimeResult};

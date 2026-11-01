@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Conditions as events (§5 of docs/15-observability.md, migration 0024).
+//! Conditions as events (migration 0024).
 
 use crate::errors::from_sqlx;
 use crate::stored::from_time;

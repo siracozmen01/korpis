@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The SSH keys the signed-in user reaches their files with over SFTP (§9.9 of
-// docs/08-identity.md): each by its label, kind, and fingerprint, added by pasting a public key
-// as `ssh-keygen` writes it with the key's signature over the user's account, which the command
-// shown makes, since a public key is public and pasting one proves nothing; and removed. Adding
-// and removing are changes to how the user reaches their account, so each needs a recent
-// sign-in, which the guard asks for.
+// The SSH keys the signed-in user reaches their files with over SFTP: each by its label, kind, and
+// fingerprint, added by pasting a public key as `ssh-keygen` writes it with the key's signature
+// over the user's account, which the command shown makes, since a public key is public and pasting
+// one proves nothing; and removed. Adding and removing are changes to how the user reaches their
+// account, so each needs a recent sign-in, which the guard asks for.
 
 import { useCallback, useState } from "react";
 import { Button, Form, Input, Label, TextArea, TextField } from "react-aria-components";

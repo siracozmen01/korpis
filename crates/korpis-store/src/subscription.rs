@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Event subscriptions (§5 of docs/15-observability.md, migration 0025).
+//! Event subscriptions (migration 0025).
 
 use crate::errors::from_sqlx;
 use crate::stored::{

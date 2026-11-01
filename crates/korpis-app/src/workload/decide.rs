@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Approving and rejecting a plan (§3.3 of docs/01-model.md, §3.2 and §7 of docs/03-state.md).
-//! Approving moves the target, or the power target, by compare-and-swap, and only a plan for the
-//! head, computed against the current target, can be approved: a plan the world moved under is
-//! superseded, and a plan nobody approved in time has expired.
+//! Approving and rejecting a plan. Approving moves the target, or the power target, by
+//! compare-and-swap, and only a plan for the head, computed against the current target, can be
+//! approved: a plan the world moved under is superseded, and a plan nobody approved in time has
+//! expired.
 
 use super::retire::retiring;
 use crate::App;
@@ -71,8 +71,8 @@ fn current(plan: &Plan, w: &Workload) -> bool {
         PlanTarget::Retire | PlanTarget::Remake => {
             plan.from_intent == w.target && plan.from_power == w.power_target_version
         }
-        // A migration moves the workload as it was approved to be; its power is the source's
-        // until cutover and the destination's after (§8.1 of docs/05-scheduling.md).
+        // A migration moves the workload as it was approved to be; its power is the source's until
+        // cutover and the destination's after.
         PlanTarget::Migrate => plan.from_intent == w.target,
         // Deleting a retained volume asks nothing of the workload, retired or not; whether the
         // volume can still be deleted is read where the plan is approved. Neither does pruning
@@ -157,7 +157,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(None)
     }
 
-    /// Approves a plan, or confirms it (§3.3 of docs/01-model.md).
+    /// Approves a plan, or confirms it.
     pub async fn approve_plan(
         &self,
         caller: &Caller,

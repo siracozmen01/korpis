@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis organization …` and `korpis project …` (§2 of docs/08-identity.md): the tenancy tree,
-//! grown from where the caller's grants reach. An organization is made under one the caller may
-//! make organizations in, a reseller's beneath its own and never beside it, and a project in an
-//! organization the caller may make projects in. Listing them is `korpis get`. An organization
-//! is suspended and resumed from above, for non-payment, and what its tenant keeps while it is
-//! suspended is said where it is shown.
+//! `korpis organization …` and `korpis project …`: the tenancy tree, grown from where the caller's
+//! grants reach. An organization is made under one the caller may make organizations in, a
+//! reseller's beneath its own and never beside it, and a project in an organization the caller may
+//! make projects in. Listing them is `korpis get`. An organization is suspended and resumed from
+//! above, for non-payment, and what its tenant keeps while it is suspended is said where it is
+//! shown.
 
 use super::get::subject;
 use super::{Answer, json, mutation};
@@ -53,9 +53,9 @@ pub enum OrganizationAction {
         /// The organization, by name or identifier.
         organization: String,
     },
-    /// The delegation ceiling at an organization: the longest a grant beneath a set subject
-    /// lasts there (§5.1 of docs/08-identity.md). With `--set` or `--remove`, changes its own,
-    /// under `org.write` there; below the root it may only lower what is in force above it.
+    /// The delegation ceiling at an organization: the longest a grant beneath a set subject lasts
+    /// there. With `--set` or `--remove`, changes its own, under `org.write` there; below the root
+    /// it may only lower what is in force above it.
     Ceiling {
         /// The organization, by name or identifier; the top one you can read by default.
         organization: Option<String>,
@@ -66,10 +66,10 @@ pub enum OrganizationAction {
         #[arg(long)]
         remove: bool,
     },
-    /// The placement policy at an organization (§2.2 of docs/05-scheduling.md): its strategy
-    /// and weights score the nodes its subtree owns, and its spread and affinity place its
-    /// subtree's workloads, wherever no organization nearer sets one. With `-f` or `--remove`,
-    /// changes its own, under `org.write` there.
+    /// The placement policy at an organization: its strategy and weights score the nodes its
+    /// subtree owns, and its spread and affinity place its subtree's workloads, wherever no
+    /// organization nearer sets one. With `-f` or `--remove`, changes its own, under `org.write`
+    /// there.
     Placement {
         /// The organization, by name or identifier; the top one you can read by default.
         organization: Option<String>,
@@ -95,8 +95,7 @@ pub enum ProjectAction {
     },
 }
 
-/// What a suspended organization's tenant still does, and what it does not (§2.1 of
-/// docs/08-identity.md).
+/// What a suspended organization's tenant still does, and what it does not.
 const KEPT: &str = "its grants, organizations, projects, plans, nodes, and the status of its \
                     workloads stay readable; every change, a console, and a file are refused";
 

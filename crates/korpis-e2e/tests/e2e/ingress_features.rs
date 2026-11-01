@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The ingress's features of Phase 2 on a real node (§3.2 of docs/07-networking.md, trace 51 of
-//! docs/23-walkthroughs.md), each declared as a customer declares it and served by the node's
-//! proxy from the route its agent built: an endpoint that requires a client certificate serves a
-//! client its own authority issued and tells the workload which one in `Client-Cert`, and gives
-//! a client without one no session; a browser's HTTP/2 connection opens a WebSocket to a workload
-//! that speaks HTTP/1.1; and a workload whose TLS is passed through, having declared the PROXY
-//! protocol, is told who connected before the client's first byte. And a name of an `acme`
-//! endpoint whose node the directory cannot reach on port 80 is proven by TLS-ALPN-01 on 443, by
-//! the node's proxy, on the attempt after HTTP-01 failed, and kept that way. It needs root and
-//! containerd, Pebble for the last, and holds ports 80 and 443 of this machine's address while it
-//! runs.
+//! The ingress's features of Phase 2 on a real node, each declared as a customer declares it and
+//! served by the node's proxy from the route its agent built: an endpoint that requires a client
+//! certificate serves a client its own authority issued and tells the workload which one in
+//! `Client-Cert`, and gives a client without one no session; a browser's HTTP/2 connection opens a
+//! WebSocket to a workload that speaks HTTP/1.1; and a workload whose TLS is passed through, having
+//! declared the PROXY protocol, is told who connected before the client's first byte. And a name of
+//! an `acme` endpoint whose node the directory cannot reach on port 80 is proven by TLS-ALPN-01 on
+//! 443, by the node's proxy, on the attempt after HTTP-01 failed, and kept that way. It needs root
+//! and containerd, Pebble for the last, and holds ports 80 and 443 of this machine's address while
+//! it runs.
 
 use crate::ingress::{attest, client_hello, issuing_root, securely, serving, the_ports, uploaded};
 use crate::network::converged;

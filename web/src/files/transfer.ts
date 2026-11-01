@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Moving a file's bytes over a file session (§3.2 of docs/06-storage.md and §8 of
-// docs/11-surface-web.md): a mebibyte per request, a few requests sent ahead of their answers so
-// a distant relay does not set the pace, and never the whole file in the tab. An upload resumes
-// from the size a stat reports; a download is written to the file the browser lets the person
-// pick as it arrives, or, where a browser offers no such file, kept as a Blob, which the browser
-// may hold on disk rather than in memory, and saved at the end.
+// Moving a file's bytes over a file session: a mebibyte per request, a few requests sent ahead of
+// their answers so a distant relay does not set the pace, and never the whole file in the tab. An
+// upload resumes from the size a stat reports; a download is written to the file the browser lets
+// the person pick as it arrives, or, where a browser offers no such file, kept as a Blob, which the
+// browser may hold on disk rather than in memory, and saved at the end.
 
 import { FileErrorCode, FileKind } from "../gen/korpis/v1/files_pb";
 import { type FileSession, Refused } from "./session";

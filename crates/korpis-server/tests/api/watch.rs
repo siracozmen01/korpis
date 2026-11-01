@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Watching a workload (§4.3 of docs/02-architecture.md): its status now, then each change as
-//! the database announces it, read with the watcher's authority as it is at that moment, and
-//! paid for once by a use-limited grant.
+//! Watching a workload: its status now, then each change as the database announces it, read with
+//! the watcher's authority as it is at that moment, and paid for once by a use-limited grant.
 
 use crate::lifecycle::workload;
 use crate::links::in_an_hour;

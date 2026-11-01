@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Judging a workload's health from its probes (§5 of docs/04-runtimes.md): when each probe is
-//! tried, and what its attempts add up to. A probe passes at its first success and fails only
-//! after `failures` attempts in a row have failed, so one slow answer is not a verdict; before
-//! either it is unjudged. The node that runs the probes judges them, with these rules, and the
-//! workload's health is its liveness verdict, or its readiness verdict where it declares no
-//! liveness probe.
+//! Judging a workload's health from its probes: when each probe is tried, and what its attempts add
+//! up to. A probe passes at its first success and fails only after `failures` attempts in a row
+//! have failed, so one slow answer is not a verdict; before either it is unjudged. The node that
+//! runs the probes judges them, with these rules, and the workload's health is its liveness
+//! verdict, or its readiness verdict where it declares no liveness probe.
 
 use super::observation::Health;
 use super::spec::health::{Probe, ProbeKind};
@@ -21,8 +20,8 @@ pub const FAILURES: u32 = 3;
 /// turns the node's prober into a load on the workload it judges.
 pub const SHORTEST_PERIOD: Duration = Duration::from_secs(1);
 /// The shortest period of a `query` probe: each of its rounds is a call to its health provider
-/// through the control plane's queue (§5 of docs/16-extensions.md), which a period of a second
-/// across a fleet would turn into the queue's main load.
+/// through the control plane's queue, which a period of a second across a fleet would turn into the
+/// queue's main load.
 pub const SHORTEST_QUERY_PERIOD: Duration = Duration::from_secs(5);
 
 /// When a probe is tried, with its defaults filled in.
@@ -97,9 +96,9 @@ impl Judge {
         self.verdict
     }
 
-    /// Records an attempt that could not be judged, its health provider having failed (§5 of
-    /// docs/16-extensions.md): the verdict is unknown, never failing, and the failures counted so
-    /// far are forgotten; whether the verdict changed.
+    /// Records an attempt that could not be judged, its health provider having failed: the verdict
+    /// is unknown, never failing, and the failures counted so far are forgotten; whether the
+    /// verdict changed.
     pub fn unknown(&mut self) -> bool {
         let before = self.verdict;
         self.failed = 0;
@@ -123,11 +122,11 @@ impl Judge {
     }
 }
 
-/// What a `heartbeat` probe finds when it is checked at `now` (§5 of docs/04-runtimes.md): passed
-/// when the workload's last beat in this life of its object, `last`, came within `max_interval`;
-/// failed when it is older, or when none came within `max_interval` of `from`, the life's start
-/// and its initial delay; and nothing yet while the workload has not been silent that long, since
-/// a workload that is still starting has not missed a beat.
+/// What a `heartbeat` probe finds when it is checked at `now`: passed when the workload's last beat
+/// in this life of its object, `last`, came within `max_interval`; failed when it is older, or when
+/// none came within `max_interval` of `from`, the life's start and its initial delay; and nothing
+/// yet while the workload has not been silent that long, since a workload that is still starting
+/// has not missed a beat.
 #[must_use]
 pub fn heard(
     last: Option<Instant>,

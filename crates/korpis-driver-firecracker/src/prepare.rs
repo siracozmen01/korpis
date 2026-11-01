@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `Prepare` for the microvm tier (§4.2 of docs/04-runtimes.md): the shared preparing of
-//! `korpis_driver_kit::prepare` as the `firecracker` driver serves it, with no default process
-//! limit, since a guest's processes are its own kernel's to count.
+//! `Prepare` for the microvm tier: the shared preparing of `korpis_driver_kit::prepare` as the
+//! `firecracker` driver serves it, with no default process limit, since a guest's processes are its
+//! own kernel's to count.
 
 use korpis_core::workload::spec::IsolationTier;
 use korpis_driver_kit::prepare::Serves;

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Tenant key custody (§5.5 of docs/06-storage.md), against a real object store (MinIO; skipped
-//! without it) and a key management provider served in the test: a repository naming the
-//! tenant's key keeps no key-encryption key; a job's data key is made by the tenant's service,
-//! wrapped for storage, and handed to the node sealed to the recipient its request named, the
-//! same key each time; nothing the database holds is that key; the control plane reads the
-//! backup by having the service seal the key to itself; and once the tenant revokes the key,
-//! nobody, the control plane included, opens one.
+//! Tenant key custody, against a real object store (MinIO; skipped without it) and a key management
+//! provider served in the test: a repository naming the tenant's key keeps no key-encryption key; a
+//! job's data key is made by the tenant's service, wrapped for storage, and handed to the node
+//! sealed to the recipient its request named, the same key each time; nothing the database holds is
+//! that key; the control plane reads the backup by having the service seal the key to itself; and
+//! once the tenant revokes the key, nobody, the control plane included, opens one.
 
 use crate::backup_read::{read, volume};
 use crate::backup_target::serving_with;

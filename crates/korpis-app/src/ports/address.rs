@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Address pools and the dedicated addresses given from them (§3.7 of docs/07-networking.md).
+//! Address pools and the dedicated addresses given from them.
 
 use super::StoreResult;
 use crate::page::Page;
@@ -82,7 +82,7 @@ pub trait AddressWrite {
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 }
 
-/// Asking a cluster pool's router to route its addresses (§3.7 of docs/07-networking.md).
+/// Asking a cluster pool's router to route its addresses.
 pub trait AddressRoute {
     /// Takes the first address due: one whose holder is on another node than its router last
     /// said it routes it to, or that nothing holds and is still routed, whose backoff has passed

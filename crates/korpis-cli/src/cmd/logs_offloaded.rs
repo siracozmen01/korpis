@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis logs --offloaded` (§8 of docs/13-surface-cli.md): a workload's console as the
-//! repository that takes its stream holds it, read through the control plane rather than from
-//! the node (§4 of docs/14-streams.md). For a workload whose node is gone, or that was retired.
-//! Offsets no offloaded segment holds are said to be missing; what the node has not offloaded
-//! yet is not here, and the last line says where offloaded records end.
+//! `korpis logs --offloaded`: a workload's console as the repository that takes its stream holds
+//! it, read through the control plane rather than from the node. For a workload whose node is gone,
+//! or that was retired. Offsets no offloaded segment holds are said to be missing; what the node
+//! has not offloaded yet is not here, and the last line says where offloaded records end.
 
 use super::json;
 use super::logs::{Out, Reading, line};

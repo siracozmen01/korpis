@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Event subscriptions (§5 of docs/15-observability.md). A subscription is its subject's own
-//! stored position: creating one needs no particular grant, because what it is delivered is
-//! judged by the subject's `event.read` grants when each event is sent, and only its subject may
-//! read, acknowledge, or delete it. A new subscription starts at the end of the log, so it is
-//! delivered what happens from its creation on.
+//! Event subscriptions. A subscription is its subject's own stored position: creating one needs no
+//! particular grant, because what it is delivered is judged by the subject's `event.read` grants
+//! when each event is sent, and only its subject may read, acknowledge, or delete it. A new
+//! subscription starts at the end of the log, so it is delivered what happens from its creation on.
 
 use crate::App;
 use crate::caller::Caller;

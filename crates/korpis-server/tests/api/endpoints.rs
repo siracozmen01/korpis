@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Endpoints as placed (§3 of docs/07-networking.md): when a node's assignment is computed,
-//! each endpoint its workloads declare is placed there with the exposure it resolved to, and one
-//! the node itself exposes is given a port of the node's range that no other endpoint holds.
-//! The node is told the port, a client is shown the address, a node with no free port is not
-//! chosen, and the probe never listens on a port an endpoint holds (Finding 53).
+//! Endpoints as placed: when a node's assignment is computed, each endpoint its workloads declare
+//! is placed there with the exposure it resolved to, and one the node itself exposes is given a
+//! port of the node's range that no other endpoint holds. The node is told the port, a client is
+//! shown the address, a node with no free port is not chosen, and the probe never listens on a port
+//! an endpoint holds.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{assignment, until};

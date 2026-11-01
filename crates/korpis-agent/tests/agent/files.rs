@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's files through the relay (§3.2 of docs/06-storage.md), wired as `korpis-agent run`
-//! wires it, with the in-memory host serving the worker's verbs: the session asks for the
-//! workload's volumes as its assignment declares them, its frames are carried both ways in order
-//! with several requests sent ahead, what it changed is journaled at its end, and the control plane
-//! records its opening and its end as the act of the session's subject under that subject's grant;
-//! and where the workload's driver serves its files inside its object, as a microVM's does, the
-//! session goes through the driver and the helper is never asked.
+//! A workload's files through the relay, wired as `korpis-agent run` wires it, with the in-memory
+//! host serving the worker's verbs: the session asks for the workload's volumes as its assignment
+//! declares them, its frames are carried both ways in order with several requests sent ahead, what
+//! it changed is journaled at its end, and the control plane records its opening and its end as the
+//! act of the session's subject under that subject's grant; and where the workload's driver serves
+//! its files inside its object, as a microVM's does, the session goes through the driver and the
+//! helper is never asked.
 
 use crate::data::{data, end_code, frame, open, opened};
 use crate::session::until;

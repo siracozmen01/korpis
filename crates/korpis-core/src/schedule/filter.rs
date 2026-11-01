@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The filter (§2.1 of docs/05-scheduling.md): which nodes can run this, each refusal with its
-//! reason. Every check is evaluated, so a node rejected for two reasons shows both.
+//! The filter: which nodes can run this, each refusal with its reason. Every check is evaluated, so
+//! a node rejected for two reasons shows both.
 
 use super::topology::{Fleet, domain, matching};
 use super::{Candidate, Check, Peer, PlacementPolicy, RESERVED, Request};
@@ -45,7 +45,7 @@ fn probes(req: &Request<'_>, is: impl Fn(&ProbeKind) -> bool) -> bool {
 /// which only a driver that declares `exec` can do; a `heartbeat` probe hears from the workload
 /// through its identity socket, which only a driver that gives it its directory serves; and a
 /// `guest_agent` probe asks a guest's own agent, which only a driver that declares `guest_agent`
-/// reaches (§5 of docs/04-runtimes.md).
+/// reaches.
 fn unprobed(req: &Request<'_>, d: &DriverInfo) -> Option<String> {
     if !d.capabilities.exec && probes(req, |k| matches!(k, ProbeKind::Exec { .. })) {
         return Some(format!(
@@ -89,8 +89,7 @@ fn shaped(s: &crate::workload::spec::endpoints::ShapingSpec) -> bool {
 }
 
 /// The kinds of limit the intent sets, by the names drivers declare enforcement under: an
-/// endpoint's own shaping and its accounting among them, which a node's network holds (§7 of
-/// docs/07-networking.md).
+/// endpoint's own shaping and its accounting among them, which a node's network holds.
 fn limited(req: &Request<'_>) -> Vec<&'static str> {
     let r = &req.body.resources;
     let io = r.io;
@@ -98,7 +97,7 @@ fn limited(req: &Request<'_>) -> Vec<&'static str> {
     [
         ("memory", r.memory.effective() > 0),
         ("cpu", cpu > 0),
-        // Whole cores pinned, held by a cpuset (§5.2 of docs/05-scheduling.md).
+        // Whole cores pinned, held by a cpuset.
         ("dedicated_cores", r.cpu.isolation == CpuIsolation::DedicatedCores),
         ("disk", r.disk.effective() > 0),
         (
@@ -119,8 +118,8 @@ fn limited(req: &Request<'_>) -> Vec<&'static str> {
     .collect()
 }
 
-/// The devices the workload asks for, of a class and mode the driver gives, free on the node
-/// beside what its other placements hold (§6.3 of docs/05-scheduling.md).
+/// The devices the workload asks for, of a class and mode the driver gives, free on the node beside
+/// what its other placements hold.
 fn devices(req: &Request<'_>, c: &Candidate<'_>, d: &DriverInfo) -> Option<Refusal> {
     if req.body.devices.is_empty() {
         return None;
@@ -132,8 +131,8 @@ fn devices(req: &Request<'_>, c: &Candidate<'_>, d: &DriverInfo) -> Option<Refus
     super::devices::given(req, c.node).err().map(|why| (Check::Device, why))
 }
 
-/// The cores the workload asks for, offered on the node and free beside what its other
-/// placements hold (§5.2 of docs/05-scheduling.md).
+/// The cores the workload asks for, offered on the node and free beside what its other placements
+/// hold.
 fn cores(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     super::cores::given(req, c.node).err().map(|why| (Check::Cores, why))
 }
@@ -149,13 +148,12 @@ fn enforcement(req: &Request<'_>, d: &DriverInfo) -> Option<Refusal> {
     })
 }
 
-/// The exposures that need the node itself to be reachable (§9 of docs/07-networking.md),
-/// judged on what each declared exposure resolves to (§3 there): `stable` without an edge tier
-/// is `node_bound`. `ingress` an edge group does not serve is served by the node's own proxy, on
-/// ports 80 and 443 it holds (§3.2 there), whatever serves the workload's `stable` endpoints
-/// (Finding 197 of docs/23-walkthroughs.md). `stable` with an edge tier and `ingress` a group
-/// serves reach the node through the mesh, and `overlay_only` needs the overlay only for a
-/// consumer on another node, which is a cross-node dependency.
+/// The exposures that need the node itself to be reachable, judged on what each declared exposure
+/// resolves to: `stable` without an edge tier is `node_bound`. `ingress` an edge group does not
+/// serve is served by the node's own proxy, on ports 80 and 443 it holds, whatever serves the
+/// workload's `stable` endpoints. `stable` with an edge tier and `ingress` a group serves reach the
+/// node through the mesh, and `overlay_only` needs the overlay only for a consumer on another node,
+/// which is a cross-node dependency.
 fn reachability(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     let public = c.node.reachability == Reachability::Public;
     let serves_ingress = c.node.advertised.as_ref().is_some_and(|a| a.ingress);
@@ -227,8 +225,7 @@ fn storage_classes(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
         .filter(|v| !v.storage_class.is_empty())
         .find(|v| !classes.iter().any(|s| s.name == v.storage_class))
         .map(|v| (Check::StorageClass, format!("no storage class {:?}", v.storage_class)));
-    // A volume with replicas is sent to them as increments, which its class must be able to
-    // send (§2.2 of docs/06-storage.md).
+    // A volume with replicas is sent to them as increments, which its class must be able to send.
     let sends = |v: &&VolumeSpec| {
         class_named(classes, &v.storage_class)
             .is_some_and(|k| k.capabilities.has(StorageFeature::IncrementalSend))
@@ -278,9 +275,8 @@ fn affinity(
     rules.filter(|r| r.required).filter_map(|r| affinity_rule(req, c, fleet, peers, r)).collect()
 }
 
-/// A dependency's placed targets must each be on the candidate or on a node the candidate
-/// reaches through the mesh (§9.1 of docs/07-networking.md); a required one with none placed
-/// leaves the workload nowhere to start.
+/// A dependency's placed targets must each be on the candidate or on a node the candidate reaches
+/// through the mesh; a required one with none placed leaves the workload nowhere to start.
 fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Refusal> {
     let mut out = Vec::new();
     for d in req.dependencies {
@@ -301,9 +297,9 @@ fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Ref
     out
 }
 
-/// A workload with a `dedicated_ip` endpoint holds one address, which a node may hold only where
-/// a pool of that node's organization reaches it (§3.7 of docs/07-networking.md); so does one
-/// whose `stable` endpoints are routed, at a `cluster` pool's address (§3.1 there).
+/// A workload with a `dedicated_ip` endpoint holds one address, which a node may hold only where a
+/// pool of that node's organization reaches it; so does one whose `stable` endpoints are routed, at
+/// a `cluster` pool's address.
 fn dedicated(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     let asked =
         req.routed || req.body.endpoints.iter().any(|e| e.exposure == Exposure::DedicatedIp);
@@ -313,10 +309,9 @@ fn dedicated(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     })
 }
 
-/// A workload whose `stable` endpoints an edge group serves is reached through a GRE link from
-/// each member to its node inside the mesh, and one whose `ingress` endpoints a group serves by
-/// each member's proxy through the mesh, so the node reaches every member, or is one (§3.1 of
-/// docs/07-networking.md).
+/// A workload whose `stable` endpoints an edge group serves is reached through a GRE link from each
+/// member to its node inside the mesh, and one whose `ingress` endpoints a group serves by each
+/// member's proxy through the mesh, so the node reaches every member, or is one.
 fn edge(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     let stable =
         req.body.endpoints.iter().any(|e| e.exposure.resolved(req.edge_tier) == Exposure::Stable);
@@ -327,11 +322,10 @@ fn edge(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     })
 }
 
-/// Every quota entry counting what runs on the candidate that what this placement would run
-/// there exceeds (§5.1 of docs/05-scheduling.md, "Where a workload runs"). Only growth is
-/// refused, as at declaration: what an entry already counts of the workload is its before. The
-/// refusal is told without its numbers, since whoever may read the node, its owning tenant
-/// among them, may not read the set's owner (Finding 140 of docs/23-walkthroughs.md).
+/// Every quota entry counting what runs on the candidate that what this placement would run there
+/// exceeds ("Where a workload runs"). Only growth is refused, as at declaration: what an entry
+/// already counts of the workload is its before. The refusal is told without its numbers, since
+/// whoever may read the node, its owning tenant among them, may not read the set's owner.
 fn quota(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
     let held = Held::of(req.body);
     req.quota

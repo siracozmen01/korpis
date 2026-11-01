@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A microVM's network, made by the helper on this machine (§4.1 of docs/07-networking.md): the
-//! tap beside the namespace's link, owned by the workload's first id, the workload's address
-//! routed to it rather than held, the gateway reached through the host side's own hardware
-//! address, and the namespace made again when the kind of interface asked for changes. A guest
-//! reaching and reached through it is the firecracker driver's test. Needs root and nftables;
-//! skipped without them.
+//! A microVM's network, made by the helper on this machine: the tap beside the namespace's link,
+//! owned by the workload's first id, the workload's address routed to it rather than held, the
+//! gateway reached through the host side's own hardware address, and the namespace made again when
+//! the kind of interface asked for changes. A guest reaching and reached through it is the
+//! firecracker driver's test. Needs root and nftables; skipped without them.
 
 #![allow(
     clippy::unwrap_used,

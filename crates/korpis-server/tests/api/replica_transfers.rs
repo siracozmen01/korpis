@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Transfers to a volume's replicas (§2.2 of docs/06-storage.md): once its replicas are chosen,
-//! the volume's node is told to send each one snapshot, whole, with a ticket the token keys open
-//! naming the volume, the two nodes, and the snapshot; each replica's node is told what it
-//! receives. A receive reported by the node it was sent to is recorded, and shown as the
-//! replica's age; the volume's node then keeps that snapshot as the base of the next increment.
-//! A receive reported of a snapshot not under way to the node is refused, and one that failed
-//! ends its transfer, so the next pass sends another.
+//! Transfers to a volume's replicas: once its replicas are chosen, the volume's node is told to
+//! send each one snapshot, whole, with a ticket the token keys open naming the volume, the two
+//! nodes, and the snapshot; each replica's node is told what it receives. A receive reported by the
+//! node it was sent to is recorded, and shown as the replica's age; the volume's node then keeps
+//! that snapshot as the base of the next increment. A receive reported of a snapshot not under way
+//! to the node is refused, and one that failed ends its transfer, so the next pass sends another.
 
 use crate::agent::{Stream, any};
 use crate::journal::{ack, send, until};

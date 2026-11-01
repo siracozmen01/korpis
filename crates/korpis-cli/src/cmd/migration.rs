@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis workload move` and `korpis migration …` (§8.1 of docs/05-scheduling.md, §2 of
-//! docs/13-surface-cli.md): proposing that a workload move to another node, reading its
-//! migrations, and ending one.
+//! `korpis workload move` and `korpis migration …`: proposing that a workload move to another node,
+//! reading its migrations, and ending one.
 
 use super::{Answer, json, mutation, seconds};
 use crate::connect::Connection;

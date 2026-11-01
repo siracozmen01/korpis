@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The agent protocol (§4 of docs/02-architecture.md). The agent dials out and holds one
-// bidirectional stream carrying decisions and facts, never bulk data. It is level-triggered:
-// the control plane sends the complete set of assignments, and nothing in it is an instruction
-// that is lost if a message is lost. A third party can implement a conforming agent from this
-// file and docs/02-architecture.md alone (Rule K-7).
+// The agent protocol. The agent dials out and holds one bidirectional stream carrying decisions and
+// facts, never bulk data. It is level-triggered: the control plane sends the complete set of
+// assignments, and nothing in it is an instruction that is lost if a message is lost. A third party
+// can implement a conforming agent from this file and docs/internals/reconciliation.md alone.
 
 syntax = "proto3";
 
@@ -24,8 +23,8 @@ import "korpis/v1/workload.proto";
 import "korpis/v1/workload_spec.proto";
 
 service AgentService {
-  // Exchange a one-time enrollment token for a node identity (§3 of docs/18-operations.md).
-  // The node identity is distinct from the grant signing key (finding 16).
+  // Exchange a one-time enrollment token for a node identity. The node identity is distinct from
+  // the grant signing key.
   rpc Enroll(EnrollRequest) returns (EnrollResponse);
   // The control stream. The first agent message is Hello.
   rpc Session(stream AgentMessage) returns (stream ControlMessage);
@@ -43,23 +42,21 @@ message EnrollRequest {
 
 message EnrollResponse {
   string node = 1;
-  // The control plane's assignment-signing public keys, current and historical, verify-only
-  // (§6 of docs/18-operations.md).
+  // The control plane's assignment-signing public keys, current and historical, verify-only.
   repeated SigningKey assignment_keys = 2;
-  // The capability-token verification keys (§6 of docs/08-identity.md).
+  // The capability-token verification keys.
   repeated SigningKey token_keys = 3;
-  // The pool the node's workloads take IPv4 addresses from, a /22 of the installation's range
-  // no other node holds, as CIDR text; empty for a node enrolled before pools were given, or
-  // once the range is full. The agent keeps it with its identity and uses it unless its
-  // operator names another (§9.1 of docs/07-networking.md). Added 2026-10-25.
+  // The pool the node's workloads take IPv4 addresses from, a /22 of the installation's range no
+  // other node holds, as CIDR text; empty for a node enrolled before pools were given, or once the
+  // range is full. The agent keeps it with its identity and uses it unless its operator names
+  // another.
   string workload_ipv4 = 4;
 }
 
-// The token keys in force, sent once every session opens, before anything signed with them:
-// what the agent verifies capability tokens and revocation lists with, replacing the set it
-// held, which a restore's rotation retired (§8 of docs/03-state.md). It arrives over the session
-// the agent pinned to the installation's authority at enrollment, as Enrolled.token_keys did.
-// Added 2026-10-18.
+// The token keys in force, sent once every session opens, before anything signed with them: what
+// the agent verifies capability tokens and revocation lists with, replacing the set it held, which
+// a restore's rotation retired. It arrives over the session the agent pinned to the installation's
+// authority at enrollment, as Enrolled.token_keys did.
 message TokenKeys {
   repeated SigningKey keys = 1;
 }
@@ -103,7 +100,7 @@ message ControlMessage {
   oneof message {
     AssignmentSet assignment_set = 1;
     AssignmentDelta assignment_delta = 2;
-    // The agent's set digest matches; nothing to send (§9 of docs/10-api.md).
+    // The agent's set digest matches; nothing to send.
     InSync in_sync = 3;
     LeaseGrant lease_grant = 4;
     LeaseRefusal lease_refusal = 5;
@@ -130,9 +127,8 @@ message ControlMessage {
   }
 }
 
-// The relays the node keeps one data connection to each of (§3.1 of docs/02-architecture.md):
-// sent when the session opens and whenever they change. Connections to relays no longer named
-// are closed.
+// The relays the node keeps one data connection to each of: sent when the session opens and
+// whenever they change. Connections to relays no longer named are closed.
 message Relays {
   // The relays running as their own process, each an https URL.
   repeated string urls = 1;
@@ -141,28 +137,26 @@ message Relays {
   bool control_plane = 2;
 }
 
-// A node executing a backup or restore step asks for what its job needs (§5.5 of
-// docs/06-storage.md): the workload's data key, and access to the workload's prefix in the
-// repository's store. The control plane answers only a node holding the workload's lease whose
-// assignment carries that step.
+// A node executing a backup or restore step asks for what its job needs: the workload's data key,
+// and access to the workload's prefix in the repository's store. The control plane answers only a
+// node holding the workload's lease whose assignment carries that step.
 message JobAccessRequest {
   // Echoed in the answer.
   string request = 1;
   string plan = 2;
   uint32 step = 3;
-  // Set instead of the plan and step: the workload whose console stream the node offloads (§4 of
-  // docs/14-streams.md). Answered to a node that held its lease, with write access to its stream
-  // prefix in the repository that takes its streams, or refused `offload.none` where none does.
+  // Set instead of the plan and step: the workload whose console stream the node offloads. Answered
+  // to a node that held its lease, with write access to its stream prefix in the repository that
+  // takes its streams, or refused `offload.none` where none does.
   string offload = 4;
   // A one-time X25519 public key the job made: under tenant custody the data key is sealed to it
-  // (§5.5 of docs/06-storage.md) and the answer's sealed_data_key set instead of data_key.
+  // and the answer's sealed_data_key set instead of data_key.
   bytes recipient = 5;
-  // Set instead of the plan and step: a `backup.browse` or `backup.read` session the node
-  // accepted on a block device's backup (§5.4 of docs/06-storage.md). Answered to a node holding
-  // the lease of the session's workload, once the control plane has verified the session's token
-  // again and recorded the read under it, with read access to the workload's prefix and the
-  // volume the image is staged beside; refused where the backup is not the workload's, or holds
-  // no image a guest of this node reads.
+  // Set instead of the plan and step: a `backup.browse` or `backup.read` session the node accepted
+  // on a block device's backup. Answered to a node holding the lease of the session's workload,
+  // once the control plane has verified the session's token again and recorded the read under it,
+  // with read access to the workload's prefix and the volume the image is staged beside; refused
+  // where the backup is not the workload's, or holds no image a guest of this node reads.
   BackupRead backup_read = 6;
 }
 
@@ -202,9 +196,9 @@ message AlpnChallenge {
   bytes digest = 2;
 }
 
-// A node whose proxy is to serve an endpoint with a certificate asks for its chain and key (§3.2
-// of docs/07-networking.md). The control plane answers only a node an endpoint served with the
-// certificate is placed on, and only once it holds a key.
+// A node whose proxy is to serve an endpoint with a certificate asks for its chain and key. The
+// control plane answers only a node an endpoint served with the certificate is placed on, and only
+// once it holds a key.
 message CertificateRequest {
   // Echoed in the answer.
   string request = 1;
@@ -227,10 +221,9 @@ message ServedCertificate {
   string key = 4;
 }
 
-// A node running an install asks for one of its provider steps to be resolved (§4 of
-// docs/09-recipes.md). The control plane calls the step provider the workload's intent pinned
-// (§4.1 of docs/16-extensions.md) and answers what the step resolved to. It answers only the node
-// the workload is placed on, for an install step of a plan still open.
+// A node running an install asks for one of its provider steps to be resolved. The control plane
+// calls the step provider the workload's intent pinned and answers what the step resolved to. It
+// answers only the node the workload is placed on, for an install step of a plan still open.
 message StepRequest {
   // Echoed in the answer.
   string request = 1;
@@ -251,10 +244,9 @@ message StepResolution {
   }
 }
 
-// A node running a workload's query probe asks for its next round, or its verdict (§5 of
-// docs/04-runtimes.md). The control plane calls the health provider the workload's intent pinned
-// (§4.1 of docs/16-extensions.md) with the rounds run so far, and answers only the node the
-// workload is placed on, for a query probe of the intent the node names.
+// A node running a workload's query probe asks for its next round, or its verdict. The control
+// plane calls the health provider the workload's intent pinned with the rounds run so far, and
+// answers only the node the workload is placed on, for a query probe of the intent the node names.
 message HealthQuery {
   // Echoed in the answer.
   string request = 1;
@@ -278,8 +270,7 @@ message HealthAnswer {
   oneof outcome {
     korpis.v1.HealthNext next = 2;
     // The probe was not judged this time: its provider failed or is broken off, or answers no
-    // longer for what the intent pinned. Its health is unknown, never unhealthy (§5 of
-    // docs/16-extensions.md).
+    // longer for what the intent pinned. Its health is unknown, never unhealthy.
     korpis.v1.Error unjudged = 3;
   }
 }
@@ -299,9 +290,8 @@ message JobGrant {
   bytes sealed_data_key = 5;
   // The workload whose key it is, `wl_…`: the context's second half.
   string workload = 6;
-  // Access to the repository's recipe content beneath its content/ prefix, for as long as
-  // `store`: write for a backup, read for a restore (§5.2 of docs/06-storage.md). Absent for an
-  // offload.
+  // Access to the repository's recipe content beneath its content/ prefix, for as long as `store`:
+  // write for a backup, read for a restore. Absent for an offload.
   korpis.v1.S3Access content_store = 7;
   // For a backup read: the volume its image is staged beside, by the helper's identifier.
   string volume = 8;
@@ -316,9 +306,8 @@ message BackupEvent {
   korpis.backup.v1.JobResult result = 3;
 }
 
-// A workload asked its identity socket for a credential (§9.5 of docs/08-identity.md). The
-// workload is the one the socket was created for; nothing in the request is the workload's
-// claim about itself.
+// A workload asked its identity socket for a credential. The workload is the one the socket was
+// created for; nothing in the request is the workload's claim about itself.
 message CredentialRequest {
   // Echoed in the answer, so the agent can match it to the waiting socket call.
   string request = 1;
@@ -340,15 +329,15 @@ message DependencyEndpoint {
   string endpoint = 2;
   uint32 container_port = 3;
   korpis.v1.EndpointProtocol protocol = 4;
-  // Where its workload is on another node of the mesh: its address there, as that node
-  // observed it, and whether it is ready; empty and false where it is on this node, which knows
-  // both, or where no address is observed yet (§9.1 of docs/07-networking.md).
+  // Where its workload is on another node of the mesh: its address there, as that node observed it,
+  // and whether it is ready; empty and false where it is on this node, which knows both, or where
+  // no address is observed yet.
   string address = 5;
   bool ready = 6;
 }
 
-// A dependent on another node of the mesh, which this workload's node admits from the mesh to
-// one of its endpoints (§9.1 of docs/07-networking.md).
+// A dependent on another node of the mesh, which this workload's node admits from the mesh to one
+// of its endpoints.
 message OverlayDependent {
   string workload = 1;
   // The dependent's address on its node, as that node observed it.
@@ -369,7 +358,7 @@ message WorkloadCredential {
 }
 
 // A workload's credential: a bearer secret the API authenticates as the workload, or as the
-// extension the workload runs (§9.5 of docs/08-identity.md).
+// extension the workload runs.
 message Credential {
   string secret = 1;
   google.protobuf.Timestamp expires_at = 2;
@@ -377,10 +366,9 @@ message Credential {
   korpis.v1.Subject subject = 3;
 }
 
-// The control plane's first message on a session, once the Hello is verified: what it accepted
-// and the intervals the agent keeps. Added 2026-10-13, from the implementation: the heartbeat
-// interval was declared (question 6 of §10 of docs/02-architecture.md) and nothing carried the
-// declaration to the agent.
+// The control plane's first message on a session, once the Hello is verified: what it accepted and
+// the intervals the agent keeps. Added 2026-10-13, from the implementation: the heartbeat interval
+// was declared and nothing carried the declaration to the agent.
 message Welcome {
   // The protocol the session speaks, one the agent offered.
   string protocol = 1;
@@ -395,18 +383,18 @@ message Welcome {
   // names them instead.
   reserved 5;
   reserved "relays";
-  // Set while a restored control plane is settling (§8 of docs/03-state.md): the agent answers
-  // with Presented, every assignment it holds, signed as it received them. Added 2026-10-18.
+  // Set while a restored control plane is settling: the agent answers with Presented, every
+  // assignment it holds, signed as it received them.
   bool present_assignments = 6;
-  // The installation's metering interval: the node samples every workload it holds at the end
-  // of each, by its own clock (§2 of docs/15-observability.md). Added 2026-10-21.
+  // The installation's metering interval: the node samples every workload it holds at the end of
+  // each, by its own clock.
   google.protobuf.Duration metering_interval = 7;
 }
 
-// The assignments an agent holds, as the control plane that issued them signed them, presented
-// to a restored control plane while it settles: their lease epochs raise its epoch floor, and
-// what they declare is what it recovers (§8 of docs/03-state.md). An assignment whose signature
-// does not verify against the assignment keyring is counted and believed in nothing.
+// The assignments an agent holds, as the control plane that issued them signed them, presented to a
+// restored control plane while it settles: their lease epochs raise its epoch floor, and what they
+// declare is what it recovers. An assignment whose signature does not verify against the assignment
+// keyring is counted and believed in nothing.
 message Presented {
   repeated SignedAssignment assignments = 1;
 }
@@ -425,18 +413,17 @@ message Hello {
   // The highest journal sequence the agent has written, and the lowest it still holds.
   uint64 journal_head = 9;
   uint64 journal_tail = 10;
-  // Informational. A node's labels are the operator's, bound at enrollment (§3 of
-  // docs/18-operations.md): a node that could set its own could attract the workloads of
-  // anyone whose placement selects on them.
+  // Informational. A node's labels are the operator's, bound at enrollment: a node that could set
+  // its own could attract the workloads of anyone whose placement selects on them.
   map<string, string> labels = 11;
   // Proof that the agent holds the node identity key established at enrollment.
   NodeAuth auth = 12;
   // As in NodeStatus.
   Advertised advertised = 13;
-  // Whether this agent answers FeasibilityQuery (§2.1 of docs/05-scheduling.md). The control
-  // plane asks only an agent that says so: one that does not, built before the query or not
-  // running a driver it can ask, is not asked, and the check after a bind covers it, rather than
-  // being passed over for a silence that will never end.
+  // Whether this agent answers FeasibilityQuery. The control plane asks only an agent that says so:
+  // one that does not, built before the query or not running a driver it can ask, is not asked, and
+  // the check after a bind covers it, rather than being passed over for a silence that will never
+  // end.
   bool answers_feasibility = 14;
   // As in NodeStatus.
   repeated korpis.v1.Device devices = 15;
@@ -471,27 +458,25 @@ message NodeStatus {
   repeated korpis.v1.DriverInfo drivers = 3;
   // Pressure signals, keyed by resource ("memory", "cpu", "io").
   map<string, double> pressure = 4;
-  // How long this node can be cut off before audit and metering have holes (§4.10 of
-  // docs/02-architecture.md), measured from the journal's growth rate.
+  // How long this node can be cut off before audit and metering have holes, measured from the
+  // journal's growth rate.
   google.protobuf.Duration journal_horizon = 5;
   uint64 journal_bytes_used = 6;
   uint64 journal_bytes_bound = 7;
   // Over the current observations of the node's workloads: while it matches, every unchanged
-  // observation is current without being rewritten (question 6 of §10 of
-  // docs/02-architecture.md).
+  // observation is current without being rewritten.
   string observation_digest = 8;
-  // The addresses clients reach the node at, and the ports its endpoints are allocated from (§9
-  // of docs/07-networking.md); a change of address makes its reachability unmeasured again.
+  // The addresses clients reach the node at, and the ports its endpoints are allocated from; a
+  // change of address makes its reachability unmeasured again.
   Advertised advertised = 9;
   // The devices the Container Device Interface's files on the node describe, in full every time,
-  // and those it does not offer (§6.1 of docs/05-scheduling.md). Added 2026-10-25.
+  // and those it does not offer.
   repeated korpis.v1.Device devices = 10;
   repeated korpis.v1.UnofferedDevice unoffered_devices = 11;
-  // The physical cores it offers for dedication, in full every time (§5.2 of
-  // docs/05-scheduling.md). Added 2026-10-25.
+  // The physical cores it offers for dedication, in full every time.
   repeated korpis.v1.Core cores = 12;
-  // Its side of the mesh (§9.1 of docs/07-networking.md), in full every time; absent on a node
-  // whose helper makes no workload networks. Added 2026-10-25.
+  // Its side of the mesh, in full every time; absent on a node whose helper makes no workload
+  // networks.
   OverlayFacts overlay = 13;
 }
 
@@ -513,9 +498,9 @@ message OverlayHandshake {
   int64 latest_unix_seconds = 2;
 }
 
-// Every other member of the mesh, sent when a session opens and whenever the members change
-// (§9.1 of docs/07-networking.md); none, and why, to a node outside it. The node keeps them on
-// disk, so its mesh runs without the control plane. Added 2026-10-25.
+// Every other member of the mesh, sent when a session opens and whenever the members change; none,
+// and why, to a node outside it. The node keeps them on disk, so its mesh runs without the control
+// plane.
 message Peers {
   repeated Peer peers = 1;
   // Why this node is outside the mesh; empty for a member.
@@ -532,8 +517,8 @@ message Peer {
 }
 
 // What this node forwards as a member of edge groups, and what it takes from edges as a node they
-// forward to (§3.1 of docs/07-networking.md); sent when a session opens and whenever it changes.
-// The node keeps it on disk, so forwarding runs without the control plane. Added 2026-10-26.
+// forward to; sent when a session opens and whenever it changes. The node keeps it on disk, so
+// forwarding runs without the control plane.
 message Edges {
   // This node's own address in the mesh, the last of its IPv4 pool, from which its GRE links
   // are made; empty for a node outside the mesh, which is told nothing else.
@@ -576,10 +561,9 @@ message EdgeForwarding {
   repeated EdgeProxied proxied = 9;
 }
 
-// An `ingress` endpoint an edge group serves (§3.1 of docs/07-networking.md): its names and how
-// they are served, and where its workload is reached, through the mesh where it runs on another
-// node; `workload_address` is empty where it is not running, or on a node outside the mesh, and
-// no route is made for it.
+// An `ingress` endpoint an edge group serves: its names and how they are served, and where its
+// workload is reached, through the mesh where it runs on another node; `workload_address` is empty
+// where it is not running, or on a node outside the mesh, and no route is made for it.
 message EdgeProxied {
   korpis.v1.Endpoint endpoint = 1;
   string node = 2;
@@ -631,13 +615,13 @@ message Advertised {
   // The inclusive range node_port and node_bound endpoints are allocated from.
   uint32 first_port = 2;
   uint32 last_port = 3;
-  // Whether the node holds ports 80 and 443 of these addresses for its ingress proxy, as it
-  // found at start (§3.2 of docs/07-networking.md).
+  // Whether the node holds ports 80 and 443 of these addresses for its ingress proxy, as it found
+  // at start.
   bool ingress = 4;
 }
 
 // ---------------------------------------------------------------------------------------------
-// Assignments (§4.8 of docs/02-architecture.md)
+// Assignments
 
 // The complete set of assignments for this node, each signed.
 message AssignmentSet {
@@ -659,8 +643,8 @@ message InSync {
   string set_digest = 1;
 }
 
-// An assignment and the control plane's signature over its exact bytes, so an agent can prove
-// what it was told (§8 of docs/03-state.md).
+// An assignment and the control plane's signature over its exact bytes, so an agent can prove what
+// it was told.
 message SignedAssignment {
   // A serialized Assignment.
   bytes assignment = 1;
@@ -676,9 +660,8 @@ message Assignment {
   string organization = 3;
   // Monotonic per workload; any change below increments it.
   uint64 generation = 4;
-  // The configuration in full that the workload's plans reached, or that `plan` is reaching:
-  // never the head, and the approved target only once a plan reaches it (§4.8 of
-  // docs/02-architecture.md).
+  // The configuration in full that the workload's plans reached, or that `plan` is reaching: never
+  // the head, and the approved target only once a plan reaches it.
   korpis.v1.Intent target = 5;
   // Likewise for power; stopped at version zero while no plan has brought the workload to any
   // intent, so the node keeps the assignment and runs nothing.
@@ -694,75 +677,64 @@ message Assignment {
   string node = 13;
   // The lease epoch under which this node may act for the workload.
   uint64 lease_epoch = 14;
-  // The host ids the workload's user namespace maps its ids 0 to uid_count - 1 onto, for users
-  // and groups alike: allocated by the control plane, unique on this node while the workload is
-  // here (§4.5 of docs/04-runtimes.md).
+  // The host ids the workload's user namespace maps its ids 0 to uid_count - 1 onto, for users and
+  // groups alike: allocated by the control plane, unique on this node while the workload is here.
   uint32 uid_base = 15;
   uint32 uid_count = 16;
   // A retired workload's residual assignment, which carries only a plan for what it left on this
-  // node, a retained volume to delete (§7 of docs/06-storage.md). Its target and power are the
-  // last the workload had, for the record; the node executes the plan's steps and nothing else:
-  // it builds, starts, observes, and leases nothing for it.
+  // node, a retained volume to delete. Its target and power are the last the workload had, for the
+  // record; the node executes the plan's steps and nothing else: it builds, starts, observes, and
+  // leases nothing for it.
   bool residual = 17;
-  // The privileged helper's identifier of each existing volume the target attaches, by the name
-  // the workload mounts it under, as its node reported it (§7 of docs/06-storage.md). A volume
-  // the workload creates is named for the workload and the volume, and is not listed.
+  // The privileged helper's identifier of each existing volume the target attaches, by the name the
+  // workload mounts it under, as its node reported it. A volume the workload creates is named for
+  // the workload and the volume, and is not listed.
   map<string, string> volume_ids = 18;
-  // The target's endpoints as placed on this node, by name, each with the port of the node it
-  // holds where its exposure holds one (§3 of docs/07-networking.md): what the node forwards.
+  // The target's endpoints as placed on this node, by name, each with the port of the node it holds
+  // where its exposure holds one: what the node forwards.
   repeated korpis.v1.Endpoint endpoints = 19;
   // The workload runs an installed extension, or holds a grant in force: the node relays the
-  // control plane's API to it on a socket in its own directory, and opens nothing past the
-  // egress default for it (§9.5 of docs/08-identity.md). Decided by the control plane, which
-  // knows the installations and the grants.
+  // control plane's API to it on a socket in its own directory, and opens nothing past the egress
+  // default for it. Decided by the control plane, which knows the installations and the grants.
   bool reaches_api = 20;
-  // Its dependencies, each resolved to the endpoints it reaches now; where each endpoint's
-  // workload is, the node knows (§5 of docs/07-networking.md).
+  // Its dependencies, each resolved to the endpoints it reaches now; where each endpoint's workload
+  // is, the node knows.
   repeated ResolvedDependency dependencies = 21;
-  // The HTTP-01 challenges the node's proxy answers on port 80 for the names of this
-  // workload's endpoints while their certificates are ordered (§3.2 of docs/07-networking.md).
+  // The HTTP-01 challenges the node's proxy answers on port 80 for the names of this workload's
+  // endpoints while their certificates are ordered.
   repeated AcmeChallenge challenges = 22;
   // The TLS-ALPN-01 challenges the node's proxy answers on port 443 for the names of this
-  // workload's endpoints while their certificates are ordered, which the issuer uses where
-  // HTTP-01 failed or a node's proxy last proved the certificate this way (§3.2 of
-  // docs/07-networking.md).
+  // workload's endpoints while their certificates are ordered, which the issuer uses where HTTP-01
+  // failed or a node's proxy last proved the certificate this way.
   repeated AlpnChallenge alpn_challenges = 27;
-  // The workload's name and labels, which the node does not use: a restored control plane that
-  // lost the workload recovers it from them (§8 of docs/03-state.md).
+  // The workload's name and labels, which the node does not use: a restored control plane that lost
+  // the workload recovers it from them.
   string workload_name = 23;
   map<string, string> workload_labels = 24;
-  // The runs of a task or scheduled workload the node is to execute; none for a persistent one.
-  // The node starts each it has not started and stops each it started that is no longer named
-  // (§4.5 of docs/05-scheduling.md).
+  // The runs of a task or scheduled workload the node is to execute; none for a persistent one. The
+  // node starts each it has not started and stops each it started that is no longer named.
   repeated RunRef runs = 25;
-  // Every run of it the control plane still holds, in any status (§4.4 of
-  // docs/05-scheduling.md): the node keeps each one's console stream, and deletes a run's only
-  // once the run is not here, which is the control plane saying retention deleted it (§4 of
-  // docs/14-streams.md).
+  // Every run of it the control plane still holds, in any status: the node keeps each one's console
+  // stream, and deletes a run's only once the run is not here, which is the control plane saying
+  // retention deleted it.
   repeated string kept_runs = 26;
-  // The node's devices its placement holds, which the agent gives the driver by name, the
-  // driver reading their edits itself (§6.3 of docs/05-scheduling.md, §4.2 of
-  // docs/04-runtimes.md). Added 2026-10-25.
+  // The node's devices its placement holds, which the agent gives the driver by name, the driver
+  // reading their edits itself.
   repeated korpis.v1.DeviceHold devices = 28;
-  // The node's cores its placement holds, by id, for dedicated cores (§5.2 of
-  // docs/05-scheduling.md). Added 2026-10-25.
+  // The node's cores its placement holds, by id, for dedicated cores.
   repeated uint32 cores = 29;
-  // Its dependents on other nodes of the mesh, which the node admits from the mesh to the
-  // endpoint each depends on, and nothing else (§9.1 of docs/07-networking.md). Decided by the
-  // control plane, which alone sees both nodes. Added 2026-10-25.
+  // Its dependents on other nodes of the mesh, which the node admits from the mesh to the endpoint
+  // each depends on, and nothing else. Decided by the control plane, which alone sees both nodes.
   repeated OverlayDependent dependents = 30;
-  // The addresses each of its rules naming workloads names on this node (§6 of
-  // docs/07-networking.md): resolved by the control plane, which alone sees where every
-  // workload of its project runs and at what address. Added 2026-10-26.
+  // The addresses each of its rules naming workloads names on this node: resolved by the control
+  // plane, which alone sees where every workload of its project runs and at what address.
   repeated RulePeers peers = 31;
-  // The dedicated address it holds, where an endpoint of it is `dedicated_ip` and the address
-  // may be held on this node (§3.7 of docs/07-networking.md); unset where it holds none. Added
-  // 2026-10-26.
+  // The dedicated address it holds, where an endpoint of it is `dedicated_ip` and the address may
+  // be held on this node; unset where it holds none.
   DedicatedAddress dedicated = 32;
   // The devices of its volumes in block classes, each attached for it to this node at its lease's
-  // epoch, with what the helper needs to attach it (§2.1 of docs/06-storage.md); a volume of a
-  // block class with none here is not attached yet, and the step making it waits. Added
-  // 2026-10-27.
+  // epoch, with what the helper needs to attach it; a volume of a block class with none here is not
+  // attached yet, and the step making it waits.
   repeated BlockVolumeAttachment block_attachments = 33;
 }
 
@@ -775,17 +747,15 @@ message BlockVolumeAttachment {
   // What the node presents for the device alone; empty where none is needed.
   string credential = 4;
   // The device is a guest's disk, which the host never mounts, given to a workload whose driver
-  // takes block devices (§3.1 of docs/06-storage.md); fixed when the device was made. Added
-  // 2026-10-27.
+  // takes block devices; fixed when the device was made.
   bool guest = 5;
   // No volume was made of it yet: a guest's disk is formatted by the helper, which never reads one
-  // a guest wrote. Added 2026-10-27.
+  // a guest wrote.
   bool blank = 6;
 }
 
-// An address of a workload's own, as its node holds it (§3.7 of docs/07-networking.md): every
-// connection to it translated to the workload's address, and what the workload sends beyond the
-// node leaving from it.
+// An address of a workload's own, as its node holds it: every connection to it translated to the
+// workload's address, and what the workload sends beyond the node leaving from it.
 message DedicatedAddress {
   // The IPv4 address.
   string address = 1;
@@ -794,7 +764,7 @@ message DedicatedAddress {
   string interface = 2;
 }
 
-// One rule naming workloads, resolved for the node it is sent to (§6 of docs/07-networking.md).
+// One rule naming workloads, resolved for the node it is sent to.
 message RulePeers {
   // The endpoint whose rule it is; empty for the workload's egress.
   string endpoint = 1;
@@ -804,8 +774,8 @@ message RulePeers {
   repeated string addresses = 3;
 }
 
-// One run a node is to execute: what it is, and what the node enforces of it. Also what a
-// restore that lost the run records it under (§8 of docs/03-state.md).
+// One run a node is to execute: what it is, and what the node enforces of it. Also what a restore
+// that lost the run records it under.
 message RunRef {
   string run = 1;
   uint32 attempt = 2;
@@ -813,14 +783,14 @@ message RunRef {
   google.protobuf.Timestamp scheduled_for = 4;
   // How long it may take before the node stops it; unbounded when unset.
   google.protobuf.Duration timeout = 5;
-  // The intent it was made under, whose exit probe judges it, and for a manual run the power
-  // cycle that requested it: signed with the rest, so a restored control plane that lost the run
-  // records it as it was made (§8 of docs/03-state.md).
+  // The intent it was made under, whose exit probe judges it, and for a manual run the power cycle
+  // that requested it: signed with the rest, so a restored control plane that lost the run records
+  // it as it was made.
   string intent = 6;
   optional uint64 cycle = 7;
 }
 
-// Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).
+// Quota-imposed state, decided centrally and applied locally.
 message Shaping {
   bool egress_exhausted = 1;
   uint64 egress_floor_bits_per_sec = 2;
@@ -834,7 +804,7 @@ message NodePlan {
   // The last step index the node may execute. Cancelling a plan is lowering this.
   uint32 through = 3;
   // The plan in full, its status and progress left out, which the node does not use: what a
-  // restored control plane that lost it recovers it from (§8 of docs/03-state.md).
+  // restored control plane that lost it recovers it from.
   korpis.v1.Plan whole = 4;
 }
 
@@ -848,7 +818,7 @@ message MigrationRole {
   MigrationPhase phase = 2;
   string peer = 3;
   string plan = 4;
-  // The migration (`mig_…`), which the node's reports name (§8.1 of docs/05-scheduling.md).
+  // The migration (`mig_…`), which the node's reports name.
   string migration = 5;
   // Each volume the target attaches: how it crosses, and the helper's identifier for it on the
   // source.
@@ -873,7 +843,7 @@ message MigrationVolumeRole {
   MigrationPass pass = 5;
 }
 
-// One pass of a volume (§8.1 of docs/05-scheduling.md).
+// One pass of a volume.
 message MigrationPass {
   // The pass, a UUID.
   string pass = 1;
@@ -887,15 +857,15 @@ message MigrationPass {
 }
 
 // One stream's watermark at quiesce: its next offset, and the position in its changes log the
-// source's agent journaled and offloaded to (§4 of docs/14-streams.md).
+// source's agent journaled and offloaded to.
 message StreamWatermark {
   string stream = 1;
   uint64 next_offset = 2;
   uint64 journaled_to = 3;
 }
 
-// A node's report of its side of a migration's phase (§8.1 of docs/05-scheduling.md), believed
-// only from the node assigned that side, about the phase the migration is in.
+// A node's report of its side of a migration's phase, believed only from the node assigned that
+// side, about the phase the migration is in.
 message MigrationProgress {
   string migration = 1;
   MigrationPhase phase = 2;
@@ -961,7 +931,7 @@ message Ack {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Leases (§4.5 of docs/02-architecture.md)
+// Leases
 
 // The holder's lease runs from the send: valid until sent_at + term × (1 − ρ) on its own
 // monotonic clock. The grantor's runs from receipt: received_at + term.
@@ -1015,13 +985,13 @@ message LeaseReleased {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Edge leases (§3.1 of docs/07-networking.md)
+// Edge leases
 
-// Asks for, or renews, the lease on an address this member is told to hold. Fenced as a
-// workload's lease is: the member's runs from the send, valid until sent_at + term × (1 − ρ) on
-// its own monotonic clock, and the grantor's from receipt.
-// The challenges of Edges the node's proxy has been given (§3.1 of docs/07-networking.md): every
-// HTTP-01 token and TLS-ALPN-01 digest, sent whenever they change and on every new session.
+// Asks for, or renews, the lease on an address this member is told to hold. Fenced as a workload's
+// lease is: the member's runs from the send, valid until sent_at + term × (1 − ρ) on its own
+// monotonic clock, and the grantor's from receipt. The challenges of Edges the node's proxy has
+// been given: every HTTP-01 token and TLS-ALPN-01 digest, sent whenever they change and on every
+// new session.
 message EdgeChallengesHeld {
   repeated string tokens = 1;
   repeated bytes alpn_digests = 2;
@@ -1063,7 +1033,7 @@ message EdgeLeaseReleased {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Journal (§4.10 of docs/02-architecture.md)
+// Journal
 
 message JournalRecords {
   repeated JournalRecord records = 1;
@@ -1091,10 +1061,10 @@ message JournalRecord {
   uint64 count = 8;
 }
 
-// One workload's meter at the end of one metering interval (§2 of docs/15-observability.md,
-// "Measuring it, as designed"). It carries the workload's cumulative counters, not what the
-// interval used: the control plane takes each interval as the difference of two samples, so a
-// sample lost loses where within a span its use fell, never the use.
+// One workload's meter at the end of one metering interval ("Measuring it, as designed"). It
+// carries the workload's cumulative counters, not what the interval used: the control plane takes
+// each interval as the difference of two samples, so a sample lost loses where within a span its
+// use fell, never the use.
 message MeteringSample {
   string workload = 1;
   google.protobuf.Timestamp interval_start = 2;
@@ -1113,7 +1083,7 @@ message MeteringSample {
   // What the node knows it could not measure since its previous sample.
   repeated MeterLoss losses = 13;
   // `disk_bytes` counts what block devices' images have allocated, not what their guests'
-  // filesystems hold (§3.1 of docs/06-storage.md).
+  // filesystems hold.
   bool disk_allocated = 14;
 }
 
@@ -1125,26 +1095,22 @@ message MeterCounters {
   // Bytes read from and written to block devices.
   optional uint64 io_read_bytes = 3;
   optional uint64 io_write_bytes = 4;
-  // Bytes its network interface received and sent: what reached the workload, and what it sent.
-  // Not split by destination (§2 of docs/15-observability.md).
+  // Bytes its network interface received and sent: what reached the workload, and what it sent. Not
+  // split by destination.
   optional uint64 net_rx_bytes = 5;
   optional uint64 net_tx_bytes = 6;
   // Memory in use integrated over time from ten-second readings, in KiB-seconds: a sum of
   // measurements, not a kernel counter.
   optional uint64 memory_kib_seconds = 7;
-  // Bytes that left its link for anything but another workload's link on its node, counted in
-  // the host's table: its egress, which its egress budget is measured in (§5.1 of
-  // docs/05-scheduling.md).
+  // Bytes that left its link for anything but another workload's link on its node, counted in the
+  // host's table: its egress, which its egress budget is measured in.
   optional uint64 egress_bytes = 8;
-  // What each of its endpoints whose accounting is on carried, by name (§7 of
-  // docs/07-networking.md).
+  // What each of its endpoints whose accounting is on carried, by name.
   repeated EndpointCounters endpoints = 9;
-  // Each dedicated core its placement held on the node, for the seconds it was held, whatever
-  // ran on it (§5.2 of docs/05-scheduling.md): integrated by the node from its readings. Added
-  // 2026-10-25.
+  // Each dedicated core its placement held on the node, for the seconds it was held, whatever ran
+  // on it: integrated by the node from its readings.
   optional uint64 dedicated_core_seconds = 10;
-  // Each device its placement held, by class, for the seconds it was held (§6 of
-  // docs/05-scheduling.md). Added 2026-10-25.
+  // Each device its placement held, by class, for the seconds it was held.
   repeated korpis.v1.DeviceSeconds device_seconds = 11;
 }
 
@@ -1164,8 +1130,8 @@ message MeterLoss {
   string cause = 3;
 }
 
-// A segment of a workload's stream was sealed, offloaded, or pruned on this node (§4 of
-// docs/14-streams.md): what the control plane's segment index is kept from.
+// A segment of a workload's stream was sealed, offloaded, or pruned on this node: what the control
+// plane's segment index is kept from.
 message StreamSegmentEvent {
   string workload = 1;
   korpis.v1.StreamKind kind = 2;
@@ -1177,9 +1143,9 @@ message StreamSegmentEvent {
   string run = 5;
 }
 
-// A volume of a workload was ensured or deleted on this node (§7 of docs/06-storage.md): what
-// the control plane's volume objects are kept from. Journaled after every ensure, created or
-// found, so a crash between creating a volume and journaling it is repaired by the next ensure.
+// A volume of a workload was ensured or deleted on this node: what the control plane's volume
+// objects are kept from. Journaled after every ensure, created or found, so a crash between
+// creating a volume and journaling it is repaired by the next ensure.
 message VolumeEvent {
   string workload = 1;
   // The name the workload knows it by, or `stream_console` for its console stream's.
@@ -1188,15 +1154,14 @@ message VolumeEvent {
   string helper_id = 3;
   string storage_class = 4;
   uint64 size_bytes = 5;
-  // Whether its size is enforced in the write path (§3 of docs/06-storage.md).
+  // Whether its size is enforced in the write path.
   bool quota_enforced = 6;
   VolumeEventKind event = 7;
   // A console stream's volume rather than one the workload declared.
   bool stream = 8;
 }
 
-// A snapshot taken, rolled back to, or deleted on this node, after the helper did it (§4 of
-// docs/06-storage.md).
+// A snapshot taken, rolled back to, or deleted on this node, after the helper did it.
 message SnapshotEvent {
   string workload = 1;
   // The helper's identifier of the volume.
@@ -1235,11 +1200,10 @@ message BreakGlass {
   string session = 3;
 }
 
-// Records the node no longer has: lost because the journal filled ("journal exhausted"),
-// discarded before a control plane restored from an older backup ingested them, or unreadable on
-// the node's disk ("journal damaged"); a visible loss, never a silent one. A gap stands for
-// first_seq through last_seq, and the JournalRecord carrying it is numbered last_seq (§4.10 of
-// docs/02-architecture.md).
+// Records the node no longer has: lost because the journal filled ("journal exhausted"), discarded
+// before a control plane restored from an older backup ingested them, or unreadable on the node's
+// disk ("journal damaged"); a visible loss, never a silent one. A gap stands for first_seq through
+// last_seq, and the JournalRecord carrying it is numbered last_seq.
 message JournalGap {
   uint64 first_seq = 1;
   uint64 last_seq = 2;
@@ -1255,9 +1219,9 @@ message JournalAck {
 // ---------------------------------------------------------------------------------------------
 // Placement, content, liveness
 
-// A side-effect-free Prepare against a supplied manifest (§2.1 of docs/05-scheduling.md): asked
-// of the best scored nodes before a workload is bound, outside the placement lock. `query` is
-// random and answered by the node it was sent to alone.
+// A side-effect-free Prepare against a supplied manifest: asked of the best scored nodes before a
+// workload is bound, outside the placement lock. `query` is random and answered by the node it was
+// sent to alone.
 message FeasibilityQuery {
   string query = 1;
   korpis.v1.IntentBody body = 2;
@@ -1284,15 +1248,14 @@ message ContentStatus {
   repeated string present = 1;
 }
 
-// The grants a verifier refuses in any token's chain (§6.3 of docs/08-identity.md), whole: each
-// list replaces the last. It is signed by the capability-token key, so a verifier trusts it
-// exactly as far as it trusts the tokens it checks, and a copy cached on disk or passed on to a
-// relay carries its own proof.
+// The grants a verifier refuses in any token's chain, whole: each list replaces the last. It is
+// signed by the capability-token key, so a verifier trusts it exactly as far as it trusts the
+// tokens it checks, and a copy cached on disk or passed on to a relay carries its own proof.
 message RevocationList {
   // Revoked or suspended grant identifiers, sorted; a token is refused if any link of its chain
   // is listed.
   repeated string grants = 1;
-  // Token identifiers were listed here once; the chain check made them unnecessary (finding S30).
+  // Token identifiers were listed here once; the chain check made them unnecessary.
   reserved 2;
   reserved "tokens";
   // When the control plane computed the list, in milliseconds since the Unix epoch.
@@ -1312,9 +1275,9 @@ message ProbeReply {
   bytes nonce = 1;
 }
 
-// Measure whether the node can be reached at what it advertises (§9 of docs/07-networking.md):
-// the node listens on `port`, over TCP and UDP on every address, for fifteen seconds, and answers
-// each 32-byte nonce it is sent there with its node key's Ed25519 signature over
+// Measure whether the node can be reached at what it advertises: the node listens on `port`, over
+// TCP and UDP on every address, for fifteen seconds, and answers each 32-byte nonce it is sent
+// there with its node key's Ed25519 signature over
 // "korpis.agent.v1.Reachability|<node>|<port>|<nonce in lowercase hexadecimal>".
 message ReachabilityProbe {
   string probe = 1;

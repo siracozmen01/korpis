@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Access tokens (§9.4 of docs/08-identity.md): what a signed-in browser or CLI presents as the
-//! bearer of every API call. One names a user and the session it was exchanged under, for 120
-//! seconds, signed by the control plane's token key; it carries no authority, since the authority
-//! of each call is evaluated from the grants the user holds when it is made. It is verified by its
-//! signature and expiry alone, so ending a session ends its tokens within their lifetime.
+//! Access tokens: what a signed-in browser or CLI presents as the bearer of every API call. One
+//! names a user and the session it was exchanged under, for 120 seconds, signed by the control
+//! plane's token key; it carries no authority, since the authority of each call is evaluated from
+//! the grants the user holds when it is made. It is verified by its signature and expiry alone, so
+//! ending a session ends its tokens within their lifetime.
 //!
 //! It is a [`super::sealed`] claim: `korpisat_`, then the payload and its signature, over the
-//! purpose label `korpis.access.v1`. A person signed in through an identity provider (§9.7) is
-//! given `korpisax_` instead, over `korpis.access.person.v1`, naming their binding: the gateway
-//! reads that session at each call for the sets the person holds, so no key can make one kind
-//! pass for the other.
+//! purpose label `korpis.access.v1`. A person signed in through an identity provider is given
+//! `korpisax_` instead, over `korpis.access.person.v1`, naming their binding: the gateway reads
+//! that session at each call for the sets the person holds, so no key can make one kind pass for
+//! the other.
 
 use super::sealed::{self, Claims, Kind};
 use super::token::{KeyRing, SigningKey};
@@ -39,9 +39,8 @@ pub struct AccessClaims {
     pub holder: Holder,
     /// The session it was exchanged under.
     pub session: Uuid,
-    /// The organization its session was begun at a portal of, beneath which every call it
-    /// bears is confined (§9.8 of docs/08-identity.md); none for a session begun at the
-    /// installation's own address.
+    /// The organization its session was begun at a portal of, beneath which every call it bears is
+    /// confined; none for a session begun at the installation's own address.
     pub within: Option<Uuid>,
     /// When it stops working.
     pub expires_at: SystemTime,

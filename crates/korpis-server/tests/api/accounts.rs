@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The account service (§9.6 of docs/08-identity.md, §10 of docs/10-api.md): a grant issued to a
-//! new user answers its invitation once; the invitation is redeemed with a passkey or a password
-//! and TOTP, and the account signs in with either; every refused presentation is a failed attempt
-//! charged to its source, and every call to the service is charged to its source besides.
+//! The account service: a grant issued to a new user answers its invitation once; the invitation is
+//! redeemed with a passkey or a password and TOTP, and the account signs in with either; every
+//! refused presentation is a failed attempt charged to its source, and every call to the service is
+//! charged to its source besides.
 
 use crate::panel::{accounts, browser, invite, redeem};
 use crate::support::Harness;

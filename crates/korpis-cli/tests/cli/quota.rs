@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota sets through the binary (§5.1 of docs/05-scheduling.md): the host sets its reseller's
-//! set and the reseller's customer's from files, reads back what the reseller was guaranteed and
-//! may sell beside what it gave below, and sets a set again from what `quota show --json` printed.
+//! Quota sets through the binary: the host sets its reseller's set and the reseller's customer's
+//! from files, reads back what the reseller was guaranteed and may sell beside what it gave below,
+//! and sets a set again from what `quota show --json` printed.
 
 use crate::support::ControlPlane;
 use korpis_proto::korpis::v1 as pb;

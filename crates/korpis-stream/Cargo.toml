@@ -12,15 +12,14 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-# Literal redaction patterns, matched in one pass however many there are (§7 of
-# docs/14-streams.md).
+# Literal redaction patterns, matched in one pass however many there are.
 aho-corasick = "1"
 # CRC-32C over each record frame, so a torn write is found rather than read.
 crc = "3"
 # Console input arrives from the driver as JSON frames with the bytes in base64.
 base64 = "0.22"
-# Search within the retention window (§8 of docs/14-streams.md): a regex engine with no
-# backtracking, so a reader's pattern runs in time linear in the stream.
+# Search within the retention window: a regex engine with no backtracking, so a reader's pattern
+# runs in time linear in the stream.
 regex = { version = "1", default-features = false, features = ["std", "perf", "unicode"] }
 serde_json = "1"
 sha2 = "0.10"

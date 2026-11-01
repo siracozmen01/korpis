@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The in-memory runtime's file sessions inside its objects, as a driver with a guest worker
-//! serves them (§4.4 of docs/04-runtimes.md): where a test has given its objects a directory,
-//! each session is answered by the file worker's own verbs over that directory, its `data`
-//! directory served as a volume at `/data`, writing if the session does. A staged backup image's
-//! session, where it declares block devices, is served over the same directory's `backup`, at
-//! `/backup`, read-only.
+//! The in-memory runtime's file sessions inside its objects, as a driver with a guest worker serves
+//! them: where a test has given its objects a directory, each session is answered by the file
+//! worker's own verbs over that directory, its `data` directory served as a volume at `/data`,
+//! writing if the session does. A staged backup image's session, where it declares block devices,
+//! is served over the same directory's `backup`, at `/backup`, read-only.
 
 use super::{InMemory, State};
 use crate::runtime::{RuntimeError, RuntimeResult};

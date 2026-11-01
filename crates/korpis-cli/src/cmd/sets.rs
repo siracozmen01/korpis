@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis set list|mode` (§6 of docs/13-surface-cli.md): a project's declared sets, and what
-//! each does with drift. A set is created by the first `apply --set` through it.
+//! `korpis set list|mode`: a project's declared sets, and what each does with drift. A set is
+//! created by the first `apply --set` through it.
 
 use super::{Answer, Mode, SetAction, json, mutation};
 use crate::connect::Connection;

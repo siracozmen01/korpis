@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes a workload mounts (docs/06-storage.md).
+//! Volumes a workload mounts.
 
 use super::{SpecError, check_name};
 use std::collections::BTreeSet;
@@ -34,16 +34,15 @@ pub struct VolumeSpec {
     pub mode: VolumeMode,
     /// Attach this existing volume instead of creating one.
     pub existing: Option<Uuid>,
-    /// Create it holding what this backup held, restored before the workload first runs on it
-    /// (§5.4 of docs/06-storage.md); only for a volume created, never one attached.
+    /// Create it holding what this backup held, restored before the workload first runs on it; only
+    /// for a volume created, never one attached.
     pub from_backup: Option<Uuid>,
-    /// Copies of it kept on other nodes (§2.2 of docs/06-storage.md); only for a volume
-    /// created, since a volume attached keeps the replicas its own declaration asked for.
+    /// Copies of it kept on other nodes; only for a volume created, since a volume attached keeps
+    /// the replicas its own declaration asked for.
     pub replication: Option<Replication>,
 }
 
-/// Copies of a volume kept on other nodes, brought up to date on an interval (§2.2 of
-/// docs/06-storage.md).
+/// Copies of a volume kept on other nodes, brought up to date on an interval.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Replication {
     /// How many other nodes keep a copy; at least one.
@@ -59,8 +58,8 @@ impl Replication {
     pub const DEFAULT_INTERVAL: Duration = Duration::from_secs(300);
 }
 
-/// Where the node keeps what it gives a workload's install worker (§4 of docs/09-recipes.md): no
-/// volume is mounted, and no recipe names a path, at or beneath it.
+/// Where the node keeps what it gives a workload's install worker: no volume is mounted, and no
+/// recipe names a path, at or beneath it.
 pub const RESERVED: &str = "/.korpis";
 
 /// Whether `path` is at or beneath [`RESERVED`].

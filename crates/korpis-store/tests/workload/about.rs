@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an effect is about (§4 of docs/15-observability.md, migration 0104): the store resolves
-//! the organization and project that hold its object as it writes it, and an organization's
-//! subtree, or one project, is asked for by them.
+//! What an effect is about (migration 0104): the store resolves the organization and project that
+//! hold its object as it writes it, and an organization's subtree, or one project, is asked for by
+//! them.
 
 use crate::support::{create, fixture};
 use korpis_app::ports::{EffectFilter, EffectRead, EffectWrite, Store, Tx};

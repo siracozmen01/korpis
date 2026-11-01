@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What dedicated cores need of the machine (§2 of docs/18-operations.md, §5.2 of
-//! docs/05-scheduling.md): a physical core to offer besides the one holding CPU 0, read from the
-//! kernel's topology as the agent reads it to offer them; the cgroup v2 cpuset partitions a
-//! holder is made with, read as the drivers read them to declare cores held; and interrupts
-//! steered off the offered cores, read from the affinity the kernel gives every new interrupt.
-//! None is essential: a node without them offers no dedicated cores, or holds them with less.
+//! What dedicated cores need of the machine: a physical core to offer besides the one holding CPU
+//! 0, read from the kernel's topology as the agent reads it to offer them; the cgroup v2 cpuset
+//! partitions a holder is made with, read as the drivers read them to declare cores held; and
+//! interrupts steered off the offered cores, read from the affinity the kernel gives every new
+//! interrupt. None is essential: a node without them offers no dedicated cores, or holds them with
+//! less.
 
 use super::{Check, Machine, Offer, Outcome};
 use std::collections::BTreeSet;

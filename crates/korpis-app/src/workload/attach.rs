@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Attaching an existing volume (§7 of docs/06-storage.md): a declaration names it by its
-//! identifier, and the control plane resolves it. Declaring checks that it is a live volume the
-//! workload's project holds, that the declarer may read what is on it, and that no other workload
-//! holds it; approving claims it in the same transaction that moves the target, so two workloads
-//! are never both approved to one volume; placement keeps the workload on the node whose disk
-//! holds it; and the node is told the helper's identifier for it, as its node reported it.
+//! Attaching an existing volume: a declaration names it by its identifier, and the control plane
+//! resolves it. Declaring checks that it is a live volume the workload's project holds, that the
+//! declarer may read what is on it, and that no other workload holds it; approving claims it in the
+//! same transaction that moves the target, so two workloads are never both approved to one volume;
+//! placement keeps the workload on the node whose disk holds it; and the node is told the helper's
+//! identifier for it, as its node reported it.
 
 use crate::App;
 use crate::caller::Caller;
@@ -93,12 +93,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// What `body`'s workload does on `node` when its lease there cannot be renewed: what it
-    /// declares, or when it declares nothing, `stop` if another node may start it on a volume
-    /// it holds, the volume being in a class of the node's that more than one node can attach,
-    /// or replicated with failover onto its replica declared, and `keep_running` otherwise
-    /// (§4.5 of docs/02-architecture.md, Finding 206 of docs/23-walkthroughs.md). A volume's
-    /// class is the one it names, an attached volume's the one it was made in, and otherwise
-    /// the node's first, which the helper offers as its default.
+    /// declares, or when it declares nothing, `stop` if another node may start it on a volume it
+    /// holds, the volume being in a class of the node's that more than one node can attach, or
+    /// replicated with failover onto its replica declared, and `keep_running` otherwise. A volume's
+    /// class is the one it names, an attached volume's the one it was made in, and otherwise the
+    /// node's first, which the helper offers as its default.
     pub(crate) async fn on_expiry(
         &self,
         node: Uuid,
@@ -131,8 +130,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(body.continuity.resolved(multi))
     }
 
-    /// Whether `node` reaches `v`: it is on the node's disk, or in a store the node offers a
-    /// class of (§2.1 of docs/06-storage.md).
+    /// Whether `node` reaches `v`: it is on the node's disk, or in a store the node offers a class
+    /// of.
     pub(crate) async fn reaches(&self, node: Uuid, v: &Volume) -> Result<bool, AppError> {
         let home = v.home();
         if let Home::Node(n) = home {
@@ -142,10 +141,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(home.reached_by(node, &classes))
     }
 
-    /// Names each existing volume `body` attaches with the class it was made in, as it is
-    /// declared, so that the step attaching it and the node's helper find it there, in a shared
-    /// store or on its own disk, rather than make an empty one in the node's default class (§2.1
-    /// of docs/06-storage.md).
+    /// Names each existing volume `body` attaches with the class it was made in, as it is declared,
+    /// so that the step attaching it and the node's helper find it there, in a shared store or on
+    /// its own disk, rather than make an empty one in the node's default class.
     pub(crate) async fn existing_classes(&self, body: &mut IntentBody) -> Result<(), AppError> {
         for spec in &mut body.volumes {
             let Some(id) = spec.existing else { continue };
@@ -156,8 +154,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The helper's identifier of each existing volume `body` attaches, and of each volume of
-    /// `workload` made from a replica, which goes by one of its own (§2.2 of
-    /// docs/06-storage.md), by the name the workload mounts it under.
+    /// `workload` made from a replica, which goes by one of its own, by the name the workload
+    /// mounts it under.
     pub(crate) async fn existing_ids(
         &self,
         workload: Uuid,

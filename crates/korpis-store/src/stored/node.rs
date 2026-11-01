@@ -84,8 +84,8 @@ struct CapsDoc {
     hot_volume_attach: bool,
     runtime_snapshot: Option<SnapshotDoc>,
     live_migrate: bool,
-    /// Read from a driver stored before modes applied to every class, whose `gpu` is ignored
-    /// and which declared none, as empty (§4.1 of docs/04-runtimes.md).
+    /// Read from a driver stored before modes applied to every class, whose `gpu` is ignored and
+    /// which declared none, as empty.
     #[serde(default)]
     device_modes: Vec<ModeDoc>,
     devices: Vec<DeviceDoc>,
@@ -119,8 +119,8 @@ pub(crate) struct DriverDoc {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StorageClassDoc {
     name: String,
-    // Absent from classes stored before the helper's declaration was kept; read as what every
-    // such class claimed, which is nothing (§2 of docs/06-storage.md).
+    // Absent from classes stored before the helper's declaration was kept; read as what every such
+    // class claimed, which is nothing.
     #[serde(default = "directory")]
     backend: BackendDoc,
     #[serde(default)]
@@ -129,11 +129,11 @@ pub(crate) struct StorageClassDoc {
     fencing: FencingDoc,
     capacity_bytes: u64,
     free_bytes: u64,
-    // A shared class's store (§2.1 of docs/06-storage.md); absent from every class on a node's
-    // own disk, and from every class stored before shared ones existed.
+    // A shared class's store; absent from every class on a node's own disk, and from every class
+    // stored before shared ones existed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     store: Option<String>,
-    // A block class's protocol (§2.1 of docs/06-storage.md); absent from every other class.
+    // A block class's protocol; absent from every other class.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     block: Option<String>,
 }

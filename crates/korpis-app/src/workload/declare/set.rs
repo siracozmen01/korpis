@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Declaring through a declared set (§3.3 of docs/01-model.md, §5 and §6 of
-//! docs/13-surface-cli.md). The set is found, or created in advisory mode by the first
+//! Declaring through a declared set. The set is found, or created in advisory mode by the first
 //! declaration through it; the rule of `korpis_core::workload::set::through` decides what the
 //! declaration does to the workload; and the decision is recorded: a set created, a workload
 //! adopted, an out-of-band change accepted or discarded with its author named.

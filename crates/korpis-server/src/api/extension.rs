@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ExtensionService` (§4 of docs/16-extensions.md): installing an extension and reading what is
-//! installed.
+//! `ExtensionService`: installing an extension and reading what is installed.
 
 use super::wire::event::filter_to_pb;
 use super::wire::extension::{manifest_to_pb, need_from_pb, provided_in_pb};

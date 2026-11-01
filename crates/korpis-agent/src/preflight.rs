@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis-agent preflight` (§2 of docs/18-operations.md): what this machine lacks of what the
-//! node is configured to offer, and the exact command that fixes each, read from `/proc`, `/sys`,
-//! `/dev`, and `/lib/modules` and from the helper and the driver's runtime, and never fixed here: a preflight
-//! that loads modules or rewrites `sysctl` on someone's machine is a configuration management
-//! system. A node that lacks something offers less rather than failing to start, so only a lack
-//! that leaves it nothing to offer makes the report a failure.
+//! `korpis-agent preflight`: what this machine lacks of what the node is configured to offer, and
+//! the exact command that fixes each, read from `/proc`, `/sys`, `/dev`, and `/lib/modules` and
+//! from the helper and the driver's runtime, and never fixed here: a preflight that loads modules
+//! or rewrites `sysctl` on someone's machine is a configuration management system. A node that
+//! lacks something offers less rather than failing to start, so only a lack that leaves it nothing
+//! to offer makes the report a failure.
 //!
 //! Each check is a function of what was read (`Machine`) and of what had to be asked of the
 //! kernel, a command, or a socket (`Probes`), gathered first by `probe`, so every check is
@@ -95,7 +95,7 @@ pub struct Probes {
     pub shaping: Option<Result<(), String>>,
 }
 
-/// Every check, in the order of the table in §2 of docs/18-operations.md.
+/// Every check, in the order the install guide lists them.
 #[must_use]
 pub fn checks(m: &Machine, p: &Probes, offer: &Offer) -> Report {
     let mut all = kernel::checks(m, p);

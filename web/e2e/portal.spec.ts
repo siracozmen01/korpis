@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Trace 48 of docs/23-walkthroughs.md, in a browser: Ada redeems an invitation at Pinecone's
-// portal, a name of its own the control plane answers under (§3.6 of docs/07-networking.md),
-// registering a passkey for the portal's own relying party; the panel wears Pinecone's theme
-// there and lands on the landing screen Pinecone composed, though her grant lies above Pinecone;
-// her profile there shows what was begun there alone; and setting a password there is refused,
-// since her grant reaches beyond Pinecone (§9.8 of docs/08-identity.md).
+// A portal, in a browser: Ada redeems an invitation at Pinecone's
+// portal, a name of its own the control plane answers under, registering a passkey for the portal's
+// own relying party; the panel wears Pinecone's theme there and lands on the landing screen
+// Pinecone composed, though her grant lies above Pinecone; her profile there shows what was begun
+// there alone; and setting a password there is refused, since her grant reaches beyond Pinecone.
 
 import { expect, test } from "@playwright/test";
 import { authenticator, given, visit } from "./support";

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The limits of a workload's console stream (§5 of docs/14-streams.md): how fast it may write
-//! before what it writes is dropped and recorded as a gap, and how much of it is kept. They are
-//! enforced where the stream is written, and the most it can hold counts against the workload's
-//! disk quota like a volume it creates (K-3), because logs that fill a disk are a disk.
+//! The limits of a workload's console stream: how fast it may write before what it writes is
+//! dropped and recorded as a gap, and how much of it is kept. They are enforced where the stream is
+//! written, and the most it can hold counts against the workload's disk quota like a volume it
+//! creates, because logs that fill a disk are a disk.
 
 use super::SpecError;
 use std::time::Duration;
 
-/// The largest record a stream keeps (question 5 of §9 of docs/14-streams.md).
+/// The largest record a stream keeps.
 pub const MAX_RECORD: u64 = 64 * 1024;
 /// The size at which a segment is sealed.
 pub const SEGMENT_BYTES: u64 = 8 * 1024 * 1024;
@@ -34,8 +34,7 @@ pub struct StreamSpec {
     pub burst: u64,
     /// How much is kept on the node.
     pub retention: Retention,
-    /// How long an offloaded segment is kept, from when it was offloaded (§4 of
-    /// docs/14-streams.md).
+    /// How long an offloaded segment is kept, from when it was offloaded.
     pub offload_retention: Duration,
 }
 
@@ -78,8 +77,8 @@ impl StreamSpec {
         }
     }
 
-    /// How long an offloaded segment is kept under an operator floor of `floor`: what the
-    /// workload declares, or the floor where that is longer (§8 of docs/17-security.md).
+    /// How long an offloaded segment is kept under an operator floor of `floor`: what the workload
+    /// declares, or the floor where that is longer.
     #[must_use]
     pub fn offload_kept(&self, floor: Duration) -> Duration {
         self.offload_retention.max(floor)

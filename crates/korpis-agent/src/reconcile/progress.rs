@@ -2,12 +2,12 @@
 
 //! What the reconciler has done that a restart must not do again, kept in a small text file
 //! replaced atomically: for each workload, the last plan step it executed and how it turned out,
-//! the power cycle it last performed (§4.8 of docs/02-architecture.md: each cycle once), and how
+//! the power cycle it last performed (each cycle once), and how
 //! far its install has come, which is kept per install rather than per plan, so a new plan that
-//! runs the same install resumes it at the action that failed (§4 of docs/09-recipes.md).
-//! A step's completion is journalled before it is kept here, so a crash between the two runs the
-//! step again, which is a no-op that reports success, rather than losing the completion. Beside
-//! it, one file per install with provider steps keeps what they resolved to.
+//! runs the same install resumes it at the action that failed. A step's completion is journalled
+//! before it is kept here, so a crash between the two runs the step again, which is a no-op that
+//! reports success, rather than losing the completion. Beside it, one file per install with
+//! provider steps keeps what they resolved to.
 
 use buffa::Message as _;
 use korpis_proto::korpis::v1 as pb;
@@ -164,8 +164,8 @@ impl Progress {
     }
 
     /// Where the answers to install `digest`'s provider steps are kept, beside the progress: a
-    /// worker resumed at an action runs the same actions it started with (§4 of
-    /// docs/09-recipes.md), whatever a channel holds by then.
+    /// worker resumed at an action runs the same actions it started with, whatever a channel holds
+    /// by then.
     fn answers_path(&self, digest: &str) -> PathBuf {
         self.path.with_file_name(format!("install-{digest}.steps"))
     }

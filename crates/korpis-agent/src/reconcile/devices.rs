@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's devices on this node (§2.1 of docs/06-storage.md). A volume in a block class
-//! is made by its step, or mounted for its object, only with the device its assignment carries
-//! for it, which its class's provider attached to this node for the workload's lease; until the
-//! assignment carries one the step waits, and the status of the step says why. A device is let go
-//! of once no assignment held carries it and nothing of its workload runs here, since a running
-//! object holds its filesystem: a workload retired, moved, or stopped by its lease's end.
+//! A block class's devices on this node. A volume in a block class is made by its step, or mounted
+//! for its object, only with the device its assignment carries for it, which its class's provider
+//! attached to this node for the workload's lease; until the assignment carries one the step waits,
+//! and the status of the step says why. A device is let go of once no assignment held carries it
+//! and nothing of its workload runs here, since a running object holds its filesystem: a workload
+//! retired, moved, or stopped by its lease's end.
 
 use super::{Reconciler, Tracked};
 use crate::host::Host;

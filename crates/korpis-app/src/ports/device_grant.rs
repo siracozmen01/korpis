@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Device authorizations (§9.4 of docs/08-identity.md, RFC 8628): kept by the digest of their
-//! device code and by their user code, decided by an account, and spent by the poll that finds
-//! them approved.
+//! Device authorizations (RFC 8628): kept by the digest of their device code and by their user
+//! code, decided by an account, and spent by the poll that finds them approved.
 
 use super::StoreResult;
 use korpis_core::account::device_grant::DeviceAuthorization;
@@ -23,10 +22,9 @@ pub enum Polled {
         authorization: Box<DeviceAuthorization>,
         /// When it was polled before this, if it was.
         polled_before: Option<SystemTime>,
-        /// Whether an approval may still be collected: the account that gave it may sign in,
-        /// or the person's binding that gave it is not retired, and the session it was given
-        /// from has not ended (Findings 74 and 75 of docs/23-walkthroughs.md). True for one not
-        /// approved.
+        /// Whether an approval may still be collected: the account that gave it may sign in, or the
+        /// person's binding that gave it is not retired, and the session it was given from has not
+        /// ended. True for one not approved.
         honoured: bool,
         /// The session it was decided from, while that session lasts.
         from: Option<Uuid>,

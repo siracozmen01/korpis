@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Resources (§5.2 of docs/05-scheduling.md): what a workload reserves and what it is limited
-//! to. A reservation is what placement guarantees; a limit is what the kernel enforces.
+//! Resources: what a workload reserves and what it is limited to. A reservation is what placement
+//! guarantees; a limit is what the kernel enforces.
 
 use super::SpecError;
 use crate::recipe::derive::{Part, Resource};
@@ -107,7 +107,7 @@ impl ResourceSpec {
         if self.io.share > 10_000 {
             return Err(SpecError::new("resources.io.share", "1 to 10000"));
         }
-        // A whole number of cores, all of it reserved (§5.2 of docs/05-scheduling.md).
+        // A whole number of cores, all of it reserved.
         if self.cpu.isolation == CpuIsolation::DedicatedCores
             && (self.cpu.reservation_millis == 0
                 || !self.cpu.reservation_millis.is_multiple_of(1000)
@@ -127,8 +127,8 @@ fn amount(n: u64) -> f64 {
 }
 
 impl ResourceSpec {
-    /// One figure of the declaration, as a recipe's derived fields read it (§5.3 of
-    /// docs/09-recipes.md): `Effective` is the limit if one is set, otherwise the reservation.
+    /// One figure of the declaration, as a recipe's derived fields read it: `Effective` is the
+    /// limit if one is set, otherwise the reservation.
     #[must_use]
     pub fn read(&self, resource: Resource, part: Part) -> f64 {
         let rl = match resource {

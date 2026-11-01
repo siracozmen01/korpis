@@ -2,10 +2,10 @@
 
 //! Use-time evaluation: is this request permitted by one of the caller's grant chains?
 //!
-//! A grant is not a certificate that keeps working once printed; it is a claim re-derived at
-//! every use (§3.2 of docs/08-identity.md). So evaluation walks the whole chain, leaf to root,
-//! and re-checks every link: not revoked, not suspended, in force, and a valid attenuation of
-//! its parent. Revocation is therefore derived, never written to a subtree (§3.5).
+//! A grant is not a certificate that keeps working once printed; it is a claim re-derived at every
+//! use. So evaluation walks the whole chain, leaf to root, and re-checks every link: not revoked,
+//! not suspended, in force, and a valid attenuation of its parent. Revocation is therefore derived,
+//! never written to a subtree.
 
 use super::action::Action;
 use super::grant::{At, Grant, Subject, check_attenuation, in_force};
@@ -21,7 +21,7 @@ pub struct Request<'a> {
     /// Who asks.
     pub subject: &'a Subject,
     /// The sets an identity provider has just asserted the subject is in, for a person acting
-    /// through a relay (§5.2 of docs/08-identity.md); a grant held by one of them is theirs.
+    /// through a relay; a grant held by one of them is theirs.
     pub memberships: &'a [Subject],
     /// What they ask to do.
     pub action: &'a Action,
@@ -33,8 +33,8 @@ pub struct Request<'a> {
     pub mfa: bool,
     /// When; conditions are evaluated at this instant.
     pub now: SystemTime,
-    /// Whether this renews a session token whose use was spent when the first was minted
-    /// (§6.1 of docs/08-identity.md): the use cap is then neither consulted nor spent again.
+    /// Whether this renews a session token whose use was spent when the first was minted: the use
+    /// cap is then neither consulted nor spent again.
     pub renewal: bool,
 }
 
@@ -48,9 +48,9 @@ pub struct Request<'a> {
 pub enum Decision {
     /// The request may be performed now.
     Permit(Permit),
-    /// The grant can propose, not apply (§3.6): a declaration under it produces a plan that waits
-    /// for an approver over `approval_scope`, and any other change is refused. An action that
-    /// changes nothing is permitted under it instead.
+    /// The grant can propose, not apply: a declaration under it produces a plan that waits for an
+    /// approver over `approval_scope`, and any other change is refused. An action that changes
+    /// nothing is permitted under it instead.
     Propose {
         /// The permit the action will run under once approved.
         permit: Permit,
@@ -69,18 +69,18 @@ pub struct Permit {
     /// The chain, leaf first, root last.
     pub chain: Vec<Uuid>,
     /// The leaf has a use limit: the gateway must redeem one use atomically, in the transaction
-    /// that performs the action (§6.2).
+    /// that performs the action.
     pub redeem: bool,
-    /// The leaf's `source_cidr`, which attenuation keeps within every ancestor's (§3.2), so a
-    /// token minted from this chain carries it for the relay to check (§6.2).
+    /// The leaf's `source_cidr`, which attenuation keeps within every ancestor's, so a token minted
+    /// from this chain carries it for the relay to check.
     pub source_cidr: Vec<ipnet::IpNet>,
-    /// The leaf's stream range, which attenuation keeps within every ancestor's: whatever reads
-    /// the stream under this permit reads only that range (§8 of docs/14-streams.md).
+    /// The leaf's stream range, which attenuation keeps within every ancestor's: whatever reads the
+    /// stream under this permit reads only that range.
     pub stream_range: Option<super::grant::StreamRange>,
 }
 
-/// Why a request was refused. The caller is told which action was missing, never which grant
-/// would have granted it (§8 of docs/10-api.md).
+/// Why a request was refused. The caller is told which action was missing, never which grant would
+/// have granted it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Denial {
     /// The action no chain carried, which is all the caller is told.
@@ -104,8 +104,8 @@ pub enum ChainError {
     /// A grant on the chain is suspended.
     #[error("grant {0} is suspended")]
     Suspended(Uuid),
-    /// A grant on the chain is held by an external identity no live, verified binding vouches
-    /// for: suspended by derivation, reversibly (§5.1 of docs/08-identity.md).
+    /// A grant on the chain is held by an external identity no live, verified binding vouches for:
+    /// suspended by derivation, reversibly.
     #[error("grant {0} is held by an external identity nothing vouches for now")]
     Unvouched(Uuid),
     /// A grant on the chain is outside its validity window.
@@ -132,8 +132,8 @@ pub enum ChainError {
     /// A private action would cross into another organization implicitly.
     #[error("a private action does not reach into another organization implicitly")]
     PrivateAcrossOrganization,
-    /// The grant's scope lies in a suspended organization, and the action is not one a
-    /// suspended tenant keeps (§2.1 of docs/08-identity.md).
+    /// The grant's scope lies in a suspended organization, and the action is not one a suspended
+    /// tenant keeps.
     #[error("the grant's organization is suspended")]
     OrganizationSuspended,
     /// The request's source is outside a network condition.
@@ -198,8 +198,8 @@ fn permits(
         return Err(ChainError::PrivateAcrossOrganization);
     }
     // Suspension is derived from the scope's ancestry and never written onto a grant: a grant
-    // scoped in a suspended organization's subtree is suspended, and every chain beneath it is
-    // too, since each child's scope lies within its parent's (§2.1, §3.5).
+    // scoped in a suspended organization's subtree is suspended, and every chain beneath it is too,
+    // since each child's scope lies within its parent's.
     let suspended = hierarchy.resource(leaf.scope.anchor()).is_some_and(|r| r.suspended());
     if suspended && !request.action.stays_while_suspended() {
         return Err(ChainError::OrganizationSuspended);
@@ -225,7 +225,7 @@ fn permits(
         source_cidr: leaf.conditions.source_cidr.clone(),
         stream_range: leaf.conditions.stream_range,
     };
-    // A propose-only grant proposes changes; reading under it is not a change (§3.6).
+    // A propose-only grant proposes changes; reading under it is not a change.
     Ok(match &leaf.conditions.requires_approval_by {
         Some(scope) if !request.action.changes_nothing() => {
             Decision::Propose { permit, approval_scope: scope.clone() }
@@ -269,16 +269,16 @@ pub fn verify_chain(
     Ok(())
 }
 
-/// For a private action on a resource owned by organization O, the permitting grant's scope
-/// must be O or contained in O (§3.3 of docs/08-identity.md). A grant scoped to a strict
-/// ancestor of O does not reach O's private data, however broad it is.
+/// For a private action on a resource owned by organization O, the permitting grant's scope must be
+/// O or contained in O. A grant scoped to a strict ancestor of O does not reach O's private data,
+/// however broad it is.
 fn private_reach(scope: &Scope, resource: &Resource, hierarchy: &impl Hierarchy) -> bool {
     let Some(owner) = resource.owning_organization() else { return false };
     let Some(anchor) = hierarchy.resource(scope.anchor()) else { return false };
     anchor.owning_organization() == Some(owner)
 }
 
-/// An approval being attempted (§3.6 of docs/08-identity.md).
+/// An approval being attempted.
 #[derive(Debug, Clone)]
 pub struct Approval<'a> {
     /// Who would approve.

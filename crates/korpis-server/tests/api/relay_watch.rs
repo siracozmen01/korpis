@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A session for a client that cannot stream both ways ("From a browser" in §3.1 of
-//! docs/02-architecture.md): opened with `Watch`, the node's frames streamed back, the client's
-//! sent with `Send`, numbered, delivered in order and once, and authorized by the key only the
-//! watcher was given.
+//! A session for a client that cannot stream both ways: opened with `Watch`, the node's frames
+//! streamed back, the client's sent with `Send`, numbered, delivered in order and once, and
+//! authorized by the key only the watcher was given.
 
 use crate::agent::TestAgent;
 use crate::lifecycle::workload;

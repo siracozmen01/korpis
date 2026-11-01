@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A block class's devices (§2.1 of docs/06-storage.md). Each pass, every workload placed on a
-//! node offering a block class has a device wanted for each volume it declares in such a class,
-//! kept by the class's store and the identifier the volume has there. Each device due is then
-//! taken under a hold, so control planes share the work, and its class's provider, the
-//! `block_storage` provider of the class's name that the workload's organization sees, is asked
-//! to make it, and once made to attach it to the node its workload holds its lease on, for that
-//! lease's epoch, the credential it answers sealed to the device; to detach it once no lease is
-//! held for the node and epoch it was attached for; and to delete it once it is gone, its volume
-//! deleted. A failure is kept with its reason and asked again on a backoff.
+//! A block class's devices. Each pass, every workload placed on a node offering a block class has a
+//! device wanted for each volume it declares in such a class, kept by the class's store and the
+//! identifier the volume has there. Each device due is then taken under a hold, so control planes
+//! share the work, and its class's provider, the `block_storage` provider of the class's name that
+//! the workload's organization sees, is asked to make it, and once made to attach it to the node
+//! its workload holds its lease on, for that lease's epoch, the credential it answers sealed to the
+//! device; to detach it once no lease is held for the node and epoch it was attached for; and to
+//! delete it once it is gone, its volume deleted. A failure is kept with its reason and asked again
+//! on a backoff.
 
 use crate::App;
 use crate::error::AppError;
@@ -43,7 +43,7 @@ fn class_of<'a>(
 }
 
 /// Whether the driver `named` among `drivers` takes its volumes as block devices, its guest's
-/// disks, as the node's agent decides it (§3.1 of docs/06-storage.md).
+/// disks, as the node's agent decides it.
 fn guest_disks(drivers: &[DriverInfo], named: &str) -> bool {
     drivers
         .iter()
@@ -52,8 +52,7 @@ fn guest_disks(drivers: &[DriverInfo], named: &str) -> bool {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// One pass making a device wanted for each volume of a block class that a placed workload
-    /// declares. A workload that fails is left to the next pass, and the others go on (Finding
-    /// 209 of docs/23-walkthroughs.md).
+    /// declares. A workload that fails is left to the next pass, and the others go on.
     pub async fn tend_devices(&self) -> Result<Tending, AppError> {
         let (mut page, mut pass) = (Page::new(None, Page::DEFAULT), Tending::default());
         loop {
@@ -89,7 +88,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let Some(class) = class_of(spec, named, &node.storage_classes) else { continue };
             let (Some(_), Some(store)) = (class.block, class.store.clone()) else { continue };
             let size_bytes = existing.as_ref().map_or(spec.size_bytes, |v| v.size_bytes);
-            // A device is made at a size; a volume declaring none is not made (Finding 209).
+            // A device is made at a size; a volume declaring none is not made.
             if size_bytes == 0 || existing.as_ref().is_some_and(|v| v.deleted_at.is_some()) {
                 continue;
             }
@@ -180,7 +179,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// The devices of `workload`'s volumes attached to `node` for `epoch`, each by the helper's
     /// identifier of its volume, their credentials opened for the node's assignment, which is
-    /// sealed to the node alone (§2.1 of docs/06-storage.md).
+    /// sealed to the node alone.
     pub(crate) async fn attached_on(
         &self,
         workload: Uuid,

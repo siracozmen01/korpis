@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's bandwidth, shaped by the helper on this machine (§7 of docs/07-networking.md):
-//! an uplink's tree, the workload's class on it and the forwarded packets it classes, the limits
-//! on its link and its endpoint's own classes there, the counters of its endpoint and of its
-//! egress, and their removal. The test runs
+//! A workload's bandwidth, shaped by the helper on this machine: an uplink's tree, the workload's
+//! class on it and the forwarded packets it classes, the limits on its link and its endpoint's own
+//! classes there, the counters of its endpoint and of its egress, and their removal. The test runs
 //! in a network namespace of its own, standing for the host, whose uplink is a dummy interface:
 //! nothing the machine uses is shaped or rewritten, and no other firewall on it drops what is
 //! forwarded. Needs root, nftables, and tc; skipped without them.

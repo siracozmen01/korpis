@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Asking nodes whether their driver would accept an intent, before one is bound (§2.1 of
-//! docs/05-scheduling.md): a `FeasibilityQuery` down each node's session, answered with what the
-//! driver's `Prepare` says, nothing created. The adapter owns the sessions and asks the nodes at
-//! once. A node it cannot send to, such as one whose session another process holds, is not
-//! asked, and the check after the bind is what covers it.
+//! Asking nodes whether their driver would accept an intent, before one is bound: a
+//! `FeasibilityQuery` down each node's session, answered with what the driver's `Prepare` says,
+//! nothing created. The adapter owns the sessions and asks the nodes at once. A node it cannot send
+//! to, such as one whose session another process holds, is not asked, and the check after the bind
+//! is what covers it.
 
 use korpis_core::workload::spec::IntentBody;
 use std::future::Future;

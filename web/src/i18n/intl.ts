@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The panel's words (question 4 of §10 of docs/11-surface-web.md): every string it shows is a
-// message with a stable identifier and its English text, written where it is used and extracted
-// with its description into `en.json`, which a check holds to the source. The English is the
-// source, so it needs no catalogue; `catalogues/<locale>.json` holds another locale's
-// translations by identifier, and a check refuses one naming a message the source does not have
-// or written in ICU that does not parse. The locale is the first of the browser's preferences a
-// catalogue speaks, by its exact tag or its language alone, and English otherwise; a message a
-// catalogue lacks, or holds in a form that cannot be read, is shown in English, never as its
-// identifier. Every catalogue is in the bundle, so the locale is known before anything renders.
+// The panel's words: every string it shows is a message with a stable identifier and its English
+// text, written where it is used and extracted with its description into `en.json`, which a check
+// holds to the source. The English is the source, so it needs no catalogue;
+// `catalogues/<locale>.json` holds another locale's translations by identifier, and a check refuses
+// one naming a message the source does not have or written in ICU that does not parse. The locale
+// is the first of the browser's preferences a catalogue speaks, by its exact tag or its language
+// alone, and English otherwise; a message a catalogue lacks, or holds in a form that cannot be
+// read, is shown in English, never as its identifier. Every catalogue is in the bundle, so the
+// locale is known before anything renders.
 
 import { createIntl, createIntlCache, type IntlShape, type MessageDescriptor } from "react-intl";
 

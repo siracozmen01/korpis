@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's physical cores offered for dedication (§5.2 of docs/05-scheduling.md): each the
-//! logical CPUs that share one core's execution units, as the kernel's topology says, offered
-//! whole. A core carries no record of who holds it; placements do.
+//! A node's physical cores offered for dedication: each the logical CPUs that share one core's
+//! execution units, as the kernel's topology says, offered whole. A core carries no record of who
+//! holds it; placements do.
 
 /// A physical core of a node.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

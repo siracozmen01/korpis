@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a member's proxy serves for its edge groups (§3.1 of docs/07-networking.md): every
-//! `ingress` endpoint its groups serve, routed to its workload's address, through the mesh where
-//! it runs on another node, with the certificates those name and the challenges standing for
-//! their names. A route the node's own assignments make already is not made twice.
+//! What a member's proxy serves for its edge groups: every `ingress` endpoint its groups serve,
+//! routed to its workload's address, through the mesh where it runs on another node, with the
+//! certificates those name and the challenges standing for their names. A route the node's own
+//! assignments make already is not made twice.
 
 use super::route;
 use crate::held::HeldSet;

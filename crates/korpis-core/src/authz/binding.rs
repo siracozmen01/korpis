@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity bindings (§5 of docs/08-identity.md): how an external identity, one person or a set
-//! at an identity provider, becomes a subject a grant can name. A binding grants nothing; it says
-//! which provider vouches for the subject, how often that is re-checked, and, for a set, what its
-//! members receive. Its provider is an identity provider extension installed into an
-//! organization, and it vouches only within that organization's subtree.
+//! Identity bindings: how an external identity, one person or a set at an identity provider,
+//! becomes a subject a grant can name. A binding grants nothing; it says which provider vouches for
+//! the subject, how often that is re-checked, and, for a set, what its members receive. Its
+//! provider is an identity provider extension installed into an organization, and it vouches only
+//! within that organization's subtree.
 
 use super::evaluate::ChainError;
 use super::grant::Grant;
@@ -17,14 +17,14 @@ use crate::scope::{Hierarchy, Scope};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
-/// How often a binding is re-verified when its declarer does not say (§5.1).
+/// How often a binding is re-verified when its declarer does not say.
 pub const DEFAULT_REVERIFY: Duration = Duration::from_secs(15 * 60);
 /// The shortest re-verification interval: shorter would make the provider the bottleneck of
 /// every binding it serves.
 pub const MIN_REVERIFY: Duration = Duration::from_secs(60);
 /// The longest re-verification interval, which bounds how long authority outlives its source.
 pub const MAX_REVERIFY: Duration = Duration::from_secs(24 * 60 * 60);
-/// How long an unreachable provider extends a binding when its declarer does not say (§5.1).
+/// How long an unreachable provider extends a binding when its declarer does not say.
 pub const DEFAULT_GRACE: Duration = Duration::from_secs(15 * 60);
 /// The longest grace: an unreachable provider extends a membership by at most this.
 pub const MAX_GRACE: Duration = Duration::from_secs(60 * 60);
@@ -76,8 +76,8 @@ impl ProviderRef {
     }
 }
 
-/// Who made a binding (§5): sets are always declared by an operator; a person's binding is made
-/// at their first authenticated use, or declared ahead of it.
+/// Who made a binding: sets are always declared by an operator; a person's binding is made at their
+/// first authenticated use, or declared ahead of it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindingOrigin {
     /// Declared by someone holding `identity.binding.write` over the provider's organization.
@@ -86,7 +86,7 @@ pub enum BindingOrigin {
     FirstUse,
 }
 
-/// Whether a binding currently vouches (§5.1).
+/// Whether a binding currently vouches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindingState {
     /// Its provider confirmed it within its interval and grace.
@@ -98,17 +98,17 @@ pub enum BindingState {
 /// What a binding's declarer may change.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BindingTerms {
-    /// For a set: the template every grant to it is issued from, at this version (§3.4 of
-    /// docs/08-identity.md). Without one, a grant to the set may not delegate.
+    /// For a set: the template every grant to it is issued from, at this version. Without one, a
+    /// grant to the set may not delegate.
     pub template: Option<TemplateRef>,
     /// For a set: other sets at the same provider its members must also be in, checked at
     /// every re-verification.
     pub require_membership: Vec<SetName>,
-    /// How long an unreachable provider extends it past its interval (§5.1).
+    /// How long an unreachable provider extends it past its interval.
     pub grace: Duration,
-    /// How often it is re-verified (§5.1).
+    /// How often it is re-verified.
     pub reverify_interval: Duration,
-    /// For a set: the operator deliberately let its grants carry irreversible actions (§5.2).
+    /// For a set: the operator deliberately let its grants carry irreversible actions.
     pub allows_irreversible: bool,
 }
 
@@ -124,7 +124,7 @@ impl Default for BindingTerms {
     }
 }
 
-/// An identity binding (§5 of docs/08-identity.md, the one definition).
+/// An identity binding (the one definition).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityBinding {
     /// Its identity.
@@ -192,7 +192,7 @@ impl BindingError {
     }
 }
 
-/// What one re-verification found (§5.1 of docs/08-identity.md).
+/// What one re-verification found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verification {
     /// The provider answered, and the subject is still there.
@@ -205,7 +205,7 @@ pub enum Verification {
 }
 
 impl IdentityBinding {
-    /// Records what a re-verification at `now` found, by the table of §5.1: confirmed is
+    /// Records what a re-verification at `now` found, by the re-verification table: confirmed is
     /// `verified` from now, ended is `unverified` at once, and unanswered keeps the binding as
     /// it was until its last confirmation, its interval, and its grace have passed. Whether the
     /// state changed.
@@ -222,10 +222,9 @@ impl IdentityBinding {
         before != self.state
     }
 
-    /// The state evaluation finds at `now`: a verified binding whose last confirmation,
-    /// interval, and grace have all passed is unverified, whether or not a re-verification
-    /// has recorded it yet, so what a reader is shown is what is enforced (Finding 118 of
-    /// docs/23-walkthroughs.md).
+    /// The state evaluation finds at `now`: a verified binding whose last confirmation, interval,
+    /// and grace have all passed is unverified, whether or not a re-verification has recorded it
+    /// yet, so what a reader is shown is what is enforced.
     #[must_use]
     pub fn state_at(&self, now: SystemTime) -> BindingState {
         let t = &self.terms;
@@ -275,10 +274,10 @@ impl IdentityBinding {
 }
 
 /// A grant held by an external identity, as its binding lets it stand now: refused unless a live
-/// binding vouches for its holder and its last confirmation still holds at `now`, and without
-/// its irreversible override unless the binding still allows one, so retiring a binding, its
-/// failing re-verification, or an operator withdrawing the override reaches every grant at its
-/// next use (§5, §5.1, §5.2 of docs/08-identity.md). `None` when the grant stands as stored.
+/// binding vouches for its holder and its last confirmation still holds at `now`, and without its
+/// irreversible override unless the binding still allows one, so retiring a binding, its failing
+/// re-verification, or an operator withdrawing the override reaches every grant at its next use.
+/// `None` when the grant stands as stored.
 pub(crate) fn vouched_form(
     link: &Grant,
     hierarchy: &impl Hierarchy,

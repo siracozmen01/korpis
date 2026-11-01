@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis grant share` (§6.1 of docs/08-identity.md, §7 of docs/13-surface-cli.md): a link-form
-//! grant, answered as a URL whose fragment is the link. Holding the URL is holding the authority,
-//! so the link expires and limits its uses whatever is asked, and the command says what a use is
-//! and what it costs before anyone sends it.
+//! `korpis grant share`: a link-form grant, answered as a URL whose fragment is the link. Holding
+//! the URL is holding the authority, so the link expires and limits its uses whatever is asked, and
+//! the command says what a use is and what it costs before anyone sends it.
 
 use super::grant::object_scope;
 use super::{Answer, json, mutation, seconds};
@@ -35,8 +34,8 @@ pub struct Share {
     pub parent: Option<String>,
 }
 
-/// The URL a link is sent as: the control plane's, with the link in the fragment, which a
-/// browser never sends to a server (§6 of docs/11-surface-web.md).
+/// The URL a link is sent as: the control plane's, with the link in the fragment, which a browser
+/// never sends to a server.
 #[must_use]
 pub fn url(server: &str, link: &str) -> String {
     format!("{server}/g/#{link}")

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The roles offered at a place (§4 of docs/08-identity.md, §5 of docs/11-surface-web.md): the
-// grant templates its organization and every one above it own, each with what it allows, what it
-// passes on, and how long it lasts. A signed-in caller is offered to give a role here; the control
-// plane decides, by attenuating the caller's own grant, and says why when it refuses. On an
-// organization, whoever holds `template.write` there makes, edits, and retires its own roles.
-// Nothing here is offered through a share link, which can give nothing.
+// The roles offered at a place: the grant templates its organization and every one above it own,
+// each with what it allows, what it passes on, and how long it lasts. A signed-in caller is offered
+// to give a role here; the control plane decides, by attenuating the caller's own grant, and says
+// why when it refuses. On an organization, whoever holds `template.write` there makes, edits, and
+// retires its own roles. Nothing here is offered through a share link, which can give nothing.
 
 import { useCallback, useState } from "react";
 import { Button } from "react-aria-components";

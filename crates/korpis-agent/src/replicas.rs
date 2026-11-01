@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The node's part in volumes' replication (§2.2 of docs/06-storage.md). The control plane tells
-//! the node, in its `Replicas` message, the transfers from its volumes and the replicas it keeps;
-//! the session keeps that on disk, so a transfer under way survives the control plane's absence
-//! until its ticket expires. The agent sends each transfer once, and again every [`RETRY`] while
-//! it fails and its ticket lasts, to the receiving node's mesh address (`send`); listens on its
-//! own for what is sent to it, admitting a stream only under a ticket the token keys open that
-//! names this node and a replica it was told it receives, from the mesh address of the node it
-//! was told sends it (`receive`); journals how each receive ended; and releases what
-//! replication no longer needs, of what it sent and of what it received (`release`).
+//! The node's part in volumes' replication. The control plane tells the node, in its `Replicas`
+//! message, the transfers from its volumes and the replicas it keeps; the session keeps that on
+//! disk, so a transfer under way survives the control plane's absence until its ticket expires. The
+//! agent sends each transfer once, and again every [`RETRY`] while it fails and its ticket lasts,
+//! to the receiving node's mesh address (`send`); listens on its own for what is sent to it,
+//! admitting a stream only under a ticket the token keys open that names this node and a replica it
+//! was told it receives, from the mesh address of the node it was told sends it (`receive`);
+//! journals how each receive ended; and releases what replication no longer needs, of what it sent
+//! and of what it received (`release`).
 
 mod receive;
 mod release;

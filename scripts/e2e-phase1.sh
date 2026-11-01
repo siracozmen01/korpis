@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# The Phase 1 done-when (§4 of docs/20-roadmap.md), end to end, the way an operator runs it: the
-# single-machine installation of §1 of docs/18-operations.md made real, with its processes started
-# with their own flags, its artifacts published with oras, and every step through the `korpis`
-# CLI. It installs a control plane into a fresh database and enrolls this machine as its node,
-# its volumes on a btrfs with qgroups on; installs the backup target for a disk as an extension,
-# from its static binary pushed as an image; runs a workload with a 64 MiB volume and an
-# interactive console, reads the console and types into it, has the kernel refuse a write past
-# the volume's quota and checks the memory limit its status shows is its cgroup's; backs its
-# volume up, reads a file back out of the backup, and restores the backup into a clone whose
-# volume holds that file; then deletes all of it, and checks the node removed what it made.
+# The Phase 1 done-when, end to end, the way an operator runs it: the single-machine installation
+# made real, with its processes started with their own flags, its
+# artifacts published with oras, and every step through the `korpis` CLI. It installs a control
+# plane into a fresh database and enrolls this machine as its node, its volumes on a btrfs with
+# qgroups on; installs the backup target for a disk as an extension, from its static binary pushed
+# as an image; runs a workload with a 64 MiB volume and an interactive console, reads the console
+# and types into it, has the kernel refuse a write past the volume's quota and checks the memory
+# limit its status shows is its cgroup's; backs its volume up, reads a file back out of the backup,
+# and restores the backup into a clone whose volume holds that file; then deletes all of it, and
+# checks the node removed what it made.
 #
 # Needs root, containerd, docker (for scripts/dev-pg.sh and scripts/dev-registry.sh), psql, jq,
 # mkfs.btrfs and btrfs (btrfs-progs), and oras from scripts/tools.sh. Leaves nothing behind: its

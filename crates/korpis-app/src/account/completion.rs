@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in through an identity provider, completed (§9.7 of docs/08-identity.md). The person
-//! returns with the state, which is spent once, and a code the provider asserts with the verifier
-//! the panel kept; the presentation is accepted once; the person's binding is made at their first
-//! use or confirmed; their records as members are confirmed in the bound sets the provider named,
-//! and not in any other of its sets; and a session begins, or, for a caller signed in through the
-//! same provider as the same person, their session re-authenticates. Every refusal of what the
-//! person brought is [`AppError::Unauthenticated`], a failed attempt the server charges to its
-//! source (§10 of docs/10-api.md).
+//! Signing in through an identity provider, completed. The person returns with the state, which is
+//! spent once, and a code the provider asserts with the verifier the panel kept; the presentation
+//! is accepted once; the person's binding is made at their first use or confirmed; their records as
+//! members are confirmed in the bound sets the provider named, and not in any other of its sets;
+//! and a session begins, or, for a caller signed in through the same provider as the same person,
+//! their session re-authenticates. Every refusal of what the person brought is
+//! [`AppError::Unauthenticated`], a failed attempt the server charges to its source.
 
 use super::external::{target, unavailable};
 use super::{Begun, Client, record_held};
@@ -95,7 +94,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::invalid("code_verifier", "a PKCE verifier, RFC 7636 §4.1"));
         }
         let pending = self.spend_sign_in(&c.state).await?;
-        // Completed at the address it began at, whose panel holds the verifier (§9.8).
+        // Completed at the address it began at, whose panel holds the verifier.
         if pending.portal != client.address()
             || !verifies(&c.code_verifier, &pending.code_challenge)
         {

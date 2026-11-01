@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's identity (§7 of docs/02-architecture.md): an Ed25519 key the node generates for
-//! itself, whose public half the control plane records at enrollment. Every session's first
-//! message proves the node holds the private half by signing the string [`hello_message`] builds,
-//! and the control plane checks it with [`verify`]. The agent and the control plane share this
-//! one definition, so they cannot disagree about what is signed.
+//! A node's identity: an Ed25519 key the node generates for itself, whose public half the control
+//! plane records at enrollment. Every session's first message proves the node holds the private
+//! half by signing the string [`hello_message`] builds, and the control plane checks it with
+//! [`verify`]. The agent and the control plane share this one definition, so they cannot disagree
+//! about what is signed.
 
 use ed25519_dalek::{Signature, Signer as _, SigningKey, VerifyingKey};
 use std::fmt::Write as _;
@@ -22,9 +22,9 @@ pub fn hello_message(node: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<
 
 /// What a `DataHello`'s `NodeAuth.signature` signs: the same form as [`hello_message`] under
 /// `korpis.agent.v1.DataHello`, so a relay that sees one cannot present it as a control-stream
-/// Hello, followed by `|` and the URL of the relay the node dialled, so a relay cannot present
-/// it to another relay either: relays share no nonce memory (§3.1 of docs/02-architecture.md).
-/// The URL is last, after a nonce that holds no `|`, so whatever it contains is unambiguous.
+/// Hello, followed by `|` and the URL of the relay the node dialled, so a relay cannot present it
+/// to another relay either: relays share no nonce memory. The URL is last, after a nonce that holds
+/// no `|`, so whatever it contains is unambiguous.
 #[must_use]
 pub fn data_hello_message(
     (node, relay): (&str, &str),
@@ -38,12 +38,12 @@ pub fn data_hello_message(
     m
 }
 
-/// What a relay signs to open its feed (§3.1 of docs/02-architecture.md): the same form as
-/// [`hello_message`] under `korpis.relay.v1.Feed`, with the relay's identifier in place of the
-/// node's, signed by the relay's identity key; followed by `|`, the SSH host key of the SFTP it
-/// serves in lowercase hexadecimal, `|`, and the address clients reach it at, both empty where it
-/// serves none, so the signature vouches for where clients are sent and which key they are told
-/// to expect. The address is last, after a key that holds no `|`, so it is unambiguous.
+/// What a relay signs to open its feed: the same form as [`hello_message`] under
+/// `korpis.relay.v1.Feed`, with the relay's identifier in place of the node's, signed by the
+/// relay's identity key; followed by `|`, the SSH host key of the SFTP it serves in lowercase
+/// hexadecimal, `|`, and the address clients reach it at, both empty where it serves none, so the
+/// signature vouches for where clients are sent and which key they are told to expect. The address
+/// is last, after a key that holds no `|`, so it is unambiguous.
 #[must_use]
 pub fn relay_feed_message(
     (relay, (host_key, address)): (&str, (&[u8], &str)),
@@ -62,9 +62,9 @@ pub fn relay_feed_message(
     m
 }
 
-/// What a relay signs to renew its certificate (§3.1 of docs/02-architecture.md): the same form as
-/// [`relay_feed_message`] under `korpis.relay.v1.Renew`, followed by `|` and the new TLS public
-/// key in lowercase hexadecimal, so the signature vouches for the key the certificate will name.
+/// What a relay signs to renew its certificate: the same form as [`relay_feed_message`] under
+/// `korpis.relay.v1.Renew`, followed by `|` and the new TLS public key in lowercase hexadecimal, so
+/// the signature vouches for the key the certificate will name.
 #[must_use]
 pub fn relay_renew_message(
     (relay, tls_key): (&str, &[u8]),
@@ -81,10 +81,10 @@ pub fn relay_renew_message(
     m
 }
 
-/// What a relay serving SFTP signs to ask for a file token (§9.9 of docs/08-identity.md): the
-/// same form as [`relay_feed_message`] under `korpis.relay.v1.AuthorizeFiles`, followed by `|`
-/// and the SHA-256 of what it asks for in lowercase hexadecimal, so the signature vouches for
-/// that request alone and a captured one is good for no other.
+/// What a relay serving SFTP signs to ask for a file token: the same form as [`relay_feed_message`]
+/// under `korpis.relay.v1.AuthorizeFiles`, followed by `|` and the SHA-256 of what it asks for in
+/// lowercase hexadecimal, so the signature vouches for that request alone and a captured one is
+/// good for no other.
 #[must_use]
 pub fn relay_files_message(
     (relay, asked): (&str, &[u8; 32]),
@@ -121,10 +121,9 @@ pub fn files_request_digest(
     h.finalize().into()
 }
 
-/// What a node signs to answer a reachability probe's `nonce` on `port` (§9 of
-/// docs/07-networking.md): the same form as [`hello_message`] under
-/// `korpis.agent.v1.Reachability`, with the port in place of the timestamp, so the answer proves
-/// that the machine reached is the node, and is good for nothing else.
+/// What a node signs to answer a reachability probe's `nonce` on `port`: the same form as
+/// [`hello_message`] under `korpis.agent.v1.Reachability`, with the port in place of the timestamp,
+/// so the answer proves that the machine reached is the node, and is good for nothing else.
 #[must_use]
 pub fn probe_answer_message(node: &str, port: u16, nonce: &[u8]) -> Vec<u8> {
     let mut s = format!("korpis.agent.v1.Reachability|{node}|{port}|");

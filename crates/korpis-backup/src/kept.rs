@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recipe content kept once per repository (§5.2 of docs/06-storage.md), beneath its `content/`
-//! prefix: each content as parts of at most [`PART`] bytes, `<sha256>/<n>`, and an index,
-//! `<sha256>/index`, written last, so content whose index exists is whole. A part is read and
-//! written one at a time, so keeping or reading content of any size holds one part in memory.
+//! Recipe content kept once per repository, beneath its `content/` prefix: each content as parts of
+//! at most [`PART`] bytes, `<sha256>/<n>`, and an index, `<sha256>/index`, written last, so content
+//! whose index exists is whole. A part is read and written one at a time, so keeping or reading
+//! content of any size holds one part in memory.
 //!
 //! Recipe content is public, so it is kept as it is, unsealed; its name is its sha256, and a
 //! reader checks what it reads against that name and refuses what does not match, so a store, or

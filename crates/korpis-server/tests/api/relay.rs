@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The relay role (§3.1 of docs/02-architecture.md), with the node played by hand: a node
-//! attaches its data connection, a client opens a session with a token, the relay verifies it and
-//! asks the node, and the node's carry joins the two. What the relay refuses, it refuses before
-//! the node hears of it; what the node refuses reaches the client as the node's reason.
+//! The relay role, with the node played by hand: a node attaches its data connection, a client
+//! opens a session with a token, the relay verifies it and asks the node, and the node's carry
+//! joins the two. What the relay refuses, it refuses before the node hears of it; what the node
+//! refuses reaches the client as the node's reason.
 
 use crate::agent::TestAgent;
 use crate::lifecycle::workload;

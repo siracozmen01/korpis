@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's probe of each group's members through their forwarding paths (§3.1 of
-//! docs/07-networking.md): which replica probes a group, what it probes, and recording what it
-//! measured. A replica holds a group's probe for a while, as a route is held (§3.7 there), so one
-//! replica probes each group and another takes over once it stops renewing.
+//! The control plane's probe of each group's members through their forwarding paths: which replica
+//! probes a group, what it probes, and recording what it measured. A replica holds a group's probe
+//! for a while, as a route is held, so one replica probes each group and another takes over once it
+//! stops renewing.
 
 use crate::App;
 use crate::edge_group::EdgeTables;

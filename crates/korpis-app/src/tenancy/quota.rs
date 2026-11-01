@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Setting quota (§5.1 of docs/05-scheduling.md, §3.1 of docs/01-model.md). An organization's
-//! quota set is its parent's decision, so it is set from above, as a suspension is: under
-//! `org.quota.write` over the parent, which a grant at the organization itself never covers, so
-//! no tenant raises its own. A root organization, with nothing above it, holds no quota: what it
-//! holds is the installation's, and Korpis restricts no host (P10). A project's set is a
-//! sub-limit within its organization's quota, set under `org.quota.write` over the organization.
+//! Setting quota. An organization's quota set is its parent's decision, so it is set from above, as
+//! a suspension is: under `org.quota.write` over the parent, which a grant at the organization
+//! itself never covers, so no tenant raises its own. A root organization, with nothing above it,
+//! holds no quota: what it holds is the installation's, and Korpis restricts no host. A project's
+//! set is a sub-limit within its organization's quota, set under `org.quota.write` over the
+//! organization.
 //!
-//! The set is checked under the locks of every set it is checked against: the reservations given
-//! to an organization and its siblings, entry by entry of one shape, sum within their parent's,
-//! never oversubscribed; their limits within the parent's times the overcommit it was permitted;
-//! what the organization gives its own children fits what it is now given; and each of its
-//! projects' sub-limits fits it. Lowering a set below what its workloads hold is allowed: only
-//! growth is refused at admission, so nothing is stranded (§5.1). An entry whose shape the new set
-//! keeps keeps its identity and its totals.
+//! The set is checked under the locks of every set it is checked against: the reservations given to
+//! an organization and its siblings, entry by entry of one shape, sum within their parent's, never
+//! oversubscribed; their limits within the parent's times the overcommit it was permitted; what the
+//! organization gives its own children fits what it is now given; and each of its projects'
+//! sub-limits fits it. Lowering a set below what its workloads hold is allowed: only growth is
+//! refused at admission, so nothing is stranded. An entry whose shape the new set keeps keeps its
+//! identity and its totals.
 
 use crate::App;
 use crate::caller::Caller;
@@ -180,7 +180,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             std::iter::once(over).chain(beside.clone()).chain(below.clone()).collect();
         let all_projects: Vec<Uuid> = projects.into_iter().chain(below_projects.clone()).collect();
         let mut entries = tx.lock_quota_sets(&orgs, &all_projects).await?;
-        // What the set above holds itself is weighed against what it promised (Finding 139).
+        // What the set above holds itself is weighed against what it promised.
         for e in entries.iter_mut().filter(|e| e.held.is_none() && e.nodes.is_none()) {
             crate::workload::reckon(tx, e).await?;
         }

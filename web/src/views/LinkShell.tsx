@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A share link opened (§6 of docs/11-surface-web.md): no account, no sign-in, a screen holding
-// exactly the object the link is for and exactly what it allows. The link arrives in the
-// fragment of `/g/#korpislk_…`, is held in memory and cleared from the address bar, and every
-// call is made with it and nothing else. Reading the link's own grant spends nothing; the
-// workload's live status is one call, so opening the screen spends one use of the link's cap
-// (§6.1 of docs/08-identity.md), and a reload, which forgets the link, asks for it again. A link
-// no longer in force says why, rather than showing an object it can no longer read as nothing.
+// A share link opened: no account, no sign-in, a screen holding exactly the object the link is for
+// and exactly what it allows. The link arrives in the fragment of `/g/#korpislk_…`, is held in
+// memory and cleared from the address bar, and every call is made with it and nothing else. Reading
+// the link's own grant spends nothing; the workload's live status is one call, so opening the
+// screen spends one use of the link's cap, and a reload, which forgets the link, asks for it again.
+// A link no longer in force says why, rather than showing an object it can no longer read as
+// nothing.
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useCallback, useMemo } from "react";

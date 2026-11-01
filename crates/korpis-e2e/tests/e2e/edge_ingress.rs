@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ingress` through an edge group on real nodes (§3.1 of docs/07-networking.md, trace 78 of
-//! docs/23-walkthroughs.md). Two edges serving the ingress, each its proxy on its own address on
-//! the link it shares with a client, and a node serving none, each machine's data plane in a
-//! network namespace of the test's own. A server's `ingress` endpoint, served with a certificate
-//! its organization uploaded, is placed on the node; its name is reached by the client over TLS
-//! at the group's ingress address, where the edge holding it translates port 443 to its own
-//! proxy, which terminates TLS with the certificate it fetched and forwards through the mesh to
-//! the server, whose node admits that edge's proxy. When the holder loses power, its agent
+//! `ingress` through an edge group on real nodes. Two edges serving the ingress, each its proxy on
+//! its own address on the link it shares with a client, and a node serving none, each machine's
+//! data plane in a network namespace of the test's own. A server's `ingress` endpoint, served with
+//! a certificate its organization uploaded, is placed on the node; its name is reached by the
+//! client over TLS at the group's ingress address, where the edge holding it translates port 443 to
+//! its own proxy, which terminates TLS with the certificate it fetched and forwards through the
+//! mesh to the server, whose node admits that edge's proxy. When the holder loses power, its agent
 //! stopped and its link down, the other edge is granted the address and serves the name the same
 //! way. Each time the name is reached over HTTP/3 as well, at UDP port 443 of the address, which
-//! the holder translates to its proxy as it does TCP. Needs root, containerd, and the kernel's WireGuard and GRE; skipped without them.
+//! the holder translates to its proxy as it does TCP. Needs root, containerd, and the kernel's
+//! WireGuard and GRE; skipped without them.
 
 use crate::dependencies::running;
 use crate::edges::{comes_to_hold, group_of, holder, network};

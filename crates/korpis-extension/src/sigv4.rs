@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! AWS Signature Version 4, for a provider that speaks to an S3-compatible store or serves as one
-//! (§5.6 of docs/06-storage.md). Signing covers a request whose headers carry the signature, what
-//! a token service takes. Verifying covers a request presigned in its query, what a node's job
-//! sends a store a provider serves itself: its canonical request rebuilt from the path and query
-//! as they arrived and the headers it signed, its age and lifetime checked, and its signature
-//! compared in constant time.
+//! AWS Signature Version 4, for a provider that speaks to an S3-compatible store or serves as one.
+//! Signing covers a request whose headers carry the signature, what a token service takes.
+//! Verifying covers a request presigned in its query, what a node's job sends a store a provider
+//! serves itself: its canonical request rebuilt from the path and query as they arrived and the
+//! headers it signed, its age and lifetime checked, and its signature compared in constant time.
 
 mod presigned;
 

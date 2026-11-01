@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an install is given (§4 and §6 of docs/09-recipes.md), for the documented example: the
-//! template verb's format, every target inside a volume, contexts built from declared values with
-//! no secret in reach, and which templates a change of values renders again.
+//! What an install is given, for the documented example: the template verb's format, every target
+//! inside a volume, contexts built from declared values with no secret in reach, and which
+//! templates a change of values renders again.
 
 use crate::support::PAPER;
 use korpis_core::recipe::install::InstallStep;

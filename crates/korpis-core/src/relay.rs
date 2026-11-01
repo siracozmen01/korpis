@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Relays (§3.1 of docs/02-architecture.md): the stateless processes that join a client's session
-//! to a node's outbound data connection. A relay that runs as its own process is enrolled like a
-//! node, once, and is then known by its identity key and the URL clients and nodes reach it at.
-//! The control plane's own relay role is not one of these: it needs no enrollment, since it is
-//! the control plane.
+//! Relays: the stateless processes that join a client's session to a node's outbound data
+//! connection. A relay that runs as its own process is enrolled like a node, once, and is then
+//! known by its identity key and the URL clients and nodes reach it at. The control plane's own
+//! relay role is not one of these: it needs no enrollment, since it is the control plane.
 
 pub mod sftp;
 
@@ -28,8 +27,8 @@ pub struct Relay {
     pub certificate_expires_at: Option<SystemTime>,
     /// When it was removed; a removed relay is told nothing more and named to no node.
     pub removed_at: Option<SystemTime>,
-    /// When a restore held it (§8 of docs/03-state.md): a held relay's feed is answered as
-    /// unavailable and it is named to no node, until an operator readmits it or removes it.
+    /// When a restore held it: a held relay's feed is answered as unavailable and it is named to no
+    /// node, until an operator readmits it or removes it.
     pub held_at: Option<SystemTime>,
     /// When its feed was last served, to within [`SEEN_EVERY`].
     pub last_seen_at: Option<SystemTime>,
@@ -55,9 +54,9 @@ impl Relay {
     }
 }
 
-/// How close a relay's certificate is to expiring, as an event says it (§7 of
-/// docs/18-operations.md): a warning within [`WARN_WITHIN`], critical within [`CRITICAL_WITHIN`],
-/// and nothing before. Each step is reported once; a renewal starts the count again.
+/// How close a relay's certificate is to expiring, as an event says it: a warning within
+/// [`WARN_WITHIN`], critical within [`CRITICAL_WITHIN`], and nothing before. Each step is reported
+/// once; a renewal starts the count again.
 #[must_use]
 pub fn certificate_alert(expires_at: SystemTime, now: SystemTime) -> Option<Severity> {
     let left = expires_at.duration_since(now).unwrap_or_default();

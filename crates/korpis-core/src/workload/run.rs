@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Runs: the executions of a `task` or `scheduled` workload (§4 of docs/05-scheduling.md). The
-//! control plane makes every run; a node starts and ends only the runs its assignment names.
+//! Runs: the executions of a `task` or `scheduled` workload. The control plane makes every run; a
+//! node starts and ends only the runs its assignment names.
 
 mod recovered;
 mod tend;
@@ -12,7 +12,7 @@ pub use tend::{ON_TIME, Tended, Tending, tend};
 use std::time::SystemTime;
 use uuid::Uuid;
 
-/// What made a run (§4.1 of docs/05-scheduling.md).
+/// What made a run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trigger {
     /// An occurrence of the schedule.
@@ -43,14 +43,14 @@ pub enum RunStatus {
 }
 
 impl RunStatus {
-    /// Whether the run is active: pending or running (§4.3 of docs/05-scheduling.md).
+    /// Whether the run is active: pending or running.
     #[must_use]
     pub const fn is_active(self) -> bool {
         matches!(self, Self::Pending | Self::Running)
     }
 }
 
-/// Why a run ended as it did (§4.2 to §4.4 of docs/05-scheduling.md).
+/// Why a run ended as it did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cause {
     /// Its process exited, and the exit status was judged.
@@ -218,11 +218,10 @@ pub struct RunEnd {
     pub at: SystemTime,
 }
 
-/// How a run ended, as its node reported it at `at` (§4.2 of docs/05-scheduling.md): stopped at
-/// its timeout, failed; stopped because it was no longer named, cancelled; and otherwise judged
-/// by its exit status against the `exit` probe of the intent it was made under, zero alone when
-/// that declares none. A run whose process never started, or whose exit status is unknown, has
-/// failed.
+/// How a run ended, as its node reported it at `at`: stopped at its timeout, failed; stopped
+/// because it was no longer named, cancelled; and otherwise judged by its exit status against the
+/// `exit` probe of the intent it was made under, zero alone when that declares none. A run whose
+/// process never started, or whose exit status is unknown, has failed.
 #[must_use]
 pub fn reported_end(
     body: &crate::workload::spec::IntentBody,
@@ -251,7 +250,7 @@ pub fn reported_end(
     end(status, Cause::Exit)
 }
 
-/// One run a node is to execute, as its assignment names it (§4.5 of docs/05-scheduling.md).
+/// One run a node is to execute, as its assignment names it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunRef {
     /// The run.

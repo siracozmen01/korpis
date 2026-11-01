@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Writing a stream (§3, §5, §7 of docs/14-streams.md). Every record is redacted, then cut to the
-//! largest record, in that order: cutting first could keep half a secret, where cutting after can
-//! only shorten a redaction mark. Then it is admitted by the stream's rate (a token bucket in
-//! bytes) or dropped. Drops are counted, and the next record admitted, or the next tick a second
-//! after the last drop, writes a gap record saying how many records and bytes were lost, over how
-//! long, and why. Nothing here ever waits for room: a workload is never blocked on its own output.
+//! Writing a stream. Every record is redacted, then cut to the largest record, in that order:
+//! cutting first could keep half a secret, where cutting after can only shorten a redaction mark.
+//! Then it is admitted by the stream's rate (a token bucket in bytes) or dropped. Drops are
+//! counted, and the next record admitted, or the next tick a second after the last drop, writes a
+//! gap record saying how many records and bytes were lost, over how long, and why. Nothing here
+//! ever waits for room: a workload is never blocked on its own output.
 //!
 //! The segment being written is sealed once it reaches its size or its age, and a sealed one is
-//! reported to the caller, which journals it for the control plane's index (§4). Records reach
-//! the page cache as they are written and the disk at each tick and seal: a crash of this
-//! process loses nothing written, and a crash of the machine loses at most the last tick's.
+//! reported to the caller, which journals it for the control plane's index. Records reach the page
+//! cache as they are written and the disk at each tick and seal: a crash of this process loses
+//! nothing written, and a crash of the machine loses at most the last tick's.
 
 use crate::dir::StreamDir;
 use crate::record::{Gap, Kind, Record, Source};
@@ -19,14 +19,14 @@ use crate::segment::{Sealed, SegmentWriter};
 use std::io;
 use std::time::Duration;
 
-/// A stream's limits, as its workload declares them (§5 of docs/14-streams.md).
+/// A stream's limits, as its workload declares them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
     /// Bytes per second admitted on average.
     pub rate: u64,
     /// Bytes admitted at once after a quiet period.
     pub burst: u64,
-    /// The largest record kept; the rest of a longer one is dropped (question 5 of §9).
+    /// The largest record kept; the rest of a longer one is dropped.
     pub max_record: usize,
     /// A segment is sealed once it holds this many bytes.
     pub segment_bytes: u64,

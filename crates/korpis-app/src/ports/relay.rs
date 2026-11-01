@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Relays that run as their own process (§3.1 of docs/02-architecture.md): their enrollment,
-//! their record, and the certificates the installation's authority issues them.
+//! Relays that run as their own process: their enrollment, their record, and the certificates the
+//! installation's authority issues them.
 
 use super::StoreResult;
 use korpis_core::event::Severity;
@@ -48,7 +48,7 @@ pub struct RelayCertificate {
     pub alerted: Option<Severity>,
 }
 
-/// Where a relay serves SFTP, as it last reported it (§3.1 of docs/02-architecture.md).
+/// Where a relay serves SFTP, as it last reported it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelaySftp {
     /// The relay.
@@ -164,8 +164,7 @@ pub struct IssuedCertificate {
     pub expires_at: SystemTime,
 }
 
-/// The installation's certificate authority (§7 of docs/18-operations.md), as far as relays
-/// need it.
+/// The installation's certificate authority, as far as relays need it.
 pub trait CertificateIssuer: Send + Sync + std::fmt::Debug {
     /// A server certificate for `host`, binding `public_key` (an uncompressed P-256 point),
     /// valid for `lifetime` from now.

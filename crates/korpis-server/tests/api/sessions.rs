@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! User sessions over the API (§9.4 of docs/08-identity.md): a redemption sets the refresh
-//! credential as a host-bound cookie, an exchange answers an access token the rest of the API
-//! takes and replaces the cookie, a copy of a rotated cookie ends the session, and the CLI's
-//! credential travels in the body instead.
+//! User sessions over the API: a redemption sets the refresh credential as a host-bound cookie, an
+//! exchange answers an access token the rest of the API takes and replaces the cookie, a copy of a
+//! rotated cookie ends the session, and the CLI's credential travels in the body instead.
 
 use crate::panel::{browser, invite, redeem_keeping_cookie, refresh_cookie};
 use crate::support::Harness;

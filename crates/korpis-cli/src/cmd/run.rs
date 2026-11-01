@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis run …` (§4 of docs/05-scheduling.md): reading a task or scheduled workload's runs and
-//! their consoles, and cancelling one. A run is requested with `korpis workload restart`, since a higher power cycle
-//! is what requests one.
+//! `korpis run …`: reading a task or scheduled workload's runs and their consoles, and cancelling
+//! one. A run is requested with `korpis workload restart`, since a higher power cycle is what
+//! requests one.
 
 use super::logs::{Out, Reading};
 use super::{Answer, json, mutation};

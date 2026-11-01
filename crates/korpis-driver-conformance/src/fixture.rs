@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! What the suite is given: the driver, by how it is started and the socket it serves on, and the
-//! node it would run on, by the paths the driver is started with (§8 of docs/04-runtimes.md). The
-//! suite writes into the content store and the volume root as the agent and the helper would, and
-//! the driver only reads them.
+//! node it would run on, by the paths the driver is started with. The suite writes into the content
+//! store and the volume root as the agent and the helper would, and the driver only reads them.
 
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
@@ -61,9 +60,9 @@ struct LaunchFile {
     args: Vec<String>,
 }
 
-/// A fixture as a file holds it, in JSON, for the runner a third party starts (§8 of
-/// docs/04-runtimes.md): each field of [`Fixture`] by its name, `host_restart` left out where
-/// there is none, and `uid_count` and `objects` left out for [`IDS`] and [`OBJECTS`].
+/// A fixture as a file holds it, in JSON, for the runner a third party starts: each field of
+/// [`Fixture`] by its name, `host_restart` left out where there is none, and `uid_count` and
+/// `objects` left out for [`IDS`] and [`OBJECTS`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FixtureFile {

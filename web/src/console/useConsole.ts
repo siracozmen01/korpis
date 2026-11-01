@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A workload's console, live (§8 of docs/11-surface-web.md, §6 of docs/14-streams.md): opened
-// with the last records the node holds and followed; reopened from the offset it was told to
-// read next, so a dropped session misses nothing and repeats nothing; older records read on
-// request, from the node while it holds them and from the offloaded segments beyond.
+// A workload's console, live: opened with the last records the node holds and followed; reopened
+// from the offset it was told to read next, so a dropped session misses nothing and repeats
+// nothing; older records read on request, from the node while it holds them and from the offloaded
+// segments beyond.
 
 import { useEffect, useReducer, useRef } from "react";
 import type { Clients } from "../clients";
@@ -52,8 +52,7 @@ export interface Reaching {
   readonly clients: Clients;
   readonly relay: () => Promise<Relay>;
   readonly workload: string;
-  /** A run of the workload, `run_…`, whose console it is: each run writes its own (§4 of
-   * docs/14-streams.md). Absent for the workload's own. */
+  /** A run of the workload, `run_…`, whose console it is: each run writes its own. Absent for the workload's own. */
   readonly run?: string | undefined;
   /** Reopen by itself after a failure; a share link asks first, since each opening is a use. */
   readonly automatic: boolean;

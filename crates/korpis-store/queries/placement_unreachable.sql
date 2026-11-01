@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Workloads not deleted whose authoritative placement, not held by a restore, is on a node the
--- silence sweep marked unreachable (§2.4 of docs/05-scheduling.md), in identifier order after
--- $1, at most $2.
+-- silence sweep marked unreachable, in identifier order after $1, at most $2.
 SELECT p.workload_id
   FROM placement p
   JOIN node n ON n.id = p.node_id

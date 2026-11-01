@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Nodes: stored and read back whole, and the operator's decision moved by compare-and-swap
-//! (§3.4 of docs/01-model.md).
+//! Nodes: stored and read back whole, and the operator's decision moved by compare-and-swap.
 
 use crate::support::{fixture, now};
 use korpis_app::Page;

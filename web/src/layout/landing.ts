@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The layout a signed-in viewer's landing screen shows (question 2 of §10 of
-// docs/11-surface-web.md): that of whoever provides their access, as their theme is
-// (../theme/useTheme.tsx), which the control plane names from the grants it holds (Finding 134
-// of docs/23-walkthroughs.md); and the top organization the viewer can read, whose quota the
-// landing shows where its layout places it.
+// The layout a signed-in viewer's landing screen shows: that of whoever provides their access, as
+// their theme is (../theme/useTheme.tsx), which the control plane names from the grants it holds;
+// and the top organization the viewer can read, whose quota the landing shows where its layout
+// places it.
 
 import type { Clients } from "../clients";
 import type { Layout, LayoutItem, Organization } from "../gen/korpis/v1/tenancy_pb";

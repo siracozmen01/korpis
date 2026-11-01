@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Publishing the names of ingress endpoints (§3.5 of docs/07-networking.md). Each name an
-//! endpoint the ingress serves routes resolves to its node's advertised addresses, or, where an
-//! edge group serves it, to the group's ingress addresses (§3.1 there), published
-//! through a DNS provider of the endpoint's organization: the one that published it before, then
-//! the others it sees, its own before its ancestors', until one serves the name's zone. A name no
-//! provider serves is its holder's to publish, and its status says so; the providers are asked
-//! again hourly, one installed meanwhile among them. A name no longer routed is withdrawn from
-//! the provider that published it. Only names an endpoint routes are published, and a name is
-//! routed only by the organization holding it (§3.2), so the control plane has checked the
-//! holder before any provider is asked.
+//! Publishing the names of ingress endpoints. Each name an endpoint the ingress serves routes
+//! resolves to its node's advertised addresses, or, where an edge group serves it, to the group's
+//! ingress addresses, published through a DNS provider of the endpoint's organization: the one that
+//! published it before, then the others it sees, its own before its ancestors', until one serves
+//! the name's zone. A name no provider serves is its holder's to publish, and its status says so;
+//! the providers are asked again hourly, one installed meanwhile among them. A name no longer
+//! routed is withdrawn from the provider that published it. Only names an endpoint routes are
+//! published, and a name is routed only by the organization holding it, so the control plane has
+//! checked the holder before any provider is asked.
 
 use crate::App;
 use crate::error::AppError;

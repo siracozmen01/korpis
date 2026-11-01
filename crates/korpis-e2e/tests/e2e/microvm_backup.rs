@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A microVM's backup read inside its image on a real node (§5.4 of docs/06-storage.md, §4.4 of
-//! docs/04-runtimes.md): its volume is a block device, so its backup is one `ext4` image, which
-//! `korpis backup list` says; `korpis backup ls` and `cat` open a session through the relay, the
-//! node restores the image beside the volume and the `firecracker` driver serves it from a guest
-//! of its own while the workload's own guest runs, and what the guest wrote before the backup is
-//! listed and read back; `--image` lists the backup as the repository holds it; and the copy is
-//! gone once the sessions end. Needs what the microVM test needs, and MinIO.
+//! A microVM's backup read inside its image on a real node: its volume is a block device, so its
+//! backup is one `ext4` image, which `korpis backup list` says; `korpis backup ls` and `cat` open a
+//! session through the relay, the node restores the image beside the volume and the `firecracker`
+//! driver serves it from a guest of its own while the workload's own guest runs, and what the guest
+//! wrote before the backup is listed and read back; `--image` lists the backup as the repository
+//! holds it; and the copy is gone once the sessions end. Needs what the microVM test needs, and
+//! MinIO.
 
 use crate::backups::{installed, nightly, serve, wire};
 use crate::files::open;

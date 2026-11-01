@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Serving behind a load balancer (§3.1 of docs/02-architecture.md). A connection from one of the
-//! configured proxy addresses must open with a PROXY header, and the client it names is the
-//! peer every handler sees, as `source_cidr` is judged by; a connection from anywhere else is its
-//! own client, and a header it sends is not read as one, because a header anyone can send is not
-//! an address. connectrpc's own server reads no header and serves nothing but the API, so every
-//! connection is accepted here and served by the same hyper, with bounds on a slow handshake,
-//! through the front that answers the panel's files beside the API (`crate::front`).
+//! Serving behind a load balancer. A connection from one of the configured proxy addresses must
+//! open with a PROXY header, and the client it names is the peer every handler sees, as
+//! `source_cidr` is judged by; a connection from anywhere else is its own client, and a header it
+//! sends is not read as one, because a header anyone can send is not an address. connectrpc's own
+//! server reads no header and serves nothing but the API, so every connection is accepted here and
+//! served by the same hyper, with bounds on a slow handshake, through the front that answers the
+//! panel's files beside the API (`crate::front`).
 //!
-//! The `ClientHello` is read before a configuration is chosen (§3.6 of docs/07-networking.md): a
-//! portal's name is served with its portal's certificate and the request told which portal it is
-//! for, a name offering only `acme-tls/1` is answered with its order's challenge and closed, and
-//! any other name, or none, is served with the installation's own certificate, as before.
+//! The `ClientHello` is read before a configuration is chosen: a portal's name is served with its
+//! portal's certificate and the request told which portal it is for, a name offering only
+//! `acme-tls/1` is answered with its order's challenge and closed, and any other name, or none, is
+//! served with the installation's own certificate, as before.
 
 pub mod proxy;
 

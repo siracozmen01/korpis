@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in (§9.6 of docs/08-identity.md): the factors an account may hold besides a passkey,
-//! which `webauthn` verifies. A password is never a sign-in alone; a TOTP code or a recovery code
-//! is the second factor beside it.
+//! Signing in: the factors an account may hold besides a passkey, which `webauthn` verifies. A
+//! password is never a sign-in alone; a TOTP code or a recovery code is the second factor beside
+//! it.
 
 pub mod device_grant;
 pub mod exposed;

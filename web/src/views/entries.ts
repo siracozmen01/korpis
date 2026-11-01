@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Where the navigation starts (§5 of docs/11-surface-web.md): at the objects the caller's own
-// grants are anchored on, not at a tree it is shown and refused parts of. An organization grant
-// opens that organization and what is inside it, a project grant that project, a workload grant
-// that workload; a selector grant opens the object it selects within. A grant on anything else
-// (a volume, a domain, a node) is not a place to navigate to, and is not shown as one.
+// Where the navigation starts: at the objects the caller's own grants are anchored on, not at a
+// tree it is shown and refused parts of. An organization grant opens that organization and what is
+// inside it, a project grant that project, a workload grant that workload; a selector grant opens
+// the object it selects within. A grant on anything else (a volume, a domain, a node) is not a
+// place to navigate to, and is not shown as one.
 
 import { type Grant, GrantState, type Scope } from "../gen/korpis/v1/authority_pb";
 

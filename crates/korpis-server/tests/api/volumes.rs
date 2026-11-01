@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Volumes (§7 of docs/06-storage.md): kept from what the node journals, believed only from a
-//! node that once held the workload's lease, read under `volume.read` on their project, and a
-//! size shown only where the write path enforces it (Rule K-3).
+//! Volumes: kept from what the node journals, believed only from a node that once held the
+//! workload's lease, read under `volume.read` on their project, and a size shown only where the
+//! write path enforces it.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{ack, assignment, send, until};

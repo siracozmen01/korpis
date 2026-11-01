@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a spec makes of a guest: its shape (vCPUs, memory, and the cgroup its Firecracker runs
-//! in), and the config drive `korpis-guest` reads (§6 of docs/04-runtimes.md). Each limit is held
-//! by the hypervisor or the kernel: the guest's memory is its size, its CPU its vCPUs and its
-//! Firecracker's `cpu.max`, and the Firecracker process is bounded beyond the guest's memory only
-//! by what it needs itself.
+//! What a spec makes of a guest: its shape (vCPUs, memory, and the cgroup its Firecracker runs in),
+//! and the config drive `korpis-guest` reads. Each limit is held by the hypervisor or the kernel:
+//! the guest's memory is its size, its CPU its vCPUs and its Firecracker's `cpu.max`, and the
+//! Firecracker process is bounded beyond the guest's memory only by what it needs itself.
 
 use crate::jail::Shape;
 use korpis_core::content::image::ImageConfig;
@@ -61,7 +60,7 @@ pub fn shape(spec: &driver::PreparedSpec) -> Shape {
 
 /// The guest's network, from the addresses `spec` gives it: each on its `eth0`, a default route
 /// through the gateway of each family it has an address of, and the workload's resolver, as a
-/// container is given them (§4.1 and §5.1 of docs/07-networking.md); none without addresses.
+/// container is given them; none without addresses.
 pub fn network(spec: &driver::PreparedSpec) -> Result<Option<Network>, String> {
     if spec.addresses.is_empty() {
         return Ok(None);

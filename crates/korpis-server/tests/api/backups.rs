@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backups through the control plane (§5 of docs/06-storage.md): a plan of one step that applies
-//! at once, under `backup.create` on the workload; one open per workload and repository; the
-//! node holding the volume given the workload's data key, the same each time, and access to the
-//! workload's prefix alone, while nobody else is; the job's report making the backup whole; the
-//! next backup naming it as its parent; and a backup whose plan ended without it reported failed.
+//! Backups through the control plane: a plan of one step that applies at once, under
+//! `backup.create` on the workload; one open per workload and repository; the node holding the
+//! volume given the workload's data key, the same each time, and access to the workload's prefix
+//! alone, while nobody else is; the job's report making the backup whole; the next backup naming it
+//! as its parent; and a backup whose plan ended without it reported failed.
 
 use crate::agent::Stream;
 use crate::backup_target::{Bucket, serving};

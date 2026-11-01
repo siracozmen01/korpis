@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Grant templates on a real control plane (§4 of docs/08-identity.md): a reseller defines a
-//! Moderator, which is offered to its customer and not to the host above it; the customer reads
-//! it where it is offered and can neither edit it nor learn it exists by its identifier; an edit
-//! made against a version that has moved on is a conflict, and every version stays readable;
-//! retiring it offers it nowhere and frees its name. A template that does not say whether its
-//! grants delegate, or delegates more than it permits, is refused before anything is written.
+//! Grant templates on a real control plane: a reseller defines a Moderator, which is offered to its
+//! customer and not to the host above it; the customer reads it where it is offered and can neither
+//! edit it nor learn it exists by its identifier; an edit made against a version that has moved on
+//! is a conflict, and every version stays readable; retiring it offers it nowhere and frees its
+//! name. A template that does not say whether its grants delegate, or delegates more than it
+//! permits, is refused before anything is written.
 
 use crate::delegation::{Holder, delegate, delegation, organization};
 use crate::support::{Harness, mutation, org_scope};

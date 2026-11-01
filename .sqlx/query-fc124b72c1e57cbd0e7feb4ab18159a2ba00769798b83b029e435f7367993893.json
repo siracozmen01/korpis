@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Forgets each failover that found no node, for the intent a workload is placed for, once its node\n-- is heard again: the attempt was made after the placement was bound, which no other attempt for\n-- the same intent is, since binding forgets them.\nDELETE FROM placement_failure f\n USING placement p, node n\n WHERE p.workload_id = f.workload_id AND p.authoritative AND p.intent_id = f.intent_id\n   AND f.since > p.bound_at\n   AND n.id = p.node_id AND n.connectivity <> 'unreachable'\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "fc124b72c1e57cbd0e7feb4ab18159a2ba00769798b83b029e435f7367993893"
+}

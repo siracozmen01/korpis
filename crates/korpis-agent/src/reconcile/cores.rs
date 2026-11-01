@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The dedicated cores a placement holds here (§5.2 of docs/05-scheduling.md): given to the
-//! driver from the node's own topology, never from what the control plane says a core is, and
-//! kept out of every other workload's cpuset by the helper, which is told the CPUs held before
-//! an object holding cores is made and after one is destroyed.
+//! The dedicated cores a placement holds here: given to the driver from the node's own topology,
+//! never from what the control plane says a core is, and kept out of every other workload's cpuset
+//! by the helper, which is told the CPUs held before an object holding cores is made and after one
+//! is destroyed.
 
 use super::act::Failure;
 use super::{Reconciler, Tracked};
@@ -41,11 +41,10 @@ fn cpus(cores: &[pb::Core]) -> Vec<u32> {
     cores.iter().flat_map(|c| c.cpus.iter().copied()).collect()
 }
 
-/// Whether an object recorded as holding the logical CPUs `recorded`, when it was built or as
-/// its driver reported it when it was adopted, holds the cores `asked` names, as the node offers
-/// them in `cores`: one whose placement's cores changed holds others, and is built again. Nothing
-/// is taken on trust: an object recorded as holding none holds none (Findings 171 and 172 of
-/// docs/23-walkthroughs.md).
+/// Whether an object recorded as holding the logical CPUs `recorded`, when it was built or as its
+/// driver reported it when it was adopted, holds the cores `asked` names, as the node offers them
+/// in `cores`: one whose placement's cores changed holds others, and is built again. Nothing is
+/// taken on trust: an object recorded as holding none holds none.
 fn holds(cores: &[pb::Core], asked: &[u32], recorded: &[u32]) -> bool {
     let mut asked = offered(cores, asked).map(|c| cpus(&c)).unwrap_or_default();
     let mut held = recorded.to_vec();

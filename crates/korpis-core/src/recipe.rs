@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recipes: how an intent names one, the typed and permissioned configuration it declares, and
-//! what it says interruption costs (docs/09-recipes.md, §3.5 of docs/01-model.md).
+//! Recipes: how an intent names one, the typed and permissioned configuration it declares, and what
+//! it says interruption costs.
 
 pub mod behaviour;
 pub mod config;
@@ -67,7 +67,7 @@ pub(crate) fn workload_path(field: &str, p: &str) -> Result<(), RecipeError> {
 }
 
 /// A path inside the recipe artifact: relative and normalized, optionally written with a leading
-/// `./`. The file layer that carries it is titled without that prefix (§2 of docs/09-recipes.md).
+/// `./`. The file layer that carries it is titled without that prefix.
 pub fn artifact_path(field: &str, p: &str) -> Result<(), RecipeError> {
     let p = p.strip_prefix("./").unwrap_or(p);
     if !p.is_empty() && !p.starts_with('/') && clean(p) {

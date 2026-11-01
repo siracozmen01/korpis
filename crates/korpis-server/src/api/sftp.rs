@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `RelayControlService.AuthorizeFiles` (§9.9 of docs/08-identity.md): a file token for an SFTP
-//! client a relay serves, asked for under the relay's identity key over what it asks; and the
-//! same token asked for in process by the control plane's own relay role.
+//! `RelayControlService.AuthorizeFiles`: a file token for an SFTP client a relay serves, asked for
+//! under the relay's identity key over what it asks; and the same token asked for in process by the
+//! control plane's own relay role.
 
 use super::agent::proof_from_pb;
 use super::wire::{self, Refuse as _, timestamp};

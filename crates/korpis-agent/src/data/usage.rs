@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a workload uses now, over the data path: the handler of a `metering.read` session over
-//! the workload (§2 of docs/15-observability.md). Its params are empty. The node sends a
-//! `UsageNow` at each of its meter's readings, every ten seconds, from the readings the meter
-//! takes anyway, so a session watching costs the node no reading of its own; until the meter has
-//! read the workload it sends nothing. The session ends when the client is done or its token
-//! does.
+//! What a workload uses now, over the data path: the handler of a `metering.read` session over the
+//! workload. Its params are empty. The node sends a `UsageNow` at each of its meter's readings,
+//! every ten seconds, from the readings the meter takes anyway, so a session watching costs the
+//! node no reading of its own; until the meter has read the workload it sends nothing. The session
+//! ends when the client is done or its token does.
 //!
-//! It is not journaled, as a console read is (§8 of docs/17-security.md): what it shows is what
-//! the control plane already answers `ListUsage` with under the same action, an interval at a
-//! time, and nothing the workload wrote.
+//! It is not journaled, as a console read is: what it shows is what the control plane already
+//! answers `ListUsage` with under the same action, an interval at a time, and nothing the workload
+//! wrote.
 
 use super::handler::{Ended, Handler, Io, Opened, Serving};
 use crate::meter::now::{Now, Readings, usage_now};

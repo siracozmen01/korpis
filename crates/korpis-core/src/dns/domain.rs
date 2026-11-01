@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Domains an organization holds (§3.2 of docs/07-networking.md, §3.6 of docs/01-model.md): a
-//! name covers itself and every name beneath it; a verified domain of one organization may not
-//! overlap another's, except one delegated beneath it; and a name is routable by the organization
-//! holding the most specific verified domain that covers it, which is what lets a delegated name
-//! be its holder's and not its parent's.
+//! Domains an organization holds: a name covers itself and every name beneath it; a verified domain
+//! of one organization may not overlap another's, except one delegated beneath it; and a name is
+//! routable by the organization holding the most specific verified domain that covers it, which is
+//! what lets a delegated name be its holder's and not its parent's.
 
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -78,7 +77,7 @@ pub fn new_token() -> Result<String, crate::authz::credential::EntropyError> {
     }))
 }
 
-/// A name the ingress routes, and to what (§3.2 of docs/07-networking.md).
+/// A name the ingress routes, and to what.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Route {
     /// The name.

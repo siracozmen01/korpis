@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Recording refusals (§4 of docs/15-observability.md), coalesced (§10 of docs/10-api.md): the
-//! first refusal of a subject, action, and object is written at once, and its repeats within the
-//! window are written as one effect when the window closes, by the next repeat after it or by
-//! [`App::close_denial_runs`], whichever comes first. The runs are held in the store, so a
-//! restart or a second control plane neither loses nor double-counts them.
+//! Recording refusals, coalesced: the first refusal of a subject, action, and object is written at
+//! once, and its repeats within the window are written as one effect when the window closes, by the
+//! next repeat after it or by [`App::close_denial_runs`], whichever comes first. The runs are held
+//! in the store, so a restart or a second control plane neither loses nor double-counts them.
 
 use crate::App;
 use crate::caller::Caller;
@@ -33,8 +32,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
-        // A relayed call costs a presentation the relay cannot make, so its refusals cannot
-        // flood; each is written at once, naming the relay (§5.2 of docs/08-identity.md).
+        // A relayed call costs a presentation the relay cannot make, so its refusals cannot flood;
+        // each is written at once, naming the relay.
         if let Some(r) = &caller.relayed {
             tx.append_effect(&denial(&key).relayed_by(Some(r.relay.clone()))).await?;
             tx.commit().await?;
@@ -56,9 +55,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Writes the repeats of every run of denials, and of failed attempts to authenticate, whose
-    /// window has closed by now, and forgets the runs; returns how many runs it closed. The composition root calls it periodically,
-    /// so a run that stops repeating is still written within about one window of its last
-    /// repeat.
+    /// window has closed by now, and forgets the runs; returns how many runs it closed. The
+    /// composition root calls it periodically, so a run that stops repeating is still written
+    /// within about one window of its last repeat.
     ///
     /// # Errors
     /// The store's.

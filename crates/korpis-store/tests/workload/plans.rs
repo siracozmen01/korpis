@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Plans: stored, read back, decided by compare-and-swap, superseded (§3.3 of
-//! docs/01-model.md).
+//! Plans: stored, read back, decided by compare-and-swap, superseded.
 
 use crate::support::{Fixture, alice, create, fixture, now};
 use korpis_app::Page;

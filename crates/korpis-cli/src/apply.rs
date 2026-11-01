@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis plan -f` and `korpis apply -f` (§4 of docs/13-surface-cli.md). Each file is checked
-//! locally and then declared. `plan` declares with `propose`, so the answer is a real, persisted
-//! plan that waits to be confirmed. `apply` declares and lets default policy approve what it may;
-//! with `--plan` it applies exactly the plans named, after checking that the files still declare
-//! what each planned, and answers `CONFLICT` with the plan they declare now when they do not.
+//! `korpis plan -f` and `korpis apply -f`. Each file is checked locally and then declared. `plan`
+//! declares with `propose`, so the answer is a real, persisted plan that waits to be confirmed.
+//! `apply` declares and lets default policy approve what it may; with `--plan` it applies exactly
+//! the plans named, after checking that the files still declare what each planned, and answers
+//! `CONFLICT` with the plan they declare now when they do not.
 
 use crate::check::check;
 use crate::connect::Connection;
@@ -34,7 +34,7 @@ fn conflict(message: String) -> CliError {
     }
 }
 
-/// A declaration through a declared set (§5 and §6 of docs/13-surface-cli.md).
+/// A declaration through a declared set.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Through {
     /// The set's name in each file's project.

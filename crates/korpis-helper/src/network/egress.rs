@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The egress default (§6 of docs/07-networking.md), on the host's `forward` and `input` hooks
-//! for every packet a workload's link sends. Every row that denies counts what it drops, under a
-//! comment naming the row, so what this firewall decided is visible apart from what another one
-//! on the node decided. Each workload has a chain of its own, reached through a map keyed by its
-//! link, holding what differs between workloads: the destinations opened for it, which is the
-//! control plane's API for an installed extension's workload, and its new-connection rate.
+//! The egress default, on the host's `forward` and `input` hooks for every packet a workload's link
+//! sends. Every row that denies counts what it drops, under a comment naming the row, so what this
+//! firewall decided is visible apart from what another one on the node decided. Each workload has a
+//! chain of its own, reached through a map keyed by its link, holding what differs between
+//! workloads: the destinations opened for it, which is the control plane's API for an installed
+//! extension's workload, and its new-connection rate.
 
 use super::nft::{TABLE, chain};
 use super::policy::{Limits, Rule, limited, matches};
@@ -124,7 +124,7 @@ fn forward_rows(c: &str) -> Vec<Value> {
             None,
             vec![json!({"vmap": {"key": meta("iifname"), "data": format!("@{OUTWARD}")}})],
         ),
-        // A connection to a published endpoint is a client's, whoever makes it (§3).
+        // A connection to a published endpoint is a client's, whoever makes it.
         rule(
             c,
             None,

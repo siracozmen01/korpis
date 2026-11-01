@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A quota set as its owner's parent sets it (§5.1 of docs/05-scheduling.md, §3.1 of
-//! docs/01-model.md): its entries, and the overcommit it permits its own children's limits. What
-//! a set may say is checked against the set above it and the sets below it: the reservations its
-//! children are given, entry by entry of the same shape, sum within its own, never
-//! oversubscribed; their limits sum within its own times the ratio it was permitted; and a
+//! A quota set as its owner's parent sets it: its entries, and the overcommit it permits its own
+//! children's limits. What a set may say is checked against the set above it and the sets below it:
+//! the reservations its children are given, entry by entry of the same shape, sum within its own,
+//! never oversubscribed; their limits sum within its own times the ratio it was permitted; and a
 //! project's entries, a sub-limit within its organization's, each fit the organization's.
 
 use super::{Bounds, Dimension, QuotaEntry};
@@ -12,8 +11,7 @@ use crate::labels::LabelSelector;
 use crate::node::driver::DeviceClass;
 use std::collections::BTreeMap;
 
-/// The dimensions that are exclusive by nature and never overcommitted (§5.3 of
-/// docs/05-scheduling.md).
+/// The dimensions that are exclusive by nature and never overcommitted.
 pub const EXCLUSIVE: [Dimension; 7] = [
     Dimension::DedicatedIpv4,
     Dimension::NodePorts,
@@ -84,8 +82,8 @@ pub enum SetError {
         /// What the set above allows them.
         bound: u64,
     },
-    /// What an organization runs itself, beside what it promised the organizations beneath it,
-    /// more than it holds (Finding 139 of docs/23-walkthroughs.md).
+    /// What an organization runs itself, beside what it promised the organizations beneath it, more
+    /// than it holds.
     #[error(
         "{} reservations the organization above holds itself, beside what it guaranteed beneath \
          it, would be {would}, above its {bound}",

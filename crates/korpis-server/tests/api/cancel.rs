@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Cancelling a plan nodes have begun (§7 of docs/03-state.md): it lands on a step boundary.
-//! The plan leaves the assignment, so the node begins no further step; the step that was in
-//! flight still finishes and still counts; and the plan stays cancelled.
+//! Cancelling a plan nodes have begun: it lands on a step boundary. The plan leaves the assignment,
+//! so the node begins no further step; the step that was in flight still finishes and still counts;
+//! and the plan stays cancelled.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, plan_status, send, step_done, until};

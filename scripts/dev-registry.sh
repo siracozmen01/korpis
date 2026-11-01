@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # An OCI registry for development and tests, isolated from anything else on the machine: its own
-# container, its own named volume, bound to loopback only, plain HTTP. Recipes are OCI artifacts
-# (§2 of docs/09-recipes.md); tests push recipes here and the control plane resolves them. `up`
-# also mirrors the images the tests run into it, by digest, so no test pulls from a public
-# registry, whose limits on anonymous pulls would make tests fail at random.
+# container, its own named volume, bound to loopback only, plain HTTP. Recipes are OCI artifacts;
+# tests push recipes here and the control plane resolves them. `up` also mirrors the images the
+# tests run into it, by digest, so no test pulls from a public registry, whose limits on anonymous
+# pulls would make tests fail at random.
 #
 #   scripts/dev-registry.sh up       start it (idempotent) and wait until it answers
 #   scripts/dev-registry.sh down     stop it, keeping its content

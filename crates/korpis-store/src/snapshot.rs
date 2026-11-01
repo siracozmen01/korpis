@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Snapshots (§4 of docs/06-storage.md), kept from what nodes journal.
+//! Snapshots, kept from what nodes journal.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};

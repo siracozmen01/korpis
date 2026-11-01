@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A routed edge pool (§3.1 of docs/07-networking.md, step 7 of trace 78 in
-//! docs/23-walkthroughs.md): its address is routed by the pool's router, written with the SDK, to
-//! the member its lease was issued to, at that member's advertised address, once the lease is
-//! granted; when the lease moves to another member the router is asked for that member; a router
-//! failing is shown on the group with its reason and on the workload's endpoint as why it is not
-//! reached, until the router answers when it is asked again.
+//! A routed edge pool: its address is routed by the
+//! pool's router, written with the SDK, to the member its lease was issued to, at that member's
+//! advertised address, once the lease is granted; when the lease moves to another member the router
+//! is asked for that member; a router failing is shown on the group with its reason and on the
+//! workload's endpoint as why it is not reached, until the router answers when it is asked again.
 
 use crate::across::running_at;
 use crate::address_routes::{Fabric, serving};

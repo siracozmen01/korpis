@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in through an identity provider (§9.7 of docs/08-identity.md), begun: which providers
-//! the installation's sign-in page offers, and a sign-in's state, nonce, and address. Neither
-//! needs a credential; the server charges each to its source (§10 of docs/10-api.md).
+//! Signing in through an identity provider, begun: which providers the installation's sign-in page
+//! offers, and a sign-in's state, nonce, and address. Neither needs a credential; the server
+//! charges each to its source.
 
 use crate::App;
 use crate::error::AppError;
@@ -40,7 +40,7 @@ pub(super) fn target(provider: &ProviderRef) -> CallTarget {
 }
 
 /// The provider's refusal, or the control plane's failure to reach it: either fails the sign-in
-/// closed (§5 of docs/16-extensions.md), and says which.
+/// closed, and says which.
 pub(super) fn unavailable(outcome: CallOutcome) -> AppError {
     let detail = match outcome {
         CallOutcome::Failed(f) => f.reason,
@@ -50,10 +50,9 @@ pub(super) fn unavailable(outcome: CallOutcome) -> AppError {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The identity providers that sign people in, by name, of the organization whose sign-in
-    /// page it is: at `portal` the portal's organization (§9.8 of docs/08-identity.md), and
-    /// elsewhere the installation's root organization. A provider anywhere else is reached by
-    /// its own link.
+    /// The identity providers that sign people in, by name, of the organization whose sign-in page
+    /// it is: at `portal` the portal's organization, and elsewhere the installation's root
+    /// organization. A provider anywhere else is reached by its own link.
     pub async fn sign_in_providers(
         &self,
         portal: Option<Uuid>,

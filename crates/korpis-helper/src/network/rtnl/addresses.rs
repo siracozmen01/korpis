@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A host address on one of the node's links, for a dedicated address answered on it (§3.7 of
-//! docs/07-networking.md) and an edge's held address (§3.1 there): added without a route of its
-//! prefix, an IPv6 one without duplicate detection, since only this link holds it and detection
-//! would leave it unusable for its first second; and removed.
+//! A host address on one of the node's links, for a dedicated address answered on it and an edge's
+//! held address: added without a route of its prefix, an IPv6 one without duplicate detection,
+//! since only this link holds it and detection would leave it unusable for its first second; and
+//! removed.
 
 use super::{Answer, Rtnl, ip_family};
 use netlink_packet_route::RouteNetlinkMessage;

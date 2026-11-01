@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The job queue (§6 of docs/03-state.md, migration 0043). A claim is one statement: the oldest
-//! due job of the kinds asked for, locked with SKIP LOCKED so two replicas never take the same,
-//! marked running under the claimer's name and lease, its attempt counted. A job whose lease ran
-//! out is due again, so one whose replica died is taken by another.
+//! The job queue (migration 0043). A claim is one statement: the oldest due job of the kinds asked
+//! for, locked with SKIP LOCKED so two replicas never take the same, marked running under the
+//! claimer's name and lease, its attempt counted. A job whose lease ran out is due again, so one
+//! whose replica died is taken by another.
 
 use crate::errors::from_sqlx;
 use crate::stored::from_time;

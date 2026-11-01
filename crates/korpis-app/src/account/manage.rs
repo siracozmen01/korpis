@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A signed-in user managing their own factors (§9.3 and §9.6 of docs/08-identity.md), each
-//! change behind a recent sign-in (`recent`). Two rules hold after every change: something can
-//! still sign in, a passkey or a password; and a password has a lasting second factor beside it,
-//! a passkey or TOTP, since recovery codes run out. Each change locks the account first, so two
-//! removals racing cannot leave it with neither. Changing the password or TOTP, the secrets a
-//! guess is aimed at, stops every device cookie issued before it being honoured (`device`).
+//! A signed-in user managing their own factors, each change behind a recent sign-in (`recent`). Two
+//! rules hold after every change: something can still sign in, a passkey or a password; and a
+//! password has a lasting second factor beside it, a passkey or TOTP, since recovery codes run out.
+//! Each change locks the account first, so two removals racing cannot leave it with neither.
+//! Changing the password or TOTP, the secrets a guess is aimed at, stops every device cookie issued
+//! before it being honoured (`device`).
 
 use super::reach::{registers_passkeys, sees_passkey, still_changeable};
 use super::{Registration, fresh_codes, own_account, record};
@@ -49,8 +49,8 @@ async fn locked<T: Tx>(tx: &mut T, account: Uuid) -> Result<Factors, AppError> {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The caller's account, with the passkeys it sees: for a confined session, those of its
-    /// own portal (§9.8 of docs/08-identity.md).
+    /// The caller's account, with the passkeys it sees: for a confined session, those of its own
+    /// portal.
     pub async fn own_account(&self, caller: &Caller) -> Result<AccountView, AppError> {
         let id = own_account(caller)?;
         let own = self.confining(caller).await?;
@@ -62,9 +62,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(AccountView { account, factors, passkeys })
     }
 
-    /// Begins registering another passkey for the caller, at the address its session began
-    /// at: a session begun at a portal registers passkeys there alone, and only a session
-    /// confined exactly as its address is registers any (§9.8 of docs/08-identity.md).
+    /// Begins registering another passkey for the caller, at the address its session began at: a
+    /// session begun at a portal registers passkeys there alone, and only a session confined
+    /// exactly as its address is registers any.
     pub async fn begin_add_passkey(&self, caller: &Caller) -> Result<Registration, AppError> {
         let (_, session) = self.recently_signed_in_session(caller).await?;
         registers_passkeys(&session)?;

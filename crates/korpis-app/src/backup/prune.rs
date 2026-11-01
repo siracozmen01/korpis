@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The first phase of a prune (§5.5 of docs/06-storage.md), the step of an approved prune plan:
-//! the backups the plan names are forgotten, except one being read now, and every object beneath
-//! the workload's prefix that no other backup references is marked. What references what is read
-//! by the control plane itself, with read access and the workload's key, never taken from a node:
-//! a host that could name what to delete could delete its own history. The sweep that deletes
-//! what was marked is queued for when a grace period longer than any job's access has passed.
+//! The first phase of a prune, the step of an approved prune plan: the backups the plan names are
+//! forgotten, except one being read now, and every object beneath the workload's prefix that no
+//! other backup references is marked. What references what is read by the control plane itself,
+//! with read access and the workload's key, never taken from a node: a host that could name what to
+//! delete could delete its own history. The sweep that deletes what was marked is queued for when a
+//! grace period longer than any job's access has passed.
 
 use super::job::JobGrant;
 use crate::App;

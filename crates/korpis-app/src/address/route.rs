@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Asking a pool's router to route its addresses (§3.7 and §3.1 of docs/07-networking.md). Each
-//! address due is taken under a hold, so control planes share the work; its router, the
-//! `address_router` provider of the pool's name that the pool's organization sees, is asked to
-//! route it to the node that holds it, at that node's advertised addresses, or nowhere; and the
-//! node is recorded only on the router's answer. For a cluster pool's address, the node its
-//! workload is placed on, that answer is what puts the address in the node's assignment; for a
-//! routed edge pool's, the member its lease was last issued to, which holds it under the lease
-//! already, the answer is what the group's status shows. A failure is kept with its reason and
-//! asked again on a backoff.
+//! Asking a pool's router to route its addresses. Each address due is taken under a hold, so
+//! control planes share the work; its router, the `address_router` provider of the pool's name that
+//! the pool's organization sees, is asked to route it to the node that holds it, at that node's
+//! advertised addresses, or nowhere; and the node is recorded only on the router's answer. For a
+//! cluster pool's address, the node its workload is placed on, that answer is what puts the address
+//! in the node's assignment; for a routed edge pool's, the member its lease was last issued to,
+//! which holds it under the lease already, the answer is what the group's status shows. A failure
+//! is kept with its reason and asked again on a backoff.
 
 use crate::App;
 use crate::error::AppError;

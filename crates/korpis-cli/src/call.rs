@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis call`: every method of the client API, by name, with its request as JSON and its
-//! answer printed as the API's own JSON (§1 and §2 of docs/13-surface-cli.md). This is how
-//! "every API operation has a command" is kept mechanically rather than by care: [`METHODS`] is
-//! the table below, and a test fails the build when the schema has a method the table lacks.
-//! The friendlier commands are built over the same calls.
+//! `korpis call`: every method of the client API, by name, with its request as JSON and its answer
+//! printed as the API's own JSON. This is how "every API operation has a command" is kept
+//! mechanically rather than by care: [`METHODS`] is the table below, and a test fails the build
+//! when the schema has a method the table lacks. The friendlier commands are built over the same
+//! calls.
 
 use crate::connect::Connection;
 use crate::error::CliError;
@@ -270,8 +270,8 @@ fn input_type(pool: &DescriptorPool, name: &str) -> Option<String> {
     Some(pool.message(m.input()).full_name().to_owned())
 }
 
-/// Gives a mutating request the idempotency key it lacks: a fresh one per invocation, so a
-/// retry the CLI makes is safe and two invocations are two requests (§6 of docs/10-api.md).
+/// Gives a mutating request the idempotency key it lacks: a fresh one per invocation, so a retry
+/// the CLI makes is safe and two invocations are two requests.
 fn with_idempotency(name: &str, mut request: Value) -> Value {
     let Ok(pool) = DescriptorPool::decode(korpis_proto::DESCRIPTOR_SET) else { return request };
     let mutating = input_type(&pool, name)

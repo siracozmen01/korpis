@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! SFTP at a relay an operator turns it on for (§3.1 of docs/02-architecture.md, §3.2 of
-//! docs/06-storage.md). An SSH server whose one subsystem is SFTP version 3: the SSH user names
-//! the workload, `wl_…`, the client proves it holds an SSH key as SSH proves it (RFC 4252 §7),
-//! and the relay asks the control plane for a file token on that workload for whoever the key is
-//! registered to (§9.9 of docs/08-identity.md). With it the relay opens a file session at itself,
-//! from the client's address, as a client of `RelayService` would, and answers each SFTP request
-//! with the session's verbs. Nothing else of SSH is served: no shell, no command, no forwarding.
+//! SFTP at a relay an operator turns it on for. An SSH server whose one subsystem is SFTP version
+//! 3: the SSH user names the workload, `wl_…`, the client proves it holds an SSH key as SSH proves
+//! it (RFC 4252 §7), and the relay asks the control plane for a file token on that workload for
+//! whoever the key is registered to. With it the relay opens a file session at itself, from the
+//! client's address, as a client of `RelayService` would, and answers each SFTP request with the
+//! session's verbs. Nothing else of SSH is served: no shell, no command, no forwarding.
 
 mod advertised;
 mod answers;

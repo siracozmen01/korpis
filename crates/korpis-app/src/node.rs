@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Nodes (§3.4 of docs/01-model.md): reading them, and the operator's cordon. A node is covered
-//! by grants over the organization it was enrolled into.
+//! Nodes: reading them, and the operator's cordon. A node is covered by grants over the
+//! organization it was enrolled into.
 
 mod assign;
 mod attach;
@@ -53,8 +53,8 @@ pub struct NodeView {
     pub node: Node,
     /// What the placements on it reserve.
     pub allocated: Bounds,
-    /// Its place in the mesh: whether it reaches every other member, its side as its agent
-    /// reported it, and each pair with it (§9.1 of docs/07-networking.md).
+    /// Its place in the mesh: whether it reaches every other member, its side as its agent reported
+    /// it, and each pair with it.
     pub overlay: korpis_core::node::mesh::Standing,
 }
 

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Shell completion that resolves against what the caller can read (§7 of
-//! docs/13-surface-cli.md): every candidate is a name the API listed for the caller, through the
-//! same reads as name resolution, so completion is never a name-disclosure oracle. The shell asks
-//! the binary on each completion; nothing is cached, so a grant revoked a moment ago completes
-//! nothing.
+//! Shell completion that resolves against what the caller can read: every candidate is a name the
+//! API listed for the caller, through the same reads as name resolution, so completion is never a
+//! name-disclosure oracle. The shell asks the binary on each completion; nothing is cached, so a
+//! grant revoked a moment ago completes nothing.
 //!
 //! A completer sees the environment, not the command line being typed: it connects with
 //! `KORPIS_SERVER`, `KORPIS_CA`, and `KORPIS_TOKEN` or `KORPIS_TOKEN_FILE`, or the session

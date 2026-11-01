@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A workload's resolver (§5.1 of docs/07-networking.md), answered by the supervisor on the
-//! sockets the helper opened inside the workload's own network namespace, on the address its
-//! `resolv.conf` names alone. A query never leaves the namespace, so no firewall of the host's
-//! stands between the workload and its resolver; the socket a query arrives on is the workload
-//! that asked, which is held to its own rate; and each is forwarded, over UDP or TCP as it came,
-//! to the resolvers the host's own `resolv.conf` names, which the host reaches whatever they
-//! are. The node talks to its provider's resolver, and the workload never does, so the metadata
-//! address stays denied to it.
+//! A workload's resolver, answered by the supervisor on the sockets the helper opened inside the
+//! workload's own network namespace, on the address its `resolv.conf` names alone. A query never
+//! leaves the namespace, so no firewall of the host's stands between the workload and its resolver;
+//! the socket a query arrives on is the workload that asked, which is held to its own rate; and
+//! each is forwarded, over UDP or TCP as it came, to the resolvers the host's own `resolv.conf`
+//! names, which the host reaches whatever they are. The node talks to its provider's resolver, and
+//! the workload never does, so the metadata address stays denied to it.
 
 mod bucket;
 pub mod message;

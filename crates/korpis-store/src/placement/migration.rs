@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Migrations (migration 0145, §8.1 of docs/05-scheduling.md): one row each, a row for each of
-//! its volumes, and each stream's watermark once the source reported it; what each side reported
-//! and the placement's move are migration 0146's.
+//! Migrations (migration 0145): one row each, a row for each of its volumes, and each stream's
+//! watermark once the source reported it; what each side reported and the placement's move are
+//! migration 0146's.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};

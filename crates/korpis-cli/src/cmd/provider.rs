@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis extension providers|ping` (§7 of docs/13-surface-cli.md, §3.3 of
-//! docs/16-extensions.md): the provider streams registered in an organization, and a liveness
-//! call to one, reported however it ended.
+//! `korpis extension providers|ping`: the provider streams registered in an organization, and a
+//! liveness call to one, reported however it ended.
 
 use super::{Answer, json};
 use crate::connect::Connection;

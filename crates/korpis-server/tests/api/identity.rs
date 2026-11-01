@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A running workload's identity (§9.5 of docs/08-identity.md): its node asks for a credential
-//! on its behalf, the control plane issues one only for a workload it places there under a live
-//! lease, and the credential authenticates as the workload until the workload leaves the node.
+//! A running workload's identity: its node asks for a credential on its behalf, the control plane
+//! issues one only for a workload it places there under a live lease, and the credential
+//! authenticates as the workload until the workload leaves the node.
 
 use crate::agent::{Stream, TestAgent, next, welcome};
 use crate::recipes::{body, create, project, push_paper};

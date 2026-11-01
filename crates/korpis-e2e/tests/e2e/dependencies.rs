@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dependencies on a real node (§5 of docs/07-networking.md): a web application that depends on
-//! a database is placed beside it, created once the database runs, told its address in its
-//! environment and in a file, and is let through to it by the node, where a workload that
-//! declares no dependency on it is not.
+//! Dependencies on a real node: a web application that depends on a database is placed beside it,
+//! created once the database runs, told its address in its environment and in a file, and is let
+//! through to it by the node, where a workload that declares no dependency on it is not.
 
 use crate::node::{Node, live};
 use crate::recipes::push_server;
@@ -109,9 +108,9 @@ async fn a_web_application_reaches_its_database_at_the_address_it_was_given() {
     let doc: serde_json::Value = serde_json::from_str(&file).unwrap();
     assert_eq!(doc["addresses"][0]["host"], db_ip.as_str());
 
-    // Korpis's own verdict on each attempt, by its rules' counters: the connection then crosses
-    // the host's forward hook, where a firewall of the operator's may still drop it (§4.1 of
-    // docs/07-networking.md), as this test machine's does.
+    // Korpis's own verdict on each attempt, by its rules' counters: the connection then crosses the
+    // host's forward hook, where a firewall of the operator's may still drop it, as this test
+    // machine's does.
     let at = format!("{db_ip}:8080");
     let own = format!("out_{}", korpis_helper::network::host_link(&web));
     let before = counted(&own, "dependency");

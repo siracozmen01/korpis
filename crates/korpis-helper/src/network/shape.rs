@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Bandwidth, shaped (§7 of docs/07-networking.md), written with iproute2's `tc` as the rules are
-//! written with `nft`. Every qdisc Korpis makes on an uplink has the handle `4b50:`, and every one
-//! on a workload's link `4b51:`, so a tree of its own is told apart from another program's, and an
-//! uplink's from a link's, and found again without a ledger. An uplink's tree is a root
-//! class of the uplink's capacity, a default class whose floor is what the node keeps for itself,
-//! and a class for each workload that reserves, its rate the reservation and its ceiling the
-//! limit. A workload's link holds its limit on everything it sends, on `eth0` inside its
-//! namespace, and its ingress limit on the host's side, with a class beneath each for an endpoint
-//! with a limit of its own. Each leaf queues by
+//! Bandwidth, shaped, written with iproute2's `tc` as the rules are written with `nft`. Every qdisc
+//! Korpis makes on an uplink has the handle `4b50:`, and every one on a workload's link `4b51:`, so
+//! a tree of its own is told apart from another program's, and an uplink's from a link's, and found
+//! again without a ledger. An uplink's tree is a root class of the uplink's capacity, a default
+//! class whose floor is what the node keeps for itself, and a class for each workload that
+//! reserves, its rate the reservation and its ceiling the limit. A workload's link holds its limit
+//! on everything it sends, on `eth0` inside its namespace, and its ingress limit on the host's
+//! side, with a class beneath each for an endpoint with a limit of its own. Each leaf queues by
 //! `fq_codel`, so one flow's backlog does not delay the others behind it.
 
 use korpis_core::workload::network::HOST_LINK_PREFIX;

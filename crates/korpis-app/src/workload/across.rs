@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Dependencies across nodes (§9.1 of docs/07-networking.md), the control plane's half: which
-//! targets of a dependent are on another node of the mesh and at what address, and which
-//! dependents on other nodes a workload's node admits from the mesh. Each answer joins what two
-//! nodes observed, which only the control plane holds; a node outside the mesh is told of
-//! neither, so nothing is routed towards a node it has no path to.
+//! Dependencies across nodes, the control plane's half: which targets of a dependent are on another
+//! node of the mesh and at what address, and which dependents on other nodes a workload's node
+//! admits from the mesh. Each answer joins what two nodes observed, which only the control plane
+//! holds; a node outside the mesh is told of neither, so nothing is routed towards a node it has no
+//! path to.
 
 use crate::App;
 use crate::error::AppError;
@@ -129,9 +129,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Across { dependencies, dependents, peers })
     }
 
-    /// `w`'s dependencies as its status shows them: each target and how `w` reaches it, and
-    /// what each names and does not reach (§5 of docs/07-networking.md). Nodes are not named:
-    /// whoever reads the workload may not read them.
+    /// `w`'s dependencies as its status shows them: each target and how `w` reaches it, and what
+    /// each names and does not reach. Nodes are not named: whoever reads the workload may not read
+    /// them.
     pub(crate) async fn dependency_status(
         &self,
         w: &Workload,

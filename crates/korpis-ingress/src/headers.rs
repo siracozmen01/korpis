@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The headers a request is forwarded with (§3.2 and §3.4 of docs/07-networking.md). Whatever a
-//! client said about where it came from is removed, `Forwarded` (RFC 7239) and every
-//! `X-Forwarded-*`, and the proxy sets its own, so the workload learns its client's address from
-//! headers only the proxy writes. So it is with the certificate a client presented (RFC 9440):
-//! `Client-Cert` and `Client-Cert-Chain` are removed from every request, and set only from the
-//! certificate the connection's handshake verified. Hop-by-hop headers (RFC 9110 §7.6.1) describe
-//! one connection and are not forwarded, save the upgrade a WebSocket asks for.
+//! The headers a request is forwarded with. Whatever a client said about where it came from is
+//! removed, `Forwarded` (RFC 7239) and every `X-Forwarded-*`, and the proxy sets its own, so the
+//! workload learns its client's address from headers only the proxy writes. So it is with the
+//! certificate a client presented (RFC 9440): `Client-Cert` and `Client-Cert-Chain` are removed
+//! from every request, and set only from the certificate the connection's handshake verified.
+//! Hop-by-hop headers (RFC 9110 §7.6.1) describe one connection and are not forwarded, save the
+//! upgrade a WebSocket asks for.
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;

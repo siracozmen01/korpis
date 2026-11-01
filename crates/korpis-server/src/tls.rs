@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! TLS. An installation is its own certificate authority: `install` creates a CA and a server
-//! certificate for the names the operator gives, and clients and agents pin the CA (§3 of
-//! docs/18-operations.md). An operator may replace the server certificate with one from a public
-//! CA; the files are ordinary PEM.
+//! certificate for the names the operator gives, and clients and agents pin the CA. An operator may
+//! replace the server certificate with one from a public CA; the files are ordinary PEM.
 
 use crate::data::{DataDir, write_public, write_secret};
 use rcgen::{BasicConstraints, CertificateParams, DnType, IsCa, KeyPair, KeyUsagePurpose};
@@ -58,9 +57,8 @@ pub fn generate(data: &DataDir, names: &[String]) -> Result<(), TlsError> {
     Ok(())
 }
 
-/// `sha256:` of the DER of the installation's CA: what an enrollment token's join command
-/// carries, so an agent verifies its first connection rather than trusting it (§3 of
-/// docs/18-operations.md).
+/// `sha256:` of the DER of the installation's CA: what an enrollment token's join command carries,
+/// so an agent verifies its first connection rather than trusting it.
 pub fn ca_fingerprint(data: &DataDir) -> Result<String, TlsError> {
     use sha2::{Digest, Sha256};
     use std::fmt::Write as _;
@@ -82,8 +80,8 @@ pub fn server_config(data: &DataDir) -> Result<Arc<rustls::ServerConfig>, TlsErr
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| TlsError::Pem(e.to_string()))?;
     // The certificate install issued is presented with the installation CA behind it, so an
-    // enrolling agent can pin the CA by the fingerprint its join command carries (§3 of
-    // docs/18-operations.md). A server.pem an operator replaced carries its own chain.
+    // enrolling agent can pin the CA by the fingerprint its join command carries. A server.pem an
+    // operator replaced carries its own chain.
     if certs.len() == 1 {
         let ca = CertificateDer::from_pem_file(dir.join("ca.pem"))
             .map_err(|e| TlsError::Pem(e.to_string()))?;

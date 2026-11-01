@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Who holds authority over a workload (§6 of docs/11-surface-web.md): the grants anchored on it,
-// to whom, allowing what, until when, and in what state, each revocable by whoever may revoke it.
-// Revoking a grant revokes what was attenuated from it too, and the screen says how many. Shown
-// only to a caller who may read grants there; to anyone else the list is not there at all.
+// Who holds authority over a workload: the grants anchored on it, to whom, allowing what, until
+// when, and in what state, each revocable by whoever may revoke it. Revoking a grant revokes what
+// was attenuated from it too, and the screen says how many. Shown only to a caller who may read
+// grants there; to anyone else the list is not there at all.
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useCallback, useState } from "react";

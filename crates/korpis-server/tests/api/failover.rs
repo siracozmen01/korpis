@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Failover (§2.4 of docs/05-scheduling.md): a node falls silent holding two workloads that stop
-//! when their lease ends. Once the sweep marks it unreachable and the grantor's end of the lease
-//! has passed, the one whose volume is in a shared store the other node offers is placed there,
-//! by failover, and made there by a remake plan the control plane approved, which attaches its
-//! volume rather than make it; the one whose volume is on the silent node's own disk is not
-//! moved, and its status says why. A workload made on a node removed as compromised is made
-//! again where it lands (Finding 204).
+//! Failover: a node falls silent holding two workloads that stop when their lease ends. Once the
+//! sweep marks it unreachable and the grantor's end of the lease has passed, the one whose volume
+//! is in a shared store the other node offers is placed there, by failover, and made there by a
+//! remake plan the control plane approved, which attaches its volume rather than make it; the one
+//! whose volume is on the silent node's own disk is not moved, and its status says why. A workload
+//! made on a node removed as compromised is made again where it lands.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, complete, send, until};

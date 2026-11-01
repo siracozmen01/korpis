@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The container tier's seccomp profile (§2 of docs/04-runtimes.md). An allowlist: a system call
-//! not named here fails with `EPERM`, so a call added to the kernel tomorrow is refused until it
-//! is reviewed. It starts from the profile containerd and Docker ship by default and is narrower:
-//! no `io_uring`, whose interface has been a steady source of kernel escalations; no `ptrace`,
-//! `process_vm_readv` or `process_vm_writev`; no namespace creation or joining (`unshare`,
-//! `setns`, and `clone` with namespace flags) and no mounting, which inside a user namespace
-//! would otherwise be open to the workload; no keyrings; and no `name_to_handle_at`. `clone3` is
-//! answered with `ENOSYS`, because its flags are behind a pointer seccomp cannot read, and libc
-//! falls back to `clone`, whose flags it can.
+//! The container tier's seccomp profile. An allowlist: a system call not named here fails with
+//! `EPERM`, so a call added to the kernel tomorrow is refused until it is reviewed. It starts from
+//! the profile containerd and Docker ship by default and is narrower: no `io_uring`, whose
+//! interface has been a steady source of kernel escalations; no `ptrace`, `process_vm_readv` or
+//! `process_vm_writev`; no namespace creation or joining (`unshare`, `setns`, and `clone` with
+//! namespace flags) and no mounting, which inside a user namespace would otherwise be open to the
+//! workload; no keyrings; and no `name_to_handle_at`. `clone3` is answered with `ENOSYS`, because
+//! its flags are behind a pointer seccomp cannot read, and libc falls back to `clone`, whose flags
+//! it can.
 
 use serde::Serialize;
 

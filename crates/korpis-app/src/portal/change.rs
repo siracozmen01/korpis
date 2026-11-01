@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Changing a portal: serving it with another certificate, keeping everything else, and deleting
-//! it, which ends the sessions begun at it and removes the passkeys registered there. An `acme` certificate no portal names any more is removed by the issuer's sweep, as one no
-//! endpoint routes is.
+//! it, which ends the sessions begun at it and removes the passkeys registered there. An `acme`
+//! certificate no portal names any more is removed by the issuer's sweep, as one no endpoint routes
+//! is.
 
 use super::{PortalView, effect, servable};
 use crate::App;
@@ -78,8 +79,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         let held = tx.lock_portal(id).await?.ok_or(AppError::NotFound { kind: "portal" })?;
         // Nothing begun or registered at it outlives it, so a name made a portal again, by its
-        // organization or another that came to hold it, finds nothing that signs in there
-        // (§9.8 of docs/08-identity.md).
+        // organization or another that came to hold it, finds nothing that signs in there.
         let ended = tx.end_portal_sessions(id).await?;
         let removed = tx.remove_portal_passkeys(id).await?;
         let system = Principal::System(SystemActor::Authority);

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a node reports of a run (§4.2 of docs/05-scheduling.md): believed only from the node the
-//! workload is placed on, judged by the exit probe of the intent the run was made under, and
-//! shown as the workload's newest run, which is converged between its runs as during one.
+//! What a node reports of a run: believed only from the node the workload is placed on, judged by
+//! the exit probe of the intent the run was made under, and shown as the workload's newest run,
+//! which is converged between its runs as during one.
 
 use crate::agent::{Stream, TestAgent, next};
 use crate::assignments::{connect, set};

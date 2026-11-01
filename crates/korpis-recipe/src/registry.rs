@@ -85,7 +85,7 @@ pub struct Pulled {
     pub document: Vec<u8>,
     /// The paths of the files the artifact carries.
     pub files: Vec<String>,
-    /// The catalogues among them, by locale, as published (§5.3 of docs/09-recipes.md).
+    /// The catalogues among them, by locale, as published.
     pub catalogues: BTreeMap<String, Vec<u8>>,
 }
 
@@ -129,7 +129,7 @@ fn reference(s: &str) -> Result<Reference, RegistryError> {
 impl Registry {
     /// A client for the control plane, speaking HTTPS to every registry except those named in
     /// `plain_http`, which are development registries, and reaching only the public internet and
-    /// those: a recipe's registry is named by whoever declares it (§3 of docs/17-security.md).
+    /// those: a recipe's registry is named by whoever declares it.
     ///
     /// # Errors
     /// The proxy it connects through could not be started.

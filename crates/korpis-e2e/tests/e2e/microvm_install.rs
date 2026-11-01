@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A recipe's install into a microVM's volume on a real node (§4.4 of docs/04-runtimes.md, §4 of
-//! docs/09-recipes.md): the volume is a block device the host never mounts, so the node has the
-//! `firecracker` driver run the install in a service guest, before the workload's first start,
-//! with what the install reads put on a content drive. Its files are read back through the
-//! relay from the running guest, and a new version of the recipe stops it, installs into the
-//! stopped guest's volume, and starts it again. Needs what the microVM test needs.
+//! A recipe's install into a microVM's volume on a real node: the volume is a block device the host
+//! never mounts, so the node has the `firecracker` driver run the install in a service guest,
+//! before the workload's first start, with what the install reads put on a content drive. Its files
+//! are read back through the relay from the running guest, and a new version of the recipe stops
+//! it, installs into the stopped guest's volume, and starts it again. Needs what the microVM test
+//! needs.
 
 use crate::files::{Files, open};
 use crate::install::{JAR, MIB, declaration, declared, document, push, serve_jar};

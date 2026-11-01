@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Which stage a workload that has not converged is at (§3 of docs/11-surface-web.md): "declared
-// 40 seconds ago, node fra-3 has not acknowledged" is a diagnosis, a greyed-out button is not. Each
-// sentence is read from the status the control plane computed (§4.3 of docs/02-architecture.md),
-// never guessed: the stage is the convergence it reports, and the detail what the status holds.
-// Each is one whole message, the node named inside it by a select, so a language can order and
-// inflect it as its grammar needs rather than as English splices fragments.
+// Which stage a workload that has not converged is at: "declared 40 seconds ago, node fra-3 has not
+// acknowledged" is a diagnosis, a greyed-out button is not. Each sentence is read from the status
+// the control plane computed, never guessed: the stage is the convergence it reports, and the
+// detail what the status holds. Each is one whole message, the node named inside it by a select, so
+// a language can order and inflect it as its grammar needs rather than as English splices
+// fragments.
 
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { Convergence, type WorkloadStatus } from "../gen/korpis/v1/api_pb";
@@ -123,7 +123,7 @@ function applying(status: WorkloadStatus, now: number): string {
 /** The stage a workload is at, in a sentence; nothing once it has converged. */
 export function diagnosis(status: WorkloadStatus, now: number): string | undefined {
   // Held, it is converged to stopped, which is not what it declares: said first, whatever the
-  // stage (§2.1 of docs/08-identity.md).
+  // stage.
   if (status.heldBySuspension)
     return t({
       defaultMessage: "Held stopped while its organization, or one above it, is suspended.",

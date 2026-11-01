@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A node's physical cores (§5.2 of docs/05-scheduling.md), read from the kernel's topology under
-//! `/sys/devices/system`: each core the logical CPUs that share its execution units, whole, and
-//! only when all of them are online; never the core holding CPU 0. The agent reads them to offer
-//! them, and a driver reads them again to check the cores it is given, so neither believes what
-//! the control plane says a core is (§4.2 of docs/04-runtimes.md).
+//! A node's physical cores, read from the kernel's topology under `/sys/devices/system`: each core
+//! the logical CPUs that share its execution units, whole, and only when all of them are online;
+//! never the core holding CPU 0. The agent reads them to offer them, and a driver reads them again
+//! to check the cores it is given, so neither believes what the control plane says a core is.
 
 use korpis_core::node::cores::Core;
 use std::collections::{BTreeMap, BTreeSet};

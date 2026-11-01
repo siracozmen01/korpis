@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Placements (§3.4 of docs/01-model.md, §2.3 of docs/05-scheduling.md).
+//! Placements.
 
 use super::StoreResult;
 use crate::page::Page;
@@ -37,8 +37,7 @@ pub trait PlacementRead {
     -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
     /// Workloads not deleted whose authoritative placement, not held by a restore, is on an
-    /// unreachable node (§2.4 of docs/05-scheduling.md), in identifier order after the page's
-    /// cursor.
+    /// unreachable node, in identifier order after the page's cursor.
     fn placed_unreachable(&self, page: Page)
     -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 }
@@ -46,8 +45,8 @@ pub trait PlacementRead {
 /// Binding workloads to nodes.
 pub trait PlacementWrite {
     /// The grant of the plan whose decision `workload`'s placement and lease carry out: the plan
-    /// that approved its current target, or with none the plan most recently approved. The
-    /// control plane's own effects name it (§3.2 of docs/01-model.md).
+    /// that approved its current target, or with none the plan most recently approved. The control
+    /// plane's own effects name it.
     fn decision_grant(
         &mut self,
         workload: Uuid,
@@ -67,8 +66,7 @@ pub trait PlacementWrite {
     ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, Bounds>>> + Send;
 
     /// By node of `nodes`, the devices placements other than `except`'s hold there, as this
-    /// transaction sees it (§6.3 of docs/05-scheduling.md). A node whose placements hold none is
-    /// absent.
+    /// transaction sees it. A node whose placements hold none is absent.
     fn device_holds(
         &mut self,
         nodes: &[Uuid],
@@ -76,8 +74,7 @@ pub trait PlacementWrite {
     ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, Vec<DeviceHold>>>> + Send;
 
     /// By node of `nodes`, the cores placements other than `except`'s hold there, as this
-    /// transaction sees it (§5.2 of docs/05-scheduling.md). A node whose placements hold none is
-    /// absent.
+    /// transaction sees it. A node whose placements hold none is absent.
     fn core_holds(
         &mut self,
         nodes: &[Uuid],
@@ -122,8 +119,8 @@ pub trait PlacementWrite {
     /// workload's target in place.
     fn bind(&mut self, placement: &Placement) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Forgets every failover that found no node for a workload whose node is heard again
-    /// (§2.4 of docs/05-scheduling.md); how many.
+    /// Forgets every failover that found no node for a workload whose node is heard again; how
+    /// many.
     fn forget_returned(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Removes every placement of a workload and any record of it being unplaced: it has no
@@ -140,16 +137,15 @@ pub trait PlacementWrite {
     /// Forgets that a workload was unplaced.
     fn clear_unplaced(&mut self, workload: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Of `nodes`, each that reported its content, with whether it holds the recipe `digest`
-    /// (§2.2 of docs/05-scheduling.md); a node that never reported is absent.
+    /// Of `nodes`, each that reported its content, with whether it holds the recipe `digest`; a
+    /// node that never reported is absent.
     fn content_held(
         &mut self,
         nodes: &[Uuid],
         digest: &str,
     ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, bool>>> + Send;
 
-    /// Of `nodes`, each that had loss events since `since`, with when they were (§2.2 of
-    /// docs/05-scheduling.md).
+    /// Of `nodes`, each that had loss events since `since`, with when they were.
     fn losses(
         &mut self,
         nodes: &[Uuid],

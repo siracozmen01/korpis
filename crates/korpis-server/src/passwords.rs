@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Password hashing off the threads that serve requests (§9.6 of docs/08-identity.md). Argon2id
-//! at OWASP's parameters takes tens of milliseconds and 19 MiB each time, on purpose; run on a
-//! request thread it would stall every other request that thread serves, and run without a bound
-//! a burst of sign-ins would cost memory instead of time. So each hash runs on the blocking pool,
-//! at most as many at once as the machine has cores, and the rest wait their turn.
+//! Password hashing off the threads that serve requests. Argon2id at OWASP's parameters takes tens
+//! of milliseconds and 19 MiB each time, on purpose; run on a request thread it would stall every
+//! other request that thread serves, and run without a bound a burst of sign-ins would cost memory
+//! instead of time. So each hash runs on the blocking pool, at most as many at once as the machine
+//! has cores, and the rest wait their turn.
 
 use korpis_app::ports::{PasswordFuture, Passwords};
 use korpis_core::account::password::{self, PasswordError};

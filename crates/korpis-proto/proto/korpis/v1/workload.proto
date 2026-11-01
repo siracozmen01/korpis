@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The workload and its state: identity, declaration, power, observation, plan, effect (§3.3 of
-// docs/01-model.md). Intent and Observation are separate objects with separate writers.
+// The workload and its state: identity, declaration, power, observation, plan, effect. Intent and
+// Observation are separate objects with separate writers.
 
 syntax = "proto3";
 
@@ -35,18 +35,17 @@ message Workload {
   // The approved power declaration nodes are told, by version; `power` is the newest declared,
   // which may be waiting for approval. 0 until one is approved.
   uint64 power_target = 12;
-  // The declared set it was created through or adopted into; absent if none (§3.3 of
-  // docs/01-model.md, §5 of docs/13-surface-cli.md).
+  // The declared set it was created through or adopted into; absent if none.
   optional string set = 13;
-  // The operator's overrides of how its plan steps are classified, at most one per action: the
-  // last layer of the chain (§3.3 of docs/01-model.md).
+  // The operator's overrides of how its plan steps are classified, at most one per action: the last
+  // layer of the chain.
   repeated ClassificationOverride classification = 14;
   // The version of its metadata, the classification among it: what a change to them compares
   // against. Declarations and power have versions of their own (intent, power).
   uint64 version = 15;
   // Why what it runs can no longer be reproduced from its recipe alone, and since when: an
-  // install's step resolved to whatever a channel held (§4 of docs/09-recipes.md). Absent while
-  // it can be; once set, never cleared.
+  // install's step resolved to whatever a channel held. Absent while it can be; once set, never
+  // cleared.
   Unreproducible unreproducible = 16;
 }
 
@@ -72,19 +71,18 @@ message Intent {
   optional string parent = 4;
   Subject declared_by = 5;
   google.protobuf.Timestamp declared_at = 6;
-  // The declaration itself. Stored as canonical ProtoJSON with defaults emitted (§3.1 of
-  // docs/03-state.md).
+  // The declaration itself. Stored as canonical ProtoJSON with defaults emitted.
   IntentBody body = 7;
   // The declared set whose apply declared it; absent for any other declaration.
   optional string managed_by = 8;
-  // Output only: the keys of `body.config` whose values are left out, as secrets of its recipe
-  // the caller may not read without `workload.secret.read` (§5.2 of docs/09-recipes.md). A key
-  // here has a value; the caller is not shown it.
+  // Output only: the keys of `body.config` whose values are left out, as secrets of its recipe the
+  // caller may not read without `workload.secret.read`. A key here has a value; the caller is not
+  // shown it.
   repeated string withheld = 9;
 }
 
-// A named group of workloads one declarative source owns, in one project (§3.3 of
-// docs/01-model.md). Created by the first declaration through it.
+// A named group of workloads one declarative source owns, in one project. Created by the first
+// declaration through it.
 message DeclaredSet {
   string id = 1;
   string project = 2;
@@ -97,8 +95,7 @@ message DeclaredSet {
   google.protobuf.Timestamp created_at = 7;
 }
 
-// What a set does with a member whose head was declared outside it (§6 of
-// docs/13-surface-cli.md).
+// What a set does with a member whose head was declared outside it.
 enum DriftMode {
   DRIFT_MODE_UNSPECIFIED = 0;
   // The out-of-band change stands; declaring over it through the set is refused unless asked to
@@ -133,27 +130,27 @@ message IntentBody {
   repeated VolumeSpec volumes = 7;
   repeated EndpointSpec endpoints = 8;
   HealthSpec health = 9;
-  // Validated against the recipe's config schema (Rule K-17).
+  // Validated against the recipe's config schema.
   map<string, Value> config = 10;
   PlacementSpec placement = 11;
   ContinuitySpec continuity = 12;
-  // What it reaches by name, injected at start (§5 of docs/07-networking.md).
+  // What it reaches by name, injected at start.
   repeated Dependency dependencies = 13;
-  // The limits of its console stream (§5 of docs/14-streams.md).
+  // The limits of its console stream.
   StreamSpec streams = 14;
-  // Where it may connect out, beyond the egress default (§6 of docs/07-networking.md).
+  // Where it may connect out, beyond the egress default.
   EgressPolicy egress = 15;
   // The IANA zone the schedule is read in, e.g. "Europe/Berlin"; UTC when empty; only with a
-  // schedule (§4.1 of docs/05-scheduling.md).
+  // schedule.
   string timezone = 16;
   // How a task or scheduled workload's runs are made and kept; the defaults when absent, and
-  // refused for a persistent workload (§4 of docs/05-scheduling.md).
+  // refused for a persistent workload.
   RunPolicy runs = 17;
-  // The devices it holds while placed (§6.3 of docs/05-scheduling.md). Added 2026-10-25.
+  // The devices it holds while placed.
   repeated DeviceRequest devices = 18;
 }
 
-// Power is declared separately from configuration (finding R7, §3.3 of docs/01-model.md).
+// Power is declared separately from configuration.
 message Power {
   string workload = 1;
   PowerState desired = 2;
@@ -184,11 +181,11 @@ message Observation {
   PowerSeen power_seen = 7;
   PlanProgress plan_progress = 8;
   ObservedState state = 9;
-  // For unsatisfiable: the structured reason (§7 of docs/05-scheduling.md).
+  // For unsatisfiable: the structured reason.
   UnsatisfiableReason reason = 10;
   string reason_detail = 11;
   // Its liveness probe's verdict, or its readiness probe's where it declares no liveness probe;
-  // unknown while neither is judged, or while it does not run (§5 of docs/04-runtimes.md).
+  // unknown while neither is judged, or while it does not run.
   HealthState health = 12;
   optional int32 exit_code = 13;
   string runtime_id = 14;
@@ -197,11 +194,10 @@ message Observation {
   repeated VolumeStatus volumes = 17;
   // When the state last changed.
   google.protobuf.Timestamp since = 18;
-  // The workload's IPv4 address on its node, which the node gave it (§4.1 of
-  // docs/07-networking.md); empty where it has no network.
+  // The workload's IPv4 address on its node, which the node gave it; empty where it has no network.
   string address = 19;
-  // Its IPv6 address on its node, where the node gave it one; what a rule naming workloads
-  // names of it (§6 of docs/07-networking.md). Added 2026-10-26.
+  // Its IPv6 address on its node, where the node gave it one; what a rule naming workloads names of
+  // it.
   string address_ipv6 = 20;
 }
 
@@ -223,7 +219,7 @@ enum ObservedState {
   OBSERVED_STATE_STOPPING = 4;
   OBSERVED_STATE_CRASHED = 5;
   OBSERVED_STATE_UNSATISFIABLE = 6;
-  // No observation within the staleness window. Never a remembered value (P4).
+  // No observation within the staleness window. Never a remembered value.
   OBSERVED_STATE_UNKNOWN = 7;
 }
 
@@ -257,8 +253,7 @@ message ResourceUsage {
 message EndpointStatus {
   string name = 1;
   string address = 2;
-  // Its workload runs and, where its node runs its readiness probe, the probe passes (§5 of
-  // docs/04-runtimes.md).
+  // Its workload runs and, where its node runs its readiness probe, the probe passes.
   bool ready = 3;
 }
 
@@ -295,9 +290,9 @@ message Plan {
   Subject approved_by = 16;
   google.protobuf.Timestamp approved_at = 17;
   // The grant under which the plan was proposed; empty for a plan a restore recovered whose grant
-  // the restored store does not hold (§8 of docs/03-state.md).
+  // the restored store does not hold.
   string proposed_under = 18;
-  // What the plan needs before it applies (§3.3 of docs/01-model.md), and why.
+  // What the plan needs before it applies, and why.
   PlanApproval approval = 19;
   // For PLAN_APPROVAL_AUTHORITY: where the approver's grant must reach.
   Scope approval_scope = 20;
@@ -326,23 +321,23 @@ enum PlanKind {
   PLAN_KIND_POWER = 2;
   PLAN_KIND_RETIRE = 3;
   PLAN_KIND_MIGRATE = 4;
-  // Deleting one retained volume no workload holds (§7 of docs/06-storage.md).
+  // Deleting one retained volume no workload holds.
   PLAN_KIND_DELETE_VOLUME = 5;
-  // Taking a snapshot of a volume (§4 of docs/06-storage.md).
+  // Taking a snapshot of a volume.
   PLAN_KIND_SNAPSHOT_VOLUME = 6;
   // Making a volume what one of its snapshots holds.
   PLAN_KIND_ROLLBACK_VOLUME = 7;
   // Deleting one snapshot of a volume.
   PLAN_KIND_DELETE_SNAPSHOT = 8;
-  // Backs a volume up into a repository (§5 of docs/06-storage.md).
+  // Backs a volume up into a repository.
   PLAN_KIND_BACKUP_VOLUME = 9;
   PLAN_KIND_RESTORE_VOLUME = 10;
   // Forgets the backups of the workload in one repository that its retention policy no longer
-  // keeps, and deletes what only they held (§5.3 of docs/06-storage.md).
+  // keeps, and deletes what only they held.
   PLAN_KIND_PRUNE_BACKUPS = 11;
   // Makes the workload's approved target again on the node it was placed on again, once made on
-  // another: by failover, or away from a node removed as compromised (§2.4 of
-  // docs/05-scheduling.md). The control plane approves it.
+  // another: by failover, or away from a node removed as compromised. The control plane approves
+  // it.
   PLAN_KIND_REMAKE = 12;
 }
 
@@ -368,7 +363,7 @@ message Step {
   StepExecutor executor = 3;
   ObjectRef target = 4;
   bool reversible = 5;
-  // Resolved through the override chain of §3.3 of docs/01-model.md, never inferred.
+  // Resolved through the override chain, never inferred.
   bool disruptive = 6;
   map<string, Value> detail = 7;
   google.protobuf.Duration timeout = 8;
@@ -408,8 +403,8 @@ message Impact {
   string approval_reason = 7;
   // How the plan changes what the workload reserves; negative where it shrinks.
   ResourceDelta cost_delta = 8;
-  // What the plan does to the exposure of each endpoint it creates or whose declared exposure
-  // it changes (§3 of docs/07-networking.md).
+  // What the plan does to the exposure of each endpoint it creates or whose declared exposure it
+  // changes.
   repeated ExposureImpact exposures = 9;
 }
 
@@ -419,13 +414,12 @@ message ExposureImpact {
   // What it resolves to in this installation: `stable` without an edge tier is `node_bound`.
   Exposure resolved = 3;
   ExposureSurvival survives = 4;
-  // It is reached on a node whose reachability the control plane measured itself, which may
-  // be inside the node's network: a firewall in front of the node is the operator's to open
-  // (§9 of docs/07-networking.md).
+  // It is reached on a node whose reachability the control plane measured itself, which may be
+  // inside the node's network: a firewall in front of the node is the operator's to open.
   bool measured_inside = 5;
 }
 
-// What an endpoint's address survives (§3 of docs/07-networking.md).
+// What an endpoint's address survives.
 enum ExposureSurvival {
   EXPOSURE_SURVIVAL_UNSPECIFIED = 0;
   // No move: the node's address and a port that a move gives up.
@@ -473,11 +467,10 @@ message Effect {
   // Coalesced repeats (denials, crash loops): how many, over what window.
   uint64 count = 16;
   google.protobuf.Timestamp window_end = 17;
-  // The client that relayed what the actor presented, when they acted through one (§5.2 of
-  // docs/08-identity.md).
+  // The client that relayed what the actor presented, when they acted through one.
   Subject relay = 18;
-  // What it is about, the object its action was authorized over (§4 of
-  // docs/15-observability.md); absent for an effect about nothing.
+  // What it is about, the object its action was authorized over; absent for an effect about
+  // nothing.
   ObjectRef object = 19;
   // The organization whose subtree holds its object.
   optional string organization = 20;
@@ -494,13 +487,12 @@ enum EffectOutcome {
   EFFECT_OUTCOME_FAILED = 2;
   EFFECT_OUTCOME_SKIPPED = 3;
   EFFECT_OUTCOME_ROLLED_BACK = 4;
-  // An authorization refusal, recorded like any other effect (§4 of
-  // docs/15-observability.md).
+  // An authorization refusal, recorded like any other effect.
   EFFECT_OUTCOME_DENIED = 5;
 }
 
-// A run of a task or scheduled workload (§4 of docs/05-scheduling.md), served by RunService and
-// shown as a workload's newest on its status.
+// A run of a task or scheduled workload, served by RunService and shown as a workload's newest on
+// its status.
 enum RunTrigger {
   RUN_TRIGGER_UNSPECIFIED = 0;
   // An occurrence of the schedule.
@@ -527,7 +519,7 @@ enum RunStatus {
   RUN_STATUS_MISSED = 6;
 }
 
-// Why a run ended as it did (§4.2 to §4.4 of docs/05-scheduling.md).
+// Why a run ended as it did.
 enum RunCause {
   RUN_CAUSE_UNSPECIFIED = 0;
   RUN_CAUSE_EXIT = 1;

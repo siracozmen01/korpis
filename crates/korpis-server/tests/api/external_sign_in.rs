@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Signing in through an identity provider, begun (§9.7 of docs/08-identity.md), against a real
-//! control plane and a provider written with the SDK: the sign-in page lists the root
-//! organization's providers that sign people in, without a credential; a sign-in begun is sent
-//! where the provider says, carrying a state, a nonce, the challenge, and the panel's callback;
-//! and the state and nonce are not left in the stored call.
+//! Signing in through an identity provider, begun, against a real control plane and a provider
+//! written with the SDK: the sign-in page lists the root organization's providers that sign people
+//! in, without a credential; a sign-in begun is sent where the provider says, carrying a state, a
+//! nonce, the challenge, and the panel's callback; and the state and nonce are not left in the
+//! stored call.
 
 use crate::bindings::identity_document;
 use crate::extensions::push_document;

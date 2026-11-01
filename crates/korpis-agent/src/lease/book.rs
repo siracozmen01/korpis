@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The leases a node holds, as the holder counts them (§4.5 of docs/02-architecture.md). A
-//! lease runs from the moment its request was sent, on this machine's monotonic clock, for
-//! `term × (1 − ρ)`: the control plane counts from the receipt, which is later, so the holder
-//! always believes its lease ends first, whatever the network did. A lease is renewed a third
-//! of the way through its term, so one lost answer costs nothing. Everything here is a pure
-//! function of what was sent, what came back, and the time, so it is tested without a network.
+//! The leases a node holds, as the holder counts them. A lease runs from the moment its request was
+//! sent, on this machine's monotonic clock, for `term × (1 − ρ)`: the control plane counts from the
+//! receipt, which is later, so the holder always believes its lease ends first, whatever the
+//! network did. A lease is renewed a third of the way through its term, so one lost answer costs
+//! nothing. Everything here is a pure function of what was sent, what came back, and the time, so
+//! it is tested without a network.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
@@ -15,7 +15,7 @@ const ANSWER_WITHIN: Duration = Duration::from_secs(5);
 /// The first wait after a refusal; it doubles up to a third of the term.
 const FIRST_RETRY: Duration = Duration::from_secs(1);
 
-/// What a workload does when its lease ends unrenewed (§4.5 of docs/02-architecture.md).
+/// What a workload does when its lease ends unrenewed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnExpiry {
     /// Keep running: nothing else can use its disk, and stopping it serves nobody.

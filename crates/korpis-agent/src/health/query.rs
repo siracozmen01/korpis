@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A query probe's exchange (§5 of docs/04-runtimes.md, §5 of docs/16-extensions.md). The node
-//! holds the socket and the health provider holds the protocol: the node connects to the endpoint
-//! from inside the workload's namespace, asks the control plane what to send, sends it, reads what
-//! comes back, and asks again with the round, until the provider gives its verdict. Over TCP every
-//! round shares one connection, and a round reads until it has what it was told to read at most,
-//! the workload closes the connection, or its wait runs out; over UDP a round sends one datagram
-//! and reads the first that comes back. The probe's timeout bounds what the workload is given,
-//! connecting and every read together; a question the control plane does not answer within ten
-//! seconds leaves the attempt unjudged, since a slow provider is not the workload's failure.
+//! A query probe's exchange. The node holds the socket and the health provider holds the protocol:
+//! the node connects to the endpoint from inside the workload's namespace, asks the control plane
+//! what to send, sends it, reads what comes back, and asks again with the round, until the provider
+//! gives its verdict. Over TCP every round shares one connection, and a round reads until it has
+//! what it was told to read at most, the workload closes the connection, or its wait runs out; over
+//! UDP a round sends one datagram and reads the first that comes back. The probe's timeout bounds
+//! what the workload is given, connecting and every read together; a question the control plane
+//! does not answer within ten seconds leaves the attempt unjudged, since a slow provider is not the
+//! workload's failure.
 
 use super::{Queries, Tried};
 use korpis_core::extension::health::{MAX_READ, MAX_ROUNDS};

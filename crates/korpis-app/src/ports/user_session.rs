@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! User sessions (§9.4 of docs/08-identity.md): kept by the digest of their current refresh
-//! credential, with every digest they rotated away, so a rotated credential presented again is
-//! recognised as the copy it must be.
+//! User sessions: kept by the digest of their current refresh credential, with every digest they
+//! rotated away, so a rotated credential presented again is recognised as the copy it must be.
 
 use super::StoreResult;
 use korpis_core::account::session::{Holder, UserSession};
@@ -103,7 +102,7 @@ pub trait UserSessionWrite {
         keep: Option<Uuid>,
     ) -> impl Future<Output = StoreResult<u64>> + Send;
 
-    /// Ends every session of every holder, as a restore does once its token key is rotated
-    /// (§8 of docs/03-state.md); how many it ended.
+    /// Ends every session of every holder, as a restore does once its token key is rotated; how
+    /// many it ended.
     fn end_every_session(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
 }

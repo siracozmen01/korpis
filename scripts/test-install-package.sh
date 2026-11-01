@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# `korpis-server install --postgres package` end to end (§2 of docs/18-operations.md), inside a
-# container running systemd as its init, one per distribution family: the distribution's own
-# PostgreSQL installed by its package manager, the owner made, the users and units written, the
-# control plane started by its unit as its own user, and the panel's API answering. Then every
-# unit is checked by systemd-analyze, and the node's helper socket and oci driver are started
-# against the distribution's containerd; the agent is not, since it runs once joined. The daily
-# backup is run once, as its timer would run it.
+# `korpis-server install --postgres package` end to end, inside a container running systemd as its
+# init, one per distribution family: the distribution's own PostgreSQL installed by its package
+# manager, the owner made, the users and units written, the control plane started by its unit as its
+# own user, and the panel's API answering. Then every unit is checked by systemd-analyze, and the
+# node's helper socket and oci driver are started against the distribution's containerd; the agent
+# is not, since it runs once joined. The daily backup is run once, as its timer would run it.
 #
 #   scripts/test-install-package.sh [debian:13|ubuntu:24.04|fedora:42 ...]   (default: all three)
 #

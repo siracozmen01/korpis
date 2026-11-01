@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The organization a signed-in caller lands at (§7 and question 2 of §10 of
-//! docs/11-surface-web.md, Finding 134 of docs/23-walkthroughs.md): whoever provides their
-//! access, whose theme they wear and whose layout their landing shows. At a portal it is the
-//! portal's organization, the address being that organization's; elsewhere it is the nearest
-//! organization above everything the caller's grants reach, which the control plane can name
-//! from the grants it holds though the caller may read none of those organizations, as a
-//! customer holding only a project's grant reads none; and with no grant, the installation's
-//! root. A share link's holder lands nowhere, a link opening one place (§6 of
-//! docs/11-surface-web.md).
+//! The organization a signed-in caller lands at: whoever provides their access, whose theme they
+//! wear and whose layout their landing shows. At a portal it is the portal's organization, the
+//! address being that organization's; elsewhere it is the nearest organization above everything the
+//! caller's grants reach, which the control plane can name from the grants it holds though the
+//! caller may read none of those organizations, as a customer holding only a project's grant reads
+//! none; and with no grant, the installation's root. A share link's holder lands nowhere, a link
+//! opening one place.
 
 use crate::App;
 use crate::caller::Caller;
@@ -66,8 +64,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// `nearest`, unless `caller` is a session confined beneath an organization it does not lie
-    /// beneath, as one whose secrets were set at a portal may be (§9.8 of docs/08-identity.md):
-    /// it reaches nothing above that organization, which then provides what it reaches.
+    /// beneath, as one whose secrets were set at a portal may be: it reaches nothing above that
+    /// organization, which then provides what it reaches.
     async fn within_reach(
         &self,
         caller: &Caller,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// An organization's quota (§5.1 of docs/05-scheduling.md): each entry, what it counts, what it
-// guarantees and has sold beside what its workloads hold, and what it may sell below, its limit
-// times the overcommit it was permitted; on asking, what it has given below of each entry's
-// shape, read from every organization beneath it; and, for a signed-in caller holding
-// `org.quota.write` above it, the editor. Every bound shown is held: none is advisory (P4).
+// An organization's quota: each entry, what it counts, what it guarantees and has sold beside what
+// its workloads hold, and what it may sell below, its limit times the overcommit it was permitted;
+// on asking, what it has given below of each entry's shape, read from every organization beneath
+// it; and, for a signed-in caller holding `org.quota.write` above it, the editor. Every bound shown
+// is held: none is advisory.
 
 import { useState } from "react";
 import { Button } from "react-aria-components";

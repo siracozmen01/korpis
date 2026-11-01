@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Starting a migration's passes (§8.1 of docs/05-scheduling.md): the first of `replicate` and
-//! the one of `final_sync` as the phase is entered, the next of `replicate` once the one under
-//! way is held and was large, and one whose ticket ran out again. The control plane names each,
-//! so both nodes' roles carry its ticket and both report it by that name.
+//! Starting a migration's passes: the first of `replicate` and the one of `final_sync` as the phase
+//! is entered, the next of `replicate` once the one under way is held and was large, and one whose
+//! ticket ran out again. The control plane names each, so both nodes' roles carry its ticket and
+//! both report it by that name.
 
 use crate::App;
 use crate::error::AppError;

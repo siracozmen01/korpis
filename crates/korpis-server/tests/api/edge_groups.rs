@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Edge groups (§3.1 of docs/07-networking.md, trace 78 of docs/23-walkthroughs.md), the control
-//! plane's half: a group is its organization's own nodes, an edge pool names a group of its own
-//! organization, and a group is deleted only once no pool names it; a workload's `stable`
-//! endpoints, where a group of two serves it, are placed on a node reaching every member through
-//! the mesh, hold an address and port of the group's pool, a port per transport, and no port of
-//! their node; and every member is told the group's table, the workload's node each member's
-//! tunnel and what it may reach.
+//! Edge groups, the control plane's half: a group is its organization's own nodes, an edge pool
+//! names a group of its own organization, and a group is deleted only once no pool names it; a
+//! workload's `stable` endpoints, where a group of two serves it, are placed on a node reaching
+//! every member through the mesh, hold an address and port of the group's pool, a port per
+//! transport, and no port of their node; and every member is told the group's table, the workload's
+//! node each member's tunnel and what it may reach.
 
 use crate::across::running_at;
 use crate::agent::{Stream, TestAgent, next_edges};
@@ -116,7 +115,7 @@ async fn a_group_is_its_organization_s_own_nodes_and_goes_once_no_pool_names_it(
 }
 
 /// `workload`'s endpoints as its status shows them, once they are placed: as its assignment is
-/// computed, after the placement itself (§3 of docs/07-networking.md), within ten seconds.
+/// computed, after the placement itself, within ten seconds.
 pub(crate) async fn endpoints_shown(h: &Harness, workload: &str) -> Vec<pb::Endpoint> {
     for _ in 0..100 {
         let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Transfers between a volume's node and its replicas' (§2.2 of docs/06-storage.md): what each
-//! node is told of them, every transfer with a ticket signed by the token key, and what a
-//! replica's node reports of a receive. A report is believed only of the transfer under way to
-//! the node that sends it, of the snapshot it names: nothing else a node says moves a replica.
+//! Transfers between a volume's node and its replicas': what each node is told of them, every
+//! transfer with a ticket signed by the token key, and what a replica's node reports of a receive.
+//! A report is believed only of the transfer under way to the node that sends it, of the snapshot
+//! it names: nothing else a node says moves a replica.
 
 use crate::App;
 use crate::error::AppError;

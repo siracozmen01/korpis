@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The device page (§9.4 of docs/08-identity.md, RFC 8628): a command-line client asked to sign
-// in as its user and showed them a code; here the signed-in user reads what is asking and from
-// where, checks that the code is the one their terminal shows, and approves or denies it.
-// Approving makes a session as strong as this one, so it needs a recent sign-in, and a session
-// older than ten minutes re-authenticates first. Denying needs nothing more.
+// The device page (RFC 8628): a command-line client asked to sign in as its user and showed them a
+// code; here the signed-in user reads what is asking and from where, checks that the code is the
+// one their terminal shows, and approves or denies it. Approving makes a session as strong as this
+// one, so it needs a recent sign-in, and a session older than ten minutes re-authenticates first.
+// Denying needs nothing more.
 
 import type { Client } from "@connectrpc/connect";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
