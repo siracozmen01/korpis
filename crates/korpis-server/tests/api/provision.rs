@@ -2,19 +2,26 @@
 
 //! `korpis-server install --postgres container`: the official image, pinned by digest and published
 //! on loopback, given an owner that is not a superuser, and the installation made in it as on any
-//! server. Run against this machine's docker, with a container and a port of the test's own,
+//! server. Run against the engine the install chooses, podman where it is on `PATH` and docker
+//! otherwise, with a container and a port of the test's own,
 //! removed when it ends.
 
 use sqlx::Connection as _;
+
+/// The container engine the install chooses: podman first.
+fn engine() -> &'static str {
+    let podman = std::process::Command::new("podman").arg("--version").output();
+    if podman.is_ok_and(|o| o.status.success()) { "podman" } else { "docker" }
+}
 
 /// The container and its volume, removed however the test ends.
 struct Removed(String);
 
 impl Drop for Removed {
     fn drop(&mut self) {
-        let docker = |args: &[&str]| std::process::Command::new("docker").args(args).output();
-        let _ = docker(&["rm", "-f", &self.0]);
-        let _ = docker(&["volume", "rm", &format!("{}-data", self.0)]);
+        let run = |args: &[&str]| std::process::Command::new(engine()).args(args).output();
+        let _ = run(&["rm", "-f", &self.0]);
+        let _ = run(&["volume", "rm", &format!("{}-data", self.0)]);
     }
 }
 
@@ -40,7 +47,7 @@ async fn a_container_is_made_on_loopback_with_an_owner_that_is_not_a_superuser()
     assert!(done.status.success(), "{out}{}", String::from_utf8_lossy(&done.stderr));
     assert!(out.contains("an evaluation setup, not a production one"), "{out}");
 
-    let published = std::process::Command::new("docker").args(["port", &name]).output().unwrap();
+    let published = std::process::Command::new(engine()).args(["port", &name]).output().unwrap();
     let published = String::from_utf8_lossy(&published.stdout);
     assert_eq!(published.trim(), format!("5432/tcp -> 127.0.0.1:{port}"), "loopback alone");
     let owner = out.lines().skip_while(|l| !l.starts_with("The owner's URL")).nth(2);

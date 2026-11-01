@@ -126,7 +126,8 @@ fn a_rollback_restores_what_the_snapshot_held_and_keeps_the_limit() {
 fn a_class_that_cannot_snapshot_says_so() {
     let dir = tempfile::tempdir().unwrap();
     let mut class = Class::open("plain", &dir.path().join("volumes")).unwrap();
-    if class.backend() != Backend::Directory {
+    // Needs root, which a volume's owner is given by.
+    if class.backend() != Backend::Directory || !rustix::process::geteuid().is_root() {
         return;
     }
     let r = helper::EnsureVolumeRequest { volume: "wl_d.data".into(), ..Default::default() };
