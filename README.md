@@ -80,7 +80,7 @@ Full map in §7 of the overview.
 
 ```
 README.md CONTRIBUTING.md SECURITY.md LICENSE*  entry points, review policy, disclosure, licensing
-CLAUDE.md                                       the rules anyone editing these documents works under
+AGENTS.md                                       the rules anyone changing the repository works under
 docs/00-overview.md .. docs/23-walkthroughs.md  the specification, numbered in dependency order
 docs/research/evidence.md                       the citations every deviation is argued from
 crates/                                         the implementation, a Rust workspace

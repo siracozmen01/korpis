@@ -87,7 +87,7 @@ Tam harita genel bakışın §7'sinde.
 
 ```
 README.md CONTRIBUTING.md SECURITY.md LICENSE*  giriş noktaları, inceleme, bildirim, lisans
-CLAUDE.md                                       bu dokümanları düzenleyen herkesin uyduğu kurallar
+AGENTS.md                                       depoyu değiştiren herkesin uyduğu kurallar
 docs/00-overview.md .. docs/23-walkthroughs.md  spesifikasyon, bağımlılık sırasına göre numaralı
 docs/research/evidence.md                       her sapmanın dayandığı kaynaklar
 crates/                                         uygulama, bir Rust workspace'i
@@ -184,4 +184,4 @@ open-core'a dönüşü engellemez; bunu projenin politikası (P10, K-13) engelle
 > **Dokümanlar İngilizce.** Bu README bir giriş noktası, spesifikasyonun kendisi değil. `docs/`
 > altındaki yirmi dört doküman İngilizce yazıldı ve öyle kalacak: ajan protokolü, kural adları ve
 > model isimleri tek bir dilde tanımlanmak zorunda, yoksa iki çeviri arasında sessizce ayrışırlar.
-> Bkz. [`CLAUDE.md`](./CLAUDE.md).
+> Bkz. [`AGENTS.md`](./AGENTS.md).

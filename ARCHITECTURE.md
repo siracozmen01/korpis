@@ -158,7 +158,7 @@ the script makes an outward one impossible to add quietly.
 ## 4. Bounded contexts
 
 Within each layer, code is grouped by bounded context, following the document that owns the
-decision (the table in `CLAUDE.md`). A context has the same module name in every layer, so the
+decision (§7 of `docs/00-overview.md`). A context has the same module name in every layer, so the
 domain rules, the use cases, the storage, and the API mapping for one subject share one name:
 
 | Context | Owning document | Module name |
