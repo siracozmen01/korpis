@@ -50,3 +50,29 @@ fn a_confined_program_sees_its_copy_and_nothing_else_of_the_host() {
     host.wait().unwrap();
     assert!(!signalled, "it is not root, so it signals none of the host's root processes");
 }
+
+#[test]
+fn two_receivers_running_at_once_are_different_users() {
+    if !rustix::process::geteuid().is_root() {
+        eprintln!("needs root: not run");
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let copy = dir.path().join("copy");
+    std::fs::create_dir(&copy).unwrap();
+    let mut first = Command::new("/bin/sh");
+    first.args(["-c", "exec sleep 60"]);
+    confine(&mut first, &copy, Path::new("/bin/sh")).unwrap();
+    let mut first = first.spawn().unwrap();
+    // The child took its user before spawn returned.
+    let status = std::fs::read_to_string(format!("/proc/{}/status", first.id())).unwrap();
+    let running = status.lines().find_map(|l| l.strip_prefix("Uid:")).unwrap().to_owned();
+    let c = copy.display();
+    assert!(inside(&copy, &format!("id -u > {c}/second")), "the second receiver runs");
+    first.kill().unwrap();
+    first.wait().unwrap();
+    let second = std::fs::read_to_string(copy.join("second")).unwrap();
+    let first_id = running.split_whitespace().next().unwrap();
+    assert_ne!(first_id, "0", "a receiver is not root");
+    assert_ne!(first_id, second.trim(), "two receivers at once are two users");
+}
