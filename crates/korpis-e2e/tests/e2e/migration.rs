@@ -257,19 +257,30 @@ async fn machines_routing((ma, mb): (Netns, Netns)) -> Machines {
     Machines { cp, project, nets: (ma, mb), nodes: (first, second), agents }
 }
 
-/// That `records`, from both nodes, count no interval twice.
+/// That `records`, from both nodes, count no use twice and leave none out: each node's records
+/// follow one another without overlap, and the epoch after the cutover begins in the interval the
+/// one before it ended in or later. The cutover's interval is the one both may measure, each its
+/// own share of it, since the source's last sample is taken as it lets go and the destination's
+/// first counts from zero once it holds the next epoch.
 fn counted_once(records: &[pb::UsageRecord]) {
-    let mut spans: Vec<(i64, i64, String)> = records
+    let mut spans: Vec<(u64, i64, i64, String)> = records
         .iter()
         .map(|r| {
             let (from, to) = (r.from.as_option(), r.to.as_option());
             let (from, to) = (from.map_or(0, |t| t.seconds), to.map_or(0, |t| t.seconds));
-            (from, to, r.node.clone().unwrap_or_default())
+            (r.lease_epoch, from, to, r.node.clone().unwrap_or_default())
         })
         .collect();
     spans.sort();
-    for pair in spans.windows(2) {
-        assert!(pair[0].1 <= pair[1].0, "no interval counted twice: {spans:?}");
+    let mut by_node = spans.clone();
+    by_node.sort_by(|a, b| (&a.3, a.1).cmp(&(&b.3, b.1)));
+    for pair in by_node.windows(2).filter(|p| p[0].3 == p[1].3) {
+        assert!(pair[0].2 <= pair[1].1, "no interval counted twice on a node: {spans:?}");
+    }
+    // A gap is the control plane's, under no epoch.
+    let measured: Vec<_> = spans.iter().filter(|s| !s.3.is_empty()).collect();
+    for pair in measured.windows(2).filter(|p| p[0].0 < p[1].0) {
+        assert!(pair[0].1 <= pair[1].1, "an epoch metered before the last ended: {spans:?}");
     }
 }
 
