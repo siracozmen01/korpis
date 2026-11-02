@@ -45,7 +45,7 @@ metering interval) and then the journal cursor.
 
 | Control plane to agent | Agent to control plane |
 |---|---|
-| `AssignmentSet`, each assignment signed, with its digest | `Ack` of the set digest received |
+| `AssignmentSet`, each assignment signed, with its digest; `AssignmentDelta` | `Ack` of the set digest received; `Resync` |
 | `LeaseGrant`, `LeaseRevoke` | `LeaseRequest`, `LeaseReleased` |
 | `RevocationList`, signed | `Observation` per workload |
 | `JournalAck`, the ingested cursor | `JournalRecords`, in sequence order |
@@ -106,9 +106,11 @@ Assignment
   standby with no power, until cutover moves the placement. See [migration](migration.md).
 - **The signature** lets an agent prove what it was told, which restore relies on, and lets no relay
   or proxy alter an assignment unnoticed. The agent believes a set only when every assignment
-  verifies under a key enrollment gave it, names this node, and the digest matches; otherwise the
-  set is refused whole, reported as a security event, and the old one kept. A believed set is kept
-  on disk with its signatures and verified again at start.
+  verifies under a key enrollment gave it, names this node, names each workload once, and the
+  digest matches; otherwise the set is refused whole, reported as a security event, and the old one
+  kept. A delta is believed as a set is: each assignment it adds verifies and names this node, and
+  the set it makes has the digest it claims. A believed set is kept on disk with its signatures and
+  verified again at start.
 
 **How a generation moves.** The control plane recomputes a node's set whenever something in it
 changes and on every resync. An assignment whose content, digested with its generation zeroed, did

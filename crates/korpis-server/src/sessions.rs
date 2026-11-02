@@ -24,6 +24,18 @@ struct Entry {
     ended: watch::Sender<bool>,
     /// Whether the agent said it answers feasibility queries.
     answers: bool,
+    /// Whether the agent asked for the whole set, which its downlink sends next.
+    resync: bool,
+}
+
+/// An assignment set sent to a node: its digest, and the generation of each workload's
+/// assignment in it, which is all a delta from it needs.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Sent {
+    /// Over the set.
+    pub digest: String,
+    /// By workload.
+    pub generations: HashMap<Uuid, u64>,
 }
 
 /// The registry.
@@ -37,6 +49,11 @@ pub struct Sessions {
     /// Feasibility queries sent and not yet answered, by query: the node asked, which alone may
     /// answer, and where its driver's answer goes.
     queries: Mutex<HashMap<String, (Uuid, oneshot::Sender<Feasible>)>>,
+    /// The last sets sent to each node, newest first, kept past its session, so an agent that
+    /// reconnects holding one is sent what changed since. Two, since the last may have been lost
+    /// with the stream that broke; a few dozen bytes a workload each. A node removed leaves its
+    /// entry until this process restarts.
+    sent: Mutex<HashMap<Uuid, Vec<Sent>>>,
 }
 
 impl std::fmt::Debug for Sessions {
@@ -64,7 +81,7 @@ impl Sessions {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
         let wake = Arc::new(Notify::new());
         let (ended, ending) = watch::channel(false);
-        let entry = Entry { id, tx, wake: Arc::clone(&wake), ended, answers };
+        let entry = Entry { id, tx, wake: Arc::clone(&wake), ended, answers, resync: false };
         if let Some(old) = self.guard().insert(node, entry) {
             old.ended.send_replace(true);
         }
@@ -84,6 +101,38 @@ impl Sessions {
         for e in self.guard().values() {
             e.wake.notify_one();
         }
+    }
+
+    /// Has session `id` of `node`, if it is still the current one, send the whole set next.
+    pub fn resync(&self, node: Uuid, id: u64) {
+        if let Some(e) = self.guard().get_mut(&node).filter(|e| e.id == id) {
+            e.resync = true;
+            e.wake.notify_one();
+        }
+    }
+
+    /// Whether session `id` of `node` was asked for the whole set since this was last asked.
+    pub fn take_resync(&self, node: Uuid, id: u64) -> bool {
+        self.guard()
+            .get_mut(&node)
+            .filter(|e| e.id == id)
+            .is_some_and(|e| std::mem::take(&mut e.resync))
+    }
+
+    /// Keeps `set` as the set last sent to `node`.
+    pub fn remember(&self, node: Uuid, set: Sent) {
+        let mut sent = self.sent.lock().unwrap_or_else(PoisonError::into_inner);
+        let kept = sent.entry(node).or_default();
+        kept.retain(|s| s.digest != set.digest);
+        kept.insert(0, set);
+        kept.truncate(2);
+    }
+
+    /// The set whose digest is `digest`, if it is one of the last sent to `node`.
+    #[must_use]
+    pub fn remembered(&self, node: Uuid, digest: &str) -> Option<Sent> {
+        let sent = self.sent.lock().unwrap_or_else(PoisonError::into_inner);
+        sent.get(&node)?.iter().find(|s| s.digest == digest).cloned()
     }
 
     /// Whether session `id` is still the one `node` holds.

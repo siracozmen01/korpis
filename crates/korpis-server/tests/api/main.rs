@@ -18,6 +18,7 @@ mod address_pools;
 mod address_routes;
 mod agent;
 mod assertion;
+mod assignment_deltas;
 mod assignments;
 mod audit_fields;
 mod audit_tenant;

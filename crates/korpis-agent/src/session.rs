@@ -235,6 +235,7 @@ impl Session {
             allocatable: facts.allocatable.into(),
             advertised: facts.advertised.into(),
             answers_feasibility: self.answers(),
+            takes_deltas: true,
             set_digest: self.held.borrow().digest.clone(),
             journal_head: head,
             journal_tail: tail,
