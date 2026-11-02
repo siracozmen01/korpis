@@ -56,7 +56,7 @@ async fn released(h: &Harness, workload: &str) {
     panic!("the lease was not released");
 }
 
-fn local() -> Vec<pb::StorageClassInfo> {
+pub(crate) fn local() -> Vec<pb::StorageClassInfo> {
     vec![pb::StorageClassInfo {
         name: "local".into(),
         backend: pb::StorageBackend::STORAGE_BACKEND_DIRECTORY.into(),
@@ -78,19 +78,21 @@ pub(crate) async fn moving() -> Moving {
 
 /// [`moving`], the source keeping its copies for `hold` after the cutover.
 async fn moving_held(hold: Option<std::time::Duration>) -> Moving {
-    Box::pin(moving_from(Harness::new().await, |repo| body(repo, &[]), hold)).await
+    let plain = std::convert::identity;
+    Box::pin(moving_from(Harness::new().await, |repo| body(repo, &[]), (hold, plain))).await
 }
 
 /// A workload declared on `h` with the body `made` of its recipe's repository, moving from the
-/// node it runs on to the other, the source keeping its copies for `hold` after the cutover.
+/// node it runs on to the other, the source keeping its copies for `hold` after the cutover, each
+/// node saying hello as `hello` makes it.
 pub(crate) async fn moving_from(
     h: Harness,
     made: impl FnOnce(&str) -> pb::IntentBody,
-    hold: Option<std::time::Duration>,
+    (hold, hello): (Option<std::time::Duration>, fn(agent::AgentMessage) -> agent::AgentMessage),
 ) -> Moving {
     let (a, b) = (TestAgent::enroll(&h, "fra-1", 1).await, TestAgent::enroll(&h, "fra-2", 2).await);
     let (mut sa, first) =
-        TestAgent::open(&h, a.hello_with(SystemTime::now(), &[1; 16], local())).await;
+        TestAgent::open(&h, hello(a.hello_with(SystemTime::now(), &[1; 16], local()))).await;
     welcome(&first.unwrap());
     let repo = push_paper().await;
     let project = project(&h, &h.root_org(), "games").await;
@@ -103,7 +105,7 @@ pub(crate) async fn moving_from(
     send(&mut sa, vec![volume_record(last + 1, ensured(&db, "data", true, false))]).await;
     assert_eq!(until(&mut sa, ack).await, last + 1);
     let (mut sb, first) =
-        TestAgent::open(&h, b.hello_with(SystemTime::now(), &[2; 16], local())).await;
+        TestAgent::open(&h, hello(b.hello_with(SystemTime::now(), &[2; 16], local()))).await;
     welcome(&first.unwrap());
     let request = pb::MigrateWorkloadRequest {
         mutation: mutation("move").into(),
