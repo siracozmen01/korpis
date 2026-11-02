@@ -38,10 +38,15 @@ async fn node(cp: &ControlPlane, dir: &tempfile::TempDir, name: &str, runtime: &
 fn shared() -> korpis_agent::session::Facts {
     let class = pb::StorageClassInfo {
         name: "shared".into(),
-        backend: pb::StorageBackend::STORAGE_BACKEND_DIRECTORY.into(),
+        backend: pb::StorageBackend::STORAGE_BACKEND_NETWORK.into(),
         capacity_bytes: 1 << 40,
         free_bytes: 1 << 39,
-        store: "store-1".into(),
+        store: "0192d0c4-0000-7000-8000-000000000001".into(),
+        capabilities: pb::StorageCapabilities {
+            fencing: pb::Fencing::FENCING_NONE.into(),
+            ..Default::default()
+        }
+        .into(),
         ..Default::default()
     };
     let mut f = facts();
@@ -126,7 +131,9 @@ async fn a_workload_moves_to_another_node_and_its_source_lets_go_once_the_hold_e
     let completed = Some(pb::MigrationOutcome::MIGRATION_OUTCOME_COMPLETED);
     migration_once(&cp, &w, |m| m.outcome.as_known() == completed).await;
     assert_eq!(object_of(&here, &w), (false, false), "nothing of it is left here");
-    assert!(running(&cp, &w).await, "observed running there");
+    // Observed running there, as the destination reports it under its epoch.
+    cp.announced(|| async { running(&cp, &w).await.then_some(()) }).await;
+    assert_eq!(object_of(&there, &w), (true, true));
 }
 
 #[tokio::test]
