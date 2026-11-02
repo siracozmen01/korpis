@@ -15,7 +15,7 @@ async fn a_cluster_pool_s_address_is_routed_to_the_node_its_workload_moved_to() 
     let fabric = Fabric::default();
     let _router = serving(&h, fabric.clone()).await;
     h.pools(h.root()).create_address_pool(cluster("p1", &h.root_org())).await.unwrap();
-    let mut m = Box::pin(moving_from(h, arena, None)).await;
+    let mut m = Box::pin(moving_from(h, arena, (None, std::convert::identity))).await;
     let held = shown(&m.h, &m.db, |d| !d.waiting_on_router && !d.address.is_empty()).await;
 
     through_verify(&mut m, ("sha256:same", "sha256:same"), 4096).await;
@@ -32,7 +32,8 @@ async fn a_stable_endpoint_is_reached_at_the_same_address_on_the_node_its_worklo
     let fabric = Fabric::default();
     let _router = serving(&h, fabric.clone()).await;
     h.pools(h.root()).create_address_pool(cluster("p1", &h.root_org())).await.unwrap();
-    let mut m = Box::pin(moving_from(h, crate::routed_stable::game, None)).await;
+    let mut m =
+        Box::pin(moving_from(h, crate::routed_stable::game, (None, std::convert::identity))).await;
     let held = shown(&m.h, &m.db, |d| !d.waiting_on_router && !d.address.is_empty()).await;
 
     through_verify(&mut m, ("sha256:same", "sha256:same"), 4096).await;

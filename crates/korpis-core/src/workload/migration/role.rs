@@ -29,6 +29,8 @@ pub struct VolumeRole {
     pub volume: Uuid,
     /// The volume's name in the workload's declaration.
     pub name: String,
+    /// Its class, the same name on both nodes.
+    pub storage_class: String,
     /// The helper's identifier for it on the source.
     pub source_helper_id: String,
     /// How it crosses.
@@ -73,6 +75,9 @@ pub struct MigrationRole {
     pub watermarks: Vec<Watermark>,
     /// When the source deletes its copies; set as the migration enters `release`.
     pub hold_until: Option<SystemTime>,
+    /// Whether the source captures the workload's state at `quiesce` and the destination resumes
+    /// it at `cutover`.
+    pub live: bool,
 }
 
 /// How `v` crosses in `phase`, as a node is told it.
@@ -87,6 +92,7 @@ fn volume_role(phase: Phase, v: &MigrationVolume) -> VolumeRole {
     VolumeRole {
         volume: v.volume,
         name: v.name.clone(),
+        storage_class: v.storage_class.clone(),
         source_helper_id: v.source_helper_id.clone(),
         crossing: v.crossing,
         pass,
@@ -119,6 +125,7 @@ impl MigrationRole {
             volumes: volumes.iter().map(|v| volume_role(m.phase, v)).collect(),
             watermarks: if handed { watermarks.to_vec() } else { Vec::new() },
             hold_until: m.hold_until,
+            live: m.live,
         }
     }
 }

@@ -212,7 +212,7 @@ impl Machine {
         jail::remove(&self.settings, &sid).map_err(failed)?;
         jail::build(&self.settings, &sid, &drives, &shape).map_err(failed)?;
         let owner = (spec.uid_base, spec.uid_base);
-        let mut command = jail::command(&self.settings, &sid, owner, &shape);
+        let mut command = jail::command(&self.settings, &sid, owner, &shape, true);
         let log = std::fs::File::create(dir.join(LOG)).map_err(failed)?;
         command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(log);
         let vm = match self.jailed(&sid, command, owner.0).await {

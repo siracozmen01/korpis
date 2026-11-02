@@ -147,6 +147,7 @@ pub fn role_to_pb(r: &MigrationRole) -> agent::MigrationRole {
             .iter()
             .map(|v| agent::MigrationVolumeRole {
                 name: v.name.clone(),
+                storage_class: v.storage_class.clone(),
                 source_helper_id: v.source_helper_id.clone(),
                 crossing: crossing_to_pb(v.crossing).into(),
                 volume: wire_id(IdKind::Volume, v.volume),
@@ -166,6 +167,7 @@ pub fn role_to_pb(r: &MigrationRole) -> agent::MigrationRole {
             })
             .collect(),
         hold_until: r.hold_until.map(timestamp).into(),
+        live: r.live,
         ..Default::default()
     }
 }

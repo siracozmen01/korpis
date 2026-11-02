@@ -25,6 +25,7 @@ use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
+mod live;
 mod streams;
 mod verify;
 
@@ -35,6 +36,11 @@ pub(super) struct Migrated {
     reported: Option<(String, agent::MigrationPhase)>,
     /// The migration whose copies this node promoted into the workload's volumes.
     promoted: Option<String>,
+    /// On a live migration's source: the migration, and its state volume's path here.
+    state: Option<(String, String)>,
+    /// On a live migration's destination: the migration, and the path of the state the workload
+    /// is to be resumed from, until it is.
+    resume: Option<(String, String)>,
 }
 
 /// The phase `role` names, and the side this node is.
@@ -72,7 +78,21 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     ) -> bool {
         use agent::MigrationPhase as P;
         use agent::MigrationSide as S;
-        let Some(role) = a.migration.as_option() else { return true };
+        let Some(role) = a.migration.as_option() else {
+            self.forget_state(a, t).await;
+            return true;
+        };
+        // The source makes the state volume before the first pass, and captures into it at quiesce.
+        if let (Some(S::MIGRATION_SIDE_SOURCE), Some(phase)) = standing_of(role)
+            && matches!(
+                phase,
+                P::MIGRATION_PHASE_PREPARE
+                    | P::MIGRATION_PHASE_REPLICATE
+                    | P::MIGRATION_PHASE_QUIESCE
+            )
+        {
+            self.capture(a, t, role).await;
+        }
         match standing_of(role) {
             (Some(S::MIGRATION_SIDE_DESTINATION), Some(P::MIGRATION_PHASE_PREPARE)) => {
                 self.prepared(a, t, role).await;
@@ -172,7 +192,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         for v in role.volumes.iter().filter(|v| by_increments(v) && !v.held_pass.is_empty()) {
             let request = helper::PromoteReplicaRequest {
                 volume: v.source_helper_id.clone(),
-                storage_class: crate::migrate::class_of(a, &v.name),
+                storage_class: crate::migrate::class_of(a, v),
                 snapshot: v.held_pass.clone(),
                 into: volume_id(a, &v.name),
                 own_from: crate::migrate::own_snapshots_of(&v.source_helper_id),
@@ -183,6 +203,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.report(t, role, (Vec::new(), Vec::new()), Some(why)).await;
                 return false;
             }
+        }
+        if let Err(e) = self.keep_resume(a, t, role).await {
+            let why = format!("the workload's state could not be found: {}", e.0);
+            self.report(t, role, (Vec::new(), Vec::new()), Some(why)).await;
+            return false;
         }
         // The copies are the workload's volumes now: never deleted as an abandoned migration's.
         if let Err(e) = self.progress.receiving(&a.workload, Vec::new()) {
@@ -226,6 +251,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Deletes the copies kept for each workload that left the set without moving here: its
     /// migration was abandoned before the cutover.
     pub(super) async fn abandoned(&mut self, held: &crate::held::HeldSet) {
+        self.forget_states(held).await;
         for (workload, volumes) in self.progress.received() {
             if held.assignments.contains_key(&workload) {
                 continue;

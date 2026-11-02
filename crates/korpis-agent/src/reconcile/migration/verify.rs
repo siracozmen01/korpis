@@ -34,7 +34,7 @@ fn subject(
     } else {
         (v.source_helper_id.clone(), String::new())
     };
-    let storage_class = crate::migrate::class_of(a, &v.name);
+    let storage_class = crate::migrate::class_of(a, v);
     helper::ManifestVolume { volume, storage_class, pass, ..Default::default() }
 }
 

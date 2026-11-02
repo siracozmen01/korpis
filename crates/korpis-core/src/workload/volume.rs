@@ -18,6 +18,19 @@ pub const BLOCK_IMAGE: &str = "block.ext4";
 /// value: in the `trusted` namespace, which no workload can set.
 pub const BLOCK_MARK: (&str, &[u8]) = ("trusted.korpis.volume", b"block_device");
 
+/// The name of the volume a live migration carries a guest's execution state in: an underscore,
+/// which no declared volume's name takes. The node knows it as `<workload>.live_state`, and the
+/// driver writes and resumes a state only in the one named for the object's own workload.
+pub const LIVE_STATE: &str = "live_state";
+
+/// The helper's identifier for `workload`'s `live_state` volume on its source: the name its node
+/// would give it, which the driver checks a state's directory against.
+#[must_use]
+pub fn live_state_id(workload: Uuid) -> String {
+    let id = crate::id::Id::from_uuid(crate::id::IdKind::Workload, workload);
+    format!("{id}.{LIVE_STATE}")
+}
+
 /// Why a volume exists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VolumeKind {
@@ -25,6 +38,8 @@ pub enum VolumeKind {
     Declared,
     /// It holds the workload's console stream.
     Stream,
+    /// It carries the workload's execution state across a live migration.
+    State,
 }
 
 impl VolumeKind {
@@ -34,13 +49,14 @@ impl VolumeKind {
         match self {
             Self::Declared => "declared",
             Self::Stream => "stream",
+            Self::State => "state",
         }
     }
 
     /// The kind a stored name names.
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
-        [Self::Declared, Self::Stream].into_iter().find(|k| k.as_str() == s)
+        [Self::Declared, Self::Stream, Self::State].into_iter().find(|k| k.as_str() == s)
     }
 }
 

@@ -828,6 +828,9 @@ message MigrationRole {
   // When the source deletes its copies, unless the workload is rolled back first; set as the
   // migration enters release.
   google.protobuf.Timestamp hold_until = 8;
+  // Whether quiesce captures the workload's execution state into its `live_state` volume rather
+  // than stopping it, and the destination resumes that state at cutover rather than starting it.
+  bool live = 9;
 }
 
 message MigrationVolumeRole {
@@ -844,6 +847,9 @@ message MigrationVolumeRole {
   // From verify, for a volume crossing by increments: the last pass the destination reported
   // held, whose manifest both sides compute and which the destination's copy is promoted from.
   string held_pass = 6;
+  // Its class, the same name on both nodes: what a volume the target does not declare, the
+  // migration's own state volume, is made and received in.
+  string storage_class = 7;
 }
 
 // One pass of a volume.
@@ -1162,6 +1168,8 @@ message VolumeEvent {
   VolumeEventKind event = 7;
   // A console stream's volume rather than one the workload declared.
   bool stream = 8;
+  // The volume a live migration carries the workload's execution state in.
+  bool state = 9;
 }
 
 // A snapshot taken, rolled back to, or deleted on this node, after the helper did it.

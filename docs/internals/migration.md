@@ -246,10 +246,27 @@ at all. The source's
 copies during the hold are the installation's rollback assurance, in the source node's allocation
 and in neither the meter nor the project's quota.
 
-**Live state.** Where the source's driver declares `runtime_snapshot` and the destination matches
-its `restore_requires`, quiesce pauses the workload and captures its state, final_sync carries it,
-and the destination restores rather than starts; elsewhere quiesce stops it, and the plan says
-which.
+**Live state.** Where the source's driver declares `runtime_snapshot`, the destination's driver of
+the same name restores it (the same CPU template and hypervisor version, its kernel within the
+source's declared range, as both last said at `Hello`), and a class on the source's own disk sends
+what it holds to the same class on the destination, the migration is live: its plan says
+`quiesce: capture`, and the scheduler chooses among such destinations first, the rest only where
+none fits. At approval the control plane checks again and refuses an approval whose destination no
+longer restores the state, rather than carry out a stop the approver never read. A live migration
+declares a volume of the workload's own of kind `state`, `live_state`, on the source in the first
+such class by name; it crosses as every volume does, its passes, its manifest at verify and its
+deletion with the source's copies included, and asks for no size, the state being as large as the
+guest's memory and drives. The source's agent makes it empty before the first pass and at quiesce
+has the driver checkpoint the running workload into it, which leaves the workload stopped as its
+assignment says; final_sync carries the state. At cutover the destination's agent resumes the
+workload from its copy instead of starting it, then deletes the copy. A checkpoint that fails fails
+quiesce, which abandons the migration with the workload where it was; a state that does not resume
+fails cutover, which rolls the workload back, and is never booted in its place. A rollback keeps no
+divergent copy of the state, which the workload never wrote; a state volume a migration left on its
+source without a release is deleted by that node, since it holds the guest's memory. Elsewhere
+quiesce stops the workload, and the plan says which. The state costs the guest's memory and its
+drives' size in the last pass; the workload is stopped meanwhile as in any migration, and its
+processes, connections and timers go on from where they were once it resumes.
 
 ## What it costs
 

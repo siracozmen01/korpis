@@ -53,6 +53,8 @@ pub struct Destination {
     pub named: bool,
     /// How long the source keeps its copies after cutover.
     pub hold: Duration,
+    /// Whether its `quiesce` captures the workload's state rather than stopping it.
+    pub live: bool,
 }
 
 /// Where a migration's plan moves its workload, as its step names it.
@@ -70,7 +72,9 @@ pub fn destination_of(steps: &[Step]) -> Option<Destination> {
     // A step that does not say who chose its node is checked as the scheduler's choice, the
     // stricter of the two.
     let named = matches!(step.detail.get("chosen_by"), Some(Value::String(s)) if s == "operator");
-    Some(Destination { node, named, hold })
+    // A step that does not say it captures the workload's state stops it.
+    let live = matches!(step.detail.get("quiesce"), Some(Value::String(s)) if s == "capture");
+    Some(Destination { node, named, hold, live })
 }
 
 /// The steps of a migration's plan for `workload`: one `migrate`, executed by the control plane,

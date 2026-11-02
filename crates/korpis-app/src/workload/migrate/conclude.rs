@@ -12,8 +12,9 @@ use crate::error::AppError;
 use crate::ports::{
     Clock, MigrationMoves as _, MigrationWrite as _, RecipeSource, Store, WorkloadWrite as _,
 };
-use korpis_core::workload::migration::{Migration, Outcome};
+use korpis_core::workload::migration::{Migration, MigrationVolume, Outcome};
 use korpis_core::workload::plan::PlanStatus;
+use korpis_core::workload::volume::LIVE_STATE;
 use uuid::Uuid;
 
 /// Who ends a migration that does not complete.
@@ -77,7 +78,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let back: Vec<(Uuid, String)> =
                 volumes.iter().map(|v| (v.volume, v.source_helper_id.clone())).collect();
             tx.move_placement((m.id, m.workload), (m.destination, m.source), &back, now).await?;
-            let copies = volumes.iter().filter(|v| v.crossing.sends()).filter_map(|v| {
+            // The state the destination resumed from is nothing the workload wrote: it is not kept.
+            let written = |v: &&MigrationVolume| v.crossing.sends() && v.name != LIVE_STATE;
+            let copies = volumes.iter().filter(written).filter_map(|v| {
                 v.destination_helper_id.as_deref().map(|helper| (v.volume, helper))
             });
             for (volume, helper) in copies {

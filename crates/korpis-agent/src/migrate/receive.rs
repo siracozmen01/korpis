@@ -103,7 +103,7 @@ async fn receive<H: Replicating + Trees>(
     mut stream: TcpStream,
     (a, v, pass): (&agent::Assignment, &agent::MigrationVolumeRole, &str),
 ) -> Result<Option<(String, u64)>, String> {
-    let (here, class) = (volume_id(a, &v.name), super::class_of(a, &v.name));
+    let (here, class) = (volume_id(a, &v.name), super::class_of(a, v));
     let increments =
         v.crossing.as_known() == Some(pb::MigrationCrossing::MIGRATION_CROSSING_INCREMENTS);
     if increments {

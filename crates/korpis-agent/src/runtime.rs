@@ -96,6 +96,15 @@ pub trait Runtime: Send + Sync + 'static {
     /// Starts it.
     fn start(&self, id: &str) -> impl Future<Output = RuntimeResult<()>> + Send;
 
+    /// Pauses it, running, writes its execution state into the directory `into`, and ends it;
+    /// the bytes written. Capability-gated: a driver that declares `runtime_snapshot`.
+    fn checkpoint(&self, id: &str, into: &str) -> impl Future<Output = RuntimeResult<u64>> + Send;
+
+    /// Starts it from the state a checkpoint wrote into the directory `from`, where that state
+    /// restores; one that does not is refused, never started afresh. Capability-gated as
+    /// [`Runtime::checkpoint`] is.
+    fn resume(&self, id: &str, from: &str) -> impl Future<Output = RuntimeResult<()>> + Send;
+
     /// Stops it with `signal` (empty for the driver's graceful default), killing it after
     /// `grace`.
     fn stop(

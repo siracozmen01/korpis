@@ -255,7 +255,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     ) -> Result<Option<String>, Failure> {
         let Some(id) = self.current(a, t).await? else { return Ok(None) };
         if !t.status.as_ref().is_some_and(running) {
-            self.runtime.start(&id).await?;
+            self.start_or_resume(a, t, &id).await?;
             t.running_since = Some(Instant::now());
         }
         t.stopped_by_us = false;

@@ -15,6 +15,7 @@ use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite as _, RecipeSource, Store, WorkloadWrite as _};
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
+use korpis_core::node::snapshot::restores;
 use korpis_core::workload::migration::{DEFAULT_HOLD, LONGEST_HOLD};
 use korpis_core::workload::plan::compute::{Moving, migrate_steps};
 use korpis_core::workload::plan::impact::delta;
@@ -32,6 +33,7 @@ mod cutover;
 mod end;
 mod passes;
 mod progress;
+mod state;
 
 pub use end::{EndMigration, MigrationView};
 
@@ -99,7 +101,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             named: cmd.node.is_some(),
             hold,
             volumes: volumes.iter().map(crossing::crossed).collect(),
-            live: false,
+            live: restores(&chosen.source, &chosen.node, &target.body.runtime.driver),
             changed_addresses: changed_addresses(&target, chosen.edge),
         };
         let plan = self.migrate_plan(caller, &w, (&proposing, permit.grant), &moving).await?;

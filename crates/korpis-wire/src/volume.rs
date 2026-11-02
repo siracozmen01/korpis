@@ -18,6 +18,7 @@ pub fn volume_to_pb(v: &Volume) -> pb::Volume {
     let kind = match v.kind {
         VolumeKind::Declared => pb::VolumeKind::VOLUME_KIND_DECLARED,
         VolumeKind::Stream => pb::VolumeKind::VOLUME_KIND_STREAM,
+        VolumeKind::State => pb::VolumeKind::VOLUME_KIND_STATE,
     };
     pb::Volume {
         id: wire_id(IdKind::Volume, v.id),
@@ -121,6 +122,10 @@ pub fn reported_from_pb(field: &str, e: &agent::VolumeEvent) -> Result<ReportedV
         size_bytes: e.size_bytes,
         quota_enforced: e.quota_enforced,
         event,
-        kind: if e.stream { VolumeKind::Stream } else { VolumeKind::Declared },
+        kind: match (e.stream, e.state) {
+            (true, _) => VolumeKind::Stream,
+            (false, true) => VolumeKind::State,
+            (false, false) => VolumeKind::Declared,
+        },
     })
 }

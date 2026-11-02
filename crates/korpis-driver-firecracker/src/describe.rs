@@ -6,6 +6,7 @@
 //! kernel's to count, and its volumes are block devices whose size is their bound.
 
 use crate::prepare::NAME;
+use crate::state::Taken;
 use korpis_proto::korpis::v1 as pb;
 
 /// The filesystems its guests mount: korpis-guest mounts a volume as ext4 alone, which the helper
@@ -51,10 +52,28 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
         .collect()
 }
 
-/// What the driver declares; `healthy` is whether this machine can run a guest now, and `cores`
-/// where its guests' cgroups are and how it holds dedicated cores there.
+/// Where a state taken by `here` restores: by that Firecracker, with that CPU template, on a host
+/// kernel of that `major.minor` alone, which is what a snapshot's compatibility is documented as
+/// (Firecracker's `docs/snapshotting/snapshot-support.md`).
+fn restores(here: &Taken) -> pb::SnapshotCaps {
+    pb::SnapshotCaps {
+        cpu_template: here.cpu_template.clone(),
+        hypervisor_version: here.hypervisor_version.clone(),
+        kernel_min: here.kernel.clone(),
+        kernel_max: here.kernel.clone(),
+        ..Default::default()
+    }
+}
+
+/// What the driver declares; `healthy` is whether this machine can run a guest now, `cores`
+/// where its guests' cgroups are and how it holds dedicated cores there, and `snapshots` where a
+/// state taken here restores, if one is taken.
 #[must_use]
-pub fn info(healthy: bool, cores: &korpis_driver_kit::cores::Cores) -> pb::DriverInfo {
+pub fn info(
+    healthy: bool,
+    cores: &korpis_driver_kit::cores::Cores,
+    snapshots: Option<&Taken>,
+) -> pb::DriverInfo {
     let mut held = pb::Capabilities::default().enforcement;
     held.extend(enforcement());
     held.insert("dedicated_cores".to_owned(), cores.declared());
@@ -88,6 +107,7 @@ pub fn info(healthy: bool, cores: &korpis_driver_kit::cores::Cores) -> pb::Drive
         // A guest's /run/korpis: its identity socket and API relay relayed over vsock, and its
         // files sent as they change.
         identity_dir: true,
+        runtime_snapshot: snapshots.map(restores).into(),
         config_schema: r#"{"type":"object","additionalProperties":false}"#.into(),
         ..Default::default()
     };
@@ -114,7 +134,7 @@ mod tests {
             parent: "/korpis-firecracker".into(),
             host: korpis_driver_kit::cores::Host::Shared,
         };
-        let i = info(true, &cores);
+        let i = info(true, &cores, None);
         let caps = i.capabilities.as_option().unwrap();
         assert_eq!(caps.cgroup_parent, "/korpis-firecracker");
         assert!(caps.enforcement["dedicated_cores"].enforced, "the host shares them");

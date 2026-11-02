@@ -260,6 +260,14 @@ impl<R: Runtime> Runtime for Drivers<R> {
         self.start_on(id)
     }
 
+    fn checkpoint(&self, id: &str, into: &str) -> impl Future<Output = RuntimeResult<u64>> + Send {
+        self.checkpoint_on(id, into)
+    }
+
+    fn resume(&self, id: &str, from: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.resume_on(id, from)
+    }
+
     fn stop(
         &self,
         id: &str,
@@ -380,6 +388,7 @@ impl<R: Runtime> Runtime for Drivers<R> {
     }
 }
 
+mod checkpoint;
 mod install;
 #[cfg(test)]
 mod tests;

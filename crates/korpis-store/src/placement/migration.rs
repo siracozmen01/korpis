@@ -35,6 +35,7 @@ struct MigrationRow {
     source_done: Option<String>,
     destination_done: Option<String>,
     moved_at: Option<Time>,
+    live: bool,
 }
 
 impl MigrationRow {
@@ -68,6 +69,7 @@ impl MigrationRow {
             made_at: to_time(self.made_at),
             reported,
             moved_at: self.moved_at.map(to_time),
+            live: self.live,
         })
     }
 }
@@ -77,6 +79,7 @@ pub(super) struct VolumeRow {
     migration_id: Uuid,
     volume_id: Uuid,
     name: String,
+    storage_class: String,
     crossing: String,
     size_bytes: i64,
     source_helper_id: String,
@@ -101,6 +104,7 @@ impl VolumeRow {
         Ok(MigrationVolume {
             volume: self.volume_id,
             name: self.name,
+            storage_class: self.storage_class,
             crossing,
             size_bytes: count(self.size_bytes),
             source_helper_id: self.source_helper_id,
@@ -139,7 +143,7 @@ pub(super) async fn volumes_of<'e, E: sqlx::PgExecutor<'e>>(
 ) -> StoreResult<Vec<VolumeRow>> {
     sqlx::query_as!(
         VolumeRow,
-        "SELECT m.migration_id, m.volume_id, v.name, m.crossing, m.size_bytes,
+        "SELECT m.migration_id, m.volume_id, v.name, v.storage_class, m.crossing, m.size_bytes,
                 m.source_helper_id, m.passes, m.pass, m.pass_since, m.parent_pass, m.sent_bytes,
                 m.held_pass,
                 m.destination_helper_id, m.source_manifest, m.destination_manifest,
@@ -163,7 +167,7 @@ impl MigrationRead for PgStore {
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
                     hold_secs, hold_until, outcome, reason, made_at, source_done,
-                    destination_done, moved_at
+                    destination_done, moved_at, live
                FROM migration WHERE workload_id = $1 ORDER BY made_at DESC, id DESC",
             workload
         )
@@ -179,7 +183,7 @@ impl MigrationRead for PgStore {
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
                     hold_secs, hold_until, outcome, reason, made_at, source_done,
-                    destination_done, moved_at
+                    destination_done, moved_at, live
                FROM migration WHERE id = $1",
             id
         )
@@ -197,7 +201,7 @@ impl MigrationRead for PgStore {
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
                     hold_secs, hold_until, outcome, reason, made_at, source_done,
-                    destination_done, moved_at
+                    destination_done, moved_at, live
                FROM migration
               WHERE outcome IS NULL AND (source_id = $1 OR destination_id = $1)
               ORDER BY workload_id",
@@ -237,7 +241,7 @@ impl MigrationRead for PgStore {
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
                     hold_secs, hold_until, outcome, reason, made_at, source_done,
-                    destination_done, moved_at
+                    destination_done, moved_at, live
                FROM migration
               WHERE outcome IS NULL ORDER BY workload_id",
         )
@@ -257,8 +261,8 @@ impl MigrationWrite for PgTx {
         let hold = i64::try_from(m.hold.as_secs()).unwrap_or(i64::MAX);
         sqlx::query!(
             "INSERT INTO migration (id, plan_id, workload_id, source_id, destination_id, phase,
-                                    phase_since, hold_secs, made_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+                                    phase_since, hold_secs, made_at, live)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
             m.id,
             m.plan,
             m.workload,
@@ -267,7 +271,8 @@ impl MigrationWrite for PgTx {
             m.phase.as_str(),
             from_time(m.phase_since),
             hold,
-            from_time(m.made_at)
+            from_time(m.made_at),
+            m.live
         )
         .execute(&mut *self.tx)
         .await
@@ -295,7 +300,7 @@ impl MigrationWrite for PgTx {
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
                     hold_secs, hold_until, outcome, reason, made_at, source_done,
-                    destination_done, moved_at
+                    destination_done, moved_at, live
                FROM migration WHERE workload_id = $1 AND outcome IS NULL FOR UPDATE",
             workload
         )
@@ -310,7 +315,7 @@ impl MigrationWrite for PgTx {
             MigrationRow,
             "SELECT id, plan_id, workload_id, source_id, destination_id, phase, phase_since,
                     hold_secs, hold_until, outcome, reason, made_at, source_done,
-                    destination_done, moved_at
+                    destination_done, moved_at, live
                FROM migration WHERE id = $1 FOR UPDATE",
             id
         )

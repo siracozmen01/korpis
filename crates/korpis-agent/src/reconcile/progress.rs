@@ -50,6 +50,9 @@ pub struct Done {
     /// The volumes a migration's copies were received into here, while the workload has not
     /// moved here.
     pub received: Vec<String>,
+    /// The state volume a live migration of it made here as its source, until it is deleted: it
+    /// holds the guest's memory, so it is deleted whatever this agent forgot in a restart.
+    pub state: Option<String>,
 }
 
 /// The reconciler's progress.
@@ -91,6 +94,9 @@ fn parse(text: &str) -> std::io::Result<BTreeMap<String, Done>> {
             ["received", w, volume] => {
                 done.entry((*w).to_owned()).or_default().received.push((*volume).to_owned());
             }
+            ["state", w, volume] => {
+                done.entry((*w).to_owned()).or_default().state = Some((*volume).to_owned());
+            }
             _ => return Err(invalid(line)),
         }
     }
@@ -131,6 +137,7 @@ impl Progress {
                 lines.push(format!("install {w} {} {} {}", i.digest, i.done, i.lost));
             }
             lines.extend(d.received.iter().map(|v| format!("received {w} {v}")));
+            lines.extend(d.state.iter().map(|v| format!("state {w} {v}")));
         }
         crate::durable::replace(&self.path, (lines.join("\n") + "\n").as_bytes())
     }
@@ -174,6 +181,23 @@ impl Progress {
         self.save()
     }
 
+    /// Keeps that `state`, if any, is the state volume a live migration of `workload` made here.
+    pub fn stating(&mut self, workload: &str, state: Option<String>) -> std::io::Result<()> {
+        let done = self.done.entry(workload.to_owned()).or_default();
+        if done.state == state {
+            return Ok(());
+        }
+        done.state = state;
+        self.save()
+    }
+
+    /// Each workload a live migration's state volume is kept here for, with that volume.
+    #[must_use]
+    pub fn states(&self) -> Vec<(String, String)> {
+        let held = self.done.iter().filter_map(|(w, d)| Some((w.clone(), d.state.clone()?)));
+        held.collect()
+    }
+
     /// Each workload whose migration's copies are kept here, with the volumes holding them.
     #[must_use]
     pub fn received(&self) -> Vec<(String, Vec<String>)> {
@@ -181,9 +205,14 @@ impl Progress {
         held.map(|(w, d)| (w.clone(), d.received.clone())).collect()
     }
 
-    /// Forgets `workload`: it is retired, or no longer on this node.
+    /// Forgets `workload`: it is retired, or no longer on this node. A state volume kept for it is
+    /// kept until it is deleted.
     pub fn forget(&mut self, workload: &str) -> std::io::Result<()> {
         if let Some(done) = self.done.remove(workload) {
+            if let Some(state) = done.state.clone() {
+                let left = Done { state: Some(state), ..Done::default() };
+                self.done.insert(workload.to_owned(), left);
+            }
             self.save()?;
             return done.install.map_or(Ok(()), |i| self.drop_answers(&i.digest));
         }
@@ -274,9 +303,12 @@ mod tests {
         let install = Install { digest: "ab12".into(), done: 4, lost: 1 };
         p.installed("wl_1", install.clone()).unwrap();
         p.receiving("wl_1", vec!["wl_1.data".into()]).unwrap();
+        p.stating("wl_1", Some("wl_1.live_state".into())).unwrap();
         let again = Progress::open(&path).unwrap();
         let received = vec!["wl_1.data".to_owned()];
-        let all = Done { step: Some(step), cycle: Some(3), install: Some(install), received };
+        let state = Some("wl_1.live_state".to_owned());
+        let all =
+            Done { step: Some(step), cycle: Some(3), install: Some(install), received, state };
         assert_eq!(again.of("wl_1"), all);
         std::fs::write(&path, "step wl_1 pl_1 x ok\n").unwrap();
         assert!(Progress::open(&path).is_err());

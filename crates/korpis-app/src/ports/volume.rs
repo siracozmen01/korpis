@@ -78,4 +78,14 @@ pub trait VolumeWrite {
         store: Option<&str>,
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Records the volume `declared` on `node`'s own disk as ensured at `now`, before the node
+    /// reports it, as a live migration declares its state's volume on its source; its identifier.
+    /// The node's report of it later is of the same volume.
+    fn declare_volume(
+        &mut self,
+        node: Uuid,
+        declared: &ReportedVolume,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Uuid>> + Send;
 }

@@ -15,6 +15,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+mod checkpoint;
 mod files;
 mod guest;
 mod install;
@@ -235,6 +236,14 @@ impl Runtime for InMemory {
 
     fn start(&self, id: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
         ready(self.start_now(id))
+    }
+
+    fn checkpoint(&self, id: &str, into: &str) -> impl Future<Output = RuntimeResult<u64>> + Send {
+        ready(self.checkpoint_now(id, into))
+    }
+
+    fn resume(&self, id: &str, from: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
+        ready(self.resume_now(id, from))
     }
 
     /// As a driver does: an object that ignores the terminating signal is killed once `grace`

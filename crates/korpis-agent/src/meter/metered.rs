@@ -55,6 +55,14 @@ impl<R: Runtime> Runtime for Metered<R> {
         self.inner.start(id)
     }
 
+    fn checkpoint(&self, id: &str, into: &str) -> impl Future<Output = RuntimeResult<u64>> + Send {
+        self.inner.checkpoint(id, into)
+    }
+
+    fn resume(&self, id: &str, from: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.inner.resume(id, from)
+    }
+
     fn stop(
         &self,
         id: &str,
