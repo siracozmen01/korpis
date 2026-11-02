@@ -141,6 +141,19 @@ fn console(node: &Node, w: &str) -> Vec<u64> {
         .unwrap_or_default()
 }
 
+/// The offsets of `node`'s console stream of `w`, once a record past `last` is in it: those the
+/// stream crossed with, and what the workload wrote there since.
+async fn continued(node: &Node, w: &str, last: u64) -> Vec<u64> {
+    for _ in 0..300 {
+        let offsets = console(node, w);
+        if offsets.iter().any(|o| *o > last) {
+            return offsets;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("{w} wrote nothing past offset {last}: {:?}", console(node, w));
+}
+
 /// Moves `w` to `node`, keeping the source's copies for `hold`; the migration, once approved.
 async fn move_to(cp: &ControlPlane, w: &str, node: &str, hold: Duration) -> String {
     let client = cp.workloads();
@@ -275,9 +288,11 @@ async fn moved(
     holds(&volume_of(there, db, "data").await);
     assert!(translates(there_net, address), "routed and translated where it moved");
     assert!(!translates(here_net, address), "and no longer where it was");
-    let after = console(there, db);
     let last = before.iter().max().copied().unwrap_or_default();
-    assert!(after.first().is_some_and(|o| *o > last), "continued after {last}: {after:?}");
+    let after = continued(there, db, last).await;
+    assert!(after.windows(2).all(|w| w[0] < w[1]), "no offset used twice: {after:?}");
+    let new = after.iter().skip_while(|o| before.contains(o)).collect::<Vec<_>>();
+    assert!(new.first().is_some_and(|o| **o > last), "continued after {last}: {after:?}");
     counted_once(&metered(cp, db, &moved_to).await);
     moved_to
 }
