@@ -7,15 +7,30 @@
 //! other node takes fails alone and pauses the drain, and aborting it leaves the node cordoned.
 
 use crate::agent::{Stream, TestAgent, welcome};
-use crate::journal::{ack, assignment, complete, send, until};
+use crate::journal::{ack, complete, send, until};
 use crate::migrating::local;
 use crate::recipes::{body, create, project, push_paper};
 use crate::streams::held;
 use crate::support::{Harness, mutation};
 use crate::volumes::{ensured, volume_record};
+use buffa::Message as _;
 use connectrpc::ErrorCode;
+use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
+
+/// The assignment of `w`, in the next set that holds it with a plan, wherever it is in the set.
+fn planned(w: &str) -> impl Fn(&Down) -> Option<agent::Assignment> + '_ {
+    move |d| {
+        let Down::AssignmentSet(s) = d else { return None };
+        let mut decoded = s
+            .assignments
+            .iter()
+            .filter_map(|a| agent::Assignment::decode_from_slice(&a.assignment).ok());
+        decoded.find(|a| a.workload == w && a.plan.is_set())
+    }
+}
 
 /// `name`, made in `project` on the node whose stream is `s`, its volume reported there, journaled
 /// from `seq` on; it, and the next sequence to journal from.
@@ -29,7 +44,7 @@ pub(crate) async fn made(
     let workloads = h.workloads(h.root());
     let declared = workloads.declare_intent(create(name, project, name, body(&repo, &[])));
     let w = declared.await.unwrap().into_owned().workload.into_option().unwrap().id;
-    let told = until(s, assignment(|t| t.workload == w && t.plan.is_set())).await;
+    let told = until(s, planned(&w)).await;
     let last = complete(s, &w, told.plan.as_option().unwrap(), seq).await;
     held(s, &w).await;
     send(s, vec![volume_record(last + 1, ensured(&w, "data", true, false))]).await;

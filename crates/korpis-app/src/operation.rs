@@ -106,10 +106,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok((op, items))
     }
 
-    /// Whether the caller may read `op`.
-    async fn may_read(&self, caller: &Caller, op: &Operation) -> Result<bool, AppError> {
-        let (action, object) = self.reading(op.scope).await?;
-        self.permitted(caller, action, object).await
+    /// Of `found`, those the caller may read.
+    async fn readable(
+        &self,
+        caller: &Caller,
+        found: Vec<OperationView>,
+    ) -> Result<Vec<OperationView>, AppError> {
+        let mut shown = Vec::with_capacity(found.len());
+        for (op, items) in found {
+            let (action, object) = self.reading(op.scope).await?;
+            if self.permitted(caller, action, object).await? {
+                shown.push((op, items));
+            }
+        }
+        Ok(shown)
     }
 
     /// The operations the caller may read, newest first, each with its items; only those over
@@ -124,15 +134,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let found = self.store.operations(node, p).await?;
             Ok(found.into_iter().map(|op| (op, Vec::new())).collect())
         };
-        let readable = |found: Vec<OperationView>| async move {
-            let mut shown = Vec::with_capacity(found.len());
-            for (op, items) in found {
-                if self.may_read(caller, &op).await? {
-                    shown.push((op, items));
-                }
-            }
-            Ok(shown)
-        };
+        let readable = |found: Vec<OperationView>| self.readable(caller, found);
         visible(page, |(op, _): &OperationView| op.id, read, readable).await
     }
 }

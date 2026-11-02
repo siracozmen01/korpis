@@ -4,7 +4,8 @@
 //! and not ended starts once its time has come, has each item under way settled against what the
 //! nodes report, ends once every item has, and then begins as many waiting items as its policy
 //! admits, each in a transaction of its own under the operation's lock, so a pause or an abort
-//! decided meanwhile is seen before the next item begins. An item that cannot begin fails alone,
+//! decided meanwhile is seen before the next item begins. An item that ends as it begins takes no
+//! place, so a rollout's grants are all given in one pass, and the operation ends in it. An item that cannot begin fails alone,
 //! for the reason its refusal gives, and its operation pauses, goes on, or fails as its policy
 //! says; a fault of the control plane's own fails nothing, and the item is tried at the next pass.
 
@@ -53,11 +54,43 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(moved)
     }
 
-    /// Starts, settles, and ends operation `id`, then begins what its policy admits.
+    /// Starts, settles, and ends operation `id`, then begins what its policy admits, counting an
+    /// item that ended as it began as no longer taking a place, and ends the operation if every
+    /// item then has.
     async fn tend_operation(&self, id: Uuid) -> Result<u64, AppError> {
+        let (mut moved, running) = self.settle_operation(id).await?;
+        let Some((op, mut items)) = running else { return Ok(moved) };
+        let mut ended_at_once = false;
+        loop {
+            let progress = Progress::of(&items);
+            let waiting = items.iter_mut().find(|i| i.state == ItemState::Waiting);
+            let Some(item) = waiting.filter(|_| Admission::under(&op.policy, &progress).0 > 0)
+            else {
+                break;
+            };
+            let Some(state) = self.begin_item(id, item.subject).await? else { break };
+            if state == ItemState::Waiting {
+                break;
+            }
+            item.state = state;
+            ended_at_once |= state.ended();
+            moved += 1;
+        }
+        if ended_at_once {
+            moved += self.settle_operation(id).await?.0;
+        }
+        Ok(moved)
+    }
+
+    /// Starts, settles, and ends operation `id`; how many items moved, and the operation with its
+    /// items if it runs.
+    async fn settle_operation(
+        &self,
+        id: Uuid,
+    ) -> Result<(u64, Option<(Operation, Vec<Item>)>), AppError> {
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
-        let Some((mut op, mut items)) = tx.operation_in(id).await? else { return Ok(0) };
+        let Some((mut op, mut items)) = tx.operation_in(id).await? else { return Ok((0, None)) };
         let (read_at, was) = (op.version, op.status);
         let started = op.start(now);
         let mut moved = 0;
@@ -66,24 +99,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         for item in items.iter_mut().filter(under_way) {
             moved += u64::from(self.settled(&mut tx, &mut op, item, now).await?);
         }
-        let progress = Progress::of(&items);
-        if op.conclude(&progress, now) || op.status.ended() {
+        if op.conclude(&Progress::of(&items), now) || op.status.ended() {
             self.release_node(&mut tx, &op).await?;
         }
         if started || moved > 0 || op.status != was {
             tx.update_operation(&op, read_at).await?;
         }
         tx.commit().await?;
-        if op.status != Status::Running {
-            return Ok(moved);
-        }
-        let admitted = Admission::under(&op.policy, &progress).0;
-        let waiting: Vec<Uuid> =
-            items.iter().filter(|i| i.state == ItemState::Waiting).map(|i| i.subject).collect();
-        for subject in waiting.into_iter().take(usize::try_from(admitted).unwrap_or(usize::MAX)) {
-            moved += u64::from(self.begin_item(id, subject).await?);
-        }
-        Ok(moved)
+        Ok((moved, (op.status == Status::Running).then_some((op, items))))
     }
 
     /// Settles `item`, under way in `op`, at `now`, writing it if it moved and doing what `op`'s
@@ -110,17 +133,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(true)
     }
 
-    /// Begins `op`'s waiting item about `subject`, if `op` still runs; whether it began or ended.
-    async fn begin_item(&self, id: Uuid, subject: Uuid) -> Result<bool, AppError> {
+    /// Begins `op`'s waiting item about `subject`, if `op` still runs; the state it is left in,
+    /// if it began or ended.
+    async fn begin_item(&self, id: Uuid, subject: Uuid) -> Result<Option<ItemState>, AppError> {
         let mut tx = self.store.begin().await?;
-        let Some((op, items)) = tx.operation_in(id).await? else { return Ok(false) };
+        let Some((op, items)) = tx.operation_in(id).await? else { return Ok(None) };
         let Some(mut item) = items.into_iter().find(|i| i.subject == subject) else {
-            return Ok(false);
+            return Ok(None);
         };
         if op.status != Status::Running || item.state != ItemState::Waiting {
-            return Ok(false);
+            return Ok(None);
         }
-        let Some(approval) = op.approved.clone() else { return Ok(false) };
+        let Some(approval) = op.approved.clone() else { return Ok(None) };
         let approver = Caller::new(approval.by.clone(), None, approval.mfa);
         let begun = match op.kind {
             Kind::Drain => self.drain_item(&mut tx, &op, &approver, &mut item).await,
@@ -134,11 +158,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     tx.append_effect(&item_effect(&op, &item)).await?;
                 }
                 tx.commit().await?;
-                Ok(true)
+                Ok(Some(item.state))
             }
             Err(e) if refuses(&e) => {
                 drop(tx);
-                self.fail_item(id, subject, &e.to_string()).await
+                let failed = self.fail_item(id, subject, &e.to_string()).await?;
+                Ok(failed.then_some(ItemState::Failed))
             }
             Err(e) => Err(e),
         }

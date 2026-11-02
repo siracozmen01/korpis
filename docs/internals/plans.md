@@ -196,6 +196,8 @@ interval, starts each approved operation whose `start_after` has come, settles e
 against what nodes report, ends the operation once every item has (completed if none failed, failed
 otherwise), and begins as many waiting items as the policy admits, each in a transaction of its own
 under the operation's lock, so a pause or an abort decided meanwhile is seen before the next one.
+An item that ends as it begins, as a rollout's grant does, takes no place, so the pass goes on to
+the next and ends the operation once every item has, rather than one grant a heartbeat.
 An item applies while its plan does; one that moved a workload then settles until the node it now
 runs on reports it running, or stopped as its power says. `concurrency` bounds the items applying,
 and `max_unavailable` the items applying or settling, since any applying item may stop its workload
