@@ -131,7 +131,11 @@ fn landlock(b: &Bounds) -> Result<(bool, bool), ConfineError> {
     // A resolver that falls back to TCP asks on 53; a job that reaches no store reaches nothing.
     let ports: Vec<u16> = b.port.into_iter().flat_map(|p| [p, 53]).collect();
     let created = created
-        .add_rules(ports.into_iter().map(|p| Ok::<_, landlock::RulesetError>(NetPort::new(p, AccessNet::ConnectTcp))))
+        .add_rules(
+            ports
+                .into_iter()
+                .map(|p| Ok::<_, landlock::RulesetError>(NetPort::new(p, AccessNet::ConnectTcp))),
+        )
         .map_err(err)?;
     let status = created.restrict_self().map_err(err)?;
     let enforced = status.ruleset != RulesetStatus::NotEnforced;

@@ -247,7 +247,10 @@ async fn a_manifest_job_reads_its_volume_confined_and_reaches_no_store() {
         ..Default::default()
     }));
     // No store is named that a job could reach: the job is given none.
-    assert!(matches!(ask(&mut h, start("job-m", manifest, "http://127.0.0.1:9")), Answer::StartJob(_)));
+    assert!(matches!(
+        ask(&mut h, start("job-m", manifest, "http://127.0.0.1:9")),
+        Answer::StartJob(_)
+    ));
     let result = finished(&mut h, "job-m").await;
     assert!(result.ok, "{}", result.error);
     let volume = tmp.path().join("volumes/wl_1.data");

@@ -38,7 +38,9 @@ pub(super) struct Migrated {
 }
 
 /// The phase `role` names, and the side this node is.
-fn standing_of(role: &agent::MigrationRole) -> (Option<agent::MigrationSide>, Option<agent::MigrationPhase>) {
+fn standing_of(
+    role: &agent::MigrationRole,
+) -> (Option<agent::MigrationSide>, Option<agent::MigrationPhase>) {
     (role.role.as_known(), role.phase.as_known())
 }
 
@@ -56,10 +58,7 @@ fn by_tree(v: &agent::MigrationVolumeRole) -> bool {
 
 /// Whether `v` crosses at all: a local volume, which the source holds a copy of.
 fn crosses(v: &agent::MigrationVolumeRole) -> bool {
-    !matches!(
-        v.crossing.as_known(),
-        Some(pb::MigrationCrossing::MIGRATION_CROSSING_NOTHING) | None
-    )
+    !matches!(v.crossing.as_known(), Some(pb::MigrationCrossing::MIGRATION_CROSSING_NOTHING) | None)
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
@@ -79,11 +78,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.prepared(a, t, role).await;
                 true
             }
-            (Some(S::MIGRATION_SIDE_DESTINATION), Some(P::MIGRATION_PHASE_CUTOVER | P::MIGRATION_PHASE_RELEASE))
-                if matches!(standing, Standing::Held { .. }) =>
-            {
-                self.promoted(a, t, role).await
-            }
+            (
+                Some(S::MIGRATION_SIDE_DESTINATION),
+                Some(P::MIGRATION_PHASE_CUTOVER | P::MIGRATION_PHASE_RELEASE),
+            ) if matches!(standing, Standing::Held { .. }) => self.promoted(a, t, role).await,
             (Some(_), Some(P::MIGRATION_PHASE_VERIFY)) => {
                 self.verified(a, t, role).await;
                 true
@@ -126,7 +124,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 
     /// At `prepare`, on the destination: the target prepared and its content fetched, and the
     /// volumes copies are received into kept, reported once.
-    async fn prepared(&mut self, a: &agent::Assignment, t: &mut Tracked, role: &agent::MigrationRole) {
+    async fn prepared(
+        &mut self,
+        a: &agent::Assignment,
+        t: &mut Tracked,
+        role: &agent::MigrationRole,
+    ) {
         if self.reported(t, role) {
             return;
         }
@@ -156,7 +159,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// At `cutover` and after, on the destination holding the lease: each copy received by
     /// increments promoted into the volume, so the workload is made over what crossed; whether it
     /// may be made. A copy that cannot be promoted fails the phase, which rolls the workload back.
-    async fn promoted(&mut self, a: &agent::Assignment, t: &mut Tracked, role: &agent::MigrationRole) -> bool {
+    async fn promoted(
+        &mut self,
+        a: &agent::Assignment,
+        t: &mut Tracked,
+        role: &agent::MigrationRole,
+    ) -> bool {
         if t.migrated.promoted.as_ref() == Some(&role.migration) {
             return true;
         }
@@ -186,8 +194,14 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 
     /// At `release`, on the source once the hold has passed: the workload's object and each
     /// local copy deleted, reported once; what fails is tried again at the next pass.
-    async fn let_go(&mut self, a: &agent::Assignment, t: &mut Tracked, role: &agent::MigrationRole) {
-        let hold = role.hold_until.as_option().and_then(|h| korpis_wire::time("hold_until", h).ok());
+    async fn let_go(
+        &mut self,
+        a: &agent::Assignment,
+        t: &mut Tracked,
+        role: &agent::MigrationRole,
+    ) {
+        let hold =
+            role.hold_until.as_option().and_then(|h| korpis_wire::time("hold_until", h).ok());
         // The control plane stops rolling back a margin before the hold ends, so this node's clock
         // running ahead deletes nothing a rollback still needs.
         let passed = hold.is_some_and(|h| h <= SystemTime::now());

@@ -109,7 +109,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             Some(S::JOB_STATE_FINISHED) => {
                 let result = status.result.into_option().unwrap_or_default();
                 if !result.ok {
-                    return Manifested::Failed(format!("volume {}'s manifest: {}", v.name, result.error));
+                    return Manifested::Failed(format!(
+                        "volume {}'s manifest: {}",
+                        v.name, result.error
+                    ));
                 }
                 let m = result.manifest.into_option().unwrap_or_default();
                 let chunks = m.runs.into_iter().map(|r| agent::ManifestChunk {

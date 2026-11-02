@@ -28,6 +28,9 @@ fn tree(root: &Path) {
     }
 }
 
+/// What a copy loses, named, and how to lose it from a tree.
+type Loss = (&'static str, fn(&Path));
+
 fn manifest(root: &Path) -> Manifest {
     of(&open(root)).unwrap()
 }
@@ -41,13 +44,13 @@ fn two_trees_alike_have_one_manifest_and_whatever_a_copy_loses_changes_it() {
     assert_eq!(same, manifest(b.path()), "written alike, at other paths and times");
     assert_eq!(same.chunks.len(), 1);
 
-    let losses: [(&str, fn(&Path)); 5] = [
+    let losses: [Loss; 5] = [
         ("a symlink's target", |r| {
             std::fs::remove_file(r.join("current")).unwrap();
             std::os::unix::fs::symlink("world/level.bak", r.join("current")).unwrap();
         }),
         ("an extended attribute", |r| {
-            rustix::fs::removexattr(&r.join("world/level.dat"), "user.korpis").unwrap();
+            rustix::fs::removexattr(r.join("world/level.dat"), "user.korpis").unwrap();
         }),
         ("a hole", |r| {
             let f = File::options().write(true).open(r.join("region.mca")).unwrap();

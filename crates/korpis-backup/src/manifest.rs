@@ -15,6 +15,7 @@
 use crate::error::{Error, Result, sys};
 use crate::meta::{kind_of, wide, xattrs};
 use crate::walk::{names, open_dir, os};
+use buffa::Enumeration as _;
 use korpis_proto::korpis::backup::v1 as pb;
 use rustix::fs::{AtFlags, Mode, OFlags, Stat};
 use sha2::{Digest as _, Sha256};
@@ -154,7 +155,8 @@ impl Walk {
     /// Records the entry `name` of the directory `dir` is open on, at `path`.
     fn entry(&mut self, dir: &OwnedFd, name: &[u8], path: &[u8], depth: usize) -> Result<()> {
         let shown = String::from_utf8_lossy(path).into_owned();
-        let st = rustix::fs::statat(dir, os(name), AtFlags::SYMLINK_NOFOLLOW).map_err(sys(&shown))?;
+        let st =
+            rustix::fs::statat(dir, os(name), AtFlags::SYMLINK_NOFOLLOW).map_err(sys(&shown))?;
         if wide(st.st_dev) != self.dev {
             // Another filesystem mounted in the tree is no part of the volume.
             return Ok(());
@@ -167,7 +169,8 @@ impl Walk {
             pb::EntryKind::ENTRY_KIND_FILE => self.file(dir, name, path),
             pb::EntryKind::ENTRY_KIND_SYMLINK => {
                 let mut r = Self::head(path, &st, None)?;
-                let target = rustix::fs::readlinkat(dir, os(name), Vec::new()).map_err(sys(&shown))?;
+                let target =
+                    rustix::fs::readlinkat(dir, os(name), Vec::new()).map_err(sys(&shown))?;
                 r.bytes(target.as_bytes());
                 self.record(path, &r);
                 Ok(())
@@ -204,7 +207,7 @@ impl Walk {
         }
         let size = wide(st.st_size);
         r.number(size);
-        r.0.extend_from_slice(&i64::from(st.st_mtime).to_be_bytes());
+        r.0.extend_from_slice(&st.st_mtime.to_be_bytes());
         r.number(wide(st.st_mtime_nsec));
         let file = File::from(fd);
         let runs = crate::file::extents(&file, size).map_err(sys(&shown))?;

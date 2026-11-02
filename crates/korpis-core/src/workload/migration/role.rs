@@ -90,7 +90,9 @@ fn volume_role(phase: Phase, v: &MigrationVolume) -> VolumeRole {
         source_helper_id: v.source_helper_id.clone(),
         crossing: v.crossing,
         pass,
-        held_pass: v.held_pass.filter(|_| phase >= Phase::Verify && v.crossing == Crossing::Increments),
+        held_pass: v
+            .held_pass
+            .filter(|_| phase >= Phase::Verify && v.crossing == Crossing::Increments),
     }
 }
 
