@@ -183,7 +183,7 @@ not ended at a time, which the store enforces.
 **Approval is a person's, and the control plane acts as them.** Proposing and deciding take the
 action that governs the kind: `node.drain` or `node.evacuate` on the node, and for a rollout
 `template.write` on the template's organization, as editing the template does, with `grant.read`
-there to propose one, since its items list the grants it is over and their holders; reading an
+there too, since every answer about one lists the grants it is over and their holders; reading an
 operation takes reading its node, or `grant.read` there. Approving takes a person
 acting directly, outside a portal: the operation records who approved, under which grant, and
 whether their credential carried a second factor, and each item begins as that caller, with that

@@ -79,8 +79,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let found = self.store.operation(cmd.operation).await?;
         let (op, _) = found.ok_or(AppError::NotFound { kind: "operation" })?;
-        let (action, object) = self.deciding(op.kind, op.scope).await?;
-        let permit = self.authorize(caller, action, object).await?;
+        let (permit, object) = self.may_decide(caller, op.kind, op.scope).await?;
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
         let locked = tx.operation_in(cmd.operation).await?;
