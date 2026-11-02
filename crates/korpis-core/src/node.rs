@@ -201,7 +201,7 @@ impl Node {
                 self.admin = NodeAdmin::Draining;
                 Ok(true)
             }
-            from => Err(AdminError { from, to: NodeAdmin::Draining }),
+            from @ NodeAdmin::Decommissioned => Err(AdminError { from, to: NodeAdmin::Draining }),
         }
     }
 

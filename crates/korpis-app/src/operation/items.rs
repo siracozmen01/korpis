@@ -39,7 +39,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// A workload's name, as an item's detail.
     async fn named(&self, w: Uuid) -> Result<serde_json::Map<String, serde_json::Value>, AppError> {
-        let name = self.store.workload(w).await?.map(|w| w.name.to_string()).unwrap_or_default();
+        let name =
+            self.store.workload(w).await?.map(|w| w.name.as_str().to_owned()).unwrap_or_default();
         Ok(serde_json::Map::from_iter([("name".to_owned(), name.into())]))
     }
 
