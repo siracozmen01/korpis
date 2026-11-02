@@ -5,9 +5,9 @@
 //! which a person approves whatever the policy would allow; approved, the migration is in
 //! `prepare`, the destination a placement that is not authoritative, holding its capacity on that
 //! node; abandoned, the destination is freed and the plan cancelled. A workload on no node, a move
-//! to the node it is on, a second migration, and a volume whose class cannot cross between the two
-//! nodes are refused, and so is the approval of a move onto a node the scheduler chose that was
-//! cordoned since.
+//! to the node it is on, a second migration, an address of a node pool, which is routed to its node
+//! alone, and a volume whose class cannot cross between the two nodes are refused, and so is the
+//! approval of a move onto a node the scheduler chose that was cordoned since.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::edge_groups::cordon;
@@ -125,7 +125,7 @@ async fn a_move_is_a_plan_a_person_approves_and_abandoning_it_frees_the_destinat
 }
 
 #[tokio::test]
-async fn a_move_is_refused_off_no_node_onto_its_own_and_where_a_volume_cannot_cross() {
+async fn a_move_is_refused_off_no_node_onto_its_own_holding_a_node_s_address_or_uncrossable() {
     let h = Harness::new().await;
     let (a, b) = (TestAgent::enroll(&h, "fra-1", 1).await, TestAgent::enroll(&h, "fra-2", 2).await);
     let (mut sa, first) =
@@ -136,6 +136,17 @@ async fn a_move_is_refused_off_no_node_onto_its_own_and_where_a_volume_cannot_cr
         TestAgent::open(&h, b.hello_with(SystemTime::now(), &[2; 16], local(false))).await;
     welcome(&first.unwrap());
     let workloads = h.workloads(h.root());
+
+    // An address of a node pool is routed to its node alone.
+    let pool = crate::address_pools::asked("p0", &h.root_org(), "203.0.113.0/29", &a.node);
+    h.pools(h.root()).create_address_pool(pool).await.unwrap();
+    let games = project(&h, &h.root_org(), "arenas").await;
+    let arena = crate::address_pools::arena(&push_paper().await);
+    let held = workloads.declare_intent(create("arena", &games, "arena", arena));
+    let held = held.await.unwrap().into_owned().workload.into_option().unwrap().id;
+    crate::address_routes::shown(&h, &held, |d| !d.address.is_empty()).await;
+    let pinned = workloads.migrate_workload(moving("m0", &held, &b.node)).await.unwrap_err();
+    assert_eq!(reason(&pinned), "address.node_pool", "{pinned:?}");
 
     let own = workloads.migrate_workload(moving("m1", &db, &a.node)).await.unwrap_err();
     assert_eq!(reason(&own), "request.invalid", "the node it is on");

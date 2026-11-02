@@ -18,7 +18,7 @@ use korpis_core::principal::Principal;
 use korpis_proto::korpis::v1 as pb;
 use korpis_wire::principal;
 
-fn asked(key: &str, org: &str, cidr: &str, node: &str) -> pb::CreateAddressPoolRequest {
+pub(crate) fn asked(key: &str, org: &str, cidr: &str, node: &str) -> pb::CreateAddressPoolRequest {
     let pool = pb::AddressPool {
         organization: org.into(),
         cidr: cidr.into(),
@@ -46,7 +46,7 @@ async fn refusal(h: &Harness, req: pb::CreateAddressPoolRequest) -> String {
 }
 
 /// A workload whose game and query endpoints are both `dedicated_ip`.
-fn arena(repo: &str) -> pb::IntentBody {
+pub(crate) fn arena(repo: &str) -> pb::IntentBody {
     let dedicated = |name: &str| pb::EndpointSpec {
         name: name.into(),
         exposure: pb::Exposure::EXPOSURE_DEDICATED_IP.into(),
