@@ -129,21 +129,12 @@ async fn a_name_a_dns_provider_serves_is_proven_by_dns_and_its_record_withdrawn(
     declare(&h, &project, "shop", web(&push_paper().await, &["shop.example.com"])).await;
 
     let listed = pb::ListCertificatesRequest { organization: h.root_org(), ..Default::default() };
-    let mut issued = None;
-    for _ in 0..600 {
+    let issued = crate::watching::changed_until(&h, || async {
         let certs = h.certificates(h.root()).list_certificates(listed.clone()).await.unwrap();
-        let certs = certs.into_owned().certificates;
         let done = pb::CertificateState::CERTIFICATE_STATE_ISSUED;
-        if let Some(c) = certs.into_iter().find(|c| c.state.as_known() == Some(done)) {
-            issued = Some(c);
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    let Some(issued) = issued else {
-        let certs = h.certificates(h.root()).list_certificates(listed).await.unwrap();
-        panic!("not issued by DNS-01 within a minute: {:?}", certs.into_owned().certificates);
-    };
+        certs.into_owned().certificates.into_iter().find(|c| c.state.as_known() == Some(done))
+    })
+    .await;
     assert_eq!(issued.names, ["shop.example.com"]);
     let store = h.db.store().await.unwrap();
     let challenges: i64 = sqlx::query_scalar("SELECT count(*) FROM certificate_challenge")

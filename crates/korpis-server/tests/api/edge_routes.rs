@@ -47,16 +47,9 @@ async fn lease(s: &mut Stream, nonce: u8) -> u64 {
     panic!("the lease was never granted");
 }
 
-/// That `fabric`'s router was last asked to route `ADDRESS` to `node`, within forty seconds.
+/// Waits until `fabric`'s router was last asked to route `ADDRESS` to `node`.
 async fn routed_to(fabric: &Fabric, node: &str) {
-    let wanted = (ADDRESS.to_owned(), node.to_owned());
-    for _ in 0..200 {
-        if fabric.routes().last() == Some(&wanted) {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
-    panic!("never routed to {node}: {:?}", fabric.routes());
+    fabric.last_asked_for(&(ADDRESS.to_owned(), node.to_owned())).await;
 }
 
 /// Why the workload's first endpoint is not reached, as its status says.

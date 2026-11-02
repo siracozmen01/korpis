@@ -181,6 +181,7 @@ mod volume_delete;
 mod volume_shared;
 mod volumes;
 mod watch;
+mod watching;
 mod web;
 mod workload;
 mod workload_recipe;

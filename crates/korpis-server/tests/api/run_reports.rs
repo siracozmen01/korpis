@@ -13,7 +13,7 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body as B;
 use korpis_proto::korpis::v1 as pb;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 fn text(s: &str) -> pb::Value {
     pb::Value {
@@ -134,15 +134,6 @@ async fn a_run_is_believed_only_from_its_node_and_judged_by_its_intent_s_exit_pr
         ..Default::default()
     };
     sa.send(message).await.unwrap();
-    for _ in 0..40 {
-        let now_is = status(&h, &workload).await.convergence.as_known();
-        if now_is == Some(pb::Convergence::CONVERGENCE_CONVERGED) {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!(
-        "a task between its runs never converged: {:?}",
-        status(&h, &workload).await.convergence
-    );
+    let converged = Some(pb::Convergence::CONVERGENCE_CONVERGED);
+    crate::watching::status_until(&h, &workload, |s| s.convergence.as_known() == converged).await;
 }

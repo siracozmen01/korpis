@@ -11,7 +11,7 @@ use korpis_core::id::{Id, IdKind};
 use korpis_core::principal::Principal;
 use korpis_proto::korpis::v1 as pb;
 use korpis_server::api::wire::{principal, scope};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const GIB: u64 = 1 << 30;
 
@@ -26,21 +26,13 @@ async fn status(
     got.await.unwrap().into_owned().status.into_option().unwrap()
 }
 
-/// The status once `done` holds, polling while the retry pass runs; panics after five seconds.
+/// The status once `done` holds.
 async fn until(
     h: &Harness,
     w: &str,
     done: impl Fn(&pb::WorkloadStatus) -> bool,
 ) -> pb::WorkloadStatus {
-    let start = Instant::now();
-    loop {
-        let s = status(h, h.root(), w).await;
-        if done(&s) {
-            return s;
-        }
-        assert!(start.elapsed() < Duration::from_secs(5), "never happened: {s:?}");
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
+    crate::watching::status_until(h, w, done).await
 }
 
 fn placed(s: &pb::WorkloadStatus) -> bool {

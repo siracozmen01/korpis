@@ -16,7 +16,7 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::dependency::Target;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// `workload` observed running at `address`, its `game` endpoint ready, down `s`.
 pub(crate) async fn running_at(s: &mut Stream, workload: &str, address: &str) {
@@ -58,14 +58,11 @@ pub(crate) async fn assigned_once(
     workload: &str,
     done: impl Fn(&agent::Assignment) -> bool,
 ) -> agent::Assignment {
-    for _ in 0..100 {
+    crate::watching::changed_until(h, || async {
         let a = assigned(h, workload).await;
-        if done(&a) {
-            return a;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("{workload}'s assignment never came to hold");
+        done(&a).then_some(a)
+    })
+    .await
 }
 
 #[tokio::test]

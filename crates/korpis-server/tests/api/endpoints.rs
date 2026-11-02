@@ -11,7 +11,7 @@ use crate::journal::{assignment, until};
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::Harness;
 use korpis_proto::korpis::v1 as pb;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 async fn session(h: &Harness, name: &str, seed: u8) -> (TestAgent, Stream) {
     let a = TestAgent::enroll(h, name, seed).await;
@@ -35,14 +35,7 @@ async fn status(h: &Harness, w: &str) -> pb::WorkloadStatus {
 
 /// `w`'s endpoints, once its node's assignment placed them.
 async fn placed(h: &Harness, w: &str) -> Vec<pb::Endpoint> {
-    for _ in 0..100 {
-        let s = status(h, w).await;
-        if !s.endpoints.is_empty() {
-            return s.endpoints;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("{w} endpoints never placed: {:?}", status(h, w).await.unplaced);
+    crate::watching::status_until(h, w, |s| !s.endpoints.is_empty()).await.endpoints
 }
 
 fn port_of(endpoints: &[pb::Endpoint], name: &str) -> Option<u32> {

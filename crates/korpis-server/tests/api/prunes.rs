@@ -222,13 +222,11 @@ async fn a_prune_forgets_and_marks_and_after_its_grace_sweeps_leaving_what_is_ke
     let (b1, b2, store) = two_backups(&mut w, &scratch.path().join("volume")).await;
     let plan = proposed(&w, &b1).await;
     w.h.plans(w.h.root()).approve_plan(approve("a", &plan.id)).await.unwrap();
-    for _ in 0..300 {
-        if plan_status(&w.h, &plan.id).await == Some(pb::PlanStatus::PLAN_STATUS_APPLIED) {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    assert_eq!(plan_status(&w.h, &plan.id).await, Some(pb::PlanStatus::PLAN_STATUS_APPLIED));
+    let applied = Some(pb::PlanStatus::PLAN_STATUS_APPLIED);
+    crate::watching::changed_until(&w.h, || async {
+        (plan_status(&w.h, &plan.id).await == applied).then_some(())
+    })
+    .await;
     assert!(get(&w.h, &b1).await.deleted_at.as_option().is_some(), "the first is forgotten");
     assert!(get(&w.h, &b2).await.deleted_at.as_option().is_none(), "the second is kept");
     let record = format!("SELECT count(*) FROM prune_mark WHERE name = 'backups/{}'", bare(&b1));

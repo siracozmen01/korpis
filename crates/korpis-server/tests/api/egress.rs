@@ -8,19 +8,19 @@
 use crate::providers::installed;
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::{Harness, detail, mutation, org_scope};
+use crate::watching::changed_until;
 use buffa::Message as _;
 use korpis_core::principal::Principal;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::network_rule::Peer;
 use korpis_server::api::wire::principal;
-use std::time::Duration;
 
 /// The latest assignment of the workload with wire id `workload`, once it has one.
 pub async fn assigned(h: &Harness, workload: &str) -> agent::Assignment {
     let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Workload, workload).unwrap();
     let store = h.db.store().await.unwrap();
-    for _ in 0..100 {
+    changed_until(h, || async {
         let body: Option<Vec<u8>> = sqlx::query_scalar(
             "SELECT body FROM assignment WHERE workload_id = $1 ORDER BY generation DESC LIMIT 1",
         )
@@ -28,12 +28,9 @@ pub async fn assigned(h: &Harness, workload: &str) -> agent::Assignment {
         .fetch_optional(store.pool())
         .await
         .unwrap();
-        if let Some(b) = body {
-            return agent::Assignment::decode_from_slice(&b).unwrap();
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("{workload} was never assigned");
+        body.map(|b| agent::Assignment::decode_from_slice(&b).unwrap())
+    })
+    .await
 }
 
 async fn reaches_api(h: &Harness, workload: &str) -> bool {
@@ -56,13 +53,7 @@ async fn an_installed_extension_s_workload_reaches_the_api_and_no_other_does() {
 
 /// Waits until the assignment of `workload` says `want` of reaching the API.
 async fn turns(h: &Harness, workload: &str, want: bool) {
-    for _ in 0..100 {
-        if reaches_api(h, workload).await == want {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("{workload} never came to reach the API: {want}");
+    changed_until(h, || async { (reaches_api(h, workload).await == want).then_some(()) }).await;
 }
 
 #[tokio::test]

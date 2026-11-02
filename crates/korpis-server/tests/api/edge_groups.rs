@@ -117,16 +117,7 @@ async fn a_group_is_its_organization_s_own_nodes_and_goes_once_no_pool_names_it(
 /// `workload`'s endpoints as its status shows them, once they are placed: as its assignment is
 /// computed, after the placement itself, within ten seconds.
 pub(crate) async fn endpoints_shown(h: &Harness, workload: &str) -> Vec<pb::Endpoint> {
-    for _ in 0..100 {
-        let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };
-        let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
-        let shown = got.status.into_option().unwrap().endpoints;
-        if !shown.is_empty() {
-            return shown;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-    panic!("its endpoints were never placed");
+    crate::watching::status_until(h, workload, |s| !s.endpoints.is_empty()).await.endpoints
 }
 
 /// A workload whose game and query endpoints are `stable`, its RCON not reached.
