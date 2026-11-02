@@ -18,7 +18,7 @@ impl InMemory {
         std::fs::write(std::path::Path::new(into).join(CHECKPOINT), id)
             .map_err(|e| RuntimeError::Failed(format!("the checkpoint: {e}")))?;
         self.set("checkpoint", id, state(driver::RuntimeState::RUNTIME_STATE_STOPPED, Some(0)))?;
-        Ok(id.len() as u64)
+        Ok(u64::try_from(id.len()).unwrap_or(u64::MAX))
     }
 
     pub(super) fn resume_now(&self, id: &str, from: &str) -> RuntimeResult<()> {

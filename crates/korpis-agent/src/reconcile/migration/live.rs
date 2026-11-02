@@ -81,7 +81,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 
     /// On a live migration's destination, once its copies are the workload's at `cutover`: where
     /// its copy of the state is, which the workload is resumed from as it is made.
-    pub(super) async fn to_resume(
+    pub(super) async fn keep_resume(
         &mut self,
         a: &agent::Assignment,
         t: &mut Tracked,

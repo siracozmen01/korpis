@@ -55,7 +55,10 @@ pub fn restores(source: &Node, destination: &Node, driver: &str) -> bool {
 /// and that sends what it holds, so the state is a directory the driver writes on the one node and
 /// reads on the other.
 #[must_use]
-pub fn state_class<'n>(source: &'n Node, destination: &Node) -> Option<(&'n StorageClass, Crossing)> {
+pub fn state_class<'n>(
+    source: &'n Node,
+    destination: &Node,
+) -> Option<(&'n StorageClass, Crossing)> {
     let mut own: Vec<&StorageClass> =
         source.storage_classes.iter().filter(|c| c.store.is_none() && c.block.is_none()).collect();
     own.sort_by(|a, b| a.name.cmp(&b.name));

@@ -31,13 +31,13 @@ use agent::MigrationSide as S;
 pub(crate) struct Moving {
     pub(crate) h: Harness,
     pub(crate) db: String,
-    plan: String,
+    pub(crate) plan: String,
     migration: String,
     pub(crate) source: (Stream, u64),
     pub(crate) destination: (Stream, u64),
     pub(crate) epoch: u64,
     /// The destination's first assignment of the workload, carrying its role.
-    told: agent::Assignment,
+    pub(crate) told: agent::Assignment,
 }
 
 /// Waits until `workload`'s lease is released.

@@ -86,7 +86,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if let (Some(S::MIGRATION_SIDE_SOURCE), Some(phase)) = standing_of(role)
             && matches!(
                 phase,
-                P::MIGRATION_PHASE_PREPARE | P::MIGRATION_PHASE_REPLICATE | P::MIGRATION_PHASE_QUIESCE
+                P::MIGRATION_PHASE_PREPARE
+                    | P::MIGRATION_PHASE_REPLICATE
+                    | P::MIGRATION_PHASE_QUIESCE
             )
         {
             self.capture(a, t, role).await;
@@ -202,7 +204,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 return false;
             }
         }
-        if let Err(e) = self.to_resume(a, t, role).await {
+        if let Err(e) = self.keep_resume(a, t, role).await {
             let why = format!("the workload's state could not be found: {}", e.0);
             self.report(t, role, (Vec::new(), Vec::new()), Some(why)).await;
             return false;

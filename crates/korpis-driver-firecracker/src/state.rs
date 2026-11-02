@@ -15,9 +15,10 @@ use std::io::{self, Read as _};
 use std::os::fd::OwnedFd;
 use std::path::Path;
 
-/// The files a checkpoint writes, by the names they have in the guest's chroot and in the state's
-/// directory alike.
+/// The machine's state a checkpoint writes, by the name it has in the guest's chroot and in the
+/// state's directory alike.
 pub const VMSTATE: &str = "vmstate";
+/// The guest's memory a checkpoint writes, named as [`VMSTATE`] is.
 pub const MEMORY: &str = "memory";
 /// The drives a resumed guest holds, as its chroot names them.
 pub const DRIVES: [&str; 3] = ["boot.ext4", "image.ext4", "config"];
@@ -31,8 +32,11 @@ const RECORD_MOST: u64 = 64 << 10;
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Taken {
+    /// The Firecracker version, as `firecracker --version` says it.
     pub hypervisor_version: String,
+    /// The CPU template the guest saw; empty for none.
     pub cpu_template: String,
+    /// The host kernel's release, `major.minor`.
     pub kernel: String,
 }
 
@@ -102,7 +106,9 @@ fn copy(from: &OwnedFd, to: &OwnedFd, name: &str) -> io::Result<u64> {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Record {
+    /// The workload, as its node names it.
     pub workload: String,
+    /// Where it was taken.
     pub taken: Taken,
 }
 
