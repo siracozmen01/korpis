@@ -7,6 +7,10 @@
 //! endpoints there are dropped; its volumes stay where they are, lost with the node, and a workload
 //! attached to one stays unplaced, saying why, until it is restored from a backup elsewhere.
 //!
+//! Every migration it takes part in is ended first, since it will report no other phase: abandoned
+//! before the workload moved, rolled back where the destination is removed after the move and the
+//! source still holds its copies, and otherwise complete.
+//!
 //! Either way the node is decommissioned, for good: its key opens no session, the session it holds
 //! ends on whichever replica holds it, and its leases are fenced by the clocks, as any silent
 //! node's are: it cannot renew them, so each ends within one term, and the next issue, to another
@@ -53,6 +57,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             AppError::conflict("node.not_cordoned", why)
         })?;
         if changed {
+            // Ended first, so what the node still holds is counted without them.
+            let migrations = self.end_migrations_on(&mut tx, id).await?;
             let (placed, volumes) = tx.node_holdings(id).await?;
             if !compromised && (!placed.is_empty() || volumes > 0) {
                 let why = format!(
@@ -67,7 +73,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             node.version += 1;
             let by = (caller, permit.grant);
-            let held = (placed, volumes, locked.as_slice());
+            let held = (placed, volumes, locked.as_slice(), migrations);
             self.decommissioned(&mut tx, by, (id, from, compromised), held).await?;
         }
         let allocated = tx.allocations(&[id]).await?.remove(&id).unwrap_or_default();
@@ -103,7 +109,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx: &mut S::Tx,
         (caller, grant): (&Caller, Uuid),
         (id, from, compromised): (Uuid, NodeAdmin, bool),
-        (placed, volumes, locked): (Vec<Uuid>, u64, &[Uuid]),
+        (placed, volumes, locked, migrations): (Vec<Uuid>, u64, &[Uuid], usize),
     ) -> Result<(), AppError> {
         let mut moved = 0usize;
         for w in placed {
@@ -125,6 +131,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ("from", admin_name(from).into()),
                 ("compromised", compromised.into()),
                 ("workloads_placed_again", moved.into()),
+                ("migrations_ended", migrations.into()),
                 ("endpoints_dropped", endpoints.into()),
                 ("pool_released", pool.into()),
                 ("volumes_lost", volumes.into()),

@@ -65,6 +65,16 @@ pub trait VolumeWrite {
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
+    /// Detaches the volume `volume` from `workload`, which holds it, at `now`, as an evacuation
+    /// leaves a volume lost with its node; whether it held it. The record stays, an orphan on that
+    /// node, never deleted on the assumption it is gone.
+    fn leave_volume(
+        &mut self,
+        volume: Uuid,
+        workload: Uuid,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Records what `node` reports of a volume, at `now`: a volume ensured is created on first
     /// report, in the project of the workload it is for, and attached to that workload; one deleted
     /// is marked so, never removed, and a console stream's deletion leaves no segment of the stream

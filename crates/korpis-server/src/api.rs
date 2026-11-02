@@ -48,6 +48,8 @@ mod layout;
 mod metering;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod node;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod operation;
 mod placement_policy;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod plan;

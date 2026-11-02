@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO operation (id, kind, node_id, template_id, template_version, concurrency,\n                                    max_unavailable, on_failure, status, reason, proposed_by,\n                                    proposed_under, proposed_at)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int4",
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "19ffa3ba6144228243fefc2bb5dd6bc578ff7b7f2feaac29027d6d394df33ac0"
+}

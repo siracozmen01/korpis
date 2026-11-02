@@ -26,6 +26,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("ssh_key_fingerprint_key") => Unique::SshKey,
         Some("grant_template_name") => Unique::TemplateName,
         Some("identity_binding_subject") => Unique::BindingSubject,
+        Some("operation_one_per_node") => Unique::NodeOperation,
         Some("node_public_key_key") => Unique::NodeKey,
         Some("relay_name_key" | "relay_url_key" | "relay_public_key_key") => Unique::Relay,
         _ => Unique::Other,

@@ -160,29 +160,95 @@ plans one by one is not a workflow anyone uses.
 Operation
   kind       drain | evacuate | migrate | rebalance | recipe_rollout | bulk_intent |
              node_upgrade | template_rollout
-  scope      a selector or an explicit set
-  plans      one per affected item, generated as it proceeds
-  policy     concurrency, max_unavailable, on_failure: pause | continue | abort, window
+  scope      a node, a template version, a selector or an explicit set
+  items      one per workload or grant in scope, each generating its plan as it begins
+  policy     concurrency, max_unavailable, on_failure: pause | continue | abort, start_after
   status     proposed | approved | running | paused | completed | failed | aborted
-  progress   total, completed, failed, remaining
+  progress   total, waiting, applying, settling, done, failed, skipped
 ```
 
 An operation owns many plans with one approval, one progress view and one pause, resume and abort
-control. Each plan is still computed against its own workload and audited, and the person approves
-the decision actually made ("drain node 7"), not two hundred restatements. `max_unavailable` is what
-makes drain safe: without it every workload on the node migrates at once, a self-inflicted outage.
+control. Each plan is still computed against its own workload and audited, names its operation, and
+the person approves the decision actually made ("drain node 7"), not two hundred restatements.
 Plans are generated as the operation proceeds, since a plan computed two hours earlier would be
 superseded on arrival.
 
-- **evacuate** is drain for a node that cannot take part: it re-places workloads from their intents,
-  which for local storage means their latest backup or empty, and its plan names per workload which
-  and what data is at risk. It is never generated automatically for a `keep_running` workload, whose
-  original may still run.
+**Items are fixed at proposal and found again at approval.** Proposing finds every item in scope
+and keeps it with what it needs, so the proposer and the approver read the same list; approving
+finds them again, adding an item that arrived and skipping one that left. Nothing arrives after:
+a drained or evacuated node goes `draining` as the operation is approved, and takes no placement,
+and its end, however it ends, leaves the node `cordoned`. A node is under one operation that has
+not ended at a time, which the store enforces.
+
+**Approval is a person's, and the control plane acts as them.** Proposing and deciding take the
+action that governs the kind: `node.drain` or `node.evacuate` on the node, and for a rollout
+`template.write` on the template's organization, as editing the template does, with `grant.read`
+there too, since every answer about one lists the grants it is over and their holders; reading an
+operation takes reading its node, or `grant.read` there. Approving takes a person
+acting directly, outside a portal: the operation records who approved, under which grant, and
+whether their credential carried a second factor, and each item begins as that caller, with that
+authority decided again as it begins. What reached the approver through a relay or a portal session
+is not there when the item begins, so it is refused rather than reconstructed. An approver who lost
+the authority since begins nothing more; that item fails, as the policy says.
+
+**The reconciler admits by the policy, every pass.** The control plane's loop, each heartbeat
+interval, starts each approved operation whose `start_after` has come, settles each item under way
+against what nodes report, ends the operation once every item has (completed if none failed, failed
+otherwise), and begins as many waiting items as the policy admits, each in a transaction of its own
+under the operation's lock, so a pause or an abort decided meanwhile is seen before the next one.
+An item that ends as it begins, as a rollout's grant does, takes no place, so the pass goes on to
+the next and ends the operation once every item has, rather than one grant a heartbeat.
+An item applies while its plan does; one that moved a workload then settles until the node it now
+runs on reports it running, or stopped as its power says. `concurrency` bounds the items applying,
+and `max_unavailable` the items applying or settling, since any applying item may stop its workload
+and one that has not been seen running since is down. A workload that fails to start where it lands
+holds the budget, which is what the bound is for: without it every workload on the node migrates at
+once, a self-inflicted outage. An item that cannot begin (no node takes it, it migrates already, its
+grant was revoked) fails alone with the refusal's reason, and the operation pauses, continues or
+fails as `on_failure` says; a fault of the control plane's own fails nothing and is tried at the
+next pass. An abort begins nothing more and skips what waits; a plan already applying goes on and is
+the operator's to end through its own controls.
+
+- **drain** moves each workload off a node that takes part, by a `migrate` plan toward the
+  scheduler's choice, approved in the transaction that proposes it, which begins the migration as
+  any approved migration begins. A workload deleted or moved off meanwhile is skipped. Its item
+  settles once the migration has moved it and fails if the migration is abandoned or rolled back.
+  The node then holds nothing but each migration's source copies until their holds end, and is
+  removed as any cordoned node is.
+- **evacuate** is drain for a node found unreachable: it places each workload again from its target,
+  as failover does, but on an operator's decision, which accepts what failover never does on its
+  own. Each volume comes from where another node reaches it; or from its freshest replica, whatever
+  the declaration says of automatic failover, losing what was written since its last snapshot; or,
+  its only copy lost with the node, it is made anew holding its latest backup, losing what was
+  written since, or empty, losing everything. The lost volume is detached and kept as an orphan on
+  that node. Each item names, at proposal and again as it begins, where each volume comes from and
+  since when data is lost, and whether the workload may still be running there: a `keep_running`
+  workload may, and a copy started elsewhere splits it, which is why the scheduler never does this
+  on its own. A `stop` workload still waits for its lease to end, since two writers would corrupt a
+  volume both reach. One whose plan is under way on the node, or whose declaration attaches a lost
+  volume, is refused, since the node holds what that plan made and an attachment cannot be made
+  anew. The remake plan names the operation and its approver. The new node acts only under a lease,
+  issued once the old one is past its term at the grantor and under a higher epoch, which fences the
+  old node should it return.
 - **bulk_intent** ("restart these two hundred", "label these five hundred") gives per-item results:
   a workload changed underneath conflicts alone and the rest proceed. All-or-nothing across
   independently owned workloads would let one person's edit block everyone's change.
 - **template_rollout** is an operation over grants: one approval for "give every Moderator what
-  version 3 adds", a plan per grant issuing the difference, attenuated from the approver's grant; a
-  holder revoked meanwhile fails alone.
+  version 3 adds", an item per live grant issued from the template at an earlier version, each
+  issuing what the version adds over the grant's own version as a grant of its own to the same
+  holder, on the same scope and under the same conditions. The approver names a grant they hold, and
+  each addition is attenuated from it through the ordinary check of an issue, so a rollout gives
+  nobody what its approver could not. The grant added to is untouched, so revoking the addition takes
+  back only what the rollout gave. A grant whose chain is not in force before its turn (it, or
+  any grant it was attenuated from, revoked, suspended or expired) fails alone, and so does one
+  limited in uses, whose remaining uses an addition could not share; one not in force when the
+  rollout is proposed is not an item at all.
 - **rebalance** is only ever asked for: the scheduler may recommend, never move a running workload
   on its own.
+
+**What it costs.** An item's authority is the approver's, read again later, so an approval made
+with a second factor stands for actions taken after that factor was presented; a person who does
+not want that pauses or aborts. A drain holds each workload's source copies for a day by default,
+so the node is removable only once the last hold ends, or at once by removing it, which completes
+those migrations. Settling waits on a report, so a node that never reports a workload running holds
+its operation's budget until a person aborts it.

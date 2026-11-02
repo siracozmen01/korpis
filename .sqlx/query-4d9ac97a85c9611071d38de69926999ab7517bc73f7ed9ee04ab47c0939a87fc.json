@@ -1,0 +1,136 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT operation_id, subject, position, state, plan_id, issued, detail, reason, begun_at,\n                ended_at\n           FROM operation_item WHERE operation_id = $1 ORDER BY position",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operation_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "operation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "subject",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "subject"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "position",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "position"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "plan_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "plan_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "issued",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "issued"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "detail",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "detail"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "begun_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "begun_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "ended_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "operation_item",
+            "name": "ended_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "4d9ac97a85c9611071d38de69926999ab7517bc73f7ed9ee04ab47c0939a87fc"
+}

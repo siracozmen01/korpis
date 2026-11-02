@@ -94,4 +94,8 @@ impl Harness {
     pub fn nodes(&self, config: ClientConfig) -> pb::NodeServiceClient<HttpClient> {
         pb::NodeServiceClient::new(self.http.clone(), config)
     }
+
+    pub fn operations(&self, config: ClientConfig) -> pb::OperationServiceClient<HttpClient> {
+        pb::OperationServiceClient::new(self.http.clone(), config)
+    }
 }

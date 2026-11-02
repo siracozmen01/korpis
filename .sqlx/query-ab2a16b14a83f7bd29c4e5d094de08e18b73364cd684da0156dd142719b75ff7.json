@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO operation_item (operation_id, subject, position, state, plan_id, issued,\n                                         detail, reason, begun_at, ended_at)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n             ON CONFLICT (operation_id, subject) DO UPDATE\n                SET state = $4, plan_id = $5, issued = $6, detail = $7, reason = $8,\n                    begun_at = $9, ended_at = $10",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Jsonb",
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ab2a16b14a83f7bd29c4e5d094de08e18b73364cd684da0156dd142719b75ff7"
+}

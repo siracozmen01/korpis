@@ -54,7 +54,10 @@ nothing: a grant that may restart a server was never one to take capacity on a s
 proposes a plan of kind `migrate` with one control-plane step, disruptive since quiesce stops the
 workload, never approved by a policy: a person approves it, or an operation a person approved. The
 plan names the destination with the scheduler's explanation, each volume with its size and how it
-crosses, whether quiesce stops or captures, and each endpoint whose address changes.
+crosses, whether quiesce stops or captures, and each endpoint whose address changes. A drain
+proposes these plans itself, one per workload as its policy admits, each toward the scheduler's
+choice with the default hold, and approves each in the transaction that proposes it as the person
+who approved the drain ([plans](plans.md#operations)).
 
 It is refused, saying why, for a workload holding an address of a `node` pool, one already migrating
 or unplaced, a destination failing any placement check, and a local volume whose class cannot cross
@@ -236,6 +239,12 @@ source silent at cutover is waited out, since its lease's end is what cutover ne
 silent after the move, never having reported the workload started, rolls it back. During release a
 silent node is not acted on. A source that never returns leaves the migration in release until the
 node is removed.
+
+**A removed node ends each migration it takes part in**, since it reports no other phase, before
+what it holds is counted. One before the move is abandoned and the destination's placement freed.
+One whose destination is removed after the move is rolled back to the source while the source still
+holds its copies, more than `CLOCK_MARGIN` before its hold ends; any other completes, and what the
+removed node held is lost with it, as removal says of every workload it held.
 
 **The meter is cut at the epoch.** The source's samples are believed while it holds the lease, the
 last at its release; the destination's first is under the new epoch and counts from zero, since no

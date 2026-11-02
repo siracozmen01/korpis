@@ -19,15 +19,34 @@ use crate::ports::{
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::node::Connectivity;
 use korpis_core::placement::Placement;
+use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::Workload;
 use korpis_core::workload::spec::Continuity;
 use std::time::UNIX_EPOCH;
 use uuid::Uuid;
 
-/// A workload placed again by failover: the node it leaves.
+/// A workload placed again by failover: the node it leaves, and the evacuation that placed it, if
+/// an operator's did.
 pub(super) struct Failover {
     /// The unreachable node.
     pub(super) from: Uuid,
+    /// The evacuation, if one placed it.
+    pub(super) evacuated: Option<Evacuated>,
+}
+
+/// A workload an operator's evacuation places again: by the operation, under the approver's
+/// grant, each volume lost with the node made anew holding the backup named for it.
+pub(crate) struct Evacuated {
+    /// The operation.
+    pub(crate) operation: Uuid,
+    /// The person who approved it.
+    pub(crate) by: Principal,
+    /// The grant they approved it under.
+    pub(crate) grant: Uuid,
+    /// Each volume lost with the node, left by the workload in the same transaction.
+    pub(crate) lost: Vec<Uuid>,
+    /// Each volume made anew, by name, with the backup it is made holding.
+    pub(crate) seeded: Vec<(String, Uuid)>,
 }
 
 impl Failover {
@@ -38,17 +57,21 @@ impl Failover {
         placed: &Placement,
         (held, grant): (&[Held], Option<Uuid>),
     ) -> Effect {
-        let actor = korpis_core::principal::Principal::System(
-            korpis_core::principal::SystemActor::Scheduler,
-        );
+        let (actor, action, grant) = match &self.evacuated {
+            Some(by) => (by.by.clone(), "workload.evacuate", Some(by.grant)),
+            None => (Principal::System(SystemActor::Scheduler), "workload.failover", grant),
+        };
         let volumes: Vec<String> = held.iter().map(|h| h.id.to_string()).collect();
-        let mut e = Effect::new(actor, "workload.failover", Outcome::Succeeded).after(details([
+        let mut e = Effect::new(actor, action, Outcome::Succeeded).after(details([
             ("from", self.from.to_string().into()),
             ("to", placed.node.to_string().into()),
             ("intent", placed.intent.to_string().into()),
             ("volumes", volumes.join(", ").into()),
             ("reason", placed.reason.clone().into()),
         ]));
+        if let (Some(by), Some(after)) = (&self.evacuated, e.after.as_mut()) {
+            after.insert("operation".to_owned(), by.operation.to_string().into());
+        }
         // What was written since the stalest replica a volume was made from received is lost.
         let lost = held.iter().filter_map(|h| h.promote.as_ref().map(|p| p.received_at)).min();
         let since = lost.and_then(|at| at.duration_since(UNIX_EPOCH).ok());
@@ -112,7 +135,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if self.on_expiry(from, &target.body).await? != Continuity::Stop {
             return Ok(false);
         }
-        let failover = Failover { from };
+        let failover = Failover { from, evacuated: None };
         let screened = Screened::default();
         self.place_new(&mut tx, (&w, &target), None, &screened, Some(&failover)).await?;
         let moved = tx.placement_in(id).await?.is_some_and(|p| p.node != from);

@@ -23,6 +23,7 @@ pub mod layout;
 pub mod logs;
 pub mod logs_offloaded;
 pub mod migration;
+pub mod operation;
 pub mod placement;
 pub mod portal;
 pub mod provider;
