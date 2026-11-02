@@ -28,14 +28,14 @@ use agent::MigrationSide as S;
 
 /// Two nodes, a workload with a volume made and running on the first under `epoch`, and a
 /// migration of it to the second approved: each node's stream and its next journal sequence.
-struct Moving {
-    h: Harness,
-    db: String,
+pub(crate) struct Moving {
+    pub(crate) h: Harness,
+    pub(crate) db: String,
     plan: String,
     migration: String,
-    source: (Stream, u64),
-    destination: (Stream, u64),
-    epoch: u64,
+    pub(crate) source: (Stream, u64),
+    pub(crate) destination: (Stream, u64),
+    pub(crate) epoch: u64,
     /// The destination's first assignment of the workload, carrying its role.
     told: agent::Assignment,
 }
@@ -72,7 +72,7 @@ fn local() -> Vec<pb::StorageClassInfo> {
     }]
 }
 
-async fn moving() -> Moving {
+pub(crate) async fn moving() -> Moving {
     Box::pin(moving_held(None)).await
 }
 
@@ -205,7 +205,7 @@ async fn copy(m: &mut Moving, (phase, before): (P, &str), sent: u64) -> String {
 
 /// Walks `m` through `verify`, both manifests `(source, destination)`, its first pass sending
 /// `first` bytes.
-async fn through_verify(m: &mut Moving, manifests: (&str, &str), first: u64) {
+pub(crate) async fn through_verify(m: &mut Moving, manifests: (&str, &str), first: u64) {
     use pb::MigrationPhase as M;
     let id = m.migration.clone();
     let dest = S::MIGRATION_SIDE_DESTINATION;
@@ -235,7 +235,7 @@ async fn through_verify(m: &mut Moving, manifests: (&str, &str), first: u64) {
 
 /// Releases the source's lease, so the placement moves, and has the destination start the
 /// workload under the next epoch and report it; that epoch.
-async fn cut_over(m: &mut Moving) -> u64 {
+pub(crate) async fn cut_over(m: &mut Moving) -> u64 {
     let released =
         agent::LeaseReleased { workload: m.db.clone(), epoch: m.epoch, ..Default::default() };
     up(&mut m.source.0, Up::LeaseReleased(Box::new(released))).await;
