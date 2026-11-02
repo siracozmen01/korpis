@@ -45,19 +45,24 @@ impl DnsProvider for Zone {
             message: String::new(),
             retryable: false,
         };
-        let answer = if records.iter().any(|r| !r.name.ends_with(".example.com")) {
-            Err(refuse)
-        } else {
-            self.0.with(|held| {
-                if records.is_empty() {
-                    held.remove(&owner);
-                } else {
-                    held.insert(owner, records);
-                }
-            });
-            Ok(pb::RecordsApplied::default())
-        };
-        std::future::ready(answer)
+        if records.iter().any(|r| !r.name.ends_with(".example.com")) {
+            return std::future::ready(Err(refuse));
+        }
+        self.0.with(|held| keep(held, owner, records));
+        std::future::ready(Ok(pb::RecordsApplied::default()))
+    }
+}
+
+/// The zone holding `records` for `owner`, or nothing of it where there are none.
+fn keep(
+    held: &mut BTreeMap<String, Vec<pb::DnsRecord>>,
+    owner: String,
+    records: Vec<pb::DnsRecord>,
+) {
+    if records.is_empty() {
+        held.remove(&owner);
+    } else {
+        held.insert(owner, records);
     }
 }
 

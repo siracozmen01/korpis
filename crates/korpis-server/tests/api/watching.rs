@@ -32,7 +32,7 @@ pub(crate) async fn status_until(
     match tokio::time::timeout(BOUND, watched).await {
         Ok(Some(status)) => status,
         Ok(None) => panic!("the watch of {workload} ended before its status came about"),
-        Err(_) => panic!("{workload}'s status never came about"),
+        Err(tokio::time::error::Elapsed { .. }) => panic!("{workload}'s status never came about"),
     }
 }
 
