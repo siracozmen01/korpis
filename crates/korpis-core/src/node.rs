@@ -192,6 +192,29 @@ impl Node {
         }
     }
 
+    /// Begins its operation: an `active` or `cordoned` node takes no new placement while its
+    /// drain or evacuation runs. Returns whether anything changed.
+    pub fn drain(&mut self) -> Result<bool, AdminError> {
+        match self.admin {
+            NodeAdmin::Draining => Ok(false),
+            NodeAdmin::Active | NodeAdmin::Cordoned => {
+                self.admin = NodeAdmin::Draining;
+                Ok(true)
+            }
+            from => Err(AdminError { from, to: NodeAdmin::Draining }),
+        }
+    }
+
+    /// Ends its operation, however it ended: the node stays out of placement, cordoned, until an
+    /// operator uncordons or removes it. Returns whether anything changed.
+    pub fn drained(&mut self) -> bool {
+        let draining = self.admin == NodeAdmin::Draining;
+        if draining {
+            self.admin = NodeAdmin::Cordoned;
+        }
+        draining
+    }
+
     /// Retires the node for good. A node is removed from `cordoned`, once it holds nothing, which
     /// the caller checks; one removed as `compromised` is removed from any state, since nothing it
     /// holds can be trusted to leave by an operation it takes part in. Returns whether anything
@@ -261,6 +284,18 @@ mod tests {
         assert!(n.set_admin(NodeAdmin::Draining).is_err(), "draining is an operation");
         let mut d = node(NodeAdmin::Draining, Connectivity::Connected);
         assert!(d.set_admin(NodeAdmin::Active).is_err(), "only its operation ends a drain");
+    }
+
+    #[test]
+    fn a_drain_ends_with_the_node_cordoned_and_never_drains_a_removed_one() {
+        let mut n = node(NodeAdmin::Active, Connectivity::Connected);
+        assert_eq!(n.drain(), Ok(true));
+        assert_eq!(n.status(), NodeStatus::Draining);
+        assert!(n.drained());
+        assert_eq!(n.admin, NodeAdmin::Cordoned, "out of placement until an operator says");
+        let mut gone = node(NodeAdmin::Decommissioned, Connectivity::Unreachable);
+        assert!(gone.drain().is_err());
+        assert!(!gone.drained());
     }
 
     #[test]

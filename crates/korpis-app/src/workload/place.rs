@@ -9,7 +9,7 @@
 //! no node is kept with its full derivation and logged once per target, so retrying does not flood
 //! the log.
 
-use super::failover::Failover;
+use super::failover::{Evacuated, Failover};
 use super::remake::Held;
 use super::screen::Screened;
 use crate::App;
@@ -201,11 +201,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.clear_unplaced(w.id).await?;
             return Ok(());
         }
-        self.place_new(tx, (w, target), current, screened, None).await
+        self.place_new(tx, (w, target), current, screened, None).await.map(drop)
     }
 
     /// Places `w` for `target`, which it is not placed for: on its node, where it is placed, or
-    /// wherever the policy prefers; or, by `failover`, on another node reaching its data.
+    /// wherever the policy prefers; or, by `failover`, on another node reaching its data. Returns
+    /// the remake plan it wrote, for a workload made on another node.
     pub(super) async fn place_new(
         &self,
         tx: &mut S::Tx,
@@ -213,7 +214,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         current: Option<Placement>,
         screened: &Screened,
         failover: Option<&Failover>,
-    ) -> Result<(), AppError> {
+    ) -> Result<Option<Uuid>, AppError> {
         let owners = self.owners(w.organization).await?;
         let mut nodes = tx.serving_nodes(&owners).await?;
         if let Some(p) = &current {
@@ -226,7 +227,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let peers = tx.peers(w.organization, w.id).await?;
         let empty = Bounds::default();
         let candidates = candidates_of(&nodes, &allocations, &empty);
-        let gone = failover.map(|f| f.from);
+        let gone = (failover.map(|f| f.from), failover.and_then(|f| f.evacuated.as_ref()));
         let reached = self.reached_volumes(tx, (w, target), (current.is_some(), gone));
         let (volumes, remade) = Box::pin(reached).await?;
         let refused = self.refusals_screened(tx, (w, target), screened).await?;
@@ -259,7 +260,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let explanation = place(&req, &candidates, &peers, &self.policies(&owners).await?);
         let Some(node) = explanation.chosen else {
-            return self.record_unplaced(tx, w, target, explanation).await;
+            return self.record_unplaced(tx, w, target, explanation).await.map(|()| None);
         };
         let given = given_on(&req, &nodes, node)?;
         if let Some(n) = nodes.iter().find(|n| n.id == node) {
@@ -277,12 +278,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         &self,
         tx: &mut S::Tx,
         (w, target): (&Workload, &Intent),
-        (placed, gone): (bool, Option<Uuid>),
+        (placed, gone): (bool, (Option<Uuid>, Option<&Evacuated>)),
     ) -> Result<(Vec<(Uuid, Home)>, Option<Vec<Held>>), AppError> {
         if placed || !tx.made_and_settled(w.id).await? {
             return Ok((self.existing_nodes(&target.body).await?, None));
         }
-        let held = self.held_volumes(w, (&target.body, gone)).await?;
+        let lost = gone.1.map_or(&[][..], |e| e.lost.as_slice());
+        let held = self.held_volumes(w, (&target.body, gone.0), (gone.1.is_some(), lost)).await?;
         Ok((held.iter().map(|h| (h.id, h.home.clone())).collect(), Some(held)))
     }
 
@@ -309,7 +311,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx: &mut S::Tx,
         binding: Binding<'_>,
         explanation: Explanation,
-    ) -> Result<(), AppError> {
+    ) -> Result<Option<Uuid>, AppError> {
         let Binding { w, target, current, node, given, failover, remade } = binding;
         let followed = current.is_some();
         let fresh = if failover.is_some() { BoundBy::Failover } else { BoundBy::Scheduler };
@@ -338,7 +340,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let grant = tx.decision_grant(w.id).await?;
         let remake = match &remade {
             // Boxed: every placement's future would otherwise carry this one's.
-            Some(held) => Some(Box::pin(self.remake(tx, (w, target), (held, node), grant)).await?),
+            Some(held) => {
+                let by = (grant, failover.and_then(|f| f.evacuated.as_ref()));
+                Some(Box::pin(self.remake(tx, (w, target), (held, node), by)).await?)
+            }
             None => None,
         };
         let mut e = match failover {
@@ -352,7 +357,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         (e.node, e.plan) = (Some(node), remake);
         tx.append_effect(&e).await?;
-        Ok(())
+        Ok(remake)
     }
 
     async fn record_unplaced(

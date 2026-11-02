@@ -87,8 +87,8 @@ async fn make_runs(api: Arc<Api>) {
 /// Marks unreachable, every heartbeat interval, each connected node not heard for three, then
 /// places again each workload on an unreachable node that may be now, then moves each migrating
 /// workload whose source's lease ran out at its cutover and ends each migration a silent node
-/// stalls, then tends every volume's replicas against the nodes as they are now. The task ends with
-/// the process.
+/// stalls, then advances every running operation, then tends every volume's replicas against the
+/// nodes as they are now. The task ends with the process.
 async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
     let mut tick = tokio::time::interval(every);
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -108,6 +108,11 @@ async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
             Ok(0) => {}
             Ok(n) => tracing::info!(migrations = n, "migrations cut over or ended"),
             Err(e) => tracing::warn!(error = %e, "tending migrations failed"),
+        }
+        match api.app().tend_operations().await {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(items = n, "operation items begun or ended"),
+            Err(e) => tracing::warn!(error = %e, "tending operations failed"),
         }
         match api.app().tend_replicas().await {
             Ok(0) => {}

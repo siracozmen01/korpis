@@ -193,7 +193,9 @@ the grantor's end of its lease has passed (last renewal received plus the term),
 under the placement lock with `bound_by: failover`, recorded as `workload.failover` naming the old
 node, the new one and what it took. A `keep_running` workload is never moved this way, since it may
 still be running. A workload no node can take stays where it was, saying why, and is tried at each
-sweep.
+sweep. The sweep marks nodes under the placement lock, so a placement that chose a node while it was
+heard binds before the node is found silent, never after, and no workload lands on a node already
+marked and escapes the failover that follows.
 
 It moves only where all its data is: it has no volume; each volume is in a shared class whose store
 the new node offers; or in a block class whose provider fences the old node at the attach; or it is

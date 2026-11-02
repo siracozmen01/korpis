@@ -76,7 +76,8 @@ fn a_dependent_goes_to_its_targets_node_and_a_required_unplaced_one_nowhere() {
     let empty = Bounds::new();
     let nodes =
         [Candidate { node: &one, allocated: &empty }, Candidate { node: &two, allocated: &empty }];
-    let needed = |required, targets| [Needed { name: "db".into(), required, targets }];
+    let needed =
+        |required, targets| [Needed { name: "db".into(), required, targets, dependents: false }];
     let placed = |deps: &[Needed], peers: &[Peer]| {
         let request = Request { dependencies: deps, ..req(&labels, &b) };
         place(&request, &nodes, peers, &Policies::default())

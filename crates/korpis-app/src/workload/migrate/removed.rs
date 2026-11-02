@@ -10,7 +10,7 @@
 use super::conclude::EndedBy;
 use crate::App;
 use crate::error::AppError;
-use crate::ports::{Clock, MigrationRead as _, MigrationWrite as _, RecipeSource, Store};
+use crate::ports::{Clock, MigrationWrite as _, RecipeSource, Store};
 use korpis_core::workload::migration::{CLOCK_MARGIN, Migration};
 use uuid::Uuid;
 

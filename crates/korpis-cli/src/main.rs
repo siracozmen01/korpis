@@ -16,6 +16,7 @@ use korpis_cli::cmd::extension;
 use korpis_cli::cmd::files::files as remote_files;
 use korpis_cli::cmd::identity;
 use korpis_cli::cmd::migration;
+use korpis_cli::cmd::operation;
 use korpis_cli::cmd::portal;
 use korpis_cli::cmd::quota;
 use korpis_cli::cmd::repository;
@@ -257,6 +258,7 @@ async fn object(c: &Connection, command: &Command) -> Result<Answer, CliError> {
         Command::AddressPool(a) => address_pool::address_pool(c, a).await,
         Command::EdgeGroup(a) => edge_group::edge_group(c, a).await,
         Command::Migration(a) => migration::migration(c, a).await,
+        Command::Operation(a) => operation::operation(c, a).await,
         Command::Theme(a) => theme::theme(c, a).await,
         Command::Layout(a) => layout::layout(c, a).await,
         _ => Err(CliError::Local("not a command about one kind of object".into())),

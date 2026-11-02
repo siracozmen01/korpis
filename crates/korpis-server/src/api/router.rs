@@ -8,8 +8,8 @@ use korpis_proto::korpis::v1::{
     AccountServiceExt, AddressPoolServiceExt, BackupServiceExt, CertificateServiceExt,
     DeclaredSetServiceExt, DomainServiceExt, EdgeGroupServiceExt, EffectServiceExt,
     EventServiceExt, ExtensionServiceExt, GrantServiceExt, IdentityServiceExt, MeteringServiceExt,
-    NodeServiceExt, OrganizationServiceExt, PlanServiceExt, PortalServiceExt, ProfileServiceExt,
-    ProjectServiceExt, ProviderServiceExt, RepositoryServiceExt, RunServiceExt,
+    NodeServiceExt, OperationServiceExt, OrganizationServiceExt, PlanServiceExt, PortalServiceExt,
+    ProfileServiceExt, ProjectServiceExt, ProviderServiceExt, RepositoryServiceExt, RunServiceExt,
     ServerInfoServiceExt, SessionServiceExt, StreamServiceExt, VolumeServiceExt,
     WorkloadServiceExt,
 };
@@ -28,6 +28,7 @@ impl Api {
         let router = WorkloadServiceExt::register(Arc::clone(&self), router);
         let router = PlanServiceExt::register(Arc::clone(&self), router);
         let router = NodeServiceExt::register(Arc::clone(&self), router);
+        let router = OperationServiceExt::register(Arc::clone(&self), router);
         let router = EffectServiceExt::register(Arc::clone(&self), router);
         let router = MeteringServiceExt::register(Arc::clone(&self), router);
         let router = DeclaredSetServiceExt::register(Arc::clone(&self), router);
