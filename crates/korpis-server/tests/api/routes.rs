@@ -104,7 +104,7 @@ async fn a_routed_name_keeps_its_holder_through_deletion_and_delegation() {
 async fn an_ingress_endpoint_lands_where_the_ingress_is_served_and_its_node_is_told_the_route() {
     use crate::agent::{TestAgent, welcome};
     use crate::journal::{assignment, until};
-    use std::time::{Duration, SystemTime};
+    use std::time::SystemTime;
 
     let h = Harness::new().await;
     let a = TestAgent::enroll(&h, "fra-1", 1).await;
@@ -126,14 +126,9 @@ async fn an_ingress_endpoint_lands_where_the_ingress_is_served_and_its_node_is_t
 
     let store = h.db.store().await.unwrap();
     sqlx::query("UPDATE node SET ingress = true").execute(store.pool()).await.unwrap();
-    let mut endpoints = Vec::new();
-    for _ in 0..100 {
-        endpoints = status().await.endpoints;
-        if !endpoints.is_empty() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
+    // Placed by the next retry pass, which announces the placement.
+    let endpoints =
+        crate::watching::status_until(&h, &w.id, |s| !s.endpoints.is_empty()).await.endpoints;
     let web = endpoints.iter().find(|e| e.name == "web").expect("placed");
     let address = web.address.as_option().unwrap();
     assert_eq!((address.ips.as_slice(), address.port), (&["203.0.113.10".to_owned()][..], 443));

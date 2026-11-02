@@ -26,16 +26,14 @@ fn free_port() -> u16 {
 
 /// The portal's state, read until its certificate is issued.
 async fn issued(h: &Harness, id: &str) -> pb::Portal {
-    for _ in 0..240 {
+    let issued = Some(pb::CertificateState::CERTIFICATE_STATE_ISSUED);
+    crate::watching::changed_until(h, || async {
         let got = pb::GetPortalRequest { id: id.into(), ..Default::default() };
         let p = h.portals(h.root()).get_portal(got).await.unwrap().into_owned();
         let p = p.portal.into_option().unwrap();
-        if p.certificate_state.as_known() == Some(pb::CertificateState::CERTIFICATE_STATE_ISSUED) {
-            return p;
-        }
-        tokio::time::sleep(Duration::from_millis(250)).await;
-    }
-    panic!("the portal's certificate was never issued");
+        (p.certificate_state.as_known() == issued).then_some(p)
+    })
+    .await
 }
 
 /// A TLS client trusting `roots` alone.
