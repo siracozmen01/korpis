@@ -140,6 +140,12 @@ pub(super) fn resumed(
     let config = crate::object::Object::config(dir);
     std::fs::rename(at.join("config"), &config)?;
     std::os::unix::fs::chown(&config, Some(uid), Some(uid))?;
+    // The drives it booted from are its Firecracker's to read alone, as its own id.
+    for name in &DRIVES[..2] {
+        let drive = at.join(name);
+        std::os::unix::fs::chown(&drive, Some(uid), Some(uid))?;
+        std::fs::set_permissions(&drive, std::os::unix::fs::PermissionsExt::from_mode(0o400))?;
+    }
     let current = super::create::current(settings, kept)?;
     Ok(Drives { boot: at.join(DRIVES[0]), image: at.join(DRIVES[1]), config, ..current })
 }
