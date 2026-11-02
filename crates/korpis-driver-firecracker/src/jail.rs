@@ -161,9 +161,16 @@ pub fn build(settings: &Settings, id: &str, drives: &Drives, shape: &Shape) -> i
     std::fs::write(root.join("vm.json"), config)
 }
 
-/// The jailer's command for object `id`, its Firecracker running as `(uid, gid)`.
+/// The jailer's command for object `id`, its Firecracker running as `(uid, gid)`, configured to
+/// boot the guest if `boots`, and otherwise with nothing, to be told what to load.
 #[must_use]
-pub fn command(settings: &Settings, id: &str, (uid, gid): (u32, u32), shape: &Shape) -> Command {
+pub fn command(
+    settings: &Settings,
+    id: &str,
+    (uid, gid): (u32, u32),
+    shape: &Shape,
+    boots: bool,
+) -> Command {
     let mut c = Command::new(&settings.jailer);
     c.args(["--id", id, "--exec-file"])
         .arg(&settings.firecracker)
@@ -186,8 +193,11 @@ pub fn command(settings: &Settings, id: &str, (uid, gid): (u32, u32), shape: &Sh
     // file it leaves in the chroot. It is not daemonized, which would put nothing on the guest's
     // serial port: the caller gives it the console as its standard input and output, and a
     // process group of its own, so the guest outlives the driver.
-    c.args(["--new-pid-ns", "--", "--config-file", "/vm.json", "--api-sock", API])
-        .args(["--level", "Error"]);
+    c.args(["--new-pid-ns", "--"]);
+    if boots {
+        c.args(["--config-file", "/vm.json"]);
+    }
+    c.args(["--api-sock", API, "--level", "Error"]);
     c.process_group(0);
     c
 }
@@ -289,7 +299,7 @@ mod tests {
             cgroup: "korpis".into(),
             cores_host: korpis_driver_kit::cores::Host::Kept,
         };
-        let c = command(&settings, "fc-1", (1 << 20, 1 << 20), &shape);
+        let c = command(&settings, "fc-1", (1 << 20, 1 << 20), &shape, true);
         let args: Vec<String> = c.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
         let at = args.iter().position(|a| a == "--netns").unwrap();
         assert_eq!(args[at + 1], "/run/korpis/netns/w1/net");
@@ -297,5 +307,10 @@ mod tests {
             at < args.iter().position(|a| a == "--").unwrap(),
             "the jailer's, not Firecracker's"
         );
+        assert!(args.iter().any(|a| a == "--config-file"), "it boots");
+        let c = command(&settings, "fc-1", (1 << 20, 1 << 20), &shape, false);
+        let args: Vec<String> = c.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert!(!args.iter().any(|a| a == "--config-file"), "it waits to be told what to load");
+        assert!(args.iter().any(|a| a == "--api-sock"));
     }
 }

@@ -14,6 +14,7 @@ pub mod identity;
 pub mod journal;
 pub mod mesh;
 pub mod pool;
+pub mod snapshot;
 
 pub use driver::{Capabilities, DriverInfo, Enforcement, StorageClass};
 

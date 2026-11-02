@@ -105,7 +105,8 @@ impl driver::DriverService for Driver {
         _ctx: RequestContext,
         _request: ServiceRequest<'_, driver::DescribeRequest>,
     ) -> impl Future<Output = ServiceResult<driver::DescribeResponse>> + Send {
-        let info = info(self.healthy(), &self.machine.settings().cores());
+        let m = &self.machine;
+        let info = info(self.healthy(), &m.settings().cores(), m.snapshots());
         ready(Response::ok(driver::DescribeResponse { info: info.into(), ..Default::default() }))
     }
 
@@ -139,8 +140,24 @@ impl driver::DriverService for Driver {
         _ctx: RequestContext,
         request: ServiceRequest<'_, driver::StartRequest>,
     ) -> ServiceResult<driver::StartResponse> {
-        self.machine.start(request.runtime_id).await.map_err(status)?;
+        let r = request.to_owned_message();
+        let started = match r.restore_from.as_str() {
+            "" => self.machine.start(&r.runtime_id).await,
+            from => self.machine.resume(&r.runtime_id, std::path::Path::new(from)).await,
+        };
+        started.map_err(status)?;
         Response::ok(driver::StartResponse::default())
+    }
+
+    async fn checkpoint(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, driver::CheckpointRequest>,
+    ) -> ServiceResult<driver::CheckpointResponse> {
+        let r = request.to_owned_message();
+        let into = std::path::Path::new(&r.into);
+        let bytes = self.machine.checkpoint(&r.runtime_id, into).await.map_err(status)?;
+        Response::ok(driver::CheckpointResponse { bytes, ..Default::default() })
     }
 
     async fn stop(

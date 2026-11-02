@@ -29,6 +29,10 @@ service DriverService {
   // Allocate, mount, attach; nothing executes yet. Idempotent by workload and intent.
   rpc Create(CreateRequest) returns (CreateResponse);
   rpc Start(StartRequest) returns (StartResponse);
+  // Pauses a running object and writes its execution state into a directory, then ends it: what a
+  // live migration's quiesce takes. Capability-gated: a driver that declares `runtime_snapshot`.
+  // The object is left stopped, and a start restoring from that directory resumes it.
+  rpc Checkpoint(CheckpointRequest) returns (CheckpointResponse);
   rpc Stop(StopRequest) returns (StopResponse);
   rpc Kill(KillRequest) returns (KillResponse);
   // Release every resource the runtime object holds.
@@ -223,9 +227,25 @@ message CreateResponse {
 
 message StartRequest {
   string runtime_id = 1;
+  // A directory a checkpoint wrote, beneath the driver's volume root: the object is resumed from
+  // the state in it instead of started afresh. A state the driver cannot restore here, by what the
+  // checkpoint recorded of where it was taken, is refused, never started afresh in its place.
+  string restore_from = 2;
 }
 
 message StartResponse {}
+
+message CheckpointRequest {
+  string runtime_id = 1;
+  // The directory the state is written into, beneath the driver's volume root; it exists, and what
+  // it holds is replaced.
+  string into = 2;
+}
+
+message CheckpointResponse {
+  // The bytes written.
+  uint64 bytes = 1;
+}
 
 message StopRequest {
   string runtime_id = 1;

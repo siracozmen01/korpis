@@ -19,6 +19,8 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 
 /// Why this driver runs no install: a container's are the helper's, on the host.
+/// Why a checkpoint, or a start resuming one, is refused: it declares no `runtime_snapshot`.
+const NO_CHECKPOINTS: &str = "this driver takes no checkpoint of a container";
 const NO_INSTALLS: &str = "a container's installs run on its host; this driver has no guest";
 
 /// The grace a stop gets when the request names none.
@@ -157,8 +159,19 @@ impl driver::DriverService for Driver {
         _ctx: RequestContext,
         request: ServiceRequest<'_, driver::StartRequest>,
     ) -> ServiceResult<driver::StartResponse> {
+        if !request.restore_from.is_empty() {
+            return Err(ConnectError::new(ErrorCode::FailedPrecondition, NO_CHECKPOINTS));
+        }
         self.containerd.start(request.runtime_id).await.map_err(status)?;
         Response::ok(driver::StartResponse::default())
+    }
+
+    fn checkpoint(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, driver::CheckpointRequest>,
+    ) -> impl Future<Output = ServiceResult<driver::CheckpointResponse>> + Send {
+        ready(Err(ConnectError::new(ErrorCode::FailedPrecondition, NO_CHECKPOINTS)))
     }
 
     async fn stop(
