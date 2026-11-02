@@ -46,14 +46,16 @@ pub(crate) async fn answering(
     })
 }
 
-/// The group as read once `done` holds of it, within ten seconds.
+/// The group as read once `done` holds of it. A member's readiness is announced nowhere, so it is
+/// read again until it holds (#98); the bound, a minute, is reached only by a failure, since a
+/// loaded runner took longer than ten seconds to probe a member three times.
 pub(crate) async fn group_once(
     h: &Harness,
     id: &str,
     done: impl Fn(&pb::EdgeGroup) -> bool,
 ) -> pb::EdgeGroup {
     let client = pb::EdgeGroupServiceClient::new(h.http.clone(), h.root());
-    for _ in 0..100 {
+    for _ in 0..600 {
         let r = pb::GetEdgeGroupRequest { id: id.into(), ..Default::default() };
         let g = client.get_edge_group(r).await.unwrap().into_owned().group.into_option().unwrap();
         if done(&g) {
