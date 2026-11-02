@@ -45,6 +45,9 @@ pub struct Helper {
     receiving: std::collections::BTreeMap<(String, String), std::process::Child>,
     /// Each tree pass sent or received, by its volume, its pass, and whether it is sent.
     trees: std::collections::BTreeMap<(String, String, bool), std::process::Child>,
+    /// The binary whose `splice` joins a receiving rsync's remote shell to its socket; the
+    /// helper's own when `None`.
+    relay: Option<std::path::PathBuf>,
 }
 
 fn unsupported() -> helper::HelperError {
@@ -72,7 +75,16 @@ impl Helper {
             attached: Vec::new(),
             receiving: std::collections::BTreeMap::new(),
             trees: std::collections::BTreeMap::new(),
+            relay: None,
         }
+    }
+
+    /// The same helper, joining a receiving rsync to its socket with `relay splice`, for a helper
+    /// that does not run as its own binary.
+    #[must_use]
+    pub fn with_relay(mut self, relay: std::path::PathBuf) -> Self {
+        self.relay = Some(relay);
+        self
     }
 
     /// The same helper, giving workloads networks as `network` keeps them.

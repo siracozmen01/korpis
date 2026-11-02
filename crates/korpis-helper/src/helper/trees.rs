@@ -26,7 +26,10 @@ impl Helper {
                 Answer::SendTree(Box::new(sent))
             }
             Verb::ReceiveTree(r) => {
-                let relay = std::env::current_exe()?;
+                let relay = match &self.relay {
+                    Some(relay) => relay.clone(),
+                    None => std::env::current_exe()?,
+                };
                 let key = (r.volume.clone(), r.pass.clone(), false);
                 self.end_tree(&key);
                 let class = self.class(&r.storage_class)?;

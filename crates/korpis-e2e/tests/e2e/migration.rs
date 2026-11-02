@@ -190,7 +190,7 @@ async fn ended(cp: &ControlPlane, w: &str) {
 /// Waits until `w` runs on `node`, placed there.
 async fn runs_on(cp: &ControlPlane, w: &str, node: &str) {
     for _ in 0..900 {
-        let s = cp.status(w).await;
+        let s = Box::pin(cp.status(w)).await;
         let placed = s.placement.as_option().is_some_and(|p| p.node == node);
         let state = s.observation.as_option().and_then(|o| o.state.as_known());
         if placed && state == Some(pb::ObservedState::OBSERVED_STATE_RUNNING) {
@@ -198,8 +198,8 @@ async fn runs_on(cp: &ControlPlane, w: &str, node: &str) {
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    let s = cp.status(w).await;
-    panic!("{w} never ran on {node}: {:?}\n{:?}", newest(cp, w).await, s.observation);
+    let seen = Box::pin(cp.status(w)).await.observation;
+    panic!("{w} never ran on {node}: {:?}\n{seen:?}", Box::pin(newest(cp, w)).await);
 }
 
 /// The usage records of `w` from each node, once `node` has one.
