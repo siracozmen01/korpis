@@ -347,6 +347,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         for a in held.assignments.values() {
             self.reconcile(a).await;
         }
+        // Before a workload that left is forgotten, which forgets the copies it kept too.
+        self.abandoned(&held).await;
         let gone: Vec<(String, Option<String>)> = self
             .tracked
             .iter()
@@ -360,7 +362,6 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.forget(&workload);
             }
         }
-        self.abandoned(&held).await;
         self.release_networks(&held).await;
         self.release_devices(&held).await;
         self.keep_cores().await;

@@ -9,8 +9,10 @@
 //! streams sealed, with each stream's watermark; at `cutover` the source releases its lease and
 //! the destination, once granted the next, promotes each copy received by increments into the
 //! volume before the workload is made, and reports once it runs; at `release`, once the hold has
-//! passed, the source deletes the workload's object and its copies. A migration abandoned before the workload moved leaves the destination's copies
-//! unclaimed, and they are deleted.
+//! passed, the source deletes the workload's object and its copies. A migration abandoned before
+//! the workload moved leaves the destination's copies unclaimed: those received by their tree are
+//! deleted from this node's record of them, kept across a restart, and those received by
+//! increments are replicas, which replication releases once no migration names them.
 
 use super::act::{Failure, running, volume_id};
 use super::{Reconciler, Tracked};
@@ -42,6 +44,13 @@ fn standing_of(role: &agent::MigrationRole) -> (Option<agent::MigrationSide>, Op
 /// Whether `v` crosses by increments.
 fn by_increments(v: &agent::MigrationVolumeRole) -> bool {
     v.crossing.as_known() == Some(pb::MigrationCrossing::MIGRATION_CROSSING_INCREMENTS)
+}
+
+/// Whether `v` crosses by its tree, into a volume of the destination's own: a copy only this
+/// node's record of it deletes, where one received by increments is a replica, which replication
+/// releases once no migration names it.
+fn by_tree(v: &agent::MigrationVolumeRole) -> bool {
+    v.crossing.as_known() == Some(pb::MigrationCrossing::MIGRATION_CROSSING_TREE)
 }
 
 /// Whether `v` crosses at all: a local volume, which the source holds a copy of.
@@ -116,12 +125,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if self.reported(t, role) {
             return;
         }
-        let copies: Vec<String> = role
-            .volumes
-            .iter()
-            .filter(|v| crosses(v))
-            .map(|v| volume_id(a, &v.name))
-            .collect();
+        let copies: Vec<String> =
+            role.volumes.iter().filter(|v| by_tree(v)).map(|v| volume_id(a, &v.name)).collect();
         if let Err(e) = self.progress.receiving(&a.workload, copies) {
             tracing::error!(error = %e, "progress could not be kept");
             return;
