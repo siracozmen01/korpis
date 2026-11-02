@@ -262,7 +262,7 @@ impl OperationWrite for PgTx {
     }
 
     async fn operation_in(&mut self, id: Uuid) -> StoreResult<Option<OperationAt>> {
-        read(&mut *self.tx, id, true).await
+        read(&mut self.tx, id, true).await
     }
 
     async fn update_operation(&mut self, op: &Operation, read_at: u64) -> StoreResult<bool> {
