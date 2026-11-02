@@ -158,3 +158,21 @@ fn a_pass_held_and_large_starts_the_next_and_one_whose_ticket_ran_out_starts_aga
         MigrationVolume::new(Uuid::nil(), "s".into(), Crossing::Nothing, (gib, "s".into()));
     assert!(shared.entry_pass(Uuid::from_u128(6)).is_none() && shared.passed(Phase::FinalSync));
 }
+
+#[test]
+fn the_destination_is_told_what_to_promote_only_once_the_placement_moved() {
+    let gib = 1 << 30;
+    let mut v =
+        MigrationVolume::new(Uuid::nil(), "world".into(), Crossing::Increments, (gib, "w".into()));
+    v.held_pass = Some(Uuid::from_u128(7));
+    let tree = MigrationVolume::new(Uuid::nil(), "t".into(), Crossing::Tree, (gib, "t".into()));
+    let volumes = [v, tree];
+    let told = |m: &Migration, side| MigrationRole::of(m, side, (&volumes, &[])).volumes;
+    let mut m = migration(Phase::Cutover);
+    assert_eq!(told(&m, Side::Destination)[0].held_pass, None, "not before the move");
+    m.moved_at = Some(std::time::UNIX_EPOCH);
+    let moved = told(&m, Side::Destination);
+    assert_eq!(moved[0].held_pass, Some(Uuid::from_u128(7)));
+    assert_eq!(moved[1].held_pass, None, "a tree's copy already is the volume");
+    assert_eq!(told(&m, Side::Source)[0].held_pass, None);
+}

@@ -48,7 +48,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         super::halt::hook(a, &mut t);
         self.refresh(&mut t).await;
         let standing = self.wiring.leases.standing(&a.workload);
+        let usual = self.migrating_before(a, &mut t, &standing).await;
         let outcome = match &standing {
+            _ if !usual => Ok(()),
             Standing::Held { .. } => self.act(a, &mut t).await,
             Standing::Refused(Refusal::Superseded { by }) => self.superseded(a, &mut t, by).await,
             Standing::Expired { on_expiry: OnExpiry::Stop, .. } => {
@@ -74,6 +76,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if matches!(standing, Standing::Held { .. }) {
             t.generation = a.generation;
         }
+        self.migrating_after(a, &mut t).await;
         self.aim(a, &mut t);
         self.observe(a, &mut t).await;
         self.tracked.insert(a.workload.clone(), t);

@@ -6,8 +6,10 @@
 //! far its install has come, which is kept per install rather than per plan, so a new plan that
 //! runs the same install resumes it at the action that failed. A step's completion is journalled
 //! before it is kept here, so a crash between the two runs the step again, which is a no-op that
-//! reports success, rather than losing the completion. Beside it, one file per install with
-//! provider steps keeps what they resolved to.
+//! reports success, rather than losing the completion. It also keeps the copies a migration's
+//! destination received into volumes of its own, until the workload moved here or they were
+//! deleted, so an abandoned migration's copies are deleted even across a restart. Beside it, one
+//! file per install with provider steps keeps what they resolved to.
 
 use buffa::Message as _;
 use korpis_proto::korpis::v1 as pb;
@@ -45,6 +47,9 @@ pub struct Done {
     pub cycle: Option<u64>,
     /// The last install begun.
     pub install: Option<Install>,
+    /// The volumes a migration's copies were received into here, while the workload has not
+    /// moved here.
+    pub received: Vec<String>,
 }
 
 /// The reconciler's progress.
@@ -82,6 +87,9 @@ fn parse(text: &str) -> std::io::Result<BTreeMap<String, Done>> {
                     (d.parse().map_err(|_| invalid(line))?, l.parse().map_err(|_| invalid(line))?);
                 let install = Install { digest: (*digest).to_owned(), done: done_, lost };
                 done.entry((*w).to_owned()).or_default().install = Some(install);
+            }
+            ["received", w, volume] => {
+                done.entry((*w).to_owned()).or_default().received.push((*volume).to_owned());
             }
             _ => return Err(invalid(line)),
         }
@@ -122,6 +130,7 @@ impl Progress {
             if let Some(i) = &d.install {
                 lines.push(format!("install {w} {} {} {}", i.digest, i.done, i.lost));
             }
+            lines.extend(d.received.iter().map(|v| format!("received {w} {v}")));
         }
         crate::durable::replace(&self.path, (lines.join("\n") + "\n").as_bytes())
     }
@@ -152,6 +161,24 @@ impl Progress {
         let replaced = done.install.replace(install).filter(|i| i.digest != digest);
         self.save()?;
         replaced.map_or(Ok(()), |old| self.drop_answers(&old.digest))
+    }
+
+    /// Keeps that `volumes` hold copies a migration of `workload` sends here, or, empty, that they
+    /// are the workload's own now.
+    pub fn receiving(&mut self, workload: &str, volumes: Vec<String>) -> std::io::Result<()> {
+        let done = self.done.entry(workload.to_owned()).or_default();
+        if done.received == volumes {
+            return Ok(());
+        }
+        done.received = volumes;
+        self.save()
+    }
+
+    /// Each workload whose migration's copies are kept here, with the volumes holding them.
+    #[must_use]
+    pub fn received(&self) -> Vec<(String, Vec<String>)> {
+        let held = self.done.iter().filter(|(_, d)| !d.received.is_empty());
+        held.map(|(w, d)| (w.clone(), d.received.clone())).collect()
     }
 
     /// Forgets `workload`: it is retired, or no longer on this node.

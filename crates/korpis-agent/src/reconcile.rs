@@ -27,6 +27,7 @@ mod install;
 mod jobs;
 mod kinds;
 mod managed;
+mod migration;
 pub(crate) mod network;
 mod observe;
 mod policy;
@@ -111,6 +112,8 @@ struct Tracked {
     recovering: Option<&'static str>,
     /// The cgroup parent its object's dedicated cores are held under, and their logical CPUs.
     cores: (String, Vec<u32>),
+    /// What this node did of a migration of it.
+    migrated: migration::Migrated,
 }
 
 /// Where the reconciler reads and writes.
@@ -357,6 +360,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.forget(&workload);
             }
         }
+        self.abandoned(&held).await;
         self.release_networks(&held).await;
         self.release_devices(&held).await;
         self.keep_cores().await;

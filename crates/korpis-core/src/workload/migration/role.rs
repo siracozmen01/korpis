@@ -36,6 +36,9 @@ pub struct VolumeRole {
     /// In `replicate` and `final_sync`, the pass under way: its name, the pass it is an increment
     /// from, and its ticket, which the control plane signs once the role is made.
     pub pass: Option<PassRole>,
+    /// On the destination once the placement moved, for a volume crossing by increments: the
+    /// last pass it reported held, which its copy is promoted from.
+    pub held_pass: Option<Uuid>,
 }
 
 /// A pass under way, as both nodes are told it.
@@ -72,8 +75,9 @@ pub struct MigrationRole {
     pub hold_until: Option<SystemTime>,
 }
 
-/// How `v` crosses in `phase`, as a node is told it.
-fn volume_role(phase: Phase, v: &MigrationVolume) -> VolumeRole {
+/// How `v` crosses in `phase`, as a node is told it; `handed` where it is told the destination
+/// once the placement moved.
+fn volume_role(phase: Phase, v: &MigrationVolume, handed: bool) -> VolumeRole {
     let copying = matches!(phase, Phase::Replicate | Phase::FinalSync);
     let pass = v.pass.filter(|_| copying && v.crossing.sends()).map(|(pass, since)| PassRole {
         pass,
@@ -87,6 +91,7 @@ fn volume_role(phase: Phase, v: &MigrationVolume) -> VolumeRole {
         source_helper_id: v.source_helper_id.clone(),
         crossing: v.crossing,
         pass,
+        held_pass: v.held_pass.filter(|_| handed && v.crossing == Crossing::Increments),
     }
 }
 
@@ -110,7 +115,7 @@ impl MigrationRole {
             side,
             phase: m.phase,
             peer,
-            volumes: volumes.iter().map(|v| volume_role(m.phase, v)).collect(),
+            volumes: volumes.iter().map(|v| volume_role(m.phase, v, handed)).collect(),
             watermarks: if handed { watermarks.to_vec() } else { Vec::new() },
             hold_until: m.hold_until,
         }
