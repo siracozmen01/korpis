@@ -110,7 +110,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         match self.runtime.stop(id, "", std::time::Duration::ZERO).await {
             Ok(()) | Err(RuntimeError::NotFound(_)) => {}
             Err(e) => {
-                tracing::warn!(%id, error = %e, "what the stopped object holds was not released")
+                tracing::warn!(%id, error = %e, "what the stopped object holds was not released");
             }
         }
     }
