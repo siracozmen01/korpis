@@ -23,6 +23,14 @@ pub const BLOCK_MARK: (&str, &[u8]) = ("trusted.korpis.volume", b"block_device")
 /// driver writes and resumes a state only in the one named for the object's own workload.
 pub const LIVE_STATE: &str = "live_state";
 
+/// The helper's identifier for `workload`'s `live_state` volume on its source: the name its node
+/// would give it, which the driver checks a state's directory against.
+#[must_use]
+pub fn live_state_id(workload: Uuid) -> String {
+    let id = crate::id::Id::from_uuid(crate::id::IdKind::Workload, workload);
+    format!("{id}.{LIVE_STATE}")
+}
+
 /// Why a volume exists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VolumeKind {

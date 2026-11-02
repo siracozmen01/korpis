@@ -167,6 +167,16 @@ impl VolumeWrite for PgTx {
         Ok(claimed.rows_affected() == 1)
     }
 
+    async fn declare_volume(
+        &mut self,
+        node: Uuid,
+        declared: &ReportedVolume,
+        now: SystemTime,
+    ) -> StoreResult<Uuid> {
+        let id = ensured(self, node, declared, now).await?;
+        id.ok_or_else(|| StoreError::Corrupt(format!("no workload {}", declared.workload)))
+    }
+
     async fn record_volume(
         &mut self,
         node: Uuid,
@@ -175,7 +185,7 @@ impl VolumeWrite for PgTx {
         now: SystemTime,
     ) -> StoreResult<bool> {
         match (v.event, store) {
-            (VolumeEvent::Ensured, None) => ensured(self, node, v, now).await.map(|()| true),
+            (VolumeEvent::Ensured, None) => ensured(self, node, v, now).await.map(|_| true),
             (VolumeEvent::Ensured, Some(store)) => {
                 shared_ensured(self, (node, store), v, now).await
             }
@@ -248,16 +258,17 @@ async fn stream_gone(
 
 /// A volume ensured: created on its first report, and on a later one attached to the workload
 /// that ensured it, which may be one adopting it, with what the node now says of it. An adopting
-/// workload asks for no size, so a zero keeps the size it has.
+/// workload asks for no size, so a zero keeps the size it has. Its identifier; none where no such
+/// workload is, and nothing is recorded.
 async fn ensured(
     tx: &mut PgTx,
     node: Uuid,
     v: &ReportedVolume,
     now: SystemTime,
-) -> StoreResult<()> {
+) -> StoreResult<Option<Uuid>> {
     let size = i64::try_from(v.size_bytes)
         .map_err(|_| StoreError::Corrupt(format!("volume size {}", v.size_bytes)))?;
-    sqlx::query!(
+    sqlx::query_scalar!(
         "INSERT INTO volume (id, project_id, created_by, attached_to, name, kind, node_id,
                              helper_id, storage_class, size_bytes, quota_enforced, created_at)
          SELECT $1, w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10
@@ -269,7 +280,8 @@ async fn ensured(
                 size_bytes = CASE WHEN EXCLUDED.size_bytes > 0 THEN EXCLUDED.size_bytes
                                   ELSE volume.size_bytes END,
                 quota_enforced = EXCLUDED.quota_enforced,
-                promoting = NULL",
+                promoting = NULL
+         RETURNING id",
         Uuid::now_v7(),
         v.workload,
         v.name,
@@ -281,10 +293,9 @@ async fn ensured(
         v.quota_enforced,
         from_time(now)
     )
-    .execute(&mut *tx.tx)
+    .fetch_optional(&mut *tx.tx)
     .await
-    .map_err(from_sqlx)?;
-    Ok(())
+    .map_err(from_sqlx)
 }
 
 /// A volume in a shared store ensured by `node`: as on a node's disk, but known by its store and

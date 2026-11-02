@@ -15,6 +15,7 @@ use korpis_core::node::driver::class_named;
 use korpis_core::workload::Workload;
 use korpis_core::workload::migration::{MigrationVolume, crossing};
 use korpis_core::workload::plan::compute::Crossed;
+use korpis_core::workload::volume::{Volume, VolumeKind};
 
 /// `v` as a migration's plan names it.
 pub(super) fn crossed(v: &MigrationVolume) -> Crossed {
@@ -31,7 +32,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let page = Page::new(None, Page::MAX);
         let held = self.store.volumes(w.project, Some(w.id), false, page).await?;
         let mut out = Vec::new();
-        for v in held.iter().filter(|v| v.attached_to == Some(w.id) && v.deleted_at.is_none()) {
+        // A state volume crosses only as a live migration declares one for itself.
+        let attached = |v: &&Volume| {
+            v.attached_to == Some(w.id) && v.deleted_at.is_none() && v.kind != VolumeKind::State
+        };
+        for v in held.iter().filter(attached) {
             let from = class_named(&source.storage_classes, &v.storage_class).ok_or_else(|| {
                 AppError::Internal(format!("volume {} is in no class of its node", v.id))
             })?;

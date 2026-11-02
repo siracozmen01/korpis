@@ -57,8 +57,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let why = "the destination no longer restores the workload's state; propose it again";
             return Err(AppError::conflict("migration.unrestorable", why));
         }
-        let volumes = self.crossings(w, (&chosen.source, &chosen.node)).await?;
+        let mut volumes = self.crossings(w, (&chosen.source, &chosen.node)).await?;
         let now = self.clock.now();
+        if to.live {
+            let state = self.state_volume(tx, w, (&chosen.source, &chosen.node), now).await?;
+            volumes.push(state);
+        }
         let source = chosen.source.id;
         tx.bind(&destination_placement((w.id, target.id), chosen, now)).await?;
         let m = Migration {

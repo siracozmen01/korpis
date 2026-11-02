@@ -7,7 +7,8 @@
 //! taken, since a node's declaration may have changed since.
 
 use super::Node;
-use super::driver::{DriverInfo, SnapshotCaps};
+use super::driver::{DriverInfo, SnapshotCaps, StorageClass, class_named};
+use crate::workload::migration::{Crossing, crossing};
 
 /// A kernel version, `major.minor[.patch...]`, as numbers; none for anything else.
 fn version(s: &str) -> Option<Vec<u64>> {
@@ -39,13 +40,29 @@ fn snapshots<'n>(node: &'n Node, driver: &str) -> Option<&'n SnapshotCaps> {
 }
 
 /// Whether a workload run by `driver` moves from `source` to `destination` with its execution
-/// state: the source's driver takes snapshots, and the destination's restores them.
+/// state: the source's driver takes snapshots, the destination's restores them, and a class on the
+/// source's own disk holds the state and crosses to the destination ([`state_class`]).
 #[must_use]
 pub fn restores(source: &Node, destination: &Node, driver: &str) -> bool {
     let (Some(from), Some(to)) = (snapshots(source, driver), snapshots(destination, driver)) else {
         return false;
     };
-    from.restores_on(to)
+    from.restores_on(to) && state_class(source, destination).is_some()
+}
+
+/// The class a live migration's state is written in on `source`, and how it crosses to
+/// `destination`: the first by name of the source's own disk's classes the destination offers too
+/// and that sends what it holds, so the state is a directory the driver writes on the one node and
+/// reads on the other.
+#[must_use]
+pub fn state_class<'n>(source: &'n Node, destination: &Node) -> Option<(&'n StorageClass, Crossing)> {
+    let mut own: Vec<&StorageClass> =
+        source.storage_classes.iter().filter(|c| c.store.is_none() && c.block.is_none()).collect();
+    own.sort_by(|a, b| a.name.cmp(&b.name));
+    own.into_iter().find_map(|c| {
+        let there = class_named(&destination.storage_classes, &c.name);
+        crossing(c, there).ok().filter(|how| how.sends()).map(|how| (c, how))
+    })
 }
 
 #[cfg(test)]
