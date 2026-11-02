@@ -53,6 +53,13 @@ pub(super) fn at_once(
                 ..Default::default()
             };
         }
+        Some(Work::Manifest(m)) => {
+            // Of what crossed, which is alike on both nodes however each names the volume.
+            let digest = format!("memory:{}", m.pass);
+            let run = backup::ManifestRun { digest: digest.clone(), ..Default::default() };
+            result.manifest =
+                backup::Manifest { digest, runs: vec![run], ..Default::default() }.into();
+        }
         None => result.ok = false,
     }
     helper::JobStatusResponse {

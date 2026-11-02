@@ -26,6 +26,7 @@ use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
 mod streams;
+mod verify;
 
 /// What this node did of a migration of the workload, so each report is journaled once.
 #[derive(Debug, Clone, Default)]
@@ -82,6 +83,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 if matches!(standing, Standing::Held { .. }) =>
             {
                 self.promoted(a, t, role).await
+            }
+            (Some(_), Some(P::MIGRATION_PHASE_VERIFY)) => {
+                self.verified(a, t, role).await;
+                true
             }
             (Some(S::MIGRATION_SIDE_SOURCE), Some(P::MIGRATION_PHASE_CUTOVER)) => {
                 if let Err(e) = self.wiring.leases.release(&a.workload).await {
