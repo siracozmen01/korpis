@@ -20,7 +20,8 @@ async fn the_silence_sweep_waits_for_a_placement_in_progress() {
     let h = Harness::new().await;
     h.node(None, "fra-1", &[]).await;
     let store = h.db.store().await.unwrap();
-    let silent = "UPDATE node SET connectivity = 'connected', last_seen = now() - interval '1 hour'";
+    let silent =
+        "UPDATE node SET connectivity = 'connected', last_seen = now() - interval '1 hour'";
     sqlx::query(silent).execute(store.pool()).await.unwrap();
     let mut placing = store.begin().await.unwrap();
     placing.lock_placement().await.unwrap();
