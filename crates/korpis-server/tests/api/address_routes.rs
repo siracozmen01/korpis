@@ -18,8 +18,8 @@ use korpis_extension::address::{AddressRouter, Failure, Router};
 use korpis_extension::provider::{Provider, Registration};
 use korpis_extension::{Connection, Credential, Fixed};
 use korpis_proto::korpis::v1 as pb;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use tokio::sync::watch;
 
@@ -54,7 +54,11 @@ impl Fabric {
         self.asked_until(|a| pairs(a).last() == Some(route), route).await;
     }
 
-    async fn asked_until(&self, done: impl Fn(&[pb::RouteAddress]) -> bool, route: &(String, String)) {
+    async fn asked_until(
+        &self,
+        done: impl Fn(&[pb::RouteAddress]) -> bool,
+        route: &(String, String),
+    ) {
         let mut asked = self.0.subscribe();
         let came = asked.wait_for(|a| done(a));
         let came = tokio::time::timeout(Duration::from_secs(60), came).await;

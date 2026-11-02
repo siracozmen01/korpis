@@ -121,8 +121,9 @@ async fn without_the_directorys_terms_agreed_a_certificate_fails_saying_why() {
     let h = Harness::with_acme(AcmeConfig { agreed: false, ..pebble.config() }, None).await;
     let (_s, shop) = placed(&h).await;
     // The endpoint's own status says why its certificate is not issued.
-    let c = changed_until(&h, || async { shown(&h, &shop.id).await.filter(|c| !c.reason.is_empty()) })
-        .await;
+    let c =
+        changed_until(&h, || async { shown(&h, &shop.id).await.filter(|c| !c.reason.is_empty()) })
+            .await;
     assert_eq!(c.state.as_known(), Some(pb::CertificateState::CERTIFICATE_STATE_FAILED));
     assert!(c.reason.contains("--acme-agree-terms"), "{}", c.reason);
 }

@@ -7,8 +7,8 @@
 
 use crate::providers::installed;
 use crate::recipes::{body, create, project, push_paper};
-use crate::watching::changed_until;
 use crate::support::{Harness, detail, mutation, org_scope};
+use crate::watching::changed_until;
 use buffa::Message as _;
 use korpis_core::principal::Principal;
 use korpis_proto::korpis::agent::v1 as agent;

@@ -110,7 +110,8 @@ async fn an_entry_for_the_eu_holds_what_runs_there_and_sends_the_rest_elsewhere(
     let fra2 = h.node(None, "fra-2", &[("region", "eu")]).await;
     let on = |s: &pb::WorkloadStatus| node(s) == fra2;
     crate::watching::changed_until(&h, || async {
-        let either = on(&once(&h, &first, |_| true).await) || on(&once(&h, &waiting, |_| true).await);
+        let either =
+            on(&once(&h, &first, |_| true).await) || on(&once(&h, &waiting, |_| true).await);
         either.then_some(())
     })
     .await;
