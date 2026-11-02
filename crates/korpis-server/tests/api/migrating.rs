@@ -78,7 +78,16 @@ pub(crate) async fn moving() -> Moving {
 
 /// [`moving`], the source keeping its copies for `hold` after the cutover.
 async fn moving_held(hold: Option<std::time::Duration>) -> Moving {
-    let h = Harness::new().await;
+    Box::pin(moving_from(Harness::new().await, |repo| body(repo, &[]), hold)).await
+}
+
+/// A workload declared on `h` with the body `made` of its recipe's repository, moving from the
+/// node it runs on to the other, the source keeping its copies for `hold` after the cutover.
+pub(crate) async fn moving_from(
+    h: Harness,
+    made: impl FnOnce(&str) -> pb::IntentBody,
+    hold: Option<std::time::Duration>,
+) -> Moving {
     let (a, b) = (TestAgent::enroll(&h, "fra-1", 1).await, TestAgent::enroll(&h, "fra-2", 2).await);
     let (mut sa, first) =
         TestAgent::open(&h, a.hello_with(SystemTime::now(), &[1; 16], local())).await;
@@ -86,7 +95,7 @@ async fn moving_held(hold: Option<std::time::Duration>) -> Moving {
     let repo = push_paper().await;
     let project = project(&h, &h.root_org(), "games").await;
     let workloads = h.workloads(h.root());
-    let declared = workloads.declare_intent(create("db", &project, "db", body(&repo, &[])));
+    let declared = workloads.declare_intent(create("db", &project, "db", made(&repo)));
     let db = declared.await.unwrap().into_owned().workload.into_option().unwrap().id;
     let told = until(&mut sa, assignment(|t| t.workload == db && t.plan.is_set())).await;
     let last = complete(&mut sa, &db, told.plan.as_option().unwrap(), 1).await;
@@ -99,6 +108,7 @@ async fn moving_held(hold: Option<std::time::Duration>) -> Moving {
     let request = pb::MigrateWorkloadRequest {
         mutation: mutation("move").into(),
         workload: db.clone(),
+        node: b.node.clone(),
         hold: hold.map(korpis_wire::duration).into(),
         ..Default::default()
     };
