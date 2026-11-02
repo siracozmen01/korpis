@@ -39,8 +39,7 @@ async fn a_guest_checkpointed_by_one_driver_resumes_under_another_holding_its_me
     let spec = source.spec("wl_moved", "while true; do sleep 1; done");
     let id = source.machine.create(spec.clone()).await.unwrap();
     source.machine.start(&id).await.unwrap();
-    let answered = source.machine.ping_guest(&id, Duration::from_secs(60)).await.unwrap();
-    assert_eq!(answered, Ok(()));
+    // A command waits for the guest to have started, as its agent listens from then.
     let (_, end) = ran(&source.machine, &id, &["/bin/sh", "-c", "echo held > /tmp/mark"]).await;
     assert!(matches!(end, korpis_driver_kit::exec::Ran::Exit { status: 0, .. }), "{end:?}");
 
@@ -76,9 +75,8 @@ async fn a_guest_checkpointed_by_one_driver_resumes_under_another_holding_its_me
     assert_ne!(destination.machine.inspect(&id).unwrap().state.as_known(), running, "not booted");
     std::fs::write(&record, taken).unwrap();
     destination.machine.resume(&id, &here).await.unwrap();
-    let answered = destination.machine.ping_guest(&id, Duration::from_secs(60)).await.unwrap();
-    assert_eq!(answered, Ok(()), "its agent answers where it was resumed");
-    let (said, _) = ran(&destination.machine, &id, &["/bin/cat", "/tmp/mark"]).await;
-    assert_eq!(said, "held\n", "what it held in memory alone");
+    let (said, end) = ran(&destination.machine, &id, &["/bin/cat", "/tmp/mark"]).await;
+    assert!(matches!(end, korpis_driver_kit::exec::Ran::Exit { status: 0, .. }), "{end:?}");
+    assert_eq!(said, "held\n", "its agent answers where it was resumed, holding its memory");
     destination.machine.destroy(&id).await.unwrap();
 }

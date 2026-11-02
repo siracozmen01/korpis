@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO volume (id, project_id, created_by, attached_to, name, kind, node_id,\n                             helper_id, storage_class, size_bytes, quota_enforced, created_at)\n         SELECT $1, w.project_id, w.id, w.id, $3, $4, $5, $6, $7, $8, $9, $10\n           FROM workload w WHERE w.id = $2\n         ON CONFLICT (node_id, helper_id) WHERE deleted_at IS NULL AND store IS NULL DO UPDATE\n            SET attached_to = EXCLUDED.attached_to,\n                detached_at = NULL,\n                storage_class = EXCLUDED.storage_class,\n                size_bytes = CASE WHEN EXCLUDED.size_bytes > 0 THEN EXCLUDED.size_bytes\n                                  ELSE volume.size_bytes END,\n                quota_enforced = EXCLUDED.quota_enforced,\n                promoting = NULL\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "volume",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Uuid",
+        "Text",
+        "Text",
+        "Int8",
+        "Bool",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c91a5305a91306e1babd1296e32a7df6d6731eec51facb945f12ffb1c6b5a307"
+}
