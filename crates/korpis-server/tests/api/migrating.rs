@@ -73,7 +73,7 @@ fn local() -> Vec<pb::StorageClassInfo> {
 }
 
 async fn moving() -> Moving {
-    moving_held(None).await
+    Box::pin(moving_held(None)).await
 }
 
 /// [`moving`], the source keeping its copies for `hold` after the cutover.
