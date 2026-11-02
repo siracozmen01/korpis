@@ -48,23 +48,31 @@ fn a_workload_made_again_attaches_what_it_holds_and_installs_nothing() {
     let record = Uuid::now_v7();
     let held = [HeldVolume { name: seeded.volumes[0].name.clone(), record, promote: None }];
     let c = classifier(&driver, &recipe);
-    let steps = remake_steps(Uuid::now_v7(), (&seeded, PowerState::Running), &held, c);
+    let steps = remake_steps(Uuid::now_v7(), (&seeded, PowerState::Running), (&held, &[]), c);
     assert_eq!(actions(&steps), [A::PullRecipe, A::AttachVolume, A::Create, A::Start]);
     let existing = steps[1].detail.get("existing");
     assert_eq!(existing, Some(&Value::String(record.to_string())), "the volume it holds");
-    let stopped = remake_steps(Uuid::now_v7(), (&body(), PowerState::Stopped), &[], c);
+    let stopped = remake_steps(Uuid::now_v7(), (&body(), PowerState::Stopped), (&[], &[]), c);
     assert_eq!(actions(&stopped), [A::PullRecipe, A::CreateVolume, A::Create], "never reported");
     let snapshot = Uuid::now_v7();
     let into = "vol_1.made".to_owned();
     let promote = Some(Promotion { snapshot, storage_class: "local".into(), into: into.clone() });
     let from_replica = [HeldVolume { promote, ..held[0].clone() }];
     let failed_over =
-        remake_steps(Uuid::now_v7(), (&seeded, PowerState::Running), &from_replica, c);
+        remake_steps(Uuid::now_v7(), (&seeded, PowerState::Running), (&from_replica, &[]), c);
     assert_eq!(actions(&failed_over), [A::PullRecipe, A::PromoteReplica, A::Create, A::Start]);
     let detail = |k: &str| failed_over[1].detail.get(k).cloned();
     assert_eq!(detail("snapshot"), Some(Value::String(snapshot.to_string())), "what it held");
     assert_eq!(detail("existing"), Some(Value::String(record.to_string())), "the same volume");
     assert_eq!(detail("into"), Some(Value::String(into)), "under a name of its own");
+    // Lost with an evacuated node, it is made anew holding the backup named for it.
+    let backup = Uuid::now_v7();
+    let lost = [(seeded.volumes[0].name.clone(), backup)];
+    let evacuated = remake_steps(Uuid::now_v7(), (&body(), PowerState::Running), (&[], &lost), c);
+    let made = [A::PullRecipe, A::CreateVolume, A::RestoreVolume, A::Create, A::Start];
+    assert_eq!(actions(&evacuated), made);
+    let restored = evacuated[2].detail.get("backup");
+    assert_eq!(restored, Some(&Value::String(backup.to_string())), "the backup named for it");
 }
 
 #[test]

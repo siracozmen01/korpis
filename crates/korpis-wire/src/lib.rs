@@ -53,6 +53,7 @@ pub mod metering;
 pub mod migration;
 pub mod node;
 pub mod observation;
+pub mod operation;
 pub mod placement;
 pub mod plan;
 pub mod portal;

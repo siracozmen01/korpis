@@ -167,6 +167,25 @@ impl VolumeWrite for PgTx {
         Ok(claimed.rows_affected() == 1)
     }
 
+    async fn leave_volume(
+        &mut self,
+        volume: Uuid,
+        workload: Uuid,
+        now: SystemTime,
+    ) -> StoreResult<bool> {
+        let left = sqlx::query!(
+            "UPDATE volume SET attached_to = NULL, detached_at = $3
+              WHERE id = $1 AND attached_to = $2",
+            volume,
+            workload,
+            from_time(now)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(left.rows_affected() == 1)
+    }
+
     async fn declare_volume(
         &mut self,
         node: Uuid,

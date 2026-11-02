@@ -54,14 +54,15 @@ impl Builder<'_> {
 
 /// The steps of a remake plan for `workload`: its approved `body` made again on the node it was
 /// placed on again, its recipe pulled there, each volume it holds attached where it is or made
-/// from its replica there, never made anew or written by an install, and its runtime created,
-/// then started if it is to be running. A volume in `held`, by name, is the one its record
-/// names; one with no record was never reported made, so it is created as on its first node.
+/// from its replica there, never written by an install, and its runtime created, then started if
+/// it is to be running. A volume in `held`, by name, is the one its record names; one with no
+/// record was never reported made, or was lost with a node an operator evacuated, so it is created
+/// as on its first node, holding the backup `seeded` names for it, if any, before anything runs.
 #[must_use]
 pub fn remake_steps(
     workload: Uuid,
     (body, power): (&IntentBody, PowerState),
-    held: &[HeldVolume],
+    (held, seeded): (&[HeldVolume], &[(String, Uuid)]),
     classifier: Classifier<'_>,
 ) -> Vec<Step> {
     let mut b =
@@ -70,9 +71,17 @@ pub fn remake_steps(
     for v in &body.volumes {
         let found = held.iter().find(|h| h.name == v.name);
         let record = v.existing.or_else(|| found.map(|h| h.record));
+        let from_backup = seeded.iter().find(|(name, _)| *name == v.name).map(|(_, b)| *b);
         match (record, found.and_then(|h| h.promote.as_ref())) {
             (Some(record), Some(p)) => b.promote(v, record, p),
-            _ => b.add_volume(&VolumeSpec { existing: record, from_backup: None, ..v.clone() }),
+            (Some(record), None) => {
+                b.add_volume(&VolumeSpec {
+                    existing: Some(record),
+                    from_backup: None,
+                    ..v.clone()
+                });
+            }
+            (None, _) => b.add_volume(&VolumeSpec { existing: None, from_backup, ..v.clone() }),
         }
     }
     b.push(StepAction::Create, ValueMap::new(), &[]);

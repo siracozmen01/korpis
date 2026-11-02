@@ -164,7 +164,9 @@ shows is derived: `decommissioned` if the node is; otherwise `registering`, `unr
 `ready` from the operator's decision. Only `ready` takes new placements.
 
 ```
-admin          active <-> cordoned -> draining -> (empty) -> decommissioned
+admin          active <-> cordoned
+               active | cordoned -> draining   (a drain or an evacuation is approved)
+               draining -> cordoned            (the operation ends, however it ends)
                cordoned and empty, or removed as compromised  -> decommissioned
 connectivity   registering -> connected <-> unreachable
                unknown -> connected      (after a control-plane restart, until heard)
@@ -174,8 +176,10 @@ A node is `connected` from a verified hello and while its heartbeats arrive, and
 three heartbeat intervals pass without one, whether its stream ended or went quiet, since a
 half-open stream and a dead machine look the same from the control plane. A control plane that
 starts marks every node it recorded as connected `unknown`. Reconnecting returns a node to the
-`admin` state it had. `cordoned` stops new placements and leaves running workloads; `draining`
-migrates everything off.
+`admin` state it had. `cordoned` stops new placements and leaves running workloads; `draining` is
+what a drain or an evacuation holds the node in while it moves everything off
+([plans](plans.md#operations)), and only its operation leaves it, for `cordoned`, so an operator
+decides afresh whether the emptied node takes work again or is removed.
 
 A node also reports its capacity and allocatable resources, its drivers with their declared
 capabilities (signals, exec, console, resize, snapshot, live migration; the scheduler asks, never

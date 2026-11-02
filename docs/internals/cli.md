@@ -329,6 +329,7 @@ Each is one API call once its names are resolved, and its page is where the beha
 | `workload move`, `migration get\|abandon\|rollback\|release` | [migration](migration.md) |
 | `run list\|get\|cancel\|logs` | [runs](runs.md) |
 | `node token create\|cordon\|uncordon\|remove` | [node agent](node-agent.md) |
+| `operation drain\|evacuate\|rollout\|approve\|pause\|resume\|abort\|get` | [plans](plans.md#operations) |
 | `volume delete\|snapshot\|snapshots\|rollback\|delete-snapshot` | [storage](storage.md) |
 | `repository`, `backup create\|list\|get\|restore\|ls\|cat\|clone\|prune` | [backup](backup.md) |
 | `domain`, `certificate`, `portal`, `address-pool`, `edge-group` | [endpoints](endpoints.md), [portals](portals.md), [addresses](addresses.md), [edges](edges.md) |

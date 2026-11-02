@@ -175,6 +175,13 @@ table! {
     "korpis.v1.NodeService/ListRelays" => NodeServiceClient::list_relays(ListRelaysRequest);
     "korpis.v1.NodeService/RemoveRelay" => NodeServiceClient::remove_relay(RemoveRelayRequest);
     "korpis.v1.NodeService/ReadmitRelay" => NodeServiceClient::readmit_relay(ReadmitRelayRequest);
+    "korpis.v1.OperationService/ProposeOperation" => OperationServiceClient::propose_operation(ProposeOperationRequest);
+    "korpis.v1.OperationService/ApproveOperation" => OperationServiceClient::approve_operation(ApproveOperationRequest);
+    "korpis.v1.OperationService/PauseOperation" => OperationServiceClient::pause_operation(PauseOperationRequest);
+    "korpis.v1.OperationService/ResumeOperation" => OperationServiceClient::resume_operation(ResumeOperationRequest);
+    "korpis.v1.OperationService/AbortOperation" => OperationServiceClient::abort_operation(AbortOperationRequest);
+    "korpis.v1.OperationService/GetOperation" => OperationServiceClient::get_operation(GetOperationRequest);
+    "korpis.v1.OperationService/ListOperations" => OperationServiceClient::list_operations(ListOperationsRequest);
     "korpis.v1.GrantService/IssueGrant" => GrantServiceClient::issue_grant(IssueGrantRequest);
     "korpis.v1.GrantService/GetGrant" => GrantServiceClient::get_grant(GetGrantRequest);
     "korpis.v1.GrantService/ListGrants" => GrantServiceClient::list_grants(ListGrantsRequest);
