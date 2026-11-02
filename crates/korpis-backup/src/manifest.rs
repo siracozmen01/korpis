@@ -132,7 +132,12 @@ impl Walk {
         if depth > DEPTH {
             return Err(Error::Refused(format!("{shown}: deeper than {DEPTH} directories")));
         }
+        // What is read is what the descriptor is open on, whatever the name pointed to when it was
+        // looked at: a tree mounted over it since is no part of the volume.
         let st = rustix::fs::fstat(fd).map_err(sys(&shown))?;
+        if wide(st.st_dev) != self.dev {
+            return Ok(());
+        }
         let r = Self::head(path, &st, Some(fd))?;
         self.record(path, &r);
         for name in names(fd).map_err(sys(&shown))? {
@@ -159,7 +164,7 @@ impl Walk {
                 let fd = open_dir(dir, name).map_err(sys(&shown))?;
                 self.dir(&fd, path, depth + 1)
             }
-            pb::EntryKind::ENTRY_KIND_FILE => self.file(dir, name, path, &st),
+            pb::EntryKind::ENTRY_KIND_FILE => self.file(dir, name, path),
             pb::EntryKind::ENTRY_KIND_SYMLINK => {
                 let mut r = Self::head(path, &st, None)?;
                 let target = rustix::fs::readlinkat(dir, os(name), Vec::new()).map_err(sys(&shown))?;
@@ -178,11 +183,15 @@ impl Walk {
 
     /// Records the regular file `name` of `dir`, at `path`: its data and the runs holding it, or,
     /// for a second path to a hard-linked inode, the first path.
-    fn file(&mut self, dir: &OwnedFd, name: &[u8], path: &[u8], st: &Stat) -> Result<()> {
+    fn file(&mut self, dir: &OwnedFd, name: &[u8], path: &[u8]) -> Result<()> {
         let shown = String::from_utf8_lossy(path).into_owned();
         let flags =
             OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::NOCTTY | OFlags::CLOEXEC;
         let fd = rustix::fs::openat(dir, os(name), flags, Mode::empty()).map_err(sys(&shown))?;
+        let st = &rustix::fs::fstat(&fd).map_err(sys(&shown))?;
+        if wide(st.st_dev) != self.dev || kind_of(st) != pb::EntryKind::ENTRY_KIND_FILE {
+            return Err(Error::Refused(format!("{shown}: replaced while the volume was read")));
+        }
         let mut r = Self::head(path, st, Some(&fd))?;
         if st.st_nlink > 1 {
             let ino = wide(st.st_ino);
