@@ -14,6 +14,7 @@
 
 pub mod changes;
 pub mod dir;
+pub mod handover;
 pub mod lines;
 pub mod offloaded;
 pub mod read;
