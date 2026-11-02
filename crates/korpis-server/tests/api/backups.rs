@@ -186,7 +186,9 @@ async fn a_backup_whose_plan_ended_without_it_is_failed_and_one_reported_failed_
     let made =
         h.backups(h.root()).create_backup(create("b1", &volume, &repo)).await.unwrap().into_owned();
     let id = made.backup.into_option().unwrap().id;
-    let told = until(&mut stream, assignment(|a| a.plan.is_set())).await;
+    // The backup's plan, not the install's an assignment may still carry until it is applied.
+    let backup = |p: &agent::NodePlan| p.steps.iter().any(|s| s.action == "backup_volume");
+    let told = until(&mut stream, assignment(|a| a.plan.as_option().is_some_and(backup))).await;
     let step = &told.plan.as_option().unwrap().steps[0];
     assert!(
         matches!(
