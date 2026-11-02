@@ -46,6 +46,8 @@ pub enum Work {
     Backup,
     /// Creates a tree with any owner, mode, attribute, and device.
     Restore,
+    /// Reads every file of a volume, whoever owns it, and reaches no store.
+    Manifest,
 }
 
 impl Work {
@@ -54,7 +56,7 @@ impl Work {
             CHOWN, DAC_OVERRIDE, DAC_READ_SEARCH, FOWNER, FSETID, MKNOD, SETFCAP,
         };
         match self {
-            Self::Backup => &[DAC_READ_SEARCH],
+            Self::Backup | Self::Manifest => &[DAC_READ_SEARCH],
             Self::Restore => &[CHOWN, FOWNER, DAC_OVERRIDE, FSETID, MKNOD, SETFCAP],
         }
     }
@@ -72,8 +74,8 @@ pub struct Bounds {
     pub content: Option<PathBuf>,
     /// The cgroup it joins.
     pub cgroup: Option<PathBuf>,
-    /// The store's port.
-    pub port: u16,
+    /// The store's port; none for a job that reaches no store.
+    pub port: Option<u16>,
 }
 
 pub use korpis_confine::ConfineError;
@@ -111,7 +113,7 @@ fn directory(path: &Path) -> Result<std::os::fd::OwnedFd, ConfineError> {
 fn landlock(b: &Bounds) -> Result<(bool, bool), ConfineError> {
     let abi = ABI::V5;
     let (all, read) = (AccessFs::from_all(abi), AccessFs::from_read(abi));
-    let here = if b.work == Work::Backup { read } else { all };
+    let here = if b.work == Work::Restore { all } else { read };
     let system: Vec<&Path> = SYSTEM.iter().map(Path::new).collect();
     let mut readable = existing(&system);
     readable.extend(b.content.iter().cloned());
@@ -125,9 +127,11 @@ fn landlock(b: &Bounds) -> Result<(bool, bool), ConfineError> {
         .add_rule(PathBeneath::new(work, here))
         .and_then(|r| r.add_rule(PathBeneath::new(state, all)))
         .and_then(|r| r.add_rules(path_beneath_rules(&readable, read)))
-        .and_then(|r| r.add_rule(NetPort::new(b.port, AccessNet::ConnectTcp)))
-        // A resolver that falls back to TCP asks on 53.
-        .and_then(|r| r.add_rule(NetPort::new(53, AccessNet::ConnectTcp)))
+        .map_err(err)?;
+    // A resolver that falls back to TCP asks on 53; a job that reaches no store reaches nothing.
+    let ports: Vec<u16> = b.port.into_iter().flat_map(|p| [p, 53]).collect();
+    let created = created
+        .add_rules(ports.into_iter().map(|p| Ok::<_, landlock::RulesetError>(NetPort::new(p, AccessNet::ConnectTcp))))
         .map_err(err)?;
     let status = created.restrict_self().map_err(err)?;
     let enforced = status.ruleset != RulesetStatus::NotEnforced;

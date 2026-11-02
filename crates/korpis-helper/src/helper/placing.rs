@@ -2,8 +2,8 @@
 
 //! Where a job works: a backup in its volume or a snapshot of it, a replacing restore in a staging
 //! place, a reading one in a place of its own, any other restore in its volume or a new directory
-//! of it, and an install in the volumes its spec names, each found from the identifiers the request
-//! names and nothing it says of paths.
+//! of it, a manifest in a volume or a migration's pass of it, and an install in the volumes its
+//! spec names, each found from the identifiers the request names and nothing it says of paths.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};
@@ -96,6 +96,16 @@ impl Helper {
                     crate::block::files_of(volume, self.holding(volume)?.path_of(volume))
                 })?;
                 Ok(Placed::Install(Box::new(spec)))
+            }
+            Some(R::Manifest(m)) => {
+                crate::error::identifier("job", &r.job)?;
+                let directory = if m.pass.is_empty() {
+                    self.holding(&m.volume)?.path_of(&m.volume)
+                } else {
+                    self.class(&m.storage_class)?.replica_pass(&m.volume, &m.pass)?
+                };
+                let work = W::Manifest(Box::new(pb::ManifestWork::default()));
+                Ok(Placed::Data(DataJob { directory, work, kept: None }))
             }
             None => Err(HelperError::Refused("a job names its work".into())),
         }

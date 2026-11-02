@@ -143,6 +143,7 @@ message JobSpec {
   oneof work {
     BackupWork backup = 2;
     RestoreWork restore = 3;
+    ManifestWork manifest = 12;
   }
   // The workload's data key, 32 bytes, for the length of the job.
   bytes data_key = 4;
@@ -165,6 +166,26 @@ message JobSpec {
   // what it recorded by reference and the repository lacks; a restore reads there what the node's
   // store lacks. Absent where none was granted.
   korpis.v1.S3Access content_store = 11;
+}
+
+// Computing the manifest of the directory: what a migration's two nodes compare a volume by. It
+// reads the directory and writes nothing, and reaches no store.
+message ManifestWork {}
+
+// A directory's manifest: a canonical walk of its tree (every entry depth first, each directory's
+// names in byte order, with its kind, permission bits, owner and group, extended attributes, and
+// for a file its size, modification time, the SHA-256 of its data and the runs holding it, for a
+// symlink its target, for a device its numbers, for a second hard link the first path), and the
+// SHA-256 of the walk.
+message Manifest {
+  string digest = 1;
+  // The walk in runs of records, each with its first path and its digest.
+  repeated ManifestRun runs = 2;
+}
+
+message ManifestRun {
+  string first_path = 1;
+  string digest = 2;
 }
 
 message BackupWork {
@@ -204,6 +225,8 @@ message JobResult {
   Restored restored = 4;
   // What confined it while it ran.
   Confinement confinement = 5;
+  // A manifest job's manifest.
+  Manifest manifest = 6;
 }
 
 message Restored {
