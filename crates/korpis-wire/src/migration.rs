@@ -166,6 +166,7 @@ pub fn role_to_pb(r: &MigrationRole) -> agent::MigrationRole {
             })
             .collect(),
         hold_until: r.hold_until.map(timestamp).into(),
+        live: r.live,
         ..Default::default()
     }
 }

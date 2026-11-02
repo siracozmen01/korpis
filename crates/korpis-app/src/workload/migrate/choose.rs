@@ -19,6 +19,7 @@ use crate::ports::{Clock, Placed, PlacementWrite as _, RecipeSource, Store};
 use korpis_core::node::Node;
 use korpis_core::node::device::DeviceHold;
 use korpis_core::node::mesh::Pairs;
+use korpis_core::node::snapshot::restores;
 use korpis_core::schedule::policy::Policies;
 use korpis_core::schedule::{
     Candidate, Explanation, Needed, Peer, Request, operator_refusals, place,
@@ -87,12 +88,14 @@ fn nowhere(explanation: &Explanation) -> AppError {
     }
 }
 
-/// The scheduler's view of moving `w`, approved to be `target`, to `named` or the best of the
-/// candidates in `i`; with what it is given there.
+/// The scheduler's view of moving `w`, approved to be `target`, from `source` to `named` or the
+/// best of the candidates in `seen`; with what it is given there. Among the candidates, those whose
+/// driver restores the state the source's takes are chosen from first, since a move to one stops
+/// the workload for no longer than its last pass; the rest only where none of them fits.
 fn pick(
     seen: &Inputs,
     (w, target): (&Workload, &Intent),
-    named: Option<Uuid>,
+    (source, named): (&Node, Option<Uuid>),
 ) -> Result<(Explanation, Given), AppError> {
     let quota = counting(&seen.entries, seen.placed.as_ref(), seen.promised.clone());
     let req = Request {
@@ -131,7 +134,13 @@ fn pick(
             chosen
         } else {
             let candidates = candidates_of(&seen.nodes, &seen.allocations, &empty);
-            place(&req, &candidates, &seen.peers, &seen.policies)
+            let driver = &target.body.runtime.driver;
+            let live: Vec<Candidate<'_>> =
+                candidates.iter().filter(|c| restores(source, c.node, driver)).copied().collect();
+            let first = (!live.is_empty())
+                .then(|| place(&req, &live, &seen.peers, &seen.policies))
+                .filter(|e| e.chosen.is_some());
+            first.unwrap_or_else(|| place(&req, &candidates, &seen.peers, &seen.policies))
         };
     let id = explanation.chosen.ok_or_else(|| nowhere(&explanation))?;
     let given = given_on(&req, &seen.nodes, id)?;
@@ -212,7 +221,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             others.filter(|n| only.is_none_or(|id| n.id == id)).collect()
         };
         let inputs = self.inputs(tx, (w, target), nodes).await?;
-        let (explanation, given) = pick(&inputs, (w, target), named)?;
+        let (explanation, given) = pick(&inputs, (w, target), (&source, named))?;
         let edge = inputs.addressing.stable();
         let id = explanation.chosen.ok_or_else(unknown)?;
         let node = inputs.nodes.into_iter().find(|n| n.id == id).ok_or_else(unknown)?;

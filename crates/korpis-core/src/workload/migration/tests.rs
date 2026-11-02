@@ -78,6 +78,7 @@ fn migration(phase: Phase) -> Migration {
         made_at: at,
         reported: Reported::default(),
         moved_at: None,
+        live: false,
     }
 }
 

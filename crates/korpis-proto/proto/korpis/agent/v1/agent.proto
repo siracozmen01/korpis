@@ -828,6 +828,9 @@ message MigrationRole {
   // When the source deletes its copies, unless the workload is rolled back first; set as the
   // migration enters release.
   google.protobuf.Timestamp hold_until = 8;
+  // Whether quiesce captures the workload's execution state into its `live_state` volume rather
+  // than stopping it, and the destination resumes that state at cutover rather than starting it.
+  bool live = 9;
 }
 
 message MigrationVolumeRole {

@@ -73,6 +73,9 @@ pub struct MigrationRole {
     pub watermarks: Vec<Watermark>,
     /// When the source deletes its copies; set as the migration enters `release`.
     pub hold_until: Option<SystemTime>,
+    /// Whether the source captures the workload's state at `quiesce` and the destination resumes
+    /// it at `cutover`.
+    pub live: bool,
 }
 
 /// How `v` crosses in `phase`, as a node is told it.
@@ -119,6 +122,7 @@ impl MigrationRole {
             volumes: volumes.iter().map(|v| volume_role(m.phase, v)).collect(),
             watermarks: if handed { watermarks.to_vec() } else { Vec::new() },
             hold_until: m.hold_until,
+            live: m.live,
         }
     }
 }

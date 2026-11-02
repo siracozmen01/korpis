@@ -246,6 +246,10 @@ pub struct Migration {
     /// When the placement moved to the destination at `cutover`; `None` before, and again once
     /// a rollback moved it back.
     pub moved_at: Option<SystemTime>,
+    /// Whether `quiesce` captures the workload's execution state into its `live_state` volume
+    /// rather than stopping it, and the destination resumes that state rather than starting it,
+    /// as the approved plan said.
+    pub live: bool,
 }
 
 /// One volume of a migration: how it crosses, and how far it has.

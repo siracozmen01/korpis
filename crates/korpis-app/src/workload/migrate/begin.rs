@@ -15,6 +15,7 @@ use crate::ports::{
     WorkloadWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::node::snapshot::restores;
 use korpis_core::placement::{BoundBy, Placement};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::migration::{Migration, Phase, Reported};
@@ -50,6 +51,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.lock_placement().await?;
         let toward = if to.named { Toward::Named(node) } else { Toward::Chosen(node) };
         let chosen = self.destination(tx, (w, &target), toward).await?;
+        // The plan said the workload's state is captured; a destination that no longer restores
+        // it is not moved to with a stop the approver never read.
+        if to.live && !restores(&chosen.source, &chosen.node, &target.body.runtime.driver) {
+            let why = "the destination no longer restores the workload's state; propose it again";
+            return Err(AppError::conflict("migration.unrestorable", why));
+        }
         let volumes = self.crossings(w, (&chosen.source, &chosen.node)).await?;
         let now = self.clock.now();
         let source = chosen.source.id;
@@ -68,6 +75,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             made_at: now,
             reported: Reported::default(),
             moved_at: None,
+            live: to.live,
         };
         tx.insert_migration(&m, &volumes).await?;
         plan.transition(PlanStatus::Applying).map_err(|e| AppError::Internal(e.to_string()))?;
