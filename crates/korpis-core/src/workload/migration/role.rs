@@ -37,7 +37,7 @@ pub struct VolumeRole {
     /// from, and its ticket, which the control plane signs once the role is made.
     pub pass: Option<PassRole>,
     /// From `verify`, for a volume crossing by increments: the last pass the destination reported
-    /// held, which the destination's copy is promoted from.
+    /// held, whose manifest both sides compute and which the destination's copy is promoted from.
     pub held_pass: Option<Uuid>,
 }
 

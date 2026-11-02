@@ -842,7 +842,7 @@ message MigrationVolumeRole {
   // sends it and the destination admits it under its ticket, each reporting it by this name.
   MigrationPass pass = 5;
   // From verify, for a volume crossing by increments: the last pass the destination reported
-  // held, which the destination's copy is promoted from.
+  // held, whose manifest both sides compute and which the destination's copy is promoted from.
   string held_pass = 6;
 }
 

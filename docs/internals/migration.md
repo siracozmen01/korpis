@@ -189,13 +189,18 @@ processes, not its kernel.
 
 ## Verify
 
-A volume's manifest is a canonical walk: every entry in the byte order of its path, with type, mode,
-owner and group by number, extended attributes including ACLs, and for a regular file its size,
-modification time, content SHA-256 and holes (from `SEEK_DATA` and `SEEK_HOLE`); for a symlink its
-target; for a device node its numbers; for a hardlink its group's first path. Its digest is the
-SHA-256 of the walk. The source computes it over what it last sent, stopped, and the destination
-over what it received; each also reports the manifest in runs of entries with each run's first path
-and digest. The control plane compares the two digests, and where they differ records the first path
+A volume's manifest is a canonical walk: every entry depth first, each directory's names in byte
+order, with type, mode, owner and group by number, extended attributes including ACLs, and for a
+regular file its size, modification time, the SHA-256 of its data and the runs holding it (from
+`SEEK_DATA` and `SEEK_HOLE`); for a symlink its target; for a device node its numbers; for a second
+path to a hard-linked inode the first path. Depth first rather than sorted by whole path, the walk
+holds one directory's names at a time, whatever the volume's size. Its digest is the SHA-256 of the
+walk. The source computes it over what it last sent, stopped: the final pass's snapshot for a volume
+crossing by increments, the volume itself for one crossing by its tree; the destination over what it
+received, the same pass or its copy. Each side's helper computes it in a job of
+`korpis-backup-job`, confined as a backup is but reading only and reaching no port, and each reports
+the manifest in runs of 1024 entries with each run's first path and digest. The destination also
+prepares the target again, with its volumes in place. The control plane compares the two digests, and where they differ records the first path
 of the first differing run and abandons the migration. Shared and block volumes have one copy and
 are not compared. This is the check Pterodactyl's #5429 lacked: a lost symlink, attribute or hole is
 a difference in the manifest, not in the bytes.

@@ -44,7 +44,7 @@ pub(crate) struct Walker<'a, K> {
     groups: HashMap<(u64, u64), pb::Entry>,
 }
 
-fn open_dir(at: &OwnedFd, name: &[u8]) -> rustix::io::Result<OwnedFd> {
+pub(crate) fn open_dir(at: &OwnedFd, name: &[u8]) -> rustix::io::Result<OwnedFd> {
     let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
     rustix::fs::openat(at, os(name), flags, Mode::empty())
 }
@@ -55,7 +55,7 @@ pub(crate) fn os(name: &[u8]) -> &std::ffi::OsStr {
 }
 
 /// The names in the directory `fd` is open on, in order.
-fn names(fd: &OwnedFd) -> rustix::io::Result<Vec<Vec<u8>>> {
+pub(crate) fn names(fd: &OwnedFd) -> rustix::io::Result<Vec<Vec<u8>>> {
     let mut out = Vec::new();
     for entry in rustix::fs::Dir::read_from(fd)? {
         let name = entry?.file_name().to_bytes().to_vec();
