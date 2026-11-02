@@ -52,6 +52,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     ) {
         let Some(v) = state_of(role) else { return };
         if t.migrated.state.as_ref().is_none_or(|(m, _)| *m != role.migration) {
+            // Kept before it is made, so a restart between the two still deletes it.
+            let kept = self.progress.stating(&a.workload, Some(v.source_helper_id.clone()));
+            if let Err(e) = kept {
+                return tracing::error!(error = %e, "progress could not be kept");
+            }
             match self.state_volume(a, v, v.source_helper_id.clone()).await {
                 Ok(dir) => t.migrated.state = Some((role.migration.clone(), dir)),
                 Err(e) => return tracing::warn!(workload = %a.workload, error = %e.0, "no state"),
@@ -125,14 +130,36 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Deletes the state volume a live migration left on this node as its source, once the
-    /// workload is held here under no migration.
+    /// Deletes the state volume a live migration left on this node as its source, under the
+    /// identifier it was made with, once the workload is held here under no migration: what this
+    /// node keeps of it outlives a restart.
     pub(super) async fn forget_state(&mut self, a: &agent::Assignment, t: &mut Tracked) {
-        let Some((_, dir)) = t.migrated.state.clone() else { return };
-        let helper_id = volume_id(a, LIVE_STATE);
+        let Some(helper_id) = self.progress.of(&a.workload).state else { return };
         match self.delete_volume(&a.workload, (LIVE_STATE, Why::State), &helper_id).await {
-            Ok(()) => t.migrated.state = None,
-            Err(e) => tracing::warn!(state = %dir, error = %e.0, "a left state not deleted"),
+            Ok(()) => {
+                t.migrated.state = None;
+                if let Err(e) = self.progress.stating(&a.workload, None) {
+                    tracing::error!(error = %e, "progress could not be kept");
+                }
+            }
+            Err(e) => tracing::warn!(state = %helper_id, error = %e.0, "a left state not deleted"),
+        }
+    }
+
+    /// Deletes the state volume kept here for each workload no longer held here: its migration
+    /// moved it away, and its release may not have deleted the state before it left.
+    pub(super) async fn forget_states(&mut self, held: &crate::held::HeldSet) {
+        for (workload, helper_id) in self.progress.states() {
+            if held.assignments.contains_key(&workload) {
+                continue;
+            }
+            if let Err(e) = self.host.delete_volume(&helper_id).await {
+                tracing::warn!(state = %helper_id, error = %e.0, "a left state not deleted");
+                continue;
+            }
+            if let Err(e) = self.progress.stating(&workload, None) {
+                tracing::error!(error = %e, "progress could not be kept");
+            }
         }
     }
 }

@@ -158,7 +158,8 @@ Korpis validates against the schema without understanding it.
 ```
 Prepare(Intent)       -> PreparedSpec | Rejection    pure: validates, resolves, changes nothing
 Create(PreparedSpec)  -> RuntimeID
-Start, Stop(signal, grace), Kill, Destroy
+Start(restore_from?), Stop(signal, grace), Kill, Destroy
+Checkpoint(into)      -> bytes                         for a driver declaring runtime_snapshot
 Recover()             -> []RuntimeID                 adoption after an agent restart
 Inspect -> RuntimeStatus; Events; Stats -> usage and counters
 Signal(name); Exec(command, timeout, limit) -> Stream; PingGuest; console attach, input, resize
@@ -174,6 +175,20 @@ Files; StartInstall, InstallStatus, ForgetInstall      for guests (guests.md)
 - **`Create` and `Start` are separate.** Resources are allocated, volumes mounted and the network
   attached before anything executes, so failures happen where nothing runs yet; Windows needs it,
   creating a job object and starting a process in it being distinct operations.
+- **`Checkpoint` pauses, writes and ends; `Start` from its directory resumes.** A driver declaring
+  `runtime_snapshot` writes a running object's execution state into a directory of the workload's
+  own state volume, `<workload>.live_state` directly beneath a volume root, and ends it; a start
+  naming that directory resumes it. The state records the workload it was taken of and where it
+  was taken (hypervisor version, CPU template, host kernel `major.minor`), and a driver resumes only
+  its own object's state taken where it restores here: any other is refused, never booted in its
+  place, since a workload that was running is not silently started afresh. The `firecracker`
+  driver pauses the guest and has its Firecracker write a full snapshot into its chroot, copies it
+  and the boot, image and config drives the guest holds open into the directory, each opened
+  beneath it through no link and written anew, since the destination builds its own drives apart
+  and their bytes differ; a resume copies them back into the object's directory and has a
+  Firecracker started with no configuration load them. Its snapshots restore by the same
+  Firecracker version on the same host kernel line alone, as Firecracker documents
+  (`docs/snapshotting/snapshot-support.md`), so it declares that kernel as both ends of its range.
 - **`Recover` is not optional.** It is [adoption](node-agent.md): a driver that cannot enumerate and
   re-adopt what it made turns every agent restart into an outage.
 - **Every verb is idempotent, and an unknown object is `NotFound`.** A verb asked of an object

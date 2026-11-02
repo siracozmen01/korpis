@@ -249,6 +249,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Deletes the copies kept for each workload that left the set without moving here: its
     /// migration was abandoned before the cutover.
     pub(super) async fn abandoned(&mut self, held: &crate::held::HeldSet) {
+        self.forget_states(held).await;
         for (workload, volumes) in self.progress.received() {
             if held.assignments.contains_key(&workload) {
                 continue;
