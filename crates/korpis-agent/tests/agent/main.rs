@@ -32,6 +32,7 @@ mod journal;
 mod lease;
 mod metering;
 mod migrating;
+mod moving;
 mod networks;
 mod offload;
 mod reachability;
