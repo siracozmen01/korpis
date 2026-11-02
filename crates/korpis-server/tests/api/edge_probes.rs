@@ -124,8 +124,12 @@ async fn a_member_answering_its_probe_holds_the_address_and_one_that_stops_gives
 
     let behind = (host.node.clone(), host.key.clone());
     let first = answering(("127.0.0.94", port), behind.clone()).await;
+    // Not yet answering is not having missed: the member is waited on until it has missed three.
+    let missed = |g: &pb::EdgeGroup| {
+        g.member_status.iter().any(|m| m.node == e2.node && m.reason.contains("missed 3 probes"))
+    };
     let shown = group_once(&h, &group.id, |g| {
-        ready(g, &e1.node) == Some(true) && ready(g, &e2.node) == Some(false)
+        ready(g, &e1.node) == Some(true) && ready(g, &e2.node) == Some(false) && missed(g)
     })
     .await;
     let failing = shown.member_status.iter().find(|m| m.node == e2.node).unwrap();
