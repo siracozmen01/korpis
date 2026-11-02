@@ -19,6 +19,7 @@ use korpis_core::authz::token::{KeyRing, SigningKey};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
+use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
 use korpis_wire::wire_id;
 use std::net::Ipv4Addr;
@@ -26,6 +27,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{broadcast, watch};
 use uuid::Uuid;
+
+const TREE: pb::MigrationCrossing = pb::MigrationCrossing::MIGRATION_CROSSING_TREE;
 
 /// One node: its host, journal, what it holds, and what it is told on.
 struct Node {
@@ -45,7 +48,8 @@ fn node(id: Uuid, mesh: Ipv4Addr, keys: &KeyRing) -> Node {
     let (events, _) = broadcast::channel(16);
     let (passes, incoming) = tokio::sync::mpsc::channel(4);
     let at = (dir.path(), id, Some(mesh));
-    let r = Replication::new(host.clone(), at, ring.clone(), (journal.clone(), Some(passes)));
+    let both = (ring.clone(), watched.clone());
+    let r = Replication::new(host.clone(), at, both, (journal.clone(), Some(passes)));
     let m = Migrating::new(host.clone(), at, (ring, watched), journal.clone());
     tokio::spawn(r.run(events.subscribe()));
     tokio::spawn(m.run(events.subscribe(), incoming));
@@ -78,16 +82,17 @@ async fn reports(journal: &JournalHandle) -> Vec<agent::MigrationProgress> {
 }
 
 /// The set holding workload `wl_m` migrating as `side` with `peer`, its volume `data` crossing
-/// by its tree in the pass `pass`, under `ticket`.
+/// as `crossing` in the pass `pass`, under `ticket`.
 fn holding(
     side: agent::MigrationSide,
     (peer, migration): (Uuid, Uuid),
     pass: (Uuid, &str),
+    crossing: pb::MigrationCrossing,
 ) -> HeldSet {
     let volume = agent::MigrationVolumeRole {
         name: "data".into(),
         source_helper_id: "wl_m.data".into(),
-        crossing: pb::MigrationCrossing::MIGRATION_CROSSING_TREE.into(),
+        crossing: crossing.into(),
         volume: wire_id(IdKind::Volume, Uuid::from_u128(9)),
         pass: agent::MigrationPass {
             pass: pass.0.to_string(),
@@ -168,8 +173,11 @@ async fn a_pass_is_sent_under_its_ticket_received_into_the_copy_and_a_forged_one
     listening(Ipv4Addr::new(127, 0, 4, 255)).await;
     let pass = Uuid::now_v7();
     let good = ticket(&key, (m, a, b), pass);
-    destination.held.send(holding(S::MIGRATION_SIDE_DESTINATION, (a, m), (pass, &good))).unwrap();
-    source.held.send(holding(S::MIGRATION_SIDE_SOURCE, (b, m), (pass, &good))).unwrap();
+    destination
+        .held
+        .send(holding(S::MIGRATION_SIDE_DESTINATION, (a, m), (pass, &good), TREE))
+        .unwrap();
+    source.held.send(holding(S::MIGRATION_SIDE_SOURCE, (b, m), (pass, &good), TREE)).unwrap();
     let [sent] = reported(&source.journal, 1).await.try_into().unwrap();
     assert_eq!(sent.volumes[0].pass, pass.to_string());
     let [held] = reported(&destination.journal, 1).await.try_into().unwrap();
@@ -187,6 +195,7 @@ async fn a_pass_is_sent_under_its_ticket_received_into_the_copy_and_a_forged_one
             side,
             (if side == S::MIGRATION_SIDE_SOURCE { b } else { a }, m),
             (forged_pass, &forged),
+            TREE,
         )
     };
     destination.held.send(both(S::MIGRATION_SIDE_DESTINATION)).unwrap();
@@ -194,4 +203,53 @@ async fn a_pass_is_sent_under_its_ticket_received_into_the_copy_and_a_forged_one
     tokio::time::sleep(Duration::from_millis(500)).await;
     assert_eq!(reports(&destination.journal).await.len(), 1, "nothing of it is held");
     assert!(destination.host.tree_received("wl_m.data", &forged_pass.to_string()).is_none());
+}
+
+#[tokio::test]
+async fn a_volume_s_own_snapshots_cross_oldest_first_before_its_pass() {
+    use agent::MigrationSide as S;
+    use korpis_agent::host::{Host as _, Replicating as _, SnapshotOp};
+    const INCREMENTS: pb::MigrationCrossing = pb::MigrationCrossing::MIGRATION_CROSSING_INCREMENTS;
+    let key = SigningKey::generate(1);
+    let mut keys = KeyRing::default();
+    keys.insert(key.key_id, &key.public_bytes()).unwrap();
+    let (a, b, m) = (Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7());
+    let source = node(a, Ipv4Addr::new(127, 0, 5, 255), &keys);
+    let destination = node(b, Ipv4Addr::new(127, 0, 6, 255), &keys);
+    let mesh = |n: &Node, a, b| {
+        let mut p = peers(a, b);
+        p.peers[0].allowed_ips = vec!["127.0.5.0/24".into()];
+        p.peers[1].allowed_ips = vec!["127.0.6.0/24".into()];
+        n.events.send(Event::Peers(p)).unwrap();
+    };
+    mesh(&source, a, b);
+    mesh(&destination, a, b);
+    let volume = helper::EnsureVolumeRequest { volume: "wl_m.data".into(), ..Default::default() };
+    source.host.ensure_volume(&volume).await.unwrap();
+    for name in ["s1-older", "s2-newer"] {
+        source.host.snapshot(SnapshotOp::Take, "wl_m.data", name).await.unwrap();
+    }
+
+    listening(Ipv4Addr::new(127, 0, 6, 255)).await;
+    let pass = Uuid::now_v7();
+    let good = ticket(&key, (m, a, b), pass);
+    let held = |side, peer| holding(side, (peer, m), (pass, &good), INCREMENTS);
+    destination.held.send(held(S::MIGRATION_SIDE_DESTINATION, a)).unwrap();
+    source.held.send(held(S::MIGRATION_SIDE_SOURCE, b)).unwrap();
+    let [got] = reported(&destination.journal, 1).await.try_into().unwrap();
+    assert!(got.volumes[0].held, "the pass is reported once, after the snapshots");
+
+    let sent: Vec<_> =
+        source.host.replicas_sent().into_iter().map(|r| (r.snapshot, r.parent, r.own)).collect();
+    let own = |n: &str, p: &str| (n.to_owned(), p.to_owned(), true);
+    let expected = [
+        own("s1-older", ""),
+        own("s2-newer", "s1-older"),
+        (pass.to_string(), String::new(), false),
+    ];
+    assert_eq!(sent, expected, "oldest first, each from the one before, then the pass");
+    let kept = destination.host.replica_volumes().await.unwrap();
+    let of = |v: &str| kept.iter().find(|h| h.volume == v).map(|h| h.snapshots.clone());
+    assert_eq!(of("own.wl_m.data").unwrap(), ["s1-older", "s2-newer"], "beside the pass");
+    assert_eq!(of("wl_m.data").unwrap(), [pass.to_string()]);
 }

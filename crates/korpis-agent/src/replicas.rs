@@ -78,6 +78,8 @@ pub struct Replication<H> {
     mesh: Option<Ipv4Addr>,
     /// The token keys in force, which open tickets.
     keys: watch::Receiver<Arc<KeyRing>>,
+    /// The assignments held, whose migrations' copies replication leaves alone.
+    held: watch::Receiver<crate::held::HeldSet>,
     journal: JournalHandle,
     /// Where a migration pass's stream is handed, where the node takes part in migrations.
     migrations: Option<mpsc::Sender<crate::migrate::Incoming>>,
@@ -105,13 +107,13 @@ impl<H> Replication<H> {
 
 impl<H: Replicating + Clone> Replication<H> {
     /// The part of the node `node`, whose state is at `state`, with its mesh address `mesh`;
-    /// opening tickets with `keys`, journaling into `journal`, and handing each migration pass's
-    /// stream to `migrations`.
+    /// opening tickets with `keys`, leaving alone what the migrations of the assignments `held`
+    /// copy, journaling into `journal`, and handing each migration pass's stream to `migrations`.
     #[must_use]
     pub fn new(
         host: H,
         (state, node, mesh): (&Path, Uuid, Option<Ipv4Addr>),
-        keys: watch::Receiver<Arc<KeyRing>>,
+        (keys, held): (watch::Receiver<Arc<KeyRing>>, watch::Receiver<crate::held::HeldSet>),
         (journal, migrations): (JournalHandle, Option<mpsc::Sender<crate::migrate::Incoming>>),
     ) -> Arc<Self> {
         let shared = Shared {
@@ -120,7 +122,7 @@ impl<H: Replicating + Clone> Replication<H> {
             sends: BTreeMap::new(),
         };
         let shared = Mutex::new(shared);
-        Arc::new(Self { host, node, mesh, keys, journal, migrations, shared })
+        Arc::new(Self { host, node, mesh, keys, held, journal, migrations, shared })
     }
 
     /// Sends what is due, and releases what is no longer needed, every [`RETRY`] and whenever

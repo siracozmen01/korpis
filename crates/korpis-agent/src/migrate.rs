@@ -33,6 +33,16 @@ use uuid::Uuid;
 
 /// How often what is due is looked at again: a failed pass sent again.
 pub const RETRY: Duration = Duration::from_secs(10);
+/// What the destination answers a snapshot's name with: it holds that snapshot already, so
+/// nothing is sent; or it is receiving it.
+const HELD: u8 = 0;
+const RECEIVING: u8 = 1;
+/// The replica volume a migration's destination receives a volume's own snapshots into, beside
+/// the passes, until they become the volume's own where it is promoted.
+#[must_use]
+pub fn own_snapshots_of(source_helper_id: &str) -> String {
+    format!("own.{source_helper_id}")
+}
 
 /// A stream the transfer port read a migration pass's ticket from: the stream, the ticket, and
 /// the address it came from.

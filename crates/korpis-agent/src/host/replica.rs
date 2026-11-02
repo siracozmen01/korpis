@@ -56,6 +56,13 @@ pub trait Replicating: Send + Sync + 'static {
         &self,
         r: &helper::OpenTransferRequest,
     ) -> impl Future<Output = Result<OwnedFd, HostError>> + Send;
+
+    /// The own snapshots of the volume the helper knows as `volume`, oldest first, each with
+    /// the one before it.
+    fn own_snapshots(
+        &self,
+        volume: &str,
+    ) -> impl Future<Output = Result<Vec<helper::OwnSnapshot>, HostError>> + Send;
 }
 
 impl Replicating for NodeHost {
@@ -105,5 +112,12 @@ impl Replicating for NodeHost {
         r: &helper::OpenTransferRequest,
     ) -> impl Future<Output = Result<OwnedFd, HostError>> + Send {
         self.helper().open_transfer(r)
+    }
+
+    fn own_snapshots(
+        &self,
+        volume: &str,
+    ) -> impl Future<Output = Result<Vec<helper::OwnSnapshot>, HostError>> + Send {
+        self.helper().own_snapshots(volume)
     }
 }

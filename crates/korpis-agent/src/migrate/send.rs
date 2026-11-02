@@ -7,7 +7,7 @@
 //! tree's are counted by the destination, whose rsync pulls it. One that failed is sent again after
 //! [`RETRY`]; a pass the control plane started anew, its ticket having run out, is another pass.
 
-use super::{Migrating, RETRY, Sending, reported};
+use super::{HELD, Migrating, RETRY, Sending, reported};
 use crate::host::{Replicating, Trees};
 use crate::replicas::{TRANSFER_PORT, mesh_of};
 use korpis_proto::korpis::agent::v1 as agent;
@@ -113,6 +113,19 @@ async fn connect<H: Replicating>(m: &Migrating<H>, to: Ipv4Addr) -> Result<TcpSt
         .map_err(|e| e.to_string())
 }
 
+/// A connection to `to` carrying `ticket`, as every stream of a pass begins.
+async fn opened<H: Replicating>(
+    m: &Migrating<H>,
+    to: Ipv4Addr,
+    ticket: &str,
+) -> Result<TcpStream, String> {
+    let len = u16::try_from(ticket.len()).map_err(|_| "a ticket too long")?;
+    let mut stream = connect(m, to).await?;
+    stream.write_all(&len.to_be_bytes()).await.map_err(|e| e.to_string())?;
+    stream.write_all(ticket.as_bytes()).await.map_err(|e| e.to_string())?;
+    Ok(stream)
+}
+
 /// Sends `pass` of the volume `v` to `to`; the bytes it sent.
 async fn send<H: Replicating + Trees>(
     m: &Migrating<H>,
@@ -120,30 +133,12 @@ async fn send<H: Replicating + Trees>(
     to: Option<Ipv4Addr>,
 ) -> Result<u64, String> {
     let to = to.ok_or("the destination's mesh address is not known")?;
-    let ticket = pass.ticket.as_bytes();
-    let len = u16::try_from(ticket.len()).map_err(|_| "a ticket too long")?;
-    let mut stream = connect(m, to).await?;
-    let io = |e: std::io::Error| e.to_string();
-    stream.write_all(&len.to_be_bytes()).await.map_err(io)?;
-    stream.write_all(ticket).await.map_err(io)?;
     let increments =
         v.crossing.as_known() == Some(pb::MigrationCrossing::MIGRATION_CROSSING_INCREMENTS);
     if increments {
-        let request = helper::SendReplicaRequest {
-            volume: v.source_helper_id.clone(),
-            snapshot: pass.pass.clone(),
-            parent: pass.parent.clone(),
-            ..Default::default()
-        };
-        let read = m.host.send_replica(&request).await.map_err(|e| e.to_string())?;
-        let mut pipe = tokio::fs::File::from_std(std::fs::File::from(read));
-        let bytes = tokio::io::copy(&mut pipe, &mut stream).await.map_err(io)?;
-        stream.shutdown().await.map_err(io)?;
-        // The destination closes once its receive ended; what it says is in its journal.
-        let mut rest = Vec::new();
-        let _ = stream.read_to_end(&mut rest).await;
-        return Ok(bytes);
+        return send_increments(m, (v, pass), to).await;
     }
+    let stream = opened(m, to, &pass.ticket).await?;
     let request = helper::SendTreeRequest {
         volume: v.source_helper_id.clone(),
         pass: pass.pass.clone(),
@@ -158,4 +153,60 @@ async fn send<H: Replicating + Trees>(
         ..Default::default()
     };
     super::settled(m, &asked, SETTLE).await
+}
+
+/// Sends the volume's own snapshots, oldest first, each an increment from the one before, and
+/// then the pass, each on a stream of its own under the pass's ticket; the bytes they sent.
+async fn send_increments<H: Replicating>(
+    m: &Migrating<H>,
+    (v, pass): (&agent::MigrationVolumeRole, &agent::MigrationPass),
+    to: Ipv4Addr,
+) -> Result<u64, String> {
+    let own = m.host.own_snapshots(&v.source_helper_id).await.map_err(|e| e.to_string())?;
+    let mut bytes = 0;
+    for s in own {
+        let request = helper::SendReplicaRequest {
+            volume: v.source_helper_id.clone(),
+            snapshot: s.name,
+            parent: s.parent,
+            own: true,
+            ..Default::default()
+        };
+        bytes += send_snapshot(m, to, &pass.ticket, &request).await?;
+    }
+    let request = helper::SendReplicaRequest {
+        volume: v.source_helper_id.clone(),
+        snapshot: pass.pass.clone(),
+        parent: pass.parent.clone(),
+        ..Default::default()
+    };
+    Ok(bytes + send_snapshot(m, to, &pass.ticket, &request).await?)
+}
+
+/// Sends the snapshot `request` names on a stream of its own: the ticket, then the snapshot's
+/// name, empty for the pass itself, then, unless the destination answers that it holds it
+/// already, the stream; the bytes it sent.
+async fn send_snapshot<H: Replicating>(
+    m: &Migrating<H>,
+    to: Ipv4Addr,
+    ticket: &str,
+    request: &helper::SendReplicaRequest,
+) -> Result<u64, String> {
+    let io = |e: std::io::Error| e.to_string();
+    let mut stream = opened(m, to, ticket).await?;
+    let name = if request.own { request.snapshot.as_str() } else { "" };
+    let len = u16::try_from(name.len()).map_err(|_| "a snapshot name too long")?;
+    stream.write_all(&len.to_be_bytes()).await.map_err(io)?;
+    stream.write_all(name.as_bytes()).await.map_err(io)?;
+    if stream.read_u8().await.map_err(io)? == HELD {
+        return Ok(0);
+    }
+    let read = m.host.send_replica(request).await.map_err(|e| e.to_string())?;
+    let mut pipe = tokio::fs::File::from_std(std::fs::File::from(read));
+    let bytes = tokio::io::copy(&mut pipe, &mut stream).await.map_err(io)?;
+    stream.shutdown().await.map_err(io)?;
+    // The destination closes once its receive ended; what it says is in its journal.
+    let mut rest = Vec::new();
+    let _ = stream.read_to_end(&mut rest).await;
+    Ok(bytes)
 }

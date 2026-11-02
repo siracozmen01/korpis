@@ -23,8 +23,11 @@ impl InMemoryHost {
         drop(write);
         self.with(|k| {
             k.sent.push(r.clone());
-            let sent = k.replicas.entry((String::new(), r.volume.clone())).or_default();
-            sent.insert(r.snapshot.clone());
+            // A volume's own snapshot is sent as it is; only one taken for sending is kept.
+            if !r.own {
+                let sent = k.replicas.entry((String::new(), r.volume.clone())).or_default();
+                sent.insert(r.snapshot.clone());
+            }
         })?;
         Ok(OwnedFd::from(read))
     }
@@ -144,6 +147,10 @@ impl Replicating for InMemoryHost {
                 }
                 let path = format!("/memory/{}", r.into);
                 k.volumes.insert(r.into.clone(), path.clone());
+                let own = k.replicas.remove(&(r.storage_class.clone(), r.own_from.clone()));
+                for name in own.into_iter().flatten() {
+                    k.snapshots.insert((r.into.clone(), name));
+                }
                 Ok(path)
             })
             .and_then(std::convert::identity),
@@ -155,6 +162,23 @@ impl Replicating for InMemoryHost {
         r: &helper::OpenTransferRequest,
     ) -> impl Future<Output = Result<OwnedFd, HostError>> + Send {
         ready(Self::transfer_now(r))
+    }
+
+    fn own_snapshots(
+        &self,
+        volume: &str,
+    ) -> impl Future<Output = Result<Vec<helper::OwnSnapshot>, HostError>> + Send {
+        ready(self.with(|k| {
+            let mut parent = String::new();
+            let names = k.snapshots.iter().filter(|(v, _)| v == volume).map(|(_, n)| n.clone());
+            names
+                .map(|name| helper::OwnSnapshot {
+                    parent: std::mem::replace(&mut parent, name.clone()),
+                    name,
+                    ..Default::default()
+                })
+                .collect()
+        }))
     }
 
     fn replica_volumes(

@@ -107,9 +107,16 @@ Per volume, by its class on the source:
 
 - **A local class that sends increments** (btrfs): the replica transfer, the first pass whole (or an
   increment from a replica the destination already keeps) and each later pass an increment from the
-  one before. The volume's own snapshots cross first, oldest first, each an increment from the last,
-  so a migrated volume keeps them. The final_sync pass is a snapshot taken stopped, and at cutover
-  the destination's last received snapshot becomes the volume, as a replica is promoted.
+  one before. Before each pass, the volume's own snapshots cross on streams of their own under the
+  pass's ticket, oldest first, each an increment from the one before (the source's helper orders
+  them by the btrfs transaction that made each); a stream names its snapshot after the ticket, and
+  the destination answers whether it holds that one already, so a later pass sends only snapshots
+  taken since. They are received beside the passes, in a replica volume of their own, and become
+  the volume's own snapshots, under their names, where the last pass becomes the volume.
+  While a migration names a volume, replication's release leaves both sides' copies of it alone;
+  once the migration ends, completed or abandoned, they are released like any other. The final_sync
+  pass is a snapshot taken stopped, and at cutover the destination's last received snapshot becomes
+  the volume, as a replica is promoted.
 - **Any other local class**: the tree, by rsync. The source's helper runs rsync's daemon side over
   the volume, read only and chrooted to it (`use chroot`, `numeric ids`, no listing); the
   destination's runs the client (`-aHAXS --numeric-ids --super --delete --stats`) pulling into its

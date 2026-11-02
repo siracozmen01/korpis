@@ -50,6 +50,8 @@ const SEND_ARGS: usize = 72;
 const SUBVOL_INFO: usize = 504;
 const UUID_AT: usize = 296;
 const PARENT_UUID_AT: usize = 312;
+/// The offset of `otransid`, the transaction the subvolume was made in.
+const OTRANSID_AT: usize = 352;
 /// `BTRFS_SUBVOL_RDONLY`.
 const RDONLY: u64 = 1 << 1;
 
@@ -169,6 +171,14 @@ pub fn uuids(subvolume: &File) -> io::Result<([u8; 16], [u8; 16])> {
     let uuid =
         |at: usize| args.get(at..at + 16).and_then(|b| b.try_into().ok()).unwrap_or([0u8; 16]);
     Ok((uuid(UUID_AT), uuid(PARENT_UUID_AT)))
+}
+
+/// The transaction the subvolume `subvolume` is the root of was made in, which orders a
+/// volume's snapshots by when each was taken.
+pub fn created(subvolume: &File) -> io::Result<u64> {
+    let mut args = vec![0u8; SUBVOL_INFO];
+    ioctl(subvolume, IOC_GET_SUBVOL_INFO, &mut args)?;
+    Ok(get(&args, OTRANSID_AT))
 }
 
 /// Whether the subvolume `subvolume` is the root of is read-only, as a snapshot received whole

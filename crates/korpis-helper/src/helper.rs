@@ -351,7 +351,8 @@ impl Helper {
             | Verb::ReleaseReplica(_)
             | Verb::PromoteReplica(_)
             | Verb::ReplicaVolumes(_)
-            | Verb::OpenTransfer(_)) => self.replica_verb(v)?,
+            | Verb::OpenTransfer(_)
+            | Verb::OwnSnapshots(_)) => self.replica_verb(v)?,
             v @ (Verb::SendTree(_) | Verb::ReceiveTree(_) | Verb::TreeStatus(_)) => {
                 self.tree_verb(v)?
             }

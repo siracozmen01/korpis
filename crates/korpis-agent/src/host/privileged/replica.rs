@@ -95,4 +95,13 @@ impl HelperClient {
             other => Err(failed(format!("answered {other:?}"))),
         }
     }
+
+    /// The own snapshots of the volume the helper knows as `volume`, oldest first.
+    pub async fn own_snapshots(&self, volume: &str) -> Result<Vec<helper::OwnSnapshot>, HostError> {
+        let r = helper::OwnSnapshotsRequest { volume: volume.to_owned(), ..Default::default() };
+        match self.call(Verb::OwnSnapshots(Box::new(r))).await? {
+            Answer::OwnSnapshots(a) => Ok(a.snapshots),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
 }
