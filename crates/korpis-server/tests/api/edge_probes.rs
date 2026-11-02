@@ -46,16 +46,14 @@ pub(crate) async fn answering(
     })
 }
 
-/// The group as read once `done` holds of it. A member's readiness is announced nowhere, so it is
-/// read again until it holds (#98); the bound, a minute, is reached only by a failure, since a
-/// loaded runner took longer than ten seconds to probe a member three times.
+/// The group as read once `done` holds of it, within ten seconds.
 pub(crate) async fn group_once(
     h: &Harness,
     id: &str,
     done: impl Fn(&pb::EdgeGroup) -> bool,
 ) -> pb::EdgeGroup {
     let client = pb::EdgeGroupServiceClient::new(h.http.clone(), h.root());
-    for _ in 0..600 {
+    for _ in 0..100 {
         let r = pb::GetEdgeGroupRequest { id: id.into(), ..Default::default() };
         let g = client.get_edge_group(r).await.unwrap().into_owned().group.into_option().unwrap();
         if done(&g) {
@@ -126,8 +124,12 @@ async fn a_member_answering_its_probe_holds_the_address_and_one_that_stops_gives
 
     let behind = (host.node.clone(), host.key.clone());
     let first = answering(("127.0.0.94", port), behind.clone()).await;
+    // Not yet answering is not having missed: the member is waited on until it has missed three.
+    let missed = |g: &pb::EdgeGroup| {
+        g.member_status.iter().any(|m| m.node == e2.node && m.reason.contains("missed 3 probes"))
+    };
     let shown = group_once(&h, &group.id, |g| {
-        ready(g, &e1.node) == Some(true) && ready(g, &e2.node) == Some(false)
+        ready(g, &e1.node) == Some(true) && ready(g, &e2.node) == Some(false) && missed(g)
     })
     .await;
     let failing = shown.member_status.iter().find(|m| m.node == e2.node).unwrap();
