@@ -157,6 +157,7 @@ mod session;
 mod sessions;
 mod sets;
 mod shortlist;
+mod silence_lock;
 mod snapshots;
 mod ssh_keys;
 mod standalone;
