@@ -47,6 +47,18 @@ fn held_at(path: &Path) -> HelperResult<bool> {
 }
 
 impl Class {
+    /// The pass `pass` of `volume`'s replication here, held whole: a migration's pass, on the
+    /// source as it was sent and on the destination as it was received.
+    pub fn replica_pass(&self, volume: &str, pass: &str) -> HelperResult<PathBuf> {
+        identifier("volume", volume)?;
+        identifier("pass", pass)?;
+        let path = self.replica_dir(volume).join(pass);
+        if !held_at(&path)? {
+            return Err(HelperError::NotFound(format!("pass {pass} of volume {volume}")));
+        }
+        Ok(path)
+    }
+
     /// That this class can keep replicas, or why not.
     fn replicates_here(&self) -> HelperResult<()> {
         if self.backend() == Backend::Btrfs {

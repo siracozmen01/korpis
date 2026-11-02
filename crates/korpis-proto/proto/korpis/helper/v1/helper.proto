@@ -855,6 +855,7 @@ message StartJobRequest {
     BackupVolume backup = 2;
     RestoreVolume restore = 3;
     InstallWork install = 7;
+    ManifestVolume manifest = 9;
   }
   bytes data_key = 4;
   korpis.v1.S3Access store = 5;
@@ -862,6 +863,17 @@ message StartJobRequest {
   // Access to the repository's recipe content, kept once per repository: written by a backup, read
   // by a restore. Absent where none was granted.
   korpis.v1.S3Access content_store = 8;
+}
+
+// A volume's manifest, as a migration's verify compares it: of the volume itself, or, for one
+// crossing by increments, of the pass named, a snapshot of the volume's replication on the source
+// and the snapshot received on the destination, both kept under the volume the source's helper
+// knows it as.
+message ManifestVolume {
+  string volume = 1;
+  string storage_class = 2;
+  // The pass; empty for the volume itself.
+  string pass = 3;
 }
 
 message BackupVolume {

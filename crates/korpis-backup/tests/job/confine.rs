@@ -37,7 +37,7 @@ fn child() {
         state: state.clone(),
         content: None,
         cgroup: None,
-        port: 9,
+        port: Some(9),
     };
     let held = confine(&b).unwrap();
     assert!(held.landlock_filesystem && held.landlock_network, "{held:?}");

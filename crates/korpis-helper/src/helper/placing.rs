@@ -2,8 +2,8 @@
 
 //! Where a job works: a backup in its volume or a snapshot of it, a replacing restore in a staging
 //! place, a reading one in a place of its own, any other restore in its volume or a new directory
-//! of it, and an install in the volumes its spec names, each found from the identifiers the request
-//! names and nothing it says of paths.
+//! of it, a manifest in a volume or a migration's pass of it, and an install in the volumes its
+//! spec names, each found from the identifiers the request names and nothing it says of paths.
 
 use super::Helper;
 use crate::error::{HelperError, HelperResult};
@@ -20,6 +20,7 @@ impl Helper {
     ) -> HelperResult<Placed> {
         use korpis_proto::korpis::backup::v1 as pb;
         use korpis_proto::korpis::backup::v1::__buffa::oneof::job_spec::Work as W;
+        crate::error::identifier("job", job)?;
         let (directory, taken) = self
             .holding(&b.volume)?
             .backup_source((&b.volume, &b.snapshot), (job, b.take_snapshot))?;
@@ -37,16 +38,25 @@ impl Helper {
         Ok(Placed::Data(DataJob { directory, work: W::Backup(Box::new(work)), kept }))
     }
 
+    /// What a manifest job of `m` reads: the volume, or the pass of it its replication holds.
+    fn place_manifest(&mut self, job: &str, m: &helper::ManifestVolume) -> HelperResult<Placed> {
+        use korpis_proto::korpis::backup::v1::__buffa::oneof::job_spec::Work as W;
+        crate::error::identifier("job", job)?;
+        let directory = if m.pass.is_empty() {
+            self.holding(&m.volume)?.path_of(&m.volume)
+        } else {
+            self.class(&m.storage_class)?.replica_pass(&m.volume, &m.pass)?
+        };
+        Ok(Placed::Data(DataJob { directory, work: W::Manifest(Box::default()), kept: None }))
+    }
+
     /// What job `r` works in, from the identifiers it names.
     pub(super) fn place(&mut self, r: &helper::StartJobRequest) -> HelperResult<Placed> {
         use korpis_proto::korpis::backup::v1 as pb;
         use korpis_proto::korpis::backup::v1::__buffa::oneof::job_spec::Work as W;
         use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work as R;
         match &r.work {
-            Some(R::Backup(b)) => {
-                crate::error::identifier("job", &r.job)?;
-                self.place_backup(&r.job, b)
-            }
+            Some(R::Backup(b)) => self.place_backup(&r.job, b),
             Some(R::Restore(w)) if w.reading => {
                 if w.replace || !(w.path.is_empty() && w.into.is_empty()) {
                     return Err(HelperError::Refused("a reading restore is whole".into()));
@@ -97,6 +107,7 @@ impl Helper {
                 })?;
                 Ok(Placed::Install(Box::new(spec)))
             }
+            Some(R::Manifest(m)) => self.place_manifest(&r.job, m),
             None => Err(HelperError::Refused("a job names its work".into())),
         }
     }

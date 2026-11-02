@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A workload moved between two real agents. The destination, a standby told no plan, prepares
-//! the target and reports it; nothing crosses of volumes in a class both reach; the source stops
-//! the workload. Abandoned while the source stops, the workload runs where it was again.
+//! the target and reports it; nothing crosses of volumes in a class both reach; the source
+//! stops the workload and reports `quiesce` once it has; both report `verify`, the destination
+//! having prepared again; the source releases its lease, and the destination, granted the next,
+//! makes and starts the workload and reports it running; once the hold ends the source deletes
+//! what it kept. Abandoned while the source stops, the workload runs where it was again.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation};
@@ -98,6 +101,39 @@ async fn migration_once(
     pick: impl Fn(&pb::Migration) -> bool,
 ) -> pb::Migration {
     cp.announced(|| async { migration(cp, workload).await.filter(|m| pick(m)) }).await
+}
+
+#[tokio::test]
+async fn a_workload_moves_to_another_node_and_its_source_lets_go_once_the_hold_ends() {
+    let cp = ControlPlane::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (here, there) = (InMemory::default(), InMemory::default());
+    let _source = node(&cp, &dir, "fra-1", &here).await;
+    let project = cp.project().await;
+    let w = cp.declare(&project, "db").await;
+    cp.announced(|| async { running(&cp, &w).await.then_some(()) }).await;
+    let _destination = node(&cp, &dir, "fra-2", &there).await;
+    // Its game endpoint is stable, which a node serves only once it is found reachable.
+    cp.measured().await;
+
+    let id = moved(&cp, &w, "fra-2").await;
+    let release = Some(pb::MigrationPhase::MIGRATION_PHASE_RELEASE);
+    migration_once(&cp, &w, |m| m.phase.as_known() == release).await;
+    assert_eq!(object_of(&there, &w), (true, true), "it runs there");
+    assert_eq!(object_of(&here, &w), (false, true), "stopped here, kept through the hold");
+
+    let early = pb::ReleaseMigrationRequest {
+        mutation: mutation("release").into(),
+        migration: id,
+        ..Default::default()
+    };
+    cp.workloads().release_migration(early).await.unwrap();
+    let completed = Some(pb::MigrationOutcome::MIGRATION_OUTCOME_COMPLETED);
+    migration_once(&cp, &w, |m| m.outcome.as_known() == completed).await;
+    assert_eq!(object_of(&here, &w), (false, false), "nothing of it is left here");
+    // Observed running there, as the destination reports it under its epoch.
+    cp.announced(|| async { running(&cp, &w).await.then_some(()) }).await;
+    assert_eq!(object_of(&there, &w), (true, true));
 }
 
 #[tokio::test]

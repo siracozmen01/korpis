@@ -44,14 +44,10 @@ pub fn bounds(spec: &pb::JobSpec) -> Result<Bounds, JobError> {
     let work = match &spec.work {
         Some(W::Backup(_)) => Work::Backup,
         Some(W::Restore(_)) => Work::Restore,
+        Some(W::Manifest(_)) => Work::Manifest,
         None => return Err(JobError::Spec("no work".into())),
     };
-    let store = spec.store.as_option().ok_or_else(|| JobError::Spec("no store".into()))?;
-    let url =
-        url::Url::parse(&store.endpoint).map_err(|e| JobError::Spec(format!("the store: {e}")))?;
-    let port = url
-        .port_or_known_default()
-        .ok_or_else(|| JobError::Spec("the store has no port".into()))?;
+    let port = if work == Work::Manifest { None } else { Some(store_port(spec)?) };
     let result = PathBuf::from(&spec.result);
     let state =
         result.parent().map(Path::to_path_buf).ok_or_else(|| JobError::Spec("no result".into()))?;
@@ -64,6 +60,14 @@ pub fn bounds(spec: &pb::JobSpec) -> Result<Bounds, JobError> {
         cgroup: optional(&spec.cgroup),
         port,
     })
+}
+
+/// The port of the store `spec` names.
+fn store_port(spec: &pb::JobSpec) -> Result<u16, JobError> {
+    let store = spec.store.as_option().ok_or_else(|| JobError::Spec("no store".into()))?;
+    let url =
+        url::Url::parse(&store.endpoint).map_err(|e| JobError::Spec(format!("the store: {e}")))?;
+    url.port_or_known_default().ok_or_else(|| JobError::Spec("the store has no port".into()))
 }
 
 /// Confines this process to `spec`'s bounds; it must still be one thread.
@@ -159,6 +163,9 @@ fn restore_content(spec: &pb::JobSpec) -> Result<Arc<dyn crate::ContentSource>, 
 
 /// Does `spec`'s work; what it did.
 pub async fn run(spec: &pb::JobSpec) -> Result<pb::JobResult, Error> {
+    if let Some(W::Manifest(_)) = &spec.work {
+        return manifest(Path::new(&spec.directory));
+    }
     let r = repo(spec)?;
     let concurrency = usize::try_from(spec.concurrency).unwrap_or(1).clamp(1, 64);
     let directory = PathBuf::from(&spec.directory);
@@ -206,9 +213,24 @@ pub async fn run(spec: &pb::JobSpec) -> Result<pb::JobResult, Error> {
             }
             .into();
         }
-        None => return Err(Error::Refused("no work".into())),
+        Some(W::Manifest(_)) | None => return Err(Error::Refused("no work".into())),
     }
     Ok(result)
+}
+
+/// The manifest of the directory at `path`.
+fn manifest(path: &Path) -> Result<pb::JobResult, Error> {
+    use rustix::fs::{Mode, OFlags};
+    let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let root = rustix::fs::open(path, flags, Mode::empty()).map_err(crate::error::sys("."))?;
+    let m = crate::manifest::of(&root)?;
+    let runs = m.chunks.into_iter().map(|c| pb::ManifestRun {
+        first_path: c.first_path,
+        digest: c.digest,
+        ..Default::default()
+    });
+    let manifest = pb::Manifest { digest: m.digest, runs: runs.collect(), ..Default::default() };
+    Ok(pb::JobResult { ok: true, manifest: manifest.into(), ..Default::default() })
 }
 
 /// Writes `result` to `path`, whole or not at all.
