@@ -216,7 +216,7 @@ async fn metered(cp: &ControlPlane, w: &str, node: &str) -> Vec<pb::UsageRecord>
 }
 
 /// Two nodes in namespaces joined as machines, each with its agent, and the test extension
-/// routing a cluster pool's addresses; none where this kernel makes no WireGuard link.
+/// routing a cluster pool's addresses.
 struct Machines {
     cp: ControlPlane,
     project: String,
@@ -225,11 +225,7 @@ struct Machines {
     agents: (Agent, Agent),
 }
 
-async fn machines_routing() -> Option<Machines> {
-    let Some((ma, mb)) = machines() else {
-        eprintln!("this kernel makes no WireGuard link: not run");
-        return None;
-    };
+async fn machines_routing((ma, mb): (Netns, Netns)) -> Machines {
     let cp = ControlPlane::start_metering(Duration::from_secs(1), Duration::from_secs(60)).await;
     let project = cp.project().await;
     let first = node_in(&cp, "move-a", &ma, Ipv4Addr::new(198, 18, 1, 1)).await;
@@ -244,7 +240,7 @@ async fn machines_routing() -> Option<Machines> {
     second.guard(&routing.workload);
     pinged_as(&cp, pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER, "test").await;
     pool(&cp).await;
-    Some(Machines { cp, project, nets: (ma, mb), nodes: (first, second), agents })
+    Machines { cp, project, nets: (ma, mb), nodes: (first, second), agents }
 }
 
 /// That `records`, from both nodes, count no interval twice.
@@ -290,7 +286,11 @@ async fn a_workload_moves_with_its_data_address_console_and_meter_and_a_rollback
     if !live() || std::fs::metadata("/usr/bin/rsync").is_err() {
         return;
     }
-    let Some(m) = machines_routing().await else { return };
+    let Some(nets) = machines() else {
+        eprintln!("this kernel makes no WireGuard link: not run");
+        return;
+    };
+    let m = machines_routing(nets).await;
     let cp = &m.cp;
     let game = pb::EndpointSpec {
         name: "query".into(),
