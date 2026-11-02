@@ -17,6 +17,11 @@ pub const DEFAULT_HOLD: Duration = Duration::from_secs(24 * 3600);
 /// copy nobody remembers keeping.
 pub const LONGEST_HOLD: Duration = Duration::from_secs(31 * 24 * 3600);
 
+/// How long before its hold ends a migration is no longer rolled back: the source deletes its
+/// copies once the hold ends by its own clock, which may run this far ahead of the control
+/// plane's.
+pub const CLOCK_MARGIN: Duration = Duration::from_secs(60);
+
 /// The least a pass may send and still be large, in bytes: below this, a pass is small whatever
 /// the volume's size.
 pub const SMALL_PASS: u64 = 64 << 20;

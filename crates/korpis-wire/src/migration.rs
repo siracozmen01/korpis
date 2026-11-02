@@ -151,6 +151,7 @@ pub fn role_to_pb(r: &MigrationRole) -> agent::MigrationRole {
                 crossing: crossing_to_pb(v.crossing).into(),
                 volume: wire_id(IdKind::Volume, v.volume),
                 pass: v.pass.as_ref().map(pass_to_pb).into(),
+                held_pass: v.held_pass.map(|p| p.to_string()).unwrap_or_default(),
                 ..Default::default()
             })
             .collect(),

@@ -248,6 +248,7 @@ impl Runtime for InMemory {
         let deaf = self.lock().is_ok_and(|s| s.deaf);
         let (this, id) = (self.clone(), id.to_owned());
         async move {
+            this.held("stop").await;
             if !deaf {
                 return this.stop_now(&id);
             }

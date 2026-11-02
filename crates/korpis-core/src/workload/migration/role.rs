@@ -36,6 +36,9 @@ pub struct VolumeRole {
     /// In `replicate` and `final_sync`, the pass under way: its name, the pass it is an increment
     /// from, and its ticket, which the control plane signs once the role is made.
     pub pass: Option<PassRole>,
+    /// From `verify`, for a volume crossing by increments: the last pass the destination reported
+    /// held, which the destination's copy is promoted from.
+    pub held_pass: Option<Uuid>,
 }
 
 /// A pass under way, as both nodes are told it.
@@ -87,6 +90,9 @@ fn volume_role(phase: Phase, v: &MigrationVolume) -> VolumeRole {
         source_helper_id: v.source_helper_id.clone(),
         crossing: v.crossing,
         pass,
+        held_pass: v
+            .held_pass
+            .filter(|_| phase >= Phase::Verify && v.crossing == Crossing::Increments),
     }
 }
 

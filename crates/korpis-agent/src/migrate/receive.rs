@@ -95,13 +95,6 @@ fn admit<H>(m: &Migrating<H>, ticket: &str, peer: IpAddr) -> Result<Admitted, St
     Ok((a.clone(), role.clone(), v.clone()))
 }
 
-/// The storage class `a`'s target declares the volume named `name` in.
-fn class_of(a: &agent::Assignment, name: &str) -> String {
-    let body = a.target.as_option().and_then(|t| t.body.as_option());
-    let v = body.and_then(|b| b.volumes.iter().find(|v| v.name == name));
-    v.map(|v| v.storage_class.clone()).unwrap_or_default()
-}
-
 /// Receives what `stream` carries of the pass `pass` of `v`: the pass, or one of the volume's
 /// own snapshots sent before it, which is `None`. For the pass, the identifier its copy has here,
 /// and, for a tree, the bytes that crossed, which its sender, rsync's daemon, does not count.
@@ -110,7 +103,7 @@ async fn receive<H: Replicating + Trees>(
     mut stream: TcpStream,
     (a, v, pass): (&agent::Assignment, &agent::MigrationVolumeRole, &str),
 ) -> Result<Option<(String, u64)>, String> {
-    let (here, class) = (volume_id(a, &v.name), class_of(a, &v.name));
+    let (here, class) = (volume_id(a, &v.name), super::class_of(a, &v.name));
     let increments =
         v.crossing.as_known() == Some(pb::MigrationCrossing::MIGRATION_CROSSING_INCREMENTS);
     if increments {
