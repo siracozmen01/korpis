@@ -12,7 +12,7 @@ use crate::support::{Harness, mutation};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body as B;
 use korpis_proto::korpis::v1 as pb;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::SystemTime;
 
 /// Node `name`, enrolled with its session open; its wire id and the session.
 async fn node(h: &Harness, name: &str, seed: u8) -> (String, Stream) {
@@ -52,21 +52,13 @@ async fn status(h: &Harness, w: &str) -> pb::WorkloadStatus {
     got.status.into_option().unwrap()
 }
 
-/// The status once `done` holds; panics after five seconds.
+/// The status once `done` holds.
 async fn until_status(
     h: &Harness,
     w: &str,
     done: impl Fn(&pb::WorkloadStatus) -> bool,
 ) -> pb::WorkloadStatus {
-    let start = Instant::now();
-    loop {
-        let s = status(h, w).await;
-        if done(&s) {
-            return s;
-        }
-        assert!(start.elapsed() < Duration::from_secs(5), "never happened: {s:?}");
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
+    crate::watching::status_until(h, w, done).await
 }
 
 /// Node `s` refuses the first step of `w`'s plan, once it is told it.
@@ -127,12 +119,9 @@ async fn an_operator_s_choice_of_node_is_not_overruled_by_a_refusal() {
     h.workloads(h.root()).place_workload(pin).await.unwrap();
 
     refuse(&mut s, &w).await;
-    for _ in 0..50 {
-        if plan_status(&h, &plan).await == Some(pb::PlanStatus::PLAN_STATUS_FAILED) {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    assert_eq!(plan_status(&h, &plan).await, Some(pb::PlanStatus::PLAN_STATUS_FAILED));
+    let failed = || async {
+        (plan_status(&h, &plan).await == Some(pb::PlanStatus::PLAN_STATUS_FAILED)).then_some(())
+    };
+    crate::watching::changed_until(&h, failed).await;
     assert_eq!(status(&h, &w).await.placement.as_option().unwrap().node, chosen, "it stays");
 }

@@ -52,9 +52,8 @@ type Changes = Vec<(String, String, String)>;
 async fn conditions(h: &Harness, w: &str, kind: &str, to: &str) -> Changes {
     let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Workload, w).unwrap().uuid();
     let store = h.db.store().await.unwrap();
-    let mut found: Changes = Vec::new();
-    for _ in 0..100 {
-        found = sqlx::query_as(
+    let reached = || async {
+        let found: Changes = sqlx::query_as(
             "SELECT detail->>'from', detail->>'to', severity FROM event
               WHERE workload_id = $1 AND kind = $2 ORDER BY seq",
         )
@@ -63,32 +62,14 @@ async fn conditions(h: &Harness, w: &str, kind: &str, to: &str) -> Changes {
         .fetch_all(store.pool())
         .await
         .unwrap();
-        if found.last().is_some_and(|(_, last, _): &(String, String, String)| last == to) {
-            return found;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("no {kind} to {to}: {found:?}");
+        found.last().is_some_and(|(_, last, _)| last == to).then_some(found)
+    };
+    crate::watching::changed_until(h, reached).await
 }
 
-/// The workload's convergence and observed state, once `want` is reached or after a few tries.
+/// The workload's convergence and observed state, once `want` is reached.
 async fn status(h: &Harness, w: &str, want: pb::Convergence) -> pb::WorkloadStatus {
-    let mut last = None;
-    for _ in 0..40 {
-        let got = h
-            .workloads(h.root())
-            .get_workload(pb::GetWorkloadRequest { id: w.to_owned(), ..Default::default() })
-            .await
-            .unwrap()
-            .into_owned();
-        let status = got.status.into_option().unwrap();
-        last = status.convergence.as_known();
-        if last == Some(want) {
-            return status;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    panic!("never {want:?}, last {last:?}");
+    crate::watching::status_until(h, w, |s| s.convergence.as_known() == Some(want)).await
 }
 
 #[tokio::test]

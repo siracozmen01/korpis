@@ -37,8 +37,9 @@ pub(crate) async fn status_until(
 }
 
 /// Every channel the database announces a change on.
-const CHANNELS: [&str; 7] = [
+const CHANNELS: [&str; 8] = [
     "korpis_workload",
+    "korpis_event_written",
     "korpis_endpoint",
     "korpis_certificate",
     "korpis_job",
