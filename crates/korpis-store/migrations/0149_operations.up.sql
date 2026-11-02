@@ -57,6 +57,8 @@ CREATE TABLE operation_item (
     CHECK ((state IN ('done', 'failed', 'skipped')) = (ended_at IS NOT NULL))
 );
 
+GRANT SELECT, INSERT, UPDATE ON operation, operation_item TO korpis_app;
+
 ALTER TABLE plan ADD CONSTRAINT plan_operation_fkey
     FOREIGN KEY (operation_id) REFERENCES operation (id);
 CREATE INDEX plan_operation ON plan (operation_id) WHERE operation_id IS NOT NULL;

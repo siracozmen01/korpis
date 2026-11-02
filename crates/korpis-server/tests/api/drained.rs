@@ -17,18 +17,24 @@ use connectrpc::ErrorCode;
 use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
-/// `name`, made in `project` on the node whose stream is `s`, its volume reported there.
-pub(crate) async fn made(h: &Harness, s: &mut Stream, (project, name): (&str, &str)) -> String {
+/// `name`, made in `project` on the node whose stream is `s`, its volume reported there, journaled
+/// from `seq` on; it, and the next sequence to journal from.
+pub(crate) async fn made(
+    h: &Harness,
+    s: &mut Stream,
+    (project, name): (&str, &str),
+    seq: u64,
+) -> (String, u64) {
     let repo = push_paper().await;
     let workloads = h.workloads(h.root());
     let declared = workloads.declare_intent(create(name, project, name, body(&repo, &[])));
     let w = declared.await.unwrap().into_owned().workload.into_option().unwrap().id;
     let told = until(s, assignment(|t| t.workload == w && t.plan.is_set())).await;
-    let last = complete(s, &w, told.plan.as_option().unwrap(), 1).await;
+    let last = complete(s, &w, told.plan.as_option().unwrap(), seq).await;
     held(s, &w).await;
     send(s, vec![volume_record(last + 1, ensured(&w, "data", true, false))]).await;
     assert_eq!(until(s, ack).await, last + 1);
-    w
+    (w, last + 2)
 }
 
 /// Proposes an operation of `kind` over `node`, under `policy`.
@@ -85,8 +91,8 @@ async fn two_on_one(h: &Harness) -> (String, Vec<String>, (Stream, Stream)) {
         TestAgent::open(h, a.hello_with(SystemTime::now(), &[1; 16], local())).await;
     welcome(&first.unwrap());
     let project = project(h, &h.root_org(), "games").await;
-    let db = made(h, &mut sa, (&project, "db")).await;
-    let web = made(h, &mut sa, (&project, "web")).await;
+    let (db, next) = made(h, &mut sa, (&project, "db"), 1).await;
+    let (web, _) = made(h, &mut sa, (&project, "web"), next).await;
     let (sb, first) = TestAgent::open(h, b.hello_with(SystemTime::now(), &[2; 16], local())).await;
     welcome(&first.unwrap());
     (a.node, vec![db, web], (sa, sb))
@@ -143,7 +149,7 @@ async fn a_workload_no_other_node_takes_fails_alone_and_pauses_the_drain() {
         TestAgent::open(&h, a.hello_with(SystemTime::now(), &[1; 16], local())).await;
     welcome(&first.unwrap());
     let project = project(&h, &h.root_org(), "games").await;
-    made(&h, &mut sa, (&project, "db")).await;
+    made(&h, &mut sa, (&project, "db"), 1).await;
     let drain = (pb::OperationKind::OPERATION_KIND_DRAIN, a.node.as_str());
     let op = proposed(&h, drain, pb::OperationPolicy::default()).await.unwrap();
     approved(&h, &op.id, "").await;

@@ -33,6 +33,7 @@ pub enum OperationAction {
     Drain {
         /// The node, by name or identifier.
         node: String,
+        /// How it proceeds.
         #[command(flatten)]
         policy: PolicyArgs,
     },
@@ -41,6 +42,7 @@ pub enum OperationAction {
     Evacuate {
         /// The node, by name or identifier.
         node: String,
+        /// How it proceeds.
         #[command(flatten)]
         policy: PolicyArgs,
     },
@@ -52,6 +54,7 @@ pub enum OperationAction {
         /// The version whose additions it gives.
         #[arg(long)]
         version: u64,
+        /// How it proceeds.
         #[command(flatten)]
         policy: PolicyArgs,
     },

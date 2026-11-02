@@ -27,7 +27,7 @@ async fn an_evacuation_names_what_is_lost_and_makes_the_workload_anew_elsewhere(
         TestAgent::open(&h, a.hello_with(SystemTime::now(), &[1; 16], local())).await;
     welcome(&first.unwrap());
     let project = project(&h, &h.root_org(), "games").await;
-    let db = made(&h, &mut sa, (&project, "db")).await;
+    let (db, _) = made(&h, &mut sa, (&project, "db"), 1).await;
     let (mut sb, first) =
         TestAgent::open(&h, b.hello_with(SystemTime::now(), &[2; 16], local())).await;
     welcome(&first.unwrap());

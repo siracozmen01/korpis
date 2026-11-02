@@ -90,25 +90,36 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         loop {
             let grants = self.store.grants_from_template(template, page).await?;
             for r in &grants {
-                let Some(from) = r.from_template.filter(|t| t.version < version) else { continue };
-                // A grant is given nothing unless its whole chain is in force: one cascaded from a
-                // revoked or suspended ancestor holds nothing to add to.
-                if !in_force(&self.store.grant_chain(r.grant.id).await?, now) {
-                    continue;
-                }
-                let Some(before) = self.versions(template, &mut seen, from.version).await? else {
-                    continue;
-                };
-                let adds = added(&body, &before);
-                if !adds.is_empty() {
-                    found.push((r.grant.id, detail(r, from.version, &adds)));
-                }
+                let given = self.given(r, (template, version, &body), &mut seen, now).await?;
+                found.extend(given.map(|d| (r.grant.id, d)));
             }
             match page.next(&grants, |r| r.grant.id) {
                 Some(after) => page = Page::new(Some(after), page.size),
                 None => return Ok(found),
             }
         }
+    }
+
+    /// What a rollout of `template`'s `version`, permitting `body`, gives `r` at `now`, as its
+    /// item's detail: nothing for a grant from that version or a later one, one whose chain is not
+    /// in force, since a grant cascaded from a revoked or suspended ancestor holds nothing to add
+    /// to, and one the version adds nothing to.
+    async fn given(
+        &self,
+        r: &GrantRecord,
+        (template, version, body): (Uuid, u64, &TemplateBody),
+        seen: &mut BTreeMap<u64, TemplateBody>,
+        now: SystemTime,
+    ) -> Result<Option<Map<String, Value>>, AppError> {
+        let Some(from) = r.from_template.filter(|t| t.version < version) else { return Ok(None) };
+        if !in_force(&self.store.grant_chain(r.grant.id).await?, now) {
+            return Ok(None);
+        }
+        let Some(before) = self.versions(template, seen, from.version).await? else {
+            return Ok(None);
+        };
+        let adds = added(body, &before);
+        Ok((!adds.is_empty()).then(|| detail(r, from.version, &adds)))
     }
 
     /// Begins `op`'s `item`, in `tx`, for `approver`: the grant it is about given what the

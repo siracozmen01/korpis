@@ -106,6 +106,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok((op, items))
     }
 
+    /// `op` with its items, if the caller may read it.
+    async fn shown(
+        &self,
+        caller: &Caller,
+        op: &Operation,
+    ) -> Result<Option<OperationView>, AppError> {
+        let (action, object) = self.reading(op.scope).await?;
+        if !self.permitted(caller, action, object).await? {
+            return Ok(None);
+        }
+        Ok(self.store.operation(op.id).await?)
+    }
+
     /// The operations the caller may read, newest first, each with its items; only those over
     /// `node`, if named.
     pub async fn operations(
@@ -121,12 +134,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let readable = |found: Vec<OperationView>| async move {
             let mut shown = Vec::with_capacity(found.len());
             for (op, _) in found {
-                let (action, object) = self.reading(op.scope).await?;
-                if self.permitted(caller, action, object).await?
-                    && let Some(view) = self.store.operation(op.id).await?
-                {
-                    shown.push(view);
-                }
+                shown.extend(self.shown(caller, &op).await?);
             }
             Ok(shown)
         };

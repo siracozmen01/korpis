@@ -64,18 +64,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let under_way =
             |i: &&mut Item| matches!(i.state, ItemState::Applying | ItemState::Settling);
         for item in items.iter_mut().filter(under_way) {
-            let was = item.state;
-            self.settle(&op, item, now).await?;
-            if item.state != was {
-                moved += 1;
-                tx.put_item(item).await?;
-                if item.state.ended() {
-                    tx.append_effect(&item_effect(&op, item)).await?;
-                }
-                if item.state == ItemState::Failed {
-                    op.item_failed(&item.reason, now);
-                }
-            }
+            moved += u64::from(self.settled(&mut tx, &mut op, item, now).await?);
         }
         let progress = Progress::of(&items);
         if op.conclude(&progress, now) || op.status.ended() {
@@ -97,6 +86,30 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(moved)
     }
 
+    /// Settles `item`, under way in `op`, at `now`, writing it if it moved and doing what `op`'s
+    /// policy says if it failed; whether it moved.
+    async fn settled(
+        &self,
+        tx: &mut S::Tx,
+        op: &mut Operation,
+        item: &mut Item,
+        now: std::time::SystemTime,
+    ) -> Result<bool, AppError> {
+        let was = item.state;
+        self.settle(op, item, now).await?;
+        if item.state == was {
+            return Ok(false);
+        }
+        tx.put_item(item).await?;
+        if item.state.ended() {
+            tx.append_effect(&item_effect(op, item)).await?;
+        }
+        if item.state == ItemState::Failed {
+            op.item_failed(&item.reason, now);
+        }
+        Ok(true)
+    }
+
     /// Begins `op`'s waiting item about `subject`, if `op` still runs; whether it began or ended.
     async fn begin_item(&self, id: Uuid, subject: Uuid) -> Result<bool, AppError> {
         let mut tx = self.store.begin().await?;
@@ -107,8 +120,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if op.status != Status::Running || item.state != ItemState::Waiting {
             return Ok(false);
         }
-        let Some(approved) = op.approved.clone() else { return Ok(false) };
-        let approver = Caller::new(approved.by.clone(), None, approved.mfa);
+        let Some(approval) = op.approved.clone() else { return Ok(false) };
+        let approver = Caller::new(approval.by.clone(), None, approval.mfa);
         let begun = match op.kind {
             Kind::Drain => self.drain_item(&mut tx, &op, &approver, &mut item).await,
             Kind::Evacuate => self.evacuate_item(&mut tx, &op, &approver, &mut item).await,
