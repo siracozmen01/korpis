@@ -272,14 +272,21 @@ impl Class {
     pub fn adopt_snapshots(&mut self, own_from: &str, into: &str) -> HelperResult<()> {
         identifier("own_from", own_from)?;
         identifier("into", into)?;
-        let held = self.replica_snapshots(own_from)?;
+        let mut held = Vec::new();
+        for name in self.replica_snapshots(own_from)? {
+            let received = File::open(self.replica_dir(own_from).join(&name))?;
+            held.push((btrfs::created(&received)?, name));
+        }
         if held.is_empty() {
             return Ok(());
         }
+        // Received oldest first, they are adopted in that order, which is the order a volume's own
+        // snapshots are listed in: by when each was made here.
+        held.sort();
         let dir = self.snapshot_dir(into);
         std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&dir)?;
         let parent = File::open(&dir)?;
-        for name in held {
+        for (_, name) in held {
             // A read-only subvolume cannot be renamed into another directory, which would change
             // its `..`, so it is snapshotted there read-only and the received copy released.
             if !is_subvolume(&dir.join(&name))? {
