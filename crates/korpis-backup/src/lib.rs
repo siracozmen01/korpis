@@ -19,6 +19,7 @@ pub mod job;
 pub mod kept;
 pub mod keys;
 pub mod live;
+pub mod manifest;
 mod meta;
 pub mod name;
 pub mod offload;

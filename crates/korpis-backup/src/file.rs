@@ -74,7 +74,7 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 /// The runs of `file` that hold data, below `size`.
-fn extents(file: &File, size: u64) -> rustix::io::Result<Vec<(u64, u64)>> {
+pub(crate) fn extents(file: &File, size: u64) -> rustix::io::Result<Vec<(u64, u64)>> {
     let mut out = Vec::new();
     let mut at = 0;
     while at < size {
