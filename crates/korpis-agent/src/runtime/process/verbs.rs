@@ -26,10 +26,28 @@ impl DriverRuntime {
         Ok(r.into_owned().runtime_id)
     }
 
-    pub(super) async fn start_call(&self, id: &str) -> RuntimeResult<()> {
-        let request = driver::StartRequest { runtime_id: id.to_owned(), ..Default::default() };
-        self.client.start_with_options(request, within(QUICK)).await.map_err(error)?;
+    /// Starts `id`, resuming the state in `from` if it names one: as long as a whole guest's
+    /// memory takes to load.
+    pub(super) async fn start_call(&self, id: &str, from: &str) -> RuntimeResult<()> {
+        let request = driver::StartRequest {
+            runtime_id: id.to_owned(),
+            restore_from: from.to_owned(),
+            ..Default::default()
+        };
+        let bound = if from.is_empty() { QUICK } else { CREATE };
+        self.client.start_with_options(request, within(bound)).await.map_err(error)?;
         Ok(())
+    }
+
+    /// Checkpoints `id` into `into`, within as long as a whole guest's memory takes to write.
+    pub(super) async fn checkpoint_call(&self, id: &str, into: &str) -> RuntimeResult<u64> {
+        let request = driver::CheckpointRequest {
+            runtime_id: id.to_owned(),
+            into: into.to_owned(),
+            ..Default::default()
+        };
+        let r = self.client.checkpoint_with_options(request, within(CREATE)).await.map_err(error)?;
+        Ok(r.into_owned().bytes)
     }
 
     pub(super) async fn kill_call(&self, id: &str) -> RuntimeResult<()> {

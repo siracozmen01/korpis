@@ -161,7 +161,15 @@ impl Runtime for DriverRuntime {
     }
 
     fn start(&self, id: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
-        self.start_call(id)
+        self.start_call(id, "")
+    }
+
+    fn checkpoint(&self, id: &str, into: &str) -> impl Future<Output = RuntimeResult<u64>> + Send {
+        self.checkpoint_call(id, into)
+    }
+
+    fn resume(&self, id: &str, from: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
+        self.start_call(id, from)
     }
 
     fn stop(
