@@ -53,7 +53,7 @@ reqwest = { version = "0.13", default-features = false, features = ["rustls-no-p
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 # A node's helper served from inside a network namespace of the test's own, as the helper's own mesh
 # test enters one.
-rustix = { version = "1", features = ["thread"] }
+rustix = { version = "1", features = ["fs", "thread"] }
 sha2 = "0.10"
 sqlx = { workspace = true }
 tar = { version = "0.4", default-features = false }

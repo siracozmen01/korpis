@@ -41,13 +41,19 @@ impl ControlPlane {
 
     /// A control plane ordering certificates from the ACME directory `acme` names.
     pub async fn start_with(acme: korpis_server::acme::AcmeConfig) -> Self {
-        Self::start_serving(acme, None, HEARTBEAT).await
+        Self::start_serving(acme, None, (HEARTBEAT, None)).await
     }
 
     /// A control plane declaring a heartbeat of `every`, so a node it no longer hears is
     /// unreachable after three of them.
     pub async fn start_beating(every: Duration) -> Self {
-        Self::start_serving(korpis_server::acme::AcmeConfig::default(), None, every).await
+        Self::start_serving(korpis_server::acme::AcmeConfig::default(), None, (every, None)).await
+    }
+
+    /// As [`Self::start_beating`], its nodes sampling their meters every `metering`.
+    pub async fn start_metering(every: Duration, metering: Duration) -> Self {
+        let acme = korpis_server::acme::AcmeConfig::default();
+        Self::start_serving(acme, None, (every, Some(metering))).await
     }
 
     /// A control plane serving the built panel in `web_root` beside its API, its passkeys bound
@@ -55,13 +61,13 @@ impl ControlPlane {
     #[allow(dead_code, reason = "used by the browser test, a binary of its own")]
     pub async fn start_panel(web_root: std::path::PathBuf) -> Self {
         let acme = korpis_server::acme::AcmeConfig::default();
-        Self::start_serving(acme, Some(web_root), HEARTBEAT).await
+        Self::start_serving(acme, Some(web_root), (HEARTBEAT, None)).await
     }
 
     async fn start_serving(
         acme: korpis_server::acme::AcmeConfig,
         web_root: Option<std::path::PathBuf>,
-        heartbeat: Duration,
+        (heartbeat, metering): (Duration, Option<Duration>),
     ) -> Self {
         let _ = rustls::crypto::ring::default_provider().install_default();
         // A panel's origin names its port before the server holds it, so a free one is taken.
@@ -78,7 +84,11 @@ impl ControlPlane {
         let login = db.login().await.expect("login");
         let installed = korpis_server::testing::install_acme(&db.owner_url, &data, &login).await;
         let config = serve_config(login, &data, port, acme, web_root);
-        let config = korpis_server::ServeConfig { heartbeat_interval: heartbeat, ..config };
+        let config = korpis_server::ServeConfig {
+            heartbeat_interval: heartbeat,
+            metering_interval: metering.unwrap_or(config.metering_interval),
+            ..config
+        };
         let running = korpis_server::serve(config).await.expect("serve");
         let root_org = korpis_server::api::wire::wire_id(
             korpis_core::id::IdKind::Organization,
