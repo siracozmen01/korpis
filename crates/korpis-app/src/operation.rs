@@ -106,17 +106,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok((op, items))
     }
 
-    /// `op` with its items, if the caller may read it.
-    async fn shown(
-        &self,
-        caller: &Caller,
-        op: &Operation,
-    ) -> Result<Option<OperationView>, AppError> {
+    /// Whether the caller may read `op`.
+    async fn may_read(&self, caller: &Caller, op: &Operation) -> Result<bool, AppError> {
         let (action, object) = self.reading(op.scope).await?;
-        if !self.permitted(caller, action, object).await? {
-            return Ok(None);
-        }
-        Ok(self.store.operation(op.id).await?)
+        self.permitted(caller, action, object).await
     }
 
     /// The operations the caller may read, newest first, each with its items; only those over
@@ -133,8 +126,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let readable = |found: Vec<OperationView>| async move {
             let mut shown = Vec::with_capacity(found.len());
-            for (op, _) in found {
-                shown.extend(self.shown(caller, &op).await?);
+            for (op, items) in found {
+                if self.may_read(caller, &op).await? {
+                    shown.push((op, items));
+                }
             }
             Ok(shown)
         };
