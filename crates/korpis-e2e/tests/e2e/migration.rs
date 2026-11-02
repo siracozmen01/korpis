@@ -198,7 +198,8 @@ async fn runs_on(cp: &ControlPlane, w: &str, node: &str) {
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    panic!("{w} never ran on {node}: {:?}", cp.status(w).await);
+    let s = cp.status(w).await;
+    panic!("{w} never ran on {node}: {:?}\n{:?}", newest(cp, w).await, s.observation);
 }
 
 /// The usage records of `w` from each node, once `node` has one.
@@ -286,6 +287,10 @@ async fn a_workload_moves_with_its_data_address_console_and_meter_and_a_rollback
     if !live() || std::fs::metadata("/usr/bin/rsync").is_err() {
         return;
     }
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_test_writer()
+        .try_init();
     let Some(nets) = machines() else {
         eprintln!("this kernel makes no WireGuard link: not run");
         return;
