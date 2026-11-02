@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A workload moved between two real agents. The destination, a standby told no plan, prepares
-//! the target and reports it; nothing crosses for a workload holding no local volume; the source
+//! the target and reports it; nothing crosses of volumes in a class both reach; the source
 //! stops the workload and reports `quiesce` once it has; both report `verify`, the destination
 //! having prepared again; the source releases its lease, and the destination, granted the next,
 //! makes and starts the workload and reports it running; once the hold ends the source deletes
@@ -28,9 +28,25 @@ async fn node(cp: &ControlPlane, dir: &tempfile::TempDir, name: &str, runtime: &
     join(&state, &request).await.unwrap();
     let options = Options { period: Duration::from_millis(200), ..Options::default() };
     let host = InMemoryHost::default();
-    let agent = Agent::start(&state, runtime.clone(), host, Arc::new(facts), options).unwrap();
+    let agent = Agent::start(&state, runtime.clone(), host, Arc::new(shared), options).unwrap();
     until(&mut agent.events(), |e| matches!(e, Event::Welcomed { .. })).await;
     agent
+}
+
+/// What a test node reports, with one shared class both nodes reach: a volume of it is the
+/// store's, so nothing of it crosses.
+fn shared() -> korpis_agent::session::Facts {
+    let class = pb::StorageClassInfo {
+        name: "shared".into(),
+        backend: pb::StorageBackend::STORAGE_BACKEND_DIRECTORY.into(),
+        capacity_bytes: 1 << 40,
+        free_bytes: 1 << 39,
+        store: "store-1".into(),
+        ..Default::default()
+    };
+    let mut f = facts();
+    f.storage_classes = vec![class];
+    f
 }
 
 /// Whether `workload` is observed running.
