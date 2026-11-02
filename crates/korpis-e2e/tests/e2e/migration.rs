@@ -294,6 +294,7 @@ async fn a_workload_moves_with_its_data_address_console_and_meter_and_a_rollback
     let cp = &m.cp;
     let game = pb::EndpointSpec {
         name: "query".into(),
+        protocol: pb::EndpointProtocol::ENDPOINT_PROTOCOL_TCP.into(),
         exposure: pb::Exposure::EXPOSURE_DEDICATED_IP.into(),
         container_port: 9000,
         ..Default::default()
