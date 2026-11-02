@@ -5,7 +5,8 @@
 //! pulling into the destination's copy, over the two sockets as the agents would join them, keeping
 //! a symlink, a hardlink, an extended attribute, an ACL, a sparse file's holes, and an owner by
 //! number; a second pass sends what changed and deletes what the source no longer has, and the
-//! receiving side says what crossed. It needs root and rsync, and is skipped without them.
+//! receiving side says what crossed. Each time, the two trees' manifests, which a migration's
+//! verify compares, are the same. It needs root and rsync, and is skipped without them.
 
 #![allow(
     clippy::unwrap_used,
@@ -101,6 +102,13 @@ fn fill(at: &Path) -> bool {
         && setxattr(&file, "system.posix_acl_access", &acl(), XattrFlags::empty()).is_ok()
 }
 
+/// The manifest of the tree at `at`, as a migration's verify computes it.
+fn manifest(at: &Path) -> korpis_backup::manifest::Manifest {
+    use rustix::fs::{Mode, OFlags};
+    let root = rustix::fs::open(at, OFlags::RDONLY | OFlags::DIRECTORY, Mode::empty()).unwrap();
+    korpis_backup::manifest::of(&root).unwrap()
+}
+
 /// The extended attribute `name` of `path`.
 fn xattr(path: &Path, name: &str) -> Vec<u8> {
     let mut value = vec![0_u8; 256];
@@ -135,6 +143,7 @@ fn a_tree_crosses_whole_then_by_its_differences_keeping_what_a_copy_loses() {
     let file = to.join("level.dat");
     assert_eq!(xattr(&file, "user.korpis"), b"kept", "the extended attribute");
     assert_eq!(xattr(&file, "system.posix_acl_access"), acl(), "the ACL");
+    assert_eq!(manifest(&to), manifest(&from), "what arrived is what left, as verify sees it");
 
     std::fs::remove_file(from.join("level.bak")).unwrap();
     std::fs::write(from.join("new"), "since").unwrap();
@@ -143,4 +152,5 @@ fn a_tree_crosses_whole_then_by_its_differences_keeping_what_a_copy_loses() {
     assert!(changed < whole, "only what differs: {changed} of {whole}");
     assert!(!to.join("level.bak").exists(), "deleted where the source deleted it");
     assert_eq!(std::fs::read_to_string(to.join("new")).unwrap(), "since");
+    assert_eq!(manifest(&to), manifest(&from));
 }

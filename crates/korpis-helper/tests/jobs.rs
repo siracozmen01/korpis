@@ -4,9 +4,9 @@
 //! live, recorded as such; one path of it restored into a directory the helper makes in another
 //! volume, owned as that volume is; a job started twice runs once; one stuck on a store that
 //! never answers is cancelled and reported lost; what the helper kept is forgotten; and on btrfs a
-//! job reads a snapshot the helper took for it, released only when the job is forgotten. It needs
-//! root and MinIO (`scripts/test-tools.sh`), and btrfs where it is named, and is skipped without
-//! them.
+//! job reads a snapshot the helper took for it, released only when the job is forgotten; and a
+//! manifest job reads its volume with no store to reach. It needs root and MinIO
+//! (`scripts/test-tools.sh`), and btrfs where it is named, and is skipped without them.
 
 #![allow(
     clippy::unwrap_used,
@@ -232,4 +232,31 @@ async fn a_job_on_btrfs_reads_a_snapshot_taken_for_it_and_released_when_forgotte
     assert!(taken.exists(), "kept while the job is known");
     assert!(matches!(forget(&mut h, "bkp-1"), Answer::ForgetJob(_)));
     assert!(!taken.exists(), "released with the job");
+}
+
+#[tokio::test]
+async fn a_manifest_job_reads_its_volume_confined_and_reaches_no_store() {
+    if !rustix::process::geteuid().is_root() {
+        eprintln!("jobs need root: not run");
+        return;
+    }
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let (mut h, cgroups) = setup(tmp.path());
+    let manifest = Work::Manifest(Box::new(helper::ManifestVolume {
+        volume: "wl_1.data".into(),
+        ..Default::default()
+    }));
+    // No store is named that a job could reach: the job is given none.
+    assert!(matches!(ask(&mut h, start("job-m", manifest, "http://127.0.0.1:9")), Answer::StartJob(_)));
+    let result = finished(&mut h, "job-m").await;
+    assert!(result.ok, "{}", result.error);
+    let volume = tmp.path().join("volumes/wl_1.data");
+    let flags = rustix::fs::OFlags::RDONLY | rustix::fs::OFlags::DIRECTORY;
+    let root = rustix::fs::open(&volume, flags, rustix::fs::Mode::empty()).unwrap();
+    let expected = korpis_backup::manifest::of(&root).unwrap();
+    assert_eq!(result.manifest.as_option().unwrap().digest, expected.digest);
+    let held = result.confinement.as_option().unwrap();
+    assert!(held.cgroup && held.capabilities == ["dac_read_search"], "{held:?}");
+    forget(&mut h, "job-m");
+    let _ = std::fs::remove_dir(&cgroups);
 }
