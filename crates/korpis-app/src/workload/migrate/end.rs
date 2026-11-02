@@ -16,7 +16,7 @@ use crate::ports::{
 };
 use korpis_core::audit::{Outcome as Done, details};
 use korpis_core::authz::{Kind, ObjectRef};
-use korpis_core::workload::migration::{Migration, MigrationVolume, Phase};
+use korpis_core::workload::migration::{CLOCK_MARGIN, Migration, MigrationVolume, Phase};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -85,10 +85,12 @@ impl Ending {
                 "migration.not_cut_over",
                 "the workload has not moved yet; abandon the migration instead",
             )),
-            Self::RollBack if m.hold_until.is_some_and(|h| now >= h) => Err(AppError::conflict(
-                "migration.hold_ended",
-                "the hold ended, so the source may have deleted its copies",
-            )),
+            Self::RollBack if m.hold_until.is_some_and(|h| now + CLOCK_MARGIN >= h) => {
+                Err(AppError::conflict(
+                    "migration.hold_ended",
+                    "the hold ended, so the source may have deleted its copies",
+                ))
+            }
             Self::Release if m.phase != Phase::Release => Err(AppError::conflict(
                 "migration.not_holding",
                 "the destination has not reported the workload started yet",

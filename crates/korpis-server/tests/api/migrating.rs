@@ -15,7 +15,7 @@ use crate::journal::{ack, assignment, complete, plan_status, send, until};
 use crate::lifecycle::approve;
 use crate::recipes::{body, create, project, push_paper};
 use crate::streams::{held, up};
-use crate::support::{Harness, mutation};
+use crate::support::{Harness, mutation, reason};
 use crate::volumes::{ensured, volume_record};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
@@ -73,6 +73,11 @@ fn local() -> Vec<pb::StorageClassInfo> {
 }
 
 async fn moving() -> Moving {
+    moving_held(None).await
+}
+
+/// [`moving`], the source keeping its copies for `hold` after the cutover.
+async fn moving_held(hold: Option<std::time::Duration>) -> Moving {
     let h = Harness::new().await;
     let (a, b) = (TestAgent::enroll(&h, "fra-1", 1).await, TestAgent::enroll(&h, "fra-2", 2).await);
     let (mut sa, first) =
@@ -94,6 +99,7 @@ async fn moving() -> Moving {
     let request = pb::MigrateWorkloadRequest {
         mutation: mutation("move").into(),
         workload: db.clone(),
+        hold: hold.map(korpis_wire::duration).into(),
         ..Default::default()
     };
     let proposed = workloads.migrate_workload(request).await.unwrap().into_owned();
@@ -353,4 +359,19 @@ async fn manifests_that_differ_abandon_it_and_a_report_out_of_place_is_not_belie
     assert_eq!(ended.volumes[0].first_difference, "world/");
     assert_eq!(plan_status(&m.h, &m.plan).await, Some(pb::PlanStatus::PLAN_STATUS_FAILED));
     assert_eq!(records(&m.h, &m.db).await, vec![on("fra-1", &format!("{}.data", m.db), false)]);
+}
+
+#[tokio::test]
+async fn a_rollback_is_refused_a_minute_before_the_hold_ends_as_the_source_s_clock_may_run_ahead() {
+    let mut m = Box::pin(moving_held(Some(std::time::Duration::from_secs(30)))).await;
+    through_verify(&mut m, ("sha256:same", "sha256:same"), 4096).await;
+    cut_over(&mut m).await;
+    let rollback = pb::RollbackMigrationRequest {
+        mutation: mutation("back").into(),
+        migration: m.migration.clone(),
+        reason: "too late".into(),
+        ..Default::default()
+    };
+    let refused = m.h.workloads(m.h.root()).rollback_migration(rollback).await.unwrap_err();
+    assert_eq!(reason(&refused), "migration.hold_ended");
 }

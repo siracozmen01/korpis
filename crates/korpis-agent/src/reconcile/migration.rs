@@ -8,9 +8,8 @@
 //! of its volumes hold copies; the source reports `quiesce` once the workload is stopped and its
 //! streams sealed, with each stream's watermark; at `cutover` the source releases its lease and
 //! the destination, once granted the next, promotes each copy received by increments into the
-//! volume before the workload is made, and reports once it runs; at `release`, once the hold and
-//! a margin for the two clocks have passed, the source deletes the workload's object and its
-//! copies. A migration abandoned before the workload moved leaves the destination's copies
+//! volume before the workload is made, and reports once it runs; at `release`, once the hold has
+//! passed, the source deletes the workload's object and its copies. A migration abandoned before the workload moved leaves the destination's copies
 //! unclaimed, and they are deleted.
 
 use super::act::{Failure, running, volume_id};
@@ -22,13 +21,9 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 mod streams;
-
-/// How long after the hold's end the source waits before deleting its copies: the control plane
-/// refuses a rollback from the hold's end by its own clock, which this node's may lag.
-const SKEW: Duration = Duration::from_secs(60);
 
 /// What this node did of a migration of the workload, so each report is journaled once.
 #[derive(Debug, Clone, Default)]
@@ -183,7 +178,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// local copy deleted, reported once; what fails is tried again at the next pass.
     async fn let_go(&mut self, a: &agent::Assignment, t: &mut Tracked, role: &agent::MigrationRole) {
         let hold = role.hold_until.as_option().and_then(|h| korpis_wire::time("hold_until", h).ok());
-        let passed = hold.is_some_and(|h| h + SKEW <= SystemTime::now());
+        // The control plane stops rolling back a margin before the hold ends, so this node's clock
+        // running ahead deletes nothing a rollback still needs.
+        let passed = hold.is_some_and(|h| h <= SystemTime::now());
         if !passed || self.reported(t, role) {
             return;
         }

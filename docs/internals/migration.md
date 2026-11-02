@@ -219,9 +219,10 @@ its placement is freed. **Rollback** (after cutover, during the hold): the place
 one transaction, the destination stops and releases its epoch, and the source is granted the next
 epoch over its copies, which hold what they held at quiesce. What the workload wrote on the
 destination since cutover is kept as a divergent copy of each volume, deleted only by a plan. A
-rollback is refused once the hold ended, since the source may have deleted its copies. **Release**
-(when the hold passes, or early by `korpis migration release` once the destination reported the
-workload running): the source deletes its local copies, its placement is freed and the migration
+rollback is refused from a minute before the hold ends, since the source deletes its copies once
+the hold ends by its own clock, which may run that far ahead. **Release** (when the hold passes, or
+early by `korpis migration release` once the destination reported the workload running): the
+source deletes the workload's object and its local copies, its placement is freed and the migration
 completes.
 
 **A silent node never stalls a migration.** A silent destination before the move, or a silent source
