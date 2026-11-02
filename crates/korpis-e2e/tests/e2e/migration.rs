@@ -135,7 +135,8 @@ fn holds(dir: &Path) {
 /// The offsets of the records in `node`'s console stream of `w`.
 fn console(node: &Node, w: &str) -> Vec<u64> {
     let dir = node.volumes.join(format!("{w}.stream_console"));
-    read(&StreamDir::new(&dir), 0, 10_000).map(|r| r.records.iter().map(|r| r.offset).collect())
+    read(&StreamDir::new(&dir), 0, 10_000)
+        .map(|r| r.records.iter().map(|r| r.offset).collect())
         .unwrap_or_default()
 }
 
@@ -250,8 +251,7 @@ async fn a_workload_moves_with_its_data_address_console_and_meter_and_a_rollback
     a.guard(&w);
     b.guard(&w);
     let on = cp.status(&w).await.placement.into_option().unwrap().node;
-    let (from, to, nfrom, nto) =
-        if on == na { (&a, &b, &ma, &mb) } else { (&b, &a, &mb, &ma) };
+    let (from, to, nfrom, nto) = if on == na { (&a, &b, &ma, &mb) } else { (&b, &a, &mb, &ma) };
     runs_on(&cp, &w, &on).await;
     written(&volume_of(from, &w, "data").await);
     let address = routed(&cp, &w).await;
