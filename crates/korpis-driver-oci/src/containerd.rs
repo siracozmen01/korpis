@@ -6,6 +6,7 @@
 
 mod console;
 mod dead;
+mod ending;
 mod events;
 pub mod exec;
 mod import;

@@ -6,6 +6,7 @@
 //! two readings.
 
 use super::Containerd;
+use super::ending::{Ended, LABEL_ENDED};
 use super::lifecycle::{LABEL_INTENT, LABEL_RUN, LABEL_WORKLOAD};
 use super::times::{LABEL_STARTED, started_at};
 use crate::error::DriverResult;
@@ -32,15 +33,36 @@ pub struct Usage {
     pub pids: u64,
 }
 
+/// The status of a stopped container whose task the driver ended as `ended` says, after it last
+/// started as `labels` say.
+fn ended_status(ended: &Ended, labels: &BTreeMap<String, String>) -> driver::RuntimeStatus {
+    let exit_code = i32::try_from(ended.code).ok();
+    let killed_for_memory = ended.oom && exit_code == Some(137);
+    driver::RuntimeStatus {
+        state: driver::RuntimeState::RUNTIME_STATE_STOPPED.into(),
+        exit_code,
+        started_at: labels.get(LABEL_STARTED).and_then(|v| started_at(v)).into(),
+        finished_at: ended.at.clone().into(),
+        reason: if killed_for_memory { "oom_killed".into() } else { String::new() },
+        ..Default::default()
+    }
+}
+
 /// The status of a container whose labels are `labels` and whose task's process is `process`:
 /// when it last started while it has a task, and when it ended once it has; and, when `oom` says
 /// its cgroup's kernel killed a process of it for want of memory and its entry ended by
-/// `SIGKILL`, that it was killed for that.
+/// `SIGKILL`, that it was killed for that. A container with no task whose last task the driver
+/// ended is stopped as it ended.
 fn status_of(
     process: Option<&Process>,
     labels: &BTreeMap<String, String>,
     oom: bool,
 ) -> driver::RuntimeStatus {
+    if process.is_none()
+        && let Some(ended) = labels.get(LABEL_ENDED).and_then(|v| Ended::read(v))
+    {
+        return ended_status(&ended, labels);
+    }
     let task =
         process.map(|p| (p.status.as_known().unwrap_or(Status::UNKNOWN), p.exit_status, p.pid));
     let (state, exit_code, pid) = match task {
@@ -125,7 +147,7 @@ impl Containerd {
     /// Whether the kernel has killed a process of `id` for want of memory, as its cgroup counts
     /// it: the cgroup stays until the task is deleted, which a start of a new one does, so the
     /// count is the task's.
-    fn oom_killed(&self, id: &str) -> bool {
+    pub(crate) fn oom_killed(&self, id: &str) -> bool {
         let dir = self.cores.dir(id);
         let events = std::fs::read_to_string(dir.join("memory.events")).unwrap_or_default();
         let kills = events.lines().find_map(|l| l.strip_prefix("oom_kill ")).and_then(number);
@@ -166,5 +188,26 @@ impl Containerd {
         if let Ok(mut s) = self.samples.lock() {
             s.remove(id);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_container_whose_task_was_ended_is_stopped_as_it_ended() {
+        let labels = BTreeMap::from([
+            (LABEL_STARTED.to_owned(), "1792000000.000000001".to_owned()),
+            (LABEL_ENDED.to_owned(), "137 1792000060.000000002 1".to_owned()),
+        ]);
+        let status = status_of(None, &labels, false);
+        assert_eq!(status.state.as_known(), Some(driver::RuntimeState::RUNTIME_STATE_STOPPED));
+        assert_eq!((status.exit_code, status.reason.as_str()), (Some(137), "oom_killed"));
+        assert_eq!(status.finished_at.as_option().map(|t| t.seconds), Some(1_792_000_060));
+        assert_eq!(status.started_at.as_option().map(|t| t.seconds), Some(1_792_000_000));
+        let made = BTreeMap::new();
+        let status = status_of(None, &made, false);
+        assert_eq!(status.state.as_known(), Some(driver::RuntimeState::RUNTIME_STATE_CREATED));
     }
 }
