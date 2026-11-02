@@ -29,6 +29,8 @@ pub struct VolumeRole {
     pub volume: Uuid,
     /// The volume's name in the workload's declaration.
     pub name: String,
+    /// Its class, the same name on both nodes.
+    pub storage_class: String,
     /// The helper's identifier for it on the source.
     pub source_helper_id: String,
     /// How it crosses.
@@ -90,6 +92,7 @@ fn volume_role(phase: Phase, v: &MigrationVolume) -> VolumeRole {
     VolumeRole {
         volume: v.volume,
         name: v.name.clone(),
+        storage_class: v.storage_class.clone(),
         source_helper_id: v.source_helper_id.clone(),
         crossing: v.crossing,
         pass,

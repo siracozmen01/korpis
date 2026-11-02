@@ -259,6 +259,8 @@ pub struct MigrationVolume {
     pub volume: Uuid,
     /// The name the workload's declaration gives it.
     pub name: String,
+    /// Its class, the same name on both nodes; empty until it is read back as stored.
+    pub storage_class: String,
     /// How it crosses.
     pub crossing: Crossing,
     /// Its size when the migration was made.
@@ -291,6 +293,7 @@ impl MigrationVolume {
         Self {
             volume,
             name,
+            storage_class: String::new(),
             crossing,
             size_bytes,
             source_helper_id,

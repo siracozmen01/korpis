@@ -79,6 +79,7 @@ pub(super) struct VolumeRow {
     migration_id: Uuid,
     volume_id: Uuid,
     name: String,
+    storage_class: String,
     crossing: String,
     size_bytes: i64,
     source_helper_id: String,
@@ -103,6 +104,7 @@ impl VolumeRow {
         Ok(MigrationVolume {
             volume: self.volume_id,
             name: self.name,
+            storage_class: self.storage_class,
             crossing,
             size_bytes: count(self.size_bytes),
             source_helper_id: self.source_helper_id,
@@ -141,7 +143,7 @@ pub(super) async fn volumes_of<'e, E: sqlx::PgExecutor<'e>>(
 ) -> StoreResult<Vec<VolumeRow>> {
     sqlx::query_as!(
         VolumeRow,
-        "SELECT m.migration_id, m.volume_id, v.name, m.crossing, m.size_bytes,
+        "SELECT m.migration_id, m.volume_id, v.name, v.storage_class, m.crossing, m.size_bytes,
                 m.source_helper_id, m.passes, m.pass, m.pass_since, m.parent_pass, m.sent_bytes,
                 m.held_pass,
                 m.destination_helper_id, m.source_manifest, m.destination_manifest,

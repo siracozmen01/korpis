@@ -847,6 +847,9 @@ message MigrationVolumeRole {
   // From verify, for a volume crossing by increments: the last pass the destination reported
   // held, whose manifest both sides compute and which the destination's copy is promoted from.
   string held_pass = 6;
+  // Its class, the same name on both nodes: what a volume the target does not declare, the
+  // migration's own state volume, is made and received in.
+  string storage_class = 7;
 }
 
 // One pass of a volume.

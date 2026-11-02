@@ -172,7 +172,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         for v in role.volumes.iter().filter(|v| by_increments(v) && !v.held_pass.is_empty()) {
             let request = helper::PromoteReplicaRequest {
                 volume: v.source_helper_id.clone(),
-                storage_class: crate::migrate::class_of(a, &v.name),
+                storage_class: crate::migrate::class_of(a, v),
                 snapshot: v.held_pass.clone(),
                 into: volume_id(a, &v.name),
                 own_from: crate::migrate::own_snapshots_of(&v.source_helper_id),

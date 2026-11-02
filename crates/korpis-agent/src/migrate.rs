@@ -83,11 +83,12 @@ pub struct Migrating<H> {
     shared: Mutex<Shared>,
 }
 
-/// The storage class `a`'s target declares the volume named `name` in.
-pub(crate) fn class_of(a: &agent::Assignment, name: &str) -> String {
+/// The storage class the migrating volume `v` is in: the one `a`'s target declares it in, or, for
+/// one the target does not declare, the migration's state volume, the one its role names.
+pub(crate) fn class_of(a: &agent::Assignment, v: &agent::MigrationVolumeRole) -> String {
     let body = a.target.as_option().and_then(|t| t.body.as_option());
-    let v = body.and_then(|b| b.volumes.iter().find(|v| v.name == name));
-    v.map(|v| v.storage_class.clone()).unwrap_or_default()
+    let declared = body.and_then(|b| b.volumes.iter().find(|d| d.name == v.name));
+    declared.map_or_else(|| v.storage_class.clone(), |d| d.storage_class.clone())
 }
 
 /// One volume's part in a pass, as a report carries it.
