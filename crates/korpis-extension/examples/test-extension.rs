@@ -97,7 +97,11 @@ async fn main() {
     } else {
         let name = std::env::var("KORPIS_TEST_PROVIDER").unwrap_or_else(|_| "test".to_owned());
         if args.iter().any(|a| a == "--router") {
-            serve(&connection, (pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER, name), Router(Routes));
+            serve(
+                &connection,
+                (pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER, name),
+                Router(Routes),
+            );
         } else {
             serve(&connection, (pb::ProviderType::PROVIDER_TYPE_DNS, name), Unsupported);
         }
