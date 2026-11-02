@@ -107,7 +107,8 @@ fn a_dependent_goes_where_the_mesh_reaches_each_target_s_node() {
     ];
     let empty = Bounds::new();
     let nodes = [&one, &two, &three].map(|n| Candidate { node: n, allocated: &empty });
-    let needed = [Needed { name: "db".into(), required: true, targets: vec![db, cache] }];
+    let needed =
+        [Needed { name: "db".into(), required: true, targets: vec![db, cache], dependents: false }];
     let placed = |mesh: &Pairs| {
         let request = Request { dependencies: &needed, mesh, ..req(&labels, &b) };
         place(&request, &nodes, &peers, &Policies::default())
@@ -169,4 +170,27 @@ fn a_volume_with_replicas_goes_only_where_its_class_sends_increments() {
     b.volumes[0].replication = None;
     let e = place(&req(&labels, &b), &nodes, &[], &Policies::default());
     assert!(e.filtered.is_empty(), "with no replicas either will do");
+}
+
+#[test]
+fn a_target_is_placed_where_every_workload_depending_on_it_reaches_it() {
+    let (one, two, three) = (node(1, &[]), node(2, &[]), node(3, &[]));
+    let labels = BTreeMap::new();
+    let b = body(GIB);
+    let web = Uuid::from_u128(79);
+    let peers = [Peer { workload: web, project: PROJECT, node: two.id, labels: BTreeMap::new() }];
+    let empty = Bounds::new();
+    let nodes = [&one, &two, &three].map(|n| Candidate { node: n, allocated: &empty });
+    let needed = [Needed {
+        name: "its dependents".into(),
+        required: false,
+        targets: vec![web],
+        dependents: true,
+    }];
+    let mesh: Pairs = [(one.id, two.id)].into_iter().collect();
+    let request = Request { dependencies: &needed, mesh: &mesh, ..req(&labels, &b) };
+    let e = place(&request, &nodes, &peers, &Policies::default());
+    let refused: Vec<_> =
+        e.filtered.iter().filter(|r| r.check == Check::Dependency).map(|r| r.node).collect();
+    assert_eq!(refused, [three.id], "only the node its dependent does not reach");
 }

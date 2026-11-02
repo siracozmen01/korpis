@@ -135,15 +135,18 @@ pub struct Counting<'a> {
 }
 
 /// A dependency as placement reads it: its name, whether it is required, and the workloads it
-/// resolved to, whose nodes the peers say.
+/// resolved to, whose nodes the peers say; or, the other way, the workloads depending on the one
+/// placed, which must reach it wherever it lands.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Needed {
     /// Its name.
     pub name: String,
     /// Whether the dependent may not start without it.
     pub required: bool,
-    /// The workloads it reaches.
+    /// The workloads it reaches, or, for `dependents`, the workloads that reach the one placed.
     pub targets: Vec<Uuid>,
+    /// Whether `targets` depend on the workload placed rather than it on them.
+    pub dependents: bool,
 }
 
 /// A workload's existing placement.
