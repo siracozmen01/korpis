@@ -841,6 +841,9 @@ message MigrationVolumeRole {
   // In replicate and final_sync, the pass under way, which the control plane names: the source
   // sends it and the destination admits it under its ticket, each reporting it by this name.
   MigrationPass pass = 5;
+  // From verify, for a volume crossing by increments: the last pass the destination reported
+  // held, which the destination's copy is promoted from.
+  string held_pass = 6;
 }
 
 // One pass of a volume.

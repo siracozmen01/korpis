@@ -11,6 +11,7 @@ use rustls::pki_types::{CertificateDer, pem::PemObject};
 use std::sync::Arc;
 use std::time::Duration;
 
+mod announced;
 mod authority;
 mod contended;
 mod declare;

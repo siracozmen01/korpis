@@ -158,3 +158,20 @@ fn a_pass_held_and_large_starts_the_next_and_one_whose_ticket_ran_out_starts_aga
         MigrationVolume::new(Uuid::nil(), "s".into(), Crossing::Nothing, (gib, "s".into()));
     assert!(shared.entry_pass(Uuid::from_u128(6)).is_none() && shared.passed(Phase::FinalSync));
 }
+
+#[test]
+fn both_sides_are_told_the_pass_held_from_verify_for_a_volume_sent_by_increments() {
+    let gib = 1 << 30;
+    let mut v =
+        MigrationVolume::new(Uuid::nil(), "world".into(), Crossing::Increments, (gib, "w".into()));
+    v.held_pass = Some(Uuid::from_u128(7));
+    let tree = MigrationVolume::new(Uuid::nil(), "t".into(), Crossing::Tree, (gib, "t".into()));
+    let volumes = [v, tree];
+    let told = |m: &Migration, side| MigrationRole::of(m, side, (&volumes, &[])).volumes;
+    let held = Some(Uuid::from_u128(7));
+    assert_eq!(told(&migration(Phase::FinalSync), Side::Source)[0].held_pass, None, "not yet");
+    for side in [Side::Source, Side::Destination] {
+        let verifying = told(&migration(Phase::Verify), side);
+        assert_eq!((verifying[0].held_pass, verifying[1].held_pass), (held, None), "a tree's is");
+    }
+}
