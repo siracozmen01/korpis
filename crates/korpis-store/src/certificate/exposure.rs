@@ -4,7 +4,8 @@
 //! compromised does to them: each certificate whose current key it was given is marked exposed,
 //! an `acme` one made due for a new key at once, and each told to its organization as a
 //! `certificate.exposed` event; every chain of an `acme` certificate it was given waits to be
-//! revoked.
+//! revoked, and what revoking it came to is told as a `certificate.revoked` event, or a
+//! `certificate.revocation_refused` one.
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
@@ -122,6 +123,32 @@ pub(super) async fn record_revocation(
         outcome
     )
     .execute(&mut *tx.tx)
+    .await
+    .map_err(from_sqlx)?;
+    // The audit answers whether a compromised node's chains were revoked, and a reader waits on
+    // the answer, from the event written with it.
+    let (kind, severity) = if outcome == "revoked" {
+        ("certificate.revoked", "info")
+    } else {
+        ("certificate.revocation_refused", "warning")
+    };
+    let detail = serde_json::json!({
+        "certificate": r.certificate.to_string(),
+        "node": r.node.to_string(),
+        "revision": r.revision,
+        "outcome": outcome,
+    });
+    sqlx::query!(
+        "SELECT korpis_append_event($1, $2, $3, $4, c.organization_id, NULL, NULL, $5)
+           FROM certificate c WHERE c.id = $6",
+        format!("certificate:{}", r.certificate),
+        from_time(at),
+        kind,
+        severity,
+        detail,
+        r.certificate
+    )
+    .fetch_all(&mut *tx.tx)
     .await
     .map_err(from_sqlx)?;
     Ok(())

@@ -236,9 +236,10 @@ It held the private keys of its endpoints, which outlive the fence. So the contr
 record of every certificate key it gave a node (certificate, revision, leaf key digest, chain),
 marks each such certificate exposed with a critical `certificate.exposed` event, gives an `acme` one
 a new key at once, and revokes every chain the node was given through the directory with
-`keyCompromise`, asked until answered. A `provided` certificate stays exposed until its organization
-replaces it with a chain for another key. Revocation reaches only clients that check, many do not,
-so the protection that holds regardless is a certificate's short life.
+`keyCompromise`, asked until answered, each answer told as a `certificate.revoked` event or a
+`certificate.revocation_refused` warning. A `provided` certificate stays exposed until its
+organization replaces it with a chain for another key. Revocation reaches only clients that check,
+many do not, so the protection that holds regardless is a certificate's short life.
 
 **A compromised edge member** sees every connection to the addresses it holds, terminates every name
 its group serves and holds those keys. Into a workload's node it reaches only the ports its group

@@ -2,22 +2,23 @@
 
 //! What a node removed as compromised held: the certificate keys it was given. An `acme`
 //! certificate whose key it held is given a new key at once, wherever its endpoint is placed next,
-//! and the chain the node held is revoked through the directory; a `provided` one says its key was
-//! exposed until its organization replaces it with a chain for another key. Either is told to its
-//! organization as a `certificate.exposed` event.
+//! and the chain the node held is revoked through the directory, told as a `certificate.revoked`
+//! event; a `provided` one says its key was exposed until its organization replaces it with a
+//! chain for another key. Either is told to its organization as a `certificate.exposed` event.
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::issuance::{placed, send, served_at, shown};
 use crate::recipes::{project, push_paper};
 use crate::routes::{attest, declare, web};
 use crate::support::{Harness, mutation};
+use crate::watching::changed_until;
 use korpis_core::id::{Id, IdKind};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::certificate_key::Outcome;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_proto::korpis::v1 as pb;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 /// The node named `name`, as the API names it.
 async fn node_id(h: &Harness, name: &str) -> String {
@@ -89,14 +90,11 @@ async fn an_acme_key_a_compromised_node_held_is_revoked_and_replaced() {
     assert_eq!((replaced.id.as_str(), replaced.revision), (first.id.as_str(), 2));
     assert!(!replaced.exposed, "a new key, not the one the node held");
     assert_eq!(count(&h, "SELECT count(*) FROM event WHERE kind = 'certificate.exposed'").await, 1);
-    for _ in 0..100 {
-        let revoked = "SELECT count(*) FROM certificate_exposure WHERE revocation = 'revoked'";
-        if count(&h, revoked).await == 1 {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
-    panic!("the chain the node held was not revoked");
+    // The revocation is told as an event, written with the record of it.
+    let told = "SELECT count(*) FROM event WHERE kind = 'certificate.revoked'";
+    changed_until(&h, || async { (count(&h, told).await == 1).then_some(()) }).await;
+    let revoked = "SELECT count(*) FROM certificate_exposure WHERE revocation = 'revoked'";
+    assert_eq!(count(&h, revoked).await, 1, "the chain the node held is revoked");
 }
 
 /// A self-signed chain for `names` under `key`, in PEM.

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT korpis_append_event($1, $2, $3, $4, c.organization_id, NULL, NULL, $5)\n           FROM certificate c WHERE c.id = $6",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "korpis_append_event",
+        "type_info": "Void",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f579bcfc88f2eef174422d475c556bbc21da72ac833590e6c4cb3176b48b2552"
+}
