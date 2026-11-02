@@ -273,8 +273,10 @@ mod tests {
         p.cycled("wl_1", 3).unwrap();
         let install = Install { digest: "ab12".into(), done: 4, lost: 1 };
         p.installed("wl_1", install.clone()).unwrap();
+        p.receiving("wl_1", vec!["wl_1.data".into()]).unwrap();
         let again = Progress::open(&path).unwrap();
-        let all = Done { step: Some(step), cycle: Some(3), install: Some(install) };
+        let received = vec!["wl_1.data".to_owned()];
+        let all = Done { step: Some(step), cycle: Some(3), install: Some(install), received };
         assert_eq!(again.of("wl_1"), all);
         std::fs::write(&path, "step wl_1 pl_1 x ok\n").unwrap();
         assert!(Progress::open(&path).is_err());

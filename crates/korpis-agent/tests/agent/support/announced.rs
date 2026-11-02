@@ -22,13 +22,14 @@ impl ControlPlane {
         let mut listener = sqlx::postgres::PgListener::connect_with(store.pool()).await.unwrap();
         listener.listen("korpis_workload").await.unwrap();
         let found = async {
-            loop {
-                if let Some(found) = check().await {
-                    return found;
-                }
+            let mut found = check().await;
+            while found.is_none() {
                 listener.recv().await.unwrap();
+                found = check().await;
             }
+            found
         };
-        tokio::time::timeout(BOUND, found).await.expect("what was waited for never came about")
+        let came = tokio::time::timeout(BOUND, found).await.ok().flatten();
+        came.expect("what was waited for never came about")
     }
 }
