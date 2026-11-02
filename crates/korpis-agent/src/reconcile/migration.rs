@@ -143,6 +143,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             {
                 if let Some(watermarks) = self.watermarks(&a.workload) {
                     self.report(t, role, (Vec::new(), watermarks), None).await;
+                } else if let Some(id) = t.runtime.clone() {
+                    // Stopped before it was halted here, as one that exited by itself was.
+                    self.released(&id).await;
                 }
             }
             (Some(S::MIGRATION_SIDE_DESTINATION), Some(P::MIGRATION_PHASE_CUTOVER))

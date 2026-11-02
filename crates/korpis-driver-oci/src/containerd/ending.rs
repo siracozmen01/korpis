@@ -4,8 +4,9 @@
 //! write ends of a task's output pipes, and signals the binary log driver that writes the
 //! workload's stream to exit, only as the task is deleted (containerd's
 //! `cmd/containerd-shim-runc-v2/process/io.go`, `binaryIO.Close`); until then the stream's writer
-//! never sees its input end, and its last segment stays open. So a stop or a kill the agent asks
-//! for deletes the task once it stopped, and the writer seals: the stream of a stopped workload
+//! never sees its input end, and its last segment stays open. So a stop or a kill deletes the task
+//! once it stopped, and a stop of a task that already has, which the agent asks once what it
+//! signalled has stopped, deletes it too, and the writer seals: the stream of a stopped workload
 //! is complete, which a migration's `quiesce` waits for, and the shim is released. containerd
 //! forgets the exit with the task, so the driver first records it in the container's label
 //! `korpis.ended`, as the exit status, the instant it exited, and whether the kernel had killed a
