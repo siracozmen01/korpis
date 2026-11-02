@@ -31,10 +31,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if current == Some(sample.lease_epoch) {
             return Ok(false);
         }
+        // The move that ended the sample's epoch is the first off this node after the sample
+        // began, as either clock may tell it: a workload that came back and left again was moved
+        // again, and a late sample of the first stay is cut at the first move.
         let migrations = self.store.migrations_of(sample.workload).await?;
-        let moved =
-            migrations.into_iter().filter(|(m, _)| m.source == node).find_map(|(m, _)| m.moved_at);
-        Ok(moved.is_some_and(|at| sample.end() > at + CLOCK_MARGIN))
+        let ended = migrations
+            .into_iter()
+            .filter(|(m, _)| m.source == node)
+            .filter_map(|(m, _)| m.moved_at)
+            .filter(|at| *at + CLOCK_MARGIN > sample.interval_start)
+            .min();
+        Ok(ended.is_some_and(|at| sample.end() > at + CLOCK_MARGIN))
     }
 
     /// Takes `sample` from `node`; the effect of not believing it, where it is not believed.
