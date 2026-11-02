@@ -9,8 +9,12 @@
 //! The provider's name is `KORPIS_TEST_PROVIDER`, `test` without it. Run as `test-extension
 //! --health <protocol>`, it serves a health provider of that query protocol instead, the one the
 //! end-to-end tests of query probes judge a workload by: it has the node send `ping`, and the
-//! workload is healthy if what came back starts with `pong`.
+//! workload is healthy if what came back starts with `pong`. Run as `test-extension --router`, it
+//! serves an address router of that name instead, the one the end-to-end test of a migration routes
+//! a cluster pool's address with: it routes every address where it is asked to, as a network would,
+//! and prints `route <address> <node>` for each.
 
+use korpis_extension::address::{AddressRouter, Router};
 use korpis_extension::consumer::{Consumer, EventHandler};
 use korpis_extension::health::{Failure, Health, HealthProvider, send, verdict};
 use korpis_extension::provider::{Provider, Registration, Unsupported};
@@ -51,6 +55,19 @@ impl HealthProvider for Echo {
     }
 }
 
+/// A network that routes every address where it is asked to.
+struct Routes;
+
+impl AddressRouter for Routes {
+    fn route(
+        &self,
+        r: pb::RouteAddress,
+    ) -> impl Future<Output = Result<(), korpis_extension::address::Failure>> + Send {
+        say(&format!("route {} {}", r.address, r.node));
+        std::future::ready(Ok(()))
+    }
+}
+
 /// Serves the provider `kind` named `name` through `connection`, answering with `handler`.
 fn serve<H: korpis_extension::provider::Handler>(
     connection: &Arc<Connection<IdentitySocket>>,
@@ -79,7 +96,11 @@ async fn main() {
         serve(&connection, (kind, protocol.clone()), Health(Echo));
     } else {
         let name = std::env::var("KORPIS_TEST_PROVIDER").unwrap_or_else(|_| "test".to_owned());
-        serve(&connection, (pb::ProviderType::PROVIDER_TYPE_DNS, name), Unsupported);
+        if args.iter().any(|a| a == "--router") {
+            serve(&connection, (pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER, name), Router(Routes));
+        } else {
+            serve(&connection, (pb::ProviderType::PROVIDER_TYPE_DNS, name), Unsupported);
+        }
     }
     let consumer = Arc::new(Consumer::new(connection, Print));
     // The node may not hold the workload's lease yet; the socket says to ask again.
