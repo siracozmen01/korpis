@@ -121,8 +121,8 @@ impl Sessions {
 
     /// Keeps `set` as the set last sent to `node`.
     pub fn remember(&self, node: Uuid, set: Sent) {
-        let mut sent = self.sent.lock().unwrap_or_else(PoisonError::into_inner);
-        let kept = sent.entry(node).or_default();
+        let mut by_node = self.sent.lock().unwrap_or_else(PoisonError::into_inner);
+        let kept = by_node.entry(node).or_default();
         kept.retain(|s| s.digest != set.digest);
         kept.insert(0, set);
         kept.truncate(2);
