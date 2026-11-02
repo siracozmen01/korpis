@@ -181,8 +181,10 @@ and its end, however it ends, leaves the node `cordoned`. A node is under one op
 not ended at a time, which the store enforces.
 
 **Approval is a person's, and the control plane acts as them.** Proposing and deciding take the
-action that governs the kind: `node.drain` or `node.evacuate` on the node, `grant.read` on the
-template's organization for a rollout, which lists the grants it is over. Approving takes a person
+action that governs the kind: `node.drain` or `node.evacuate` on the node, and for a rollout
+`template.write` on the template's organization, as editing the template does, with `grant.read`
+there to propose one, since its items list the grants it is over and their holders; reading an
+operation takes reading its node, or `grant.read` there. Approving takes a person
 acting directly, outside a portal: the operation records who approved, under which grant, and
 whether their credential carried a second factor, and each item begins as that caller, with that
 authority decided again as it begins. What reached the approver through a relay or a portal session
@@ -235,8 +237,10 @@ the operator's to end through its own controls.
   holder, on the same scope and under the same conditions. The approver names a grant they hold, and
   each addition is attenuated from it through the ordinary check of an issue, so a rollout gives
   nobody what its approver could not. The grant added to is untouched, so revoking the addition takes
-  back only what the rollout gave. A grant revoked, suspended or expired before its turn fails
-  alone, and so does one limited in uses, whose remaining uses an addition could not share.
+  back only what the rollout gave. A grant whose chain is not in force before its turn (it, or
+  any grant it was attenuated from, revoked, suspended or expired) fails alone, and so does one
+  limited in uses, whose remaining uses an addition could not share; one not in force when the
+  rollout is proposed is not an item at all.
 - **rebalance** is only ever asked for: the scheduler may recommend, never move a running workload
   on its own.
 

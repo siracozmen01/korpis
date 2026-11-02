@@ -12,7 +12,8 @@ import "korpis/v1/common.proto";
 import "korpis/v1/tenancy.proto";
 
 // Proposed and decided under the action that governs the operation's kind: node.drain or
-// node.evacuate on its node, grant.read on its template's organization for a rollout. Read under
+// node.evacuate on its node, template.write on its template's organization for a rollout, which
+// takes grant.read there too to propose, since its items list the grants it is over. Read under
 // node.read on its node, or grant.read on its template's organization.
 service OperationService {
   // Finds and keeps every item the operation will touch; nothing changes until it is approved. A

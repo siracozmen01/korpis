@@ -4,8 +4,9 @@
 //! the version rolled out adds, as a grant of its own to the same holder, on the same scope and
 //! under the same conditions, attenuated from the grant its approver named, through the ordinary
 //! check of an issue. The grant it adds to is untouched, so revoking the addition takes back only
-//! what the rollout gave. A grant revoked, suspended, or expired before its turn fails alone; so
-//! does one limited in uses, whose remaining uses an addition could not share.
+//! what the rollout gave. A grant whose chain is not in force before its turn, itself or any grant it
+//! was attenuated from revoked, suspended, or expired, fails alone; so does one limited in uses,
+//! whose remaining uses an addition could not share.
 
 use crate::App;
 use crate::caller::Caller;
@@ -13,6 +14,7 @@ use crate::error::AppError;
 use crate::page::Page;
 use crate::ports::{Clock, EffectWrite as _, GrantWrite as _, RecipeSource, Store};
 use korpis_core::audit::{Outcome, details};
+use korpis_core::authz::record::in_force;
 use korpis_core::authz::template::TemplateBody;
 use korpis_core::authz::{Action, Conditions, Delegation, Grant, GrantRecord, TemplateRef};
 use korpis_core::operation::{Item, ItemState, Operation, Scope};
@@ -89,7 +91,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let grants = self.store.grants_from_template(template, page).await?;
             for r in &grants {
                 let Some(from) = r.from_template.filter(|t| t.version < version) else { continue };
-                if r.grant.revoked || r.grant.conditions.expires_at.is_some_and(|e| e <= now) {
+                // A grant is given nothing unless its whole chain is in force: one cascaded from a
+                // revoked or suspended ancestor holds nothing to add to.
+                if !in_force(&self.store.grant_chain(r.grant.id).await?, now) {
                     continue;
                 }
                 let Some(before) = self.versions(template, &mut seen, from.version).await? else {
@@ -120,6 +124,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Some(parent) = op.approved.as_ref().map(|a| a.under) else { return Ok(()) };
         let now = self.clock.now();
         let chain = self.store.grant_chain(item.subject).await?;
+        if !in_force(&chain, now) {
+            let why =
+                "the grant, or one it was attenuated from, was revoked, suspended, or expired";
+            return Err(AppError::conflict("grant.ineligible", why));
+        }
         let r = chain.into_iter().next().ok_or(AppError::NotFound { kind: "grant" })?;
         if let Some(why) = ineligible(&r, now) {
             return Err(AppError::conflict("grant.ineligible", why));

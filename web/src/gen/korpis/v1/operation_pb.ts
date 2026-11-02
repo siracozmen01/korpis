@@ -772,7 +772,8 @@ export const OperationItemStateSchema: GenEnum<OperationItemState> = /*@__PURE__
 
 /**
  * Proposed and decided under the action that governs the operation's kind: node.drain or
- * node.evacuate on its node, grant.read on its template's organization for a rollout. Read under
+ * node.evacuate on its node, template.write on its template's organization for a rollout, which
+ * takes grant.read there too to propose, since its items list the grants it is over. Read under
  * node.read on its node, or grant.read on its template's organization.
  *
  * @generated from service korpis.v1.OperationService

@@ -91,6 +91,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         cmd.policy.validate().map_err(|e| AppError::invalid(e.field(), e.to_string()))?;
         let (action, object) = self.deciding(cmd.kind, cmd.scope).await?;
         let permit = self.authorize(caller, action, object).await?;
+        // A rollout's items name the grants it is over and their holders: proposing one reads them.
+        if let Scope::Template { .. } = cmd.scope {
+            let (read, at) = self.reading(cmd.scope).await?;
+            self.authorize(caller, read, at).await?;
+        }
         self.proposable(cmd.kind, cmd.scope).await?;
         let op = Operation {
             id: Uuid::now_v7(),

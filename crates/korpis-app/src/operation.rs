@@ -2,9 +2,9 @@
 
 //! Operations: one decision over many items, proposed and approved by people, carried out by the
 //! control plane as its policy allows. A drain and an evacuation are decided under `node.drain` and
-//! `node.evacuate` on their node; a template rollout under `grant.read` on the template's
-//! organization, which lists the grants it is over, and each grant it issues is attenuated from
-//! the approver's own. Each item is begun under the approval, read again as it begins, so an
+//! `node.evacuate` on their node; a template rollout under `template.write` on the template's
+//! organization, as editing the template is, and proposed also under `grant.read` there, since it
+//! lists the grants it is over; each grant it issues is attenuated from the approver's own. Each item is begun under the approval, read again as it begins, so an
 //! approver who lost the authority since begins nothing more.
 
 mod decide;
@@ -51,9 +51,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 Ok(("node.evacuate", ObjectRef::new(Kind::Node, n)))
             }
             (operation::Kind::TemplateRollout, Scope::Template { template, .. }) => {
-                let found = self.store.template(template).await?;
-                let t = found.ok_or(AppError::NotFound { kind: "grant template" })?;
-                Ok(("grant.read", ObjectRef::new(Kind::Organization, t.organization)))
+                Ok(("template.write", self.template_owner(template).await?))
             }
             _ => Err(AppError::invalid(
                 "scope",
@@ -63,19 +61,28 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// The action and object reading `op` takes: reading its node, or the grants of its
-    /// template's organization.
-    async fn reading(&self, op: &Operation) -> Result<(&'static str, ObjectRef), AppError> {
-        match op.scope {
+    /// The organization that owns `template`.
+    async fn template_owner(&self, template: Uuid) -> Result<ObjectRef, AppError> {
+        let found = self.store.template(template).await?;
+        let t = found.ok_or(AppError::NotFound { kind: "grant template" })?;
+        Ok(ObjectRef::new(Kind::Organization, t.organization))
+    }
+
+    /// The action and object reading an operation over `scope` takes: reading its node, or the
+    /// grants of its template's organization, which its items name.
+    async fn reading(&self, scope: Scope) -> Result<(&'static str, ObjectRef), AppError> {
+        match scope {
             Scope::Node(n) => Ok(("node.read", ObjectRef::new(Kind::Node, n))),
-            Scope::Template { .. } => self.deciding(op.kind, op.scope).await,
+            Scope::Template { template, .. } => {
+                Ok(("grant.read", self.template_owner(template).await?))
+            }
         }
     }
 
     /// The operation `id`, with its items.
     pub async fn operation(&self, caller: &Caller, id: Uuid) -> Result<OperationView, AppError> {
         let (op, items) = self.store.operation(id).await?.ok_or_else(not_found)?;
-        let (action, object) = self.reading(&op).await?;
+        let (action, object) = self.reading(op.scope).await?;
         self.authorize(caller, action, object).await?;
         Ok((op, items))
     }
@@ -95,7 +102,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let readable = |found: Vec<OperationView>| async move {
             let mut shown = Vec::with_capacity(found.len());
             for (op, _) in found {
-                let (action, object) = self.reading(&op).await?;
+                let (action, object) = self.reading(op.scope).await?;
                 if self.permitted(caller, action, object).await?
                     && let Some(view) = self.store.operation(op.id).await?
                 {
