@@ -18,6 +18,7 @@ use crate::mesh::{Netns, machines, node_in, until_available};
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, push, push_sleeper};
 use crate::support::{ControlPlane, mutation};
+use korpis_agent::run::Agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_stream::dir::StreamDir;
 use korpis_stream::read::read;
@@ -214,78 +215,112 @@ async fn metered(cp: &ControlPlane, w: &str, node: &str) -> Vec<pb::UsageRecord>
     panic!("{node} never metered {w}");
 }
 
-#[tokio::test]
-async fn a_workload_moves_with_its_data_address_console_and_meter_and_a_rollback_returns_it() {
-    if !live() || std::fs::metadata("/usr/bin/rsync").is_err() {
-        return;
-    }
+/// Two nodes in namespaces joined as machines, each with its agent, and the test extension
+/// routing a cluster pool's addresses; none where this kernel makes no WireGuard link.
+struct Machines {
+    cp: ControlPlane,
+    project: String,
+    nets: (Netns, Netns),
+    nodes: (Node, Node),
+    agents: (Agent, Agent),
+}
+
+async fn machines_routing() -> Option<Machines> {
     let Some((ma, mb)) = machines() else {
         eprintln!("this kernel makes no WireGuard link: not run");
-        return;
+        return None;
     };
     let cp = ControlPlane::start_metering(Duration::from_secs(1), Duration::from_secs(60)).await;
     let project = cp.project().await;
-    let a = node_in(&cp, "move-a", &ma, Ipv4Addr::new(198, 18, 1, 1)).await;
-    let agent_a = a.agent().await;
-    let b = node_in(&cp, "move-b", &mb, Ipv4Addr::new(198, 18, 1, 2)).await;
-    let agent_b = b.agent().await;
-    let named = |n: &Node| n.state.load().unwrap().node;
-    let (na, nb) = (named(&a), named(&b));
-    until_available(&cp, &na).await;
-    until_available(&cp, &nb).await;
+    let first = node_in(&cp, "move-a", &ma, Ipv4Addr::new(198, 18, 1, 1)).await;
+    let second = node_in(&cp, "move-b", &mb, Ipv4Addr::new(198, 18, 1, 2)).await;
+    let agents = (first.agent().await, second.agent().await);
+    for n in [&first, &second] {
+        until_available(&cp, &n.state.load().unwrap().node).await;
+    }
     let image = push_image(&crate::recipes::test_registry(), TEST_EXTENSION).await;
     let routing = install(&cp, &push("test-router", router(&image)).await, &project).await;
-    a.guard(&routing.workload);
-    b.guard(&routing.workload);
+    first.guard(&routing.workload);
+    second.guard(&routing.workload);
     pinged_as(&cp, pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER, "test").await;
     pool(&cp).await;
+    Some(Machines { cp, project, nets: (ma, mb), nodes: (first, second), agents })
+}
 
-    let game = pb::EndpointSpec {
-        name: "query".into(),
-        exposure: pb::Exposure::EXPOSURE_DEDICATED_IP.into(),
-        port: 9000,
-        ..Default::default()
-    };
-    let body = pb::IntentBody { endpoints: vec![game], ..Default::default() };
-    let w = cp.declare_body(&project, "db", &push_sleeper().await, body).await;
-    a.guard(&w);
-    b.guard(&w);
-    let on = cp.status(&w).await.placement.into_option().unwrap().node;
-    let (from, to, nfrom, nto) = if on == na { (&a, &b, &ma, &mb) } else { (&b, &a, &mb, &ma) };
-    runs_on(&cp, &w, &on).await;
-    written(&volume_of(from, &w, "data").await);
-    let address = routed(&cp, &w).await;
-    assert!(translates(nfrom, &address), "{address} is translated where it runs");
-    let before = console(from, &w);
-    metered(&cp, &w, &on).await;
-
-    let there = named(to);
-    move_to(&cp, &w, &there, Duration::from_secs(5)).await;
-    runs_on(&cp, &w, &there).await;
-    holds(&volume_of(to, &w, "data").await);
-    assert!(translates(nto, &address), "routed and translated where it moved");
-    assert!(!translates(nfrom, &address), "and no longer where it was");
-    let after = console(to, &w);
-    let last = before.iter().max().copied().unwrap_or_default();
-    assert!(after.first().is_some_and(|o| *o > last), "continued after {last}: {after:?}");
-    let records = metered(&cp, &w, &there).await;
+/// That `records`, from both nodes, count no interval twice.
+fn counted_once(records: &[pb::UsageRecord]) {
     let mut spans: Vec<(i64, i64, String)> = records
         .iter()
         .map(|r| {
-            let (f, t) = (r.from.as_option(), r.to.as_option());
-            let (f, t) = (f.map_or(0, |t| t.seconds), t.map_or(0, |t| t.seconds));
-            (f, t, r.node.clone().unwrap_or_default())
+            let (from, to) = (r.from.as_option(), r.to.as_option());
+            let (from, to) = (from.map_or(0, |t| t.seconds), to.map_or(0, |t| t.seconds));
+            (from, to, r.node.clone().unwrap_or_default())
         })
         .collect();
     spans.sort();
     for pair in spans.windows(2) {
         assert!(pair[0].1 <= pair[1].0, "no interval counted twice: {spans:?}");
     }
+}
+
+/// Moves `db` from `here` to `there`, the nodes in `here_net` and `there_net`, and asserts it runs
+/// there with its volume, its `address`, its console and its meter as they were; the node it is on.
+async fn moved(
+    (cp, db): (&ControlPlane, &str),
+    (here, there): (&Node, &Node),
+    (here_net, there_net): (&Netns, &Netns),
+    address: &str,
+) -> String {
+    let before = console(here, db);
+    let moved_to = there.state.load().unwrap().node;
+    move_to(cp, db, &moved_to, Duration::from_secs(5)).await;
+    runs_on(cp, db, &moved_to).await;
+    holds(&volume_of(there, db, "data").await);
+    assert!(translates(there_net, address), "routed and translated where it moved");
+    assert!(!translates(here_net, address), "and no longer where it was");
+    let after = console(there, db);
+    let last = before.iter().max().copied().unwrap_or_default();
+    assert!(after.first().is_some_and(|o| *o > last), "continued after {last}: {after:?}");
+    counted_once(&metered(cp, db, &moved_to).await);
+    moved_to
+}
+
+#[tokio::test]
+async fn a_workload_moves_with_its_data_address_console_and_meter_and_a_rollback_returns_it() {
+    if !live() || std::fs::metadata("/usr/bin/rsync").is_err() {
+        return;
+    }
+    let Some(m) = machines_routing().await else { return };
+    let cp = &m.cp;
+    let game = pb::EndpointSpec {
+        name: "query".into(),
+        exposure: pb::Exposure::EXPOSURE_DEDICATED_IP.into(),
+        container_port: 9000,
+        ..Default::default()
+    };
+    let body = pb::IntentBody { endpoints: vec![game], ..Default::default() };
+    let db = cp.declare_body(&m.project, "db", &push_sleeper().await, body).await;
+    m.nodes.0.guard(&db);
+    m.nodes.1.guard(&db);
+    let on = cp.status(&db).await.placement.into_option().unwrap().node;
+    let first_is_on = m.nodes.0.state.load().unwrap().node == on;
+    let ((here, there), (here_net, there_net)) = if first_is_on {
+        ((&m.nodes.0, &m.nodes.1), (&m.nets.0, &m.nets.1))
+    } else {
+        ((&m.nodes.1, &m.nodes.0), (&m.nets.1, &m.nets.0))
+    };
+    runs_on(cp, &db, &on).await;
+    written(&volume_of(here, &db, "data").await);
+    let address = routed(cp, &db).await;
+    assert!(translates(here_net, &address), "{address} is translated where it runs");
+    metered(cp, &db, &on).await;
+
+    let moved_to = moved((cp, &db), (here, there), (here_net, there_net), &address).await;
 
     // Moved back once the first move completed, and rolled back once the move was made.
-    ended(&cp, &w).await;
-    let back = move_to(&cp, &w, &on, Duration::from_secs(3600)).await;
-    runs_on(&cp, &w, &on).await;
+    ended(cp, &db).await;
+    let back = move_to(cp, &db, &on, Duration::from_secs(3600)).await;
+    runs_on(cp, &db, &on).await;
     let rollback = pb::RollbackMigrationRequest {
         mutation: mutation("back").into(),
         migration: back,
@@ -293,9 +328,9 @@ async fn a_workload_moves_with_its_data_address_console_and_meter_and_a_rollback
         ..Default::default()
     };
     cp.workloads().rollback_migration(rollback).await.unwrap();
-    runs_on(&cp, &w, &there).await;
-    holds(&volume_of(to, &w, "data").await);
-    cp.retire(&w).await;
-    agent_a.stop().await;
-    agent_b.stop().await;
+    runs_on(cp, &db, &moved_to).await;
+    holds(&volume_of(there, &db, "data").await);
+    cp.retire(&db).await;
+    m.agents.0.stop().await;
+    m.agents.1.stop().await;
 }
