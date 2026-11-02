@@ -260,15 +260,17 @@ their generations as identity.
 **A change sends what changed.** Every change to any workload on a node recomputes the node's set,
 and sending it whole costs the node the whole set's bytes, a signature verified per assignment, and
 the set kept on disk again. Measured on the build machine (`korpis-agent`'s example
-`assignment_cost`, 2 KiB assignments, release build), a node holding a thousand workloads was sent
-about {M_SET} and spent about {M_VERIFY} verifying it to learn of one change; a delta of that change is
-about {M_DELTA} and is believed in about {M_APPLY}, most of it copying the set held. Keeping the set on disk
-stays whole, about {M_KEEP} for that thousand, since the kept set is what the node proves what it was
-told with. So the downlink sends an agent whose `Hello` says it takes deltas the assignments new or
-at a new generation since the set last sent, and the workloads gone, naming that set's digest as the
-base and the new set's digest. The stream is ordered and the agent holds or answers each message in
-turn, so by the time it reads a delta it holds the base, unless it could not keep the one before;
-then it answers `Resync` with the digest it holds, and the control plane sends the whole set.
+`assignment_cost`, 2 KiB assignments, release build, the least of five runs), a node holding a
+thousand workloads was sent 2.2 MB and spent 42 ms verifying it to learn of one change, and one
+holding five thousand 10.9 MB and 207 ms; a delta of that change is 2.3 KB and is believed in 1.3 ms
+and 10 ms, most of it copying the set held. Keeping the set on disk stays whole, 15 ms and 25 ms, of
+which 12 ms is the durable write that a set of ten costs too, since the kept set is what the node
+proves what it was told with. So the downlink sends an agent whose `Hello` says it takes deltas the
+assignments new or at a new generation since the set last sent, and the workloads gone, naming that
+set's digest as the base and the new set's digest. The stream is ordered and the agent holds or
+answers each message in turn, so by the time it reads a delta it holds the base, unless it could not
+keep the one before; then it answers `Resync` with the digest it holds, and the control plane sends
+the whole set.
 
 **What evaluates "known prior":** the session's downlink, from the last two sets it sent the node,
 kept per node in the process's session registry past the session (each workload's generation, a few
