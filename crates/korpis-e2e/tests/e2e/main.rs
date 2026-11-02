@@ -37,6 +37,7 @@ mod ingress_features;
 mod install;
 mod mesh;
 mod microvm;
+mod migration;
 mod microvm_backup;
 mod microvm_exec;
 mod microvm_files;
