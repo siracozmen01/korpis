@@ -10,7 +10,7 @@
 use super::rejected;
 use crate::App;
 use crate::error::AppError;
-use crate::ports::{Clock, MeteringWrite as _, MigrationRead as _, RecipeSource, Store};
+use crate::ports::{Clock, MeteringWrite as _, RecipeSource, Store};
 use korpis_core::audit::Effect;
 use korpis_core::metering::{Reading, Record, RecordKind, Sample, day_of, implausible, measure};
 use korpis_core::workload::migration::CLOCK_MARGIN;
