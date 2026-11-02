@@ -107,16 +107,17 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         use agent::MigrationSide as S;
         let Some(role) = a.migration.as_option() else { return };
         match standing_of(role) {
-            (Some(S::MIGRATION_SIDE_SOURCE), Some(P::MIGRATION_PHASE_QUIESCE)) => {
-                let stopped = !t.status.as_ref().is_some_and(running);
-                if stopped && let Some(watermarks) = self.watermarks(&a.workload) {
+            (Some(S::MIGRATION_SIDE_SOURCE), Some(P::MIGRATION_PHASE_QUIESCE))
+                if !t.status.as_ref().is_some_and(running) =>
+            {
+                if let Some(watermarks) = self.watermarks(&a.workload) {
                     self.report(t, role, (Vec::new(), watermarks), None).await;
                 }
             }
-            (Some(S::MIGRATION_SIDE_DESTINATION), Some(P::MIGRATION_PHASE_CUTOVER)) => {
-                if t.status.as_ref().is_some_and(running) {
-                    self.report(t, role, (Vec::new(), Vec::new()), None).await;
-                }
+            (Some(S::MIGRATION_SIDE_DESTINATION), Some(P::MIGRATION_PHASE_CUTOVER))
+                if t.status.as_ref().is_some_and(running) =>
+            {
+                self.report(t, role, (Vec::new(), Vec::new()), None).await;
             }
             _ => {}
         }
@@ -130,7 +131,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         t: &mut Tracked,
         role: &agent::MigrationRole,
     ) {
-        if self.reported(t, role) {
+        if Self::reported(t, role) {
             return;
         }
         let copies: Vec<String> =
@@ -205,7 +206,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         // The control plane stops rolling back a margin before the hold ends, so this node's clock
         // running ahead deletes nothing a rollback still needs.
         let passed = hold.is_some_and(|h| h <= SystemTime::now());
-        if !passed || self.reported(t, role) {
+        if !passed || Self::reported(t, role) {
             return;
         }
         match self.destroy(t).await {
@@ -229,21 +230,27 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             if held.assignments.contains_key(&workload) {
                 continue;
             }
-            let mut left = Vec::new();
-            for v in volumes {
-                if let Err(e) = self.host.delete_volume(&v).await {
-                    tracing::warn!(volume = %v, error = %e.0, "an abandoned copy not deleted");
-                    left.push(v);
-                }
-            }
+            let left = self.delete_copies(volumes).await;
             if let Err(e) = self.progress.receiving(&workload, left) {
                 tracing::error!(error = %e, "progress could not be kept");
             }
         }
     }
 
+    /// Deletes each of `volumes`; those that could not be, to be tried again.
+    async fn delete_copies(&self, volumes: Vec<String>) -> Vec<String> {
+        let mut left = Vec::new();
+        for v in volumes {
+            if let Err(e) = self.host.delete_volume(&v).await {
+                tracing::warn!(volume = %v, error = %e.0, "an abandoned copy not deleted");
+                left.push(v);
+            }
+        }
+        left
+    }
+
     /// Whether this node already reported `role`'s phase.
-    fn reported(&self, t: &Tracked, role: &agent::MigrationRole) -> bool {
+    fn reported(t: &Tracked, role: &agent::MigrationRole) -> bool {
         let phase = role.phase.as_known();
         t.migrated.reported.as_ref().is_some_and(|(m, p)| *m == role.migration && Some(*p) == phase)
     }
@@ -259,7 +266,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     ) {
         use agent::MigrationOutcomeOfPhase as O;
         let Some(phase) = role.phase.as_known() else { return };
-        if self.reported(t, role) {
+        if Self::reported(t, role) {
             return;
         }
         let (outcome, detail) = match failed {

@@ -37,6 +37,17 @@ impl Helper {
         Ok(Placed::Data(DataJob { directory, work: W::Backup(Box::new(work)), kept }))
     }
 
+    /// What a manifest job of `m` reads: the volume, or the pass of it its replication holds.
+    fn place_manifest(&mut self, m: &helper::ManifestVolume) -> HelperResult<Placed> {
+        use korpis_proto::korpis::backup::v1::__buffa::oneof::job_spec::Work as W;
+        let directory = if m.pass.is_empty() {
+            self.holding(&m.volume)?.path_of(&m.volume)
+        } else {
+            self.class(&m.storage_class)?.replica_pass(&m.volume, &m.pass)?
+        };
+        Ok(Placed::Data(DataJob { directory, work: W::Manifest(Box::default()), kept: None }))
+    }
+
     /// What job `r` works in, from the identifiers it names.
     pub(super) fn place(&mut self, r: &helper::StartJobRequest) -> HelperResult<Placed> {
         use korpis_proto::korpis::backup::v1 as pb;
@@ -99,13 +110,7 @@ impl Helper {
             }
             Some(R::Manifest(m)) => {
                 crate::error::identifier("job", &r.job)?;
-                let directory = if m.pass.is_empty() {
-                    self.holding(&m.volume)?.path_of(&m.volume)
-                } else {
-                    self.class(&m.storage_class)?.replica_pass(&m.volume, &m.pass)?
-                };
-                let work = W::Manifest(Box::new(pb::ManifestWork::default()));
-                Ok(Placed::Data(DataJob { directory, work, kept: None }))
+                self.place_manifest(m)
             }
             None => Err(HelperError::Refused("a job names its work".into())),
         }

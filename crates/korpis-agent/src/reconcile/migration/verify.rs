@@ -57,7 +57,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         t: &mut Tracked,
         role: &agent::MigrationRole,
     ) {
-        if self.reported(t, role) {
+        if Self::reported(t, role) {
             return;
         }
         let mut volumes = Vec::new();
