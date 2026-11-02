@@ -4,6 +4,8 @@
 //! next record takes, read from its segments once its writer sealed the last, and how far its
 //! changes log was journaled. A stream whose last segment is still open is still being written,
 //! since a writer seals as its input ends after the workload stopped, so the report waits for it.
+//! On the destination, before the workload writes its stream there, the stream is continued at
+//! the offset handed over and its changes log read from where the source journaled it to.
 
 use super::super::Reconciler;
 use super::super::streams::name_parts;
@@ -53,5 +55,32 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             });
         }
         Some(marks)
+    }
+
+    /// On the destination, as the stream `stream` in `dir` is about to be written: continued at
+    /// the offset `a`'s migration handed over for it, and its changes log read from where the
+    /// source had journaled it to, so no record's offset is used twice and no segment journaled
+    /// twice. Nothing for a stream no migration hands over.
+    pub(in crate::reconcile) fn handed_over(
+        &mut self,
+        a: &agent::Assignment,
+        stream: &str,
+        dir: &Path,
+    ) -> std::io::Result<()> {
+        let Some(role) = a.migration.as_option() else { return Ok(()) };
+        let here = role.role.as_known() == Some(agent::MigrationSide::MIGRATION_SIDE_DESTINATION);
+        let Some(w) = role.watermarks.iter().find(|w| here && w.stream == stream) else {
+            return Ok(());
+        };
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+        let nanos = i64::try_from(now.as_nanos()).unwrap_or(i64::MAX);
+        korpis_stream::handover::continue_at(dir, w.next_offset, nanos)?;
+        let read =
+            self.streams.watched().into_iter().find(|(n, _)| n == stream).map(|(_, s)| s.next);
+        if read.is_some_and(|r| r < w.journaled_to) {
+            self.streams.read_to(stream, w.journaled_to)?;
+        }
+        Ok(())
     }
 }
