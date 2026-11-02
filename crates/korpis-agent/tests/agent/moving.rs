@@ -92,6 +92,8 @@ async fn a_workload_moves_to_another_node_and_its_source_lets_go_once_the_hold_e
     let w = cp.declare(&project, "db").await;
     cp.announced(|| async { running(&cp, &w).await.then_some(()) }).await;
     let _destination = node(&cp, &dir, "fra-2", &there).await;
+    // Its game endpoint is stable, which a node serves only once it is found reachable.
+    cp.measured().await;
 
     let id = moved(&cp, &w, "fra-2").await;
     let release = Some(pb::MigrationPhase::MIGRATION_PHASE_RELEASE);
@@ -121,6 +123,8 @@ async fn a_migration_abandoned_while_its_source_stops_leaves_it_running_where_it
     let w = cp.declare(&project, "db").await;
     cp.announced(|| async { running(&cp, &w).await.then_some(()) }).await;
     let _destination = node(&cp, &dir, "fra-2", &there).await;
+    // Its game endpoint is stable, which a node serves only once it is found reachable.
+    cp.measured().await;
     here.hold("stop", true);
 
     let id = moved(&cp, &w, "fra-2").await;
