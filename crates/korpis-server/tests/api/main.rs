@@ -133,6 +133,7 @@ mod relay_watch;
 mod relaying;
 mod relays;
 mod removal;
+mod removed_side;
 mod renewal;
 mod replace;
 mod replica_failover;
