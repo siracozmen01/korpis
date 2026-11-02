@@ -20,11 +20,13 @@ async fn the_silence_sweep_waits_for_a_placement_in_progress() {
     let h = Harness::new().await;
     h.node(None, "fra-1", &[]).await;
     let store = h.db.store().await.unwrap();
+    // The lock is taken first, so no sweep, the control plane's own on its heartbeat included,
+    // marks the node before the placement is under way.
+    let mut placing = store.begin().await.unwrap();
+    placing.lock_placement().await.unwrap();
     let silent =
         "UPDATE node SET connectivity = 'connected', last_seen = now() - interval '1 hour'";
     sqlx::query(silent).execute(store.pool()).await.unwrap();
-    let mut placing = store.begin().await.unwrap();
-    placing.lock_placement().await.unwrap();
 
     let api = Arc::clone(&h.api);
     let sweep = tokio::spawn(async move { api.app().sweep_silent_nodes().await });
@@ -40,5 +42,7 @@ async fn the_silence_sweep_waits_for_a_placement_in_progress() {
     let marked: i64 = sqlx::query_scalar(unreachable).fetch_one(store.pool()).await.unwrap();
     assert_eq!(marked, 0, "nothing is marked while the placement holds the lock");
     placing.commit().await.unwrap();
-    assert_eq!(sweep.await.unwrap().unwrap(), 1, "marked once the placement committed");
+    sweep.await.unwrap().unwrap();
+    let marked: i64 = sqlx::query_scalar(unreachable).fetch_one(store.pool()).await.unwrap();
+    assert_eq!(marked, 1, "marked once the placement committed");
 }
