@@ -13,7 +13,7 @@ use crate::recipes::{body, project, push_paper};
 use crate::support::Harness;
 use korpis_proto::korpis::v1 as pb;
 
-fn game(repo: &str) -> pb::IntentBody {
+pub(crate) fn game(repo: &str) -> pb::IntentBody {
     let game = pb::EndpointSpec {
         name: "game".into(),
         protocol: pb::EndpointProtocol::ENDPOINT_PROTOCOL_UDP.into(),

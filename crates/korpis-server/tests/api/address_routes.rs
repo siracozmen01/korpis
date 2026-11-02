@@ -128,7 +128,7 @@ pub(crate) fn cluster(key: &str, org: &str) -> pb::CreateAddressPoolRequest {
     }
 }
 
-fn arena(repo: &str) -> pb::IntentBody {
+pub(crate) fn arena(repo: &str) -> pb::IntentBody {
     let game = pb::EndpointSpec {
         name: "query".into(),
         exposure: pb::Exposure::EXPOSURE_DEDICATED_IP.into(),

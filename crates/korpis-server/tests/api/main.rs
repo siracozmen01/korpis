@@ -83,6 +83,8 @@ mod mesh;
 mod metering;
 mod migrate;
 mod migrating;
+mod moved_metering;
+mod moved_routes;
 mod moving;
 mod named;
 mod names;

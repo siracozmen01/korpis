@@ -238,8 +238,11 @@ silent node is not acted on. A source that never returns leaves the migration in
 node is removed.
 
 **The meter is cut at the epoch.** The source's samples are believed while it holds the lease, the
-last at its release; the destination's first is under the new epoch and counts from zero; a sample
-outside its node's lease is rejected. No interval is counted twice or not at all. The source's
+last at its release; the destination's first is under the new epoch and counts from zero, since no
+sample before it is from that node. The control plane rejects a sample under an epoch its node no
+longer holds that ends more than a minute (`CLOCK_MARGIN`) after the first move off that node since
+the sample began, which it reads from the workload's migrations. No interval is counted twice or not
+at all. The source's
 copies during the hold are the installation's rollback assurance, in the source node's allocation
 and in neither the meter nor the project's quota.
 

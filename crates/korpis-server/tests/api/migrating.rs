@@ -28,14 +28,14 @@ use agent::MigrationSide as S;
 
 /// Two nodes, a workload with a volume made and running on the first under `epoch`, and a
 /// migration of it to the second approved: each node's stream and its next journal sequence.
-struct Moving {
-    h: Harness,
-    db: String,
+pub(crate) struct Moving {
+    pub(crate) h: Harness,
+    pub(crate) db: String,
     plan: String,
     migration: String,
-    source: (Stream, u64),
-    destination: (Stream, u64),
-    epoch: u64,
+    pub(crate) source: (Stream, u64),
+    pub(crate) destination: (Stream, u64),
+    pub(crate) epoch: u64,
     /// The destination's first assignment of the workload, carrying its role.
     told: agent::Assignment,
 }
@@ -72,13 +72,22 @@ fn local() -> Vec<pb::StorageClassInfo> {
     }]
 }
 
-async fn moving() -> Moving {
+pub(crate) async fn moving() -> Moving {
     Box::pin(moving_held(None)).await
 }
 
 /// [`moving`], the source keeping its copies for `hold` after the cutover.
 async fn moving_held(hold: Option<std::time::Duration>) -> Moving {
-    let h = Harness::new().await;
+    Box::pin(moving_from(Harness::new().await, |repo| body(repo, &[]), hold)).await
+}
+
+/// A workload declared on `h` with the body `made` of its recipe's repository, moving from the
+/// node it runs on to the other, the source keeping its copies for `hold` after the cutover.
+pub(crate) async fn moving_from(
+    h: Harness,
+    made: impl FnOnce(&str) -> pb::IntentBody,
+    hold: Option<std::time::Duration>,
+) -> Moving {
     let (a, b) = (TestAgent::enroll(&h, "fra-1", 1).await, TestAgent::enroll(&h, "fra-2", 2).await);
     let (mut sa, first) =
         TestAgent::open(&h, a.hello_with(SystemTime::now(), &[1; 16], local())).await;
@@ -86,7 +95,7 @@ async fn moving_held(hold: Option<std::time::Duration>) -> Moving {
     let repo = push_paper().await;
     let project = project(&h, &h.root_org(), "games").await;
     let workloads = h.workloads(h.root());
-    let declared = workloads.declare_intent(create("db", &project, "db", body(&repo, &[])));
+    let declared = workloads.declare_intent(create("db", &project, "db", made(&repo)));
     let db = declared.await.unwrap().into_owned().workload.into_option().unwrap().id;
     let told = until(&mut sa, assignment(|t| t.workload == db && t.plan.is_set())).await;
     let last = complete(&mut sa, &db, told.plan.as_option().unwrap(), 1).await;
@@ -99,6 +108,7 @@ async fn moving_held(hold: Option<std::time::Duration>) -> Moving {
     let request = pb::MigrateWorkloadRequest {
         mutation: mutation("move").into(),
         workload: db.clone(),
+        node: b.node.clone(),
         hold: hold.map(korpis_wire::duration).into(),
         ..Default::default()
     };
@@ -205,7 +215,7 @@ async fn copy(m: &mut Moving, (phase, before): (P, &str), sent: u64) -> String {
 
 /// Walks `m` through `verify`, both manifests `(source, destination)`, its first pass sending
 /// `first` bytes.
-async fn through_verify(m: &mut Moving, manifests: (&str, &str), first: u64) {
+pub(crate) async fn through_verify(m: &mut Moving, manifests: (&str, &str), first: u64) {
     use pb::MigrationPhase as M;
     let id = m.migration.clone();
     let dest = S::MIGRATION_SIDE_DESTINATION;
@@ -235,7 +245,7 @@ async fn through_verify(m: &mut Moving, manifests: (&str, &str), first: u64) {
 
 /// Releases the source's lease, so the placement moves, and has the destination start the
 /// workload under the next epoch and report it; that epoch.
-async fn cut_over(m: &mut Moving) -> u64 {
+pub(crate) async fn cut_over(m: &mut Moving) -> u64 {
     let released =
         agent::LeaseReleased { workload: m.db.clone(), epoch: m.epoch, ..Default::default() };
     up(&mut m.source.0, Up::LeaseReleased(Box::new(released))).await;
