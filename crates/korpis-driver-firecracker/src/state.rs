@@ -64,46 +64,65 @@ fn file_in(dir: &OwnedFd, name: &str) -> io::Result<std::fs::File> {
     Ok(std::fs::File::from(fd))
 }
 
-/// Copies `name` from beneath `from` to beneath `to`, under the same name, readable by root
-/// alone, replacing what is there only once whole; the bytes copied.
-fn copy(from: &OwnedFd, to: &OwnedFd, name: &str) -> io::Result<u64> {
-    let mut source = file_in(from, name)?;
+/// The file `name` beneath `dir`, made anew for root alone to write: whatever had that name is
+/// removed first, and what is opened is refused unless it is the regular file just made, so a
+/// name planted as a link to another file is never written through.
+fn made_in(dir: &OwnedFd, name: &str) -> io::Result<std::fs::File> {
+    match rustix::fs::unlinkat(dir, name, rustix::fs::AtFlags::empty()) {
+        Ok(()) | Err(rustix::io::Errno::NOENT) => {}
+        Err(e) => return Err(e.into()),
+    }
+    let flags = OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let fd = rustix::fs::openat2(dir, name, flags, Mode::RUSR | Mode::WUSR, RESOLVE)?;
+    let stat = rustix::fs::fstat(&fd)?;
+    if FileType::from_raw_mode(stat.st_mode) != FileType::RegularFile || stat.st_nlink != 1 {
+        return Err(io::Error::other(format!("{name} is not a file of its own")));
+    }
+    Ok(std::fs::File::from(fd))
+}
+
+/// Writes `bytes` from `source` into `name` beneath `to`, replacing what is there only once
+/// whole; the bytes written.
+fn written(source: &mut impl io::Read, to: &OwnedFd, name: &str) -> io::Result<u64> {
     let part = format!(".{name}.part");
-    let flags =
-        OFlags::WRONLY | OFlags::CREATE | OFlags::TRUNC | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-    let fd = rustix::fs::openat2(to, &part, flags, Mode::RUSR | Mode::WUSR, RESOLVE)?;
-    let mut target = std::fs::File::from(fd);
-    let n = io::copy(&mut source, &mut target)?;
+    let mut target = made_in(to, &part)?;
+    let n = io::copy(source, &mut target)?;
     target.sync_all()?;
     rustix::fs::renameat(to, &part, to, name)?;
     Ok(n)
 }
 
+/// Copies `name` from beneath `from` to beneath `to`, under the same name, readable by root
+/// alone; the bytes copied.
+fn copy(from: &OwnedFd, to: &OwnedFd, name: &str) -> io::Result<u64> {
+    written(&mut file_in(from, name)?, to, name)
+}
+
+/// What a state's record says: the workload it was taken of, and where it was taken.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Record {
+    pub workload: String,
+    pub taken: Taken,
+}
+
 /// Writes what a checkpoint took into the directory `to`: the state, the memory and the drives
-/// from the guest's chroot `chroot`, then the record `taken`, last, so a directory with a record
+/// from the guest's chroot `chroot`, then the record `record`, last, so a directory with a record
 /// holds a whole state. The bytes written.
-pub fn keep(chroot: &OwnedFd, to: &OwnedFd, taken: &Taken) -> io::Result<u64> {
+pub fn keep(chroot: &OwnedFd, to: &OwnedFd, record: &Record) -> io::Result<u64> {
     let mut bytes = 0;
     for name in [VMSTATE, MEMORY].into_iter().chain(DRIVES) {
         bytes += copy(chroot, to, name)?;
     }
-    let record = serde_json::to_vec(taken).map_err(io::Error::other)?;
-    let part = ".state.json.part";
-    let flags =
-        OFlags::WRONLY | OFlags::CREATE | OFlags::TRUNC | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-    let fd = rustix::fs::openat2(to, part, flags, Mode::RUSR | Mode::WUSR, RESOLVE)?;
-    let mut file = std::fs::File::from(fd);
-    io::Write::write_all(&mut file, &record)?;
-    file.sync_all()?;
-    rustix::fs::renameat(to, part, to, RECORD)?;
-    Ok(bytes + record.len() as u64)
+    let said = serde_json::to_vec(record).map_err(io::Error::other)?;
+    Ok(bytes + written(&mut said.as_slice(), to, RECORD)?)
 }
 
-/// Where the state in `from` was taken, as its record says; none is not a state.
-pub fn taken(from: &OwnedFd) -> io::Result<Taken> {
-    let mut record = Vec::new();
-    file_in(from, RECORD)?.take(RECORD_MOST).read_to_end(&mut record)?;
-    serde_json::from_slice(&record).map_err(|e| io::Error::other(format!("its record: {e}")))
+/// What the record of the state in `from` says; none is not a state.
+pub fn record(from: &OwnedFd) -> io::Result<Record> {
+    let mut said = Vec::new();
+    file_in(from, RECORD)?.take(RECORD_MOST).read_to_end(&mut said)?;
+    serde_json::from_slice(&said).map_err(|e| io::Error::other(format!("its record: {e}")))
 }
 
 /// Copies the state in `from` into the directory `to`, as the files a resumed guest is given.
@@ -145,9 +164,14 @@ mod tests {
             cpu_template: String::new(),
             kernel: kernel(),
         };
+        let kept = Record { workload: "wl_1".into(), taken };
         let into = dir(&[&root], &state).unwrap();
-        keep(&opened(&chroot), &into, &taken).unwrap();
-        assert_eq!(super::taken(&into).unwrap(), taken);
+        // A name planted as a link to another file is replaced, never written through.
+        std::fs::write(root.join("elsewhere"), b"untouched").unwrap();
+        std::fs::hard_link(root.join("elsewhere"), state.join(".memory.part")).unwrap();
+        keep(&opened(&chroot), &into, &kept).unwrap();
+        assert_eq!(record(&into).unwrap(), kept);
+        assert_eq!(std::fs::read(root.join("elsewhere")).unwrap(), b"untouched");
         assert_eq!(std::fs::read(state.join(MEMORY)).unwrap(), MEMORY.as_bytes());
 
         // What crossed from another node names nothing outside it.

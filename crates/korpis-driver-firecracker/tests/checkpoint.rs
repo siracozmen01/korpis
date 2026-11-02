@@ -44,7 +44,7 @@ async fn a_guest_checkpointed_by_one_driver_resumes_under_another_holding_its_me
     let (_, end) = ran(&source.machine, &id, &["/bin/sh", "-c", "echo held > /tmp/mark"]).await;
     assert!(matches!(end, korpis_driver_kit::exec::Ran::Exit { status: 0, .. }), "{end:?}");
 
-    let state = source.dir.path().join("volumes/wl_moved.state");
+    let state = source.dir.path().join("volumes/wl_moved.live_state");
     std::fs::create_dir(&state).unwrap();
     let bytes = source.machine.checkpoint(&id, &state).await.unwrap();
     assert!(bytes > 128 << 20, "its memory, whole: {bytes}");
@@ -58,19 +58,23 @@ async fn a_guest_checkpointed_by_one_driver_resumes_under_another_holding_its_me
     let mut moved = spec.clone();
     moved.mounts[0].source = volume.to_string_lossy().into_owned();
     (moved.uid_base, moved.rootfs) = (base, destination.image.clone());
-    let here = destination.dir.path().join("volumes/wl_moved.state");
+    let here = destination.dir.path().join("volumes/wl_moved.live_state");
     carried(&state, &here);
-    let elsewhere = destination.dir.path().join("volumes/wl_elsewhere.state");
-    carried(&state, &elsewhere);
-    let record = elsewhere.join("state.json");
+    // Another workload's state is not resumed, nor one recorded as taken where this node does not
+    // restore it.
+    let other = destination.dir.path().join("volumes/wl_other.live_state");
+    carried(&state, &other);
+    let id = destination.machine.create(moved).await.unwrap();
+    let refused = destination.machine.resume(&id, &other).await;
+    assert!(matches!(refused, Err(MachineError::Refused(_))), "not its own: {refused:?}");
+    let record = here.join("state.json");
     let taken = std::fs::read_to_string(&record).unwrap();
     std::fs::write(&record, taken.replace("\"kernel\":\"", "\"kernel\":\"0.")).unwrap();
-
-    let id = destination.machine.create(moved).await.unwrap();
-    let refused = destination.machine.resume(&id, &elsewhere).await;
+    let refused = destination.machine.resume(&id, &here).await;
     assert!(matches!(refused, Err(MachineError::Refused(_))), "{refused:?}");
     let running = Some(driver::RuntimeState::RUNTIME_STATE_RUNNING);
     assert_ne!(destination.machine.inspect(&id).unwrap().state.as_known(), running, "not booted");
+    std::fs::write(&record, taken).unwrap();
     destination.machine.resume(&id, &here).await.unwrap();
     let answered = destination.machine.ping_guest(&id, Duration::from_secs(60)).await.unwrap();
     assert_eq!(answered, Ok(()), "its agent answers where it was resumed");

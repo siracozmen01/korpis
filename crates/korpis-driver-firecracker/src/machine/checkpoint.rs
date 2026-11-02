@@ -16,7 +16,8 @@
 use super::{Machine, MachineError, MachineResult, failed};
 use crate::jail::{self, Drives};
 use crate::settings::Settings;
-use crate::state::{self, DRIVES, MEMORY, Taken, VMSTATE};
+use crate::state::{self, DRIVES, MEMORY, Record, Taken, VMSTATE};
+use korpis_core::workload::volume::LIVE_STATE;
 use crate::{api, process};
 use rustix::fs::{Mode, OFlags};
 use std::io;
@@ -56,14 +57,25 @@ fn roots(settings: &Settings) -> Vec<&Path> {
         .collect()
 }
 
+/// The state directory `at` of `workload`, opened: the one directly beneath a volume root named
+/// for that workload's own state, so no object writes or resumes another workload's.
+fn own_state(settings: &Settings, workload: &str, at: &Path) -> MachineResult<OwnedFd> {
+    let named = format!("{workload}.{LIVE_STATE}");
+    if workload.is_empty() || at.file_name() != Some(std::ffi::OsStr::new(&named)) {
+        return Err(refused(format!("{} is not {workload}'s state", at.display())));
+    }
+    state::dir(&roots(settings), at).map_err(|e| refused(e.to_string()))
+}
+
 impl Machine {
     /// Pauses object `id`'s running guest, writes its state into the directory `into`, and ends
     /// it; the bytes written. A guest whose state could not be written is resumed as it was.
     pub async fn checkpoint(&self, id: &str, into: &Path) -> MachineResult<u64> {
         let taken = self.here.clone().ok_or_else(|| refused("no snapshot is taken here"))?;
-        let to = state::dir(&roots(&self.settings), into).map_err(|e| refused(e.to_string()))?;
         let _held = self.lock.lock().await;
         let object = self.load(id)?;
+        let to = own_state(&self.settings, &object.spec.workload, into)?;
+        let record = Record { workload: object.spec.workload.clone(), taken };
         let vm = object.vm.filter(process::alive);
         let vm = vm.ok_or_else(|| refused(format!("{id} does not run")))?;
         let socket = jail::api_socket(&self.settings, id);
@@ -71,7 +83,7 @@ impl Machine {
         let written = async {
             api::snapshot(&socket, &format!("/{VMSTATE}"), &format!("/{MEMORY}")).await?;
             let from = opened(&chroot)?;
-            let kept = tokio::task::spawn_blocking(move || state::keep(&from, &to, &taken));
+            let kept = tokio::task::spawn_blocking(move || state::keep(&from, &to, &record));
             kept.await.map_err(io::Error::other)?
         }
         .await;
@@ -97,12 +109,15 @@ impl Machine {
     /// wrote where it restores here; one already running is left so.
     pub async fn resume(&self, id: &str, from: &Path) -> MachineResult<()> {
         let here = self.here.as_ref().ok_or_else(|| refused("no snapshot restores here"))?;
-        let dir = state::dir(&roots(&self.settings), from).map_err(|e| refused(e.to_string()))?;
-        let taken = state::taken(&dir).map_err(|e| refused(format!("no state: {e}")))?;
-        if taken != *here {
-            return Err(refused(format!(
-                "a state taken by {taken:?} does not restore on {here:?}"
-            )));
+        let workload = self.load(id)?.spec.workload;
+        let dir = own_state(&self.settings, &workload, from)?;
+        let record = state::record(&dir).map_err(|e| refused(format!("no state: {e}")))?;
+        if record.workload != workload {
+            return Err(refused(format!("a state of {} is not {workload}'s", record.workload)));
+        }
+        if record.taken != *here {
+            let taken = &record.taken;
+            return Err(refused(format!("a state taken by {taken:?} does not restore on {here:?}")));
         }
         self.run(id, Some(dir)).await
     }

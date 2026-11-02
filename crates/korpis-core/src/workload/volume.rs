@@ -18,6 +18,11 @@ pub const BLOCK_IMAGE: &str = "block.ext4";
 /// value: in the `trusted` namespace, which no workload can set.
 pub const BLOCK_MARK: (&str, &[u8]) = ("trusted.korpis.volume", b"block_device");
 
+/// The name of the volume a live migration carries a guest's execution state in: an underscore,
+/// which no declared volume's name takes. The node knows it as `<workload>.live_state`, and the
+/// driver writes and resumes a state only in the one named for the object's own workload.
+pub const LIVE_STATE: &str = "live_state";
+
 /// Why a volume exists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VolumeKind {
