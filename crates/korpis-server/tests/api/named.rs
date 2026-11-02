@@ -6,12 +6,14 @@
 //! assignment; and the database's status says what the rule matched and what it names at no
 //! address. A workload observed stopped is named no longer.
 
-use crate::across::{assigned_once, observed_at, running_at};
+use crate::across::{observed_at, running_at};
 use crate::agent::TestAgent;
 use crate::dependencies::{declare, one_endpoint, placement};
+use crate::journal::{assignment, until};
 use crate::mesh::{opened, side};
 use crate::recipes::{create, project, push_paper};
 use crate::support::{Harness, mutation};
+use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 use korpis_proto::korpis::v1::__buffa::oneof::network_rule::Peer;
@@ -48,8 +50,10 @@ async fn a_rule_naming_workloads_names_the_addresses_its_node_routes_to_them() {
     let project = project(&h, &h.root_org(), "shop").await;
     let db = declare(&h, &project, "db", database(&repo)).await;
     let db_node = placement(&h, &db.id).await.node;
-    let (mut other, address) =
-        if db_node == a.node { (sb, "10.48.4.2") } else { (sa, "10.48.0.2") };
+    // The node's assignment is waited on as the node receives it: it is written as the set is
+    // sent, and nothing announces the write.
+    let (mut other, mut home, address) =
+        if db_node == a.node { (sb, sa, "10.48.4.2") } else { (sa, sb, "10.48.0.2") };
     let cordon = pb::CordonNodeRequest {
         mutation: mutation("cordon-db").into(),
         node: db_node.clone(),
@@ -66,7 +70,8 @@ async fn a_rule_naming_workloads_names_the_addresses_its_node_routes_to_them() {
     assert_ne!(placement(&h, &web.id).await.node, db_node, "on the other node of the mesh");
     running_at(&mut other, &web.id, address).await;
 
-    let told = assigned_once(&h, &db.id, |a| a.peers.iter().any(|p| !p.addresses.is_empty())).await;
+    let named = |a: &agent::Assignment| a.peers.iter().any(|p| !p.addresses.is_empty());
+    let told = until(&mut home, assignment(|a| a.workload == db.id && named(a))).await;
     let peers = &told.peers[0];
     assert_eq!((peers.endpoint.as_str(), peers.rule), ("game", 0));
     assert_eq!(peers.addresses, [address], "the web application, in its node's pool");
@@ -80,6 +85,6 @@ async fn a_rule_naming_workloads_names_the_addresses_its_node_routes_to_them() {
     // Stopped, it is no longer named: its node may give its address to another workload.
     let stopped = pb::ObservedState::OBSERVED_STATE_STOPPED;
     observed_at(&mut other, (&web.id, address), stopped).await;
-    let told = assigned_once(&h, &db.id, |a| a.peers.iter().all(|p| p.addresses.is_empty())).await;
+    let told = until(&mut home, assignment(|a| a.workload == db.id && !named(a))).await;
     assert_eq!(told.peers.len(), 1, "the rule is still told, naming no one");
 }
