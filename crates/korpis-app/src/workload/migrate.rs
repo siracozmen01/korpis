@@ -33,6 +33,7 @@ mod cutover;
 mod end;
 mod passes;
 mod progress;
+mod removed;
 mod state;
 
 pub use end::{EndMigration, MigrationView};
