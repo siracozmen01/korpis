@@ -28,6 +28,8 @@ pub(super) enum Why {
     Declared,
     /// It holds the workload's console stream.
     Stream,
+    /// It carries the workload's execution state across a live migration.
+    State,
 }
 
 /// The driver `a`'s target names, empty when it names none.
@@ -59,6 +61,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             quota_enforced: made.quota_enforced,
             event: agent::VolumeEventKind::VOLUME_EVENT_KIND_ENSURED.into(),
             stream: why == Why::Stream,
+            state: why == Why::State,
             ..Default::default()
         })
         .await?;
@@ -88,6 +91,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             helper_id: helper_id.to_owned(),
             event: agent::VolumeEventKind::VOLUME_EVENT_KIND_DELETED.into(),
             stream: why == Why::Stream,
+            state: why == Why::State,
             ..Default::default()
         })
         .await
