@@ -17,8 +17,8 @@ use super::{Machine, MachineError, MachineResult, failed};
 use crate::jail::{self, Drives};
 use crate::settings::Settings;
 use crate::state::{self, DRIVES, MEMORY, Record, Taken, VMSTATE};
-use korpis_core::workload::volume::LIVE_STATE;
 use crate::{api, process};
+use korpis_core::workload::volume::LIVE_STATE;
 use rustix::fs::{Mode, OFlags};
 use std::io;
 use std::os::fd::OwnedFd;
@@ -117,7 +117,9 @@ impl Machine {
         }
         if record.taken != *here {
             let taken = &record.taken;
-            return Err(refused(format!("a state taken by {taken:?} does not restore on {here:?}")));
+            return Err(refused(format!(
+                "a state taken by {taken:?} does not restore on {here:?}"
+            )));
         }
         self.run(id, Some(dir)).await
     }

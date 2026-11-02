@@ -1165,6 +1165,8 @@ message VolumeEvent {
   VolumeEventKind event = 7;
   // A console stream's volume rather than one the workload declared.
   bool stream = 8;
+  // The volume a live migration carries the workload's execution state in.
+  bool state = 9;
 }
 
 // A snapshot taken, rolled back to, or deleted on this node, after the helper did it.

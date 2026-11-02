@@ -6,8 +6,8 @@
 //! `Hello`; the driver that resumes a state checks again what the state records of where it was
 //! taken, since a node's declaration may have changed since.
 
-use super::driver::{DriverInfo, SnapshotCaps};
 use super::Node;
+use super::driver::{DriverInfo, SnapshotCaps};
 
 /// A kernel version, `major.minor[.patch...]`, as numbers; none for anything else.
 fn version(s: &str) -> Option<Vec<u64>> {

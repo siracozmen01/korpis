@@ -46,7 +46,8 @@ impl DriverRuntime {
             into: into.to_owned(),
             ..Default::default()
         };
-        let r = self.client.checkpoint_with_options(request, within(CREATE)).await.map_err(error)?;
+        let r =
+            self.client.checkpoint_with_options(request, within(CREATE)).await.map_err(error)?;
         Ok(r.into_owned().bytes)
     }
 

@@ -30,6 +30,8 @@ pub enum VolumeKind {
     Declared,
     /// It holds the workload's console stream.
     Stream,
+    /// It carries the workload's execution state across a live migration.
+    State,
 }
 
 impl VolumeKind {
@@ -39,13 +41,14 @@ impl VolumeKind {
         match self {
             Self::Declared => "declared",
             Self::Stream => "stream",
+            Self::State => "state",
         }
     }
 
     /// The kind a stored name names.
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
-        [Self::Declared, Self::Stream].into_iter().find(|k| k.as_str() == s)
+        [Self::Declared, Self::Stream, Self::State].into_iter().find(|k| k.as_str() == s)
     }
 }
 

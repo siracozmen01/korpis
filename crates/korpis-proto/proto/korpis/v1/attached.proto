@@ -88,6 +88,9 @@ enum VolumeKind {
   VOLUME_KIND_DECLARED = 1;
   // Its console stream's.
   VOLUME_KIND_STREAM = 2;
+  // The one a live migration carries its execution state in, from the source's capture to the
+  // destination's resume.
+  VOLUME_KIND_STATE = 3;
 }
 
 // A way the network reaches a workload. The replacement for the allocation.

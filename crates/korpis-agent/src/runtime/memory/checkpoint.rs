@@ -27,5 +27,4 @@ impl InMemory {
         }
         self.set("resume", id, state(driver::RuntimeState::RUNTIME_STATE_RUNNING, None))
     }
-
 }
