@@ -44,17 +44,9 @@ async fn ends(s: &mut Stream) -> bool {
 
 /// The node `workload` is placed on, once it is placed on one other than `not`.
 async fn placed_away(h: &Harness, workload: &str, not: &str) -> String {
-    for _ in 0..50 {
-        let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };
-        let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
-        let status = got.status.into_option().unwrap_or_default();
-        let node = status.placement.into_option().unwrap_or_default().node;
-        if !node.is_empty() && node != not {
-            return node;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("{workload} was not placed away from {not}");
+    let node = |s: &pb::WorkloadStatus| s.placement.as_option().map(|p| p.node.clone());
+    let away = |s: &pb::WorkloadStatus| node(s).is_some_and(|n| !n.is_empty() && n != not);
+    node(&crate::watching::status_until(h, workload, away).await).unwrap_or_default()
 }
 
 #[tokio::test]

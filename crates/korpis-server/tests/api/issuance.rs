@@ -12,6 +12,7 @@ use crate::journal::{assignment, until};
 use crate::recipes::{project, push_paper};
 use crate::routes::{attest, declare, web};
 use crate::support::Harness;
+use crate::watching::changed_until;
 use buffa::Message as _;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
@@ -119,16 +120,11 @@ async fn without_the_directorys_terms_agreed_a_certificate_fails_saying_why() {
     let Some(pebble) = crate::pebble::start(true).await else { return };
     let h = Harness::with_acme(AcmeConfig { agreed: false, ..pebble.config() }, None).await;
     let (_s, shop) = placed(&h).await;
-    for _ in 0..300 {
-        // The endpoint's own status says why its certificate is not issued.
-        if let Some(c) = shown(&h, &shop.id).await.filter(|c| !c.reason.is_empty()) {
-            assert_eq!(c.state.as_known(), Some(pb::CertificateState::CERTIFICATE_STATE_FAILED));
-            assert!(c.reason.contains("--acme-agree-terms"), "{}", c.reason);
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("the certificate never said why it was not issued");
+    // The endpoint's own status says why its certificate is not issued.
+    let c = changed_until(&h, || async { shown(&h, &shop.id).await.filter(|c| !c.reason.is_empty()) })
+        .await;
+    assert_eq!(c.state.as_known(), Some(pb::CertificateState::CERTIFICATE_STATE_FAILED));
+    assert!(c.reason.contains("--acme-agree-terms"), "{}", c.reason);
 }
 
 #[tokio::test]

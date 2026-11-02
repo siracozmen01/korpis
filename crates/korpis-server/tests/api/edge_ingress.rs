@@ -176,12 +176,10 @@ async fn the_directory_looks_only_once_every_connected_member_holds_the_challeng
     let waiting = Some(pb::CertificateState::CERTIFICATE_STATE_PENDING);
     assert_eq!(state(&pending.certificates), waiting, "the other member does not hold it yet");
     send(&mut s2, held()).await;
-    for _ in 0..300 {
+    let issued = Some(pb::CertificateState::CERTIFICATE_STATE_ISSUED);
+    crate::watching::changed_until(&h, || async {
         let now = certs.list_certificates(listed.clone()).await.unwrap().into_owned();
-        if state(&now.certificates) == Some(pb::CertificateState::CERTIFICATE_STATE_ISSUED) {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("the certificate was never issued");
+        (state(&now.certificates) == issued).then_some(())
+    })
+    .await;
 }

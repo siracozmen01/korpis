@@ -12,27 +12,26 @@ use crate::providers::{Installed, installed_from};
 use crate::recipes::{change, project, push_paper};
 use crate::routes::{attest, declare, web};
 use crate::support::Harness;
+use crate::watching::Shared;
 use korpis_extension::dns::{Dns, DnsProvider, Failure};
 use korpis_extension::provider::{Provider, Registration};
 use korpis_extension::{Connection, Credential, Fixed};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 /// Every owner's records, for names under `example.com`.
 #[derive(Clone, Default)]
-struct Zone(Arc<Mutex<BTreeMap<String, Vec<pb::DnsRecord>>>>);
+struct Zone(Shared<BTreeMap<String, Vec<pb::DnsRecord>>>);
 
-impl Zone {
-    fn values(&self) -> Vec<(String, Vec<String>)> {
-        let held = self.0.lock().unwrap_or_else(PoisonError::into_inner);
-        let mut all: Vec<_> =
-            held.values().flatten().map(|r| (r.name.clone(), r.values.clone())).collect();
-        all.sort();
-        all
-    }
+/// Every record a zone holds, as its name and values.
+fn values(held: &BTreeMap<String, Vec<pb::DnsRecord>>) -> Vec<(String, Vec<String>)> {
+    let mut all: Vec<_> =
+        held.values().flatten().map(|r| (r.name.clone(), r.values.clone())).collect();
+    all.sort();
+    all
 }
 
 impl DnsProvider for Zone {
@@ -49,12 +48,13 @@ impl DnsProvider for Zone {
         let answer = if records.iter().any(|r| !r.name.ends_with(".example.com")) {
             Err(refuse)
         } else {
-            let mut held = self.0.lock().unwrap_or_else(PoisonError::into_inner);
-            if records.is_empty() {
-                held.remove(&owner);
-            } else {
-                held.insert(owner, records);
-            }
+            self.0.with(|held| {
+                if records.is_empty() {
+                    held.remove(&owner);
+                } else {
+                    held.insert(owner, records);
+                }
+            });
             Ok(pb::RecordsApplied::default())
         };
         std::future::ready(answer)
@@ -93,33 +93,18 @@ async fn shown(
     workload: &str,
     done: impl Fn(&[pb::EndpointName]) -> bool,
 ) -> Vec<pb::EndpointName> {
-    for _ in 0..300 {
-        let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };
-        let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
-        let names = got.status.into_option().unwrap_or_default().names;
-        if done(&names) {
-            return names;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("{workload}'s names did not settle");
+    crate::watching::status_until(h, workload, |s| done(&s.names)).await.names
 }
 
 fn state(n: &pb::EndpointName) -> Option<pb::EndpointNameState> {
     n.state.as_known()
 }
 
-/// What the zone holds, once it holds `expected`, within ten seconds.
+/// Waits until the zone holds `expected`.
 async fn holds(zone: &Zone, expected: &[(&str, &str)]) {
     let wanted: Vec<(String, Vec<String>)> =
         expected.iter().map(|(n, v)| ((*n).to_owned(), vec![(*v).to_owned()])).collect();
-    for _ in 0..100 {
-        if zone.values() == wanted {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    assert_eq!(zone.values(), wanted);
+    zone.0.until(|held| (values(held) == wanted).then_some(())).await;
 }
 
 /// A node serving the ingress at `203.0.113.7` and `2001:db8::7`, in session, and a workload

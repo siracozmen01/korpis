@@ -46,8 +46,17 @@ impl Fabric {
 
     /// Waits until a route asked for is `route`.
     pub(crate) async fn asked_for(&self, route: &(String, String)) {
+        self.asked_until(|a| pairs(a).contains(route), route).await;
+    }
+
+    /// Waits until the route last asked for is `route`.
+    pub(crate) async fn last_asked_for(&self, route: &(String, String)) {
+        self.asked_until(|a| pairs(a).last() == Some(route), route).await;
+    }
+
+    async fn asked_until(&self, done: impl Fn(&[pb::RouteAddress]) -> bool, route: &(String, String)) {
         let mut asked = self.0.subscribe();
-        let came = asked.wait_for(|a| pairs(a).contains(route));
+        let came = asked.wait_for(|a| done(a));
         let came = tokio::time::timeout(Duration::from_secs(60), came).await;
         assert!(came.is_ok_and(|c| c.is_ok()), "never asked for {route:?}: {:?}", self.routes());
     }

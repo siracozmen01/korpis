@@ -60,13 +60,11 @@ async fn a_create_that_failed_at_its_install_is_planned_again_from_where_it_stop
     records.push(step_failed(u64::from(install) + 1, &w.id, &node_plan.plan, install));
     send(&mut s, records).await;
     until(&mut s, ack).await;
-    for _ in 0..50 {
-        if plan_status(&h, &plan.id).await == Some(pb::PlanStatus::PLAN_STATUS_FAILED) {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-    assert_eq!(plan_status(&h, &plan.id).await, Some(pb::PlanStatus::PLAN_STATUS_FAILED));
+    let failed = Some(pb::PlanStatus::PLAN_STATUS_FAILED);
+    crate::watching::changed_until(&h, || async {
+        (plan_status(&h, &plan.id).await == failed).then_some(())
+    })
+    .await;
 
     // Declaring the same body again plans what the failed plan did not finish.
     let again = workloads.declare_intent(change("d2", &w.id, 1, body(&repo, &[]))).await.unwrap();

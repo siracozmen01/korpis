@@ -8,7 +8,7 @@
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::{Harness, mutation};
 use korpis_proto::korpis::v1 as pb;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use uuid::Uuid;
 
 /// An entry of the root organization bounding how many workloads run on the nodes labelled for
@@ -62,17 +62,7 @@ async fn once(
     w: &str,
     done: impl Fn(&pb::WorkloadStatus) -> bool,
 ) -> pb::WorkloadStatus {
-    let start = Instant::now();
-    loop {
-        let get = pb::GetWorkloadRequest { id: w.to_owned(), ..Default::default() };
-        let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
-        let s = got.status.into_option().unwrap();
-        if done(&s) {
-            return s;
-        }
-        assert!(start.elapsed() < Duration::from_secs(10), "{w}: {:?}", s.unplaced);
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
+    crate::watching::status_until(h, w, done).await
 }
 
 fn node(s: &pb::WorkloadStatus) -> String {
@@ -119,13 +109,11 @@ async fn an_entry_for_the_eu_holds_what_runs_there_and_sends_the_rest_elsewhere(
     assert_eq!(counted(&h, e).await, 0, "given back as it left");
     let fra2 = h.node(None, "fra-2", &[("region", "eu")]).await;
     let on = |s: &pb::WorkloadStatus| node(s) == fra2;
-    let start = Instant::now();
-    let mut there = 0;
-    while there == 0 && start.elapsed() < Duration::from_secs(10) {
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        there = usize::from(on(&once(&h, &first, |_| true).await))
-            + usize::from(on(&once(&h, &waiting, |_| true).await));
-    }
+    crate::watching::changed_until(&h, || async {
+        let either = on(&once(&h, &first, |_| true).await) || on(&once(&h, &waiting, |_| true).await);
+        either.then_some(())
+    })
+    .await;
     tokio::time::sleep(Duration::from_millis(500)).await;
     let both = [once(&h, &first, |_| true).await, once(&h, &waiting, |_| true).await];
     assert_eq!(both.iter().filter(|s| on(s)).count(), 1, "one runs there, the other waits");

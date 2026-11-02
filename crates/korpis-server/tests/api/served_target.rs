@@ -65,17 +65,12 @@ impl BackupTarget for Serving {
 
 /// The node port the installation's workload holds for its endpoint `store`, once placed.
 async fn published(h: &Harness, workload: &str) -> u32 {
-    for _ in 0..100 {
-        let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };
-        let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
-        let s = got.status.into_option().unwrap();
+    let port = |s: &pb::WorkloadStatus| {
         let store = s.endpoints.iter().find(|e| e.name == "store");
-        if let Some(port) = store.and_then(|e| e.address.as_option()).map(|a| a.port) {
-            return port;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("{workload}'s endpoint was never published");
+        store.and_then(|e| e.address.as_option()).map(|a| a.port)
+    };
+    let s = crate::watching::status_until(h, workload, |s| port(s).is_some()).await;
+    port(&s).unwrap_or_default()
 }
 
 #[tokio::test]
