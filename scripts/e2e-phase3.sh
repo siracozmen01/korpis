@@ -35,7 +35,7 @@ FILL_GIB=${KORPIS_E2E_FILL_GIB:-32}
 
 log "building"
 cargo build --quiet --locked -p korpis-server -p korpis-agent -p korpis-driver-oci \
-    -p korpis-helper -p korpis-cli -p korpis-stream -p korpis-files
+    -p korpis-helper -p korpis-cli -p korpis-stream -p korpis-files -p korpis-backup
 # The router runs in a container that holds nothing but itself, so it is linked static, into a
 # target directory of its own, as the end-to-end tests build it.
 TRIPLE="$(uname -m)-unknown-linux-gnu"
@@ -239,7 +239,12 @@ answers() {
     [ "$(in_ns "$C" curl -sf --max-time 3 "http://$ADDRESS:9000/marker")" = "$MARKER" ]
 }
 # Whether the node on machine $1 translates connections to $ADDRESS.
-translates() { in_ns "${NS_OF[$1]}" nft list ruleset | grep -qF "$ADDRESS"; }
+# Read whole first: `grep -q` stopping early would fail the listing on a closed pipe.
+translates() {
+    local ruleset
+    ruleset=$(in_ns "${NS_OF[$1]}" nft list ruleset)
+    [[ $ruleset == *"$ADDRESS"* ]]
+}
 untranslated() { ! translates "$1"; }
 declare -A NS_OF=([a]="$A" [b]="$B")
 

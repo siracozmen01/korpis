@@ -189,7 +189,8 @@ impl Jobs {
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(log)
-            .spawn()?;
+            .spawn()
+            .map_err(|e| HelperError::Failed(format!("job binary {}: {e}", binary.display())))?;
         std::fs::write(dir.join("pid"), child.id().to_string())?;
         if let Some(mut stdin) = child.stdin.take() {
             stdin.write_all(&spec)?;
