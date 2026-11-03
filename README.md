@@ -9,16 +9,16 @@ job, a virtual machine) on hardware you own. It places the workload on a node, i
 strongly as you ask, gives it storage and network, keeps it in the state you declared, and lets you
 and the people you delegate to operate it from a panel, a terminal, chat, or the API.
 
-> **Not released yet.** Phases 0 to 2 of the build are done in `crates/` (Rust) and `web/`
+> **Not released yet.** Phases 0 to 3 of the build are done in `crates/` (Rust) and `web/`
 > (TypeScript): one operator on one machine installs it, runs workloads, backs them up and restores
 > them, and reads an honest console from the panel or the CLI, with every limit it shows enforced by
-> the kernel; and it hosts other people: organizations delegate to organizations beneath them with
+> the kernel; it hosts other people: organizations delegate to organizations beneath them with
 > quota that inherits, people sign in through their own identity provider with no account made for
-> them, and what each tenant uses is metered. [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh),
-> [`e2e-phase1.sh`](./scripts/e2e-phase1.sh) and [`e2e-phase2.sh`](./scripts/e2e-phase2.sh) check
-> it as an operator would. Phase 3, moving workloads between nodes and isolation stronger than a
-> container, is in progress; the [milestones](https://github.com/siracozmen01/korpis/milestones)
-> say what comes next.
+> them, and what each tenant uses is metered; and it runs many nodes: a workload moves between them
+> with its volumes, its public address and its meter, and runs in a microVM where a container is
+> not isolation enough. [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) to
+> [`e2e-phase3.sh`](./scripts/e2e-phase3.sh) check it as an operator would; the
+> [milestones](https://github.com/siracozmen01/korpis/milestones) say what comes next.
 
 ---
 

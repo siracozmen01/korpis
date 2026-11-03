@@ -57,13 +57,16 @@ A stale generated file fails the check. Every migration after 0074 is an `.up.sq
 
 ## End-to-end scripts
 
-`scripts/e2e-phase0.sh`, `e2e-phase1.sh` and `e2e-phase2.sh` run each phase's completion scenario as
-an operator would: the binaries as processes, recipes published with oras, every step through the
-CLI. Phase 1 adds an extension installed from its static image, a console read and typed into, a
-volume quota refused by the kernel, and a backup taken, read and restored into a clone; phase 2 a
-reseller, its sub-tenant and their customer, each acting with a credential the level above issued,
-and a person signed in through `korpis-idp-oidc` against the independent issuer. They need root and
-containerd (and btrfs-progs, Node.js and the issuer's packages where they use them), share
+`scripts/e2e-phase0.sh` to `e2e-phase3.sh` run each phase's completion scenario as an operator
+would: the binaries as processes, recipes published with oras, every step through the CLI. Phase 1
+adds an extension installed from its static image, a console read and typed into, a volume quota
+refused by the kernel, and a backup taken, read and restored into a clone; phase 2 a reseller, its
+sub-tenant and their customer, each acting with a credential the level above issued, and a person
+signed in through `korpis-idp-oidc` against the independent issuer; phase 3 two nodes, each with its
+data plane in a network namespace standing in for its machine, meshed over a veth, and a workload
+with a 40 GB volume filled with 32 GiB moved between them, reached at the same address by a client
+network that follows the test extension's address router. They need root and containerd (and
+btrfs-progs, the kernel's WireGuard, Node.js and the issuer's packages where they use them), share
 `scripts/e2e-lib.sh`, which enrolls one machine as one node or several with their own ports, pools,
 namespaces, volumes and cgroups, and leave nothing behind. `scripts/check.sh` runs none of them.
 
