@@ -96,6 +96,17 @@ impl Leases {
         self.with(|b| b.standing(workload, Instant::now())).unwrap_or(Standing::Pending)
     }
 
+    /// The epoch `workload` last acted under here: the lease held, or held until it expired, or
+    /// released while its assignment is still held.
+    #[must_use]
+    pub fn last_epoch(&self, workload: &str) -> Option<u64> {
+        self.with(|b| match b.standing(workload, Instant::now()) {
+            Standing::Held { epoch } | Standing::Expired { epoch, .. } => Some(epoch),
+            _ => b.released_at(workload),
+        })
+        .flatten()
+    }
+
     /// The workload has stopped acting under its lease: forgets it and journals the release.
     pub async fn release(&self, workload: &str) -> std::io::Result<Option<u64>> {
         let Some(epoch) = self.with(|b| b.release(workload)).flatten() else { return Ok(None) };

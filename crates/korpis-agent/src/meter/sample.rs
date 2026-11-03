@@ -9,7 +9,7 @@ use super::{Meter, READ_EVERY, reading};
 use crate::held::HeldSet;
 use crate::host::Host;
 use crate::journal::JournalHandle;
-use crate::lease::{Leases, Standing};
+use crate::lease::Leases;
 use crate::reconcile::act::volume_id;
 use crate::runtime::{Runtime, RuntimeError};
 use korpis_core::workload::network::host_link;
@@ -52,16 +52,14 @@ pub struct Sources<R, H> {
     pub leases: Option<crate::lease::Leases>,
 }
 
-/// The epoch a sample of `workload`, assigned as `a`, is taken under: the lease the node holds for
-/// it, or held until it expired, where that is past the assignment's. None for a migration's
-/// destination that holds no lease yet, which meters nothing of what it prepares: its first
-/// sample, once it holds the next epoch, counts from nothing.
+/// The epoch a sample of `workload`, assigned as `a`, is taken under: the lease the node last
+/// acted under for it (held, held until it expired, or released at a migration's cutover with the
+/// source's assignment still held), where that is past the assignment's. None for a migration's
+/// destination that holds no lease yet, which meters nothing of what it prepares: its first sample,
+/// once it holds the next epoch, counts from nothing.
 fn epoch_of(a: Option<&agent::Assignment>, leases: Option<&Leases>, workload: &str) -> Option<u64> {
     let assigned = a.map_or(0, |a| a.lease_epoch);
-    let held = match leases.map(|l| l.standing(workload)) {
-        Some(Standing::Held { epoch } | Standing::Expired { epoch, .. }) => Some(epoch),
-        _ => None,
-    };
+    let held = leases.and_then(|l| l.last_epoch(workload));
     let side = a.and_then(|a| a.migration.as_option()).and_then(|m| m.role.as_known());
     if side == Some(agent::MigrationSide::MIGRATION_SIDE_DESTINATION) && held.is_none() {
         return None;
