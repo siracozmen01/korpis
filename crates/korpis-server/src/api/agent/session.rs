@@ -172,6 +172,7 @@ pub(super) async fn open(
         wake,
         ended: ended.clone(),
         held: hello.set_digest.clone(),
+        takes_deltas: hello.takes_deltas,
     };
     let at = || (Arc::clone(sessions), node, id, ended.clone());
     let lists = api.revocations.subscribe();

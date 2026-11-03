@@ -126,7 +126,7 @@ pub(crate) async fn moving_from(
 }
 
 /// The newest migration of `workload`.
-async fn shown(h: &Harness, workload: &str) -> pb::Migration {
+pub(crate) async fn shown(h: &Harness, workload: &str) -> pb::Migration {
     let list = pb::ListMigrationsRequest { workload: workload.to_owned(), ..Default::default() };
     let got = h.workloads(h.root()).list_migrations(list).await.unwrap().into_owned();
     got.migrations.into_iter().next().unwrap()

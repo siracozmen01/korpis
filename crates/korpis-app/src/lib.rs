@@ -29,6 +29,7 @@ pub mod idempotency;
 pub mod install;
 pub mod metering;
 pub mod node;
+pub mod operation;
 pub mod page;
 pub mod portal;
 pub mod ports;

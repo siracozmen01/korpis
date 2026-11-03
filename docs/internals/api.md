@@ -246,7 +246,7 @@ carries a digest over its canonical encoding, sorted by workload, covering each 
 generation:
 
 ```
-agent -> Hello { set_digest }
+agent -> Hello { set_digest, takes_deltas }
          matches      -> InSync               nothing more
          known prior  -> AssignmentDelta      only what changed
          unknown      -> AssignmentSet        the full set, the safe path
@@ -255,8 +255,29 @@ agent -> Hello { set_digest }
 The agent is never required to have received an earlier message, the unknown path always works, and
 any inconsistency resolves to a full set, so the digest can be discarded at any time without
 affecting correctness, which is what makes it safe. It is a set-level checksum; assignments keep
-their generations as identity. The control plane keeps no history of earlier digests yet, so a node
-that missed a change receives the whole set; `AssignmentDelta` is in the schema and not built.
+their generations as identity.
+
+**A change sends what changed.** Every change to any workload on a node recomputes the node's set,
+and sending it whole costs the node the whole set's bytes, a signature verified per assignment, and
+the set kept on disk again. Measured on the build machine (`korpis-agent`'s example
+`assignment_cost`, 2 KiB assignments, release build, the least of five runs), a node holding a
+thousand workloads was sent 2.2 MB and spent 42 ms verifying it to learn of one change, and one
+holding five thousand 10.9 MB and 207 ms; a delta of that change is 2.3 KB and is believed in 1.3 ms
+and 10 ms, most of it copying the set held. Keeping the set on disk stays whole, 15 ms and 25 ms, of
+which 12 ms is the durable write that a set of ten costs too, since the kept set is what the node
+proves what it was told with. So the downlink sends an agent whose `Hello` says it takes deltas the
+assignments new or at a new generation since the set last sent, and the workloads gone, naming that
+set's digest as the base and the new set's digest. The stream is ordered and the agent holds or
+answers each message in turn, so by the time it reads a delta it holds the base, unless it could not
+keep the one before; then it answers `Resync` with the digest it holds, and the control plane sends
+the whole set.
+
+**What evaluates "known prior":** the session's downlink, from the last two sets it sent the node,
+kept per node in the process's session registry past the session (each workload's generation, a few
+dozen bytes a workload), since the last may have been lost with the stream that broke. An agent
+reconnecting to another replica, or after a restart of this one, holds a set the replica does not
+know, and is sent the whole set. An agent that does not say it takes deltas is always sent the whole
+set, so an agent written without them still conforms.
 
 ## Publication
 

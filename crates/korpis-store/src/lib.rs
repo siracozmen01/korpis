@@ -41,6 +41,7 @@ mod member;
 mod metering;
 mod node;
 mod observation;
+mod operation;
 mod placement;
 mod portal;
 mod provider;

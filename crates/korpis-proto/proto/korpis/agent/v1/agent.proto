@@ -92,6 +92,7 @@ message AgentMessage {
     EdgeLeaseRequest edge_lease_request = 18;
     EdgeLeaseReleased edge_lease_released = 19;
     EdgeChallengesHeld edge_challenges_held = 20;
+    Resync resync = 21;
   }
 }
 
@@ -431,6 +432,9 @@ message Hello {
   repeated korpis.v1.Core cores = 17;
   // As in NodeStatus.
   OverlayFacts overlay = 18;
+  // Whether this agent applies AssignmentDelta. The control plane sends one only to an agent that
+  // says so, and the whole set to every other, which is always correct.
+  bool takes_deltas = 19;
 }
 
 // The session runs over TLS to a control plane certificate the agent pinned at enrollment; this
@@ -630,13 +634,23 @@ message AssignmentSet {
   string set_digest = 2;
 }
 
-// Optimization only: a mismatch on `base_digest` triggers a full resync.
+// What changed since the set whose digest is `base_digest`, the last the control plane sent, to an
+// agent whose Hello said it takes deltas. Optimization only: an agent that does not hold the base
+// answers Resync, and the control plane sends the whole set.
 message AssignmentDelta {
   string base_digest = 1;
+  // Each assignment new to the set or at a new generation.
   repeated SignedAssignment upserts = 2;
   // Workloads whose assignment left the set.
   repeated string removed = 3;
+  // Over the set the delta makes, as AssignmentSet's.
   string set_digest = 4;
+}
+
+// The agent could not apply a delta: it holds the set whose digest is `set_digest`, not the delta's
+// base. The control plane sends the whole set.
+message Resync {
+  string set_digest = 1;
 }
 
 message InSync {

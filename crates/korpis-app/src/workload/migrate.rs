@@ -31,11 +31,14 @@ mod conclude;
 mod crossing;
 mod cutover;
 mod end;
+mod operated;
 mod passes;
 mod progress;
+mod removed;
 mod state;
 
 pub use end::{EndMigration, MigrationView};
+pub(crate) use operated::For;
 
 const OPERATION: &str = "workload.migrate_workload";
 

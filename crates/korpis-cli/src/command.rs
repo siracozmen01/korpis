@@ -12,6 +12,7 @@ use crate::cmd::event::EventAction;
 use crate::cmd::extension::ExtensionAction;
 use crate::cmd::identity::IdentityAction;
 use crate::cmd::migration::MigrationAction;
+use crate::cmd::operation::OperationAction;
 use crate::cmd::portal::PortalAction;
 use crate::cmd::quota::QuotaAction;
 use crate::cmd::repository::RepositoryAction;
@@ -115,6 +116,10 @@ pub enum Command {
     /// Reads a workload's migrations, and abandons, rolls back, or releases one.
     #[command(subcommand)]
     Migration(MigrationAction),
+    /// Drains or evacuates a node, or rolls a template version out to its grants: proposed,
+    /// read, approved, paused, resumed, or aborted as one decision.
+    #[command(subcommand)]
+    Operation(OperationAction),
     /// Shows, sets, and clears an organization's theme in the panel.
     #[command(subcommand)]
     Theme(theme::ThemeAction),

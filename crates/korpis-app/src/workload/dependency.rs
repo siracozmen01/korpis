@@ -79,14 +79,33 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         body: &IntentBody,
     ) -> Result<Vec<Needed>, AppError> {
         let resolved = self.resolve_dependencies((w.project, w.id), body).await?;
-        Ok(resolved
+        let mut out: Vec<Needed> = resolved
             .into_iter()
             .map(|r| Needed {
                 name: r.name,
                 required: r.required,
                 targets: r.targets.into_iter().map(|t| t.workload).collect(),
+                dependents: false,
             })
-            .collect())
+            .collect();
+        let mut dependents: Vec<Uuid> = self
+            .edges(w.project)
+            .await?
+            .into_iter()
+            .filter(|e| e.target.workload == w.id && e.dependent != w.id)
+            .map(|e| e.dependent)
+            .collect();
+        dependents.sort_unstable();
+        dependents.dedup();
+        if !dependents.is_empty() {
+            out.push(Needed {
+                name: "its dependents".into(),
+                required: false,
+                targets: dependents,
+                dependents: true,
+            });
+        }
+        Ok(out)
     }
 
     /// Refuses a dependency of `workload` in `project` whose target is not one: a workload or an

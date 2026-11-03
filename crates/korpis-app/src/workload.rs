@@ -14,12 +14,14 @@ mod declare;
 mod dependency;
 mod devices;
 pub use devices::Tending;
+mod evacuate;
 mod explain;
 mod failover;
 mod hold;
 mod naming;
 
 pub(crate) use across::Members;
+pub(crate) use evacuate::Evacuating;
 pub(crate) use hold::reckon;
 mod learned;
 mod migrate;

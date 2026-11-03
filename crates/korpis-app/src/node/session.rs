@@ -9,7 +9,8 @@
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    AgentVersion, Clock, EffectWrite as _, NodeFacts, RecipeSource, SessionWrite, Store, Tx,
+    AgentVersion, Clock, EffectWrite as _, NodeFacts, PlacementWrite as _, RecipeSource,
+    SessionWrite, Store, Tx,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::node::identity::{hello_message, verify};
@@ -285,11 +286,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Marks unreachable every connected node not heard for three heartbeats; how many.
+    /// Marks unreachable every connected node not heard for three heartbeats; how many. Under the
+    /// placement lock, so a placement that chose a node while it was heard binds before the node is
+    /// marked, and the failover that follows the mark finds it.
     pub async fn sweep_silent_nodes(&self) -> Result<u64, AppError> {
         let now = self.clock.now();
         let before = now.checked_sub(self.session_terms.staleness()).unwrap_or(UNIX_EPOCH);
         let mut tx = self.store.begin().await?;
+        tx.lock_placement().await?;
         let n = tx.mark_silent_nodes(before, now).await?;
         tx.commit().await?;
         Ok(n)

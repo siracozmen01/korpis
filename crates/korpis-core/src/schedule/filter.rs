@@ -276,16 +276,22 @@ fn affinity(
 }
 
 /// A dependency's placed targets must each be on the candidate or on a node the candidate reaches
-/// through the mesh; a required one with none placed leaves the workload nowhere to start.
+/// through the mesh; a required one with none placed leaves the workload nowhere to start. So must
+/// each placed workload depending on it, which a target moved or placed again would otherwise
+/// leave unreached.
 fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Refusal> {
     let mut out = Vec::new();
     for d in req.dependencies {
         let mut nodes = peers.iter().filter(|p| d.targets.contains(&p.workload)).map(|p| p.node);
         let name = &d.name;
         let placed = nodes.clone().next().is_some();
-        let why = if !placed && d.required {
+        let apart = nodes.any(|n| n != c.node.id && !req.mesh.joins(c.node.id, n));
+        let why = if d.dependents {
+            let why = "include one on a node this one does not reach through the mesh";
+            apart.then(|| format!("{name} {why}"))
+        } else if !placed && d.required {
             Some(format!("its required dependency {name} is not placed"))
-        } else if nodes.any(|n| n != c.node.id && !req.mesh.joins(c.node.id, n)) {
+        } else if apart {
             Some(format!(
                 "its dependency {name} is on a node this one does not reach through the mesh"
             ))

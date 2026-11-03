@@ -129,6 +129,11 @@ impl Uplink {
             Some(Up::Ack(a)) => {
                 app.acknowledge_set(node, &a.set_digest).await.map_err(|e| e.to_string())
             }
+            Some(Up::Resync(r)) => {
+                tracing::info!(%node, held = %r.set_digest, "the agent asked for the whole set");
+                self.sessions.resync(node, self.id);
+                Ok(())
+            }
             Some(Up::NodeStatus(s)) => match status_facts(s) {
                 Ok(f) => app.heartbeat(node, &f).await.map_err(|e| e.to_string()),
                 Err(e) => Err(e.to_string()),

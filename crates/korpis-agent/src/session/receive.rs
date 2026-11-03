@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the session does with each message the control plane sends: an assignment set believed
-//! only once every signature verifies, then kept and acknowledged; the answers to what the node
+//! What the session does with each message the control plane sends: an assignment set, or a delta
+//! to the one held, believed only once every signature verifies, then kept and acknowledged; the answers to what the node
 //! asked, handed to whoever asked; and everything else passed on.
 
 use super::{Event, Session, message, shipped};
@@ -49,6 +49,7 @@ impl Session {
     ) -> Vec<agent::AgentMessage> {
         match m.message {
             Some(Down::AssignmentSet(set)) => self.hold(&set).into_iter().collect(),
+            Some(Down::AssignmentDelta(d)) => self.hold_delta(&d).into_iter().collect(),
             Some(Down::InSync(_)) => self.event(Event::InSync),
             Some(Down::JournalAck(ack)) => shipped(shipper.acknowledged(ack.seq).await),
             Some(Down::RevocationList(list)) => {
@@ -132,7 +133,27 @@ impl Session {
     /// Believes, keeps, and acknowledges a set, or refuses it and keeps the one held.
     fn hold(&self, set: &agent::AssignmentSet) -> Option<agent::AgentMessage> {
         let keys = &self.identity.keys.assignment_keys;
-        let verified = match HeldSet::verify(set, keys, &self.identity.node) {
+        let verified = HeldSet::verify(set, keys, &self.identity.node);
+        self.keep(verified)
+    }
+
+    /// Applies, keeps, and acknowledges a delta to the set held; asks for the whole set when the
+    /// one held is not its base, and refuses it, keeping the one held, when it does not verify.
+    fn hold_delta(&self, delta: &agent::AssignmentDelta) -> Option<agent::AgentMessage> {
+        let keys = &self.identity.keys.assignment_keys;
+        let applied = self.held.borrow().apply(delta, keys, &self.identity.node);
+        if let Some(made) = applied {
+            return self.keep(made);
+        }
+        let held = self.held.borrow().digest.clone();
+        tracing::info!(base = %delta.base_digest, %held, "a delta to another set: resync");
+        let resync = agent::Resync { set_digest: held, ..Default::default() };
+        Some(message(Up::Resync(Box::new(resync))))
+    }
+
+    /// Keeps `made`, believed, as the set held, and acknowledges it; or refuses it.
+    fn keep(&self, made: Result<HeldSet, crate::held::Refused>) -> Option<agent::AgentMessage> {
+        let verified = match made {
             Ok(v) => v,
             Err(e) => {
                 tracing::error!(error = %e, "assignment set refused: a security event");
@@ -141,7 +162,8 @@ impl Session {
             }
         };
         if let Err(e) = verified.save(&self.state.root().join("assignments.binpb")) {
-            // Not kept, not acknowledged: the control plane sends it again on reconnect.
+            // Not kept, not acknowledged: the control plane sends it again on reconnect, and a
+            // delta to it is answered with a resync.
             tracing::error!(error = %e, "the assignment set could not be kept");
             return None;
         }

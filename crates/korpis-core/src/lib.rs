@@ -25,6 +25,7 @@ pub mod labels;
 pub mod metering;
 pub mod node;
 pub mod object;
+pub mod operation;
 pub mod placement;
 pub mod preflight;
 pub mod principal;

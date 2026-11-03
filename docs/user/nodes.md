@@ -96,10 +96,27 @@ cgroups under `--job-cgroups` (`/sys/fs/cgroup/korpis/shared`, so jobs keep off 
 keeps dedicated-core cpusets only under the cgroup parents `--cores-cgroup` names (`/korpis` and
 `/korpis-firecracker` by default).
 
+## Draining and evacuating a node
+
+`korpis operation drain <node>` proposes moving every workload off a node, each by a migration to
+the node the scheduler chooses, and prints every workload it will move. Nothing moves until someone
+holding `node.drain` approves it with `korpis operation approve op_...`; the node then takes no new
+work, and the control plane moves the workloads `--concurrency` at a time (one by default), never
+leaving more than `--max-unavailable` of them stopped or not yet seen running where they landed.
+A workload that cannot move pauses the drain (`--on-failure continue` or `abort` instead), and
+`korpis operation get op_...` shows each workload's state and why it failed. `pause`, `resume` and
+`abort` act on the whole drain; once it ends, however it ends, the node is cordoned.
+
+A node that is unreachable cannot take part in a migration. `korpis operation evacuate <node>`, under
+`node.evacuate`, places its workloads again elsewhere instead, and says before you approve it what
+each one loses: a volume another node reaches loses nothing; one with a replica starts from it,
+losing what was written since; one whose only copy was on the node starts from its latest backup, or
+empty. A workload that keeps running when its node is cut off may still be running there, and a
+second copy splits it; the evacuation names each such workload.
+
 ## Removing a node
 
-Removing is never abrupt: cordon, drain, then remove, each producing a plan that names every
-workload and where it goes. `korpis node remove` (the irreversible `node.remove`) is refused unless
+Removing is never abrupt: cordon, drain, then remove. `korpis node remove` (the irreversible `node.remove`) is refused unless
 the node is cordoned and holds no workload and no undeleted volume; the node is then decommissioned
 for good and its key opens nothing. A node removed as compromised (`--compromised`) is removed
 whatever it holds: its workloads are placed again from their targets, and the certificates whose
