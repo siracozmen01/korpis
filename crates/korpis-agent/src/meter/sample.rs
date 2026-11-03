@@ -53,14 +53,20 @@ pub struct Sources<R, H> {
 }
 
 /// The epoch a sample of `workload`, assigned as `a`, is taken under: the lease the node holds for
-/// it, or held until it expired, where that is past the assignment's.
-fn epoch_of(a: Option<&agent::Assignment>, leases: Option<&Leases>, workload: &str) -> u64 {
+/// it, or held until it expired, where that is past the assignment's. None for a migration's
+/// destination that holds no lease yet, which meters nothing of what it prepares: its first
+/// sample, once it holds the next epoch, counts from nothing.
+fn epoch_of(a: Option<&agent::Assignment>, leases: Option<&Leases>, workload: &str) -> Option<u64> {
     let assigned = a.map_or(0, |a| a.lease_epoch);
     let held = match leases.map(|l| l.standing(workload)) {
-        Some(Standing::Held { epoch } | Standing::Expired { epoch, .. }) => epoch,
-        _ => 0,
+        Some(Standing::Held { epoch } | Standing::Expired { epoch, .. }) => Some(epoch),
+        _ => None,
     };
-    assigned.max(held)
+    let side = a.and_then(|a| a.migration.as_option()).and_then(|m| m.role.as_known());
+    if side == Some(agent::MigrationSide::MIGRATION_SIDE_DESTINATION) && held.is_none() {
+        return None;
+    }
+    Some(assigned.max(held.unwrap_or(0)))
 }
 
 /// The meter's reading and sampling.
@@ -281,6 +287,9 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
         }
         for workload in workloads {
             let a = held.get(&workload);
+            let Some(lease_epoch) = epoch_of(a, self.sources.leases.as_ref(), &workload) else {
+                continue;
+            };
             let (disk, disk_allocated) = match a {
                 Some(a) => self.disk(a).await,
                 None => (None, false),
@@ -290,7 +299,7 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
                 workload: workload.clone(),
                 interval_start: book::at(start).into(),
                 interval: korpis_wire::duration(span).into(),
-                lease_epoch: epoch_of(a, self.sources.leases.as_ref(), &workload),
+                lease_epoch,
                 counters: closed.counters.into(),
                 memory_peak_bytes: closed.peak,
                 disk_bytes: disk,

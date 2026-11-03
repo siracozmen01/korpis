@@ -41,13 +41,17 @@ fn assignment(workload: &str, epoch: u64) -> agent::Assignment {
 }
 
 fn node(workload: &str) -> Node {
+    node_with(assignment(workload, 3))
+}
+
+fn node_with(a: agent::Assignment) -> Node {
     let dir = tempfile::tempdir().unwrap();
     let meter = Arc::new(Meter::open(&dir.path().join("meter"), None).unwrap());
     let inner = InMemory::new();
     let runtime = Metered::new(inner.clone(), meter.clone());
     let host = InMemoryHost::new();
     let mut held = HeldSet::default();
-    held.assignments.insert(workload.into(), assignment(workload, 3));
+    held.assignments.insert(a.workload.clone(), a);
     let (_, held) = tokio::sync::watch::channel(held);
     let journal = JournalHandle::open(&dir.path().join("journal"), Bounds::default()).unwrap();
     let net = dir.path().join("net");
@@ -187,4 +191,19 @@ async fn a_sample_carries_what_the_hosts_table_counted_of_the_workloads_link() {
     let game = &c.endpoints[0];
     assert_eq!(game.endpoint, "game", "named as the workload declares it");
     assert_eq!((game.received_bytes, game.sent_bytes, game.received_packets), (1_200, 4_800, 4));
+}
+
+#[tokio::test]
+async fn a_destination_holding_no_lease_meters_nothing_of_what_it_prepares() {
+    let role = agent::MigrationRole {
+        role: agent::MigrationSide::MIGRATION_SIDE_DESTINATION.into(),
+        ..Default::default()
+    };
+    let standby = agent::Assignment { migration: role.into(), ..assignment("wl_1", 0) };
+    let n = node_with(standby);
+    let prepared = object(&n, "wl_1").await;
+    n.inner.set_counters(&prepared, cpu(0, 1 << 20));
+    n.sampler.read(t(0)).await;
+    n.sampler.sample(t(0), DEFAULT_INTERVAL).await;
+    assert!(samples(&n.journal).await.is_empty(), "its first sample is under the next epoch");
 }
