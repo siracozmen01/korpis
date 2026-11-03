@@ -5,18 +5,24 @@
 
 use crate::error::{DriverError, DriverResult};
 
-/// The container identifier of `workload` built from `intent`, for `run` when it executes one:
-/// one per intent and run, so a create is idempotent, a rebuild never collides with the object
-/// it replaces, and two runs never share one. A digest of them, so it is always within
-/// containerd's 76 characters and its alphabet, whatever it is given; the labels carry them
-/// readably. A persistent workload's object, which executes no run, keeps the digest it had
-/// before runs, so an upgraded driver finds it again.
-pub(crate) fn container_id(workload: &str, intent: &str, run: &str) -> String {
-    let named = if run.is_empty() {
+/// The container identifier of `workload` built from `intent`, for `run` when it executes one,
+/// kept by `owner`: one per intent and run, so a create is idempotent, a rebuild never collides
+/// with the object it replaces, and two runs never share one; and one per owner, so two nodes
+/// sharing the namespace never name a workload's object alike, as the source and destination of a
+/// migration would. A digest of them, so it is always within containerd's 76 characters and its
+/// alphabet, whatever it is given; the labels carry them readably. A persistent workload's object,
+/// which executes no run, kept by a driver alone in the namespace, keeps the digest it had before
+/// runs and owners, so an upgraded driver finds it again.
+pub(crate) fn container_id(owner: &str, workload: &str, intent: &str, run: &str) -> String {
+    let mut named = if run.is_empty() {
         format!("{workload}\n{intent}")
     } else {
         format!("{workload}\n{intent}\n{run}")
     };
+    // No workload identifier begins so, so no owned name is ever an unowned one.
+    if !owner.is_empty() {
+        named = format!("owner {owner}\n{named}");
+    }
     let digest = korpis_core::content::digest_of(named.as_bytes());
     let hex = digest.trim_start_matches("sha256:");
     format!("korpis-{}", hex.get(..40).unwrap_or(hex))
@@ -42,4 +48,19 @@ pub fn signal_number(name: &str) -> DriverResult<u32> {
         "SIGWINCH" => 28,
         other => return Err(DriverError::Rejected(format!("no signal named {other:?}"))),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn two_owners_name_a_workload_apart_and_a_driver_alone_names_it_as_before() {
+        let alone = container_id("", "wl_a", "int_1", "");
+        assert_eq!(alone, "korpis-7a0280376b19ddeaa94adc32db49e59afae7e3fc", "as before owners");
+        let (a, b) =
+            (container_id("a", "wl_a", "int_1", ""), container_id("b", "wl_a", "int_1", ""));
+        assert!(a != b && a != alone && b != alone, "{a} {b} {alone}");
+        assert!(is_container_id(&a) && is_container_id(&b));
+    }
 }

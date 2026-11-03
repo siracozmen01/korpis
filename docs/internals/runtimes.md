@@ -362,7 +362,13 @@ to the digest the configuration names. All of it happens under a containerd leas
 create, so nothing half-assembled is collected or left behind. The container's snapshot is prepared
 remapped onto the workload's range (containerd's `uidmapping` and `gidmapping` labels), which lets a
 read-only image owned by host root be the root of an unprivileged process. Every object lives in
-containerd's `korpis` namespace.
+containerd's `korpis` namespace. Where several nodes run on one machine, as the end-to-end tests run
+them, they share that namespace, so the driver is told its node (`--owner`): a container's
+identifier is a digest that includes it, the container is labelled with it, and the driver lists,
+inspects and reports its own containers alone. Without that, a migration's destination would find
+the container its source made under the same name and start it, in the source's network namespace
+over the source's volumes. A driver told no owner keeps the namespace's unowned containers, under
+the names they always had.
 
 ## What is not in the interface
 
