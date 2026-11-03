@@ -2,7 +2,8 @@
 
 //! Adoption: when the agent starts, every runtime object its driver created is matched to the
 //! assignment its labels name and taken over as it is, touching none of them; an object no
-//! assignment claims is an orphan, reported once and never deleted.
+//! assignment claims is an orphan, reported once and never deleted. A workload that leaves the set
+//! while its object is here is stopped and its lease released before its object is an orphan.
 
 use super::{
     RECOVER_FIRST_WAIT, RECOVER_LONGEST_WAIT, Reconciler, Tracked, act, effect, runs, text,
@@ -97,12 +98,33 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         t.runs.insert(run.to_owned(), held);
     }
 
+    /// A workload that left the set while its object is here, as a rolled-back migration's
+    /// destination or a node another was given its workload while it was silent: nothing assigns
+    /// it here, and another node may be granted it, so the object is stopped, then the lease
+    /// released, so that node is granted the next epoch. The object is kept, an orphan.
+    pub(super) async fn unassigned(&mut self, workload: &str) {
+        let Some(mut t) = self.tracked.remove(workload) else { return };
+        let stopped = self.stop(&mut t).await.unwrap_or_else(|e| {
+            tracing::warn!(%workload, error = %e.0, "an unassigned workload not stopped yet");
+            false
+        });
+        // Journalled once: a lease already released is not held to release again.
+        if stopped && let Err(e) = self.wiring.leases.release(workload).await {
+            tracing::error!(error = %e, "the release could not be journalled");
+        }
+        let id = t.runtime.clone();
+        self.tracked.insert(workload.to_owned(), t);
+        if let Some(id) = id.filter(|_| stopped) {
+            self.orphan(&id, workload).await;
+        }
+    }
+
     /// Reports a runtime object no assignment claims, once: it is never deleted.
     pub(super) async fn orphan(&mut self, runtime_id: &str, workload: &str) {
         if !self.orphans.insert(runtime_id.to_owned()) {
             return;
         }
-        tracing::warn!(%runtime_id, %workload, "orphaned runtime object; left untouched");
+        tracing::warn!(%runtime_id, %workload, "orphaned runtime object; kept, never deleted");
         let mut e = effect(None, "node.orphan", true);
         e.after.insert("runtime_id".into(), text(runtime_id));
         e.after.insert("workload_label".into(), text(workload));

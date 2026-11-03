@@ -199,8 +199,12 @@ nonces.
 A renewal keeps the epoch, since the epoch labels runtime objects and travels in the assignment; an
 issue increments it and is a `lease.issue` effect. `UNAVAILABLE` or `NOT_ASSIGNED` never shortens a
 lease already held; `SUPERSEDED` ends it at once. An unspecified expiry policy is treated as `stop`,
-the answer that cannot make two writers. A released lease is not asked for again while the retiring
-assignment is still held.
+the answer that cannot make two writers. A released lease is not asked for again while the
+assignment says why it was released, a retirement or a migration's source past its cutover; once it
+no longer does, as when the migration is rolled back, the source asks again. A workload that leaves
+the set while it runs on the node, as a rolled-back migration's destination, is stopped and its
+lease, still held and no longer renewed, released, so the node it went to is granted the next epoch
+without waiting out the term; its object is then an orphan.
 
 **Storage fences too, where it can.** Leases fence agents, not a disk a second node could attach. A
 class reachable from several nodes declares `storage_enforced` fencing when its backend can refuse a
