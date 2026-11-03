@@ -32,7 +32,7 @@ it needs no protobuf tool either.
 
 | Script | What it gives |
 |---|---|
-| `scripts/dev-pg.sh up` | PostgreSQL for development and tests, container `korpis-dev-postgres` on 127.0.0.1:55432 |
+| `scripts/dev-pg.sh up` | PostgreSQL for development and tests, container `korpis-dev-postgres` on 127.0.0.1:55432, in memory and never synced: `down` loses its data |
 | `scripts/dev-registry.sh up` | an OCI registry on 127.0.0.1:55000, plain HTTP on loopback; the images tests run are mirrored into it by digest once, so no test pulls from a public registry |
 | `scripts/tools.sh` | the pinned tools in `.tools/`: buf, the code generators, sqlx-cli, oras, Firecracker and its jailer |
 | `scripts/guest-kernel.sh` | the kernel every microVM boots, built from kernel.org's pinned release and `guest/kernel/` into `.tools/guest/` |

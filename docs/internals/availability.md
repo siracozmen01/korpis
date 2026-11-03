@@ -45,12 +45,15 @@ supported; being unsure is not.
 **A replica's connections are sized by concurrency, not nodes.** A node's session holds no
 connection between passes, and computing its set takes one transaction. What takes connections is
 work in flight: requests, placements, and passes a mesh change or resync starts for every node at
-once, which wait their turn rather than fail. `--max-connections` (16) is split between transactions
-and plain reads, at least two each, the change feed's listener among the reads; a transaction may
-wait for a read connection and a read never waits while holding one, so a burst of transactions
-always leaves the one holding the placement lock a connection to read with. Half the connections
-idle while work is all of one kind, and an operator sizing PostgreSQL's `max_connections` counts
-every replica's whole figure.
+once, which wait their turn for a connection. A pass that waits past the pool's thirty seconds
+(sqlx's default `acquire_timeout`) fails, and its downlink tries it again after a second, doubling
+to thirty, rather than waiting for a change that may not come, so a burst larger than the pool
+delays a node's set and never drops it. `--max-connections` (16) is split between transactions and
+plain reads, at least two each, the change feed's listener among the reads; a transaction may wait
+for a read connection and a read never waits while holding one, so a burst of transactions always
+leaves the one holding the placement lock a connection to read with. Half the connections idle while
+work is all of one kind, and an operator sizing PostgreSQL's `max_connections` counts every
+replica's whole figure.
 
 ## PostgreSQL
 
