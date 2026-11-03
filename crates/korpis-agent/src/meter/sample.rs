@@ -198,7 +198,8 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
 
     /// Integrates what each held workload's placement holds on the node over `integrated`: its
     /// dedicated cores, and its devices by class, as the node's catalog says each is. A device
-    /// the node no longer describes has no class to count it under, and is not counted.
+    /// the node no longer describes has no class to count it under, and is not counted; nor is
+    /// what a migration's destination holds before it holds the lease.
     fn read_held(&self, integrated: Duration) {
         let catalog = self.sources.devices.as_ref().map(|d| Arc::clone(&d.borrow()));
         let held: Vec<Holding> = {
@@ -206,7 +207,13 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
             let cores = |a: &agent::Assignment| u64::try_from(a.cores.len()).unwrap_or(0);
             let devices =
                 |a: &agent::Assignment| crate::devices::classes(catalog.as_deref(), &a.devices);
-            held.assignments.iter().map(|(w, a)| (w.clone(), cores(a), devices(a))).collect()
+            let leases = self.sources.leases.as_ref();
+            // A destination holding no lease holds them for a move not yet made, unbilled.
+            let billed = |(w, a): &(&String, &agent::Assignment)| {
+                epoch_of(Some(a), leases, w.as_str()).is_some()
+            };
+            let each = held.assignments.iter().filter(billed);
+            each.map(|(w, a)| (w.clone(), cores(a), devices(a))).collect()
         };
         self.meter.with_book(|b| {
             for (workload, cores, devices) in &held {

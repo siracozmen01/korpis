@@ -19,6 +19,7 @@ struct Node {
     meter: Arc<Meter>,
     sampler: Sampler<Metered<InMemory>, InMemoryHost>,
     journal: JournalHandle,
+    assigned: tokio::sync::watch::Sender<HeldSet>,
 }
 
 fn assignment(workload: &str, epoch: u64) -> agent::Assignment {
@@ -52,7 +53,7 @@ fn node_with(a: agent::Assignment) -> Node {
     let host = InMemoryHost::new();
     let mut held = HeldSet::default();
     held.assignments.insert(a.workload.clone(), a);
-    let (_, held) = tokio::sync::watch::channel(held);
+    let (assigned, held) = tokio::sync::watch::channel(held);
     let journal = JournalHandle::open(&dir.path().join("journal"), Bounds::default()).unwrap();
     let net = dir.path().join("net");
     let told = tokio::sync::watch::channel(None).1;
@@ -67,7 +68,7 @@ fn node_with(a: agent::Assignment) -> Node {
         leases: None,
     };
     let sampler = Sampler::new(meter.clone(), sources, journal.clone(), DEFAULT_INTERVAL);
-    Node { dir, runtime, inner, host, meter, sampler, journal }
+    Node { dir, runtime, inner, host, meter, sampler, journal, assigned }
 }
 
 fn cpu(usec: u64, memory: u64) -> driver::ObjectCounters {
@@ -199,11 +200,22 @@ async fn a_destination_holding_no_lease_meters_nothing_of_what_it_prepares() {
         role: agent::MigrationSide::MIGRATION_SIDE_DESTINATION.into(),
         ..Default::default()
     };
-    let standby = agent::Assignment { migration: role.into(), ..assignment("wl_1", 0) };
+    let standby =
+        agent::Assignment { migration: role.into(), cores: vec![2, 3], ..assignment("wl_1", 0) };
     let n = node_with(standby);
-    let prepared = object(&n, "wl_1").await;
-    n.inner.set_counters(&prepared, cpu(0, 1 << 20));
     n.sampler.read(t(0)).await;
+    n.sampler.read(t(30)).await;
     n.sampler.sample(t(0), DEFAULT_INTERVAL).await;
     assert!(samples(&n.journal).await.is_empty(), "its first sample is under the next epoch");
+    // Moved here, it holds the cores under the next epoch, and only that is counted.
+    let mut moved = HeldSet::default();
+    moved
+        .assignments
+        .insert("wl_1".into(), agent::Assignment { cores: vec![2, 3], ..assignment("wl_1", 4) });
+    n.assigned.send_replace(moved);
+    n.sampler.read(t(40)).await;
+    n.sampler.sample(t(0), DEFAULT_INTERVAL).await;
+    let s = samples(&n.journal).await;
+    let held = s[0].counters.as_option().unwrap().dedicated_core_seconds;
+    assert_eq!((s[0].lease_epoch, held), (4, Some(20)), "two cores for ten seconds, no more");
 }
