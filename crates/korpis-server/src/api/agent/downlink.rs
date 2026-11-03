@@ -17,6 +17,7 @@ use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Notify;
 use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
@@ -35,6 +36,28 @@ pub(super) struct Downlink {
     pub(super) held: String,
     /// Whether the agent said it takes deltas.
     pub(super) takes_deltas: bool,
+}
+
+/// How long a failed pass waits before it is tried again, doubling up to the most.
+const RETRY_FIRST: Duration = Duration::from_secs(1);
+const RETRY_MOST: Duration = Duration::from_secs(30);
+
+/// How a pass ended.
+enum Pass {
+    /// The agent was told what it needs, or needed nothing.
+    Done,
+    /// The set could not be computed: tried again after a while.
+    Failed,
+    /// The session's stream is gone.
+    Gone,
+}
+
+/// Waits `d`, or forever where there is nothing to wait for.
+async fn sleep_or_never(d: Option<Duration>) {
+    match d {
+        Some(d) => tokio::time::sleep(d).await,
+        None => std::future::pending().await,
+    }
 }
 
 /// What the agent holds, or will once it reads what was sent.
@@ -112,6 +135,7 @@ impl Downlink {
     pub(super) async fn run(self) {
         let mut base = Base::Said(self.held.clone());
         let mut ended = self.ended.clone();
+        let mut retry: Option<Duration> = None;
         loop {
             if !self.sessions.is_current(self.node, self.id) {
                 return;
@@ -129,11 +153,15 @@ impl Downlink {
                 }
                 continue;
             }
-            if !self.pass(&mut base).await {
-                return;
-            }
+            let again = match self.pass(&mut base).await {
+                Pass::Done => None,
+                Pass::Failed => Some(retry.take().map_or(RETRY_FIRST, |r| (r * 2).min(RETRY_MOST))),
+                Pass::Gone => return,
+            };
+            retry = again;
             tokio::select! {
                 () = self.wake.notified() => {}
+                () = sleep_or_never(retry) => {}
                 () = self.tx.closed() => return,
                 _ = ended.wait_for(|e| *e) => return,
             }
@@ -170,27 +198,29 @@ impl Downlink {
         }
     }
 
-    /// One recomputation; false once the session's stream is gone.
-    async fn pass(&self, base: &mut Base) -> bool {
+    /// One recomputation.
+    async fn pass(&self, base: &mut Base) -> Pass {
         // Boxed: computing a node's set is a large future, held across every assignment.
         let computed = match Box::pin(self.app.sync_assignments(self.node)).await {
             Ok(s) => s,
             Err(e) => {
-                // Retried on the next wake: every change and every resync wakes it.
+                // Tried again after a while, not only at the next change: one that failed while
+                // every node's pass waited for a connection would otherwise wait for a change
+                // that may not come.
                 tracing::warn!(node = %self.node, error = %e, "assignment set failed");
-                return true;
+                return Pass::Failed;
             }
         };
         if self.sessions.take_resync(self.node, self.id) {
             *base = Base::Unknown;
         }
-        let Some(message) = self.told(base, &computed) else { return true };
+        let Some(message) = self.told(base, &computed) else { return Pass::Done };
         if self.tx.send(message).await.is_err() {
-            return false;
+            return Pass::Gone;
         }
         let now = sent(&computed);
         self.sessions.remember(self.node, now.clone());
         *base = Base::Sent(now);
-        true
+        Pass::Done
     }
 }
