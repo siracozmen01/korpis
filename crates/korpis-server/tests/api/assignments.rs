@@ -48,9 +48,20 @@ async fn stopped_set(a: &TestAgent, s: &mut Stream) -> (agent::AssignmentSet, ag
 }
 
 pub async fn connect(h: &Harness, a: &TestAgent, n: u8, held: &str) -> Stream {
+    connect_with(h, a, (n, held), false).await
+}
+
+/// As [`connect`], saying whether the agent takes deltas.
+pub async fn connect_with(
+    h: &Harness,
+    a: &TestAgent,
+    (n, held): (u8, &str),
+    deltas: bool,
+) -> Stream {
     let mut hello = a.hello_at(SystemTime::now(), &[n; 16]);
     if let Some(Up::Hello(x)) = hello.message.as_mut() {
         held.clone_into(&mut x.set_digest);
+        x.takes_deltas = deltas;
     }
     let (mut stream, first) = TestAgent::open(h, hello).await;
     welcome(&first.unwrap());
