@@ -71,6 +71,11 @@ struct Cli {
     /// host's processes are kept off its cores too; `shared`: only other tenants are.
     #[arg(long, default_value = "kept", value_parser = ["kept", "shared"])]
     dedicated_cores_host: String,
+    /// Whose containers it keeps, where several nodes on one machine share containerd's `korpis`
+    /// namespace: the node's name. It then names, lists and reads that node's containers alone;
+    /// left out, it keeps the namespace's unowned containers, as the one node on a machine does.
+    #[arg(long, default_value = "")]
+    owner: String,
 }
 
 /// The stream writer: the one named, or the one beside this binary; it must be there, since a
@@ -102,6 +107,7 @@ async fn run(cli: Cli) -> Result<(), String> {
         .map_err(|e| format!("containerd at {}: {e}", cli.containerd.display()))?
         .with_streams(streams)
         .with_state(&cli.containerd_state)
+        .with_owner(&cli.owner)
         .with_cores(Cores {
             system: PathBuf::from("/sys/devices/system"),
             root: PathBuf::from(CGROUP_ROOT),
