@@ -46,7 +46,9 @@ impl Containerd {
         match self.containers_client().get(request).await {
             Ok(r) => {
                 let container = r.into_owned().container.into_option().unwrap_or_default();
-                Ok(Some(container.labels.into_iter().collect()))
+                let labels: BTreeMap<String, String> = container.labels.into_iter().collect();
+                // Another node's container sharing the namespace is none of this one's.
+                Ok(self.keeps(&labels).then_some(labels))
             }
             Err(e) if e.code == connectrpc::ErrorCode::NotFound => Ok(None),
             Err(e) => Err(e.into()),

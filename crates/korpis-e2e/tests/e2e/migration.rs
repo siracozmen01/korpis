@@ -5,12 +5,13 @@
 //! by its tree. A sleeper holding a dedicated address of a cluster pool, routed by the test
 //! extension's router, runs on the first with a volume holding a symbolic link, an extended
 //! attribute, a sparse file and two names of one file. Moved to the second through every phase on
-//! the nodes' own reports, it runs there over a volume holding each of them as it was, its address
-//! routed and translated there and no longer on the first, its console's next record at the offset
-//! after the first's last, and its meter's records of the two nodes neither overlapping nor
-//! leaving its stay on either uncounted. Moved back and rolled back after the cutover, it runs on
-//! the second again with what it held. Needs root, containerd, rsync and the kernel's WireGuard;
-//! skipped without them.
+//! the nodes' own reports, it runs there, in the network namespace that node made rather than as
+//! the first's object, the two sharing containerd's namespace, over a volume holding each of them
+//! as it was, its address routed and translated there and no longer on the first, its console's
+//! next record at the offset after the first's last, and its meter's records of the two nodes
+//! neither overlapping nor leaving its stay on either uncounted. Moved back and rolled back after
+//! the cutover, it runs on the second again with what it held. Needs root, containerd, rsync and
+//! the kernel's WireGuard; skipped without them.
 
 use crate::extension::{install, pinged_as};
 use crate::image::{TEST_EXTENSION, push_image};
@@ -81,6 +82,21 @@ fn translates(ns: &Netns, address: &str) -> bool {
         .output()
         .unwrap();
     String::from_utf8_lossy(&out.stdout).contains(address)
+}
+
+/// Whether a task of `w` runs in the network namespace `node` made for it: the node's own object,
+/// not one another node sharing containerd's namespace made.
+fn runs_in(node: &Node, w: &str) -> bool {
+    let Ok(made) = std::fs::metadata(node.netns.join(w).join("net")) else { return false };
+    let ctr = |args: &[&str]| std::process::Command::new("ctr").args(args).output().unwrap();
+    let filter = format!("labels.\"korpis.workload\"=={w}");
+    let ids = ctr(&["-n", "korpis", "containers", "ls", "-q", &filter]).stdout;
+    let tasks = String::from_utf8_lossy(&ctr(&["-n", "korpis", "tasks", "ls"]).stdout).into_owned();
+    String::from_utf8_lossy(&ids).lines().any(|id| {
+        let pid = tasks.lines().find_map(|l| l.strip_prefix(id)?.split_whitespace().next());
+        let net = pid.and_then(|p| std::fs::metadata(format!("/proc/{p}/ns/net")).ok());
+        net.is_some_and(|n| n.ino() == made.ino() && n.dev() == made.dev())
+    })
 }
 
 /// The directory of `node`'s volume of `w` named `name`, once it has one.
@@ -296,6 +312,7 @@ async fn moved(
     let moved_to = there.state.load().unwrap().node;
     move_to(cp, db, &moved_to, Duration::from_secs(5)).await;
     runs_on(cp, db, &moved_to).await;
+    assert!(runs_in(there, db), "its task runs in the namespace the node it moved to made");
     holds(&volume_of(there, db, "data").await);
     assert!(translates(there_net, address), "routed and translated where it moved");
     assert!(!translates(here_net, address), "and no longer where it was");

@@ -121,7 +121,8 @@ korpis() { "$BIN/korpis" --plain-http "$REGISTRY" "$@"; }
 
 # Enrolls this machine as node $1 and starts its helper and driver, as their units would: their
 # volumes under $2 ($NODE/volumes unless given), which is $VOLUMES after it, their workloads'
-# networks bound under $NODE/netns, and the helper's jobs in a cgroup of the node's own beneath
+# networks bound under $NODE/netns, the driver keeping node $1's containers alone in containerd's
+# namespace the nodes share, and the helper's jobs in a cgroup of the node's own beneath
 # $CGROUPS, this run's, which delegates the controllers a job is limited by. Called once per node,
 # it enrolls this one machine as several, each in a directory of its own, $NODE for the one enrolled
 # last, and each given ports and an IPv4 pool no other node of the run uses, $PORTS and $POOL, for
@@ -154,7 +155,7 @@ enroll() {
     start "$1-driver" "$BIN/korpis-driver-oci" --socket "$NODE/driver.sock" \
         --content "$NODE/agent/content" --volume-root "$VOLUMES" \
         --identity-root "$NODE/agent/identity" --netns-root "$NODE/netns" \
-        --state-dir "$NODE/driver"
+        --state-dir "$NODE/driver" --owner "$1"
     until_ok 10 test -S "$NODE/helper.sock"
     until_ok 10 test -S "$NODE/driver.sock"
 }
