@@ -89,17 +89,23 @@ async fn forget(h: &Harness, workload: Uuid, (kept, lost): (Uuid, Uuid), gone: &
     .fetch_all(&mut c)
     .await
     .unwrap();
+    // The control plane still serves the node, and the foreign keys are off here: each of `gone`
+    // goes in one transaction, before what references it, so a pass giving a gone workload its id
+    // slot again waits on that delete and then fails on the key, rather than leaving a slot no
+    // workload holds, which the workload's recovery then finds already held.
+    let mut tx = c.begin().await.unwrap();
     for id in gone {
+        for table in ["workload", "project"] {
+            let delete = format!("DELETE FROM {table} WHERE id = $1");
+            sqlx::query(sqlx::AssertSqlSafe(delete)).bind(id).execute(&mut *tx).await.unwrap();
+        }
         for (table, column) in &referencing {
             // Names from the catalog, never from input.
             let delete = format!("DELETE FROM {table} WHERE {column} = $1");
-            sqlx::query(sqlx::AssertSqlSafe(delete)).bind(id).execute(&mut c).await.unwrap();
-        }
-        for table in ["workload", "project"] {
-            let delete = format!("DELETE FROM {table} WHERE id = $1");
-            sqlx::query(sqlx::AssertSqlSafe(delete)).bind(id).execute(&mut c).await.unwrap();
+            sqlx::query(sqlx::AssertSqlSafe(delete)).bind(id).execute(&mut *tx).await.unwrap();
         }
     }
+    tx.commit().await.unwrap();
 }
 
 pub async fn effects(h: &Harness, action: &str, at_least: usize) -> usize {

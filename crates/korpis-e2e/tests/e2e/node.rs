@@ -135,17 +135,18 @@ pub fn built(package: &str, bin: &str) -> PathBuf {
 /// The oci driver, serving on `socket` for the rest of the test; it mounts identity sockets
 /// from the agent's default root, `identity` in its state directory, writes consoles with the
 /// stream writer, keeping its own state in `driver` beside the agent's, and reads devices from
-/// the spec files in `cdi`.
+/// the spec files in `cdi`; it keeps the containers of node `owner` alone, as the nodes of a test
+/// share containerd's namespace.
 async fn driver(
     socket: &Path,
     state: &StateDir,
     ((volumes, extra), netns, cdi): ((&Path, Option<&Storage>), &Path, &Path),
-    cores: Cores,
+    (cores, owner): (Cores, &str),
 ) {
     let content = state.root().join("content");
     let streams = Streams { writer: writer(), state: state.root().with_file_name("driver") };
     let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
-    let containerd = containerd.with_streams(streams).with_cores(cores);
+    let containerd = containerd.with_streams(streams).with_cores(cores).with_owner(owner);
     let listener = korpis_driver_kit::serve::bind(socket).unwrap();
     let identity_root = state.root().join("identity");
     let policy = Policy {
@@ -229,7 +230,7 @@ impl Node {
         std::fs::create_dir(&cdi).unwrap();
         let containers = cores.root.join(cores.parent.trim_start_matches('/'));
         let roots = (volumes.as_path(), shared.as_ref());
-        driver(&driver_socket, &state, (roots, &netns, &cdi), cores).await;
+        driver(&driver_socket, &state, (roots, &netns, &cdi), (cores, name)).await;
         Self {
             dir,
             state,

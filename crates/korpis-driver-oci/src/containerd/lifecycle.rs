@@ -30,6 +30,8 @@ const LABEL_GENERATION: &str = "korpis.assignment_generation";
 const LABEL_CYCLE: &str = "korpis.power_cycle";
 const LABEL_EPOCH: &str = "korpis.lease_epoch";
 pub(crate) const LABEL_RUN: &str = "korpis.run";
+/// Whose container it is, where several nodes share the namespace.
+pub(crate) const LABEL_OWNER: &str = "korpis.owner";
 /// The CPUs of the dedicated cores a container was made holding, so one is never handed back for
 /// other cores.
 pub(crate) const LABEL_CPUS: &str = "korpis.cpus";
@@ -140,7 +142,7 @@ impl Containerd {
     pub async fn create(&self, valid: &Valid, policy: &Policy) -> DriverResult<String> {
         let s = valid.spec();
         let run = s.labels.as_option().map(|l| l.run.as_str()).unwrap_or_default();
-        let id = container_id(&s.workload, &s.intent, run);
+        let id = container_id(&self.owner, &s.workload, &s.intent, run);
         // Read now, before anything is made or kept, so a core the machine does not have refuses,
         // and a container already made holding other CPUs is never handed back for these.
         let cpuset = self.cores.given(&s.cores).map_err(DriverError::Rejected)?;
@@ -204,6 +206,9 @@ impl Containerd {
         let json = serde_json::to_vec(&spec).map_err(|e| DriverError::Failed(e.to_string()))?;
         let mut labels = labels(valid);
         labels.extend(super::stream::labels(valid));
+        if !self.owner.is_empty() {
+            labels.insert(LABEL_OWNER.to_owned(), self.owner.clone());
+        }
         let cpus = cpuset.map(|c| c.cpus.clone()).unwrap_or_default();
         labels.insert(LABEL_CPUS.to_owned(), cpus);
         let container = containers::Container {
@@ -331,12 +336,16 @@ impl Containerd {
         held
     }
 
-    /// Every container in the namespace, with its labels.
+    /// Every container in the namespace it keeps, with its labels.
     pub(crate) async fn list(&self) -> DriverResult<Vec<containers::Container>> {
         let request = containers::ListContainersRequest {
             filters: vec![format!("labels.\"{LABEL_WORKLOAD}\"")],
             ..Default::default()
         };
-        Ok(self.containers().list(request).await?.into_owned().containers)
+        let all = self.containers().list(request).await?.into_owned().containers;
+        let keeps = |c: &containers::Container| {
+            self.keeps(&c.labels.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        };
+        Ok(all.into_iter().filter(keeps).collect())
     }
 }

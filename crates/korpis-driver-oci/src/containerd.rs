@@ -25,6 +25,7 @@ use crate::error::{DriverError, DriverResult};
 use connectrpc::Protocol;
 use connectrpc::client::{CallOptions, ClientConfig, Http2Connection, SharedHttp2Connection};
 use korpis_containerd::containerd::services as svc;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -52,7 +53,7 @@ pub struct Containerd {
     /// held there.
     cores: korpis_driver_kit::cores::Cores,
     /// What cgroup statistics were last read, to measure CPU as a rate.
-    samples: std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<String, inspect::Sample>>>,
+    samples: std::sync::Arc<std::sync::Mutex<BTreeMap<String, inspect::Sample>>>,
     /// The stream writer and the driver's state, once configured; a container with a stream is
     /// refused without them.
     streams: Option<stream::Streams>,
@@ -60,6 +61,9 @@ pub struct Containerd {
     socket: PathBuf,
     /// containerd's state directory, where its runtime keeps each task's bundle.
     state: PathBuf,
+    /// Whose containers it keeps, where several nodes share the namespace; empty for a node
+    /// alone in it.
+    owner: String,
 }
 
 impl std::fmt::Debug for Containerd {
@@ -92,6 +96,7 @@ impl Containerd {
             streams: None,
             socket: socket.to_owned(),
             state: PathBuf::from(STATE),
+            owner: String::new(),
         };
         this.namespace().await?;
         Ok(this)
@@ -103,6 +108,19 @@ impl Containerd {
     pub fn with_state(mut self, state: &Path) -> Self {
         state.clone_into(&mut self.state);
         self
+    }
+
+    /// Keeps the containers of `owner` alone: it names, labels, lists and reads only those, so
+    /// nodes sharing containerd's namespace on one machine never take each other's.
+    #[must_use]
+    pub fn with_owner(mut self, owner: &str) -> Self {
+        owner.clone_into(&mut self.owner);
+        self
+    }
+
+    /// Whether the container labelled `labels` is one it keeps.
+    pub(crate) fn keeps(&self, labels: &BTreeMap<String, String>) -> bool {
+        labels.get(lifecycle::LABEL_OWNER).map_or("", String::as_str) == self.owner
     }
 
     /// Makes its cgroups and holds dedicated cores as `cores` says.
