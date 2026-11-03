@@ -10,16 +10,17 @@ yerleştirir, istediğin kadar güçlü izole eder, depolama ve ağ verir, beyan
 ve hem senin hem de yetki devrettiğin kişilerin bunu bir panelden, terminalden, sohbetten veya
 API'den işletmesine izin verir.
 
-> **Henüz yayımlanmadı.** Yapımın Phase 0, 1 ve 2'si `crates/` (Rust) ve `web/` (TypeScript)
+> **Henüz yayımlanmadı.** Yapımın Phase 0'dan 3'e kadarı `crates/` (Rust) ve `web/` (TypeScript)
 > altında tamamlandı: tek bir makinedeki tek bir operatör onu kurar, iş yüklerini çalıştırır,
 > yedekler ve geri yükler, panelden ya da CLI'dan dürüst bir konsol okur; gösterdiği her sınır
-> çekirdek tarafından uygulanır. Ve başkalarına barındırma yapar: organizasyonlar altlarındaki
+> çekirdek tarafından uygulanır. Başkalarına barındırma yapar: organizasyonlar altlarındaki
 > organizasyonlara devralınan kotayla yetki devreder, kişiler kendi kimlik sağlayıcılarıyla, onlar
-> için hiçbir hesap açılmadan oturum açar ve her kiracının kullandığı ölçülür.
-> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh), [`e2e-phase1.sh`](./scripts/e2e-phase1.sh) ve
-> [`e2e-phase2.sh`](./scripts/e2e-phase2.sh) bunu bir operatörün yapacağı gibi doğrular. Phase 3,
-> iş yüklerinin düğümler arasında taşınması ve bir konteynerden güçlü izolasyon, sürüyor; sırada ne
-> olduğunu [kilometre taşları](https://github.com/siracozmen01/korpis/milestones) söyler.
+> için hiçbir hesap açılmadan oturum açar ve her kiracının kullandığı ölçülür. Ve birçok düğüm
+> çalıştırır: bir iş yükü birimleri, genel adresi ve ölçümüyle birlikte düğümler arasında taşınır,
+> bir konteynerin yeterli izolasyon olmadığı yerde bir mikro VM'de çalışır.
+> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh)'den [`e2e-phase3.sh`](./scripts/e2e-phase3.sh)'e
+> kadarki betikler bunu bir operatörün yapacağı gibi doğrular; sırada ne olduğunu
+> [kilometre taşları](https://github.com/siracozmen01/korpis/milestones) söyler.
 
 ---
 
