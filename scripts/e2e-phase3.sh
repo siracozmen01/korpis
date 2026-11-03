@@ -274,7 +274,13 @@ PLAN=$(korpis --json workload move "$W" --to "${NODE_ID[$THERE]}")
 korpis plan approve "$(jq -r .id <<<"$PLAN")" >/dev/null
 MIGRATION=$(korpis --json migration get "$W" | jq -r '.[0].id')
 STARTED=$SECONDS
-until_ok 1800 runs_on "$THERE" || fail "it never ran on $THERE: $(korpis migration get "$W" \
+# Settled once it runs there, or once the migration ended without it, abandoned or rolled back.
+settled() {
+    runs_on "$THERE" || korpis --json migration get "$W" "$MIGRATION" \
+        | jq -e '(.outcome // "MIGRATION_OUTCOME_UNSPECIFIED") != "MIGRATION_OUTCOME_UNSPECIFIED"'
+}
+until_ok 1800 settled || fail "it never settled: $(korpis migration get "$W" "$MIGRATION")"
+runs_on "$THERE" >/dev/null || fail "it never ran on $THERE: $(korpis migration get "$W" \
     "$MIGRATION")"
 log "moved in $((SECONDS - STARTED)) s"
 korpis migration get "$W" "$MIGRATION" >&2
