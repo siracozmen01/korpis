@@ -287,7 +287,31 @@ korpis migration get "$W" "$MIGRATION" >&2
 
 log "the same address, now routed to and translated by the node it moved to"
 until_ok 60 follows "$THERE" || fail "the router never routed $ADDRESS to $THERE"
-until_ok 30 answers || fail "nothing answered at $ADDRESS after the move"
+# What a person debugging an unanswered address reads first: the client's route and request, what
+# each machine's ruleset says of the address, and what the workload says of itself.
+unanswered() {
+    in_ns "$C" ip route get "$ADDRESS" >&2
+    in_ns "$C" curl -sv --max-time 3 "http://$ADDRESS:9000/marker" >&2 || true
+    for m in a b; do
+        printf '%s:\n' "$m" >&2
+        in_ns "${NS_OF[$m]}" nft list ruleset | grep -F -B2 -A2 "$ADDRESS" >&2 || true
+        in_ns "${NS_OF[$m]}" ip -4 route >&2
+        in_ns "${NS_OF[$m]}" nft list table inet korpis | sed -n '/chain ded_/,/}/p' >&2
+        local net="${NODE_DIR[$m]}/netns/$W/net" id pid
+        if [ -e "$net" ]; then
+            printf 'its namespace on %s, %s:\n' "$m" "$(stat -L -c %i "$net")" >&2
+            nsenter "--net=$net" ip -4 -o addr >&2
+            nsenter "--net=$net" ss -ltn >&2
+        fi
+    done
+    for id in $(ctr -n korpis containers ls -q "labels.\"korpis.workload\"==$W"); do
+        pid=$(ctr -n korpis tasks ls | awk -v id="$id" '$1 == id {print $2}')
+        printf 'task %s pid %s %s\n' "$id" "$pid" "$(readlink "/proc/$pid/ns/net")" >&2
+    done
+    korpis status "$W" >&2
+    korpis logs "$W" --tail 20 >&2 || true
+}
+until_ok 30 answers || { unanswered; fail "nothing answered at $ADDRESS after the move"; }
 [ "$(korpis --json status "$W" | jq -r .dedicated.address)" = "$ADDRESS" ] \
     || fail "the address changed: $(korpis status "$W")"
 translates "$THERE" || fail "$THERE does not translate $ADDRESS"
