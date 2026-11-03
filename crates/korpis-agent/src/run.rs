@@ -243,11 +243,12 @@ fn meter<R: Runtime + Clone, H: Host + Clone>(
     runtime: R,
     (host, link, journal): (&H, &Link, &JournalHandle),
     options: &Options,
+    leases: &Leases,
 ) -> Result<crate::meter::Started<R, H>, RunError> {
     let told = (host.clone(), link.held.clone(), link.metering.clone(), journal.clone());
     // The node's devices, which the meter counts a placement's by class with.
     let devices = options.devices.clone().or_else(|| options.metering.devices.clone());
-    let metering = Metering { devices, ..options.metering.clone() };
+    let metering = Metering { devices, leases: Some(leases.clone()), ..options.metering.clone() };
     crate::meter::start(state.root(), runtime, told, metering)
         .map_err(|source| RunError::Io { what: "the meter", source })
 }
@@ -270,7 +271,9 @@ impl Agent {
         let (ingress_facts, driver_kinds, offered) = declared(&*facts);
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
         let replication = replication((state, &data, &options), &host, (&link, &journal));
-        let (runtime, sampler) = meter(state, runtime, (&host, &link, &journal), &options)?;
+        let leases = Leases::new(journal.clone());
+        let (runtime, sampler) =
+            meter(state, runtime, (&host, &link, &journal), &options, &leases)?;
         let (ingress, proxy) =
             ingress(state, &host, (ingress_facts, options.ingress), (network.is_some(), &link));
         let answerer = crate::feasibility::answerer(runtime.clone());
@@ -283,7 +286,6 @@ impl Agent {
             file_sessions(handlers, (&host, &runtime), held, (&journal, &link.jobs, &reading));
         let sockets = identity_sockets(state, options.identity_root, &link.credentials, &data);
         let data = data_link(data, &link, handlers);
-        let leases = Leases::new(journal.clone());
         let keeper =
             Keeper::new(leases.clone(), link.held.clone(), link.inbound, link.outbound.clone());
         let wiring = Wiring {

@@ -9,6 +9,7 @@ use super::{Meter, READ_EVERY, reading};
 use crate::held::HeldSet;
 use crate::host::Host;
 use crate::journal::JournalHandle;
+use crate::lease::{Leases, Standing};
 use crate::reconcile::act::volume_id;
 use crate::runtime::{Runtime, RuntimeError};
 use korpis_core::workload::network::host_link;
@@ -46,6 +47,20 @@ pub struct Sources<R, H> {
     /// The node's devices, which say the class of each device a placement holds; none where it
     /// offers none.
     pub devices: Option<crate::devices::Devices>,
+    /// The node's leases: a destination holds the lease from the cutover, before the assignment
+    /// that names its epoch arrives, and what it runs meanwhile is metered under that epoch.
+    pub leases: Option<crate::lease::Leases>,
+}
+
+/// The epoch a sample of `workload`, assigned as `a`, is taken under: the lease the node holds for
+/// it, or held until it expired, where that is past the assignment's.
+fn epoch_of(a: Option<&agent::Assignment>, leases: Option<&Leases>, workload: &str) -> u64 {
+    let assigned = a.map_or(0, |a| a.lease_epoch);
+    let held = match leases.map(|l| l.standing(workload)) {
+        Some(Standing::Held { epoch } | Standing::Expired { epoch, .. }) => epoch,
+        _ => 0,
+    };
+    assigned.max(held)
 }
 
 /// The meter's reading and sampling.
@@ -275,7 +290,7 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
                 workload: workload.clone(),
                 interval_start: book::at(start).into(),
                 interval: korpis_wire::duration(span).into(),
-                lease_epoch: a.map_or(0, |a| a.lease_epoch),
+                lease_epoch: epoch_of(a, self.sources.leases.as_ref(), &workload),
                 counters: closed.counters.into(),
                 memory_peak_bytes: closed.peak,
                 disk_bytes: disk,
