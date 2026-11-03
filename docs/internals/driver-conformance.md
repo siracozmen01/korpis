@@ -135,6 +135,8 @@ the end-to-end test `crates/korpis-e2e/tests/e2e/conformance.rs` writes.
 | disk | not applicable: the helper holds it per volume | pass |
 | resize while running | not applicable | not applicable |
 | `Exec` (3) | pass | pass |
+| `Exec` refused where not declared | not applicable: declares `exec` | not applicable: declares `exec` |
+| dedicated cores (2) | pass | pass |
 | isolation | not tested | not tested |
 
 ## What the second driver changed
