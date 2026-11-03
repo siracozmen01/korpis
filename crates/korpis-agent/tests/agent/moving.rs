@@ -5,7 +5,8 @@
 //! stops the workload and reports `quiesce` once it has; both report `verify`, the destination
 //! having prepared again; the source releases its lease, and the destination, granted the next,
 //! makes and starts the workload and reports it running; once the hold ends the source deletes
-//! what it kept. Abandoned while the source stops, the workload runs where it was again.
+//! what it kept. Abandoned while the source stops, the workload runs where it was again. Rolled
+//! back after the cutover, it stops where it moved, whose lease is released, and runs where it was.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation};
@@ -169,4 +170,38 @@ async fn a_migration_abandoned_while_its_source_stops_leaves_it_running_where_it
     cp.announced(|| async { (object_of(&here, &w).0 && running(&cp, &w).await).then_some(()) })
         .await;
     assert_eq!(object_of(&there, &w), (false, false));
+}
+
+#[tokio::test]
+async fn a_workload_rolled_back_after_its_cutover_stops_where_it_moved_and_runs_where_it_was() {
+    let cp = ControlPlane::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (here, there) = (InMemory::default(), InMemory::default());
+    let _source = node(&cp, &dir, "fra-1", &here).await;
+    let project = cp.project().await;
+    let w = cp.declare(&project, "db").await;
+    cp.announced(|| async { running(&cp, &w).await.then_some(()) }).await;
+    let _destination = node(&cp, &dir, "fra-2", &there).await;
+    // Its game endpoint is stable, which a node serves only once it is found reachable.
+    cp.measured().await;
+
+    let id = moved(&cp, &w, "fra-2").await;
+    let release = Some(pb::MigrationPhase::MIGRATION_PHASE_RELEASE);
+    migration_once(&cp, &w, |m| m.phase.as_known() == release).await;
+    assert_eq!(object_of(&there, &w), (true, true), "it runs there");
+
+    let back = pb::RollbackMigrationRequest {
+        mutation: mutation("back").into(),
+        migration: id,
+        reason: "returned".into(),
+        ..Default::default()
+    };
+    cp.workloads().rollback_migration(back).await.unwrap();
+    // The source is granted the next epoch only once the destination released its own.
+    cp.announced(|| async {
+        let moved_back = object_of(&here, &w).0 && !object_of(&there, &w).0;
+        (moved_back && running(&cp, &w).await).then_some(())
+    })
+    .await;
+    assert_eq!(object_of(&there, &w), (false, true), "stopped where it moved, its object kept");
 }
