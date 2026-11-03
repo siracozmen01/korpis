@@ -43,6 +43,7 @@ mod microvm_files;
 mod microvm_heartbeat;
 mod microvm_install;
 mod microvm_restore;
+mod migration;
 mod named;
 mod network;
 mod nightly;

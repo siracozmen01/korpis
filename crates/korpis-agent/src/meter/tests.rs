@@ -19,6 +19,7 @@ struct Node {
     meter: Arc<Meter>,
     sampler: Sampler<Metered<InMemory>, InMemoryHost>,
     journal: JournalHandle,
+    assigned: tokio::sync::watch::Sender<HeldSet>,
 }
 
 fn assignment(workload: &str, epoch: u64) -> agent::Assignment {
@@ -41,21 +42,33 @@ fn assignment(workload: &str, epoch: u64) -> agent::Assignment {
 }
 
 fn node(workload: &str) -> Node {
+    node_with(assignment(workload, 3))
+}
+
+fn node_with(a: agent::Assignment) -> Node {
     let dir = tempfile::tempdir().unwrap();
     let meter = Arc::new(Meter::open(&dir.path().join("meter"), None).unwrap());
     let inner = InMemory::new();
     let runtime = Metered::new(inner.clone(), meter.clone());
     let host = InMemoryHost::new();
     let mut held = HeldSet::default();
-    held.assignments.insert(workload.into(), assignment(workload, 3));
-    let (_, held) = tokio::sync::watch::channel(held);
+    held.assignments.insert(a.workload.clone(), a);
+    let (assigned, held) = tokio::sync::watch::channel(held);
     let journal = JournalHandle::open(&dir.path().join("journal"), Bounds::default()).unwrap();
     let net = dir.path().join("net");
     let told = tokio::sync::watch::channel(None).1;
     let (devices, runtime_read) = (None, runtime.clone());
-    let sources = Sources { runtime: runtime_read, host: host.clone(), held, net, told, devices };
+    let sources = Sources {
+        runtime: runtime_read,
+        host: host.clone(),
+        held,
+        net,
+        told,
+        devices,
+        leases: None,
+    };
     let sampler = Sampler::new(meter.clone(), sources, journal.clone(), DEFAULT_INTERVAL);
-    Node { dir, runtime, inner, host, meter, sampler, journal }
+    Node { dir, runtime, inner, host, meter, sampler, journal, assigned }
 }
 
 fn cpu(usec: u64, memory: u64) -> driver::ObjectCounters {
@@ -179,4 +192,30 @@ async fn a_sample_carries_what_the_hosts_table_counted_of_the_workloads_link() {
     let game = &c.endpoints[0];
     assert_eq!(game.endpoint, "game", "named as the workload declares it");
     assert_eq!((game.received_bytes, game.sent_bytes, game.received_packets), (1_200, 4_800, 4));
+}
+
+#[tokio::test]
+async fn a_destination_holding_no_lease_meters_nothing_of_what_it_prepares() {
+    let role = agent::MigrationRole {
+        role: agent::MigrationSide::MIGRATION_SIDE_DESTINATION.into(),
+        ..Default::default()
+    };
+    let standby =
+        agent::Assignment { migration: role.into(), cores: vec![2, 3], ..assignment("wl_1", 0) };
+    let n = node_with(standby);
+    n.sampler.read(t(0)).await;
+    n.sampler.read(t(30)).await;
+    n.sampler.sample(t(0), DEFAULT_INTERVAL).await;
+    assert!(samples(&n.journal).await.is_empty(), "its first sample is under the next epoch");
+    // Moved here, it holds the cores under the next epoch, and only that is counted.
+    let mut moved = HeldSet::default();
+    moved
+        .assignments
+        .insert("wl_1".into(), agent::Assignment { cores: vec![2, 3], ..assignment("wl_1", 4) });
+    n.assigned.send_replace(moved);
+    n.sampler.read(t(40)).await;
+    n.sampler.sample(t(0), DEFAULT_INTERVAL).await;
+    let s = samples(&n.journal).await;
+    let held = s[0].counters.as_option().unwrap().dedicated_core_seconds;
+    assert_eq!((s[0].lease_epoch, held), (4, Some(20)), "two cores for ten seconds, no more");
 }

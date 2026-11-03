@@ -3,8 +3,8 @@
 //! A container's life in containerd. `create` imports and unpacks the image under a lease,
 //! prepares the container's own snapshot remapped onto the workload's id range, and records the
 //! container with its runtime spec and the labels adoption matches it by; nothing runs. `start`
-//! runs a task on it, replacing one that exited; `stop` signals, waits out the grace, and kills;
-//! `destroy` releases everything the container holds. Volumes are never touched here.
+//! runs a task on it, replacing one that exited; `destroy` releases everything the container holds.
+//! Volumes are never touched here.
 
 use super::names::{container_id, is_container_id};
 use super::{Containerd, NAMESPACE, RUNTIME, SNAPSHOTTER, under};
@@ -19,7 +19,7 @@ use korpis_containerd::containerd::services::tasks::v1 as tasks;
 use korpis_containerd::containerd::v1::types::{Process, Status};
 use korpis_driver_kit::cores::Cpuset;
 use std::collections::BTreeMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// The type containerd stores a runtime spec under.
 const SPEC_TYPE: &str = "types.containerd.io/opencontainers/runtime-spec/1/Spec";
@@ -245,7 +245,7 @@ impl Containerd {
         }
     }
 
-    async fn delete_task(&self, id: &str) -> DriverResult<()> {
+    pub(crate) async fn delete_task(&self, id: &str) -> DriverResult<()> {
         let request =
             tasks::DeleteTaskRequest { container_id: id.to_owned(), ..Default::default() };
         match self.tasks().delete(request).await {
@@ -294,70 +294,13 @@ impl Containerd {
         Ok(())
     }
 
-    /// Sends `signal` to every process of `id`.
-    pub async fn signal(&self, id: &str, signal: u32) -> DriverResult<()> {
-        self.held(id).await?;
-        self.signal_task(id, signal).await
-    }
-
     /// That the driver holds the container `id`: every verb naming one it does not is answered
     /// `NotFound`.
-    async fn held(&self, id: &str) -> DriverResult<()> {
+    pub(crate) async fn held(&self, id: &str) -> DriverResult<()> {
         if self.container_exists(id).await? {
             Ok(())
         } else {
             Err(DriverError::NotFound(id.to_owned()))
-        }
-    }
-
-    /// Sends the task on `id`, if there is one, `signal`.
-    async fn signal_task(&self, id: &str, signal: u32) -> DriverResult<()> {
-        let request = tasks::KillRequest {
-            container_id: id.to_owned(),
-            signal,
-            all: true,
-            ..Default::default()
-        };
-        match self.tasks().kill(request).await {
-            Ok(_) => Ok(()),
-            Err(e) if e.code == connectrpc::ErrorCode::NotFound => Ok(()),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    /// Waits up to `wait` for the task on `id` to stop; whether it did.
-    async fn stopped_within(&self, id: &str, wait: Duration) -> DriverResult<bool> {
-        let until = Instant::now() + wait;
-        loop {
-            match self.task(id).await? {
-                None | Some((Status::STOPPED, _, _)) => return Ok(true),
-                Some(_) if Instant::now() >= until => return Ok(false),
-                Some(_) => tokio::time::sleep(Duration::from_millis(100)).await,
-            }
-        }
-    }
-
-    /// Stops `id` with `signal`, killing it if it outlives `grace`.
-    pub async fn stop(&self, id: &str, signal: u32, grace: Duration) -> DriverResult<()> {
-        self.held(id).await?;
-        if !matches!(self.task(id).await?, Some((Status::RUNNING | Status::PAUSED, _, _))) {
-            return Ok(());
-        }
-        self.signal_task(id, signal).await?;
-        if self.stopped_within(id, grace).await? {
-            return Ok(());
-        }
-        self.kill(id).await
-    }
-
-    /// Kills `id` at once.
-    pub async fn kill(&self, id: &str) -> DriverResult<()> {
-        self.held(id).await?;
-        self.signal_task(id, 9).await?;
-        if self.stopped_within(id, KILL_WAIT).await? {
-            Ok(())
-        } else {
-            Err(DriverError::Failed(format!("{id} outlived SIGKILL for {KILL_WAIT:?}")))
         }
     }
 
@@ -367,7 +310,7 @@ impl Containerd {
     pub async fn destroy(&self, id: &str) -> DriverResult<()> {
         let held = self.held(id).await;
         if held.is_ok() {
-            self.kill(id).await?;
+            self.killed(id).await?;
             self.delete_task(id).await?;
             let request =
                 containers::DeleteContainerRequest { id: id.to_owned(), ..Default::default() };

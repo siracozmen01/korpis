@@ -9,6 +9,7 @@ use super::{Meter, READ_EVERY, reading};
 use crate::held::HeldSet;
 use crate::host::Host;
 use crate::journal::JournalHandle;
+use crate::lease::Leases;
 use crate::reconcile::act::volume_id;
 use crate::runtime::{Runtime, RuntimeError};
 use korpis_core::workload::network::host_link;
@@ -46,6 +47,24 @@ pub struct Sources<R, H> {
     /// The node's devices, which say the class of each device a placement holds; none where it
     /// offers none.
     pub devices: Option<crate::devices::Devices>,
+    /// The node's leases: a destination holds the lease from the cutover, before the assignment
+    /// that names its epoch arrives, and what it runs meanwhile is metered under that epoch.
+    pub leases: Option<crate::lease::Leases>,
+}
+
+/// The epoch a sample of `workload`, assigned as `a`, is taken under: the lease the node last
+/// acted under for it (held, held until it expired, or released at a migration's cutover with the
+/// source's assignment still held), where that is past the assignment's. None for a migration's
+/// destination that holds no lease yet, which meters nothing of what it prepares: its first sample,
+/// once it holds the next epoch, counts from nothing.
+fn epoch_of(a: Option<&agent::Assignment>, leases: Option<&Leases>, workload: &str) -> Option<u64> {
+    let assigned = a.map_or(0, |a| a.lease_epoch);
+    let held = leases.and_then(|l| l.last_epoch(workload));
+    let side = a.and_then(|a| a.migration.as_option()).and_then(|m| m.role.as_known());
+    if side == Some(agent::MigrationSide::MIGRATION_SIDE_DESTINATION) && held.is_none() {
+        return None;
+    }
+    Some(assigned.max(held.unwrap_or(0)))
 }
 
 /// The meter's reading and sampling.
@@ -177,7 +196,8 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
 
     /// Integrates what each held workload's placement holds on the node over `integrated`: its
     /// dedicated cores, and its devices by class, as the node's catalog says each is. A device
-    /// the node no longer describes has no class to count it under, and is not counted.
+    /// the node no longer describes has no class to count it under, and is not counted; nor is
+    /// what a migration's destination holds before it holds the lease.
     fn read_held(&self, integrated: Duration) {
         let catalog = self.sources.devices.as_ref().map(|d| Arc::clone(&d.borrow()));
         let held: Vec<Holding> = {
@@ -185,7 +205,13 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
             let cores = |a: &agent::Assignment| u64::try_from(a.cores.len()).unwrap_or(0);
             let devices =
                 |a: &agent::Assignment| crate::devices::classes(catalog.as_deref(), &a.devices);
-            held.assignments.iter().map(|(w, a)| (w.clone(), cores(a), devices(a))).collect()
+            let leases = self.sources.leases.as_ref();
+            // A destination holding no lease holds them for a move not yet made, unbilled.
+            let billed = |(w, a): &(&String, &agent::Assignment)| {
+                epoch_of(Some(a), leases, w.as_str()).is_some()
+            };
+            let each = held.assignments.iter().filter(billed);
+            each.map(|(w, a)| (w.clone(), cores(a), devices(a))).collect()
         };
         self.meter.with_book(|b| {
             for (workload, cores, devices) in &held {
@@ -266,6 +292,9 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
         }
         for workload in workloads {
             let a = held.get(&workload);
+            let Some(lease_epoch) = epoch_of(a, self.sources.leases.as_ref(), &workload) else {
+                continue;
+            };
             let (disk, disk_allocated) = match a {
                 Some(a) => self.disk(a).await,
                 None => (None, false),
@@ -275,7 +304,7 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
                 workload: workload.clone(),
                 interval_start: book::at(start).into(),
                 interval: korpis_wire::duration(span).into(),
-                lease_epoch: a.map_or(0, |a| a.lease_epoch),
+                lease_epoch,
                 counters: closed.counters.into(),
                 memory_peak_bytes: closed.peak,
                 disk_bytes: disk,

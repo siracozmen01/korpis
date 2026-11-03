@@ -45,11 +45,15 @@ pub struct Metering {
     /// The node's devices, which say the class of each device a placement holds; none where it
     /// offers none.
     pub devices: Option<crate::devices::Devices>,
+    /// The node's leases, whose epoch a sample is taken under where it is past the assignment's;
+    /// none where the node keeps none.
+    pub leases: Option<crate::lease::Leases>,
 }
 
 impl Default for Metering {
     fn default() -> Self {
-        Self { interval: DEFAULT_INTERVAL, net: PathBuf::from("/sys/class/net"), devices: None }
+        let net = PathBuf::from("/sys/class/net");
+        Self { interval: DEFAULT_INTERVAL, net, devices: None, leases: None }
     }
 }
 
@@ -79,8 +83,8 @@ pub fn start<R: Runtime + Clone, H: Host>(
 ) -> std::io::Result<Started<R, H>> {
     let meter = Arc::new(Meter::open(&root.join("meter"), boot_time())?);
     let metered = Metered::new(runtime, meter.clone());
-    let (net, devices) = (options.net, options.devices);
-    let sources = Sources { runtime: metered.clone(), host, held, net, told, devices };
+    let (net, devices, leases) = (options.net, options.devices, options.leases);
+    let sources = Sources { runtime: metered.clone(), host, held, net, told, devices, leases };
     Ok((metered.clone(), Sampler::new(meter, sources, journal, options.interval)))
 }
 

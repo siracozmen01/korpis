@@ -78,7 +78,15 @@ container labels; the secret values it redacts are a file in the driver's own st
 driver's user alone, not labels anyone reading containerd's records would see. When the task is
 deleted the shim closes the pipes and sends the writer `SIGTERM`, killing it twelve seconds later,
 and the writer drains for at most three seconds, seals and exits, so a workload's last output is a
-sealed segment. A guest has no shim, so its driver starts the writer itself (see
+sealed segment. The shim holds the pipes' write ends until then (containerd's
+`cmd/containerd-shim-runc-v2/process/io.go`, `binaryIO.Close`), so a task that stopped but was kept
+leaves its last segment open. So the driver deletes a task once a `Stop` or `Kill` has stopped it,
+or a `Stop` finds it stopped, first recording its exit status and time in the container's label
+`korpis.ended`, which `Inspect` reads while the container has no task. The agent stops a workload by
+signal and then kill, so once what it halted has stopped it asks `Stop` of it, and at a migration's
+`quiesce` it asks again while the stream is open, for a workload that had exited by itself: a
+stopped workload's stream is complete, which `quiesce` waits for. A task that exits on its own is
+otherwise kept until the agent stops it or starts it again. A guest has no shim, so its driver starts the writer itself (see
 [guests](guests.md#consoles)).
 
 The stream's directory is a volume of its own, `<workload>.stream_console`, which the agent asks the

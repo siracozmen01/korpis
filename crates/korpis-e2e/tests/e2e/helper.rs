@@ -105,7 +105,9 @@ fn built(
     // test's own, which the node removes when it is dropped.
     let ingress =
         korpis_helper::ingress::IngressConfig { binary: proxy(), cgroups: Some(cgroups(state)) };
+    // The helper serves from a thread of this test, whose own binary is no relay.
     let mut h = korpis_helper::helper::Helper::new(classes, ledger)
+        .with_relay(built_binary("korpis-helper", "korpis-helper"))
         .with_jobs(jobs)
         .with_network(network)
         .with_ingress(korpis_helper::ingress::Ingress::new(ingress))

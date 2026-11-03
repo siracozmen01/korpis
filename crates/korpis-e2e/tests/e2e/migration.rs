@@ -1,0 +1,368 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! A workload moved between two real nodes, each with its data plane in a network namespace of the
+//! test's own, joined as two machines by a network, its volumes in a directory class that crosses
+//! by its tree. A sleeper holding a dedicated address of a cluster pool, routed by the test
+//! extension's router, runs on the first with a volume holding a symbolic link, an extended
+//! attribute, a sparse file and two names of one file. Moved to the second through every phase on
+//! the nodes' own reports, it runs there over a volume holding each of them as it was, its address
+//! routed and translated there and no longer on the first, its console's next record at the offset
+//! after the first's last, and its meter's records of the two nodes neither overlapping nor
+//! leaving its stay on either uncounted. Moved back and rolled back after the cutover, it runs on
+//! the second again with what it held. Needs root, containerd, rsync and the kernel's WireGuard;
+//! skipped without them.
+
+use crate::extension::{install, pinged_as};
+use crate::image::{TEST_EXTENSION, push_image};
+use crate::mesh::{Netns, machines, node_in, until_available};
+use crate::node::{Node, live};
+use crate::recipes::{VERSION, push, push_sleeper};
+use crate::support::{ControlPlane, mutation};
+use korpis_agent::run::Agent;
+use korpis_proto::korpis::v1 as pb;
+use korpis_stream::dir::StreamDir;
+use korpis_stream::read::read;
+use std::net::Ipv4Addr;
+use std::os::unix::fs::MetadataExt as _;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+/// The test extension as an address router named `test`.
+fn router(image: &str) -> String {
+    format!(
+        r#"apiVersion: korpis.dev/v1
+kind: Extension
+metadata: {{name: test-router, version: "{VERSION}", description: tests, license: Apache-2.0}}
+runtime:
+  targets:
+    - {{tier: container, arch: [amd64, arm64], image: "{image}"}}
+  entry:
+    command: [{entry}, --router]
+preset:
+  lifecycle: persistent
+  console: logs
+  resources:
+    memory: {{min: 32Mi, recommended: 64Mi}}
+    cpu: {{min: 50m, recommended: 100m}}
+extension:
+  api_version: korpis.extension.v1
+  requires: [provider.serve, provider.address_router]
+  provides:
+    - {{type: address_router, name: test}}
+"#,
+        entry = TEST_EXTENSION.entry(),
+    )
+}
+
+/// A cluster pool of the root organization routed by the router named `test`.
+async fn pool(cp: &ControlPlane) {
+    let pool = pb::AddressPool {
+        organization: cp.root_org.clone(),
+        cidr: "198.18.9.0/29".into(),
+        scope: pb::AddressPoolScope::ADDRESS_POOL_SCOPE_CLUSTER.into(),
+        router: "test".into(),
+        routing: pb::AddressRouting::ADDRESS_ROUTING_BGP.into(),
+        reserved: vec!["198.18.9.1".into()],
+        ..Default::default()
+    };
+    let r = pb::CreateAddressPoolRequest {
+        mutation: mutation("pool").into(),
+        pool: pool.into(),
+        ..Default::default()
+    };
+    let client = pb::AddressPoolServiceClient::new(cp.http(), cp.config());
+    client.create_address_pool(r).await.unwrap();
+}
+
+/// Whether the node in `ns` translates connections to `address`.
+fn translates(ns: &Netns, address: &str) -> bool {
+    let out = std::process::Command::new("ip")
+        .args(["netns", "exec", ns.name(), "nft", "list", "ruleset"])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout).contains(address)
+}
+
+/// The directory of `node`'s volume of `w` named `name`, once it has one.
+async fn volume_of(node: &Node, w: &str, name: &str) -> PathBuf {
+    let suffix = format!(".{name}");
+    for _ in 0..600 {
+        let found = std::fs::read_dir(&node.volumes).into_iter().flatten().flatten();
+        let mut found = found.map(|e| e.path()).filter(|p| {
+            let n = p.file_name().unwrap_or_default().to_string_lossy();
+            n.starts_with(w) && n.ends_with(&suffix)
+        });
+        if let Some(dir) = found.next() {
+            return dir;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("{} never held {w}'s {name}", node.volumes.display());
+}
+
+/// Gives the volume at `dir` a link, an attribute, a sparse file and a file of two names.
+fn written(dir: &Path) {
+    std::fs::write(dir.join("target"), "pointed at").unwrap();
+    std::os::unix::fs::symlink("target", dir.join("link")).unwrap();
+    std::fs::write(dir.join("attributed"), "x").unwrap();
+    xattr_set(&dir.join("attributed"), "user.korpis", b"kept");
+    let sparse = std::fs::File::create(dir.join("sparse")).unwrap();
+    sparse.set_len(256 << 20).unwrap();
+    std::os::unix::fs::FileExt::write_at(&sparse, b"middle", 128 << 20).unwrap();
+    std::fs::write(dir.join("one"), "both").unwrap();
+    std::fs::hard_link(dir.join("one"), dir.join("two")).unwrap();
+}
+
+fn xattr_set(path: &Path, name: &str, value: &[u8]) {
+    rustix::fs::setxattr(path, name, value, rustix::fs::XattrFlags::empty()).unwrap();
+}
+
+/// That the volume at `dir` holds what [`written`] gave it, as it was.
+fn holds(dir: &Path) {
+    let link = std::fs::read_link(dir.join("link")).expect("the link, as a link");
+    assert_eq!(link, Path::new("target"));
+    assert_eq!(std::fs::read_to_string(dir.join("link")).unwrap(), "pointed at");
+    let mut value = [0u8; 16];
+    let n = rustix::fs::getxattr(dir.join("attributed"), "user.korpis", &mut value).unwrap();
+    assert_eq!(&value[..n], b"kept", "the extended attribute");
+    let sparse = std::fs::metadata(dir.join("sparse")).unwrap();
+    assert_eq!(sparse.len(), 256 << 20);
+    assert!(sparse.blocks() * 512 < 1 << 20, "still sparse: {} blocks", sparse.blocks());
+    let (one, two) =
+        (std::fs::metadata(dir.join("one")).unwrap(), std::fs::metadata(dir.join("two")).unwrap());
+    assert_eq!((one.ino(), one.nlink()), (two.ino(), 2), "two names of one file");
+}
+
+/// The offsets of the records in `node`'s console stream of `w`.
+fn console(node: &Node, w: &str) -> Vec<u64> {
+    let dir = node.volumes.join(format!("{w}.stream_console"));
+    read(&StreamDir::new(&dir), 0, 10_000)
+        .map(|r| r.records.iter().map(|r| r.offset).collect())
+        .unwrap_or_default()
+}
+
+/// The offsets of `node`'s console stream of `w`, once a record past `last` is in it: those the
+/// stream crossed with, and what the workload wrote there since.
+async fn continued(node: &Node, w: &str, last: u64) -> Vec<u64> {
+    for _ in 0..300 {
+        let offsets = console(node, w);
+        if offsets.iter().any(|o| *o > last) {
+            return offsets;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("{w} wrote nothing past offset {last}: {:?}", console(node, w));
+}
+
+/// Moves `w` to `node`, keeping the source's copies for `hold`; the migration, once approved.
+async fn move_to(cp: &ControlPlane, w: &str, node: &str, hold: Duration) -> String {
+    let client = cp.workloads();
+    let request = pb::MigrateWorkloadRequest {
+        mutation: mutation(&format!("move-{node}")).into(),
+        workload: w.to_owned(),
+        node: node.to_owned(),
+        hold: korpis_wire::duration(hold).into(),
+        ..Default::default()
+    };
+    let proposed = client.migrate_workload(request).await.unwrap().into_owned();
+    cp.approve(&proposed.plan.into_option().unwrap().id).await;
+    newest(cp, w).await.id
+}
+
+/// The newest migration of `w`.
+async fn newest(cp: &ControlPlane, w: &str) -> pb::Migration {
+    let list = pb::ListMigrationsRequest { workload: w.to_owned(), ..Default::default() };
+    let got = cp.workloads().list_migrations(list).await.unwrap().into_owned();
+    got.migrations.into_iter().next().unwrap()
+}
+
+/// `w`'s dedicated address, once its router routes it.
+async fn routed(cp: &ControlPlane, w: &str) -> String {
+    for _ in 0..600 {
+        let d = cp.status(w).await.dedicated.into_option().unwrap_or_default();
+        if !d.waiting_on_router && !d.address.is_empty() {
+            return d.address;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("{w}'s address was never routed");
+}
+
+/// Waits until the newest migration of `w` completed: its source deleted what it kept.
+async fn ended(cp: &ControlPlane, w: &str) {
+    for _ in 0..900 {
+        let outcome = newest(cp, w).await.outcome.as_known();
+        if outcome == Some(pb::MigrationOutcome::MIGRATION_OUTCOME_COMPLETED) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("{w}'s migration never completed: {:?}", newest(cp, w).await);
+}
+
+/// Waits until `w` runs on `node`, placed there.
+async fn runs_on(cp: &ControlPlane, w: &str, node: &str) {
+    for _ in 0..900 {
+        let s = Box::pin(cp.status(w)).await;
+        let placed = s.placement.as_option().is_some_and(|p| p.node == node);
+        let state = s.observation.as_option().and_then(|o| o.state.as_known());
+        if placed && state == Some(pb::ObservedState::OBSERVED_STATE_RUNNING) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    let seen = Box::pin(cp.status(w)).await.observation;
+    panic!("{w} never ran on {node}: {:?}\n{seen:?}", Box::pin(newest(cp, w)).await);
+}
+
+/// The usage records of `w` from each node, once `node` has one.
+async fn metered(cp: &ControlPlane, w: &str, node: &str) -> Vec<pb::UsageRecord> {
+    let client = pb::MeteringServiceClient::new(cp.http(), cp.config());
+    for _ in 0..900 {
+        let ask = pb::ListUsageRequest { workload: Some(w.to_owned()), ..Default::default() };
+        let got = client.list_usage(ask).await.unwrap().into_owned().records;
+        if got.iter().any(|r| r.node.as_deref() == Some(node)) {
+            return got;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    panic!("{node} never metered {w}");
+}
+
+/// Two nodes in namespaces joined as machines, each with its agent, and the test extension
+/// routing a cluster pool's addresses.
+struct Machines {
+    cp: ControlPlane,
+    project: String,
+    nets: (Netns, Netns),
+    nodes: (Node, Node),
+    agents: (Agent, Agent),
+}
+
+async fn machines_routing((ma, mb): (Netns, Netns)) -> Machines {
+    let cp = ControlPlane::start_metering(Duration::from_secs(1), Duration::from_secs(60)).await;
+    let project = cp.project().await;
+    let first = node_in(&cp, "move-a", &ma, Ipv4Addr::new(198, 18, 1, 1)).await;
+    let second = node_in(&cp, "move-b", &mb, Ipv4Addr::new(198, 18, 1, 2)).await;
+    let agents = (first.agent().await, second.agent().await);
+    for n in [&first, &second] {
+        until_available(&cp, &n.state.load().unwrap().node).await;
+    }
+    let image = push_image(&crate::recipes::test_registry(), TEST_EXTENSION).await;
+    let routing = install(&cp, &push("test-router", router(&image)).await, &project).await;
+    first.guard(&routing.workload);
+    second.guard(&routing.workload);
+    pinged_as(&cp, pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER, "test").await;
+    pool(&cp).await;
+    Machines { cp, project, nets: (ma, mb), nodes: (first, second), agents }
+}
+
+/// That `records`, from both nodes, count no use twice and leave none out: each node's records
+/// follow one another without overlap, and the epoch after the cutover begins in the interval the
+/// one before it ended in or later. The cutover's interval is the one both may measure, each its
+/// own share of it, since the source's last sample is taken as it lets go and the destination's
+/// first counts from zero once it holds the next epoch.
+fn counted_once(records: &[pb::UsageRecord]) {
+    let mut spans: Vec<(u64, i64, i64, String)> = records
+        .iter()
+        .map(|r| {
+            let (from, to) = (r.from.as_option(), r.to.as_option());
+            let (from, to) = (from.map_or(0, |t| t.seconds), to.map_or(0, |t| t.seconds));
+            (r.lease_epoch, from, to, r.node.clone().unwrap_or_default())
+        })
+        .collect();
+    spans.sort();
+    let mut by_node = spans.clone();
+    by_node.sort_by(|a, b| (&a.3, a.1).cmp(&(&b.3, b.1)));
+    for pair in by_node.windows(2).filter(|p| p[0].3 == p[1].3) {
+        assert!(pair[0].2 <= pair[1].1, "no interval counted twice on a node: {spans:?}");
+    }
+    // A gap is the control plane's, under no epoch.
+    let measured: Vec<_> = spans.iter().filter(|s| !s.3.is_empty()).collect();
+    for pair in measured.windows(2).filter(|p| p[0].0 < p[1].0) {
+        assert!(pair[0].1 <= pair[1].1, "an epoch metered before the last ended: {spans:?}");
+    }
+}
+
+/// Moves `db` from `here` to `there`, the nodes in `here_net` and `there_net`, and asserts it runs
+/// there with its volume, its `address`, its console and its meter as they were; the node it is on.
+async fn moved(
+    (cp, db): (&ControlPlane, &str),
+    (here, there): (&Node, &Node),
+    (here_net, there_net): (&Netns, &Netns),
+    address: &str,
+) -> String {
+    let before = console(here, db);
+    let moved_to = there.state.load().unwrap().node;
+    move_to(cp, db, &moved_to, Duration::from_secs(5)).await;
+    runs_on(cp, db, &moved_to).await;
+    holds(&volume_of(there, db, "data").await);
+    assert!(translates(there_net, address), "routed and translated where it moved");
+    assert!(!translates(here_net, address), "and no longer where it was");
+    let last = before.iter().max().copied().unwrap_or_default();
+    let after = continued(there, db, last).await;
+    assert!(after.windows(2).all(|w| w[0] < w[1]), "no offset used twice: {after:?}");
+    let new = after.iter().skip_while(|o| before.contains(o)).collect::<Vec<_>>();
+    assert!(new.first().is_some_and(|o| **o > last), "continued after {last}: {after:?}");
+    counted_once(&metered(cp, db, &moved_to).await);
+    moved_to
+}
+
+#[tokio::test]
+async fn a_workload_moves_with_its_data_address_console_and_meter_and_a_rollback_returns_it() {
+    if !live() || std::fs::metadata("/usr/bin/rsync").is_err() {
+        return;
+    }
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_test_writer()
+        .try_init();
+    let Some(nets) = machines() else {
+        eprintln!("this kernel makes no WireGuard link: not run");
+        return;
+    };
+    let m = machines_routing(nets).await;
+    let cp = &m.cp;
+    let game = pb::EndpointSpec {
+        name: "query".into(),
+        protocol: pb::EndpointProtocol::ENDPOINT_PROTOCOL_TCP.into(),
+        exposure: pb::Exposure::EXPOSURE_DEDICATED_IP.into(),
+        container_port: 9000,
+        ..Default::default()
+    };
+    let body = pb::IntentBody { endpoints: vec![game], ..Default::default() };
+    let db = cp.declare_body(&m.project, "db", &push_sleeper().await, body).await;
+    m.nodes.0.guard(&db);
+    m.nodes.1.guard(&db);
+    let on = cp.status(&db).await.placement.into_option().unwrap().node;
+    let first_is_on = m.nodes.0.state.load().unwrap().node == on;
+    let ((here, there), (here_net, there_net)) = if first_is_on {
+        ((&m.nodes.0, &m.nodes.1), (&m.nets.0, &m.nets.1))
+    } else {
+        ((&m.nodes.1, &m.nodes.0), (&m.nets.1, &m.nets.0))
+    };
+    runs_on(cp, &db, &on).await;
+    written(&volume_of(here, &db, "data").await);
+    let address = routed(cp, &db).await;
+    assert!(translates(here_net, &address), "{address} is translated where it runs");
+    metered(cp, &db, &on).await;
+
+    let moved_to = moved((cp, &db), (here, there), (here_net, there_net), &address).await;
+
+    // Moved back once the first move completed, and rolled back once the move was made.
+    ended(cp, &db).await;
+    let back = move_to(cp, &db, &on, Duration::from_secs(3600)).await;
+    runs_on(cp, &db, &on).await;
+    let rollback = pb::RollbackMigrationRequest {
+        mutation: mutation("back").into(),
+        migration: back,
+        reason: "returned".into(),
+        ..Default::default()
+    };
+    cp.workloads().rollback_migration(rollback).await.unwrap();
+    runs_on(cp, &db, &moved_to).await;
+    holds(&volume_of(there, &db, "data").await);
+    cp.retire(&db).await;
+    m.agents.0.stop().await;
+    m.agents.1.stop().await;
+}

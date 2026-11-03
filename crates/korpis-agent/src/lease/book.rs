@@ -7,7 +7,7 @@
 //! nothing. Everything here is a pure function of what was sent, what came back, and the time, so
 //! it is tested without a network.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 /// How long a request waits for its answer before another is sent with a fresh nonce.
@@ -102,7 +102,8 @@ pub struct Book {
     entries: BTreeMap<String, Entry>,
     /// Workloads whose lease was released while their assignment is still held (a retirement
     /// done, its completion not yet ingested): never asked for again until they leave the set.
-    released: BTreeSet<String>,
+    /// Each with the epoch it held, which what it ran until then was under.
+    released: BTreeMap<String, u64>,
 }
 
 impl Entry {
@@ -133,9 +134,10 @@ impl Book {
         now: Instant,
         mut nonce: impl FnMut() -> Vec<u8>,
     ) -> Vec<Request> {
-        self.released.retain(|w| wanted.contains_key(w));
-        self.entries.retain(|w, _| wanted.contains_key(w) && !self.released.contains(w));
-        for (workload, on_expiry) in wanted.iter().filter(|(w, _)| !self.released.contains(*w)) {
+        self.released.retain(|w, _| wanted.contains_key(w));
+        self.entries.retain(|w, _| wanted.contains_key(w) && !self.released.contains_key(w));
+        for (workload, on_expiry) in wanted.iter().filter(|(w, _)| !self.released.contains_key(*w))
+        {
             let entry = self.entries.entry(workload.clone()).or_insert_with(|| Entry {
                 epoch: 0,
                 valid_until: None,
@@ -221,8 +223,15 @@ impl Book {
     /// Forgets `workload`, returning the epoch it held: it has stopped acting under it, and is
     /// not asked for again while its assignment is still held.
     pub fn release(&mut self, workload: &str) -> Option<u64> {
-        self.released.insert(workload.to_owned());
-        self.entries.remove(workload).map(|e| e.epoch).filter(|epoch| *epoch > 0)
+        let epoch = self.entries.remove(workload).map(|e| e.epoch).filter(|epoch| *epoch > 0);
+        self.released.insert(workload.to_owned(), epoch.unwrap_or(0));
+        epoch
+    }
+
+    /// The epoch `workload`'s lease was released at, while its assignment is still held.
+    #[must_use]
+    pub fn released_at(&self, workload: &str) -> Option<u64> {
+        self.released.get(workload).copied().filter(|epoch| *epoch > 0)
     }
 
     /// When something next changes: a request falling due, or a lease running out.
@@ -303,8 +312,10 @@ mod tests {
         assert!(book.granted("wl", &r[0].nonce, &grant(11)), "a reissue for this node");
         assert_eq!(book.standing("wl", gone), Standing::Held { epoch: 11 });
         assert_eq!(book.release("wl"), Some(11));
+        assert_eq!(book.released_at("wl"), Some(11), "what it ran until then was under it");
         assert!(book.due(&wanted, gone, || vec![10]).is_empty(), "released, not asked again");
         assert!(book.due(&BTreeMap::new(), gone, || vec![11]).is_empty());
+        assert_eq!(book.released_at("wl"), None, "forgotten once it left the set");
         assert_eq!(book.due(&wanted, gone, || vec![12]).len(), 1, "held again after leaving");
     }
 

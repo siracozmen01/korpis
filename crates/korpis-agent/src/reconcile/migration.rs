@@ -55,6 +55,17 @@ fn by_increments(v: &agent::MigrationVolumeRole) -> bool {
     v.crossing.as_known() == Some(pb::MigrationCrossing::MIGRATION_CROSSING_INCREMENTS)
 }
 
+/// The size a copy of the volume `name` is limited to here: what its declaration says, or, for
+/// the console stream's volume, which no declaration names, what the stream's limits bound it to.
+fn copy_size(a: &agent::Assignment, name: &str) -> u64 {
+    let body = a.target.as_option().and_then(|t| t.body.as_option());
+    if let Some(v) = body.and_then(|b| b.volumes.iter().find(|v| v.name == name)) {
+        return v.size_bytes;
+    }
+    let streams = body.and_then(|b| b.streams.as_option());
+    korpis_wire::stream::spec_from_pb("streams", streams).map_or(0, |l| l.disk_bound())
+}
+
 /// Whether `v` crosses by its tree, into a volume of the destination's own: a copy only this
 /// node's record of it deletes, where one received by increments is a replica, which replication
 /// releases once no migration names it.
@@ -132,6 +143,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             {
                 if let Some(watermarks) = self.watermarks(&a.workload) {
                     self.report(t, role, (Vec::new(), watermarks), None).await;
+                } else if let Some(id) = t.runtime.clone() {
+                    // Stopped before it was halted here, as one that exited by itself was.
+                    self.released(&id).await;
                 }
             }
             (Some(S::MIGRATION_SIDE_DESTINATION), Some(P::MIGRATION_PHASE_CUTOVER))
@@ -160,8 +174,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             tracing::error!(error = %e, "progress could not be kept");
             return;
         }
-        let fetched = match self.prepare(a, t).await {
-            Ok(spec) => self.host.fetch(&spec.rootfs).await.map_err(Failure::from),
+        let fetched = match self.make_room(a, role).await {
+            Ok(()) => match self.prepare(a, t).await {
+                Ok(spec) => self.host.fetch(&spec.rootfs).await.map_err(Failure::from),
+                Err(e) => Err(e),
+            },
             Err(e) => Err(e),
         };
         let volumes = role
@@ -175,6 +192,28 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             })
             .collect();
         self.report(t, role, (volumes, Vec::new()), fetched.err().map(|e| e.0)).await;
+    }
+
+    /// Each volume of `role` crossing by its tree given its place here, under the identifier its
+    /// copy has here, in its class and limited to its size, so each pass has somewhere to land;
+    /// made again, it is the one made. Nothing is reported of it: the control plane records the
+    /// copy as the workload's volume at cutover, from the source's record of it.
+    async fn make_room(
+        &self,
+        a: &agent::Assignment,
+        role: &agent::MigrationRole,
+    ) -> Result<(), Failure> {
+        for v in role.volumes.iter().filter(|v| by_tree(v)) {
+            let request = helper::EnsureVolumeRequest {
+                volume: volume_id(a, &v.name),
+                workload: a.workload.clone(),
+                storage_class: crate::migrate::class_of(a, v),
+                size_bytes: copy_size(a, &v.name),
+                ..Default::default()
+            };
+            self.host.ensure_volume(&request).await?;
+        }
+        Ok(())
     }
 
     /// At `cutover` and after, on the destination holding the lease: each copy received by

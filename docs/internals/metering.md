@@ -112,13 +112,13 @@ plane's clock, every counter fitting the store, no epoch past the lease held; on
 `journal.rejected` and the journal moves on, so one bad sample cannot stop ingestion. Records are
 appended to `metering_record`, partitioned by month of recording.
 
-**Idempotent by construction.** A record's identity is `(workload, interval_start)`, and re-delivery
-of a journal record is dropped by the journal cursor, so an agent re-sending an hour of buffered
-records after a reconnect, a normal event, cannot double-bill. **Changing a number appends; it never
-overwrites**: a sample replacing a gap, a late sample and a correction insert a new version with a
-`supersedes` list, and the current value is the newest version, so what an interval said on the day
-it was invoiced is a query. A record's endpoints are one document of the record, since a record is
-never changed and always read whole.
+**Idempotent by construction.** A record's identity is `(workload, node, interval_start)`, and
+re-delivery of a journal record is dropped by the journal cursor, so an agent re-sending an hour of
+buffered records after a reconnect, a normal event, cannot double-bill. **Changing a number appends;
+it never overwrites**: a sample replacing a gap, a late sample and a correction insert a new version
+with a `supersedes` list, and the current value is the newest version, so what an interval said on
+the day it was invoiced is a query. A record's endpoints are one document of the record, since a
+record is never changed and always read whole.
 
 ## Gaps
 
@@ -157,8 +157,10 @@ which ownership moves. The source journals a last sample when it releases its le
 the destination meters nothing of a workload it holds as a destination until granted the next epoch,
 its first sample then counting from zero; a sample of either node under an epoch it does not hold is
 rejected; and gaps are written for the authoritative placement alone, so neither the destination's
-wait nor the source's hold is a gap. What the source keeps through the hold is not metered: it is
-the installation's assurance of a rollback, not storage the tenant asked for.
+wait nor the source's hold is a gap. The interval the cutover falls in is the one both nodes
+measure, each its own share under its own epoch, which is why a record's identity names its node.
+What the source keeps through the hold is not metered: it is the installation's assurance of a
+rollback, not storage the tenant asked for.
 
 ## Reading it
 

@@ -97,8 +97,22 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let stopped = !self.running_now(id).await?;
         if stopped {
             *h = Halting::default();
+            self.released(id).await;
         }
         Ok(stopped)
+    }
+
+    /// Has the driver release what the stopped object `id` still holds. A driver may keep a
+    /// stopped object's output open until a `Stop` finds it stopped, as the oci driver's shim does
+    /// until its task is deleted, and the stream's writer seals only once its input ends; a stop
+    /// that went by signal and kill never asked one.
+    pub(super) async fn released(&self, id: &str) {
+        match self.runtime.stop(id, "", std::time::Duration::ZERO).await {
+            Ok(()) | Err(RuntimeError::NotFound(_)) => {}
+            Err(e) => {
+                tracing::warn!(%id, error = %e, "what the stopped object holds was not released");
+            }
+        }
     }
 
     /// Signals `id` to stop with its driver's graceful default. A signal the driver could not

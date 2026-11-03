@@ -24,6 +24,11 @@ fn label_of(at: SystemTime) -> String {
     format!("{}.{:09}", since.as_secs(), since.subsec_nanos())
 }
 
+/// `at` as the label keeps an instant.
+pub(crate) fn label_of_timestamp(at: &Timestamp) -> String {
+    format!("{}.{:09}", at.seconds, at.nanos)
+}
+
 /// The instant the label `value` keeps, if it is one.
 pub(crate) fn started_at(value: &str) -> Option<Timestamp> {
     let (seconds, nanos) = value.split_once('.')?;
