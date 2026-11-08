@@ -356,8 +356,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .map(|(w, t)| (w.clone(), t.runtime.clone()))
             .collect();
         for (workload, runtime) in gone {
-            if let Some(id) = runtime {
-                self.orphan(&id, &workload).await;
+            if runtime.is_some() {
+                self.unassigned(&workload).await;
             } else {
                 self.forget(&workload);
             }

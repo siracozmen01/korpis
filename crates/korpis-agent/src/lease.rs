@@ -19,7 +19,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as U
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
 use korpis_proto::korpis::v1 as pb;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::{Notify, mpsc, watch};
@@ -155,6 +155,20 @@ pub struct Keeper {
 
 /// Each workload held, with what it declared for an unrenewed lease. A residual assignment
 /// runs nothing, so it is fenced by nothing and asks for no lease.
+/// The workloads in `held` whose assignment says why their lease is released, if it is: a
+/// retirement, or a migration's source, which releases it at cutover.
+fn keeping_released(held: &HeldSet) -> BTreeSet<String> {
+    let source = Some(agent::MigrationSide::MIGRATION_SIDE_SOURCE);
+    held.assignments
+        .iter()
+        .filter(|(_, a)| {
+            a.retire.is_set()
+                || a.migration.as_option().is_some_and(|m| m.role.as_known() == source)
+        })
+        .map(|(w, _)| w.clone())
+        .collect()
+}
+
 fn wanted(held: &HeldSet) -> BTreeMap<String, OnExpiry> {
     held.assignments
         .iter()
@@ -188,8 +202,17 @@ impl Keeper {
 
     /// Sends the requests now due; whether the channel is still open.
     async fn send_due(&self) -> bool {
-        let wanted = wanted(&self.held.borrow());
-        let due = self.leases.with(|b| b.due(&wanted, Instant::now(), nonce)).unwrap_or_default();
+        let (wanted, keeping) = {
+            let held = self.held.borrow();
+            (wanted(&held), keeping_released(&held))
+        };
+        let due = self
+            .leases
+            .with(|b| {
+                b.reclaim(&keeping);
+                b.due(&wanted, Instant::now(), nonce)
+            })
+            .unwrap_or_default();
         for r in due {
             if self.outbound.send(request(r)).await.is_err() {
                 return false;

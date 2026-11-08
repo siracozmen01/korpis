@@ -7,7 +7,7 @@
 //! nothing. Everything here is a pure function of what was sent, what came back, and the time, so
 //! it is tested without a network.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 /// How long a request waits for its answer before another is sent with a fresh nonce.
@@ -101,8 +101,9 @@ struct Entry {
 pub struct Book {
     entries: BTreeMap<String, Entry>,
     /// Workloads whose lease was released while their assignment is still held (a retirement
-    /// done, its completion not yet ingested): never asked for again until they leave the set.
-    /// Each with the epoch it held, which what it ran until then was under.
+    /// done, its completion not yet ingested; a migration's source past its cutover): not asked
+    /// for again while the assignment says why. Each with the epoch it held, which what it ran
+    /// until then was under.
     released: BTreeMap<String, u64>,
 }
 
@@ -126,8 +127,10 @@ fn shortened(term: Duration, rho_ppm: u32) -> Duration {
 }
 
 impl Book {
-    /// Tracks exactly `wanted` (each workload with its declared `on_expiry`), forgetting the
-    /// rest, and returns the requests due at `now`; `nonce` makes each request's nonce.
+    /// Tracks `wanted` (each workload with its declared `on_expiry`), forgetting the rest once
+    /// their lease is no longer held, and returns the requests due at `now`; `nonce` makes each
+    /// request's nonce. A lease still held of a workload that left the set is never renewed, but
+    /// kept until it runs out, so the node can release it once what it ran there has stopped.
     pub fn due(
         &mut self,
         wanted: &BTreeMap<String, OnExpiry>,
@@ -135,7 +138,11 @@ impl Book {
         mut nonce: impl FnMut() -> Vec<u8>,
     ) -> Vec<Request> {
         self.released.retain(|w, _| wanted.contains_key(w));
-        self.entries.retain(|w, _| wanted.contains_key(w) && !self.released.contains_key(w));
+        let released = &self.released;
+        self.entries.retain(|w, e| {
+            let held = e.valid_until.is_some_and(|until| now < until);
+            !released.contains_key(w) && (wanted.contains_key(w) || held)
+        });
         for (workload, on_expiry) in wanted.iter().filter(|(w, _)| !self.released.contains_key(*w))
         {
             let entry = self.entries.entry(workload.clone()).or_insert_with(|| Entry {
@@ -152,7 +159,8 @@ impl Book {
         }
         let mut out = Vec::new();
         for (workload, e) in &mut self.entries {
-            if e.answer_by().is_some_and(|by| now < by) || now < e.next_request {
+            let asked = e.answer_by().is_some_and(|by| now < by) || now < e.next_request;
+            if asked || !wanted.contains_key(workload) {
                 continue;
             }
             let n = nonce();
@@ -226,6 +234,12 @@ impl Book {
         let epoch = self.entries.remove(workload).map(|e| e.epoch).filter(|epoch| *epoch > 0);
         self.released.insert(workload.to_owned(), epoch.unwrap_or(0));
         epoch
+    }
+
+    /// Asks again for each released lease whose assignment no longer says why it was released,
+    /// as a source's once its migration was rolled back: those `keeping` names stay released.
+    pub fn reclaim(&mut self, keeping: &BTreeSet<String>) {
+        self.released.retain(|w, _| keeping.contains(w));
     }
 
     /// The epoch `workload`'s lease was released at, while its assignment is still held.
@@ -317,6 +331,23 @@ mod tests {
         assert!(book.due(&BTreeMap::new(), gone, || vec![11]).is_empty());
         assert_eq!(book.released_at("wl"), None, "forgotten once it left the set");
         assert_eq!(book.due(&wanted, gone, || vec![12]).len(), 1, "held again after leaving");
+    }
+
+    #[test]
+    fn a_released_lease_is_asked_for_again_once_its_assignment_no_longer_says_why() {
+        let (t0, wanted) = (Instant::now(), one(OnExpiry::Stop));
+        let mut book = Book::default();
+        let r = book.due(&wanted, t0, || vec![1]);
+        book.granted("wl", &r[0].nonce, &grant(3));
+        book.release("wl");
+        book.reclaim(&BTreeSet::from(["wl".to_owned()]));
+        assert!(book.due(&wanted, t0, || vec![2]).is_empty(), "a source past its cutover");
+        book.reclaim(&BTreeSet::new());
+        let r = book.due(&wanted, t0, || vec![3]);
+        assert_eq!(r.len(), 1, "its migration rolled back");
+        book.granted("wl", &r[0].nonce, &grant(5));
+        assert!(book.due(&BTreeMap::new(), t0, || vec![4]).is_empty(), "left: never renewed");
+        assert_eq!(book.release("wl"), Some(5), "but still held, so released once stopped");
     }
 
     #[test]
