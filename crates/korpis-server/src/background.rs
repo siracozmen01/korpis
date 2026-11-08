@@ -219,8 +219,8 @@ async fn reverify_bindings(api: Arc<Api>) {
     }
 }
 
-/// Forgets, every minute, the presentations and tickets past use, and the sign-ins begun that
-/// expired unspent. The task ends with the process.
+/// Forgets, every minute, the presentations and tickets past use, the sign-ins begun that expired
+/// unspent, and the action invocations finished an hour ago. The task ends with the process.
 async fn forget_assertions(api: Arc<Api>) {
     let mut tick = tokio::time::interval(Duration::from_secs(60));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -228,6 +228,9 @@ async fn forget_assertions(api: Arc<Api>) {
         tick.tick().await;
         if let Err(e) = api.app().forget_assertions().await {
             tracing::warn!(error = %e, "forgetting presentations, tickets, and sign-ins failed");
+        }
+        if let Err(e) = api.app().forget_invocations().await {
+            tracing::warn!(error = %e, "forgetting finished action invocations failed");
         }
     }
 }

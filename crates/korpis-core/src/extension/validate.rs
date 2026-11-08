@@ -180,6 +180,10 @@ impl ExtensionManifest {
         bounded("extension.provides", &self.provides)?;
         let mut seen = BTreeSet::new();
         for (i, p @ ProvidedInterface { kind, name }) in self.provides.iter().enumerate() {
+            if *kind == ProviderType::Action {
+                let why = "actions are served under the extension's name, declared in `actions`";
+                return Err(RecipeError::new(&format!("extension.provides[{i}].type"), why));
+            }
             let well_formed = match kind {
                 ProviderType::Step | ProviderType::Health => qualified(name),
                 _ => slug(name),

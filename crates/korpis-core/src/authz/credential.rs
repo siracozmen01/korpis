@@ -31,6 +31,9 @@ pub const DEVICE_CODE_PREFIX: &str = "korpisdv_";
 /// Every ticket an assertion is redeemed by starts with this.
 pub const TICKET_PREFIX: &str = "korpisas_";
 
+/// Every extension action's invocation token starts with this.
+pub const INVOCATION_PREFIX: &str = "korpisiv_";
+
 /// Which kind of credential a secret is, by its prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecretKind {
@@ -48,6 +51,9 @@ pub enum SecretKind {
     /// A ticket for one action as an asserted external identity, presented beside the relaying
     /// client's own credential, never as the bearer of a call.
     Ticket,
+    /// An extension action's invocation token, presented beside the extension's own credential,
+    /// never as the bearer of a call; worth nothing once its invocation has finished.
+    Invocation,
 }
 
 impl SecretKind {
@@ -59,6 +65,7 @@ impl SecretKind {
             Self::Refresh => REFRESH_PREFIX,
             Self::DeviceCode => DEVICE_CODE_PREFIX,
             Self::Ticket => TICKET_PREFIX,
+            Self::Invocation => INVOCATION_PREFIX,
         }
     }
 }

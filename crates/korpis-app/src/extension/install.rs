@@ -285,7 +285,7 @@ async fn write_installation<X: Tx>(
         StoreError::Duplicate(Unique::ExtensionName) => exists(),
         other => other.into(),
     })?;
-    tx.insert_provides(i.id, i.organization, &installed.manifest.provides)
+    tx.insert_provides(i.id, i.organization, &installed.manifest.registered(&i.name))
         .await
         .map_err(provider_taken)?;
     for NeedGrant { record, parent } in grants {

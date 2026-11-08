@@ -102,6 +102,7 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
         CallRequest::RunStep { step, arguments, workload, platform } => {
             Request::RunStep(Box::new(run_step_to_pb(step, arguments, *workload, platform)))
         }
+        CallRequest::InvokeAction(i) => Request::InvokeAction(Box::new(crate::action::invoke_to_pb(i))),
         CallRequest::HealthStep(step) => {
             Request::HealthStep(Box::new(crate::health::step_to_pb(step)))
         }
@@ -158,6 +159,7 @@ pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
             crate::keys::outcome_from_pb(o).unwrap_or(CallOutcome::Failed(CallFailure::malformed()))
         }
         Some(Outcome::AddressRouted(_)) => CallOutcome::AddressRouted,
+        Some(Outcome::ActionResult(r)) => CallOutcome::ActionResult(crate::action::result_from_pb(r)),
         Some(
             o @ (Outcome::BlockVolumeCreated(_)
             | Outcome::BlockAttachment(_)

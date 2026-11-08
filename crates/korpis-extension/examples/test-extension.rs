@@ -12,8 +12,13 @@
 //! workload is healthy if what came back starts with `pong`. Run as `test-extension --router`, it
 //! serves an address router of that name instead, the one the end-to-end test of a migration routes
 //! a cluster pool's address with: it routes every address where it is asked to, as a network would,
-//! and prints `route <address> <node>` for each.
+//! and prints `route <address> <node>` for each. Run as `test-extension --actions`, it serves the
+//! actions its document declares under the extension's name: `peek` reads the workload `workload`
+//! for its invoker and answers with its name, and with `other`, a workload's identifier, tries to
+//! read that one too and says whether it could, which is how the tests show an invocation acts
+//! only on what its invoker named.
 
+use korpis_extension::action::{Actions, Answer, Invoker, for_invocation};
 use korpis_extension::address::{AddressRouter, Router};
 use korpis_extension::consumer::{Consumer, EventHandler};
 use korpis_extension::health::{Failure, Health, HealthProvider, send, verdict};
@@ -68,6 +73,47 @@ impl AddressRouter for Routes {
     }
 }
 
+/// The `peek` action, reading workloads for its invoker.
+struct Peek(Arc<Connection<IdentitySocket>>);
+
+impl Peek {
+    async fn read(&self, invoked: &pb::InvokeAction, id: &str) -> Result<String, String> {
+        let (http, config) = for_invocation(&self.0, invoked).await.map_err(|e| e.to_string())?;
+        let client = pb::WorkloadServiceClient::new(http, config);
+        let get = pb::GetWorkloadRequest { id: id.to_owned(), ..Default::default() };
+        let got = client.get_workload(get).await.map_err(|e| e.to_string())?.into_owned();
+        let workload = got.status.as_option().and_then(|s| s.workload.as_option());
+        Ok(workload.map(|w| w.name.clone()).unwrap_or_default())
+    }
+}
+
+impl Actions for Peek {
+    async fn invoke(
+        &self,
+        invoked: pb::InvokeAction,
+    ) -> Result<Answer, korpis_extension::provider::Failure> {
+        use korpis_proto::korpis::v1::__buffa::oneof::action_value::Value as V;
+        let fail = |m: String| korpis_extension::provider::Failure {
+            reason: "test.peek".into(),
+            message: m,
+            retryable: false,
+        };
+        let text = |k: &str| match invoked.arguments.get(k).and_then(|v| v.value.clone()) {
+            Some(V::Workload(w) | V::Text(w)) => Some(w),
+            _ => None,
+        };
+        let workload = text("workload").ok_or_else(|| fail("no workload".into()))?;
+        let name = self.read(&invoked, &workload).await.map_err(fail)?;
+        let mut message = format!("peeked {name} for {}", invoked.invoker);
+        if let Some(other) = text("other") {
+            let seen = self.read(&invoked, &other).await;
+            message.push_str(if seen.is_ok() { "; other read" } else { "; other refused" });
+        }
+        say(&message);
+        Ok(Answer { message, data: String::new() })
+    }
+}
+
 /// Serves the provider `kind` named `name` through `connection`, answering with `handler`.
 fn serve<H: korpis_extension::provider::Handler>(
     connection: &Arc<Connection<IdentitySocket>>,
@@ -96,7 +142,10 @@ async fn main() {
         serve(&connection, (kind, protocol.clone()), Health(Echo));
     } else {
         let name = std::env::var("KORPIS_TEST_PROVIDER").unwrap_or_else(|_| "test".to_owned());
-        if args.iter().any(|a| a == "--router") {
+        if args.iter().any(|a| a == "--actions") {
+            let kind = pb::ProviderType::PROVIDER_TYPE_ACTION;
+            serve(&connection, (kind, name), Invoker(Peek(Arc::clone(&connection))));
+        } else if args.iter().any(|a| a == "--router") {
             serve(
                 &connection,
                 (pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER, name),

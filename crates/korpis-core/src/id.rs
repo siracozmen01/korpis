@@ -84,6 +84,8 @@ pub enum IdKind {
     EdgeGroup,
     /// A workload's migration (`mig_`).
     Migration,
+    /// An invocation of an extension's action (`inv_`).
+    Invocation,
 }
 
 impl IdKind {
@@ -127,6 +129,7 @@ impl IdKind {
             Self::AddressPool => "apl",
             Self::EdgeGroup => "egr",
             Self::Migration => "mig",
+            Self::Invocation => "inv",
         }
     }
 }

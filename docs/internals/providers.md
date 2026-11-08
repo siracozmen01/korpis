@@ -213,17 +213,32 @@ meaningful and one would let a slow workload's events hold up everyone's.
 An extension registers actions in `ext.<name>.<action>`. The web, chat and CLI surfaces are
 generated from the schema, so a registered action appears in all three (a button, a slash command, a
 subcommand) with autocomplete, authorization, plan rendering and audit attached: in every competing
-product, an extension wanting a Discord command writes a Discord bot.
+product, an extension wanting a Discord command writes a Discord bot. The CLI's is `korpis extension
+invoke <ext_…> [<action>] [--arg name=value]…`, which lists the actions without one.
+
+An installation whose document declares actions registers an `action` provider under its own name,
+implied by the document rather than written in its `provides`, so a stream serving them is held and
+called like any other provider's; the same name installed twice in one organization is refused as
+`provider.taken`, as two providers of one name are. `ExtensionService.InvokeAction` takes the
+installation, the action and its arguments, which are checked against the declaration (every
+required one given, none undeclared, each of its type, at most 64, text at most 4 KiB), and queues
+the call with a deadline of a minute. The answer is a line for the person (at most 4 KiB) and data
+for a client to render (one JSON value, at most 64 KiB), or the extension's failure.
 
 **An extension acting for someone acts with the intersection, never its own grant.** If the gateway
 checked the invoker's `ext.rcon.kick` and the extension then kicked under its own broader grant, a
 user authorized on workload A could pass workload B: the confused deputy. So an action's schema
-declares which arguments are resources, typed, and the gateway authorizes the invoker for the action
-on each. The extension receives an invocation token, bound to the invocation and expiring with it,
-permitting only the core actions its own grant permits on only the resources the invoker was
-authorized for; an effect made with it names the invoker, the extension and the invocation. What the
-extension does on its own initiative, under its standing grant, is attributed to it alone. Actions
-are not built yet.
+declares which arguments are resources, typed (`workload`, `project`), and the gateway authorizes
+the invoker for the action on each, or on where the extension is installed when it takes none. The
+extension receives an invocation token, `korpisiv_…`, presented in the `korpis-invocation` header
+beside its own credential: a call carrying it is authorized by the extension's own grants, but only
+on those objects and what lies beneath them, and refuses anything no ticket could name, such as
+issuing a grant. The control plane keeps the token's digest, accepts it only from the installation
+invoked, and stops accepting it when the invocation finishes or a minute after it began, whichever
+is first. The invocation is an effect, `extension.invoke`, by the invoker about where the extension
+is installed, naming the action and its outcome; every effect made with the token names the
+invocation, so the invoker, the extension and what it did are joined. What the extension does on
+its own initiative, under its standing grant, is attributed to it alone.
 
 ## UI slots
 

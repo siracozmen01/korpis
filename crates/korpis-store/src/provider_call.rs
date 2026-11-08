@@ -2,6 +2,7 @@
 
 //! The provider call queue (migration 0027).
 
+mod action;
 mod address;
 mod backup;
 mod block;

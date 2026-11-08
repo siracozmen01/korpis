@@ -15,6 +15,7 @@ pub mod domain;
 pub mod edge_group;
 pub mod event;
 pub mod extension;
+pub mod invoke;
 pub mod files;
 pub mod get;
 pub mod grant;

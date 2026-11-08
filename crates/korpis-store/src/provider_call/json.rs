@@ -110,6 +110,7 @@ pub(crate) fn request_to(r: &CallRequest) -> Value {
         }
         // Always some.
         CallRequest::HealthStep(_) => super::health::request_to(r).unwrap_or(Value::Null),
+        CallRequest::InvokeAction(_) => super::action::request_to(r).unwrap_or(Value::Null),
         // Always some.
         CallRequest::RouteAddress(_) => super::address::request_to(r).unwrap_or(Value::Null),
         CallRequest::CreateBlockVolume(_)
@@ -150,6 +151,9 @@ pub(crate) fn request_from(v: &Value) -> StoreResult<CallRequest> {
     if super::block::is_request(v) {
         return super::block::request_from(v).ok_or_else(|| corrupt("request", v));
     }
+    if v.get("invoke_action").is_some() {
+        return super::action::request_from(v).ok_or_else(|| corrupt("request", v));
+    }
     if v.get("route_address").is_some() {
         return super::address::request_from(v).ok_or_else(|| corrupt("request", v));
     }
@@ -178,6 +182,7 @@ pub(crate) fn outcome_to(o: &CallOutcome) -> Value {
         CallOutcome::KeyMaterial { .. } => super::keys::outcome_to(o).unwrap_or(Value::Null),
         CallOutcome::HealthNext(_) => super::health::outcome_to(o).unwrap_or(Value::Null),
         CallOutcome::AddressRouted => super::address::outcome_to(o).unwrap_or(Value::Null),
+        CallOutcome::ActionResult(_) => super::action::outcome_to(o).unwrap_or(Value::Null),
         CallOutcome::BlockCreated { .. }
         | CallOutcome::BlockAttached(_)
         | CallOutcome::BlockDetached
@@ -215,6 +220,9 @@ pub(crate) fn outcome_from(v: &Value) -> StoreResult<CallOutcome> {
         return Ok(o);
     }
     if let Some(o) = super::health::outcome_from(v) {
+        return Ok(o);
+    }
+    if let Some(o) = super::action::outcome_from(v) {
         return Ok(o);
     }
     if let Some(o) = super::address::outcome_from(v) {

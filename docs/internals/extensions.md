@@ -191,8 +191,8 @@ operator's DNS provider is an outage the operator did not choose.
 
 The contract is `korpis.extension.v1`, and a capability names an interface the control plane
 actually speaks, never one it merely tolerates: `events.subscribe`, `identity.credential`,
-`provider.serve`, and one `provider.<type>` per provider type whose calls are in the contract and
-the SDK. A type whose calls are not yet in the contract (console, edge router, chat adapter) is not
+`provider.serve`, `provider.action` for serving its own actions, and one `provider.<type>` per
+provider type whose calls are in the contract and the SDK. A type whose calls are not yet in the contract (console, edge router, chat adapter) is not
 offered, and an extension requiring it is refused, since it would wait for calls nothing makes. A
 refusal is `extension.incompatible`, naming what is missing and what is offered; a client reads both
 from `ServerInfo` (`extension_contracts`, `capabilities`).

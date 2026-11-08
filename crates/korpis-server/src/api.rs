@@ -288,7 +288,12 @@ impl Api {
             None => self.authenticated(ctx).await?,
         };
         // A client that relayed what a person presented acts for them with the ticket it was
-        // handed, beside its own credential.
+        // handed, beside its own credential; an extension acting for whoever invoked one of its
+        // actions acts with the invocation's token, beside its own.
+        if let Some(token) = ctx.headers().get(INVOCATION) {
+            let token = token.to_str().unwrap_or_default();
+            return self.app.invoked(&caller, token).await.map_err(error::from_app);
+        }
         match ctx.headers().get(RELAYED_AS) {
             Some(ticket) => {
                 let ticket = ticket.to_str().unwrap_or_default();
@@ -337,6 +342,9 @@ impl Api {
 
 /// The header a relaying client sends the ticket it was handed in.
 pub const RELAYED_AS: &str = "korpis-as";
+
+/// The header an extension sends an action invocation's token in, acting for its invoker.
+pub const INVOCATION: &str = "korpis-invocation";
 
 /// The bearer credential a request presents; empty if it presents none.
 fn bearer(ctx: &RequestContext) -> &str {

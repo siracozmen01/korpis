@@ -154,7 +154,11 @@ message InvokeActionRequest {
 
 message InvokeActionResponse {
   string invocation = 1;
+  // What the action answered; unset when it failed.
   ActionResult result = 2;
+  // Why it failed, when it did: the extension's own reason, or provider.deadline,
+  // provider.stream_ended or provider.unknown when it was not answered.
+  Error error = 3;
 }
 
 message InstallExtensionRequest {

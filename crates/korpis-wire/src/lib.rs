@@ -30,6 +30,7 @@ macro_rules! enum_map {
     };
 }
 
+pub mod action;
 pub mod address;
 pub mod assignment;
 pub mod audit;

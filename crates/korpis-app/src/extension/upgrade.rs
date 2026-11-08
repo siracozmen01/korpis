@@ -239,7 +239,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.insert_grant(record).await?;
             tx.append_effect(&issued_effect(caller, record, parent.id)).await?;
         }
-        tx.replace_provides(i.id, i.organization, &new.manifest.provides)
+        tx.replace_provides(i.id, i.organization, &new.manifest.registered(&i.name))
             .await
             .map_err(provider_taken)?;
         super::provider::fail_in_flight(tx, now).await?;

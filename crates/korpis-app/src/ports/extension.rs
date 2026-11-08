@@ -76,3 +76,37 @@ pub trait ExtensionWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 }
+
+/// Reading the invocations of extensions' actions.
+pub trait InvocationRead {
+    /// The invocation whose token has `digest`, if it is unfinished and unexpired at `now`.
+    fn live_invocation(
+        &self,
+        digest: &[u8; 32],
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Option<korpis_core::extension::action::Invocation>>> + Send;
+}
+
+/// Recording the invocations of extensions' actions.
+pub trait InvocationWrite {
+    /// A new invocation, its token kept as `digest`.
+    fn insert_invocation(
+        &mut self,
+        invocation: &korpis_core::extension::action::Invocation,
+        digest: &[u8; 32],
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Finishes an invocation at `at`: its token is accepted no more.
+    fn finish_invocation(
+        &mut self,
+        id: Uuid,
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Forgets invocations finished or expired before `before`; how many.
+    fn forget_invocations(
+        &mut self,
+        before: SystemTime,
+    ) -> impl Future<Output = StoreResult<u64>> + Send;
+}

@@ -33,6 +33,7 @@ mod extension;
 mod failure;
 mod feed;
 mod idempotency;
+mod invocation;
 mod job;
 mod journal;
 mod layout;

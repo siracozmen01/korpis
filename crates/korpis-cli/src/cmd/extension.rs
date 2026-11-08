@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis extension install|list|show|upgrade|uninstall|providers|ping`. Installing is two steps,
+//! `korpis extension install|list|show|upgrade|uninstall|invoke|providers|ping`. Installing is two steps,
 //! as planning and applying are: without `--approve` it shows what the extension needs and the
 //! command that approves exactly that, the artifact pinned by digest; with it, it installs,
 //! granting what the document at that digest declares. Upgrading is the same two steps.
@@ -49,6 +49,17 @@ pub enum ExtensionAction {
         #[arg(long)]
         approve: bool,
     },
+    /// Lists an installation's actions, or invokes one: `--arg name=value` for each argument, a
+    /// workload or project by name or identifier.
+    Invoke {
+        /// The installation, `ext_…`.
+        extension: String,
+        /// The action, the part after `ext.<name>.`; none lists them.
+        action: Option<String>,
+        /// An argument, `name=value`; repeat for each.
+        #[arg(long = "arg")]
+        args: Vec<String>,
+    },
     /// The provider streams registered in an organization.
     Providers {
         /// The organization, by name or identifier; the top one you can read by default.
@@ -58,7 +69,8 @@ pub enum ExtensionAction {
     /// Calls a provider's liveness check, as an organization sees it, and reports the answer.
     Ping {
         /// Its type: `dns`, `backup_target`, `step`, `health`, `console`, `identity`,
-        /// `edge_router`, `chat_adapter`, or `key_management`.
+        /// `edge_router`, `chat_adapter`, `key_management`, `address_router`, `block_storage`, or
+        /// `action`.
         kind: String,
         /// Its name, as its installation provides it.
         name: String,
@@ -240,6 +252,9 @@ pub async fn extension(c: &Connection, action: &ExtensionAction) -> Result<Answe
         }
         ExtensionAction::Upgrade { extension, version, approve } => {
             super::upgrade::upgrade(c, extension, version, *approve).await
+        }
+        ExtensionAction::Invoke { extension, action, args } => {
+            super::invoke::invoke(c, extension, action.as_deref(), args).await
         }
         ExtensionAction::Providers { organization } => {
             super::provider::providers(c, organization.as_deref()).await
