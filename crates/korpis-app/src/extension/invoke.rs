@@ -86,7 +86,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if resources.is_empty() {
             resources.push(at);
         }
-        for object in &resources {
+        for (i, object) in resources.iter().enumerate() {
+            // An installation acts only where it is installed, whatever else an invoker's grant
+            // of an action of this name reaches.
+            if !self.lies_within(*object, at).await? {
+                let why = "an object where the extension is installed";
+                return Err(AppError::invalid(format!("arguments[{i}]"), why));
+            }
             self.authorize(caller, &full, *object).await?;
         }
         let (invocation, secret) = self.begin_invocation(caller, &installation, &full, resources).await?;
@@ -99,7 +105,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let target = CallTarget {
             organization: installation.organization,
             kind: ProviderType::Action,
-            name: installation.name.clone(),
+            name: installation.id.to_string(),
         };
         let called = self.call_own_provider(&target, request, ACTION_WITHIN).await;
         let result = match called.map(|c| c.outcome) {

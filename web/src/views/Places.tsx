@@ -22,6 +22,7 @@ import { Suspension } from "./Suspension";
 import { OrganizationStatus } from "../gen/korpis/v1/tenancy_pb";
 import { CONVERGENCE } from "../workload/words";
 import { ThemeEditor } from "../theme/ThemeEditor";
+import { Slots } from "../extensions/Slots";
 import { LayoutEditor } from "../layout/LayoutEditor";
 import { t } from "../i18n/intl";
 
@@ -188,6 +189,7 @@ export function OrganizationPage({ id }: { readonly id: string }) {
       {org !== undefined && <Ceiling organization={org.id} />}
       {org !== undefined && !metered && <Portals organization={org.id} />}
       {!metered && <ThemeEditor id={id} />}
+      {!metered && <Slots slot="organization.settings" object={id} />}
       {!metered && <LayoutEditor id={id} />}
       {/* A share link's calls each spend a use, so its holder is shown no trail to page. */}
       {!metered && <Audit id={id} />}

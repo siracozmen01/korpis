@@ -263,4 +263,28 @@ impl pb::ExtensionService for Api {
             ..Default::default()
         })
     }
+
+    async fn get_extension_policy(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetExtensionPolicyRequest>,
+    ) -> ServiceResult<pb::GetExtensionPolicyResponse> {
+        super::extension_policy::get(self, &ctx, request).await
+    }
+
+    async fn set_extension_policy(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::SetExtensionPolicyRequest>,
+    ) -> ServiceResult<pb::SetExtensionPolicyResponse> {
+        super::extension_policy::set(self, &ctx, request).await
+    }
+
+    async fn list_slots(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListSlotsRequest>,
+    ) -> ServiceResult<pb::ListSlotsResponse> {
+        super::slots::list(self, &ctx, request).await
+    }
 }

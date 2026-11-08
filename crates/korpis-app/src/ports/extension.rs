@@ -110,3 +110,37 @@ pub trait InvocationWrite {
         before: SystemTime,
     ) -> impl Future<Output = StoreResult<u64>> + Send;
 }
+
+/// A root organization's extension policy, as it was set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetExtensionPolicy {
+    /// The root organization.
+    pub organization: Uuid,
+    /// The policy.
+    pub policy: korpis_core::extension::policy::ExtensionPolicy,
+    /// Bumped on every change, for compare-and-swap; 1 when first set.
+    pub version: u64,
+    /// Who set it.
+    pub set_by: korpis_core::principal::Principal,
+    /// When.
+    pub set_at: SystemTime,
+}
+
+/// Reading extension policies.
+pub trait ExtensionPolicyRead {
+    /// The policy `organization` set, if it set one.
+    fn extension_policy(
+        &self,
+        organization: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<SetExtensionPolicy>>> + Send;
+}
+
+/// Setting extension policies.
+pub trait ExtensionPolicyWrite {
+    /// Sets a policy if its organization's stands at `expected`, zero for none yet; whether it did.
+    fn set_extension_policy(
+        &mut self,
+        set: &SetExtensionPolicy,
+        expected: u64,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+}

@@ -245,8 +245,12 @@ impl ExtensionManifest {
                 return Err(RecipeError::new(&at("slot"), "a slot contributed to once"));
             }
             if s.descriptor.trim().is_empty() || s.descriptor.len() > MAX_DESCRIPTOR {
-                let why = format!("a descriptor or a URL, at most {MAX_DESCRIPTOR} bytes");
+                let why = format!("a descriptor, at most {MAX_DESCRIPTOR} bytes");
                 return Err(RecipeError::new(&at("descriptor"), why));
+            }
+            if let Err(why) = super::slot::read(&s.slot, &s.descriptor, &self.actions) {
+                let field = if why.starts_with("a slot") { "slot" } else { "descriptor" };
+                return Err(RecipeError::new(&at(field), why));
             }
         }
         Ok(())

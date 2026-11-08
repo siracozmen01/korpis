@@ -87,7 +87,9 @@ fn argument_to_pb(x: &ActionArgument) -> pb::ActionArgument {
     }
 }
 
-fn action_to_pb(a: &ActionDecl) -> pb::ActionDecl {
+/// The wire form of an action an extension declares.
+#[must_use]
+pub fn action_to_pb(a: &ActionDecl) -> pb::ActionDecl {
     pb::ActionDecl {
         name: a.name.clone(),
         description: a.description.clone(),

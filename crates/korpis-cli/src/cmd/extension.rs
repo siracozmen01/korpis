@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis extension install|list|show|upgrade|uninstall|invoke|providers|ping`. Installing is two steps,
+//! `korpis extension install|list|show|upgrade|uninstall|invoke|policy|providers|ping`. Installing is two steps,
 //! as planning and applying are: without `--approve` it shows what the extension needs and the
 //! command that approves exactly that, the artifact pinned by digest; with it, it installs,
 //! granting what the document at that digest declares. Upgrading is the same two steps.
@@ -60,6 +60,9 @@ pub enum ExtensionAction {
         #[arg(long = "arg")]
         args: Vec<String>,
     },
+    /// Shows, or with `--set` replaces, the rule an operator keeps over the extensions installed
+    /// beneath a root organization.
+    Policy(super::ext_policy::Policy),
     /// The provider streams registered in an organization.
     Providers {
         /// The organization, by name or identifier; the top one you can read by default.
@@ -256,6 +259,7 @@ pub async fn extension(c: &Connection, action: &ExtensionAction) -> Result<Answe
         ExtensionAction::Invoke { extension, action, args } => {
             super::invoke::invoke(c, extension, action.as_deref(), args).await
         }
+        ExtensionAction::Policy(p) => super::ext_policy::policy(c, p).await,
         ExtensionAction::Providers { organization } => {
             super::provider::providers(c, organization.as_deref()).await
         }

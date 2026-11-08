@@ -5,8 +5,8 @@
 //! the extension makes with [`for_invocation`] acts with its own grants, but only on the objects
 //! the invoker named and was authorized on, and only until the invocation finishes. What it does
 //! on its own initiative it does with [`Connection::client`] and is attributed to it alone.
-//! Registered as the `action` provider under the extension's own name; requires the
-//! `provider.action` capability.
+//! Registered as the `action` provider; the control plane names the registration for the
+//! installation itself, whatever name the stream gives. Requires the `provider.action` capability.
 
 use crate::identity::{Connection, CredentialSource};
 use crate::provider::{Failure, Handler, Outcome, Unsupported};

@@ -15,6 +15,8 @@ mod contract;
 pub mod health;
 pub mod identity;
 mod installation;
+pub mod policy;
+pub mod slot;
 mod registration;
 mod step;
 mod validate;
@@ -68,12 +70,15 @@ pub struct ExtensionManifest {
 }
 
 impl ExtensionManifest {
-    /// What an installation of it named `name` registers: its `provides` entries, and its actions,
-    /// if it declares any, served under its name.
+    /// What `installation` of it registers: its `provides` entries, and its actions, if it
+    /// declares any, served under the installation's identifier, so they are its own and no other
+    /// installation's, wherever either is installed.
     #[must_use]
-    pub fn registered(&self, name: &str) -> Vec<ProvidedInterface> {
-        let actions = (!self.actions.is_empty())
-            .then(|| ProvidedInterface { kind: ProviderType::Action, name: name.to_owned() });
+    pub fn registered(&self, installation: uuid::Uuid) -> Vec<ProvidedInterface> {
+        let actions = (!self.actions.is_empty()).then(|| ProvidedInterface {
+            kind: ProviderType::Action,
+            name: installation.to_string(),
+        });
         self.provides.iter().cloned().chain(actions).collect()
     }
 }
@@ -152,8 +157,8 @@ pub enum ProviderType {
     AddressRouter,
     /// Network block storage, a volume a device one node attaches at a time.
     BlockStorage,
-    /// An extension's own actions, registered under its name when its document declares any;
-    /// never written in a document's `provides`.
+    /// An extension's own actions, registered under its installation's identifier when its
+    /// document declares any; never written in a document's `provides`.
     Action,
 }
 

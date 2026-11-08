@@ -187,6 +187,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller.confined(authz::Hierarchy::resource(&snapshot, object).as_ref())
     }
 
+    /// Whether `object` lies at or beneath `scope`; false for an object that does not exist.
+    pub(crate) async fn lies_within(
+        &self,
+        object: ObjectRef,
+        scope: ObjectRef,
+    ) -> Result<bool, AppError> {
+        let mut snapshot = Snapshot::default();
+        snapshot.load(&self.store, object).await?;
+        let resource = authz::Hierarchy::resource(&snapshot, object);
+        Ok(resource.is_some_and(|r| r.is_within(&korpis_core::authz::Scope::Object(scope))))
+    }
+
     /// Whether each of `objects` lies where the caller may act ([`Caller::reaches`]): what a list
     /// of the caller's own, such as the grants it holds, answers a session begun at a portal.
     pub(crate) async fn reached_each(

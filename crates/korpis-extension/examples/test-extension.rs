@@ -13,7 +13,7 @@
 //! serves an address router of that name instead, the one the end-to-end test of a migration routes
 //! a cluster pool's address with: it routes every address where it is asked to, as a network would,
 //! and prints `route <address> <node>` for each. Run as `test-extension --actions`, it serves the
-//! actions its document declares under the extension's name: `peek` reads the workload `workload`
+//! actions its document declares: `peek` reads the workload `workload`
 //! for its invoker and answers with its name, and with `other`, a workload's identifier, tries to
 //! read that one too and says whether it could, which is how the tests show an invocation acts
 //! only on what its invoker named.

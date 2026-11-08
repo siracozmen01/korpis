@@ -111,6 +111,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .await?
             .filter(korpis_core::extension::Installation::is_installed)
             .ok_or(AppError::NotFound { kind: "extension" })?;
+        let mut r = r;
+        if r.kind == korpis_core::extension::ProviderType::Action {
+            // An installation's actions are its own: served under its identifier, whatever
+            // name the stream gives, so no installation can claim another's.
+            r.name = extension.to_string();
+        }
         checked(&r)?;
         let wanted = ProvidedInterface { kind: r.kind, name: r.name.clone() };
         if !self.store.provides_of(extension).await?.contains(&wanted) {

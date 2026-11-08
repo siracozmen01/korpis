@@ -59,14 +59,24 @@ fn org(id: Uuid) -> ObjectRef {
 
 /// The policy with every signer's key parsed and fingerprinted, names unique and keys too.
 fn validated(policy: &TrustPolicy) -> Result<TrustPolicy, AppError> {
-    let field = |i: usize, f: &str| format!("policy.accepted_signers[{i}].{f}");
-    if policy.accepted_signers.len() > MAX_SIGNERS {
-        let message = format!("at most {MAX_SIGNERS} signers");
-        return Err(AppError::invalid("policy.accepted_signers", message));
+    let signers = signers_validated("policy.accepted_signers", &policy.accepted_signers)?;
+    Ok(TrustPolicy {
+        accepted_signers: signers,
+        allow_unsigned: policy.allow_unsigned,
+        allow_unverified: policy.allow_unverified,
+    })
+}
+
+/// Signers as a client gave them, each named once, its key read and fingerprinted, at most
+/// [`MAX_SIGNERS`]; the error names the field under `at`.
+pub(crate) fn signers_validated(at: &str, given: &[Signer]) -> Result<Vec<Signer>, AppError> {
+    let field = |i: usize, f: &str| format!("{at}[{i}].{f}");
+    if given.len() > MAX_SIGNERS {
+        return Err(AppError::invalid(at, format!("at most {MAX_SIGNERS} signers")));
     }
     let (mut names, mut keys) = (BTreeSet::new(), BTreeSet::new());
-    let mut signers: Vec<Signer> = Vec::with_capacity(policy.accepted_signers.len());
-    for (i, s) in policy.accepted_signers.iter().enumerate() {
+    let mut signers: Vec<Signer> = Vec::with_capacity(given.len());
+    for (i, s) in given.iter().enumerate() {
         let bad_name = s.name.is_empty() || s.name.len() > MAX_NAME;
         if bad_name || s.name.chars().any(char::is_control) {
             let message = format!("1 to {MAX_NAME} bytes, no control characters");
@@ -82,11 +92,7 @@ fn validated(policy: &TrustPolicy) -> Result<TrustPolicy, AppError> {
         }
         signers.push(parsed);
     }
-    Ok(TrustPolicy {
-        accepted_signers: signers,
-        allow_unsigned: policy.allow_unsigned,
-        allow_unverified: policy.allow_unverified,
-    })
+    Ok(signers)
 }
 
 fn effect_details(change: &PolicyChange) -> serde_json::Map<String, serde_json::Value> {

@@ -14,6 +14,7 @@ pub mod console;
 pub mod domain;
 pub mod edge_group;
 pub mod event;
+pub mod ext_policy;
 pub mod extension;
 pub mod invoke;
 pub mod files;

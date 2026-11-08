@@ -216,10 +216,11 @@ subcommand) with autocomplete, authorization, plan rendering and audit attached:
 product, an extension wanting a Discord command writes a Discord bot. The CLI's is `korpis extension
 invoke <ext_…> [<action>] [--arg name=value]…`, which lists the actions without one.
 
-An installation whose document declares actions registers an `action` provider under its own name,
-implied by the document rather than written in its `provides`, so a stream serving them is held and
-called like any other provider's; the same name installed twice in one organization is refused as
-`provider.taken`, as two providers of one name are. `ExtensionService.InvokeAction` takes the
+An installation whose document declares actions registers an `action` provider under its own
+identifier, implied by the document rather than written in its `provides`, so a stream serving them
+is held and called like any other provider's, and no installation, however it is named or wherever
+installed, can claim another's: the control plane sets the name of an `action` registration to the
+installation the stream authenticated as. `ExtensionService.InvokeAction` takes the
 installation, the action and its arguments, which are checked against the declaration (every
 required one given, none undeclared, each of its type, at most 64, text at most 4 KiB), and queues
 the call with a deadline of a minute. The answer is a line for the person (at most 4 KiB) and data
@@ -229,7 +230,9 @@ for a client to render (one JSON value, at most 64 KiB), or the extension's fail
 checked the invoker's `ext.rcon.kick` and the extension then kicked under its own broader grant, a
 user authorized on workload A could pass workload B: the confused deputy. So an action's schema
 declares which arguments are resources, typed (`workload`, `project`), and the gateway authorizes
-the invoker for the action on each, or on where the extension is installed when it takes none. The
+the invoker for the action on each, or on where the extension is installed when it takes none. A
+resource must lie where the extension is installed: a grant of `ext.rcon.kick` reaching further,
+which another installation of that name could serve, does not carry this one beyond its own place. The
 extension receives an invocation token, `korpisiv_…`, presented in the `korpis-invocation` header
 beside its own credential: a call carrying it is authorized by the extension's own grants, but only
 on those objects and what lies beneath them, and refuses anything no ticket could name, such as
@@ -242,13 +245,22 @@ its own initiative, under its standing grant, is attributed to it alone.
 
 ## UI slots
 
-Declared, typed and named: an extension contributes to a slot and never edits the bundle. Most
-contributions are declarative (a schema-driven form, a query-driven table, a status card, a settings
-section), rendered by the panel's own components, so they inherit its theming, accessibility, mobile
-layout and three-state rendering of unknowns. Custom UI is an iframe on a separate origin under a
-restrictive CSP, talking over a typed `postMessage` channel, given its own token scoped to the
-intersection of the extension's grants and the viewer's authority for the resources in view. So an
-extension cannot exfiltrate the user's authority, a viewer (a share-link holder) cannot borrow the
-extension's, and an extension cannot render a convincing fake login inside the panel's chrome, being
-visibly a foreign frame. Which slots exist is driven by what core extensions need, and none is added
-without a consumer. UI slots are not built yet.
+Declared, typed and named: an extension contributes to a slot and never edits the bundle. A
+contribution is declarative, `{"kind": "card" | "form", "action": <one it declares>, "title": ...}`,
+rendered by the panel's own components, so it inherits their theming, accessibility, mobile layout
+and three-state rendering of unknowns, and runs no code in the panel's origin: it cannot read the
+viewer's credential or draw a convincing fake of the panel's own screens. A card shows what its
+action answers, asked as it is shown and again when the viewer asks; a form lays out the action's
+arguments and invokes it on submit. Either goes through `InvokeAction`, authorized for the viewer
+as every invocation is, and `ExtensionService.ListSlots` lists for an object only the contributions
+whose action the viewer may invoke there, so a slot never offers what its viewer cannot do. The
+slots are `workload.panel`, on a workload's page, whose action takes a workload and is given the
+page's, covered by what is installed in the workload's project and in its organization and every
+organization above; and `organization.settings`, covered by what is installed into the organization
+itself. A slot is added only for an extension that needs it. A document contributing to another
+slot, or with a descriptor that does not read, is refused when it is loaded.
+
+Custom UI, an iframe on a separate origin under a restrictive CSP talking over a typed `postMessage`
+channel with its own token scoped to the intersection of the extension's grants and the viewer's
+authority for the resources in view, is not built (#146): a document whose descriptor is a URL is
+refused saying so, until it is.

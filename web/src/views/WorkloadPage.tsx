@@ -32,6 +32,7 @@ import { refusal } from "./refusal";
 import { useLive } from "./watch";
 import { t } from "../i18n/intl";
 import { Configuration } from "../config/Configuration";
+import { Slots } from "../extensions/Slots";
 
 /** The workload `id`. */
 export function WorkloadPage({ id }: { readonly id: string }) {
@@ -115,6 +116,7 @@ export function WorkloadPage({ id }: { readonly id: string }) {
       {!metered && (
         <>
           {status.head !== undefined && <Configuration id={id} head={status.head} />}
+          <Slots slot="workload.panel" object={id} />
           <Grants id={id} />
           <Share id={id} />
           <Roles place={{ case: "workload", id }} />

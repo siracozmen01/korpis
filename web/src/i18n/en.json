@@ -245,6 +245,9 @@
     "defaultMessage": "{check} ({nodes, plural, one {# node} other {# nodes}})",
     "description": "a placement check that refused, and how many nodes it refused"
   },
+  "5P4VhhT2": {
+    "defaultMessage": "Ask again"
+  },
   "5RQmDSnU": {
     "defaultMessage": "requested",
     "description": "what made a run"
