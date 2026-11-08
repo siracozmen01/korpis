@@ -60,8 +60,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let Some(decl) = manifest.ui_slots.iter().find(|s| s.slot == slot) else { continue };
             let Ok(c) = slot::read(slot, &decl.descriptor, &manifest.actions) else { continue };
             let Some(action) = manifest.actions.iter().find(|a| a.name == c.action) else { continue };
-            let full = format!("ext.{}.{}", installation.name, action.name);
-            if !self.permitted(caller, &full, object).await? {
+            if !self.may_invoke(caller, &installation, &action.name, object).await? {
                 continue;
             }
             shown.push(SlotShown { installation, widget: c.widget, title: c.title, action: action.clone() });

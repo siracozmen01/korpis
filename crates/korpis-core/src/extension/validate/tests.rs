@@ -37,7 +37,10 @@ fn dns() -> ExtensionManifest {
                 required: true,
             }],
         }],
-        ui_slots: vec![SlotDecl { slot: "workload.tab".into(), descriptor: "{}".into() }],
+        ui_slots: vec![SlotDecl {
+            slot: "workload.panel".into(),
+            descriptor: r#"{"kind": "form", "action": "purge", "title": "Purge"}"#.into(),
+        }],
     }
 }
 
@@ -116,6 +119,14 @@ fn subscriptions_providers_actions_and_slots_say_what_they_are_once() {
     assert_eq!(refused(argument), "extension.actions[0].arguments[1].name");
     let slot = |m: &mut ExtensionManifest| m.ui_slots.push(m.ui_slots[0].clone());
     assert_eq!(refused(slot), "extension.ui_slots[1].slot");
+    let frame = |m: &mut ExtensionManifest| m.ui_slots[0].descriptor = "https://x.example".into();
+    assert_eq!(refused(frame), "extension.ui_slots[0].descriptor", "frames are not built");
+    let elsewhere = |m: &mut ExtensionManifest| m.ui_slots[0].slot = "workload.sidebar".into();
+    assert_eq!(refused(elsewhere), "extension.ui_slots[0].slot", "a slot the panel offers");
+    let action = |m: &mut ExtensionManifest| {
+        m.provides.push(ProvidedInterface { kind: ProviderType::Action, name: "x".into() });
+    };
+    assert_eq!(refused(action), "extension.provides[1].type", "actions are implied");
     assert!(ArgumentType::Workload.is_resource() && !ArgumentType::Int.is_resource());
     assert_eq!(ProviderType::parse("backup_target"), Some(ProviderType::BackupTarget));
     assert_eq!(NeedScope::parse("self"), Some(NeedScope::OwnWorkload));

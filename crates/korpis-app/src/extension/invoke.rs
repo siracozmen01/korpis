@@ -46,7 +46,7 @@ pub struct InvokedAction {
 }
 
 /// Where `i` is installed: what an action taking no resource is authorized and acts on.
-const fn installed_at(i: &Installation) -> ObjectRef {
+pub(super) const fn installed_at(i: &Installation) -> ObjectRef {
     match i.project {
         Some(p) => ObjectRef::new(Kind::Project, p),
         None => ObjectRef::new(Kind::Organization, i.organization),
@@ -54,6 +54,23 @@ const fn installed_at(i: &Installation) -> ObjectRef {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// Whether `caller` may invoke `action` of `installation` on `object`, without recording
+    /// anything: what [`Self::invoke_action`] authorizes, asked as a slot is listed so the two
+    /// never disagree.
+    pub(super) async fn may_invoke(
+        &self,
+        caller: &Caller,
+        installation: &Installation,
+        action: &str,
+        object: ObjectRef,
+    ) -> Result<bool, AppError> {
+        let at = installed_at(installation);
+        let full = format!("ext.{}.{action}", installation.name);
+        Ok(self.permitted(caller, "extension.read", at).await?
+            && self.lies_within(object, at).await?
+            && self.permitted(caller, &full, object).await?)
+    }
+
     /// Invokes one of an installation's actions for `caller`.
     ///
     /// # Errors
