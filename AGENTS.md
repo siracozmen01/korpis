@@ -46,7 +46,7 @@ Builds read `.env`, whose `DATABASE_URL` points at the development database: set
 `SQLX_OFFLINE=true` for any `cargo` command outside `check.sh`, or the query macros check against
 whatever that database holds. Tests that need the database or the registry find them through
 `KORPIS_TEST_PG_URL` and `KORPIS_TEST_REGISTRY`, defaulting to the two containers above.
-`scripts/e2e-phase{0,1,2}.sh` run the phase end-to-end scenarios as an operator would; they need
+`scripts/e2e-phase{0,1,2,3}.sh` run the phase end-to-end scenarios as an operator would; they need
 root and containerd and leave nothing behind.
 
 ## Ways to hurt yourself

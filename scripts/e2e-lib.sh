@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # shellcheck shell=bash
-# What the end-to-end scripts share (scripts/e2e-phase0.sh to scripts/e2e-phase2.sh): their output,
+# What the end-to-end scripts share (scripts/e2e-phase0.sh to scripts/e2e-phase3.sh): their output,
 # their waiting, the processes they start, and leaving the machine as they found it, however they
 # exit. Sourced by them, not run; it expects $REPO, and sets $BIN, $WORK, $PG, $REGISTRY, and $DB.
 
@@ -30,6 +30,8 @@ until_ok() {
 
 PIDS=()
 WORKLOADS=()
+MOUNTS=()
+NETNSES=()
 # Starts the command after $1 in the background, logging to $WORK/$1.log; its pid is $LAST.
 start() {
     local name=$1; shift
@@ -50,8 +52,9 @@ begin() {
 
 # Leaves the machine as it was: the processes stopped, then whatever the nodes made that they did
 # not remove themselves, the containers of the workloads in $WORKLOADS and every network under each
-# node's netns root (the helper's own release, as for a machine whose node is gone), then the
-# volumes' filesystem if one was mounted, the job cgroups, the database, and the files.
+# node's netns root (the helper's own release, as for a machine whose node is gone, inside the
+# network namespace its helper served in), then the volumes' filesystems mounted, the network
+# namespaces made, the job cgroups, the database, and the files.
 leave() {
     set +e
     for pid in "${PIDS[@]}"; do kill "$pid" 2>/dev/null; done
@@ -68,10 +71,14 @@ leave() {
     done
     for node in "${NODES[@]}"; do
         if [ -d "$node/netns" ]; then
-            "$BIN/korpis-helper" release-networks --netns-root "$node/netns" >&2
+            local inside=()
+            if [ -s "$node/inside" ]; then inside=(nsenter "--net=$(cat "$node/inside")"); fi
+            "${inside[@]}" "$BIN/korpis-helper" release-networks --netns-root "$node/netns" >&2
         fi
     done
-    if [ -n "${MOUNTED:-}" ]; then umount -l "$MOUNTED"; fi
+    if [ -n "${MOUNTED:-}" ]; then MOUNTS+=("$MOUNTED"); fi
+    for at in "${MOUNTS[@]}"; do umount -l "$at"; done
+    for ns in "${NETNSES[@]}"; do ip netns del "$ns"; done
     if [ -n "${CGROUPS:-}" ]; then
         for _ in $(seq 1 20); do
             find "$CGROUPS" -depth -type d -exec rmdir {} + 2>/dev/null
@@ -87,6 +94,8 @@ leave() {
 # the `korpis` command pointed at it as root, and an organization that runs unsigned recipes,
 # with a project `games`; the organization is $ORG. With $PANEL set, the control plane is told a
 # public URL, $PANEL_URL, the panel's address a sign-in through an identity provider returns to.
+# What $SERVING holds is passed to `korpis-server serve` as well.
+SERVING=()
 control_plane() {
     psql "$PG" -qc "CREATE DATABASE $DB TEMPLATE template0" >/dev/null
     local url="${PG%/*}/$DB" token login port
@@ -105,7 +114,7 @@ control_plane() {
     local public=()
     if [ -n "${PANEL:-}" ]; then public=(--public-url "$PANEL_URL"); fi
     start server "$BIN/korpis-server" serve --data-dir "$WORK/server" --database-url "$login" \
-        --listen "127.0.0.1:$port" --plain-http-registry "$REGISTRY" "${public[@]}"
+        --listen "127.0.0.1:$port" --plain-http-registry "$REGISTRY" "${public[@]}" "${SERVING[@]}"
     export KORPIS_SERVER="https://127.0.0.1:$port" KORPIS_CA="$WORK/server/tls/ca.pem"
     export KORPIS_TOKEN=$token
     until_ok 30 korpis version
@@ -128,7 +137,10 @@ korpis() { "$BIN/korpis" --plain-http "$REGISTRY" "$@"; }
 # last, and each given ports and an IPv4 pool no other node of the run uses, $PORTS and $POOL, for
 # its agent's --ports and --workload-ipv4. The agent is the script's to start, since what it is told
 # differs; at most one node's agent may serve the ingress, as ports 80 and 443 on this machine's
-# address are one pair, so each helper is started without the proxy.
+# address are one pair, so each helper is started without the proxy. With $INSIDE naming a network
+# namespace's path, the node's helper serves inside it, as a node's data plane on another machine
+# would: its workloads' networks, their addresses and its mesh are there, and nothing of them in
+# this machine's own namespace.
 NODES=()
 enroll() {
     local index=${#NODES[@]}
@@ -149,7 +161,13 @@ enroll() {
     "$BIN/korpis-agent" --state-dir "$NODE/agent" join --server "$KORPIS_SERVER" \
         --token "$(jq -r .token <<<"$join")" --ca-fingerprint "$(jq -r .caFingerprint <<<"$join")" \
         --hostname "$1" >/dev/null
-    start "$1-helper" "$BIN/korpis-helper" --socket "$NODE/helper.sock" --volume-root "$VOLUMES" \
+    local inside=()
+    if [ -n "${INSIDE:-}" ]; then
+        printf '%s' "$INSIDE" >"$NODE/inside"
+        # nsenter, not `ip netns exec`, which remounts /sys and with it the cgroup tree.
+        inside=(nsenter "--net=$INSIDE")
+    fi
+    start "$1-helper" "${inside[@]}" "$BIN/korpis-helper" --socket "$NODE/helper.sock" --volume-root "$VOLUMES" \
         --state "$NODE/helper" --content "$NODE/agent/content" --netns-root "$NODE/netns" \
         --job-cgroups "$CGROUPS/$1" --ingress-binary none
     start "$1-driver" "$BIN/korpis-driver-oci" --socket "$NODE/driver.sock" \
