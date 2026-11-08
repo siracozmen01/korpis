@@ -28,13 +28,15 @@ need a written proposal and an explicit decision; everything else runs on lazy c
 ## Making a change
 
 1. Find or open the issue. Plans and progress go in it, never in a file.
-2. Branch from `main`, named for the issue.
+2. Branch from `main`, named for the issue, or for the batch where several issues of a milestone
+   touch the same code and land together.
 3. Build and test as [development](docs/operations/development.md) describes, and run
    `scripts/check.sh` before pushing and `scripts/check.sh pr` before opening the pull request
    ([checks](docs/operations/checks.md)).
-4. Open one pull request that closes the issue. Its title is a conventional commit,
-   `type(scope): summary`, lower case, under 72 characters. Its body has Problem, Change and
-   Verification (the commands you ran and what they showed) and ends with `Closes #<issue>`.
+4. Open one pull request that closes the issue, or each issue of the batch. Its title is a
+   conventional commit, `type(scope): summary`, lower case, under 72 characters. Its body has
+   Problem, Change and Verification (the commands you ran and what they showed) and ends with a
+   `Closes #<issue>` line for each issue it closes.
 
 A change to behaviour rewrites the page in `docs/internals/` that describes it, in the same pull
 request. [AGENTS.md](AGENTS.md) holds the rules that are easy to get wrong, written for AI coding agents
