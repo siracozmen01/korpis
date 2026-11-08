@@ -12,6 +12,7 @@ import "google/protobuf/timestamp.proto";
 import "korpis/v1/api.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/event.proto";
+import "korpis/v1/provider.proto";
 import "korpis/v1/recipe.proto";
 import "korpis/v1/tenancy.proto";
 import "korpis/v1/workload.proto";
@@ -27,7 +28,7 @@ message ExtensionManifest {
   repeated string egress = 4;
   repeated EventFilter subscribes = 5;
   repeated ProvidedInterface provides = 6;
-  // ext.<name>.<action>, built in Phase 4.
+  // ext.<name>.<action>, invoked through InvokeAction.
   repeated ActionDecl actions = 7;
   // Built in Phase 4.
   repeated SlotDecl ui_slots = 8;
@@ -137,6 +138,23 @@ service ExtensionService {
   // document's needs approved exactly, grants kept, issued, or revoked to match them, and the new
   // digest declared on the same workload. A dry run returns what would change.
   rpc UpgradeExtension(UpgradeExtensionRequest) returns (UpgradeExtensionResponse);
+  // Invokes one of an installation's actions: ext.<name>.<action> authorized for the caller on
+  // each resource argument, or on where it is installed when it takes none; the extension acts
+  // for the caller only within that, and the invocation is an effect.
+  rpc InvokeAction(InvokeActionRequest) returns (InvokeActionResponse);
+}
+
+message InvokeActionRequest {
+  // The installation.
+  string extension = 1;
+  // The part after ext.<name>.
+  string action = 2;
+  map<string, ActionValue> arguments = 3;
+}
+
+message InvokeActionResponse {
+  string invocation = 1;
+  ActionResult result = 2;
 }
 
 message InstallExtensionRequest {

@@ -163,6 +163,9 @@ enum ProviderType {
   PROVIDER_TYPE_ADDRESS_ROUTER = 10;
   // Network block storage, a volume a device one node attaches at a time.
   PROVIDER_TYPE_BLOCK_STORAGE = 11;
+  // An extension's own actions, ext.<name>.<action>: registered under the extension's name by an
+  // installation whose document declares any.
+  PROVIDER_TYPE_ACTION = 12;
 }
 
 // A class of device a driver can give a workload.
