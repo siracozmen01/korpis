@@ -11,7 +11,7 @@ use crate::error::CliError;
 use crate::resolve;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::action_value::Value as V;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 fn listed(name: &str, actions: &[pb::ActionDecl]) -> String {
@@ -45,11 +45,14 @@ async fn arguments(
     c: &Connection,
     declared: &pb::ActionDecl,
     given: &[String],
-) -> Result<HashMap<String, pb::ActionValue>, CliError> {
-    let mut out = HashMap::new();
+) -> Result<BTreeMap<String, pb::ActionValue>, CliError> {
+    let mut out = BTreeMap::new();
     for (k, v) in pairs("--arg", given)? {
         let Some(arg) = declared.arguments.iter().find(|a| a.name == k) else {
-            return Err(CliError::Local(format!("--arg {k}: not an argument of {}", declared.name)));
+            return Err(CliError::Local(format!(
+                "--arg {k}: not an argument of {}",
+                declared.name
+            )));
         };
         let value = Some(value(c, arg, &v).await?);
         out.insert(k, pb::ActionValue { value, ..Default::default() });

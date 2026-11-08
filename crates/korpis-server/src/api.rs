@@ -41,7 +41,6 @@ mod event;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod extension;
 mod extension_policy;
-mod slots;
 mod external;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod info;
@@ -79,6 +78,7 @@ mod session;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod set;
 mod sftp;
+mod slots;
 mod ssh_keys;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod stream;

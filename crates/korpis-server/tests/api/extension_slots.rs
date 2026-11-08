@@ -9,7 +9,11 @@ use crate::recipes::{body, create, project, push_paper};
 use crate::support::Harness;
 use korpis_proto::korpis::v1 as pb;
 
-async fn slots(h: &Harness, as_: connectrpc::client::ClientConfig, object: &str) -> Vec<pb::SlotContribution> {
+async fn slots(
+    h: &Harness,
+    as_: connectrpc::client::ClientConfig,
+    object: &str,
+) -> Vec<pb::SlotContribution> {
     let req = pb::ListSlotsRequest {
         slot: "workload.panel".into(),
         object: object.to_owned(),

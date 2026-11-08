@@ -21,7 +21,10 @@ struct PublisherDoc {
 }
 
 impl ExtensionPolicyRead for PgStore {
-    async fn extension_policy(&self, organization: Uuid) -> StoreResult<Option<SetExtensionPolicy>> {
+    async fn extension_policy(
+        &self,
+        organization: Uuid,
+    ) -> StoreResult<Option<SetExtensionPolicy>> {
         let row = sqlx::query!(
             "SELECT organization_id, registries, publishers, tenants_install, version, set_by,
                     set_at

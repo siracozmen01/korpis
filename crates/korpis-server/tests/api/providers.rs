@@ -5,7 +5,7 @@
 //! registration lasts as long as the stream and the installation.
 
 use crate::agent::{self, TestAgent};
-use crate::extensions::{install, needs, push_dns};
+use crate::extensions::{install, push_dns};
 use crate::identity::{ask, connect, send};
 use crate::recipes::project;
 use crate::support::{Harness, detail, reason};
@@ -49,7 +49,12 @@ pub async fn installed_into(h: &Harness, n: u8, project: &str, repo: String) -> 
     installed_at(h, n, (project, true), repo).await
 }
 
-async fn installed_at(h: &Harness, n: u8, (project, into): (&str, bool), repo: String) -> Installed {
+async fn installed_at(
+    h: &Harness,
+    n: u8,
+    (project, into): (&str, bool),
+    repo: String,
+) -> Installed {
     let a = TestAgent::enroll(h, &format!("fra-{n}"), n).await;
     let mut session = connect(h, &a, n).await;
     let at = |key: &str| pb::InstallExtensionRequest {
@@ -59,10 +64,8 @@ async fn installed_at(h: &Harness, n: u8, (project, into): (&str, bool), repo: S
     let dry = pb::InstallExtensionRequest { dry_run: true, ..at("dry") };
     let shown = h.extensions(h.root()).install_extension(dry).await.unwrap().into_owned();
     let approved = shown.extension.into_option().unwrap().manifest.into_option().unwrap().needs;
-    let req = pb::InstallExtensionRequest {
-        approved_needs: approved,
-        ..at(&format!("install-{n}"))
-    };
+    let req =
+        pb::InstallExtensionRequest { approved_needs: approved, ..at(&format!("install-{n}")) };
     let done = h.extensions(h.root()).install_extension(req).await.unwrap().into_owned();
     let extension = done.extension.into_option().unwrap();
     held(&mut session, &extension.workload, n, 0).await;

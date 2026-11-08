@@ -13,7 +13,7 @@ use super::call::CallTarget;
 use crate::App;
 use crate::caller::{Caller, Invoked};
 use crate::error::AppError;
-use crate::ports::{Clock, InvocationWrite as _, RecipeSource, Store, Tx as _};
+use crate::ports::{Clock, EffectWrite as _, InvocationWrite as _, RecipeSource, Store, Tx as _};
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::credential::{Secret, SecretKind};
 use korpis_core::authz::{Kind, ObjectRef};
@@ -46,7 +46,7 @@ pub struct InvokedAction {
 }
 
 /// Where `i` is installed: what an action taking no resource is authorized and acts on.
-pub(super) const fn installed_at(i: &Installation) -> ObjectRef {
+pub(super) fn installed_at(i: &Installation) -> ObjectRef {
     match i.project {
         Some(p) => ObjectRef::new(Kind::Project, p),
         None => ObjectRef::new(Kind::Organization, i.organization),
@@ -112,7 +112,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             self.authorize(caller, &full, *object).await?;
         }
-        let (invocation, secret) = self.begin_invocation(caller, &installation, &full, resources).await?;
+        let (invocation, secret) =
+            self.begin_invocation(caller, &installation, &full, resources).await?;
         let request = CallRequest::InvokeAction(Invoke {
             action: asked.action,
             arguments: asked.arguments,
@@ -124,13 +125,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             kind: ProviderType::Action,
             name: installation.id.to_string(),
         };
-        let called = self.call_own_provider(&target, request, ACTION_WITHIN).await;
-        let result = match called.map(|c| c.outcome) {
+        let answered = self.call_own_provider(&target, request, ACTION_WITHIN).await;
+        let result = match answered.map(|c| c.outcome) {
             Ok(CallOutcome::ActionResult(r)) => Ok(r),
             Ok(CallOutcome::Failed(f)) => Err(f),
             Ok(_) => Err(CallFailure::malformed()),
             Err(e) => {
-                self.end_invocation(caller, (&invocation, at), &Err(CallFailure::deadline())).await?;
+                self.end_invocation(caller, (&invocation, at), &Err(CallFailure::deadline()))
+                    .await?;
                 return Err(e);
             }
         };

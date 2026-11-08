@@ -59,7 +59,8 @@ fn publishers(given: &[String]) -> Result<Vec<pb::Signer>, CliError> {
 pub async fn policy(c: &Connection, p: &Policy) -> Result<Answer, CliError> {
     let client = pb::ExtensionServiceClient::new(c.http(), c.config());
     let organization = resolve::organization(c, p.organization.as_deref()).await?;
-    let get = pb::GetExtensionPolicyRequest { organization: organization.clone(), ..Default::default() };
+    let get =
+        pb::GetExtensionPolicyRequest { organization: organization.clone(), ..Default::default() };
     let current = client.get_extension_policy(get).await?.into_owned();
     if !p.set {
         let policy = current.policy.as_option().cloned().unwrap_or_default();

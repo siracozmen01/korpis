@@ -16,8 +16,8 @@ pub mod health;
 pub mod identity;
 mod installation;
 pub mod policy;
-pub mod slot;
 mod registration;
+pub mod slot;
 mod step;
 mod validate;
 

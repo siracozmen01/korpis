@@ -101,7 +101,11 @@ mod tests {
         let server =
             ActionArgument { name: "server".into(), kind: ArgumentType::Workload, required: true };
         vec![
-            ActionDecl { name: "players".into(), description: "who".into(), arguments: vec![server] },
+            ActionDecl {
+                name: "players".into(),
+                description: "who".into(),
+                arguments: vec![server],
+            },
             ActionDecl { name: "about".into(), description: "what".into(), arguments: vec![] },
         ]
     }

@@ -248,13 +248,18 @@ impl ExtensionManifest {
                 let why = format!("a descriptor, at most {MAX_DESCRIPTOR} bytes");
                 return Err(RecipeError::new(&at("descriptor"), why));
             }
-            if let Err(why) = super::slot::read(&s.slot, &s.descriptor, &self.actions) {
-                let field = if why.starts_with("a slot") { "slot" } else { "descriptor" };
-                return Err(RecipeError::new(&at(field), why));
-            }
+            super::slot::read(&s.slot, &s.descriptor, &self.actions)
+                .map_err(|why| slot_refused(&at, why))?;
         }
         Ok(())
     }
+}
+
+/// A slot contribution refused for `why`, on the slot where it names one the panel does not offer
+/// and on the descriptor otherwise.
+fn slot_refused(at: &dyn Fn(&str) -> String, why: String) -> RecipeError {
+    let field = if why.starts_with("a slot") { "slot" } else { "descriptor" };
+    RecipeError::new(&at(field), why)
 }
 
 #[cfg(test)]

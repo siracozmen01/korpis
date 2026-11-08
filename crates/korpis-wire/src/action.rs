@@ -35,7 +35,7 @@ pub fn value_from_pb(field: &str, v: &pb::ActionValue) -> Result<ArgumentValue> 
 
 /// The wire form of an invocation's arguments.
 #[must_use]
-pub fn arguments_to_pb(a: &Arguments) -> std::collections::HashMap<String, pb::ActionValue> {
+pub fn arguments_to_pb(a: &Arguments) -> std::collections::BTreeMap<String, pb::ActionValue> {
     a.iter().map(|(k, v)| (k.clone(), value_to_pb(v))).collect()
 }
 

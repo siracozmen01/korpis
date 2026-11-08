@@ -47,10 +47,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             (ORGANIZATION_SETTINGS, Kind::Organization) => {
                 self.authorize(caller, "org.read", object).await?;
-                self.installed_in(object.id).await?.into_iter().filter(|i| i.project.is_none()).collect()
+                self.installed_in(object.id)
+                    .await?
+                    .into_iter()
+                    .filter(|i| i.project.is_none())
+                    .collect()
             }
             _ => {
-                let why = format!("one of {}, for a workload or an organization", slot::SLOTS.join(", "));
+                let why =
+                    format!("one of {}, for a workload or an organization", slot::SLOTS.join(", "));
                 return Err(AppError::invalid("slot", why));
             }
         };
@@ -59,11 +64,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let manifest = self.manifest_of(&installation).await?;
             let Some(decl) = manifest.ui_slots.iter().find(|s| s.slot == slot) else { continue };
             let Ok(c) = slot::read(slot, &decl.descriptor, &manifest.actions) else { continue };
-            let Some(action) = manifest.actions.iter().find(|a| a.name == c.action) else { continue };
+            let Some(action) = manifest.actions.iter().find(|a| a.name == c.action) else {
+                continue;
+            };
             if !self.may_invoke(caller, &installation, &action.name, object).await? {
                 continue;
             }
-            shown.push(SlotShown { installation, widget: c.widget, title: c.title, action: action.clone() });
+            shown.push(SlotShown {
+                installation,
+                widget: c.widget,
+                title: c.title,
+                action: action.clone(),
+            });
         }
         Ok(shown)
     }
@@ -86,20 +98,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The installations covering workload `id`: in its project, and in its organization and
     /// every organization above, installed into the organization as a whole.
     async fn covering_workload(&self, id: Uuid) -> Result<Vec<Installation>, AppError> {
-        let workload = self.store.workload(id).await?.ok_or(AppError::NotFound { kind: "workload" })?;
+        let workload =
+            self.store.workload(id).await?.ok_or(AppError::NotFound { kind: "workload" })?;
         let project = self
             .store
             .project(workload.project)
             .await?
             .ok_or(AppError::NotFound { kind: "project" })?;
         let mut covering = Vec::new();
-        for (depth, org) in self.organization_chain(project.organization).await?.into_iter().enumerate() {
-            for i in self.installed_in(org).await? {
-                let own_project = depth == 0 && i.project == Some(project.id);
-                if i.project.is_none() || own_project {
-                    covering.push(i);
-                }
-            }
+        for (depth, org) in
+            self.organization_chain(project.organization).await?.into_iter().enumerate()
+        {
+            // Installed into the organization as a whole, or into the workload's own project.
+            let own = |i: &Installation| {
+                i.project.is_none() || (depth == 0 && i.project == Some(project.id))
+            };
+            covering.extend(self.installed_in(org).await?.into_iter().filter(own));
         }
         Ok(covering)
     }

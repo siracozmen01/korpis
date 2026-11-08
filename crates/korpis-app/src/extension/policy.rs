@@ -11,7 +11,6 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
     Clock, EffectWrite as _, ExtensionPolicyWrite as _, RecipeSource, SetExtensionPolicy, Store,
-    Tx as _,
 };
 use crate::tenancy::signers_validated;
 use korpis_core::audit::{Outcome, details};
@@ -51,7 +50,7 @@ fn refused(message: impl Into<String>) -> AppError {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Refuses `organization` unless it is a root: only a root's policy governs.
-    async fn root(&self, organization: Uuid) -> Result<(), AppError> {
+    async fn policy_root(&self, organization: Uuid) -> Result<(), AppError> {
         let org = self.store.organization(organization).await?;
         match org {
             None => Err(AppError::NotFound { kind: "organization" }),
@@ -71,8 +70,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<GoverningExtensions, AppError> {
         self.authorize(caller, "org.read", ObjectRef::new(Kind::Organization, organization))
             .await?;
-        self.root(organization).await?;
-        Ok(self.governing_extensions(organization).await?)
+        self.policy_root(organization).await?;
+        self.governing_extensions(organization).await
     }
 
     async fn governing_extensions(&self, root: Uuid) -> Result<GoverningExtensions, AppError> {
@@ -97,7 +96,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller.direct()?;
         let object = ObjectRef::new(Kind::Organization, cmd.organization);
         let permit = self.authorize(caller, "org.write", object).await?;
-        self.root(cmd.organization).await?;
+        self.policy_root(cmd.organization).await?;
         let mut policy = cmd.policy;
         if let Err(i) = policy.check_registries() {
             let why = format!("at most {MAX_REGISTRIES}, each a lowercase host or path under one");
@@ -176,7 +175,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
         }
         let over_root = ObjectRef::new(Kind::Organization, root);
-        if !policy.tenants_install && !self.permitted(caller, "extension.install", over_root).await?
+        if !policy.tenants_install
+            && !self.permitted(caller, "extension.install", over_root).await?
         {
             return Err(refused(
                 "the operator installs extensions here: installing one needs extension.install \

@@ -63,7 +63,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             SecretKind::Invitation
             | SecretKind::Refresh
             | SecretKind::DeviceCode
-            | SecretKind::Ticket => {
+            | SecretKind::Ticket
+            | SecretKind::Invocation => {
                 return Err(AppError::Unauthenticated);
             }
         };

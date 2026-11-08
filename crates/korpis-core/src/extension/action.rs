@@ -53,7 +53,7 @@ impl ArgumentValue {
 
     /// The object it names, for a resource.
     #[must_use]
-    pub const fn object(&self) -> Option<ObjectRef> {
+    pub fn object(&self) -> Option<ObjectRef> {
         match self {
             Self::Workload(id) => Some(ObjectRef::new(Kind::Workload, *id)),
             Self::Project(id) => Some(ObjectRef::new(Kind::Project, *id)),

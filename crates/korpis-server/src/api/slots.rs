@@ -39,8 +39,7 @@ pub(super) async fn list(
 ) -> ServiceResult<pb::ListSlotsResponse> {
     let caller = api.caller(ctx).await?;
     let object = object("object", request.object)?;
-    let shown =
-        api.app.list_slots(&caller, request.slot, object).await.map_err(error::from_app)?;
+    let shown = api.app.list_slots(&caller, request.slot, object).await.map_err(error::from_app)?;
     Response::ok(pb::ListSlotsResponse {
         contributions: shown.iter().map(contribution).collect(),
         ..Default::default()

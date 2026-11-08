@@ -65,7 +65,7 @@ impl ProviderType {
             }
             Self::Step => FailurePolicy::StepFails,
             Self::Health => FailurePolicy::Unknown,
-            Self::Console | Self::ChatAdapter => FailurePolicy::Unavailable,
+            Self::Console | Self::ChatAdapter | Self::Action => FailurePolicy::Unavailable,
         }
     }
 }

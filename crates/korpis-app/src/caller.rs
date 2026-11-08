@@ -119,7 +119,11 @@ impl Caller {
     /// # Errors
     /// [`AppError::Relayed`] for a relayed caller.
     pub const fn direct(&self) -> Result<(), AppError> {
-        if self.relayed.is_some() || self.invoked.is_some() { Err(AppError::Relayed) } else { Ok(()) }
+        if self.relayed.is_some() || self.invoked.is_some() {
+            Err(AppError::Relayed)
+        } else {
+            Ok(())
+        }
     }
 
     /// Whether this caller may be authorized for `action` on `object`, whose ancestry is
@@ -134,9 +138,10 @@ impl Caller {
                 .relayed
                 .as_ref()
                 .is_none_or(|r| &r.action == action && r.object == TicketObject::Object(object))
-            && self.invoked.as_ref().is_none_or(|i| {
-                i.resources.iter().any(|r| resource.is_within(&Scope::Object(*r)))
-            })
+            && self
+                .invoked
+                .as_ref()
+                .is_none_or(|i| i.resources.iter().any(|r| resource.is_within(&Scope::Object(*r))))
     }
 
     /// Whether `resource` lies where the caller may act at all: anywhere, but for a session begun

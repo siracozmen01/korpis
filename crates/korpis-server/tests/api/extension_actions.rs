@@ -35,7 +35,8 @@ async fn serving(h: &Harness, x: &Installed) -> Serve {
         concurrency: 4,
         ..Default::default()
     };
-    let first = pb::ProviderMessage { message: Some(Up::Register(Box::new(r))), ..Default::default() };
+    let first =
+        pb::ProviderMessage { message: Some(Up::Register(Box::new(r))), ..Default::default() };
     let (stream, answer) = open(h, h.config(Some(&x.secret)), first).await;
     assert!(matches!(answer.unwrap().message, Some(Down::Registered(_))), "registered");
     stream
@@ -48,7 +49,8 @@ async fn workload(h: &Harness, project: &str, name: &str) -> String {
 }
 
 fn purge(extension: &str, workload: &str) -> pb::InvokeActionRequest {
-    let value = pb::ActionValue { value: Some(V::Workload(workload.to_owned())), ..Default::default() };
+    let value =
+        pb::ActionValue { value: Some(V::Workload(workload.to_owned())), ..Default::default() };
     pb::InvokeActionRequest {
         extension: extension.to_owned(),
         action: "purge".into(),
@@ -99,8 +101,13 @@ async fn an_action_acts_for_its_invoker_only_on_what_they_named_until_it_finishe
     assert_eq!(read(&h, &x.secret, None, &other).await, Ok(()), "its own grant reaches it");
 
     let answer = pb::ActionResult { message: "purged".into(), ..Default::default() };
-    let result = pb::CallResult { call, outcome: Some(Outcome::ActionResult(Box::new(answer))), ..Default::default() };
-    let up = pb::ProviderMessage { message: Some(Up::Result(Box::new(result))), ..Default::default() };
+    let result = pb::CallResult {
+        call,
+        outcome: Some(Outcome::ActionResult(Box::new(answer))),
+        ..Default::default()
+    };
+    let up =
+        pb::ProviderMessage { message: Some(Up::Result(Box::new(result))), ..Default::default() };
     stream.send(up).await.unwrap();
     let done = pending.await.unwrap().unwrap().into_owned();
     assert_eq!(done.result.as_option().unwrap().message, "purged");
