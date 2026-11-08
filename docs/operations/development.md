@@ -135,9 +135,16 @@ em dash character. `README.tr.md` translates `README.md`, and a change to one up
 
 ## Work
 
-Work is tracked in GitHub issues grouped by milestone; plans and progress go in the issue, never in
-a file. One issue, one branch named for it, one pull request closing it. A pull request title is a
-conventional commit (`type(scope): summary`, lower case, under 72 characters); its body has Problem,
-Change and Verification (the commands run and what they showed) and ends with `Closes #<issue>`.
+Work is tracked in GitHub issues grouped by milestone; plans and progress go in the issues, never
+in a file. It is done in batches: one issue, or several of a milestone that touch the same code, on
+one branch named for the batch, merged as one pull request. A batch's code is written first, all of
+it, with no more than an occasional `cargo check`; then it is built and every error and warning
+fixed; then its tests are written, run and their failures fixed; then the full check runs, and the
+end-to-end script where the batch touches what one exercises. A slow run goes on in the background
+while the next batch is written in another worktree. A bug fix's test fails on the unfixed code:
+undo the fix, see it fail, restore it. A pull request title is a conventional commit
+(`type(scope): summary`, lower case, under 72 characters); its body has Problem, Change and
+Verification (the commands run and what they showed) and ends with a `Closes #<issue>` line for
+each issue it closes.
 Commits are signed off (`git commit -s`). Pull requests are squash-merged, and `main` changes only
 through them.

@@ -130,10 +130,19 @@ The development machine is shared with other projects, their CI runners and thei
 
 ## Work
 
-Work is tracked in GitHub issues, grouped by milestone. A session takes one issue, works on a
-branch named for it, and opens one pull request that closes it. Plans, notes and progress go in
-the issue, never in a file in the repository. A session does its work itself: subagents are
-denied in `.claude/settings.json`.
+Work is tracked in GitHub issues, grouped by milestone, and done in batches: one issue, or several
+issues of a milestone that touch the same code, on one branch named for the batch and merged as one
+pull request. Within a batch the code is written first, all of it, with no more than an occasional
+`cargo check`; then it is built and every error and warning fixed at once; then the tests are
+written; then they run and every failure is fixed; then the full check, and the end-to-end script
+where the batch touches what one exercises. A slow run (a full check, an end-to-end script) goes on
+in the background while the next batch is written in another worktree. A bug fix's test still
+fails on the unfixed code: undo the fix, see it fail, restore it.
+
+Plans, decisions and progress go in the issues, never in a file in the repository. A session also
+keeps its running notes outside the repository, brought up to date after each file it finishes,
+so a session that loses its context resumes where it stopped. A session does its work itself:
+subagents are denied in `.claude/settings.json`.
 
 ## Pull requests
 
@@ -142,6 +151,7 @@ Titles are conventional commits, lower case, under 72 characters: `type(scope): 
 `state`, `runtime`, `scheduling`, `migration`, `storage`, `backup`, `network`, `identity`,
 `recipe`, `api`, `web`, `cli`, `chat`, `streams`, `observability`, `extensions`, `security`,
 `operations`, `agent`, `helper`, `store`, `deps`. The body has Problem, Change and Verification
-(the commands run and what they showed) and ends with `Closes #<issue>`. Commits are signed off
+(the commands run and what they showed) and ends with a `Closes #<issue>` line for each issue
+it closes. Commits are signed off
 (`git commit -s`) and carry no `Co-Authored-By`, "Generated with" or session lines. Pull
 requests are squash-merged.
