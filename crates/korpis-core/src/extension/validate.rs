@@ -180,6 +180,10 @@ impl ExtensionManifest {
         bounded("extension.provides", &self.provides)?;
         let mut seen = BTreeSet::new();
         for (i, p @ ProvidedInterface { kind, name }) in self.provides.iter().enumerate() {
+            if *kind == ProviderType::Action {
+                let why = "actions are served under the extension's name, declared in `actions`";
+                return Err(RecipeError::new(&format!("extension.provides[{i}].type"), why));
+            }
             let well_formed = match kind {
                 ProviderType::Step | ProviderType::Health => qualified(name),
                 _ => slug(name),
@@ -241,12 +245,21 @@ impl ExtensionManifest {
                 return Err(RecipeError::new(&at("slot"), "a slot contributed to once"));
             }
             if s.descriptor.trim().is_empty() || s.descriptor.len() > MAX_DESCRIPTOR {
-                let why = format!("a descriptor or a URL, at most {MAX_DESCRIPTOR} bytes");
+                let why = format!("a descriptor, at most {MAX_DESCRIPTOR} bytes");
                 return Err(RecipeError::new(&at("descriptor"), why));
             }
+            super::slot::read(&s.slot, &s.descriptor, &self.actions)
+                .map_err(|why| slot_refused(&at, why))?;
         }
         Ok(())
     }
+}
+
+/// A slot contribution refused for `why`, on the slot where it names one the panel does not offer
+/// and on the descriptor otherwise.
+fn slot_refused(at: &dyn Fn(&str) -> String, why: String) -> RecipeError {
+    let field = if why.starts_with("a slot") { "slot" } else { "descriptor" };
+    RecipeError::new(&at(field), why)
 }
 
 #[cfg(test)]

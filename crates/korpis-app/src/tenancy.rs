@@ -22,4 +22,5 @@ pub use projects::CreateProject;
 pub use quota::{QuotaSetAt, SetQuota};
 pub use suspension::SuspendOrganization;
 pub use theme::{GoverningTheme, SetTheme};
+pub(crate) use trust::signers_validated;
 pub use trust::{Governing, SetTrustPolicy};

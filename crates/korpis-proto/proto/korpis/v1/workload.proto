@@ -474,6 +474,9 @@ message Effect {
   ObjectRef object = 19;
   // The organization whose subtree holds its object.
   optional string organization = 20;
+  // The extension action's invocation it was made under, when an extension acted for the person
+  // who invoked it; the extension.invoke effect of that invocation names who did.
+  optional string invocation = 21;
 }
 
 message JournalOrigin {

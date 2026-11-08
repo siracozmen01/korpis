@@ -106,7 +106,10 @@ pub use edge_lease::{EdgeLeaseRead, EdgeLeaseWrite};
 pub use egress::{EgressAt, EgressRead, EgressWrite};
 pub use endpoint::{EndpointRead, EndpointWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
-pub use extension::{ExtensionRead, ExtensionWrite};
+pub use extension::{
+    ExtensionPolicyRead, ExtensionPolicyWrite, ExtensionRead, ExtensionWrite, InvocationRead,
+    InvocationWrite, SetExtensionPolicy,
+};
 pub use feasibility::{Answers, Feasibility, Feasible};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use job::{Job, JobEnd, JobRead, JobWrite, NewJob};
@@ -214,6 +217,8 @@ pub trait Store:
     + ObservationRead
     + SetRead
     + ExtensionRead
+    + InvocationRead
+    + ExtensionPolicyRead
     + ConditionRead
     + EndpointRead
     + SubscriptionRead
@@ -315,6 +320,8 @@ pub trait Tx:
     + ObservationWrite
     + SetWrite
     + ExtensionWrite
+    + InvocationWrite
+    + ExtensionPolicyWrite
     + ConditionWrite
     + SubscriptionWrite
     + ProviderWrite

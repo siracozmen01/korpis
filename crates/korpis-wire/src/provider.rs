@@ -74,6 +74,15 @@ pub fn health_to_pb(
     }
 }
 
+/// A request whose wire form its own module writes: a backup target's, a key manager's, an
+/// identity provider's or a block storage provider's.
+fn delegated(r: &CallRequest) -> Option<Request> {
+    crate::backup::request_to_pb(r)
+        .or_else(|| crate::keys::request_to_pb(r))
+        .or_else(|| crate::identity::request_to_pb(r))
+        .or_else(|| crate::block::request_to_pb(r))
+}
+
 /// A call as it goes down a provider's stream.
 #[must_use]
 pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
@@ -83,37 +92,27 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
         }
         CallRequest::GrantAccess { .. }
         | CallRequest::ListObjects { .. }
-        | CallRequest::DeleteObjects { .. } => match crate::backup::request_to_pb(&c.request) {
-            Some(r) => r,
-            None => Request::Ping(Box::default()),
-        },
-        CallRequest::GenerateKey { .. } | CallRequest::UnwrapKey { .. } => {
-            match crate::keys::request_to_pb(&c.request) {
-                Some(r) => r,
-                None => Request::Ping(Box::default()),
-            }
-        }
-        CallRequest::VerifyMembers(_) | CallRequest::Assert(_) | CallRequest::Authorize(_) => {
-            match crate::identity::request_to_pb(&c.request) {
-                Some(r) => r,
-                None => Request::Ping(Box::default()),
-            }
-        }
-        CallRequest::RunStep { step, arguments, workload, platform } => {
-            Request::RunStep(Box::new(run_step_to_pb(step, arguments, *workload, platform)))
-        }
-        CallRequest::HealthStep(step) => {
-            Request::HealthStep(Box::new(crate::health::step_to_pb(step)))
-        }
-        CallRequest::CreateBlockVolume(_)
+        | CallRequest::DeleteObjects { .. }
+        | CallRequest::GenerateKey { .. }
+        | CallRequest::UnwrapKey { .. }
+        | CallRequest::VerifyMembers(_)
+        | CallRequest::Assert(_)
+        | CallRequest::Authorize(_)
+        | CallRequest::CreateBlockVolume(_)
         | CallRequest::AttachBlockVolume(_)
         | CallRequest::DetachBlockVolume { .. }
         | CallRequest::DeleteBlockVolume { .. }
         | CallRequest::DescribeBlockVolume { .. } => {
-            match crate::block::request_to_pb(&c.request) {
-                Some(r) => r,
-                None => Request::Ping(Box::default()),
-            }
+            delegated(&c.request).unwrap_or_else(|| Request::Ping(Box::default()))
+        }
+        CallRequest::RunStep { step, arguments, workload, platform } => {
+            Request::RunStep(Box::new(run_step_to_pb(step, arguments, *workload, platform)))
+        }
+        CallRequest::InvokeAction(i) => {
+            Request::InvokeAction(Box::new(crate::action::invoke_to_pb(i)))
+        }
+        CallRequest::HealthStep(step) => {
+            Request::HealthStep(Box::new(crate::health::step_to_pb(step)))
         }
         CallRequest::RouteAddress(r) => Request::RouteAddress(Box::new(pb::RouteAddress {
             address: r.address.to_string(),
@@ -158,6 +157,9 @@ pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
             crate::keys::outcome_from_pb(o).unwrap_or(CallOutcome::Failed(CallFailure::malformed()))
         }
         Some(Outcome::AddressRouted(_)) => CallOutcome::AddressRouted,
+        Some(Outcome::ActionResult(r)) => {
+            CallOutcome::ActionResult(crate::action::result_from_pb(r))
+        }
         Some(
             o @ (Outcome::BlockVolumeCreated(_)
             | Outcome::BlockAttachment(_)

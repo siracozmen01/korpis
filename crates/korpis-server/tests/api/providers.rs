@@ -5,7 +5,7 @@
 //! registration lasts as long as the stream and the installation.
 
 use crate::agent::{self, TestAgent};
-use crate::extensions::{install, needs, push_dns};
+use crate::extensions::{install, push_dns};
 use crate::identity::{ask, connect, send};
 use crate::recipes::project;
 use crate::support::{Harness, detail, reason};
@@ -40,14 +40,32 @@ pub async fn installed(h: &Harness, n: u8, project_name: &str) -> Installed {
 
 /// An extension pushed to `repo`, installed, and its workload's credential obtained.
 pub async fn installed_from(h: &Harness, n: u8, project_name: &str, repo: String) -> Installed {
+    let project = project(h, &h.root_org(), project_name).await;
+    installed_at(h, n, (&project, false), repo).await
+}
+
+/// An extension pushed to `repo`, installed into `project` rather than the whole organization.
+pub async fn installed_into(h: &Harness, n: u8, project: &str, repo: String) -> Installed {
+    installed_at(h, n, (project, true), repo).await
+}
+
+async fn installed_at(
+    h: &Harness,
+    n: u8,
+    (project, into): (&str, bool),
+    repo: String,
+) -> Installed {
     let a = TestAgent::enroll(h, &format!("fra-{n}"), n).await;
     let mut session = connect(h, &a, n).await;
-    let project = project(h, &h.root_org(), project_name).await;
-    let approved = needs(h, &repo, &project).await;
-    let req = pb::InstallExtensionRequest {
-        approved_needs: approved,
-        ..install(h, &format!("install-{n}"), &repo, &project)
+    let at = |key: &str| pb::InstallExtensionRequest {
+        project: into.then(|| project.to_owned()),
+        ..install(h, key, &repo, project)
     };
+    let dry = pb::InstallExtensionRequest { dry_run: true, ..at("dry") };
+    let shown = h.extensions(h.root()).install_extension(dry).await.unwrap().into_owned();
+    let approved = shown.extension.into_option().unwrap().manifest.into_option().unwrap().needs;
+    let req =
+        pb::InstallExtensionRequest { approved_needs: approved, ..at(&format!("install-{n}")) };
     let done = h.extensions(h.root()).install_extension(req).await.unwrap().into_owned();
     let extension = done.extension.into_option().unwrap();
     held(&mut session, &extension.workload, n, 0).await;

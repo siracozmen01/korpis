@@ -14,11 +14,13 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Consistency, Mutation, PageRequest, PageResponse } from "./api_pb";
 import { file_korpis_v1_api } from "./api_pb";
-import type { ProviderType, Value } from "./common_pb";
+import type { Error, ProviderType, Value } from "./common_pb";
 import { file_korpis_v1_common } from "./common_pb";
 import type { EventFilter } from "./event_pb";
 import { file_korpis_v1_event } from "./event_pb";
-import type { RecipeRef } from "./recipe_pb";
+import type { ActionResult, ActionValue } from "./provider_pb";
+import { file_korpis_v1_provider } from "./provider_pb";
+import type { RecipeRef, Signer } from "./recipe_pb";
 import { file_korpis_v1_recipe } from "./recipe_pb";
 import type { Subject } from "./tenancy_pb";
 import { file_korpis_v1_tenancy } from "./tenancy_pb";
@@ -30,7 +32,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/extension.proto.
  */
 export const file_korpis_v1_extension: GenFile = /*@__PURE__*/
-  fileDesc("Chlrb3JwaXMvdjEvZXh0ZW5zaW9uLnByb3RvEglrb3JwaXMudjEilQIKEUV4dGVuc2lvbk1hbmlmZXN0EhMKC2FwaV92ZXJzaW9uGAEgASgJEhAKCHJlcXVpcmVzGAIgAygJEh4KBW5lZWRzGAMgAygLMg8ua29ycGlzLnYxLk5lZWQSDgoGZWdyZXNzGAQgAygJEioKCnN1YnNjcmliZXMYBSADKAsyFi5rb3JwaXMudjEuRXZlbnRGaWx0ZXISLgoIcHJvdmlkZXMYBiADKAsyHC5rb3JwaXMudjEuUHJvdmlkZWRJbnRlcmZhY2USJgoHYWN0aW9ucxgHIAMoCzIVLmtvcnBpcy52MS5BY3Rpb25EZWNsEiUKCHVpX3Nsb3RzGAggAygLMhMua29ycGlzLnYxLlNsb3REZWNsIkwKBE5lZWQSDwoHYWN0aW9ucxgBIAMoCRIjCgVzY29wZRgCIAEoDjIULmtvcnBpcy52MS5OZWVkU2NvcGUSDgoGcmVhc29uGAMgASgJInYKEVByb3ZpZGVkSW50ZXJmYWNlEiUKBHR5cGUYASABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYAiABKAkSLAoJYXJndW1lbnRzGAMgAygLMhkua29ycGlzLnYxLkFjdGlvbkFyZ3VtZW50Il0KCkFjdGlvbkRlY2wSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIsCglhcmd1bWVudHMYAyADKAsyGS5rb3JwaXMudjEuQWN0aW9uQXJndW1lbnQiUAoOQWN0aW9uQXJndW1lbnQSDAoEbmFtZRgBIAEoCRIMCgR0eXBlGAIgASgJEhAKCHJlc291cmNlGAMgASgIEhAKCHJlcXVpcmVkGAQgASgIIiwKCFNsb3REZWNsEgwKBHNsb3QYASABKAkSEgoKZGVzY3JpcHRvchgCIAEoCSKPBAoJRXh0ZW5zaW9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRITCgthcGlfdmVyc2lvbhgEIAEoCRIOCgZyb3V0ZXMYByADKAkSEAoIdWlfc2xvdHMYCCADKAkSKgoGc3RhdHVzGAkgASgOMhoua29ycGlzLnYxLkV4dGVuc2lvblN0YXR1cxIOCgZncmFudHMYCiADKAkSFAoMb3JnYW5pemF0aW9uGAsgASgJEhQKB3Byb2plY3QYDCABKAlIAIgBARIQCgh3b3JrbG9hZBgNIAEoCRImCghhcnRpZmFjdBgOIAEoCzIULmtvcnBpcy52MS5SZWNpcGVSZWYSLgoIbWFuaWZlc3QYDyABKAsyHC5rb3JwaXMudjEuRXh0ZW5zaW9uTWFuaWZlc3QSLgoIcHJvdmlkZXMYECADKAsyHC5rb3JwaXMudjEuUHJvdmlkZWRJbnRlcmZhY2USKgoKc3Vic2NyaWJlcxgRIAMoCzIWLmtvcnBpcy52MS5FdmVudEZpbHRlchIoCgxpbnN0YWxsZWRfYnkYEiABKAsyEi5rb3JwaXMudjEuU3ViamVjdBIwCgxpbnN0YWxsZWRfYXQYEyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgoKCF9wcm9qZWN0SgQIBRAGSgQIBhAHIocDChdJbnN0YWxsRXh0ZW5zaW9uUmVxdWVzdBIlCghtdXRhdGlvbhgBIAEoCzITLmtvcnBpcy52MS5NdXRhdGlvbhIQCghhcnRpZmFjdBgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEhQKDG9yZ2FuaXphdGlvbhgEIAEoCRIUCgdwcm9qZWN0GAUgASgJSACIAQESGAoQd29ya2xvYWRfcHJvamVjdBgGIAEoCRIVCg13b3JrbG9hZF9uYW1lGAcgASgJEicKDmFwcHJvdmVkX25lZWRzGAggAygLMg8ua29ycGlzLnYxLk5lZWQSPgoGY29uZmlnGAkgAygLMi4ua29ycGlzLnYxLkluc3RhbGxFeHRlbnNpb25SZXF1ZXN0LkNvbmZpZ0VudHJ5Eg8KB2RyeV9ydW4YCiABKAgaPwoLQ29uZmlnRW50cnkSCwoDa2V5GAEgASgJEh8KBXZhbHVlGAIgASgLMhAua29ycGlzLnYxLlZhbHVlOgI4AUIKCghfcHJvamVjdCKPAQoYSW5zdGFsbEV4dGVuc2lvblJlc3BvbnNlEicKCWV4dGVuc2lvbhgBIAEoCzIULmtvcnBpcy52MS5FeHRlbnNpb24SHQoEcGxhbhgCIAEoCzIPLmtvcnBpcy52MS5QbGFuEisKC2NvbnNpc3RlbmN5GAMgASgLMhYua29ycGlzLnYxLkNvbnNpc3RlbmN5IiEKE0dldEV4dGVuc2lvblJlcXVlc3QSCgoCaWQYASABKAkiPwoUR2V0RXh0ZW5zaW9uUmVzcG9uc2USJwoJZXh0ZW5zaW9uGAEgASgLMhQua29ycGlzLnYxLkV4dGVuc2lvbiJTChVMaXN0RXh0ZW5zaW9uc1JlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJEiQKBHBhZ2UYAiABKAsyFi5rb3JwaXMudjEuUGFnZVJlcXVlc3QiaQoWTGlzdEV4dGVuc2lvbnNSZXNwb25zZRIoCgpleHRlbnNpb25zGAEgAygLMhQua29ycGlzLnYxLkV4dGVuc2lvbhIlCgRwYWdlGAIgASgLMhcua29ycGlzLnYxLlBhZ2VSZXNwb25zZSJOChlVbmluc3RhbGxFeHRlbnNpb25SZXF1ZXN0EiUKCG11dGF0aW9uGAEgASgLMhMua29ycGlzLnYxLk11dGF0aW9uEgoKAmlkGAIgASgJIpEBChpVbmluc3RhbGxFeHRlbnNpb25SZXNwb25zZRInCglleHRlbnNpb24YASABKAsyFC5rb3JwaXMudjEuRXh0ZW5zaW9uEh0KBHBsYW4YAiABKAsyDy5rb3JwaXMudjEuUGxhbhIrCgtjb25zaXN0ZW5jeRgDIAEoCzIWLmtvcnBpcy52MS5Db25zaXN0ZW5jeSKXAQoXVXBncmFkZUV4dGVuc2lvblJlcXVlc3QSJQoIbXV0YXRpb24YASABKAsyEy5rb3JwaXMudjEuTXV0YXRpb24SCgoCaWQYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRInCg5hcHByb3ZlZF9uZWVkcxgEIAMoCzIPLmtvcnBpcy52MS5OZWVkEg8KB2RyeV9ydW4YBSABKAgi1AEKGFVwZ3JhZGVFeHRlbnNpb25SZXNwb25zZRInCglleHRlbnNpb24YASABKAsyFC5rb3JwaXMudjEuRXh0ZW5zaW9uEh0KBHBsYW4YAiABKAsyDy5rb3JwaXMudjEuUGxhbhIrCgtjb25zaXN0ZW5jeRgDIAEoCzIWLmtvcnBpcy52MS5Db25zaXN0ZW5jeRIVCg1pc3N1ZWRfZ3JhbnRzGAQgAygJEhYKDnJldm9rZWRfZ3JhbnRzGAUgAygJEhQKDGZyb21fdmVyc2lvbhgGIAEoCSpwCglOZWVkU2NvcGUSGgoWTkVFRF9TQ09QRV9VTlNQRUNJRklFRBAAEhUKEU5FRURfU0NPUEVfVEFSR0VUEAESGwoXTkVFRF9TQ09QRV9PUkdBTklaQVRJT04QAhITCg9ORUVEX1NDT1BFX1NFTEYQAyqvAQoPRXh0ZW5zaW9uU3RhdHVzEiAKHEVYVEVOU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhFWFRFTlNJT05fU1RBVFVTX1JVTk5JTkcQARIcChhFWFRFTlNJT05fU1RBVFVTX1NUT1BQRUQQAhIbChdFWFRFTlNJT05fU1RBVFVTX0ZBSUxFRBADEiEKHUVYVEVOU0lPTl9TVEFUVVNfSU5DT01QQVRJQkxFEAQy4QMKEEV4dGVuc2lvblNlcnZpY2USWwoQSW5zdGFsbEV4dGVuc2lvbhIiLmtvcnBpcy52MS5JbnN0YWxsRXh0ZW5zaW9uUmVxdWVzdBojLmtvcnBpcy52MS5JbnN0YWxsRXh0ZW5zaW9uUmVzcG9uc2USVAoMR2V0RXh0ZW5zaW9uEh4ua29ycGlzLnYxLkdldEV4dGVuc2lvblJlcXVlc3QaHy5rb3JwaXMudjEuR2V0RXh0ZW5zaW9uUmVzcG9uc2UiA5ACARJaCg5MaXN0RXh0ZW5zaW9ucxIgLmtvcnBpcy52MS5MaXN0RXh0ZW5zaW9uc1JlcXVlc3QaIS5rb3JwaXMudjEuTGlzdEV4dGVuc2lvbnNSZXNwb25zZSIDkAIBEmEKElVuaW5zdGFsbEV4dGVuc2lvbhIkLmtvcnBpcy52MS5Vbmluc3RhbGxFeHRlbnNpb25SZXF1ZXN0GiUua29ycGlzLnYxLlVuaW5zdGFsbEV4dGVuc2lvblJlc3BvbnNlElsKEFVwZ3JhZGVFeHRlbnNpb24SIi5rb3JwaXMudjEuVXBncmFkZUV4dGVuc2lvblJlcXVlc3QaIy5rb3JwaXMudjEuVXBncmFkZUV4dGVuc2lvblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_timestamp, file_korpis_v1_api, file_korpis_v1_common, file_korpis_v1_event, file_korpis_v1_recipe, file_korpis_v1_tenancy, file_korpis_v1_workload]);
+  fileDesc("Chlrb3JwaXMvdjEvZXh0ZW5zaW9uLnByb3RvEglrb3JwaXMudjEilQIKEUV4dGVuc2lvbk1hbmlmZXN0EhMKC2FwaV92ZXJzaW9uGAEgASgJEhAKCHJlcXVpcmVzGAIgAygJEh4KBW5lZWRzGAMgAygLMg8ua29ycGlzLnYxLk5lZWQSDgoGZWdyZXNzGAQgAygJEioKCnN1YnNjcmliZXMYBSADKAsyFi5rb3JwaXMudjEuRXZlbnRGaWx0ZXISLgoIcHJvdmlkZXMYBiADKAsyHC5rb3JwaXMudjEuUHJvdmlkZWRJbnRlcmZhY2USJgoHYWN0aW9ucxgHIAMoCzIVLmtvcnBpcy52MS5BY3Rpb25EZWNsEiUKCHVpX3Nsb3RzGAggAygLMhMua29ycGlzLnYxLlNsb3REZWNsIkwKBE5lZWQSDwoHYWN0aW9ucxgBIAMoCRIjCgVzY29wZRgCIAEoDjIULmtvcnBpcy52MS5OZWVkU2NvcGUSDgoGcmVhc29uGAMgASgJInYKEVByb3ZpZGVkSW50ZXJmYWNlEiUKBHR5cGUYASABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYAiABKAkSLAoJYXJndW1lbnRzGAMgAygLMhkua29ycGlzLnYxLkFjdGlvbkFyZ3VtZW50Il0KCkFjdGlvbkRlY2wSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIsCglhcmd1bWVudHMYAyADKAsyGS5rb3JwaXMudjEuQWN0aW9uQXJndW1lbnQiUAoOQWN0aW9uQXJndW1lbnQSDAoEbmFtZRgBIAEoCRIMCgR0eXBlGAIgASgJEhAKCHJlc291cmNlGAMgASgIEhAKCHJlcXVpcmVkGAQgASgIIiwKCFNsb3REZWNsEgwKBHNsb3QYASABKAkSEgoKZGVzY3JpcHRvchgCIAEoCSKPBAoJRXh0ZW5zaW9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRITCgthcGlfdmVyc2lvbhgEIAEoCRIOCgZyb3V0ZXMYByADKAkSEAoIdWlfc2xvdHMYCCADKAkSKgoGc3RhdHVzGAkgASgOMhoua29ycGlzLnYxLkV4dGVuc2lvblN0YXR1cxIOCgZncmFudHMYCiADKAkSFAoMb3JnYW5pemF0aW9uGAsgASgJEhQKB3Byb2plY3QYDCABKAlIAIgBARIQCgh3b3JrbG9hZBgNIAEoCRImCghhcnRpZmFjdBgOIAEoCzIULmtvcnBpcy52MS5SZWNpcGVSZWYSLgoIbWFuaWZlc3QYDyABKAsyHC5rb3JwaXMudjEuRXh0ZW5zaW9uTWFuaWZlc3QSLgoIcHJvdmlkZXMYECADKAsyHC5rb3JwaXMudjEuUHJvdmlkZWRJbnRlcmZhY2USKgoKc3Vic2NyaWJlcxgRIAMoCzIWLmtvcnBpcy52MS5FdmVudEZpbHRlchIoCgxpbnN0YWxsZWRfYnkYEiABKAsyEi5rb3JwaXMudjEuU3ViamVjdBIwCgxpbnN0YWxsZWRfYXQYEyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgoKCF9wcm9qZWN0SgQIBRAGSgQIBhAHIjAKEExpc3RTbG90c1JlcXVlc3QSDAoEc2xvdBgBIAEoCRIOCgZvYmplY3QYAiABKAkiRwoRTGlzdFNsb3RzUmVzcG9uc2USMgoNY29udHJpYnV0aW9ucxgBIAMoCzIbLmtvcnBpcy52MS5TbG90Q29udHJpYnV0aW9uIoEBChBTbG90Q29udHJpYnV0aW9uEhEKCWV4dGVuc2lvbhgBIAEoCRIWCg5leHRlbnNpb25fbmFtZRgCIAEoCRIMCgRraW5kGAMgASgJEg0KBXRpdGxlGAQgASgJEiUKBmFjdGlvbhgFIAEoCzIVLmtvcnBpcy52MS5BY3Rpb25EZWNsImUKD0V4dGVuc2lvblBvbGljeRISCgpyZWdpc3RyaWVzGAEgAygJEiUKCnB1Ymxpc2hlcnMYAiADKAsyES5rb3JwaXMudjEuU2lnbmVyEhcKD3RlbmFudHNfaW5zdGFsbBgDIAEoCCIxChlHZXRFeHRlbnNpb25Qb2xpY3lSZXF1ZXN0EhQKDG9yZ2FuaXphdGlvbhgBIAEoCSJZChpHZXRFeHRlbnNpb25Qb2xpY3lSZXNwb25zZRIqCgZwb2xpY3kYASABKAsyGi5rb3JwaXMudjEuRXh0ZW5zaW9uUG9saWN5Eg8KB3ZlcnNpb24YAiABKAQihAEKGVNldEV4dGVuc2lvblBvbGljeVJlcXVlc3QSJQoIbXV0YXRpb24YASABKAsyEy5rb3JwaXMudjEuTXV0YXRpb24SFAoMb3JnYW5pemF0aW9uGAIgASgJEioKBnBvbGljeRgDIAEoCzIaLmtvcnBpcy52MS5FeHRlbnNpb25Qb2xpY3kihgEKGlNldEV4dGVuc2lvblBvbGljeVJlc3BvbnNlEioKBnBvbGljeRgBIAEoCzIaLmtvcnBpcy52MS5FeHRlbnNpb25Qb2xpY3kSDwoHdmVyc2lvbhgCIAEoBBIrCgtjb25zaXN0ZW5jeRgDIAEoCzIWLmtvcnBpcy52MS5Db25zaXN0ZW5jeSLEAQoTSW52b2tlQWN0aW9uUmVxdWVzdBIRCglleHRlbnNpb24YASABKAkSDgoGYWN0aW9uGAIgASgJEkAKCWFyZ3VtZW50cxgDIAMoCzItLmtvcnBpcy52MS5JbnZva2VBY3Rpb25SZXF1ZXN0LkFyZ3VtZW50c0VudHJ5GkgKDkFyZ3VtZW50c0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmtvcnBpcy52MS5BY3Rpb25WYWx1ZToCOAEidAoUSW52b2tlQWN0aW9uUmVzcG9uc2USEgoKaW52b2NhdGlvbhgBIAEoCRInCgZyZXN1bHQYAiABKAsyFy5rb3JwaXMudjEuQWN0aW9uUmVzdWx0Eh8KBWVycm9yGAMgASgLMhAua29ycGlzLnYxLkVycm9yIocDChdJbnN0YWxsRXh0ZW5zaW9uUmVxdWVzdBIlCghtdXRhdGlvbhgBIAEoCzITLmtvcnBpcy52MS5NdXRhdGlvbhIQCghhcnRpZmFjdBgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEhQKDG9yZ2FuaXphdGlvbhgEIAEoCRIUCgdwcm9qZWN0GAUgASgJSACIAQESGAoQd29ya2xvYWRfcHJvamVjdBgGIAEoCRIVCg13b3JrbG9hZF9uYW1lGAcgASgJEicKDmFwcHJvdmVkX25lZWRzGAggAygLMg8ua29ycGlzLnYxLk5lZWQSPgoGY29uZmlnGAkgAygLMi4ua29ycGlzLnYxLkluc3RhbGxFeHRlbnNpb25SZXF1ZXN0LkNvbmZpZ0VudHJ5Eg8KB2RyeV9ydW4YCiABKAgaPwoLQ29uZmlnRW50cnkSCwoDa2V5GAEgASgJEh8KBXZhbHVlGAIgASgLMhAua29ycGlzLnYxLlZhbHVlOgI4AUIKCghfcHJvamVjdCKPAQoYSW5zdGFsbEV4dGVuc2lvblJlc3BvbnNlEicKCWV4dGVuc2lvbhgBIAEoCzIULmtvcnBpcy52MS5FeHRlbnNpb24SHQoEcGxhbhgCIAEoCzIPLmtvcnBpcy52MS5QbGFuEisKC2NvbnNpc3RlbmN5GAMgASgLMhYua29ycGlzLnYxLkNvbnNpc3RlbmN5IiEKE0dldEV4dGVuc2lvblJlcXVlc3QSCgoCaWQYASABKAkiPwoUR2V0RXh0ZW5zaW9uUmVzcG9uc2USJwoJZXh0ZW5zaW9uGAEgASgLMhQua29ycGlzLnYxLkV4dGVuc2lvbiJTChVMaXN0RXh0ZW5zaW9uc1JlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJEiQKBHBhZ2UYAiABKAsyFi5rb3JwaXMudjEuUGFnZVJlcXVlc3QiaQoWTGlzdEV4dGVuc2lvbnNSZXNwb25zZRIoCgpleHRlbnNpb25zGAEgAygLMhQua29ycGlzLnYxLkV4dGVuc2lvbhIlCgRwYWdlGAIgASgLMhcua29ycGlzLnYxLlBhZ2VSZXNwb25zZSJOChlVbmluc3RhbGxFeHRlbnNpb25SZXF1ZXN0EiUKCG11dGF0aW9uGAEgASgLMhMua29ycGlzLnYxLk11dGF0aW9uEgoKAmlkGAIgASgJIpEBChpVbmluc3RhbGxFeHRlbnNpb25SZXNwb25zZRInCglleHRlbnNpb24YASABKAsyFC5rb3JwaXMudjEuRXh0ZW5zaW9uEh0KBHBsYW4YAiABKAsyDy5rb3JwaXMudjEuUGxhbhIrCgtjb25zaXN0ZW5jeRgDIAEoCzIWLmtvcnBpcy52MS5Db25zaXN0ZW5jeSKXAQoXVXBncmFkZUV4dGVuc2lvblJlcXVlc3QSJQoIbXV0YXRpb24YASABKAsyEy5rb3JwaXMudjEuTXV0YXRpb24SCgoCaWQYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRInCg5hcHByb3ZlZF9uZWVkcxgEIAMoCzIPLmtvcnBpcy52MS5OZWVkEg8KB2RyeV9ydW4YBSABKAgi1AEKGFVwZ3JhZGVFeHRlbnNpb25SZXNwb25zZRInCglleHRlbnNpb24YASABKAsyFC5rb3JwaXMudjEuRXh0ZW5zaW9uEh0KBHBsYW4YAiABKAsyDy5rb3JwaXMudjEuUGxhbhIrCgtjb25zaXN0ZW5jeRgDIAEoCzIWLmtvcnBpcy52MS5Db25zaXN0ZW5jeRIVCg1pc3N1ZWRfZ3JhbnRzGAQgAygJEhYKDnJldm9rZWRfZ3JhbnRzGAUgAygJEhQKDGZyb21fdmVyc2lvbhgGIAEoCSpwCglOZWVkU2NvcGUSGgoWTkVFRF9TQ09QRV9VTlNQRUNJRklFRBAAEhUKEU5FRURfU0NPUEVfVEFSR0VUEAESGwoXTkVFRF9TQ09QRV9PUkdBTklaQVRJT04QAhITCg9ORUVEX1NDT1BFX1NFTEYQAyqvAQoPRXh0ZW5zaW9uU3RhdHVzEiAKHEVYVEVOU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhFWFRFTlNJT05fU1RBVFVTX1JVTk5JTkcQARIcChhFWFRFTlNJT05fU1RBVFVTX1NUT1BQRUQQAhIbChdFWFRFTlNJT05fU1RBVFVTX0ZBSUxFRBADEiEKHUVYVEVOU0lPTl9TVEFUVVNfSU5DT01QQVRJQkxFEAQyygYKEEV4dGVuc2lvblNlcnZpY2USWwoQSW5zdGFsbEV4dGVuc2lvbhIiLmtvcnBpcy52MS5JbnN0YWxsRXh0ZW5zaW9uUmVxdWVzdBojLmtvcnBpcy52MS5JbnN0YWxsRXh0ZW5zaW9uUmVzcG9uc2USVAoMR2V0RXh0ZW5zaW9uEh4ua29ycGlzLnYxLkdldEV4dGVuc2lvblJlcXVlc3QaHy5rb3JwaXMudjEuR2V0RXh0ZW5zaW9uUmVzcG9uc2UiA5ACARJaCg5MaXN0RXh0ZW5zaW9ucxIgLmtvcnBpcy52MS5MaXN0RXh0ZW5zaW9uc1JlcXVlc3QaIS5rb3JwaXMudjEuTGlzdEV4dGVuc2lvbnNSZXNwb25zZSIDkAIBEmEKElVuaW5zdGFsbEV4dGVuc2lvbhIkLmtvcnBpcy52MS5Vbmluc3RhbGxFeHRlbnNpb25SZXF1ZXN0GiUua29ycGlzLnYxLlVuaW5zdGFsbEV4dGVuc2lvblJlc3BvbnNlElsKEFVwZ3JhZGVFeHRlbnNpb24SIi5rb3JwaXMudjEuVXBncmFkZUV4dGVuc2lvblJlcXVlc3QaIy5rb3JwaXMudjEuVXBncmFkZUV4dGVuc2lvblJlc3BvbnNlEk8KDEludm9rZUFjdGlvbhIeLmtvcnBpcy52MS5JbnZva2VBY3Rpb25SZXF1ZXN0Gh8ua29ycGlzLnYxLkludm9rZUFjdGlvblJlc3BvbnNlEmYKEkdldEV4dGVuc2lvblBvbGljeRIkLmtvcnBpcy52MS5HZXRFeHRlbnNpb25Qb2xpY3lSZXF1ZXN0GiUua29ycGlzLnYxLkdldEV4dGVuc2lvblBvbGljeVJlc3BvbnNlIgOQAgESYQoSU2V0RXh0ZW5zaW9uUG9saWN5EiQua29ycGlzLnYxLlNldEV4dGVuc2lvblBvbGljeVJlcXVlc3QaJS5rb3JwaXMudjEuU2V0RXh0ZW5zaW9uUG9saWN5UmVzcG9uc2USSwoJTGlzdFNsb3RzEhsua29ycGlzLnYxLkxpc3RTbG90c1JlcXVlc3QaHC5rb3JwaXMudjEuTGlzdFNsb3RzUmVzcG9uc2UiA5ACAWIGcHJvdG8z", [file_google_protobuf_timestamp, file_korpis_v1_api, file_korpis_v1_common, file_korpis_v1_event, file_korpis_v1_provider, file_korpis_v1_recipe, file_korpis_v1_tenancy, file_korpis_v1_workload]);
 
 /**
  * The `extension` block of an extension's document.
@@ -75,14 +77,14 @@ export type ExtensionManifest = Message<"korpis.v1.ExtensionManifest"> & {
   provides: ProvidedInterface[];
 
   /**
-   * ext.<name>.<action>, built in Phase 4.
+   * ext.<name>.<action>, invoked through InvokeAction.
    *
    * @generated from field: repeated korpis.v1.ActionDecl actions = 7;
    */
   actions: ActionDecl[];
 
   /**
-   * Built in Phase 4.
+   * What it contributes to the panel's slots, rendered by the panel's own components.
    *
    * @generated from field: repeated korpis.v1.SlotDecl ui_slots = 8;
    */
@@ -228,12 +230,15 @@ export const ActionArgumentSchema: GenMessage<ActionArgument> = /*@__PURE__*/
  */
 export type SlotDecl = Message<"korpis.v1.SlotDecl"> & {
   /**
+   * A slot the panel offers: workload.panel, organization.settings.
+   *
    * @generated from field: string slot = 1;
    */
   slot: string;
 
   /**
-   * A declarative descriptor, or the URL of an isolated frame.
+   * A declarative descriptor: {"kind": "card" or "form", "action": <declared action>, "title":
+   * <text>}. For workload.panel the action takes a workload, given the page's.
    *
    * @generated from field: string descriptor = 2;
    */
@@ -355,6 +360,293 @@ export const ExtensionSchema: GenMessage<Extension> = /*@__PURE__*/
   messageDesc(file_korpis_v1_extension, 6);
 
 /**
+ * @generated from message korpis.v1.ListSlotsRequest
+ */
+export type ListSlotsRequest = Message<"korpis.v1.ListSlotsRequest"> & {
+  /**
+   * workload.panel or organization.settings.
+   *
+   * @generated from field: string slot = 1;
+   */
+  slot: string;
+
+  /**
+   * The workload, or the organization, the slot is shown for.
+   *
+   * @generated from field: string object = 2;
+   */
+  object: string;
+};
+
+/**
+ * Describes the message korpis.v1.ListSlotsRequest.
+ * Use `create(ListSlotsRequestSchema)` to create a new message.
+ */
+export const ListSlotsRequestSchema: GenMessage<ListSlotsRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 7);
+
+/**
+ * @generated from message korpis.v1.ListSlotsResponse
+ */
+export type ListSlotsResponse = Message<"korpis.v1.ListSlotsResponse"> & {
+  /**
+   * @generated from field: repeated korpis.v1.SlotContribution contributions = 1;
+   */
+  contributions: SlotContribution[];
+};
+
+/**
+ * Describes the message korpis.v1.ListSlotsResponse.
+ * Use `create(ListSlotsResponseSchema)` to create a new message.
+ */
+export const ListSlotsResponseSchema: GenMessage<ListSlotsResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 8);
+
+/**
+ * One installation's contribution to a slot, rendered by the panel's own components.
+ *
+ * @generated from message korpis.v1.SlotContribution
+ */
+export type SlotContribution = Message<"korpis.v1.SlotContribution"> & {
+  /**
+   * The installation, to invoke the action of.
+   *
+   * @generated from field: string extension = 1;
+   */
+  extension: string;
+
+  /**
+   * Its name, as ext.<name>.<action> writes it.
+   *
+   * @generated from field: string extension_name = 2;
+   */
+  extensionName: string;
+
+  /**
+   * card: what the action answers, asked as it is shown; form: the action's arguments, invoking
+   * it when submitted.
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string title = 4;
+   */
+  title: string;
+
+  /**
+   * @generated from field: korpis.v1.ActionDecl action = 5;
+   */
+  action?: ActionDecl | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.SlotContribution.
+ * Use `create(SlotContributionSchema)` to create a new message.
+ */
+export const SlotContributionSchema: GenMessage<SlotContribution> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 9);
+
+/**
+ * An operator's rule over the extensions installed beneath a root organization. Everything empty
+ * and tenants_install true is the default, open.
+ *
+ * @generated from message korpis.v1.ExtensionPolicy
+ */
+export type ExtensionPolicy = Message<"korpis.v1.ExtensionPolicy"> & {
+  /**
+   * A registry host, or a repository prefix beneath one, an extension's artifact may come from;
+   * empty for anywhere.
+   *
+   * @generated from field: repeated string registries = 1;
+   */
+  registries: string[];
+
+  /**
+   * Publishers, one of whom must have signed the artifact's digest; empty for anyone the
+   * installing organization's trust policy accepts.
+   *
+   * @generated from field: repeated korpis.v1.Signer publishers = 2;
+   */
+  publishers: Signer[];
+
+  /**
+   * Whether someone without extension.install over the root organization may install one.
+   *
+   * @generated from field: bool tenants_install = 3;
+   */
+  tenantsInstall: boolean;
+};
+
+/**
+ * Describes the message korpis.v1.ExtensionPolicy.
+ * Use `create(ExtensionPolicySchema)` to create a new message.
+ */
+export const ExtensionPolicySchema: GenMessage<ExtensionPolicy> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 10);
+
+/**
+ * @generated from message korpis.v1.GetExtensionPolicyRequest
+ */
+export type GetExtensionPolicyRequest = Message<"korpis.v1.GetExtensionPolicyRequest"> & {
+  /**
+   * The root organization.
+   *
+   * @generated from field: string organization = 1;
+   */
+  organization: string;
+};
+
+/**
+ * Describes the message korpis.v1.GetExtensionPolicyRequest.
+ * Use `create(GetExtensionPolicyRequestSchema)` to create a new message.
+ */
+export const GetExtensionPolicyRequestSchema: GenMessage<GetExtensionPolicyRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 11);
+
+/**
+ * @generated from message korpis.v1.GetExtensionPolicyResponse
+ */
+export type GetExtensionPolicyResponse = Message<"korpis.v1.GetExtensionPolicyResponse"> & {
+  /**
+   * @generated from field: korpis.v1.ExtensionPolicy policy = 1;
+   */
+  policy?: ExtensionPolicy | undefined;
+
+  /**
+   * Zero when none was set and the default governs.
+   *
+   * @generated from field: uint64 version = 2;
+   */
+  version: bigint;
+};
+
+/**
+ * Describes the message korpis.v1.GetExtensionPolicyResponse.
+ * Use `create(GetExtensionPolicyResponseSchema)` to create a new message.
+ */
+export const GetExtensionPolicyResponseSchema: GenMessage<GetExtensionPolicyResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 12);
+
+/**
+ * @generated from message korpis.v1.SetExtensionPolicyRequest
+ */
+export type SetExtensionPolicyRequest = Message<"korpis.v1.SetExtensionPolicyRequest"> & {
+  /**
+   * @generated from field: korpis.v1.Mutation mutation = 1;
+   */
+  mutation?: Mutation | undefined;
+
+  /**
+   * @generated from field: string organization = 2;
+   */
+  organization: string;
+
+  /**
+   * @generated from field: korpis.v1.ExtensionPolicy policy = 3;
+   */
+  policy?: ExtensionPolicy | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.SetExtensionPolicyRequest.
+ * Use `create(SetExtensionPolicyRequestSchema)` to create a new message.
+ */
+export const SetExtensionPolicyRequestSchema: GenMessage<SetExtensionPolicyRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 13);
+
+/**
+ * @generated from message korpis.v1.SetExtensionPolicyResponse
+ */
+export type SetExtensionPolicyResponse = Message<"korpis.v1.SetExtensionPolicyResponse"> & {
+  /**
+   * @generated from field: korpis.v1.ExtensionPolicy policy = 1;
+   */
+  policy?: ExtensionPolicy | undefined;
+
+  /**
+   * @generated from field: uint64 version = 2;
+   */
+  version: bigint;
+
+  /**
+   * @generated from field: korpis.v1.Consistency consistency = 3;
+   */
+  consistency?: Consistency | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.SetExtensionPolicyResponse.
+ * Use `create(SetExtensionPolicyResponseSchema)` to create a new message.
+ */
+export const SetExtensionPolicyResponseSchema: GenMessage<SetExtensionPolicyResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 14);
+
+/**
+ * @generated from message korpis.v1.InvokeActionRequest
+ */
+export type InvokeActionRequest = Message<"korpis.v1.InvokeActionRequest"> & {
+  /**
+   * The installation.
+   *
+   * @generated from field: string extension = 1;
+   */
+  extension: string;
+
+  /**
+   * The part after ext.<name>.
+   *
+   * @generated from field: string action = 2;
+   */
+  action: string;
+
+  /**
+   * @generated from field: map<string, korpis.v1.ActionValue> arguments = 3;
+   */
+  arguments: { [key: string]: ActionValue };
+};
+
+/**
+ * Describes the message korpis.v1.InvokeActionRequest.
+ * Use `create(InvokeActionRequestSchema)` to create a new message.
+ */
+export const InvokeActionRequestSchema: GenMessage<InvokeActionRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 15);
+
+/**
+ * @generated from message korpis.v1.InvokeActionResponse
+ */
+export type InvokeActionResponse = Message<"korpis.v1.InvokeActionResponse"> & {
+  /**
+   * @generated from field: string invocation = 1;
+   */
+  invocation: string;
+
+  /**
+   * What the action answered; unset when it failed.
+   *
+   * @generated from field: korpis.v1.ActionResult result = 2;
+   */
+  result?: ActionResult | undefined;
+
+  /**
+   * Why it failed, when it did: the extension's own reason, or provider.deadline,
+   * provider.stream_ended or provider.unknown when it was not answered.
+   *
+   * @generated from field: korpis.v1.Error error = 3;
+   */
+  error?: Error | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.InvokeActionResponse.
+ * Use `create(InvokeActionResponseSchema)` to create a new message.
+ */
+export const InvokeActionResponseSchema: GenMessage<InvokeActionResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_extension, 16);
+
+/**
  * @generated from message korpis.v1.InstallExtensionRequest
  */
 export type InstallExtensionRequest = Message<"korpis.v1.InstallExtensionRequest"> & {
@@ -430,7 +722,7 @@ export type InstallExtensionRequest = Message<"korpis.v1.InstallExtensionRequest
  * Use `create(InstallExtensionRequestSchema)` to create a new message.
  */
 export const InstallExtensionRequestSchema: GenMessage<InstallExtensionRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 7);
+  messageDesc(file_korpis_v1_extension, 17);
 
 /**
  * @generated from message korpis.v1.InstallExtensionResponse
@@ -459,7 +751,7 @@ export type InstallExtensionResponse = Message<"korpis.v1.InstallExtensionRespon
  * Use `create(InstallExtensionResponseSchema)` to create a new message.
  */
 export const InstallExtensionResponseSchema: GenMessage<InstallExtensionResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 8);
+  messageDesc(file_korpis_v1_extension, 18);
 
 /**
  * @generated from message korpis.v1.GetExtensionRequest
@@ -476,7 +768,7 @@ export type GetExtensionRequest = Message<"korpis.v1.GetExtensionRequest"> & {
  * Use `create(GetExtensionRequestSchema)` to create a new message.
  */
 export const GetExtensionRequestSchema: GenMessage<GetExtensionRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 9);
+  messageDesc(file_korpis_v1_extension, 19);
 
 /**
  * @generated from message korpis.v1.GetExtensionResponse
@@ -493,7 +785,7 @@ export type GetExtensionResponse = Message<"korpis.v1.GetExtensionResponse"> & {
  * Use `create(GetExtensionResponseSchema)` to create a new message.
  */
 export const GetExtensionResponseSchema: GenMessage<GetExtensionResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 10);
+  messageDesc(file_korpis_v1_extension, 20);
 
 /**
  * @generated from message korpis.v1.ListExtensionsRequest
@@ -515,7 +807,7 @@ export type ListExtensionsRequest = Message<"korpis.v1.ListExtensionsRequest"> &
  * Use `create(ListExtensionsRequestSchema)` to create a new message.
  */
 export const ListExtensionsRequestSchema: GenMessage<ListExtensionsRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 11);
+  messageDesc(file_korpis_v1_extension, 21);
 
 /**
  * @generated from message korpis.v1.ListExtensionsResponse
@@ -537,7 +829,7 @@ export type ListExtensionsResponse = Message<"korpis.v1.ListExtensionsResponse">
  * Use `create(ListExtensionsResponseSchema)` to create a new message.
  */
 export const ListExtensionsResponseSchema: GenMessage<ListExtensionsResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 12);
+  messageDesc(file_korpis_v1_extension, 22);
 
 /**
  * @generated from message korpis.v1.UninstallExtensionRequest
@@ -559,7 +851,7 @@ export type UninstallExtensionRequest = Message<"korpis.v1.UninstallExtensionReq
  * Use `create(UninstallExtensionRequestSchema)` to create a new message.
  */
 export const UninstallExtensionRequestSchema: GenMessage<UninstallExtensionRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 13);
+  messageDesc(file_korpis_v1_extension, 23);
 
 /**
  * @generated from message korpis.v1.UninstallExtensionResponse
@@ -586,7 +878,7 @@ export type UninstallExtensionResponse = Message<"korpis.v1.UninstallExtensionRe
  * Use `create(UninstallExtensionResponseSchema)` to create a new message.
  */
 export const UninstallExtensionResponseSchema: GenMessage<UninstallExtensionResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 14);
+  messageDesc(file_korpis_v1_extension, 24);
 
 /**
  * @generated from message korpis.v1.UpgradeExtensionRequest
@@ -627,7 +919,7 @@ export type UpgradeExtensionRequest = Message<"korpis.v1.UpgradeExtensionRequest
  * Use `create(UpgradeExtensionRequestSchema)` to create a new message.
  */
 export const UpgradeExtensionRequestSchema: GenMessage<UpgradeExtensionRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 15);
+  messageDesc(file_korpis_v1_extension, 25);
 
 /**
  * @generated from message korpis.v1.UpgradeExtensionResponse
@@ -678,7 +970,7 @@ export type UpgradeExtensionResponse = Message<"korpis.v1.UpgradeExtensionRespon
  * Use `create(UpgradeExtensionResponseSchema)` to create a new message.
  */
 export const UpgradeExtensionResponseSchema: GenMessage<UpgradeExtensionResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_extension, 16);
+  messageDesc(file_korpis_v1_extension, 26);
 
 /**
  * @generated from enum korpis.v1.NeedScope
@@ -808,6 +1100,51 @@ export const ExtensionService: GenService<{
     methodKind: "unary";
     input: typeof UpgradeExtensionRequestSchema;
     output: typeof UpgradeExtensionResponseSchema;
+  },
+  /**
+   * Invokes one of an installation's actions: ext.<name>.<action> authorized for the caller on
+   * each resource argument, or on where it is installed when it takes none; the extension acts
+   * for the caller only within that, and the invocation is an effect.
+   *
+   * @generated from rpc korpis.v1.ExtensionService.InvokeAction
+   */
+  invokeAction: {
+    methodKind: "unary";
+    input: typeof InvokeActionRequestSchema;
+    output: typeof InvokeActionResponseSchema;
+  },
+  /**
+   * A root organization's extension policy, which governs every installation beneath it:
+   * org.read there.
+   *
+   * @generated from rpc korpis.v1.ExtensionService.GetExtensionPolicy
+   */
+  getExtensionPolicy: {
+    methodKind: "unary";
+    input: typeof GetExtensionPolicyRequestSchema;
+    output: typeof GetExtensionPolicyResponseSchema;
+  },
+  /**
+   * Sets it, by compare-and-swap on the mutation's expected_version (zero when none is set):
+   * org.write there.
+   *
+   * @generated from rpc korpis.v1.ExtensionService.SetExtensionPolicy
+   */
+  setExtensionPolicy: {
+    methodKind: "unary";
+    input: typeof SetExtensionPolicyRequestSchema;
+    output: typeof SetExtensionPolicyResponseSchema;
+  },
+  /**
+   * What installations covering an object contribute to one of the panel's slots there: only
+   * contributions whose action the caller may invoke on it.
+   *
+   * @generated from rpc korpis.v1.ExtensionService.ListSlots
+   */
+  listSlots: {
+    methodKind: "unary";
+    input: typeof ListSlotsRequestSchema;
+    output: typeof ListSlotsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_korpis_v1_extension, 0);

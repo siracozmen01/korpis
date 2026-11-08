@@ -44,4 +44,5 @@ extension:
       arguments:
         - {name: workload, type: workload, required: true}
   ui_slots:
-    - {slot: workload.tab, descriptor: "https://dns.example/frame"}
+    - slot: workload.panel
+      descriptor: '{"kind": "form", "action": "purge", "title": "Purge its DNS records"}'

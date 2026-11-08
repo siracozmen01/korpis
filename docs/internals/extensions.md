@@ -167,8 +167,21 @@ is installed into the organization itself. A reseller runs a DNS provider for it
 cannot place code in the operator's forwarding path. Tenant-direction extensions need nothing new:
 their authority is bounded structurally, their consumption metered against the installer, and their
 egress the tenant's egress policy, so an operator forbidding arbitrary egress has already stopped
-one reaching Cloudflare. An operator may separately keep a publisher or registry allow-list, open by
-default; a shared host not wanting customers to install extensions at all sets that policy.
+one reaching Cloudflare.
+
+**An operator's rule no tenant loosens.** A trust policy is an organization's own and a child may
+accept what its parent does not, which is right for what a tenant runs; an operator restricting
+extensions needs a rule beneath which nobody widens it. So a root organization keeps an extension
+policy (`ExtensionService.GetExtensionPolicy` under `org.read` there, `SetExtensionPolicy` under
+`org.write` by compare-and-swap, each change an `extension.policy.set` effect) that governs every
+install and upgrade beneath it, dry runs included, before anything else of the extension is believed:
+the registries an extension's artifact may come from (a host, or a repository prefix beneath one,
+matched segment by segment), the publishers one of whom must have signed its digest (cosign keys,
+checked as a trust policy's signers are, on top of the installing organization's own policy), and
+whether anyone without `extension.install` over the root may install one at all, which a shared host
+not wanting customers to install extensions turns off. All open is the default. A refusal is
+`extension.not_allowed` and names the rule. The policy changes nothing already installed: removing a
+registry stops its extensions being installed or upgraded, and uninstalling is an action on each.
 
 **Providers are named, scoped and pinned.** A registration belongs to an organization and is visible
 to its subtree; a child organization's own shadows its parent's for its subtree only, visibly. When
@@ -191,8 +204,8 @@ operator's DNS provider is an outage the operator did not choose.
 
 The contract is `korpis.extension.v1`, and a capability names an interface the control plane
 actually speaks, never one it merely tolerates: `events.subscribe`, `identity.credential`,
-`provider.serve`, and one `provider.<type>` per provider type whose calls are in the contract and
-the SDK. A type whose calls are not yet in the contract (console, edge router, chat adapter) is not
+`provider.serve`, `provider.action` for serving its own actions, and one `provider.<type>` per
+provider type whose calls are in the contract and the SDK. A type whose calls are not yet in the contract (console, edge router, chat adapter) is not
 offered, and an extension requiring it is refused, since it would wait for calls nothing makes. A
 refusal is `extension.incompatible`, naming what is missing and what is offered; a client reads both
 from `ServerInfo` (`extension_contracts`, `capabilities`).

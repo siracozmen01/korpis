@@ -104,6 +104,8 @@ message ProviderCall {
     DetachBlockVolume detach_block_volume = 34;
     DeleteBlockVolume delete_block_volume = 35;
     DescribeBlockVolume describe_block_volume = 36;
+    // action: perform one of the extension's actions for the person who invoked it.
+    InvokeAction invoke_action = 37;
   }
 }
 
@@ -129,6 +131,7 @@ message CallResult {
     BlockVolumeDetached block_volume_detached = 33;
     BlockVolumeDeleted block_volume_deleted = 34;
     BlockVolumeDescription block_volume_description = 35;
+    ActionResult action_result = 36;
   }
 }
 
@@ -608,4 +611,38 @@ message HealthVerdict {
   string reason = 2;
   // What the workload said of itself, its players and map say; at most 32 entries.
   map<string, string> detail = 3;
+}
+
+// One invocation of an extension's action. What the extension does with `invocation` beside its own
+// credential is permitted only where its grants and the invoker's authorization meet: the core
+// actions its grants permit, on the resources the invoker was authorized for. The token expires
+// when the invocation finishes.
+message InvokeAction {
+  // The part after ext.<extension>.
+  string action = 1;
+  map<string, ActionValue> arguments = 2;
+  // Sent as the korpis-invocation header on the extension's calls made for this invocation.
+  string invocation = 3;
+  // Who invoked it, as effects name a principal.
+  string invoker = 4;
+}
+
+// An argument's value, of the type its declaration names.
+message ActionValue {
+  oneof value {
+    string text = 1;
+    int64 int = 2;
+    bool flag = 3;
+    // A workload's id, authorized for the invoker.
+    string workload = 4;
+    // A project's id, authorized for the invoker.
+    string project = 5;
+  }
+}
+
+message ActionResult {
+  // A line for the person who invoked it.
+  string message = 1;
+  // What the action returns for a client to render, as JSON text; empty for nothing.
+  string data = 2;
 }

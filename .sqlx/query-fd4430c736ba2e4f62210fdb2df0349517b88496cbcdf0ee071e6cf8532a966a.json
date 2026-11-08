@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE extension_policy\n                    SET registries = $2, publishers = $3, tenants_install = $4, version = $5,\n                        set_by = $6, set_at = $7\n                  WHERE organization_id = $1 AND version = $8",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "Jsonb",
+        "Bool",
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fd4430c736ba2e4f62210fdb2df0349517b88496cbcdf0ee071e6cf8532a966a"
+}

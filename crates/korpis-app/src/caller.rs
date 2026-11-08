@@ -33,6 +33,21 @@ pub struct Caller {
     /// For a session begun at a portal, the portal's organization: nothing outside it is authorized
     /// for the call, whatever its grants reach.
     pub within: Option<uuid::Uuid>,
+    /// For an extension acting for whoever invoked one of its actions: the invocation, whose
+    /// objects alone it may act on.
+    pub invoked: Option<Invoked>,
+}
+
+/// An extension acting for the invoker of one of its actions, under the invocation's token: its
+/// own grants decide what it may do, and only on what the invoker was authorized on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Invoked {
+    /// The invocation.
+    pub invocation: uuid::Uuid,
+    /// Who invoked it, as a principal's key.
+    pub invoker: String,
+    /// The objects it may act on, and what lies beneath them.
+    pub resources: Vec<ObjectRef>,
 }
 
 /// A person acting through a client that relayed what they presented, under the ticket it was
@@ -63,6 +78,7 @@ impl Caller {
             holder: None,
             relayed: None,
             within: None,
+            invoked: None,
         }
     }
 
@@ -91,22 +107,29 @@ impl Caller {
     #[must_use]
     pub fn effect(&self, action: impl Into<String>, outcome: Outcome) -> Effect {
         let relay = self.relayed.as_ref().map(|r| r.relay.clone());
-        Effect::new(self.principal.clone(), action, outcome).relayed_by(relay)
+        let invocation = self.invoked.as_ref().map(|i| i.invocation);
+        Effect::new(self.principal.clone(), action, outcome).relayed_by(relay).invoked(invocation)
     }
 
-    /// Refuses a person acting through a relay, for what no ticket can name: issuing a grant,
-    /// minting a token, or anything else that would leave the relay holding what the person may
-    /// do, or that acts outside the one authorization a ticket allows.
+    /// Refuses a person acting through a relay, and an extension acting for an invoker, for what no
+    /// ticket or invocation can name: issuing a grant, minting a token, or anything else that would
+    /// leave the relay or the extension holding what the person may do, or that acts outside the
+    /// one authorization a ticket allows.
     ///
     /// # Errors
     /// [`AppError::Relayed`] for a relayed caller.
     pub const fn direct(&self) -> Result<(), AppError> {
-        if self.relayed.is_some() { Err(AppError::Relayed) } else { Ok(()) }
+        if self.relayed.is_some() || self.invoked.is_some() {
+            Err(AppError::Relayed)
+        } else {
+            Ok(())
+        }
     }
 
     /// Whether this caller may be authorized for `action` on `object`, whose ancestry is
     /// `resource`, at all: anyone may, but a person acting through a relay only for what their
-    /// ticket names, and a session begun at a portal only at or beneath its organization.
+    /// ticket names, a session begun at a portal only at or beneath its organization, and an
+    /// extension acting for an invoker only at or beneath what the invoker was authorized on.
     #[must_use]
     pub fn may_ask(&self, action: &Action, resource: &Resource) -> bool {
         let Some(object) = resource.object() else { return false };
@@ -115,6 +138,10 @@ impl Caller {
                 .relayed
                 .as_ref()
                 .is_none_or(|r| &r.action == action && r.object == TicketObject::Object(object))
+            && self
+                .invoked
+                .as_ref()
+                .is_none_or(|i| i.resources.iter().any(|r| resource.is_within(&Scope::Object(*r))))
     }
 
     /// Whether `resource` lies where the caller may act at all: anywhere, but for a session begun

@@ -12,6 +12,7 @@ import "google/protobuf/timestamp.proto";
 import "korpis/v1/api.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/event.proto";
+import "korpis/v1/provider.proto";
 import "korpis/v1/recipe.proto";
 import "korpis/v1/tenancy.proto";
 import "korpis/v1/workload.proto";
@@ -27,9 +28,9 @@ message ExtensionManifest {
   repeated string egress = 4;
   repeated EventFilter subscribes = 5;
   repeated ProvidedInterface provides = 6;
-  // ext.<name>.<action>, built in Phase 4.
+  // ext.<name>.<action>, invoked through InvokeAction.
   repeated ActionDecl actions = 7;
-  // Built in Phase 4.
+  // What it contributes to the panel's slots, rendered by the panel's own components.
   repeated SlotDecl ui_slots = 8;
 }
 
@@ -76,8 +77,10 @@ message ActionArgument {
 }
 
 message SlotDecl {
+  // A slot the panel offers: workload.panel, organization.settings.
   string slot = 1;
-  // A declarative descriptor, or the URL of an isolated frame.
+  // A declarative descriptor: {"kind": "card" or "form", "action": <declared action>, "title":
+  // <text>}. For workload.panel the action takes a workload, given the page's.
   string descriptor = 2;
 }
 
@@ -137,6 +140,100 @@ service ExtensionService {
   // document's needs approved exactly, grants kept, issued, or revoked to match them, and the new
   // digest declared on the same workload. A dry run returns what would change.
   rpc UpgradeExtension(UpgradeExtensionRequest) returns (UpgradeExtensionResponse);
+  // Invokes one of an installation's actions: ext.<name>.<action> authorized for the caller on
+  // each resource argument, or on where it is installed when it takes none; the extension acts
+  // for the caller only within that, and the invocation is an effect.
+  rpc InvokeAction(InvokeActionRequest) returns (InvokeActionResponse);
+  // A root organization's extension policy, which governs every installation beneath it:
+  // org.read there.
+  rpc GetExtensionPolicy(GetExtensionPolicyRequest) returns (GetExtensionPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Sets it, by compare-and-swap on the mutation's expected_version (zero when none is set):
+  // org.write there.
+  rpc SetExtensionPolicy(SetExtensionPolicyRequest) returns (SetExtensionPolicyResponse);
+  // What installations covering an object contribute to one of the panel's slots there: only
+  // contributions whose action the caller may invoke on it.
+  rpc ListSlots(ListSlotsRequest) returns (ListSlotsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message ListSlotsRequest {
+  // workload.panel or organization.settings.
+  string slot = 1;
+  // The workload, or the organization, the slot is shown for.
+  string object = 2;
+}
+
+message ListSlotsResponse {
+  repeated SlotContribution contributions = 1;
+}
+
+// One installation's contribution to a slot, rendered by the panel's own components.
+message SlotContribution {
+  // The installation, to invoke the action of.
+  string extension = 1;
+  // Its name, as ext.<name>.<action> writes it.
+  string extension_name = 2;
+  // card: what the action answers, asked as it is shown; form: the action's arguments, invoking
+  // it when submitted.
+  string kind = 3;
+  string title = 4;
+  ActionDecl action = 5;
+}
+
+// An operator's rule over the extensions installed beneath a root organization. Everything empty
+// and tenants_install true is the default, open.
+message ExtensionPolicy {
+  // A registry host, or a repository prefix beneath one, an extension's artifact may come from;
+  // empty for anywhere.
+  repeated string registries = 1;
+  // Publishers, one of whom must have signed the artifact's digest; empty for anyone the
+  // installing organization's trust policy accepts.
+  repeated Signer publishers = 2;
+  // Whether someone without extension.install over the root organization may install one.
+  bool tenants_install = 3;
+}
+
+message GetExtensionPolicyRequest {
+  // The root organization.
+  string organization = 1;
+}
+
+message GetExtensionPolicyResponse {
+  ExtensionPolicy policy = 1;
+  // Zero when none was set and the default governs.
+  uint64 version = 2;
+}
+
+message SetExtensionPolicyRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  ExtensionPolicy policy = 3;
+}
+
+message SetExtensionPolicyResponse {
+  ExtensionPolicy policy = 1;
+  uint64 version = 2;
+  Consistency consistency = 3;
+}
+
+message InvokeActionRequest {
+  // The installation.
+  string extension = 1;
+  // The part after ext.<name>.
+  string action = 2;
+  map<string, ActionValue> arguments = 3;
+}
+
+message InvokeActionResponse {
+  string invocation = 1;
+  // What the action answered; unset when it failed.
+  ActionResult result = 2;
+  // Why it failed, when it did: the extension's own reason, or provider.deadline,
+  // provider.stream_ended or provider.unknown when it was not answered.
+  Error error = 3;
 }
 
 message InstallExtensionRequest {

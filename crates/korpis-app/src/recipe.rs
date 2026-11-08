@@ -109,7 +109,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok((reference, described))
     }
 
-    async fn vouch(
+    pub(crate) async fn vouch(
         &self,
         name: &str,
         digest: &str,

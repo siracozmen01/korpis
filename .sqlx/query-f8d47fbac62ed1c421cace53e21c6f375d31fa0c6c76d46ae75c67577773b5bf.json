@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE extension_invocation SET finished_at = $2 WHERE id = $1 AND finished_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f8d47fbac62ed1c421cace53e21c6f375d31fa0c6c76d46ae75c67577773b5bf"
+}

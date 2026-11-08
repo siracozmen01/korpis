@@ -17,6 +17,8 @@ pub const CAPABILITIES: &[&str] = &[
     "events.subscribe",
     // The workload credential socket.
     "identity.credential",
+    // An extension's own actions: invoked for a person, acting within an invocation token.
+    "provider.action",
     // Address routers' calls: routing an address to a node, or nowhere.
     "provider.address_router",
     // Backup targets' calls: scoped access, listing, and deletion.

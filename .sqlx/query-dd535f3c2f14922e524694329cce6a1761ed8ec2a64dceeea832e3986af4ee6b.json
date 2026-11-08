@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM extension_invocation\n              WHERE coalesce(finished_at, expires_at) < $1 AND expires_at < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd535f3c2f14922e524694329cce6a1761ed8ec2a64dceeea832e3986af4ee6b"
+}

@@ -29,6 +29,7 @@ struct EffectRow {
     organization_id: Option<Uuid>,
     actor: String,
     relay: Option<String>,
+    invocation_id: Option<Uuid>,
     grant_id: Option<Uuid>,
     action: String,
     outcome: String,
@@ -78,6 +79,7 @@ impl EffectRow {
             organization: self.organization_id,
             actor: principal(&self.actor)?,
             relay: self.relay.as_deref().map(principal).transpose()?,
+            invocation: self.invocation_id,
             grant: self.grant_id,
             action: self.action,
             outcome,
@@ -105,7 +107,8 @@ impl EffectRead for PgStore {
         let rows = sqlx::query_as!(
             EffectRow,
             "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, object_kind,
-                    object_id, organization_id, actor, relay, grant_id, action, outcome, error,
+                    object_id, organization_id, actor, relay, invocation_id, grant_id, action,
+                    outcome, error,
                     before, after, count, window_end, origin_node, origin_seq
                FROM effect
               WHERE ($1::uuid IS NULL OR workload_id = $1)
@@ -170,10 +173,10 @@ impl EffectWrite for PgTx {
             "INSERT INTO effect (id, occurred_at, plan_id, step, workload_id, node_id, actor,
                                  grant_id, action, outcome, error, before, after, count,
                                  window_end, origin_node, origin_seq, relay, object_kind,
-                                 object_id, organization_id, project_id)
+                                 object_id, organization_id, project_id, invocation_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
                      $17, $18, $19, $20, korpis_object_organization($19, $20),
-                     korpis_object_project($19, $20))
+                     korpis_object_project($19, $20), $21)
              RETURNING at",
             e.id,
             e.occurred_at.map(from_time),
@@ -194,7 +197,8 @@ impl EffectWrite for PgTx {
             origin_seq,
             e.relay.as_ref().map(Principal::key),
             about.map(|o| o.kind.as_str()),
-            about.map(|o| o.id)
+            about.map(|o| o.id),
+            e.invocation
         )
         .fetch_one(&mut *self.tx)
         .await

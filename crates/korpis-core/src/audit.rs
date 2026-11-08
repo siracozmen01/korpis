@@ -108,6 +108,9 @@ pub struct Effect {
     pub window_end: Option<SystemTime>,
     /// For node-originated effects.
     pub origin: Option<JournalOrigin>,
+    /// The extension action's invocation it was made under, when an extension acted for whoever
+    /// invoked it.
+    pub invocation: Option<Uuid>,
 }
 
 impl Effect {
@@ -135,7 +138,15 @@ impl Effect {
             count: 1,
             window_end: None,
             origin: None,
+            invocation: None,
         }
+    }
+
+    /// Names the invocation it was made under, if it was.
+    #[must_use]
+    pub const fn invoked(mut self, invocation: Option<Uuid>) -> Self {
+        self.invocation = invocation;
+        self
     }
 
     /// Names the client that relayed what the actor presented, if one did.

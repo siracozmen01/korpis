@@ -172,6 +172,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(RecipeRef, ExtensionManifest, String), AppError> {
         let (artifact, described) =
             self.resolve_trusted(&old.artifact_name, &cmd.version, old.organization).await?;
+        self.extension_allowed(caller, old.organization, &artifact).await?;
         let manifest = described
             .extension
             .ok_or_else(|| AppError::invalid("version", "a recipe, not an extension"))?;
@@ -239,7 +240,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.insert_grant(record).await?;
             tx.append_effect(&issued_effect(caller, record, parent.id)).await?;
         }
-        tx.replace_provides(i.id, i.organization, &new.manifest.provides)
+        tx.replace_provides(i.id, i.organization, &new.manifest.registered(i.id))
             .await
             .map_err(provider_taken)?;
         super::provider::fail_in_flight(tx, now).await?;

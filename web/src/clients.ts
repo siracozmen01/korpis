@@ -20,12 +20,14 @@ import {
   StreamService,
   WorkloadService,
 } from "./gen/korpis/v1/api_pb";
+import { ExtensionService } from "./gen/korpis/v1/extension_pb";
 import { MeteringService } from "./gen/korpis/v1/metering_pb";
 import { RunService } from "./gen/korpis/v1/run_pb";
 
 /** The services the navigation reads. */
 export interface Clients {
   readonly effects: Client<typeof EffectService>;
+  readonly extensions: Client<typeof ExtensionService>;
   readonly grants: Client<typeof GrantService>;
   readonly identity: Client<typeof IdentityService>;
   readonly metering: Client<typeof MeteringService>;
@@ -43,6 +45,7 @@ export interface Clients {
 export function clientsOver(transport: Transport): Clients {
   return {
     effects: createClient(EffectService, transport),
+    extensions: createClient(ExtensionService, transport),
     grants: createClient(GrantService, transport),
     identity: createClient(IdentityService, transport),
     metering: createClient(MeteringService, transport),

@@ -108,7 +108,8 @@ fn pinged(c: &Called) -> pb::PingProviderResponse {
             | CallOutcome::BlockAttached(_)
             | CallOutcome::BlockDetached
             | CallOutcome::BlockDeleted
-            | CallOutcome::BlockDescribed(_) => None.into(),
+            | CallOutcome::BlockDescribed(_)
+            | CallOutcome::ActionResult(_) => None.into(),
         },
         ..Default::default()
     }

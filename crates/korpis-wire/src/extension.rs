@@ -30,6 +30,7 @@ enum_map!(provider_type_to_pb, provider_type_from_pb, ProviderType, pb::Provider
     ProviderType::KeyManagement => pb::ProviderType::PROVIDER_TYPE_KEY_MANAGEMENT,
     ProviderType::AddressRouter => pb::ProviderType::PROVIDER_TYPE_ADDRESS_ROUTER,
     ProviderType::BlockStorage => pb::ProviderType::PROVIDER_TYPE_BLOCK_STORAGE,
+    ProviderType::Action => pb::ProviderType::PROVIDER_TYPE_ACTION,
 });
 
 /// The wire form of a need.
@@ -86,7 +87,9 @@ fn argument_to_pb(x: &ActionArgument) -> pb::ActionArgument {
     }
 }
 
-fn action_to_pb(a: &ActionDecl) -> pb::ActionDecl {
+/// The wire form of an action an extension declares.
+#[must_use]
+pub fn action_to_pb(a: &ActionDecl) -> pb::ActionDecl {
     pb::ActionDecl {
         name: a.name.clone(),
         description: a.description.clone(),

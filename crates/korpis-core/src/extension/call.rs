@@ -102,6 +102,8 @@ pub enum CallRequest {
         /// The provider's name for it.
         device: String,
     },
+    /// `action`: perform one of the extension's actions for the person who invoked it.
+    InvokeAction(super::action::Invoke),
     /// `step`: resolve an install step.
     RunStep {
         /// The step kind, `<publisher>/<step>`.
@@ -146,6 +148,8 @@ pub enum CallOutcome {
     },
     /// The answer to [`CallRequest::RunStep`].
     StepResult(super::StepResult),
+    /// The answer to [`CallRequest::InvokeAction`].
+    ActionResult(super::action::ActionResult),
     /// The answer to [`CallRequest::GenerateKey`] and [`CallRequest::UnwrapKey`]: the key
     /// wrapped for storage (generating only) and sealed to the recipient.
     KeyMaterial {
@@ -209,6 +213,7 @@ impl CallRequest {
             }
             (Self::AttachBlockVolume(asked), CallOutcome::BlockAttached(a)) => a.answers(asked),
             (Self::RunStep { .. }, CallOutcome::StepResult(r)) => r.problem().is_none(),
+            (Self::InvokeAction(_), CallOutcome::ActionResult(r)) => r.well_formed(),
             (Self::HealthStep(step), CallOutcome::HealthNext(next)) => next.answers(step),
             (Self::GrantAccess { prefix, .. }, CallOutcome::Access(a)) => {
                 a.s3.key_prefix.ends_with(prefix.as_str()) && super::is_located(&a.s3)

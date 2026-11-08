@@ -150,6 +150,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(Target, Resolved), AppError> {
         let target = self.install_target(caller, cmd).await?;
         let resolved = self.extension_artifact(cmd).await?;
+        self.extension_allowed(caller, cmd.organization, &resolved.artifact).await?;
         // At install, a dry run's included, and never at first use.
         resolved.manifest.compatible().map_err(|e| AppError::Unsatisfiable {
             reason: "extension.incompatible",
@@ -285,7 +286,7 @@ async fn write_installation<X: Tx>(
         StoreError::Duplicate(Unique::ExtensionName) => exists(),
         other => other.into(),
     })?;
-    tx.insert_provides(i.id, i.organization, &installed.manifest.provides)
+    tx.insert_provides(i.id, i.organization, &installed.manifest.registered(i.id))
         .await
         .map_err(provider_taken)?;
     for NeedGrant { record, parent } in grants {

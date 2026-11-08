@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ExtensionService`: installing an extension and reading what is installed.
+//! `ExtensionService`: installing an extension, reading what is installed, and invoking an
+//! installation's actions.
 
 use super::wire::event::filter_to_pb;
 use super::wire::extension::{manifest_to_pb, need_from_pb, provided_in_pb};
@@ -12,8 +13,8 @@ use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::extension::{
-    ExtensionStatus, ExtensionView, InstallExtension, Installed, Uninstalled, UpgradeExtension,
-    Upgraded,
+    ExtensionStatus, ExtensionView, InstallExtension, Installed, InvokeAction, Uninstalled,
+    UpgradeExtension, Upgraded,
 };
 use korpis_core::extension::{ExtensionManifest, Installation, Need};
 use korpis_core::id::IdKind;
@@ -235,5 +236,55 @@ impl pb::ExtensionService for Api {
             .await
             .map_err(error::from_app)?;
         respond(reply, upgraded)
+    }
+
+    async fn invoke_action(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::InvokeActionRequest>,
+    ) -> ServiceResult<pb::InvokeActionResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let asked = InvokeAction {
+            extension: wire::id(IdKind::Extension, "extension", &req.extension).refuse()?,
+            action: req.action.clone(),
+            arguments: super::wire::action::arguments_from_pb("arguments", &req.arguments)
+                .refuse()?,
+        };
+        let done = self.app.invoke_action(&caller, asked).await.map_err(error::from_app)?;
+        let (result, error) = match &done.result {
+            Ok(r) => (Some(super::wire::action::result_to_pb(r)), None),
+            Err(f) => (None, Some(super::wire::provider::failure_to_pb(f))),
+        };
+        Response::ok(pb::InvokeActionResponse {
+            invocation: wire_id(IdKind::Invocation, done.invocation),
+            result: result.into(),
+            error: error.into(),
+            ..Default::default()
+        })
+    }
+
+    async fn get_extension_policy(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetExtensionPolicyRequest>,
+    ) -> ServiceResult<pb::GetExtensionPolicyResponse> {
+        super::extension_policy::get(self, &ctx, request).await
+    }
+
+    async fn set_extension_policy(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::SetExtensionPolicyRequest>,
+    ) -> ServiceResult<pb::SetExtensionPolicyResponse> {
+        super::extension_policy::set(self, &ctx, request).await
+    }
+
+    async fn list_slots(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListSlotsRequest>,
+    ) -> ServiceResult<pb::ListSlotsResponse> {
+        super::slots::list(self, &ctx, request).await
     }
 }

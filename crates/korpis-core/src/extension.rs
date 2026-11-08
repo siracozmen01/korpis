@@ -5,6 +5,7 @@
 //! Everything else in its document describes its workload, as any recipe does; this is the one
 //! section that makes the recipe an extension.
 
+pub mod action;
 mod backup;
 pub mod block;
 mod breaker;
@@ -14,7 +15,9 @@ mod contract;
 pub mod health;
 pub mod identity;
 mod installation;
+pub mod policy;
 mod registration;
+pub mod slot;
 mod step;
 mod validate;
 
@@ -64,6 +67,20 @@ pub struct ExtensionManifest {
     pub actions: Vec<ActionDecl>,
     /// Its contributions to the web surface.
     pub ui_slots: Vec<SlotDecl>,
+}
+
+impl ExtensionManifest {
+    /// What `installation` of it registers: its `provides` entries, and its actions, if it
+    /// declares any, served under the installation's identifier, so they are its own and no other
+    /// installation's, wherever either is installed.
+    #[must_use]
+    pub fn registered(&self, installation: uuid::Uuid) -> Vec<ProvidedInterface> {
+        let actions = (!self.actions.is_empty()).then(|| ProvidedInterface {
+            kind: ProviderType::Action,
+            name: installation.to_string(),
+        });
+        self.provides.iter().cloned().chain(actions).collect()
+    }
 }
 
 /// Actions an extension needs, over one scope.
@@ -140,11 +157,14 @@ pub enum ProviderType {
     AddressRouter,
     /// Network block storage, a volume a device one node attaches at a time.
     BlockStorage,
+    /// An extension's own actions, registered under its installation's identifier when its
+    /// document declares any; never written in a document's `provides`.
+    Action,
 }
 
 impl ProviderType {
     /// Every type, in declaration order.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Dns,
         Self::BackupTarget,
         Self::Step,
@@ -156,6 +176,7 @@ impl ProviderType {
         Self::KeyManagement,
         Self::AddressRouter,
         Self::BlockStorage,
+        Self::Action,
     ];
 
     /// The name a document writes.
@@ -173,6 +194,7 @@ impl ProviderType {
             Self::KeyManagement => "key_management",
             Self::AddressRouter => "address_router",
             Self::BlockStorage => "block_storage",
+            Self::Action => "action",
         }
     }
 

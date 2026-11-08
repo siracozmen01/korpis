@@ -9,6 +9,7 @@
 //! The SDK is Apache-2.0, like the protocol it speaks, so an extension may carry any licence its
 //! author chooses. It depends on the wire contract alone.
 
+pub mod action;
 pub mod address;
 pub mod backup;
 pub mod block;

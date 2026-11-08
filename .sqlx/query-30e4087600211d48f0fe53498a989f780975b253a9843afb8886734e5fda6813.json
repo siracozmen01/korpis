@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT organization_id, registries, publishers, tenants_install, version, set_by,\n                    set_at\n               FROM extension_policy WHERE organization_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "extension_policy",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "registries",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "extension_policy",
+            "name": "registries"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "publishers",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "extension_policy",
+            "name": "publishers"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "tenants_install",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "extension_policy",
+            "name": "tenants_install"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "extension_policy",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "set_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "extension_policy",
+            "name": "set_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "set_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "extension_policy",
+            "name": "set_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "30e4087600211d48f0fe53498a989f780975b253a9843afb8886734e5fda6813"
+}

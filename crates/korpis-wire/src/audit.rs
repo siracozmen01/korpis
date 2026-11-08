@@ -73,6 +73,7 @@ pub fn effect_to_pb(e: &Effect) -> pb::Effect {
         node: e.node.map(|n| wire_id(IdKind::Node, n)),
         actor: principal::to_pb(&e.actor).into(),
         relay: e.relay.as_ref().map(principal::to_pb).into(),
+        invocation: e.invocation.map(|i| crate::wire_id(crate::IdKind::Invocation, i)),
         grant: e.grant.map(|g| wire_id(IdKind::Grant, g)),
         at: e.at.map(timestamp).into(),
         occurred_at: e.occurred_at.map(timestamp).into(),
